@@ -45,6 +45,21 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error('A database error occurred. Please try again.');
 }
 
+function cleanUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanUndefined) as unknown as T;
+  }
+  const cleaned: any = {};
+  for (const key of Object.keys(obj)) {
+    const val = (obj as any)[key];
+    if (val !== undefined) {
+      cleaned[key] = cleanUndefined(val);
+    }
+  }
+  return cleaned;
+}
+
 // User Profile
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   if (!isFirebaseConfigured || !db) return null;
@@ -64,7 +79,7 @@ export async function setUserProfile(uid: string, profile: Partial<UserProfile>)
   if (!isFirebaseConfigured || !db) return;
   const path = `users/${uid}`;
   try {
-    await setDoc(doc(db, 'users', uid), profile, { merge: true });
+    await setDoc(doc(db, 'users', uid), cleanUndefined(profile), { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -106,7 +121,7 @@ export async function saveMonthBudget(uid: string, monthKey: string, month: Mont
   if (!isFirebaseConfigured || !db) return;
   const path = `users/${uid}/months/${monthKey}`;
   try {
-    await setDoc(doc(db, 'users', uid, 'months', monthKey), month, { merge: true });
+    await setDoc(doc(db, 'users', uid, 'months', monthKey), cleanUndefined(month), { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -147,7 +162,7 @@ export async function saveSavingsGoals(uid: string, goals: SavingGoal[]): Promis
   if (!isFirebaseConfigured || !db) return;
   const path = `users/${uid}/data/savings`;
   try {
-    await setDoc(doc(db, 'users', uid, 'data', 'savings'), { goals }, { merge: true });
+    await setDoc(doc(db, 'users', uid, 'data', 'savings'), cleanUndefined({ goals }), { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
