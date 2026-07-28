@@ -567,7 +567,7 @@ export default function DashboardPage() {
         )}
 
         {/* Main Header Bar */}
-        <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-baseline justify-between">
+        <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
           <div className="flex self-center gap-3 ">
             {/* Mobile Logo + Balance */}
             <div className="md:hidden flex flex-col">
@@ -624,7 +624,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Header Action Tools */}
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-center gap-2">
             <InstallButton compact />
 
             <BudgetAlerts month={month} />

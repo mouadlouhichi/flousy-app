@@ -535,22 +535,22 @@ export default function OnboardingPage() {
                     >
                       <div className="flex items-center gap-3">
                         {(() => {
-                          const billIconMap: Record<string, { icon: string; bg: string; text: string }> = {
-                            'Housing': { icon: 'home', bg: 'bg-amber-100', text: 'text-amber-700' },
-                            'Utilities': { icon: 'bolt', bg: 'bg-yellow-100', text: 'text-yellow-700' },
-                            'Internet & Phone': { icon: 'wifi', bg: 'bg-blue-100', text: 'text-blue-700' },
-                            'Subscriptions': { icon: 'subscriptions', bg: 'bg-purple-100', text: 'text-purple-700' },
-                            'Insurance': { icon: 'shield', bg: 'bg-surface-container', text: 'text-on-surface-variant' },
-                            'Transport': { icon: 'directions_car', bg: 'bg-cyan-100', text: 'text-cyan-700' },
-                            'Food & Groceries': { icon: 'restaurant', bg: 'bg-orange-100', text: 'text-orange-700' },
-                            'Health': { icon: 'favorite', bg: 'bg-red-100', text: 'text-red-700' },
-                            'Education': { icon: 'school', bg: 'bg-indigo-100', text: 'text-indigo-700' },
-                            'Childcare': { icon: 'child_care', bg: 'bg-pink-100', text: 'text-pink-700' },
-                            'Entertainment': { icon: 'sports_esports', bg: 'bg-emerald-100', text: 'text-emerald-700' },
-                            'Loans': { icon: 'account_balance', bg: 'bg-rose-100', text: 'text-rose-700' },
-                            'Savings': { icon: 'savings', bg: 'bg-teal-100', text: 'text-teal-700' },
-                            'Other': { icon: 'category', bg: 'bg-gray-100', text: 'text-gray-700' },
-                          };
+const billIconMap: Record<string, { icon: string; bg: string; text: string }> = {
+  'Housing':            { icon: 'home',            bg: 'bg-[#0f766e]/10', text: 'text-[#0f766e]' }, // teal-adjacent, distinct from --primary
+  'Utilities':          { icon: 'bolt',             bg: 'bg-[#a16207]/10', text: 'text-[#a16207]' },
+  'Internet & Phone':   { icon: 'wifi',              bg: 'bg-[#1d4ed8]/10', text: 'text-[#1d4ed8]' },
+  'Subscriptions':      { icon: 'subscriptions',     bg: 'bg-[#7c3aed]/10', text: 'text-[#7c3aed]' },
+  'Insurance':          { icon: 'shield',            bg: 'bg-[#575e70]/10', text: 'text-[#575e70]' }, // app --secondary
+  'Transport':          { icon: 'directions_car',    bg: 'bg-[#0e7490]/10', text: 'text-[#0e7490]' },
+  'Food & Groceries':   { icon: 'restaurant',        bg: 'bg-[#924628]/10', text: 'text-[#924628]' }, // app --tertiary
+  'Health':             { icon: 'favorite',          bg: 'bg-[#be123c]/10', text: 'text-[#be123c]' },
+  'Education':          { icon: 'school',            bg: 'bg-[#4338ca]/10', text: 'text-[#4338ca]' },
+  'Childcare':          { icon: 'child_care',        bg: 'bg-[#be185d]/10', text: 'text-[#be185d]' },
+  'Entertainment':      { icon: 'sports_esports',    bg: 'bg-[#047857]/10', text: 'text-[#047857]' },
+  'Loans':              { icon: 'account_balance',   bg: 'bg-[#9f1239]/10', text: 'text-[#9f1239]' },
+  'Savings':            { icon: 'savings',           bg: 'bg-[#0f766e]/10', text: 'text-[#0f766e]' }, // shares Housing's hue — both "asset-building"
+  'Other':              { icon: 'category',          bg: 'bg-[#3d4947]/10', text: 'text-[#3d4947]' }, // app --on-surface-variant
+};
                           const m = billIconMap[b.category] || billIconMap['Other'];
                           return (
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${m.bg} ${m.text}`}>
@@ -789,7 +789,7 @@ export default function OnboardingPage() {
                   <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">
                     MONTHLY
                   </span>
-                  <span className="text-[18px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">
+                  <span className="text-[16px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">
                     {format(parsedIncome)}
                   </span>
                 </div>

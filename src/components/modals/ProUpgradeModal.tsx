@@ -209,19 +209,6 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                     ? 'Thank you for supporting Flousy. All premium features are active.'
                     : 'Multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
                 </p>
-                {!isPro && (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mt-6">
-                    {[
-                      'Auto insights',
-                      'Unlimited imports',
-                      'Priority support',
-                    ].map((feature) => (
-                      <div key={feature} className="rounded-2xl border border-surface-container-highest bg-surface-container p-3 text-sm font-semibold text-on-surface shadow-sm">
-                        {feature}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
