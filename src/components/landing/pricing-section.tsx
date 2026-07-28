@@ -128,7 +128,8 @@ export function PricingSection() {
               </button>
             </div>
             );
-          ))}
+          }
+        )}
         </div>
 
         {/* Bottom Note */}
