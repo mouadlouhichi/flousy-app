@@ -7,6 +7,7 @@ import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registra
 import { LightLanguageProvider } from '@/lib/i18n-light';
 import { SITE_URL } from '@/lib/seo';
 import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
+import { Analytics } from '@vercel/analytics/react';
 import '../index.css';
 
 const instrumentSans = Instrument_Sans({
@@ -34,7 +35,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Flousy – Private Budget Tracker',
+    default: 'Flousy - Free Private Budget Tracker & Money Manager App',
     template: '%s · Flousy',
   },
   description:
@@ -51,6 +52,16 @@ export const metadata: Metadata = {
     'no bank connection',
     'needs wants savings budget',
     'money place tracking',
+    'budgeting',
+    'flousy',
+    'money',
+    'free',
+    'dirham',
+    'bank',
+    'mad',
+    'start',
+    'budgeting styles',
+    'start budgeting'
   ],
   generator: 'Next.js',
   manifest: '/manifest.json',
@@ -104,6 +115,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </LightLanguageProvider>
         <InstallBanner />
         <ServiceWorkerRegistrar />
+        <Analytics />
       </body>
     </html>
   );

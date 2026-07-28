@@ -1,0 +1,491 @@
+Options Share
+Download as PDF
+SEO Audit for flousy-app.vercel.app
+This report grades your website based on the strength of various SEO factors such as On Page Optimization, Off Page Links, Social and more. The overall Grade is on a A+ to F- scale,
+with most major, industry leading websites in the A range. Improving your grade will generally make your website perform better for users and rank better in search engines. There are
+recommendations for improving your website at the bottom of the report. Feel free to reach out to us if youʼd like us to help with improving your websiteʼs SEO!
+Audit Results
+Your page could be betterB
+Recommendations:16
+A
+On-Page SEOA+
+GEOF
+Links
+A-
+UsabilityA+
+PerformanceOn-Page SEO
+GEO
+Links UsabilityPerformance
+Improve Your Site With Our DIY SEO Tool
+Review unlimited pages. Crawl your whole site for problems and get clear, easy to follow recommendations with guides for your CMS. Monitor your keyword rankings and get
+regular updates on your site's performance.
+Helping Business Owners promote their websites the affordable way.Report Generated: 28 July 3:44PM UTCQuick Audit Website URL  
+
+Learn More - DIY SEO
+Recommendations
+Execute a Link Building Strategy
+Links High Priority
+Increase length of Title Tag
+On-Page SEO Medium Priority
+Use your main keywords across the important HTML Tags
+On-Page SEO Medium Priority
+Optimize for Mobile PageSpeed Insights
+Usability Low Priority
+Create and link your Facebook Page
+Other Low Priority
+Create and link your X Profile
+Other Low Priority
+Create and link an associated Instagram Profile
+Other Low Priority
+Create and link an associated YouTube Channel
+Other Low Priority
+Create and link an associated LinkedIn Profile
+Other Low Priority
+Add a DMARC Mail Record
+Other Low Priority
+Add an SPF Mail Record
+Other Low Priority
+Implement an Analytics Tracking Tool
+On-Page SEO Low Priority
+Add Business Address and Phone Number to site
+Other Low Priority
+Add Local Business Schema
+Other Low Priority
+Install a Facebook Pixel
+Other Low Priority
+Remove Inline Styles
+Performance Low Priority
+On-Page SEO Results
+Your On-Page SEO is good
+Your page is mostly optimized for On-Page SEO performance. On-Page SEO is important to ensure Search Engines can understand your
+content appropriately and help it rank for relevant keywords. You can continue to improve your page by ensuring HTML Tag Content is
+completed correctly and text content is well aligned with chosen keywords.
+Title Tag
+You have a Title Tag, but ideally it should be between 50 and 60 characters in length (including spaces).
+Private Budget Tracker | Flousy
+Length : 31A
+
+Title Tags are very important for search engines to correctly understand and categorize your content.
+Meta Description Tag
+Your page has a Meta Description of optimal length (between 120 and 160 characters).
+Track needs, wants, and savings separately from bank, home, and wallet. Flousy supports 12 currencies and 4 methods without connecting to your bank.
+Length : 148
+SERP Snippet Preview
+This illustrates how your page may appear in Search Results. Note, this is intended as a guide and Search Engines are more frequently generating this content
+dynamically.
+Hreflang Usage
+Your page is not making use of Hreflang attributes.
+Language
+Your page is using the Lang Attribute.
+Declared: English
+H1 Header Tag Usage
+Your page has a H1 Tag.
+Show Details
+H2-H6 Header Tag Usage
+Your page is making use multiple levels of Header Tags.
+HEADER TAG FREQUENCY
+H2 11
+H3 17
+H4 0
+H5 0
+H6 0
+Show Details
+Keyword Consistency
+Your page's main keywords are not distributed well across the important HTML Tags.
+Your page content should be focused around particular keywords you would like to rank for. Ideally these keywords should also be distributed across tags such as the
+title, meta and header tags.
+Individual Keywords
+KEYWORD TITLE META DESCRIPTION TAG HEADINGS TAGS PAGE FREQUENCY
+budgeting 19
+flousy 16
+money 13
+free 13
+dirham 11
+bank 11
+mad 11
+start 10
+Phrases
+PHRASE TITLE META DESCRIPTION TAG HEADINGS TAGS PAGE FREQUENCY
+budgeting styles 6
+Flousy
+https://flousy-app.vercel.app
+Private Budget Tracker | Flousy
+Track needs, wants, and savings separately from bank, home, and wallet. Flousy supports 12
+currencies and 4 methods without connecting to your bank.
+
+
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+PHRASE TITLE META DESCRIPTION TAG HEADINGS TAGS PAGE FREQUENCY
+start budgeting 4
+bank home 4
+currencies supported 4
+mad eur 4
+eur usd 4
+choose from 4
+mad moroccan 4
+Amount of Content
+Your page has a good level of textual content, which will assist in it's ranking potential.
+Word Count: 1154
+Image Alt Attributes
+You do not have any images missing Alt Attributes on your page.
+Canonical Tag
+Your page is using the Canonical Tag.
+https://flousy.app
+Noindex Tag Test
+Your page is not using the Noindex Tag which prevents indexing.
+Noindex Header Test
+Your page is not using the Noindex Header which prevents indexing.
+SSL Enabled
+Your website has SSL enabled.
+HTTPS Redirect
+Your page successfully redirects to a HTTPS (SSL secure) version.
+Robots.txt
+Your website appears to have a robots.txt file.
+http://flousy-app.vercel.app/robots.txt
+Search Engines Blocked by Robots.txt
+Your page is crawlable by the major search engines.
+No major search engines are blocked in your robots.txt.
+XML Sitemaps
+Your website appears to have an XML Sitemap.
+https://flousy.net/sitemap.xml
+Analytics
+We could not detect an analytics tool installed on your page.
+Website analytics tools like Google Analytics assist you in measuring, analyzing and ultimately improving traffic to your page.
+Schema.org Structured Data
+You are using JSON-LD Schema on your page.  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+Generative Engine Optimization (GEO)
+Your Generative Engine Optimization is very good!
+Congratulations, your Generative Engine Optimization (GEO) appears well positioned. GEO is important to ensure LLMs and AI Search Engines
+can effectively crawl your content and understand the underlying entity structure. Our knowledge of GEO is improving rapidly though, so stay
+on top of the latest understanding and optimizations.
+Rendered Content (LLM Readability)
+Your page has a low level of rendered content which tends to make it more readable for LLMs.
+Rendering Percentage: 1%
+Llms.txt
+Your website appears to have a llms.txt file.
+Llms.txt is a proposed standard for websites to guide large language models (LLMs) to better understand your site's content.
+http://flousy-app.vercel.app/llms.txt
+AI Crawlers Blocked by Robots.txtNew
+Your robots.txt allows the major AI crawlers to access your site.
+No major AI crawlers are blocked in your robots.txt.
+Identity SchemaNew
+Organization or Person Schema identified on the page.
+Organization
+LLM Content Analysis
+Our AI-powered GEO Content Analysis reviews how well your page is positioned for AI Search Engines and LLMs. Sign up to one of our premium plans to unlock the full
+analysis.
+Signup - Free TrialA+
+
+
+
+
+
+Rankings
+Top Organic Keyword Rankings
+You can see the live Keyword Rankings for your page within the report by signing up to one of our premium plans.
+Signup - Free Trial
+Links
+Backlink Summary
+You have a reasonably weak level of backlink activity to this page.
+Search Engines use backlinks as a strong indicator of a page's authority, relevance and ranking potential. There are various strategies available to gain links to a page to
+improve this factor
+Domain
+StrengthPage
+Strength
+0 0
+0
+Total Backlinks
+0
+Referring Domains
+Top Backlinks
+We haven't found any backlinks to report for this site.
+Top Pages by Backlinks
+We haven't found any Top Pages data for this site.
+Top Anchors by Backlinks
+We haven't found any Anchor Text data for this site.
+Top Referring Domain Geographies
+We haven't found any Geographic Data for this site.
+On-Page Link Structure
+We found 32 total links. % of your links are external links and are sending authority to other sites. % of your links are nofollow links, meaning authority is not being passed
+to those destination pages.
+On-Page Links
+Internal Links 32
+External Links: Follow 0
+External Links: Nofollow 0
+Show Details
+Friendly Links
+Your link URLs appear friendly (easily human or search engine readable).0
+Nofollow Backlinks
+0
+Dofollow Backlinks
+
+0
+Edu Backlinks
+0
+Gov Backlinks
+0
+IPs
+0
+Subnets
+
+
+
+
+
+32
+Total
+
+
+Create White Label PDFs
+Upload your own logo and company's contact details. Generate unlimited PDFs under our White Label plans. See an example PDF Report
+Embed the Audit Tool into your website. Get notified of leads straight from your website.
+Learn More - White Label
+Usability
+Your usability is good
+Your page is mostly usable across devices. Usability is important to maximize your available audience and minimize user bounce rates (which
+can indirectly affect your search engine rankings).
+Device Rendering
+This check visually demonstrates how your page renders on different devices. It is important that your page is optimized for mobile and tablet experiences as today the
+majority of web traffic comes from these sources.
+Google's Core Web Vitals
+Google is indicating that they do not have 'sufficient real-world speed data for this page' in order to make a Core Web Vitals assessment. This can occur for smaller
+websites or those that are not crawl-able by Google.
+Use of Mobile Viewports
+Your page specifies a Viewport matching the device's size, allowing it to render appropriately across devices.
+Google's PageSpeed Insights - Mobile
+Google is indicating that your page is scoring poorly on their Mobile PageSpeed Insights evaluation.
+Note that this evaluation is being performed from US servers and the results may differ slightly from an evaluation carried out from Google's PageSpeed Web Interface as
+that reporting localizes to the region in which you are running the report.
+Google has indicated that the performance of a webpage is becoming more important from a user and subsequently ranking perspective.
+LAB DATA VALUE
+First Contentful Paint 2 s
+Speed Index 3.1 s
+Largest Contentful Paint 3.3 s
+Time to Interactive 3.3 sOPPORTUNITIES ESTIMATED SAVINGS
+Avoid multiple page redirects 0.63 s
+Reduce unused JavaScript 0.15 sA-
+
+
+
+
+89
+LAB DATA VALUE
+Total Blocking Time 0.01 s
+Cumulative Layout Shift 0
+Google's PageSpeed Insights - Desktop
+Google is indicating that your page is scoring well on their Desktop PageSpeed Insights evaluation.
+LAB DATA VALUE
+First Contentful Paint 0.6 s
+Speed Index 2.4 s
+Largest Contentful Paint 0.8 s
+Time to Interactive 0.8 s
+Total Blocking Time 0.01 s
+Cumulative Layout Shift 0OPPORTUNITIES ESTIMATED SAVINGS
+Avoid multiple page redirects 0.19 s
+Flash Used?
+No Flash content has been identified on your page.
+iFrames Used?
+There are no iFrames detected on your page.
+Favicon
+Your page has specified a Favicon.
+Email Privacy
+No email addresses have been found in plain text on your page.
+Legible Font Sizes
+The text on your page appears to be legible across devices.
+Tap Target Sizing
+The links and buttons on your page appear to be appropriately sized for a user to easily tap on a touchscreen.
+94
+
+
+
+
+
+
+Performance Results
+Your performance is very good!
+Congratulations, your page has performed very well in our testing meaning it should be reasonably fast and responsive for users.
+Performance is important to ensure a good user experience, and reduced bounce rates (which can also indirectly affect your search engine
+rankings). Continue to monitor your performance over time to ensure there are no periodic fluctuations.
+Website Load Speed
+Your page loads in a reasonable amount of time.
+Server Response All Page Content Loaded
+All Page Scripts CompleteA+
+
+0.203s
+ 0.5s
+
+Website Download Size
+Your page's file size is reasonably low which is good for Page Load Speed and user experience.
+Download Page Size
+Download Page Size Breakdown
+HTML 0.02MB
+CSS 0.03MB
+JS 0.17MB
+Images 0MB
+Other 0.08MB
+Compression Usage (Gzip, Deflate, Brotli)
+Your website appears to be using a reasonable level of compression.
+Compression Rate
+Compression Rates
+HTML 85% compressed of 0.12MB
+CSS 83% compressed of 0.16MB
+JS 69% compressed of 0.56MB
+Other 14% compressed of 0.10MB
+Total 68% compressed of 0.94MB
+Resources Breakdown
+This check displays the total number of files that need to be retrieved from web servers to load your page.
+20
+Total Objects1
+Number of HTML
+Pages12
+Number of JS
+Resources3
+Number of CSS
+Resources0
+Number of Images4
+Other Resources
+Google Accelerated Mobile Pages (AMP)
+This page does not appear to have AMP Enabled.
+Show Details
+JavaScript Errors
+Your page is not reporting any JavaScript errors.
+0.5s
+
+0.30MB
+0.3MB
+Total
+
+68%
+HTML JS CSS IMG
+
+
+HTTP2 Usage
+Your website is using the recommended HTTP/2+ Protocol.
+Optimize Images
+All of the images on your page appear to be optimized.
+Minification
+All your JavaScript and CSS files appear to be minified.
+Deprecated HTML
+No deprecated HTML tags have been found within your page.
+Inline Styles
+Your page appears to be using Inline Styles.
+Inline Styles are an older coding practice and discouraged in favor of using CSS style sheets, due to their ability to degrade page load performance and unnecessarily
+complicate HTML Code.
+Show Details
+
+
+
+
+Social Results
+Facebook Page Linked
+No associated Facebook Page found as a link on your page.
+Facebook Open Graph Tags
+Your page is using Facebook Open Graph Tags.
+Facebook Pixel
+We have not detected a Facebook Pixel on your page.
+Facebook's Pixel is a useful piece of analytics code that allows you to retarget visitors if you decide to run Facebook Ads in future.
+X (formerly Twitter) Account Linked
+No associated X Profile found as a link on your page.
+X Cards
+Your page is using X Cards.
+Instagram Linked
+No associated Instagram Profile found linked on your page
+LinkedIn Page Linked
+No associated LinkedIn Profile found linked on your page.
+YouTube Channel Linked
+No associated YouTube Channel found linked on your page.YouTube Channel Activity
+No associated YouTube Channel found linked on your page.
+Want to grow your YouTube Channel? Try our  YouTube SEO Tool
+
+
+
+
+
+
+ 
+Local SEO
+Address & Phone Shown on Website
+We can't identify one or both of these components on the page. Missing: Phone, Address
+Local Business Schema
+No Local Business Schema identified on the page.
+Google Business Profile Identified
+You can see information about your page's Google Business Profile within this report by signing up to one of our premium plans.
+Signup - Free Trial
+Want to improve your Local Search Presence? Try our  Local SEO Tool
+
+
+
+Technology Results
+Technology List
+These software or coding libraries have been identified on your page.
+TECHNOLOGY VERSION
+HSTS
+Vercel
+Server IP Address
+216.198.79.67
+DNS Servers
+ns-tld3.charlestonroadregistry.com
+ns-tld2.charlestonroadregistry.com
+ns-tld1.charlestonroadregistry.com
+ns-tld4.charlestonroadregistry.com
+ns-tld5.charlestonroadregistry.com
+Web Server
+Vercel
+Charset
+text/html; charset=utf-8
+DMARC Record
+This site does not appear to have a DMARC record in place.
+DMARC records are important to improve email deliverability and combat spoofing.
+SPF Record
+This site does not appear to have an SPF record.
+SPF records are important to improve email deliverability and combat spoofing.
+
+
+
+
+
+
+Review Child Pages
+PAGE
+/about
+/blog
+/careers
+/contact
+/cookies
+/help
+/login
+/privacy
+/terms
+Embed an Audit Tool into your Agency's Site
+Match your website's styling and colors. Show your customer a beautiful branded report. Get notified of leads straight to your Inbox.
+Learn More - Embedding
+
