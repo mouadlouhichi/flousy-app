@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React from 'react';
 import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -95,7 +97,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Header ── */}
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-primary text-[28px]">trending_up</span>
+          <AppIcon name="trending_up" className=" text-primary text-[28px]" />
           <div>
             <h2 className="font-headline-md text-headline-md font-extrabold text-on-surface">
               Trends & Analytics
@@ -152,7 +154,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[24px]">bar_chart</span>
+            <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
             <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Month-Over-Month Spending</h3>
           </div>
           {!isPro && (
@@ -223,7 +225,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         ) : (
           <div className="p-8 bg-surface/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
-            <span className="material-symbols-outlined text-outline text-[36px]">bar_chart</span>
+            <AppIcon name="bar_chart" className=" text-outline text-[36px]" />
             <p className="font-body-md text-body-md text-on-surface-variant">Not enough month data yet.</p>
             <p className="font-body-sm text-body-sm text-on-surface-variant">Add expenses across multiple months to see trends.</p>
           </div>
@@ -233,7 +235,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Income Sources Breakdown ── */}
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-[24px]">payments</span>
+          <AppIcon name="payments" className=" text-primary text-[24px]" />
           <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Income Sources</h3>
         </div>
 
@@ -286,7 +288,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Category Trend Breakdown ── */}
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-[24px]">category</span>
+          <AppIcon name="category" className=" text-primary text-[24px]" />
           <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Category Breakdown</h3>
         </div>
 
@@ -340,7 +342,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {Object.keys(personBreakdown).length > 0 && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-primary text-[24px]">family_restroom</span>
+            <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
             <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Household Member Spending</h3>
           </div>
 
@@ -376,7 +378,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Budget Health Summary ── */}
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-[24px]">health_and_safety</span>
+          <AppIcon name="health_and_safety" className=" text-primary text-[24px]" />
           <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Budget Health</h3>
         </div>
 

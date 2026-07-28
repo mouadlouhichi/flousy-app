@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { MonthBudget, DebtItem, DebtType } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -80,7 +82,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
           onClick={onOpenDebtModal}
           className="sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-1.5 hover:bg-primary/90 transition-all shadow-sm"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <AppIcon name="add" className=" text-[18px]" />
           Add
         </button>
       </div>
@@ -101,9 +103,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
                       : 'bg-primary/10 text-primary'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {d.status === 'settled' ? 'check_circle' : 'account_balance'}
-                  </span>
+                  <AppIcon name={d.status === 'settled' ? 'check_circle' : 'account_balance'} className=" text-[20px]" />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="font-bold text-on-surface text-[15px] truncate">{d.name}</span>

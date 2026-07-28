@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useEffect, useState } from 'react';
 import { usePwaInstall } from '../../hooks/use-pwa-install';
 import { IosInstallSheet } from './ios-install-sheet';
@@ -47,9 +49,7 @@ export function InstallBanner() {
       >
         <div className="flex items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container p-3 shadow-lg backdrop-blur-md">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary">
-            <span className="material-symbols-outlined text-[24px] text-on-primary">
-              account_balance_wallet
-            </span>
+            <AppIcon name="account_balance_wallet" className=" text-[24px] text-on-primary" />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -74,7 +74,7 @@ export function InstallBanner() {
             aria-label="Dismiss install prompt"
             className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <AppIcon name="close" className=" text-[20px]" />
           </button>
         </div>
       </div>

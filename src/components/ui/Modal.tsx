@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useRef } from 'react';
 
 interface ModalProps {
@@ -85,7 +86,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
             aria-label="Close modal"
             className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
           >
-            <span className=" material-symbols-outlined text-[20px] sm:text-[24px] !block">close</span>
+            <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
           </button>
         </div>
 

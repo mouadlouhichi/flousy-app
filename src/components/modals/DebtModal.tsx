@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
@@ -109,7 +110,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             }`}
           >
             <span className="flex items-center justify-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+              <AppIcon name="arrow_upward" className=" text-[18px]" />
               I Owe
             </span>
           </button>
@@ -123,7 +124,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             }`}
           >
             <span className="flex items-center justify-center gap-1.5">
-              <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
+              <AppIcon name="arrow_downward" className=" text-[18px]" />
               Owed to Me
             </span>
           </button>
@@ -157,7 +158,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
                   : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">lock_open</span>
+              <AppIcon name="lock_open" className=" text-[16px]" />
               Open
             </button>
             <button
@@ -169,7 +170,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
                   : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              <AppIcon name="check_circle" className=" text-[16px]" />
               Settled
             </button>
           </div>
@@ -210,9 +211,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             type="submit"
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {initialDebt ? 'check' : 'add'}
-            </span>
+            <AppIcon name={initialDebt ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialDebt ? 'Save Changes' : 'Add Debt'}</span>
           </button>
         </div>
