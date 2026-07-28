@@ -554,8 +554,8 @@ export default function DashboardPage() {
         )}
 
         {/* Main Header Bar */}
-        <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-baseline justify-between">
+          <div className="flex self-center gap-3 ">
             {/* Mobile Logo + Balance */}
             <div className="md:hidden flex flex-col">
               <div className="flex items-center gap-2">
@@ -594,7 +594,7 @@ export default function DashboardPage() {
             >
               <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
             </button>
-            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
+            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[32px] sm:min-w-[64px] text-center uppercase">
               {(() => {
                 const [y, m] = currentMonthKey.split('-').map(Number);
                 const d = new Date(y, m - 1, 1);
@@ -611,7 +611,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Header Action Tools */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-baseline gap-2">
             <InstallButton compact />
 
             <BudgetAlerts month={month} />
@@ -621,7 +621,7 @@ export default function DashboardPage() {
                 setSelectedExpense(null);
                 setIsExpenseModalOpen(true);
               }}
-              className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-xl font-label-md font-bold hover:bg-primary/90 shadow-xs transition-all"
+              className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-primary/90 shadow-xs transition-all"
             >
               <AppIcon name="add" className=" text-[18px]" />
               <span>New Transaction</span>
