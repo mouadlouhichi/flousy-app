@@ -91,7 +91,7 @@ export function PricingSection() {
             Annual
           </span>
           {isAnnual && (
-            <span className="ml-2 px-2 py-1 bg-primary text-primary-foreground text-xs font-mono">
+            <span className="ml-2 px-2 py-1 bg-primary text-card text-xs font-mono">
               Save 34%
             </span>
           )}
