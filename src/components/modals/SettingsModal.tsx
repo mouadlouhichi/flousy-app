@@ -48,19 +48,19 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account">
-        <div className="flex flex-col gap-lg">
+        <div className="flex flex-col gap-xl">
           {/* User Email & Account Info */}
           {user && (
-            <div className="p-md bg-surface-container rounded-2xl border border-outline-variant flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                  SIGNED IN AS
+            <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex items-center justify-between">
+              <div className="flex flex-col gap-sm">
+                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                  Signed in as
                 </span>
-                <span className="font-body-lg text-body-lg text-on-surface font-semibold truncate max-w-[220px]">
+                <span className="font-body-lg text-body-lg text-on-surface font-medium truncate max-w-[220px]">
                   {user.email || 'Anonymous User'}
                 </span>
               </div>
-              <span className="px-2.5 py-1 bg-primary/10 text-primary font-label-md text-label-md rounded-full font-bold uppercase">
+              <span className="px-3 py-1.5 bg-primary/10 text-primary font-label-md text-label-md rounded-full font-semibold">
                 {profile?.plan || 'Free'} Plan
               </span>
             </div>
@@ -71,7 +71,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-tertiary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-xs"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-primary to-tertiary text-on-primary font-body-md text-body-md font-semibold shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-sm"
             >
               <span className="material-symbols-outlined text-[20px]">workspace_premium</span>
               <span>Go to Premium</span>
@@ -82,7 +82,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full py-3 rounded-xl bg-primary/10 text-primary font-label-lg text-label-lg font-bold border border-primary/20 hover:bg-primary/15 transition-all flex items-center justify-center gap-xs"
+              className="w-full py-4 rounded-2xl bg-primary/10 text-primary font-body-md text-body-md font-semibold border border-primary/20 hover:bg-primary/15 transition-all flex items-center justify-center gap-sm"
             >
               <span className="material-symbols-outlined text-[20px]">verified</span>
               <span>Pro Membership</span>
@@ -90,14 +90,14 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           )}
 
           {/* Currency Selection */}
-          <div className="flex flex-col gap-xs">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-              PREFERRED CURRENCY
+          <div className="flex flex-col gap-sm">
+            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+              Preferred Currency
             </label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
+              className="w-full p-4 bg-surface border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all outline-none"
             >
               {Object.values(SUPPORTED_CURRENCIES).map((c) => (
                 <option key={c.code} value={c.code}>
@@ -108,9 +108,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* Appearance / Theme */}
-          <div className="flex flex-col gap-xs">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-              APPEARANCE MODE
+          <div className="flex flex-col gap-sm">
+            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+              Appearance Mode
             </label>
             <div className="grid grid-cols-3 gap-sm">
               {(['light', 'dark', 'system'] as const).map((t) => (
@@ -118,56 +118,56 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                   key={t}
                   type="button"
                   onClick={() => handleThemeChange(t)}
-                  className={`p-md rounded-xl border flex flex-col items-center gap-1.5 transition-all capitalize font-label-md text-label-md font-semibold ${
+                  className={`p-4 rounded-xl border flex flex-col items-center gap-sm transition-all capitalize font-label-md text-label-md ${
                     currentTheme === t
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
+                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
                   }`}
                 >
-                  <span className="material-symbols-outlined">
+                  <span className="material-symbols-outlined text-[20px]">
                     {t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'}
                   </span>
-                  {t}
+                  <span>{t}</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Export Data */}
-          <div className="flex flex-col gap-xs">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-              DATA MANAGEMENT
+          <div className="flex flex-col gap-sm">
+            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+              Data Management
             </label>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="w-full p-md rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/30 flex items-center justify-between font-label-lg text-label-lg text-on-surface transition-colors"
+              className="w-full p-4 rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/50 flex items-center justify-between font-body-md text-body-md text-on-surface transition-colors"
             >
               <div className="flex items-center gap-md">
-                <span className="material-symbols-outlined text-primary">download</span>
+                <span className="material-symbols-outlined text-primary text-[20px]">download</span>
                 <span>Export Budget Data (CSV)</span>
               </div>
-              <span className="material-symbols-outlined text-on-surface-variant">
+              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
                 chevron_right
               </span>
             </button>
           </div>
 
           {/* Account Actions */}
-          <div className="flex flex-col gap-sm pt-md border-t border-surface-variant">
+          <div className="flex flex-col gap-sm pt-xl border-t border-surface-variant">
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3.5 rounded-xl border border-outline-variant text-on-surface hover:bg-surface-variant/40 font-headline-md text-headline-md transition-colors"
+                  className="w-full py-4 rounded-xl border border-outline-variant text-on-surface hover:bg-surface-variant/50 font-body-md text-body-md font-medium transition-colors"
                 >
                   Sign Out
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3.5 rounded-xl border border-error/40 text-error hover:bg-error-container/20 font-headline-md text-headline-md transition-colors"
+                  className="w-full py-4 rounded-xl border border-error/30 text-error hover:bg-error-container/50 font-body-md text-body-md font-medium transition-colors"
                 >
                   Delete Account & Erase Data
                 </button>
@@ -175,7 +175,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-3.5 rounded-xl bg-primary text-on-primary font-headline-md text-headline-md hover:bg-primary-container transition-colors"
+                className="w-full text-center py-4 rounded-xl bg-primary text-on-primary font-body-md text-body-md font-semibold hover:bg-primary/90 transition-colors"
               >
                 Sign In or Register Account
               </a>
@@ -183,12 +183,12 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* Legal Links */}
-          <div className="flex justify-center gap-lg pt-sm text-label-sm font-label-sm text-on-surface-variant">
-            <a href="/privacy" className="hover:underline">
+          <div className="flex justify-center gap-md pt-sm text-label-sm font-label-sm text-on-surface-variant">
+            <a href="/privacy" className="hover:text-on-surface transition-colors">
               Privacy Policy
             </a>
-            <span>•</span>
-            <a href="/terms" className="hover:underline">
+            <span className="text-outline-variant">·</span>
+            <a href="/terms" className="hover:text-on-surface transition-colors">
               Terms of Service
             </a>
           </div>
