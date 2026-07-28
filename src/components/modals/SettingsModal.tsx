@@ -54,7 +54,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           {user && (
             <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex items-center justify-between">
               <div className="flex flex-col gap-sm">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+                <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
                   Signed in as
                 </span>
                 <span className="font-body-lg text-body-lg text-on-surface font-medium truncate max-w-[220px]">
@@ -103,7 +103,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
           {/* Appearance / Theme */}
           <div className="flex flex-col gap-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
               Appearance Mode
             </label>
             <div className="grid grid-cols-3 gap-sm">
@@ -129,7 +129,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
           {/* Export Data */}
           <div className="flex flex-col gap-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
               Data Management
             </label>
             <button

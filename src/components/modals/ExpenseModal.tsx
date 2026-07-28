@@ -123,7 +123,7 @@ export function ExpenseModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
         {/* Amount Input */}
         <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
             AMOUNT
           </label>
           <div className="flex items-center text-primary font-bold">
@@ -171,7 +171,7 @@ export function ExpenseModal({
 
         {/* Money Place / Account Radio */}
         <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
             PAID FROM (MONEY PLACE)
           </label>
           <div className="grid grid-cols-3 gap-sm">
@@ -267,7 +267,7 @@ export function ExpenseModal({
 
         {/* Receipt Attachment */}
         <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
             RECEIPT / ATTACHMENT (OPTIONAL)
           </label>
           {receiptUrl ? (

@@ -25,6 +25,7 @@ import {
   addDebt,
   editDebt,
   deleteDebt,
+  IncomeSource,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
@@ -297,7 +298,7 @@ export default function DashboardPage() {
   };
 
   // Income Sources Handler
-  const handleSaveIncomeSources = (sources: any[], total: number) => {
+  const handleSaveIncomeSources = (sources: IncomeSource[], total: number) => {
     const updated = normalizeMonth({
       ...month,
       incomeSources: sources,
@@ -499,7 +500,7 @@ export default function DashboardPage() {
             <div className="md:hidden flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[24px]">account_balance_wallet</span>
-                <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
+                <span className="font-display text-headline-sm text-primary font-extrabold tracking-tight">
                   Flousy
                 </span>
               </div>
@@ -531,7 +532,7 @@ export default function DashboardPage() {
             >
               <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_left</span>
             </button>
-            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
+            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-mono font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
               {(() => {
                 const [y, m] = currentMonthKey.split('-').map(Number);
                 const d = new Date(y, m - 1, 1);

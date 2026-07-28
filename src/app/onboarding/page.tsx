@@ -210,7 +210,7 @@ export default function OnboardingPage() {
             <span className="material-symbols-outlined text-[22px]">arrow_back</span>
           </button>
 
-          <span className="text-[22px] font-extrabold text-primary tracking-tight">Flousy</span>
+          <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">Flousy</span>
 
           <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-right">
             {step === 1
