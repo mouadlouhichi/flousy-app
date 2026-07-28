@@ -57,7 +57,7 @@ import { InstallButton } from '../../components/pwa/install-button';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, profile, sendVerificationEmail, dismissVerificationBanner, setDismissVerificationBanner } = useAuth();
+  const { user, profile, sendVerificationEmail, dismissVerificationBanner, setDismissVerificationBanner, loading: authLoading } = useAuth();
   const { format } = useCurrency();
 
   // Active Month Key (YYYY-MM)
@@ -75,10 +75,16 @@ export default function DashboardPage() {
 
   // Auth Protection Effect
   useEffect(() => {
-    if (!user) {
+    if (authLoading) return;
+
+    const isDemo =
+      typeof window !== 'undefined' &&
+      localStorage.getItem('flousy_demo_mode') === 'true';
+
+    if (!user && !isDemo) {
       router.push('/login');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
