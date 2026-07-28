@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const plans = [
   {
@@ -37,6 +38,7 @@ const plans = [
 ];
 
 export function PricingSection() {
+  const { messages: m } = useLightLanguage();
   const [isAnnual, setIsAnnual] = useState(true);
 
   return (

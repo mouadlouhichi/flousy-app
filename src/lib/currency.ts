@@ -21,12 +21,13 @@ export const SUPPORTED_CURRENCIES: Record<string, Currency> = {
   XOF: { code: 'XOF', symbol: 'CFA', name: 'West African CFA', locale: 'fr-SN', digits: 0 },
 };
 
-export function formatCurrency(amount: number, currencyCode: string = 'MAD'): string {
+export function formatCurrency(amount: number, currencyCode: string = 'MAD', uiLocale?: string): string {
   const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
   const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.MAD;
+  const locale = uiLocale || config.locale;
 
   try {
-    return new Intl.NumberFormat(config.locale, {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: config.code,
       minimumFractionDigits: config.digits,
@@ -41,12 +42,13 @@ export function getCurrencySymbol(currencyCode: string = 'MAD'): string {
   return SUPPORTED_CURRENCIES[currencyCode]?.symbol || currencyCode;
 }
 
-export function formatCurrencyParts(amount: number, currencyCode: string = 'MAD'): { amount: string; currency: string } {
+export function formatCurrencyParts(amount: number, currencyCode: string = 'MAD', uiLocale?: string): { amount: string; currency: string } {
   const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
   const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.MAD;
+  const locale = uiLocale || config.locale;
 
   try {
-    const formatted = new Intl.NumberFormat(config.locale, {
+    const formatted = new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: config.code,
       minimumFractionDigits: config.digits,

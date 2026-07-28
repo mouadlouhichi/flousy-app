@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { formatCurrency, formatCurrencyParts, getCurrencySymbol } from './currency';
 import { useAuth } from './auth-context';
+import { useLanguage } from './i18n-context';
 
 interface CurrencyContextType {
   currency: string;
@@ -16,6 +17,7 @@ const CurrencyContext = createContext<CurrencyContextType | null>(null);
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { profile, updateProfileData } = useAuth();
+  const { intlLocale } = useLanguage();
   const [currency, setCurrencyState] = useState<string>(profile?.currency || 'MAD');
 
   useEffect(() => {
@@ -29,8 +31,8 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     updateProfileData({ currency: c }).catch((e: unknown) => console.error(e));
   };
 
-  const format = (amount: number) => formatCurrency(amount, currency);
-  const formatParts = (amount: number) => formatCurrencyParts(amount, currency);
+  const format = (amount: number) => formatCurrency(amount, currency, intlLocale);
+  const formatParts = (amount: number) => formatCurrencyParts(amount, currency, intlLocale);
   const symbol = getCurrencySymbol(currency);
 
   return (

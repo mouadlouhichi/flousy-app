@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const testimonials = [
   {
@@ -34,6 +35,7 @@ const testimonials = [
 ];
 
 export function TestimonialsSection() {
+  const { messages: m } = useLightLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -56,7 +58,7 @@ export function TestimonialsSection() {
         {/* Section Label */}
         <div className="flex items-center gap-4 mb-16">
           <h2 className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
-            What people say
+            {m.landing.testimonials.eyebrow}
           </h2>
           <div className="flex-1 h-px bg-foreground/10" />
           <span className="font-mono text-xs text-muted-foreground">
@@ -105,7 +107,7 @@ export function TestimonialsSection() {
               }`}
             >
               <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-4">
-                Key Result
+                {m.landing.testimonials.keyResult}
               </span>
               <p className="font-display text-3xl md:text-4xl text-foreground">
                 {activeTestimonial.metric}
@@ -140,7 +142,7 @@ export function TestimonialsSection() {
         {/* Company Logos Marquee Label */}
         <div className="mt-24 pt-12 border-t border-foreground/10">
           <p className="font-mono text-xs tracking-widest text-muted-foreground uppercase mb-8 text-center">
-            Trusted by people who budget in
+            {m.landing.testimonials.trustedBy}
           </p>
         </div>
       </div>

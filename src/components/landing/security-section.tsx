@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Shield, Lock, Eye, FileCheck } from "lucide-react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const securityFeatures = [
   {
@@ -29,6 +30,7 @@ const securityFeatures = [
 const certifications = ["Private accounts", "No bank sync required", "Data export", "Easy account deletion", "No ad tracking"];
 
 export function SecuritySection() {
+  const { messages: m } = useLightLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -59,9 +61,9 @@ export function SecuritySection() {
               Privacy
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Your money,
+              {m.landing.security.titleLine1}
               <br />
-              your business.
+              {m.landing.security.titleLine2}
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
               Budgeting means sharing personal details about your life. We

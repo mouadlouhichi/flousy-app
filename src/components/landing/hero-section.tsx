@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedSphere } from './animated-sphere';
 
-const words = ['save', 'track', 'plan', 'grow'];
+
 
 export function HeroSection() {
+  const { messages: m } = useLightLanguage();
+  const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
 
   useEffect(() => {
@@ -51,15 +54,15 @@ export function HeroSection() {
         <div className="mb-8">
           <span className="inline-flex items-center gap-3 font-mono text-sm text-muted-foreground">
             <span aria-hidden="true" className="h-px w-8 bg-foreground/30" />
-            Needs, wants, savings — and every money place.
+            {m.landing.hero.eyebrow}
           </span>
         </div>
 
         <div className="mb-12">
           <h1 className="font-display text-[clamp(3rem,12vw,10rem)] leading-[0.9] tracking-tight">
-            <span className="block">The budget app</span>
+            <span className="block">{m.landing.hero.titleLine1}</span>
             <span className="block">
-              to{' '}
+              {m.landing.hero.titleLine2Prefix}{' '}
               <span className="relative inline-block">
                 <span key={wordIndex} className="inline-flex">
                   {words[wordIndex].split('').map((character, index) => (
@@ -83,8 +86,7 @@ export function HeroSection() {
 
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-24">
           <p className="max-w-xl text-xl leading-relaxed text-muted-foreground lg:text-2xl">
-            Your money answers two questions: what it&apos;s for, and where it is.
-            Flousy keeps them separate — every dirham accounted for, always.
+            {m.landing.hero.description}
           </p>
 
           <div className="flex flex-col items-start gap-4 sm:flex-row lg:-translate-y-6">
@@ -95,7 +97,7 @@ export function HeroSection() {
             >
               <a href="/login">
                 Start budgeting free
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="ms-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
             </Button>
             <Button
@@ -104,7 +106,7 @@ export function HeroSection() {
               variant="outline"
               className="h-14 rounded-full border-foreground/20 px-8 text-base hover:bg-foreground/5"
             >
-              <a href="#how-it-works">See how it works</a>
+              <a href="#how-it-works">{m.landing.hero.ctaSecondary}</a>
             </Button>
           </div>
         </div>

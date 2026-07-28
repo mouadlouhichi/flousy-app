@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffix?: string; prefix?: string }) {
   const [count, setCount] = useState(0);
@@ -72,6 +73,7 @@ const metrics = [
 ];
 
 export function MetricsSection() {
+  const { messages: m } = useLightLanguage();
   const [time, setTime] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -102,7 +104,7 @@ export function MetricsSection() {
           <div>
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              At a glance
+              {m.landing.metrics.eyebrow}
             </span>
             <h2
               className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${

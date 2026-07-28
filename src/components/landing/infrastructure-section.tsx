@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Check, Lock } from "lucide-react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const perks = [
   { name: "Track spending across bank, wallet & home", pro: false },
@@ -14,6 +15,7 @@ const perks = [
 ];
 
 export function InfrastructureSection() {
+  const { messages: m } = useLightLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const [activePerk, setActivePerk] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
@@ -49,7 +51,7 @@ export function InfrastructureSection() {
           >
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              Free, with room to grow
+              {m.landing.infrastructure.eyebrow}
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
               Start free.
