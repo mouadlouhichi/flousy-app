@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
@@ -21,6 +22,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const { currency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
+  const { language, setLanguage, localeNames } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
@@ -114,6 +116,30 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 >
                   <AppIcon name={t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'} className=" text-[22px]" />
                   <span className="text-[13px] font-bold">{t}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Language ── */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              Language
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['en', 'fr', 'ar'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  className={`p-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all capitalize font-label-md text-label-md ${
+                    language === lang
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
+                  }`}
+                >
+                  <span className="text-[13px] font-bold">{localeNames[lang]}</span>
+                  <span className="text-[10px] font-medium uppercase">{lang}</span>
                 </button>
               ))}
             </div>

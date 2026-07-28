@@ -141,6 +141,11 @@
   html {
     scroll-behavior: smooth;
   }
+
+  html[lang="ar"] {
+    --font-sans: var(--font-arabic), 'Cairo', system-ui, sans-serif;
+    --font-display: var(--font-arabic), 'Cairo', system-ui, sans-serif;
+  }
 }
 
 @theme {

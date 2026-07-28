@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Moon, Sun, Globe } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
 export function Navigation() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
 
   const navLinks = [
     { name: m.landing.nav.features, href: "/#features" },
@@ -17,6 +17,10 @@ export function Navigation() {
   ];
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLang, setShowLang] = useState(false);
+  const [isThemeDark, setIsThemeDark] = useState(
+    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -25,6 +29,14 @@ export function Navigation() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isThemeDark) root.classList.add('dark');
+    else root.classList.remove('dark');
+  }, [isThemeDark]);
+
+  const toggleTheme = () => setIsThemeDark((d) => !d);
 
   return (
     <header
@@ -66,14 +78,52 @@ export function Navigation() {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-4">
-            <a href="/login" className={` font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
+          <div className="hidden md:flex items-center gap-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full hover:bg-foreground/10 transition-colors text-foreground/70 hover:text-foreground"
+              aria-label={isThemeDark ? "Switch to light mode" : "Switch to dark mode"}
+              title={isThemeDark ? "Light mode" : "Dark mode"}
+            >
+              {isThemeDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            {/* Language Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setShowLang((v) => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/10 transition-colors"
+                aria-label="Change language"
+                title="Change language"
+              >
+                <Globe className="w-4 h-4" />
+                <span className="uppercase text-xs font-bold">{language}</span>
+              </button>
+              <div
+                className={`absolute right-0 top-full mt-2 bg-background border border-foreground/10 rounded-xl shadow-xl overflow-hidden transition-all duration-200 ${
+                  showLang ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-1'
+                }`}
+              >
+                {(['en', 'fr', 'ar'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => { setLanguage(lang); setShowLang(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-foreground/5 transition-colors font-medium ${language === lang ? 'text-primary bg-primary/5' : 'text-foreground/80'}`}
+                  >
+                    {localeNames[lang]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <a href="/login" className={`font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
               Sign in
             </a>
             <Button
               asChild
               size="sm"
-              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer  rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
             >
               <a href="/login">{m.landing.nav.startBudgeting}</a>
             </Button>
@@ -124,6 +174,30 @@ export function Navigation() {
             ))}
           </div>
           
+          {/* Mobile Theme + Language */}
+          <div className={`flex items-center justify-center gap-3 pt-4 transition-all duration-500 ${
+            isMobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`} style={{ transitionDelay: isMobileMenuOpen ? '150ms' : '0ms' }}>
+            <button
+              onClick={toggleTheme}
+              className="p-3 rounded-full border border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              aria-label={isThemeDark ? 'Light mode' : 'Dark mode'}
+            >
+              {isThemeDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <div className="flex gap-2">
+              {(['en', 'fr', 'ar'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  className={`px-3 py-2 rounded-full text-xs font-bold uppercase border transition-colors ${language === lang ? 'bg-primary text-on-primary border-primary' : 'border-foreground/10 text-foreground/70 hover:text-foreground'}`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Bottom CTAs */}
           <div className={`flex gap-4 pt-8 border-t border-foreground/10 transition-all duration-500 ${
             isMobileMenuOpen 
