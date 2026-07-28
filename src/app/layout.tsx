@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers, cookies } from 'next/headers';
+import { Instrument_Sans, JetBrains_Mono } from 'next/font/google';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
@@ -8,6 +9,15 @@ import { SITE_URL } from '@/lib/seo';
 import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
 import '../index.css';
 
+const instrumentSans = Instrument_Sans({
+  subsets: ['latin'],
+  variable: '--font-instrument',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains',
+});
 
 // Required for nonce-based CSP (src/middleware.ts): a per-request nonce
 // can only match the rendered HTML if the page is rendered per-request,
@@ -72,7 +82,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const dir = isRTL(locale) ? 'rtl' : 'ltr';
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={dir}
+      suppressHydrationWarning
+      className={`${instrumentSans.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <InstallPromptCapture />
         <meta name="apple-mobile-web-app-capable" content="yes" />

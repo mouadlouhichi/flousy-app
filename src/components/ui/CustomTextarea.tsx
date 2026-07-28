@@ -13,7 +13,7 @@ export const CustomTextarea = forwardRef<HTMLTextAreaElement, CustomTextareaProp
     return (
       <div className="flex flex-col gap-sm">
         {label && (
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
             {label}
           </label>
         )}

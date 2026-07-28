@@ -127,7 +127,7 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
           <a href="/" className="flex flex-col items-center gap-1 group">
-            <span className="text-[32px] font-extrabold text-primary tracking-tight">
+            <span className="font-display text-[32px] font-extrabold text-primary tracking-tight">
               Flousy
             </span>
           </a>
