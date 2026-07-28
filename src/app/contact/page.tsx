@@ -1,19 +1,13 @@
-import type { Metadata } from "next";
+"use client";
 import { StaticPageShell } from "@/components/static/page-shell";
+import { useLightLanguage } from "@/lib/i18n-light";
 import { ContactForm, ContactEmailNote } from "@/components/static/contact-form";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: "Get in touch with the Flousy team.",
-};
-
 export default function ContactPage() {
+  const { messages: m } = useLightLanguage();
+  const s = m.static.contact;
   return (
-    <StaticPageShell
-      eyebrow="Contact"
-      title="Let's talk."
-      subtitle="Questions about your account, Flousy Pro, or just want to say hi? Send us a message and we'll get back to you soon."
-    >
+    <StaticPageShell eyebrow={s.eyebrow} title={s.title} subtitle={s.subtitle}>
       <ContactEmailNote />
       <ContactForm />
     </StaticPageShell>

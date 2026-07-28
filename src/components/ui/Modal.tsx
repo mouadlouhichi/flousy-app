@@ -83,9 +83,9 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+            className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
           >
-            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">close</span>
+            <span className=" material-symbols-outlined text-[20px] sm:text-[24px] !block">close</span>
           </button>
         </div>
 

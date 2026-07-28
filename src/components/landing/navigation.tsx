@@ -3,16 +3,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-
-const navLinks = [
-  { name: "Features", href: "/#features" },
-  { name: "How it works", href: "/#how-it-works" },
-  { name: "Security", href: "/#security" },
-  { name: "Pricing", href: "/#pricing" },
-  { name: "FAQ", href: "/#faq" },
-];
+import { useLightLanguage } from "@/lib/i18n-light";
 
 export function Navigation() {
+  const { messages: m } = useLightLanguage();
+
+  const navLinks = [
+    { name: m.landing.nav.features, href: "/#features" },
+    { name: m.landing.nav.howItWorks, href: "/#how-it-works" },
+    { name: m.landing.nav.security, href: "/#security" },
+    { name: m.landing.nav.pricing, href: "/#pricing" },
+    { name: m.landing.nav.faq, href: "/#faq" },
+  ];
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -28,8 +30,8 @@ export function Navigation() {
     <header
       className={`fixed z-50 transition-all duration-500 ${
         isScrolled 
-          ? "top-4 left-4 right-4" 
-          : "top-0 left-0 right-0"
+          ? "top-4 start-4 end-4" 
+          : "top-0 start-0 end-0"
       }`}
     >
       <nav 
@@ -55,7 +57,7 @@ export function Navigation() {
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
+                className="text-sm md:text-base font-semiBold text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
               >
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
@@ -65,15 +67,15 @@ export function Navigation() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="/login" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
+            <a href="/login" className={` font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
               Sign in
             </a>
             <Button
               asChild
               size="sm"
-              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-white rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer  rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
             >
-              <a href="/login">Start budgeting</a>
+              <a href="/login">{m.landing.nav.startBudgeting}</a>
             </Button>
           </div>
 
@@ -135,13 +137,13 @@ export function Navigation() {
               variant="outline"
               className="flex-1 rounded-full h-14 text-base"
             >
-              <a href="/login">Sign in</a>
+              <a href="/login">{m.landing.nav.signIn}</a>
             </Button>
             <Button
               asChild
               className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
             >
-              <a href="/login">Start budgeting</a>
+              <a href="/login">{m.landing.nav.startBudgeting}</a>
             </Button>
           </div>
         </div>

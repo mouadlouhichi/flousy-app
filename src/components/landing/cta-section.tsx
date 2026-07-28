@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedTetrahedron } from "./animated-tetrahedron";
 
 export function CtaSection() {
+  const { messages: m } = useLightLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -52,14 +54,13 @@ export function CtaSection() {
               {/* Left content */}
               <div className="flex-1">
                 <h2 className="text-4xl lg:text-7xl font-display tracking-tight mb-8 leading-[0.95]">
-                  Ready to know
+{m.landing.cta.titleLine1}
                   <br />
-                  where your money is?
+                  {m.landing.cta.titleLine2}
                 </h2>
 
                 <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-xl">
-                  Join people who stopped guessing. Start free, no credit card
-                  needed — upgrade to Pro whenever you want more.
+                  {m.landing.cta.description}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -70,7 +71,7 @@ export function CtaSection() {
                   >
                     <a href="/login">
                       Start budgeting free
-                      <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1" />
                     </a>
                   </Button>
                   <Button
@@ -79,12 +80,12 @@ export function CtaSection() {
                     variant="outline"
                     className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
                   >
-                    <a href="#pricing">See Pro features</a>
+                    <a href="#pricing">{m.landing.cta.ctaSecondary}</a>
                   </Button>
                 </div>
 
                 <p className="text-sm text-muted-foreground mt-8 font-mono">
-                  No credit card required
+                  {m.landing.cta.noCreditCard}
                 </p>
               </div>
 

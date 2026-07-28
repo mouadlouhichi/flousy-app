@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const steps = [
   {
@@ -45,6 +46,7 @@ const steps = [
 ];
 
 export function HowItWorksSection() {
+  const { messages: m } = useLightLanguage();
   const [activeStep, setActiveStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -92,7 +94,7 @@ export function HowItWorksSection() {
         <div className="mb-16 lg:mb-24">
           <span className="inline-flex items-center gap-3 text-sm font-mono text-background/50 mb-6">
             <span className="w-8 h-px bg-background/30" />
-            Getting started
+            {m.landing.howItWorks.eyebrow}
           </span>
           <h2
             className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${

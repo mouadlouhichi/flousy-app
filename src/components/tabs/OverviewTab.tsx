@@ -56,7 +56,7 @@ export function OverviewTab({
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="text-primary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
+            className="text-primary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Move Money</span>
             <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
@@ -83,7 +83,7 @@ export function OverviewTab({
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="text-tertiary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
+            className="text-tertiary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Add Funds</span>
             <span className="material-symbols-outlined text-[16px]">add</span>
@@ -110,7 +110,7 @@ export function OverviewTab({
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="text-secondary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
+            className="text-secondary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Withdraw</span>
             <span className="material-symbols-outlined text-[16px]">south</span>

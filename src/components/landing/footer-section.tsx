@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
+import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedWave } from "./animated-wave";
 
 const footerLinks = {
@@ -34,6 +35,7 @@ const socialLinks = [
 ];
 
 export function FooterSection() {
+  const { messages: { landing: { footer: ft } } } = useLightLanguage();
   return (
     <footer className="relative border-t border-foreground/10">
       {/* Animated wave background */}
@@ -52,8 +54,7 @@ export function FooterSection() {
               </a>
 
               <p className="text-muted-foreground leading-relaxed mb-8 max-w-xs">
-                The simple way to know what your money is for, and where it
-                actually is.
+                {ft.tagline}
               </p>
 
               {/* Social Links */}
@@ -100,13 +101,13 @@ export function FooterSection() {
         {/* Bottom Bar */}
         <div className="py-8 border-t border-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            2026 Flousy. All rights reserved.
+            {ft.copyright}
           </p>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green-500" />
-              All systems operational
+              {ft.allSystems}
             </span>
           </div>
         </div>

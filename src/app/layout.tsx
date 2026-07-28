@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
+import { headers,cookies } from 'next/headers';
 import { Instrument_Sans, JetBrains_Mono } from 'next/font/google';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
+import { LightLanguageProvider } from '@/lib/i18n-light';
 import { SITE_URL } from '@/lib/seo';
+import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
 import '../index.css';
 
 const instrumentSans = Instrument_Sans({
@@ -74,10 +76,16 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await headers();
+  const cookieStore = await cookies();
+  const langCookie = cookieStore.get(LANG_COOKIE)?.value;
+  const locale = isValidLocale(langCookie) ? langCookie : 'en';
+  const dir = isRTL(locale) ? 'rtl' : 'ltr';
+
   return (
     <html
       lang="en"
       className={`${instrumentSans.variable} ${jetbrainsMono.variable}`}
+      lang={locale} dir={dir} suppressHydrationWarning
     >
       <head>
         <InstallPromptCapture />
@@ -88,7 +96,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className="font-sans antialiased">
-        {children}
+        <LightLanguageProvider>
+          {children}
+        </LightLanguageProvider>
         <InstallBanner />
         <ServiceWorkerRegistrar />
       </body>

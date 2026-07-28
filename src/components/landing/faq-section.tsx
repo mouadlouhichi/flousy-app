@@ -1,5 +1,7 @@
+"use client"
 import Link from 'next/link';
 import { LANDING_FAQS, type LandingFaq } from '@/lib/seo';
+import { useLightLanguage } from "@/lib/i18n-light";
 
 function FaqAnswer({ faq }: { faq: LandingFaq }) {
   if (!faq.link) {
@@ -23,6 +25,7 @@ function FaqAnswer({ faq }: { faq: LandingFaq }) {
 }
 
 export function FaqSection() {
+  const { messages: m } = useLightLanguage();
   return (
     <section
       id="faq"
@@ -32,13 +35,13 @@ export function FaqSection() {
       <div className="mx-auto max-w-5xl px-6 lg:px-12">
         <div className="mb-12 max-w-3xl lg:mb-16">
           <span className="mb-6 block font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            Flousy facts
+            {m.landing.faq.eyebrow}
           </span>
           <h2
             id="faq-heading"
             className="font-display text-4xl tracking-tight text-foreground md:text-5xl lg:text-6xl"
           >
-            Frequently asked questions
+            {m.landing.faq.title}
           </h2>
         </div>
 

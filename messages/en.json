@@ -1,0 +1,904 @@
+{
+  "common": {
+    "appName": "Flousy",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "continue": "Continue",
+    "or": "OR",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search",
+    "loading": "Loading...",
+    "processing": "Processing...",
+    "all": "All",
+    "open": "Open",
+    "settled": "Settled",
+    "step": "STEP {current} OF {total}",
+    "percentComplete": "{percent}%"
+  },
+  "auth": {
+    "signIn": "Log in",
+    "signUp": "Create account",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full Name",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Your Password",
+    "sendResetLink": "Send Reset Link",
+    "backToLogin": "Back to log in",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "continueWithGoogle": "Continue with Google",
+    "welcomeBack": "Welcome back to your financial center",
+    "createYourAccount": "Create your account",
+    "emailPlaceholder": "name@example.com",
+    "namePlaceholder": "Your full name",
+    "passwordPlaceholder": "••••••••",
+    "passwordResetSent": "Password reset email sent! Please check your inbox.",
+    "enterEmailToReset": "Please enter your email address to reset password.",
+    "failedResetEmail": "Failed to send reset email",
+    "invalidCredentials": "Invalid email or password",
+    "authFailed": "Authentication failed. Please verify credentials.",
+    "googleSignInFailed": "Google sign-in failed",
+    "demoMode": "Demo Mode Available",
+    "demoModeDescription": "Experience Flousy instantly with sample data in local preview mode.",
+    "continueDemo": "Continue in Demo Mode",
+    "demoResetRequested": "Demo Mode: Password reset requested for {email}",
+    "signedInAs": "Signed in as",
+    "anonymousUser": "Anonymous User",
+    "planLabel": "{plan} Plan",
+    "signInOrRegister": "Sign In or Register Account",
+    "deleteAccount": "Delete Account & Erase Data",
+    "signOutConfirmTitle": "Sign Out",
+    "signOutConfirmMessage": "Are you sure you want to sign out of your Flousy account?",
+    "deleteConfirmTitle": "Delete Account Permanently",
+    "deleteConfirmMessage": "This action is irreversible. All your budget data, expenses, and savings goals will be permanently deleted from Firestore.",
+    "firebaseNotConfigured": "Firebase isn't configured"
+  },
+  "onboarding": {
+    "tagline": "Private, mobile-first budget tracker that separates what money is for from where it is.",
+    "step1Title": "What is your monthly income?",
+    "step1Subtitle": "We use this to set up your baseline budget and recommend saving goals.",
+    "averageMonthlyIncome": "Average Monthly Income",
+    "incomeError": "Please enter a valid monthly income greater than 0.",
+    "step2Title": "Pick your spending categories",
+    "step2Subtitle": "Select the categories you spend on most. You can always add more later.",
+    "selectedCategories": "{count} selected",
+    "addCustomCategory": "Add Custom",
+    "customCategoryName": "Category name",
+    "createCategory": "Create",
+    "chooseIcon": "Choose Icon",
+    "step3Title": "Add your monthly bills",
+    "step3Subtitle": "Enter recurring charges like rent, utilities, and subscriptions to deduct them from your budget automatically.",
+    "billName": "Bill name",
+    "billAmount": "Amount",
+    "billCategory": "Category",
+    "addBill": "Add Bill",
+    "noBillsYet": "No bills added yet",
+    "totalBills": "Total Monthly Bills",
+    "step4Title": "Choose a budgeting strategy",
+    "step4Subtitle": "How do you want to split your income of {income} between needs, wants, and savings?",
+    "step5Title": "Your Budget Overview",
+    "step5Subtitle": "Here is your calculated monthly plan based on the {strategy}.",
+    "fixedNeeds": "Fixed Needs",
+    "variableWants": "Variable Wants",
+    "futureSavings": "Future Savings",
+    "ofIncome": "{percent}% of income",
+    "confirmAndFinish": "Confirm & Finish",
+    "finishingSetup": "Finishing setup...",
+    "editAllocation": "Edit Allocation",
+    "monthly": "MONTHLY",
+    "everyDollarAllocated": "Every dollar allocated ({amount} left)",
+    "needs": "Needs",
+    "wants": "Wants",
+    "savings": "Savings",
+    "saveFirst": "Save First",
+    "spendTheRest": "Spend the rest",
+    "housingCategory": "Housing",
+    "rent": "Rent",
+    "electricity": "Electricity"
+  },
+  "dashboard": {
+    "overview": "Overview",
+    "variable": "Variable",
+    "fixed": "Fixed",
+    "savings": "Savings",
+    "trends": "Trends",
+    "debts": "Debts",
+    "bank": "Bank",
+    "homeCash": "Home Cash",
+    "wallet": "Wallet",
+    "moveMoney": "Move Money",
+    "addFunds": "Add Funds",
+    "withdraw": "Withdraw",
+    "budgetPlan": "Budget Plan",
+    "needsLabel": "Needs ({percent}%)",
+    "wantsLabel": "Wants ({percent}%)",
+    "savingsLabel": "Savings ({percent}%)",
+    "used": "{percent}% Used",
+    "activeGoals": "{count, plural, =0 {No Active Goals} one {# Active Goal} other {# Active Goals}}",
+    "totalMonthlyBudget": "TOTAL MONTHLY BUDGET",
+    "totalCashOnHand": "TOTAL CASH ON HAND",
+    "recentActivity": "Recent Activity",
+    "viewAllHistory": "View All History",
+    "noExpensesYet": "No expenses logged yet this month.",
+    "addFirstExpense": "Add First Expense",
+    "showMoreTransactions": "Show more transactions",
+    "addExpense": "Add Expense",
+    "monthNavPrev": "Previous month",
+    "monthNavNext": "Next month",
+    "emailNotVerified": "Your email is not verified.",
+    "sendVerification": "Send Verification Email",
+    "verificationSent": "Verification email sent!"
+  },
+  "budgetPlan": {
+    "totalIncome": "Total Income",
+    "totalSpent": "Total Spent",
+    "remaining": "Remaining",
+    "needs": "Needs",
+    "wants": "Wants",
+    "savings": "Savings"
+  },
+  "modals": {
+    "expense": {
+      "addTitle": "Add Expense",
+      "editTitle": "Edit Expense",
+      "amount": "AMOUNT",
+      "description": "Description / Merchant",
+      "descriptionPlaceholder": "e.g. Supermarket, Coffee, {category}",
+      "category": "Category",
+      "paidFrom": "PAID FROM (MONEY PLACE)",
+      "bank": "Bank",
+      "wallet": "Wallet",
+      "home": "Home",
+      "householdMember": "Household Member",
+      "self": "Self",
+      "partnerSpouse": "Partner / Spouse",
+      "familyShared": "Family / Shared",
+      "queen": "Queen",
+      "king": "King",
+      "date": "Date",
+      "noteOptional": "Note (Optional)",
+      "notePlaceholder": "What was this for?",
+      "receiptOptional": "RECEIPT / ATTACHMENT (OPTIONAL)",
+      "receiptAttached": "Receipt Attached",
+      "uploadReceipt": "Upload Receipt Photo",
+      "saveChanges": "Save Changes"
+    },
+    "fixed": {
+      "addTitle": "Add Fixed Charge",
+      "editTitle": "Edit Fixed Charge",
+      "amount": "AMOUNT",
+      "billName": "Bill Name",
+      "billNamePlaceholder": "e.g. Rent, Electricity, Netflix",
+      "category": "Category",
+      "paidFrom": "PAID FROM",
+      "dueDate": "Due Date (Optional)",
+      "repeatEveryMonth": "Repeat Every Month",
+      "autoCarries": "Auto-carries bill to future months",
+      "saveChanges": "Save Changes"
+    },
+    "savings": {
+      "createTitle": "Create Saving Goal",
+      "editTitle": "Edit Saving Goal",
+      "fundTitle": "Fund Goal: {name}",
+      "withdrawTitle": "Withdraw from: {name}",
+      "goalName": "Goal Name",
+      "goalNamePlaceholder": "e.g. Emergency Fund, Vacation",
+      "targetAmount": "Target Amount",
+      "sourcePlace": "Source Place",
+      "fundAmount": "Fund Amount",
+      "withdrawAmount": "Withdraw Amount",
+      "targetPlace": "Return To",
+      "createGoal": "Create Goal",
+      "fundGoal": "Fund Goal",
+      "withdrawGoal": "Withdraw",
+      "progressLabel": "{current} of {target} ({percent}%)"
+    },
+    "moveMoney": {
+      "title": "Move Money",
+      "from": "From",
+      "to": "To",
+      "transferAmount": "TRANSFER AMOUNT",
+      "previewBalances": "PREVIEW BALANCES AFTER TRANSFER",
+      "confirmTransfer": "Confirm Transfer",
+      "insufficientFunds": "Insufficient funds in {place}. Maximum available: {amount}",
+      "bankLabel": "Bank ({balance})",
+      "homeCashLabel": "Home Cash ({balance})",
+      "walletLabel": "Wallet ({balance})"
+    },
+    "debt": {
+      "addTitle": "Add Debt",
+      "editTitle": "Edit Debt",
+      "amount": "AMOUNT",
+      "iOwe": "I Owe",
+      "owedToMe": "Owed to Me",
+      "personEntity": "Person / Entity",
+      "personPlaceholder": "e.g. John, Bank, Friend",
+      "status": "STATUS",
+      "dateLabel": "Date",
+      "noteOptional": "Note (Optional)",
+      "notePlaceholder": "What is this debt for?",
+      "saveChanges": "Save Changes"
+    },
+    "categories": {
+      "title": "Manage Categories",
+      "categoryName": "Category name",
+      "namePlaceholder": "e.g. Coffee, Gym, Childcare",
+      "addCategory": "Add Category",
+      "chooseIcon": "Choose Icon",
+      "errorDuplicate": "Category \"{name}\" already exists",
+      "errorEmpty": "Enter a valid category name"
+    },
+    "importCsv": {
+      "title": "Import CSV Transactions",
+      "variableExpenses": "Variable Expenses",
+      "fixedBills": "Fixed Bills",
+      "uploadLabel": "Click to upload CSV or drag and drop",
+      "supportedColumns": "Supported columns: Name, Amount, Date, Category, Place, Note, Person",
+      "preview": "Preview ({count} transactions)",
+      "total": "Total: {amount}",
+      "importButton": "Import {count} Items"
+    },
+    "incomeSources": {
+      "title": "Income Sources",
+      "description": "Specify all streams of income contributing to this month's budget.",
+      "combinedTotal": "Combined Total Income",
+      "addIncomeSource": "Add Income Source",
+      "sourceNamePlaceholder": "Source Name (e.g., Freelance, Rental)",
+      "amountPlaceholder": "Amount",
+      "addIncomeStream": "Add Income Stream",
+      "saveIncomeSources": "Save Income Sources ({total})"
+    },
+    "pro": {
+      "title": "Upgrade to Flousy Pro",
+      "memberTitle": "Flousy Pro Membership",
+      "youArePro": "You are a Pro Member!",
+      "unlockPower": "Unlock Full Budgeting Power",
+      "proActiveDescription": "Thank you for supporting Flousy. All premium features, multi-month analytics, CSV import, and household tools are active.",
+      "upgradeDescription": "Take total control of your money with multi-month trends, CSV imports, receipt attachments, and household budgeting.",
+      "monthly": "Monthly ($4.99/mo)",
+      "annual": "Annual ($39.99/yr)",
+      "save33": "SAVE 33%",
+      "multiMonthTrends": "Multi-Month Trends",
+      "multiMonthDesc": "Compare spending trends across months and forecast savings.",
+      "csvImport": "CSV Data Import",
+      "csvImportDesc": "Import transactions directly from bank statements or CSV files.",
+      "receiptAttachments": "Receipt Attachments",
+      "receiptAttachmentsDesc": "Attach receipt photos and notes to any variable or fixed bill.",
+      "householdBudgeting": "Household Budgeting",
+      "householdBudgetingDesc": "Assign expenses to household members (Self, Partner, Family).",
+      "activatePro": "Activate Pro ({price})",
+      "proActivated": "Pro Activated!",
+      "instantActivation": "Instant activation. Cancel or downgrade anytime in Settings.",
+      "proStatusActive": "Your Pro status is active on this account.",
+      "switchToFree": "Switch back to Free Plan",
+      "goToPremium": "Go to Premium",
+      "proMembership": "Pro Membership"
+    }
+  },
+  "settings": {
+    "title": "Settings & Account",
+    "preferredCurrency": "Preferred Currency",
+    "appearanceMode": "Appearance Mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "dataManagement": "Data Management",
+    "exportBudgetData": "Export Budget Data (CSV)",
+    "language": "Language",
+    "languageDescription": "Change the display language of the app",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service"
+  },
+  "tabs": {
+    "variable": {
+      "totalSpent": "TOTAL VARIABLE SPENT",
+      "addExpense": "Add Expense",
+      "searchPlaceholder": "Search expenses or notes...",
+      "noResults": "No matching variable expenses found.",
+      "hasReceipt": "Has receipt"
+    },
+    "fixed": {
+      "totalCommitments": "MONTHLY FIXED COMMITMENTS",
+      "addCharge": "Add Charge",
+      "noCharges": "No fixed monthly charges configured.",
+      "addRentBills": "Add Rent, Bills or Subscriptions",
+      "recurring": "Recurring",
+      "oneTime": "One-time"
+    },
+    "savings": {
+      "totalSaved": "TOTAL SAVED",
+      "addGoal": "Add Goal",
+      "noGoals": "You haven't created any saving goals yet.",
+      "createGoal": "Create Your First Goal",
+      "reached": "Reached!",
+      "progress": "{percent}%",
+      "fund": "Fund",
+      "withdrawButton": "Withdraw",
+      "deleteGoal": "Delete Goal"
+    },
+    "debts": {
+      "debtsIOwe": "Debts (I owe)",
+      "creditsOwedToMe": "Credits (owed to me)",
+      "totalYouOwe": "TOTAL YOU OWE",
+      "totalOwedToYou": "TOTAL OWED TO YOU",
+      "openSettled": "{open} open · {settled} settled",
+      "noDebtsTitle": "No debts yet",
+      "noCreditsTitle": "No credits yet",
+      "noDebtsDesc": "Keep your finances clear and balanced. Add any personal loans or money you owe to stay on top of your budget.",
+      "noCreditsDesc": "Track money others owe you. Add credits to keep a clear record and stay on top of repayments.",
+      "manageDebt": "MANAGE DEBT PEACEFULLY"
+    }
+  },
+  "alerts": {
+    "budgetHealth": "Budget Health",
+    "needsExceeded": "Needs Envelope Exceeded",
+    "needsAlert": "Needs Envelope Alert",
+    "wantsExceeded": "Wants Envelope Exceeded",
+    "wantsAlert": "Wants Envelope Alert",
+    "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}%).",
+    "spentOfBudget": "Spent {spent} of {budget} budget ({percent}%).",
+    "allHealthy": "All budget envelopes are healthy! No overspending detected."
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "privacyTitle": "Privacy Policy",
+    "privacySubtitle": "Last updated July 2026. Plain-language version below — the short of it: your budget is yours, and it stays that way.",
+    "termsTitle": "Terms of Service",
+    "termsSubtitle": "Last updated July 2026. These terms cover how you can use Flousy, and what you can expect from us.",
+    "authoritativeNotice": "Note: The English version of this document is the legally authoritative version.",
+    "privacy": {
+      "s1Title": "1. What we collect",
+      "s1Body": "We collect the information you give us directly: your email address, the income, expenses, categories and goals you enter, and basic account preferences like your currency and display settings. We do not ask for bank logins, card numbers, or account numbers of any kind.",
+      "s2Title": "2. How we use it",
+      "s2Body": "Your budgeting data is used to power the app itself — to show your balances, calculate your budget, and sync your information across your devices. We do not use your financial data to build advertising profiles, and we do not sell it to third parties.",
+      "s3Title": "3. Who can see your data",
+      "s3Body": "Only you can access your budget. Our systems are built so that your account's data is isolated from every other account, and our team accesses individual data only when needed to fix a problem you've reported.",
+      "s4Title": "4. Analytics",
+      "s4Body": "We may use limited, privacy-respecting analytics to understand how the app is used overall (for example, which features are popular). This is aggregated and anonymized, and is off by default until you agree to it.",
+      "s5Title": "5. Data retention",
+      "s5Body": "We keep your data for as long as your account is active. If you delete your account, your profile, budgets, and goals are permanently removed from our systems.",
+      "s6Title": "6. Your choices",
+      "s6Body": "You can export your budgeting history as a spreadsheet at any time from Settings. You can also delete your account and all associated data permanently, whenever you like — no need to contact support.",
+      "s7Title": "7. Changes to this policy",
+      "s7Body": "If we make meaningful changes to how we handle your data, we'll let you know in the app before the changes take effect.",
+      "s8Title": "8. Contact us",
+      "s8Body": "Questions about this policy or your data? Reach out any time from our Contact page."
+    },
+    "terms": {
+      "s1Title": "1. Using Flousy",
+      "s1Body": "By creating an account, you agree to use Flousy for its intended purpose — tracking your personal budget. You're responsible for keeping your login details secure and for the accuracy of the information you enter.",
+      "s2Title": "2. Your account",
+      "s2Body": "You must be able to legally enter into these terms to use Flousy. One account is for one person's budget; if you need a shared or household budget, look out for that feature on our roadmap.",
+      "s3Title": "3. Free and Pro plans",
+      "s3Body": "Flousy's core features are free to use, with no time limit. Flousy Pro is an optional paid upgrade that unlocks additional features. Pro subscriptions renew automatically until cancelled, and you can cancel anytime from Settings.",
+      "s4Title": "4. What Flousy is not",
+      "s4Body": "Flousy is a budgeting and tracking tool. It is not a bank, does not move real money on your behalf, and does not provide financial, investment, or tax advice. Decisions about your finances remain entirely your own.",
+      "s5Title": "5. Acceptable use",
+      "s5Body": "Please don't use Flousy to store information that isn't yours, to attempt to access other users' accounts, or to interfere with the normal operation of the app.",
+      "s6Title": "6. Cancelling or deleting your account",
+      "s6Body": "You can cancel a Pro subscription or delete your account entirely at any time from Settings. Deleting your account permanently removes your data from our systems.",
+      "s7Title": "7. Changes to the service",
+      "s7Body": "We may add, change, or remove features over time as Flousy improves. We'll do our best to communicate meaningful changes in advance.",
+      "s8Title": "8. Limitation of liability",
+      "s8Body": "Flousy is provided \"as is.\" While we work hard to keep your data accurate and available, we can't guarantee the service will be uninterrupted or error-free, and we aren't liable for financial decisions made using the app.",
+      "s9Title": "9. Contact",
+      "s9Body": "Questions about these terms? Reach out from our Contact page."
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "networkError": "Network error. Please check your connection.",
+    "notFound": "Page not found",
+    "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home",
+    "validationNameRequired": "Please enter a name or person",
+    "validationAmountInvalid": "Please enter a valid amount"
+  },
+  "categories": {
+    "food": "Food",
+    "transport": "Transport",
+    "rent": "Rent",
+    "entertainment": "Entertainment",
+    "health": "Health",
+    "utilities": "Utilities",
+    "shopping": "Shopping",
+    "subscriptions": "Subscriptions",
+    "diningOut": "Dining Out",
+    "groceries": "Groceries",
+    "housing": "Housing",
+    "other": "Other"
+  },
+  "places": {
+    "bank": "Bank",
+    "home": "Home",
+    "wallet": "Wallet"
+  },
+  "pwa": {
+    "installApp": "Install App",
+    "installBanner": "Install Flousy for the best experience",
+    "install": "Install",
+    "dismiss": "Dismiss"
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "security": "Security",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "signIn": "Sign in",
+      "startBudgeting": "Start budgeting"
+    },
+    "hero": {
+      "eyebrow": "Needs, wants, savings — and every money place.",
+      "titleLine1": "The budget app",
+      "titleLine2Prefix": "to",
+      "words": [
+        "save",
+        "track",
+        "plan",
+        "grow"
+      ],
+      "description": "Your money answers two questions: what it's for, and where it is. Flousy keeps them separate — every dirham accounted for, always.",
+      "ctaPrimary": "Start budgeting free",
+      "ctaSecondary": "See how it works",
+      "stats": [
+        {
+          "value": "4",
+          "label": "budgeting styles to pick from",
+          "detail": "50/30/20 & MORE"
+        },
+        {
+          "value": "3",
+          "label": "places to track your cash",
+          "detail": "BANK · HOME · WALLET"
+        },
+        {
+          "value": "12",
+          "label": "currencies supported",
+          "detail": "MAD · EUR · USD"
+        },
+        {
+          "value": "100%",
+          "label": "of your money accounted for",
+          "detail": "NEVER LOST"
+        }
+      ]
+    },
+    "whatIsFlousy": {
+      "title": "What is Flousy?"
+    },
+    "features": {
+      "eyebrow": "Capabilities",
+      "titleLine1": "What it's for.",
+      "titleLine2": "Where it actually is.",
+      "items": [
+        {
+          "title": "Know what it's for",
+          "description": "Every dirham gets a job — needs, wants, or savings — so you always know why you're spending, not just what you spent."
+        },
+        {
+          "title": "Pick a style that fits you",
+          "description": "Choose from a few proven budgeting styles, or let Flousy suggest one. Your income splits itself automatically, no spreadsheets required."
+        },
+        {
+          "title": "See where it actually is",
+          "description": "Bank, home, or wallet — track your cash wherever it sits. Move money between them and your budget updates instantly."
+        },
+        {
+          "title": "Nothing ever gets lost",
+          "description": "Delete an expense and the money comes right back. Save toward a goal, then dip into it when you need to — it's always exactly where you left it."
+        }
+      ]
+    },
+    "howItWorks": {
+      "eyebrow": "Getting started",
+      "titleLine1": "Three steps.",
+      "titleLine2": "A clearer month ahead.",
+      "steps": [
+        {
+          "title": "Tell us about your income",
+          "description": "Add what you earn and a few regular bills. It takes about two minutes, and you can always change it later.",
+          "snapshotLabel": "Monthly income",
+          "lines": [
+            {
+              "text": "Salary",
+              "value": "12,000 MAD"
+            },
+            {
+              "text": "Side income",
+              "value": "800 MAD"
+            },
+            {
+              "text": "Total",
+              "value": "12,800 MAD"
+            }
+          ]
+        },
+        {
+          "title": "Pick a budgeting style",
+          "description": "Flousy splits your income into needs, wants and savings for you. Prefer a different balance? Switch styles anytime.",
+          "snapshotLabel": "Your monthly plan",
+          "lines": [
+            {
+              "text": "Needs",
+              "value": "50%"
+            },
+            {
+              "text": "Wants",
+              "value": "30%"
+            },
+            {
+              "text": "Savings",
+              "value": "20%"
+            }
+          ]
+        },
+        {
+          "title": "Log spending as it happens",
+          "description": "Add an expense in seconds and choose whether it came from your bank, your wallet, or cash at home. Your plan updates instantly.",
+          "snapshotLabel": "Today",
+          "lines": [
+            {
+              "text": "Groceries · Wallet",
+              "value": "-85 MAD"
+            },
+            {
+              "text": "Coffee · Wallet",
+              "value": "-18 MAD"
+            },
+            {
+              "text": "Remaining this month",
+              "value": "3,240 MAD"
+            }
+          ]
+        }
+      ]
+    },
+    "infrastructure": {
+      "eyebrow": "Free, with room to grow",
+      "titleLine1": "Start free.",
+      "titleLine2": "Upgrade when ready.",
+      "description": "Everything you need to budget well is free, forever. When you want deeper insight into your habits and a little help staying on track, Flousy Pro is right there.",
+      "statFree": "Free",
+      "statFreeLabel": "Core budgeting",
+      "stat3": "3",
+      "stat3Label": "Places to track cash",
+      "statPro": "Pro",
+      "statProLabel": "Smarter insights",
+      "whatYouGet": "What you get",
+      "freeToStart": "Free to start",
+      "perks": [
+        {
+          "name": "Track spending across bank, wallet & home",
+          "pro": false
+        },
+        {
+          "name": "4 budgeting styles to choose from",
+          "pro": false
+        },
+        {
+          "name": "Unlimited savings goals",
+          "pro": false
+        },
+        {
+          "name": "See exactly where every dirham went",
+          "pro": false
+        },
+        {
+          "name": "Spot spending trends over months",
+          "pro": true
+        },
+        {
+          "name": "Get notified before you overspend",
+          "pro": true
+        },
+        {
+          "name": "Automatic recurring bills",
+          "pro": true
+        }
+      ]
+    },
+    "metrics": {
+      "eyebrow": "At a glance",
+      "titleLine1": "Budgeting made",
+      "titleLine2": "simple.",
+      "live": "Live",
+      "items": [
+        {
+          "value": 4,
+          "suffix": "",
+          "prefix": "",
+          "label": "Budgeting styles to choose from"
+        },
+        {
+          "value": 3,
+          "suffix": "",
+          "prefix": "",
+          "label": "Places to track your cash"
+        },
+        {
+          "value": 12,
+          "suffix": "",
+          "prefix": "",
+          "label": "Currencies supported"
+        },
+        {
+          "value": 2,
+          "suffix": " min",
+          "prefix": "~",
+          "label": "To set up your first budget"
+        }
+      ]
+    },
+    "integrations": {
+      "eyebrow": "Currencies",
+      "titleLine1": "Wherever your money",
+      "titleLine2": "lives, we speak it.",
+      "description": "12 currencies, formatted the way you're used to seeing them. Switch anytime in Settings."
+    },
+    "security": {
+      "eyebrow": "Privacy",
+      "titleLine1": "Your money,",
+      "titleLine2": "your business.",
+      "description": "Budgeting means sharing personal details about your life. We take that seriously — your information stays private, protected, and always under your control.",
+      "features": [
+        {
+          "title": "Private by default",
+          "description": "Firestore security rules isolate each account so signed-in users can access only their own budget."
+        },
+        {
+          "title": "No bank connections",
+          "description": "We never ask for your card or account numbers. You stay in control of what you enter."
+        },
+        {
+          "title": "No advertising profiles",
+          "description": "We do not use your financial data to build advertising profiles or sell it to third parties."
+        },
+        {
+          "title": "Export or delete anytime",
+          "description": "Download everything as a spreadsheet, or erase your account completely, whenever you like."
+        }
+      ],
+      "badges": [
+        "Private accounts",
+        "No bank sync required",
+        "Data export",
+        "Easy account deletion",
+        "No ad tracking"
+      ]
+    },
+    "testimonials": {
+      "eyebrow": "What people say",
+      "keyResult": "Key Result",
+      "trustedBy": "Trusted by people who budget in",
+      "items": [
+        {
+          "quote": "I finally know where my money goes each month. It's not a fancy finance app — it's exactly what I needed.",
+          "author": "Youssef B.",
+          "role": "Freelance designer",
+          "company": "Casablanca",
+          "metric": "Saved 20% more in 3 months"
+        },
+        {
+          "quote": "The wallet vs bank split is genius. I used to lose track of cash completely.",
+          "author": "Amina K.",
+          "role": "Teacher",
+          "company": "Rabat",
+          "metric": "Zero surprise overdrafts"
+        },
+        {
+          "quote": "Switched from a spreadsheet I'd been maintaining for years. Flousy replaced it in a weekend.",
+          "author": "Karim M.",
+          "role": "Software engineer",
+          "company": "Marrakech",
+          "metric": "From spreadsheet to app in 2 days"
+        }
+      ]
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "titleLine1": "Free to start.",
+      "titleLine2": "Pro when you're ready.",
+      "description": "Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.",
+      "monthly": "Monthly",
+      "annual": "Annual",
+      "save34": "Save 34%",
+      "perMonth": "/month",
+      "mostPopular": "Most popular",
+      "bottomNote": "Your budget stays private, always. No credit card required to start.",
+      "plans": [
+        {
+          "name": "Free",
+          "description": "Everything you need to start budgeting for real",
+          "features": [
+            "Choose from 4 budgeting styles",
+            "Track cash across bank, home & wallet",
+            "Unlimited savings goals",
+            "12 currencies supported",
+            "Export your data anytime",
+            "Works on your phone, offline"
+          ],
+          "cta": "Start free"
+        },
+        {
+          "name": "Pro",
+          "description": "For anyone ready to take budgeting further",
+          "features": [
+            "Everything in Free",
+            "See your spending trends over time",
+            "Set up bills to repeat automatically",
+            "Get alerts before you overspend",
+            "Import past spending in one go",
+            "Priority support"
+          ],
+          "cta": "Upgrade to Pro"
+        }
+      ]
+    },
+    "faq": {
+      "eyebrow": "Flousy facts",
+      "title": "Frequently asked questions"
+    },
+    "cta": {
+      "titleLine1": "Ready to know",
+      "titleLine2": "where your money is?",
+      "description": "Join people who stopped guessing. Start free, no credit card needed — upgrade to Pro whenever you want more.",
+      "ctaPrimary": "Start budgeting free",
+      "ctaSecondary": "See Pro features",
+      "noCreditCard": "No credit card required"
+    },
+    "footer": {
+      "tagline": "The simple way to know what your money is for, and where it actually is.",
+      "product": "Product",
+      "support": "Support",
+      "company": "Company",
+      "legalCol": "Legal",
+      "features": "Features",
+      "howItWorks": "How it works",
+      "pricing": "Pricing",
+      "currencies": "Currencies",
+      "helpCenter": "Help center",
+      "contactUs": "Contact us",
+      "security": "Security",
+      "about": "About",
+      "careers": "Careers",
+      "hiring": "Hiring",
+      "blog": "Blog",
+      "privacyPolicy": "Privacy policy",
+      "termsOfService": "Terms of service",
+      "cookiePolicy": "Cookie policy",
+      "copyright": "2026 Flousy. All rights reserved.",
+      "allSystems": "All systems operational"
+    }
+  },
+  "static": {
+    "about": {
+      "eyebrow": "About",
+      "title": "Money you can finally make sense of.",
+      "subtitle": "Flousy started from a simple frustration: budgeting apps that tell you what you spent, but never help you understand why your money still runs out.",
+      "s1Title": "Two questions, one app",
+      "s1Body": "Every budgeting question really comes down to two things: what is this money for, and where does it actually sit right now? Most apps mix the two together until neither makes sense. Flousy keeps them separate, so you always know both — without spreadsheets, without guesswork.",
+      "s2Title": "Built for everyday life",
+      "s2Body": "We designed Flousy for real budgets — the cash in your wallet, the money sitting at home, and whatever's left in the bank. No bank connections required, no complicated setup. Just add your income, pick a style that fits how you think about money, and start logging as you go.",
+      "s3Title": "Free to start, honest about the rest",
+      "s3Body": "The core of Flousy — tracking, budgeting styles, savings goals — is free, and always will be. Flousy Pro exists for people who want a deeper look at their habits over time. We'll never hide basic budgeting behind a paywall.",
+      "s4Title": "Your business stays yours",
+      "s4Body": "Budgeting means sharing personal details about your life. We take that seriously: your data is private to your account, never sold, and yours to export or delete whenever you choose."
+    },
+    "help": {
+      "eyebrow": "Help center",
+      "title": "Questions, answered.",
+      "subtitle": "Can't find what you're looking for? Reach out and we'll get back to you.",
+      "stillStuck": "Still stuck?",
+      "getInTouch": "Get in touch with us",
+      "faqs": [
+        {
+          "question": "Do I need to connect my bank account?",
+          "answer": "No. Flousy never asks for your bank login, card number, or account number. You add your income and expenses yourself, and choose which place — bank, home, or wallet — each one belongs to."
+        },
+        {
+          "question": "How does Flousy decide my budget?",
+          "answer": "You pick a budgeting style that fits how you think about money. Flousy then splits your income into needs, wants, and savings automatically. You can switch styles at any time, and your categories adjust to match."
+        },
+        {
+          "question": "What's the difference between 'what it's for' and 'where it is'?",
+          "answer": "Your budget decides what your money is for — rent is a need, dinner out is a want. Separately, Flousy tracks where that money actually sits — in your bank, at home, or in your wallet. Keeping these separate means your numbers always make sense."
+        },
+        {
+          "question": "Can I use more than one currency?",
+          "answer": "Yes. Flousy supports 12 currencies, and you can switch your display currency anytime from Settings."
+        },
+        {
+          "question": "What happens if I delete an expense by mistake?",
+          "answer": "The money is returned to wherever it came from, instantly and exactly. Nothing about your balances is ever left out of sync."
+        },
+        {
+          "question": "What do I get with Flousy Pro?",
+          "answer": "Pro adds spending trends over time, automatic recurring bills, overspending alerts, and the ability to import your past spending in one go — on top of everything in the free plan."
+        },
+        {
+          "question": "Can I export my data?",
+          "answer": "Yes, anytime. Head to Settings to download your full budgeting history as a spreadsheet."
+        },
+        {
+          "question": "How do I delete my account?",
+          "answer": "You can permanently delete your account and all of your data from Settings, with no need to contact support."
+        }
+      ]
+    },
+    "contact": {
+      "eyebrow": "Contact",
+      "title": "Let's talk.",
+      "subtitle": "Questions about your account, Flousy Pro, or just want to say hi? Send us a message and we'll get back to you soon.",
+      "emailNote": "Prefer email? Reach us at hello@flousy.app",
+      "yourName": "Your name",
+      "emailAddress": "Email address",
+      "topic": "What's this about?",
+      "topicPlaceholder": "Question about Pro, a bug, feedback...",
+      "message": "Message",
+      "messagePlaceholder": "Tell us a bit more...",
+      "send": "Send message",
+      "sentTitle": "Message sent",
+      "sentDescription": "Thanks for reaching out. We usually reply within a day or two."
+    },
+    "careers": {
+      "eyebrow": "Careers",
+      "title": "We're not hiring right now — but we'd still love to hear from you.",
+      "subtitle": "Flousy is a small team building a budgeting app people actually enjoy using. There are no open roles at the moment, but we keep every introduction on file for when that changes.",
+      "valuesTitle": "What we care about",
+      "values": [
+        {
+          "title": "Clarity over complexity",
+          "description": "We'd rather ship something simple that works than something clever that confuses people."
+        },
+        {
+          "title": "Privacy as a default",
+          "description": "We build as if every user is watching how we handle their data, because in spirit, they are."
+        },
+        {
+          "title": "Small team, real ownership",
+          "description": "Everyone here shapes the product directly — no layers between an idea and the people using it."
+        }
+      ],
+      "getOnRadar": "Get on our radar",
+      "getOnRadarDescription": "Send a short note and whatever you'd like us to see to",
+      "getOnRadarSuffix": ". We read everything, even without an open role to point you to."
+    },
+    "cookies": {
+      "eyebrow": "Legal",
+      "title": "Cookie Policy",
+      "subtitle": "Last updated July 2026. A short, honest explanation of the handful of cookies Flousy uses.",
+      "sections": [
+        {
+          "title": "1. What cookies we use",
+          "body": "Flousy uses a small number of cookies and local storage entries to keep you signed in, remember your preferences (like currency and dark mode), and keep the app working smoothly between visits."
+        },
+        {
+          "title": "2. Essential cookies",
+          "body": "These are required for the app to function — for example, staying logged into your account. You can't opt out of these without losing the ability to use Flousy."
+        },
+        {
+          "title": "3. Optional analytics",
+          "body": "If enabled, we may use privacy-respecting analytics cookies to understand overall usage patterns, like which pages or features are most used. These don't track you across other websites, and are off unless you've agreed to them."
+        },
+        {
+          "title": "4. No advertising cookies",
+          "body": "Flousy does not use advertising or cross-site tracking cookies. We're not in the business of selling attention or data."
+        },
+        {
+          "title": "5. Managing cookies",
+          "body": "You can control or clear cookies through your browser settings at any time. Note that blocking essential cookies may prevent Flousy from working properly."
+        }
+      ]
+    }
+  }
+}
