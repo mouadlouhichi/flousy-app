@@ -5,6 +5,13 @@ import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registra
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 
+
+// Required for nonce-based CSP (src/middleware.ts): a per-request nonce
+// can only match the rendered HTML if the page is rendered per-request,
+// not statically at build time.
+export const dynamic = 'force-dynamic';
+
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
