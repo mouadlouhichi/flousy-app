@@ -73,7 +73,7 @@ export function ManageCategoriesModal({
       <div className="flex flex-col gap-md">
         {/* Existing Categories List */}
         <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
             ACTIVE CATEGORIES
           </label>
           <div className="flex flex-wrap gap-sm p-sm bg-surface-container rounded-2xl border border-outline-variant">
@@ -104,7 +104,7 @@ export function ManageCategoriesModal({
 
         {/* Add New Category Form */}
         <form onSubmit={handleAdd} className="flex flex-col gap-md p-md bg-surface border border-outline-variant rounded-2xl">
-          <span className="font-label-sm text-label-sm text-primary uppercase font-bold tracking-wider">
+          <span className="font-label-sm text-label-sm font-mono text-primary uppercase font-bold tracking-wider">
             ADD NEW CATEGORY
           </span>
 
@@ -121,7 +121,7 @@ export function ManageCategoriesModal({
 
           {/* Icon Picker */}
           <div className="flex flex-col gap-xs">
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+            <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
               ICON
             </span>
             <div className="grid grid-cols-8 gap-1 max-h-[100px] overflow-y-auto">

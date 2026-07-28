@@ -74,7 +74,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
       <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
         {/* Amount Input */}
         <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
             AMOUNT
           </label>
           <div className="flex items-center text-primary font-bold">
@@ -140,7 +140,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
 
         {/* Status */}
         <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
             STATUS
           </label>
           <div className="grid grid-cols-2 gap-sm">

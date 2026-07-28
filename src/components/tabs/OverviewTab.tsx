@@ -128,7 +128,7 @@ export function OverviewTab({
               <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
                 Budget Plan
               </h3>
-              <span className="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase">
+              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">
                 {strategy.name}
               </span>
             </div>
@@ -205,7 +205,7 @@ export function OverviewTab({
           {/* Monthly Income Summary Banner */}
           <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center shadow-xs">
             <div>
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-extrabold">
+              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-extrabold">
                 TOTAL MONTHLY BUDGET
               </span>
               <h3 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-1">
@@ -213,7 +213,7 @@ export function OverviewTab({
               </h3>
             </div>
             <div className="text-right">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider block">
+              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block">
                 TOTAL CASH ON HAND
               </span>
               <span className="font-headline-sm text-headline-sm text-primary font-extrabold font-mono">

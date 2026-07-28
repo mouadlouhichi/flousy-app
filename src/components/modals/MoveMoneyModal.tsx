@@ -120,7 +120,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
 
         {/* Amount Input */}
         <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
             TRANSFER AMOUNT
           </label>
           <div className="flex items-center text-primary font-bold">
@@ -161,7 +161,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
 
         {/* Live Balance Impact Preview */}
         <div className="p-md bg-primary-container/10 border border-primary/20 rounded-2xl flex flex-col gap-sm">
-          <span className="font-label-sm text-label-sm text-primary uppercase font-bold tracking-wider">
+          <span className="font-label-sm text-label-sm font-mono text-primary uppercase font-bold tracking-wider">
             PREVIEW BALANCES AFTER TRANSFER
           </span>
           <div className="flex justify-between items-center font-body-md text-body-md">

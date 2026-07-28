@@ -18,7 +18,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
       {/* Header Banner */}
       <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center">
         <div>
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
             MONTHLY FIXED COMMITMENTS
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">

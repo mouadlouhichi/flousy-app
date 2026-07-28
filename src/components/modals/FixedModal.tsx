@@ -100,7 +100,7 @@ export function FixedModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
         {/* Amount */}
         <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
             MONTHLY CHARGE
           </label>
           <div className="flex items-center text-primary font-bold">
@@ -174,7 +174,7 @@ export function FixedModal({
 
         {/* Account / Place */}
         <div className="flex flex-col gap-sm">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
             Paid From
           </label>
           <div className="grid grid-cols-3 gap-sm">

@@ -67,15 +67,15 @@ export function TrendsTab({ month }: TrendsTabProps) {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-sm">
         <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Total Spent</span>
+          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Total Spent</span>
           <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{format(totalAllSpent)}</p>
         </div>
         <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Members</span>
+          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Members</span>
           <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{Object.keys(personBreakdown).length || '—'}</p>
         </div>
         <div className="p-md bg-surface-container rounded-2xl border border-outline-variant col-span-2 sm:col-span-1">
-          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Budget Left</span>
+          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Budget Left</span>
           <p className="font-headline-sm sm:font-headline-md font-extrabold text-primary mt-1">
             {format(Math.max(0, month.totalBudget - totalAllSpent))}
           </p>

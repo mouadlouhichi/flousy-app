@@ -166,7 +166,7 @@ export function SavingsModal({
           <>
             {/* Fund or Withdraw Amount Input */}
             <div className="flex flex-col items-center justify-center py-sm">
-              <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+              <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
                 {mode === 'fund' ? 'DEPOSIT AMOUNT' : 'WITHDRAWAL AMOUNT'}
               </label>
               <div className="flex items-center text-primary font-bold">
