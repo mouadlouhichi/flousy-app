@@ -1,8 +1,23 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { AnimatedSphere } from './animated-sphere';
 
+const words = ['save', 'track', 'plan', 'grow'];
+
 export function HeroSection() {
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setWordIndex((current) => (current + 1) % words.length);
+    }, 2500);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   return (
     <section className="relative flex min-h-screen flex-col justify-center overflow-hidden">
       <div
@@ -36,29 +51,47 @@ export function HeroSection() {
         <div className="mb-8">
           <span className="inline-flex items-center gap-3 font-mono text-sm text-muted-foreground">
             <span aria-hidden="true" className="h-px w-8 bg-foreground/30" />
-            A private, mobile-first budget tracker
+            Needs, wants, savings — and every money place.
           </span>
         </div>
 
         <div className="mb-12">
-          <h1 className="font-display text-[clamp(3rem,10vw,9rem)] leading-[0.9] tracking-tight">
-            <span className="block">Budget your needs</span>
-            <span className="block">and wants.</span>
-            <span className="block text-muted-foreground">Track every money place.</span>
+          <h1 className="font-display text-[clamp(3rem,12vw,10rem)] leading-[0.9] tracking-tight">
+            <span className="block">The budget app</span>
+            <span className="block">
+              to{' '}
+              <span className="relative inline-block">
+                <span key={wordIndex} className="inline-flex">
+                  {words[wordIndex].split('').map((character, index) => (
+                    <span
+                      key={`${wordIndex}-${index}`}
+                      className="animate-char-in inline-block"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      {character}
+                    </span>
+                  ))}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="absolute -bottom-2 left-0 right-0 h-3 bg-foreground/10"
+                />
+              </span>
+            </span>
           </h1>
         </div>
 
         <div className="grid items-end gap-12 lg:grid-cols-2 lg:gap-24">
           <p className="max-w-xl text-xl leading-relaxed text-muted-foreground lg:text-2xl">
-            Flousy keeps budget envelopes—needs, wants, and savings—separate
-            from the bank, home, or wallet where your money is held.
+            Your money answers two questions: what it&apos;s for, and where it is.
+            Flousy keeps them separate — every dirham accounted for, always.
           </p>
 
-          <div className="flex flex-col items-start gap-4 sm:flex-row">
+          <div className="flex flex-col items-start gap-4 sm:flex-row lg:-translate-y-6">
             <Button
               asChild
               size="lg"
-              className="group h-14 rounded-full bg-primary px-8 text-base text-card hover:bg-primary/90"
+              className="group h-14 rounded-full bg-primary px-8 text-base text-white hover:bg-primary/90"
             >
               <a href="/login">
                 Start budgeting free
@@ -77,30 +110,30 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="absolute bottom-16 left-0 right-0 hidden overflow-hidden sm:block lg:bottom-20">
+      <div className="absolute bottom-24 left-0 right-0 hidden overflow-hidden sm:block">
         <div className="marquee flex gap-16 whitespace-nowrap">
           {[...Array(2)].map((_, setIndex) => (
             <div key={setIndex} className="flex gap-16" aria-hidden={setIndex === 1}>
               {[
                 {
                   value: '4',
-                  label: 'budgeting strategies',
-                  detail: '50/30/20 · ZERO-BASED · ENVELOPE · PAY-FIRST',
+                  label: 'budgeting styles to pick from',
+                  detail: '50/30/20 & MORE',
                 },
                 {
                   value: '3',
-                  label: 'money places',
+                  label: 'places to track your cash',
                   detail: 'BANK · HOME · WALLET',
                 },
                 {
                   value: '12',
                   label: 'currencies supported',
-                  detail: 'MAD · EUR · USD · GBP · AND 8 MORE',
+                  detail: 'MAD · EUR · USD',
                 },
                 {
-                  value: '0',
-                  label: 'bank connections',
-                  detail: 'MANUAL ENTRY FOR CONTROL',
+                  value: '100%',
+                  label: 'of your money accounted for',
+                  detail: 'NEVER LOST',
                 },
               ].map((stat) => (
                 <div key={`${stat.detail}-${setIndex}`} className="flex items-baseline gap-4">

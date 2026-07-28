@@ -71,7 +71,7 @@ export function Navigation() {
             <Button
               asChild
               size="sm"
-              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-white rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
               <a href="/login">Start budgeting</a>
             </Button>
@@ -139,7 +139,7 @@ export function Navigation() {
             </Button>
             <Button
               asChild
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 text-base"
+              className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
             >
               <a href="/login">Start budgeting</a>
             </Button>

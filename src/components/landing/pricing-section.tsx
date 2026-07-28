@@ -143,7 +143,7 @@ export function PricingSection() {
               <button
                 className={`w-full py-4 flex items-center justify-center gap-2 text-sm font-medium transition-all group ${
                   plan.popular
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    ? "bg-primary text-white hover:bg-primary/90"
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"
                 }`}
               >

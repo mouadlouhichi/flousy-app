@@ -66,7 +66,7 @@ export function CtaSection() {
                   <Button
                     asChild
                     size="lg"
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 text-base rounded-full group"
+                    className="bg-primary hover:bg-primary/90 text-white px-8 h-14 text-base rounded-full group"
                   >
                     <a href="/login">
                       Start budgeting free
