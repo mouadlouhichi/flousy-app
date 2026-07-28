@@ -74,12 +74,12 @@ export function PricingSection() {
           {(pricingData?.plans || []).map((planData, idx) => {
             const priceInfo = plansBase[idx] || { price: { monthly: 0, annual: 0 }, popular: false };
             return (
-            <div
-              key={planData.name || idx}
-              className={`relative p-8 lg:p-12 bg-background ${
-                priceInfo.popular ? "md:-my-4 md:py-12 lg:py-16 border-2 border-primary" : ""
-              }`}
-            >
+              <div
+                key={planData.name || idx}
+                className={`relative p-8 lg:p-12 bg-background ${
+                  priceInfo.popular ? "md:-my-4 md:py-12 lg:py-16 border-2 border-primary" : ""
+                }`}
+              >
               {priceInfo.popular && (
                 <span className="absolute -top-3 left-8 px-3 py-1 bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
                   {pricingData?.mostPopular || 'Most popular'}
