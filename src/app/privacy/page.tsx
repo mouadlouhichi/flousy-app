@@ -1,9 +1,41 @@
 import type { Metadata } from "next";
 import { StaticPageShell } from "@/components/static/page-shell";
 
+const description =
+  "Flousy collects account and budgeting information to run the app, never asks for bank credentials, and does not sell financial data to third parties.";
+
 export const metadata: Metadata = {
-  title: "Privacy Policy — Flousy",
-  description: "How Flousy collects, uses, and protects your information.",
+  title: "Privacy Policy",
+  description,
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy · Flousy",
+    description,
+    url: "/privacy",
+    siteName: "Flousy",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Flousy budget tracker for needs, wants, savings, and money places",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy · Flousy",
+    description,
+    images: ["/opengraph-image"],
+  },
 };
 
 const sections = [

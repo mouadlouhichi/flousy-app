@@ -8,7 +8,8 @@ const navLinks = [
   { name: "Features", href: "/#features" },
   { name: "How it works", href: "/#how-it-works" },
   { name: "Security", href: "/#security" },
-  { name: "Roadmap", href: "/#pricing" },
+  { name: "Pricing", href: "/#pricing" },
+  { name: "FAQ", href: "/#faq" },
 ];
 
 export function Navigation() {
@@ -68,10 +69,11 @@ export function Navigation() {
               Sign in
             </a>
             <Button
+              asChild
               size="sm"
-              className={`bg-primary hover:bg-primary/90  hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
-              Start budgeting
+              <a href="/login">Start budgeting</a>
             </Button>
           </div>
 
@@ -128,18 +130,18 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button 
-              variant="outline" 
+            <Button
+              asChild
+              variant="outline"
               className="flex-1 rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
             >
-              Sign in
+              <a href="/login">Sign in</a>
             </Button>
-            <Button 
+            <Button
+              asChild
               className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
             >
-              Start budgeting
+              <a href="/login">Start budgeting</a>
             </Button>
           </div>
         </div>

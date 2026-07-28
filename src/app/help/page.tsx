@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/accordion";
 
 export const metadata: Metadata = {
-  title: "Help Center — Flousy",
+  title: "Help Center",
   description: "Answers to common questions about budgeting with Flousy.",
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { StaticPageShell } from "@/components/static/page-shell";
 
 export const metadata: Metadata = {
-  title: "Blog — Flousy",
+  title: "Blog",
   description: "Notes on budgeting, money habits, and building Flousy.",
 };
 

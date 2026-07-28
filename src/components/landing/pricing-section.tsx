@@ -68,6 +68,10 @@ export function PricingSection() {
             Monthly
           </span>
           <button
+            type="button"
+            role="switch"
+            aria-checked={isAnnual}
+            aria-label="Use annual billing"
             onClick={() => setIsAnnual(!isAnnual)}
             className="relative w-14 h-7 bg-foreground/10 rounded-full p-1 transition-colors hover:bg-foreground/20"
           >

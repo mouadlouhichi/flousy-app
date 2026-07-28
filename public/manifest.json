@@ -1,10 +1,11 @@
 {
-  "name": "Flousy",
+  "name": "Flousy – Private Budget Tracker",
   "short_name": "Flousy",
-  "description": "Private, mobile-first budget tracker separating budget envelopes from money places.",
+  "description": "Private budget tracker that separates needs, wants, and savings from money held in your bank, home, and wallet.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f5faf8",
+  "background_color": "#f4f8f6",
   "theme_color": "#00685f",
   "icons": [
     {

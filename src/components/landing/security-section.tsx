@@ -7,7 +7,7 @@ const securityFeatures = [
   {
     icon: Shield,
     title: "Private by default",
-    description: "Only you can see your budget. No one else — not even us — can browse your spending.",
+    description: "Firestore security rules isolate each account so signed-in users can access only their own budget.",
   },
   {
     icon: Lock,
@@ -16,8 +16,8 @@ const securityFeatures = [
   },
   {
     icon: Eye,
-    title: "Nothing shared, ever",
-    description: "Your numbers are yours. We don't sell your data or hand it to advertisers.",
+    title: "No advertising profiles",
+    description: "We do not use your financial data to build advertising profiles or sell it to third parties.",
   },
   {
     icon: FileCheck,
