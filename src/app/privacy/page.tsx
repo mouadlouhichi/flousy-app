@@ -1,92 +1,24 @@
-import type { Metadata } from "next";
+'use client';
 import { StaticPageShell } from "@/components/static/page-shell";
-
-const description =
-  "Flousy collects account and budgeting information to run the app, never asks for bank credentials, and does not sell financial data to third parties.";
-
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description,
-  robots: {
-    index: true,
-    follow: true,
-  },
-  alternates: {
-    canonical: "/privacy",
-  },
-  openGraph: {
-    title: "Privacy Policy · Flousy",
-    description,
-    url: "/privacy",
-    siteName: "Flousy",
-    type: "website",
-    locale: "en_US",
-    images: [
-      {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "Flousy budget tracker for needs, wants, savings, and money places",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Privacy Policy · Flousy",
-    description,
-    images: ["/opengraph-image"],
-  },
-};
-
-const sections = [
-  {
-    title: "1. What we collect",
-    body: `We collect the information you give us directly: your email address, the income, expenses, categories and goals you enter, and basic account preferences like your currency and display settings. We do not ask for bank logins, card numbers, or account numbers of any kind.`,
-  },
-  {
-    title: "2. How we use it",
-    body: `Your budgeting data is used to power the app itself — to show your balances, calculate your budget, and sync your information across your devices. We do not use your financial data to build advertising profiles, and we do not sell it to third parties.`,
-  },
-  {
-    title: "3. Who can see your data",
-    body: `Only you can access your budget. Our systems are built so that your account's data is isolated from every other account, and our team accesses individual data only when needed to fix a problem you've reported.`,
-  },
-  {
-    title: "4. Analytics",
-    body: `We may use limited, privacy-respecting analytics to understand how the app is used overall (for example, which features are popular). This is aggregated and anonymized, and is off by default until you agree to it.`,
-  },
-  {
-    title: "5. Data retention",
-    body: `We keep your data for as long as your account is active. If you delete your account, your profile, budgets, and goals are permanently removed from our systems.`,
-  },
-  {
-    title: "6. Your choices",
-    body: `You can export your budgeting history as a spreadsheet at any time from Settings. You can also delete your account and all associated data permanently, whenever you like — no need to contact support.`,
-  },
-  {
-    title: "7. Changes to this policy",
-    body: `If we make meaningful changes to how we handle your data, we'll let you know in the app before the changes take effect.`,
-  },
-  {
-    title: "8. Contact us",
-    body: `Questions about this policy or your data? Reach out any time from our Contact page.`,
-  },
-];
+import { useLightLanguage } from "@/lib/i18n-light";
 
 export default function PrivacyPage() {
+  const { messages: m, language } = useLightLanguage();
+  const sections = [
+    { title: m.legal.privacy.s1Title, body: m.legal.privacy.s1Body },
+    { title: m.legal.privacy.s2Title, body: m.legal.privacy.s2Body },
+    { title: m.legal.privacy.s3Title, body: m.legal.privacy.s3Body },
+    { title: m.legal.privacy.s4Title, body: m.legal.privacy.s4Body },
+    { title: m.legal.privacy.s5Title, body: m.legal.privacy.s5Body },
+    { title: m.legal.privacy.s6Title, body: m.legal.privacy.s6Body },
+    { title: m.legal.privacy.s7Title, body: m.legal.privacy.s7Body },
+    { title: m.legal.privacy.s8Title, body: m.legal.privacy.s8Body },
+  ];
   return (
-    <StaticPageShell
-      eyebrow="Legal"
-      title="Privacy Policy"
-      subtitle="Last updated July 2026. Plain-language version below — the short of it: your budget is yours, and it stays that way."
-    >
+    <StaticPageShell eyebrow={m.legal.eyebrow} title={m.legal.privacyTitle} subtitle={m.legal.privacySubtitle}>
       <div className="space-y-12">
-        {sections.map((section) => (
-          <div key={section.title}>
-            <h2 className="font-display text-2xl text-foreground mb-3">{section.title}</h2>
-            <p className="text-muted-foreground leading-relaxed">{section.body}</p>
-          </div>
-        ))}
+        {language !== 'en' && (<div className="p-4 bg-muted/30 border border-foreground/10 rounded-xl text-sm text-muted-foreground italic">{m.legal.authoritativeNotice}</div>)}
+        {sections.map(s=>(<div key={s.title}><h2 className="font-display text-2xl text-foreground mb-3">{s.title}</h2><p className="text-muted-foreground leading-relaxed">{s.body}</p></div>))}
       </div>
     </StaticPageShell>
   );

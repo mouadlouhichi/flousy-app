@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useLightLanguage } from "@/lib/i18n-light";
 
 const integrations = [
   { name: "MAD", category: "Moroccan Dirham" },
@@ -18,6 +19,7 @@ const integrations = [
 ];
 
 export function IntegrationsSection() {
+  const { messages: m } = useLightLanguage();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -44,7 +46,7 @@ export function IntegrationsSection() {
         >
           <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
             <span className="w-8 h-px bg-foreground/30" />
-            Currencies
+            {m.landing.integrations.eyebrow}
             <span className="w-8 h-px bg-foreground/30" />
           </span>
           <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-6">

@@ -1,193 +1,91 @@
+import en from '../../messages/en.json';
+import fr from '../../messages/fr.json';
+import ar from '../../messages/ar.json';
+
 export type Language = 'en' | 'fr' | 'ar';
 
-export interface TranslationDictionary {
-  appName: string;
-  tagline: string;
-  overview: string;
-  variable: string;
-  fixed: string;
-  savings: string;
-  trends: string;
-  settings: string;
-  totalIncome: string;
-  totalSpent: string;
-  remaining: string;
-  needs: string;
-  wants: string;
-  addExpense: string;
-  addBill: string;
-  addGoal: string;
-  moveMoney: string;
-  category: string;
-  amount: string;
-  date: string;
-  place: string;
-  note: string;
-  person: string;
-  receipt: string;
-  recurring: string;
-  proPlan: string;
-  upgradeToPro: string;
-  freePlan: string;
-  save: string;
-  cancel: string;
-  delete: string;
-  edit: string;
-  searchPlaceholder: string;
-  filterByPerson: string;
-  allPersons: string;
-  importCsv: string;
-  exportCsv: string;
-  alerts: string;
-  noAlerts: string;
-  language: string;
-  currency: string;
-  theme: string;
-  incomeSources: string;
-  household: string;
-  close: string;
+export const LOCALES: Language[] = ['en', 'fr', 'ar'];
+
+export const LOCALE_NAMES: Record<Language, string> = {
+  en: 'English',
+  fr: 'Français',
+  ar: 'العربية',
+};
+
+export const RTL_LOCALES: Language[] = ['ar'];
+
+export type Messages = typeof en;
+
+export const MESSAGES: Record<Language, Messages> = {
+  en,
+  fr: fr as unknown as Messages,
+  ar: ar as unknown as Messages,
+};
+
+/** Simple interpolation: replaces {key} tokens. */
+export function interpolate(template: string, values: Record<string, string | number> = {}): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => {
+    return key in values ? String(values[key]) : `{${key}}`;
+  });
 }
 
-export const TRANSLATIONS: Record<Language, TranslationDictionary> = {
-  en: {
-    appName: 'Flousy',
-    tagline: 'Private, mobile-first budget tracker that separates what money is for from where it is.',
-    overview: 'Overview',
-    variable: 'Variable',
-    fixed: 'Fixed',
-    savings: 'Savings',
-    trends: 'Trends',
-    settings: 'Settings',
-    totalIncome: 'Total Income',
-    totalSpent: 'Total Spent',
-    remaining: 'Remaining',
-    needs: 'Needs',
-    wants: 'Wants',
-    addExpense: 'Add Expense',
-    addBill: 'Add Bill',
-    addGoal: 'Add Goal',
-    moveMoney: 'Move Money',
-    category: 'Category',
-    amount: 'Amount',
-    date: 'Date',
-    place: 'Place',
-    note: 'Note',
-    person: 'Person',
-    receipt: 'Receipt',
-    recurring: 'Recurring',
-    proPlan: 'Pro Plan',
-    upgradeToPro: 'Upgrade to Pro',
-    freePlan: 'Free Plan',
-    save: 'Save',
-    cancel: 'Cancel',
-    delete: 'Delete',
-    edit: 'Edit',
-    searchPlaceholder: 'Search expenses, categories, or notes...',
-    filterByPerson: 'Filter by person',
-    allPersons: 'All Members',
-    importCsv: 'Import CSV',
-    exportCsv: 'Export CSV',
-    alerts: 'Budget Alerts',
-    noAlerts: 'All budget envelopes are healthy!',
-    language: 'Language',
-    currency: 'Currency',
-    theme: 'Theme',
-    incomeSources: 'Income Sources',
-    household: 'Household',
-    close: 'Close',
-  },
-  fr: {
-    appName: 'Flousy',
-    tagline: 'Suivi budgétaire privé et mobile séparant la destination de l\'argent de son emplacement.',
-    overview: 'Aperçu',
-    variable: 'Variable',
-    fixed: 'Fixe',
-    savings: 'Épargne',
-    trends: 'Tendances',
-    settings: 'Paramètres',
-    totalIncome: 'Revenu Total',
-    totalSpent: 'Dépenses Totales',
-    remaining: 'Restant',
-    needs: 'Besoins',
-    wants: 'Envies',
-    addExpense: 'Ajouter Dépense',
-    addBill: 'Ajouter Facture',
-    addGoal: 'Ajouter Objectif',
-    moveMoney: 'Déplacer Argent',
-    category: 'Catégorie',
-    amount: 'Montant',
-    date: 'Date',
-    place: 'Emplacement',
-    note: 'Note',
-    person: 'Personne',
-    receipt: 'Reçu',
-    recurring: 'Récurrent',
-    proPlan: 'Plan Pro',
-    upgradeToPro: 'Passer au Pro',
-    freePlan: 'Plan Gratuit',
-    save: 'Enregistrer',
-    cancel: 'Annuler',
-    delete: 'Supprimer',
-    edit: 'Modifier',
-    searchPlaceholder: 'Rechercher des dépenses, catégories...',
-    filterByPerson: 'Filtrer par personne',
-    allPersons: 'Tous les membres',
-    importCsv: 'Importer CSV',
-    exportCsv: 'Exporter CSV',
-    alerts: 'Alertes Budget',
-    noAlerts: 'Tous vos enveloppes budgétaires sont saines !',
-    language: 'Langue',
-    currency: 'Devise',
-    theme: 'Thème',
-    incomeSources: 'Sources de Revenus',
-    household: 'Foyer',
-    close: 'Fermer',
-  },
-  ar: {
-    appName: 'فلوسي',
-    tagline: 'تطبيق إدارة ميزانية شخصية بفصل بين غرض المال ومكان وجوده الحقيقي.',
-    overview: 'نظرة عامة',
-    variable: 'متغيرة',
-    fixed: 'ثابتة',
-    savings: 'الادخار',
-    trends: 'الاتجاهات',
-    settings: 'الإعدادات',
-    totalIncome: 'إجمالي الدخل',
-    totalSpent: 'إجمالي المصاريف',
-    remaining: 'المتبقي',
-    needs: 'الاحتياجات',
-    wants: 'الرغبات',
-    addExpense: 'إضافة مصورف',
-    addBill: 'إضافة فاتورة',
-    addGoal: 'إضافة هدف',
-    moveMoney: 'تحويل أموال',
-    category: 'الفئة',
-    amount: 'المبلغ',
-    date: 'التاريخ',
-    place: 'المكان',
-    note: 'ملاحظة',
-    person: 'الشخص',
-    receipt: 'وصل / إيصال',
-    recurring: 'متكرر',
-    proPlan: 'الخطة الاحترافية',
-    upgradeToPro: 'الترقية إلى Pro',
-    freePlan: 'الخطة المجانية',
-    save: 'حفظ',
-    cancel: 'إلغاء',
-    delete: 'حذف',
-    edit: 'تعديل',
-    searchPlaceholder: 'بحث في المصاريف، الفئات، الملاحظات...',
-    filterByPerson: 'تصفية حسب الشخص',
-    allPersons: 'جميع الأعضاء',
-    importCsv: 'استيراد CSV',
-    exportCsv: 'تصدير CSV',
-    alerts: 'تنبيهات الميزانية',
-    noAlerts: 'جميع ميزانياتك في وضع ممتازة!',
-    language: 'اللغة',
-    currency: 'العملة',
-    theme: 'المظهر',
-    incomeSources: 'مصادر الدخل',
-    household: 'العائلة / العائلة',
-    close: 'إغلاق',
-  },
-};
+/** ICU plural resolver for {count, plural, ...} patterns. */
+export function resolvePlural(template: string, values: Record<string, string | number> = {}): string {
+  return template.replace(
+    /\{(\w+),\s*plural,\s*((?:[^{}]|\{[^}]*\})*)\}/g,
+    (_, varName, cases) => {
+      const count = Number(values[varName] || 0);
+      const parsed: Record<string, string> = {};
+      const caseRegex = /(?:=(\d+)|(\w+))\s*\{([^}]*)\}/g;
+      let match: RegExpExecArray | null;
+      while ((match = caseRegex.exec(cases)) !== null) {
+        const key = match[1] !== undefined ? `=${match[1]}` : match[2];
+        parsed[key] = match[3];
+      }
+      let result = parsed[`=${count}`];
+      if (result === undefined) {
+        if (count === 1 && parsed.one) result = parsed.one;
+        else if (count === 2 && parsed.two) result = parsed.two;
+        else if (count >= 3 && count <= 10 && parsed.few) result = parsed.few;
+        else if (count >= 11 && count <= 99 && parsed.many) result = parsed.many;
+        else result = parsed.other || '';
+      }
+      return result.replace(/#/g, String(count));
+    }
+  );
+}
+
+/** Full message formatter: resolves plurals then interpolates. */
+export function formatMessage(template: string, values: Record<string, string | number> = {}): string {
+  const withPlurals = resolvePlural(template, values);
+  return interpolate(withPlurals, values);
+}
+
+/** Locale-aware number locale string for Intl APIs. */
+export function getIntlLocale(language: Language): string {
+  switch (language) {
+    case 'ar': return 'ar-MA';
+    case 'fr': return 'fr-FR';
+    case 'en': default: return 'en-US';
+  }
+}
+
+export interface CategoryPreset { name: string; color: string; icon: string; }
+
+export function getDefaultCategories(language: Language): CategoryPreset[] {
+  const msgs = MESSAGES[language];
+  return [
+    { name: msgs.categories.food, color: '#f97316', icon: 'restaurant' },
+    { name: msgs.categories.transport, color: '#3b82f6', icon: 'directions_car' },
+    { name: msgs.categories.rent, color: '#8b5cf6', icon: 'home' },
+    { name: msgs.categories.entertainment, color: '#ec4899', icon: 'sports_esports' },
+    { name: msgs.categories.health, color: '#14b8a6', icon: 'favorite' },
+    { name: msgs.categories.utilities, color: '#f59e0b', icon: 'bolt' },
+    { name: msgs.categories.shopping, color: '#6366f1', icon: 'shopping_bag' },
+    { name: msgs.categories.subscriptions, color: '#ef4444', icon: 'subscriptions' },
+  ];
+}
+
+export function getDefaultCategoryNames(language: Language): string[] {
+  return getDefaultCategories(language).map((c) => c.name);
+}
