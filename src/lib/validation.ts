@@ -55,6 +55,11 @@ export const withdrawGoalSchema = z.object({
   targetPlace: z.enum(['bank', 'home', 'wallet']),
 });
 
+export const incomeSourceSchema = z.object({
+  name: z.string().trim().min(1, 'Source name is required').max(60, 'Name is too long'),
+  amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
+});
+
 export const authEmailSchema = z.string().email('Invalid email address');
 export const authPasswordSchema = z.string().min(6, 'Password must be at least 6 characters');
 

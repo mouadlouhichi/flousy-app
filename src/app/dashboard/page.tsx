@@ -25,6 +25,7 @@ import {
   addDebt,
   editDebt,
   deleteDebt,
+  IncomeSource,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
@@ -297,7 +298,7 @@ export default function DashboardPage() {
   };
 
   // Income Sources Handler
-  const handleSaveIncomeSources = (sources: any[], total: number) => {
+  const handleSaveIncomeSources = (sources: IncomeSource[], total: number) => {
     const updated = normalizeMonth({
       ...month,
       incomeSources: sources,
