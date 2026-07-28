@@ -65,6 +65,40 @@ describe('PWA manifest', () => {
   });
 });
 
+describe('favicon and logo assets', () => {
+  it('ships a multi-resolution favicon.ico plus PNG fallbacks', () => {
+    assert.ok(existsSync(path.join(publicDir, 'favicon.ico')), 'favicon.ico is missing');
+
+    for (const [file, size] of [
+      ['favicon-16x16.png', 16],
+      ['favicon-32x32.png', 32],
+    ] as const) {
+      const full = path.join(publicDir, file);
+      assert.ok(existsSync(full), `${file} is missing`);
+      assert.deepEqual(pngSize(full), { width: size, height: size });
+    }
+  });
+
+  it('exposes a transparent logo (real alpha, not a white box)', () => {
+    const logo = path.join(publicDir, 'logo.png');
+    assert.ok(existsSync(logo), 'logo.png is missing');
+
+    const buf = readFileSync(logo);
+    // Byte 25 of the IHDR is the colour type: 6 = RGBA, 3 = palette (may carry tRNS).
+    const colourType = buf[25];
+    assert.ok([3, 4, 6].includes(colourType), `logo.png colour type ${colourType} has no alpha`);
+
+    if (colourType === 3) {
+      assert.ok(buf.includes(Buffer.from('tRNS')), 'palette logo.png has no tRNS transparency');
+    }
+  });
+
+  it('links the favicon from the document head', () => {
+    const layout = readFileSync(path.join(root, 'src/app/layout.tsx'), 'utf8');
+    assert.match(layout, /favicon\.ico/);
+  });
+});
+
 describe('service worker', () => {
   const sw = readFileSync(path.join(publicDir, 'sw.js'), 'utf8');
 
