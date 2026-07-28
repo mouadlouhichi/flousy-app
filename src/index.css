@@ -146,7 +146,7 @@
 @theme {
   --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  --font-display: var(--font-instrument-serif), 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-display: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
