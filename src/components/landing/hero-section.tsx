@@ -9,7 +9,7 @@ import { AnimatedSphere } from './animated-sphere';
 
 
 export function HeroSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, isRTL } = useLightLanguage();
   const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
 
@@ -25,7 +25,7 @@ export function HeroSection() {
     <section className="relative flex min-h-screen flex-col justify-center overflow-hidden">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-1/2 h-[600px] w-[600px] -translate-y-1/2 opacity-40 lg:h-[800px] lg:w-[800px]"
+        className={`pointer-events-none absolute top-1/2 h-[600px] w-[600px] -translate-y-1/2 opacity-40 lg:h-[800px] lg:w-[800px] ${isRTL ? 'left-0' : 'right-0'}`}
       >
         <AnimatedSphere />
       </div>
@@ -65,15 +65,19 @@ export function HeroSection() {
               {m.landing.hero.titleLine2Prefix}{' '}
               <span className="relative inline-block">
                 <span key={wordIndex} className="inline-flex">
-                  {words[wordIndex].split('').map((character, index) => (
-                    <span
-                      key={`${wordIndex}-${index}`}
-                      className="animate-char-in inline-block"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {character}
-                    </span>
-                  ))}
+                  {isRTL ? (
+                    words[wordIndex]
+                  ) : (
+                    words[wordIndex].split('').map((character, index) => (
+                      <span
+                        key={`${wordIndex}-${index}`}
+                        className="animate-char-in inline-block"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        {character}
+                      </span>
+                    ))
+                  )}
                 </span>
                 <span
                   aria-hidden="true"

@@ -41,6 +41,9 @@ export function LightLanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     setLanguageCookie(lang);
     try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
+    const rtl = isRTL(lang);
+    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
   }, []);
 
   const messages = getMessages(language);
