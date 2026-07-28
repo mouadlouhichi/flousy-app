@@ -1,21 +1,27 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
-import '@fontsource/instrument-sans/400.css';
-import '@fontsource/instrument-sans/500.css';
-import '@fontsource/instrument-sans/600.css';
-import '@fontsource/instrument-sans/700.css';
-import '@fontsource/instrument-serif/400.css';
-import '@fontsource/instrument-serif/400-italic.css';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import '@fontsource/jetbrains-mono/600.css';
-import '@fontsource/jetbrains-mono/700.css';
+import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/google';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 
+const instrumentSans = Instrument_Sans({
+  subsets: ['latin'],
+  variable: '--font-instrument',
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-instrument-serif',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains',
+});
 
 // Required for nonce-based CSP (src/middleware.ts): a per-request nonce
 // can only match the rendered HTML if the page is rendered per-request,
@@ -75,7 +81,10 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await headers();
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <InstallPromptCapture />
         <meta name="apple-mobile-web-app-capable" content="yes" />
