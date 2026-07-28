@@ -141,6 +141,11 @@
   html {
     scroll-behavior: smooth;
   }
+
+  html[lang="ar"] {
+    --font-sans: var(--font-arabic), 'Noto Naskh Arabic', system-ui, sans-serif;
+    --font-display: var(--font-arabic), 'Noto Naskh Arabic', system-ui, sans-serif;
+  }
 }
 
 @theme {
