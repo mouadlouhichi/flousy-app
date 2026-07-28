@@ -5,13 +5,15 @@ export function middleware(request: NextRequest) {
   // hydration/streaming scripts execute without falling back to
   // 'unsafe-inline'.
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const isDev = process.env.NODE_ENV === 'development';
+
+  const scriptSrc = isDev
+    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}' https://apis.google.com https://www.gstatic.com`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com`;
 
   const csp = [
     "default-src 'self'",
-    // 'strict-dynamic' lets CSP3 browsers trust scripts loaded BY the
-    // nonce'd script (e.g. Next's chunk loader, Google's gsi client.js);
-    // the explicit hosts remain as a fallback for older CSP2 browsers.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
