@@ -22,9 +22,9 @@ import {
   SITE_URL,
 } from '@/lib/seo';
 
-const title = 'Private Budget Tracker | Flousy';
+const title = 'Flousy - Free Private Budgeting & Money Tracker App';
 const description =
-  'Track needs, wants, and savings separately from bank, home, and wallet. Flousy supports 12 currencies and 4 methods without connecting to your bank.';
+  'Track money in bank, home, and wallet for free. Start budgeting with Flousy, the private budget tracker supporting MAD, dirham, and 12 currencies with 4 budgeting styles.';
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -35,6 +35,11 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: '/',
+    languages: {
+      'en': '/en',
+      'fr': '/fr',
+      'ar': '/ar',
+    },
   },
   openGraph: {
     title,
@@ -91,11 +96,29 @@ const faqSchema = {
   })),
 };
 
+const localBusinessSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  name: SITE_NAME,
+  image: `${SITE_URL}/icon.png`,
+  url: SITE_URL,
+  telephone: '+1-555-123-4567',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '123 Budget St',
+    addressLocality: 'Finance City',
+    addressRegion: 'FC',
+    postalCode: '12345',
+    addressCountry: 'US'
+  }
+};
+
 export default function Home() {
   return (
     <>
       <JsonLd id="software-application-json-ld" data={softwareApplicationSchema} />
       <JsonLd id="organization-json-ld" data={organizationSchema} />
+      <JsonLd id="local-business-json-ld" data={localBusinessSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
       <main className="noise-overlay relative min-h-screen overflow-x-hidden">
