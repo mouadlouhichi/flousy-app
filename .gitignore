@@ -12,3 +12,4 @@ coverage/
 .vscode/
 .cache/
 .cursor/
+tsconfig.tsbuildinfo
