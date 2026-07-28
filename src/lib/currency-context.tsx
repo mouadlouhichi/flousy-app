@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { formatCurrency, getCurrencySymbol } from './currency';
+import { formatCurrency, formatCurrencyParts, getCurrencySymbol } from './currency';
 import { useAuth } from './auth-context';
 
 interface CurrencyContextType {
   currency: string;
   setCurrency: (c: string) => void;
   format: (amount: number) => string;
+  formatParts: (amount: number) => { amount: string; currency: string };
   symbol: string;
 }
 
@@ -29,10 +30,11 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const format = (amount: number) => formatCurrency(amount, currency);
+  const formatParts = (amount: number) => formatCurrencyParts(amount, currency);
   const symbol = getCurrencySymbol(currency);
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, format, symbol }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, format, formatParts, symbol }}>
       {children}
     </CurrencyContext.Provider>
   );

@@ -19,7 +19,7 @@ export function OverviewTab({
   onOpenEditExpense,
   onSelectTab,
 }: OverviewTabProps) {
-  const { format, symbol } = useCurrency();
+  const { format, formatParts } = useCurrency();
 
   const { needs, wants, savings } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
   const spent = calculateEnvelopeSpent(month);
@@ -34,77 +34,83 @@ export function OverviewTab({
 
   return (
     <div className="flex flex-col gap-6 pb-24">
-      {/* Top 3 Money Places Cards (IS) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Top 3 Money Places Cards */}
+      <div className="flex flex-col gap-3">
         {/* Bank */}
-        <div className="p-5 bg-surface-container/60 rounded-3xl border border-outline-variant/60 flex flex-col justify-between gap-3 shadow-xs hover:border-primary/50 transition-all">
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px]">account_balance</span>
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center">
+              <span className="material-symbols-outlined text-[22px]">account_balance</span>
             </div>
-            <span className="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant/80">
-              BANK
-            </span>
-          </div>
-          <div>
-            <h4 className="font-label-lg text-on-surface-variant font-medium">CIH Bank</h4>
-            <div className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono mt-0.5">
-              {format(month.bankPart || 0)}
+            <div className="flex flex-col">
+              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Bank</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.bankPart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.bankPart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="self-start text-primary font-label-md font-bold hover:underline flex items-center gap-1 text-xs"
+            className="text-primary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
           >
             <span>Move Money</span>
             <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
           </button>
         </div>
 
-        {/* Physical / Home Cash */}
-        <div className="p-5 bg-surface-container/60 rounded-3xl border border-outline-variant/60 flex flex-col justify-between gap-3 shadow-xs hover:border-tertiary/50 transition-all">
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-2xl bg-tertiary/10 text-tertiary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px]">home</span>
+        {/* Home Cash */}
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center">
+              <span className="material-symbols-outlined text-[22px]">home</span>
             </div>
-            <span className="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant/80">
-              PHYSICAL
-            </span>
-          </div>
-          <div>
-            <h4 className="font-label-lg text-on-surface-variant font-medium">Home Cash</h4>
-            <div className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono mt-0.5">
-              {format(month.homePart || 0)}
+            <div className="flex flex-col">
+              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Home Cash</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.homePart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.homePart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="self-start text-tertiary font-label-md font-bold hover:underline flex items-center gap-1 text-xs"
+            className="text-tertiary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
           >
             <span>Add Funds</span>
             <span className="material-symbols-outlined text-[16px]">add</span>
           </button>
         </div>
 
-        {/* Liquid / Wallet */}
-        <div className="p-5 bg-surface-container/60 rounded-3xl border border-outline-variant/60 flex flex-col justify-between gap-3 shadow-xs hover:border-secondary/50 transition-all">
-          <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+        {/* Wallet */}
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
+              <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
             </div>
-            <span className="font-label-sm text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant/80">
-              LIQUID
-            </span>
-          </div>
-          <div>
-            <h4 className="font-label-lg text-on-surface-variant font-medium">Daily Wallet</h4>
-            <div className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono mt-0.5">
-              {format(month.walletPart || 0)}
+            <div className="flex flex-col">
+              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Wallet</span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.walletPart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.walletPart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="self-start text-secondary font-label-md font-bold hover:underline flex items-center gap-1 text-xs"
+            className="text-secondary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
           >
             <span>Withdraw</span>
             <span className="material-symbols-outlined text-[16px]">south</span>
@@ -117,23 +123,18 @@ export function OverviewTab({
         {/* Left Column (Budget Plan + Strategy) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Budget Plan Card */}
-          <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-5 shadow-xs">
+          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-5 shadow-xs">
             <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
-                  Budget Plan
-                </h3>
-                <span className="font-label-sm text-label-sm text-on-surface-variant">
-                  Tracking your {strategy.name} monthly strategy
-                </span>
-              </div>
-              <span className="px-3 py-1 bg-primary/10 text-primary font-label-sm text-label-sm rounded-full font-bold uppercase tracking-wider">
+              <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
+                Budget Plan
+              </h3>
+              <span className="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase">
                 {strategy.name}
               </span>
             </div>
 
             {/* Needs Bar */}
-            <div className="flex flex-col gap-1.5 p-4 bg-surface rounded-2xl border border-outline-variant/40">
+            <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -141,62 +142,62 @@ export function OverviewTab({
                 </div>
                 <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{needsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-3 bg-surface-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 ${needsSpentPct >= 100 ? 'bg-error' : 'bg-primary'}`}
+                  className={`h-full transition-all duration-500 rounded-full ${needsSpentPct >= 100 ? 'bg-error' : 'bg-primary'}`}
                   style={{ width: `${needsSpentPct}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant pt-1">
-                <span>Used: {format(spent.needs)}</span>
-                <span className="font-mono font-bold">Limit: {format(needs)}</span>
+              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+                <span className="font-mono font-bold">{format(spent.needs)}</span>
+                <span className="font-mono font-bold">{format(needs)}</span>
               </div>
             </div>
 
             {/* Wants Bar */}
-            <div className="flex flex-col gap-1.5 p-4 bg-surface rounded-2xl border border-outline-variant/40">
+            <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                   <span className="font-label-lg font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
                 </div>
                 <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-3 bg-surface-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-tertiary'}`}
+                  className={`h-full transition-all duration-500 rounded-full ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-amber-500'}`}
                   style={{ width: `${wantsSpentPct}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant pt-1">
-                <span>Used: {format(spent.wants)}</span>
-                <span className="font-mono font-bold">Limit: {format(wants)}</span>
+              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+                <span className="font-mono font-bold">{format(spent.wants)}</span>
+                <span className="font-mono font-bold">{format(wants)}</span>
               </div>
             </div>
 
             {/* Savings Bar */}
             <div
               onClick={() => onSelectTab('savings')}
-              className="flex flex-col gap-1.5 p-4 bg-surface rounded-2xl border border-outline-variant/40 hover:border-secondary transition-all cursor-pointer"
+              className="flex flex-col gap-1.5 hover:opacity-80 transition-all cursor-pointer"
             >
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-secondary" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
                   <span className="font-label-lg font-bold text-on-surface">Savings ({Math.round(strategy.savingsRatio * 100)}%)</span>
                 </div>
-                <span className="font-label-sm text-label-sm font-bold text-secondary">
+                <span className="font-label-sm text-label-sm font-bold text-primary">
                   {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="w-full h-3 bg-surface-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-secondary transition-all duration-500"
+                  className="h-full bg-slate-600 transition-all duration-500 rounded-full"
                   style={{ width: `${Math.min(100, Math.round((goals.reduce((acc, g) => acc + g.current, 0) / (savings || 1)) * 100))}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant pt-1">
-                <span>Saved: {format(goals.reduce((acc, g) => acc + g.current, 0))}</span>
-                <span className="font-mono font-bold">Target: {format(savings)}</span>
+              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+                <span className="font-mono font-bold">{format(goals.reduce((acc, g) => acc + g.current, 0))}</span>
+                <span className="font-mono font-bold">{format(savings)}</span>
               </div>
             </div>
           </div>
@@ -254,19 +255,19 @@ export function OverviewTab({
                   <div
                     key={exp.id}
                     onClick={() => onOpenEditExpense(exp)}
-                    className="p-3.5 bg-surface rounded-2xl border border-outline-variant/60 flex justify-between items-center hover:border-primary transition-all cursor-pointer"
+                    className="p-3 bg-surface rounded-2xl border border-outline-variant/60 flex justify-between items-center hover:border-primary transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-surface-container/80 text-primary font-bold flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined text-[20px]">
                           {month.categoryIcons?.[exp.type] || 'shopping_bag'}
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-headline-sm text-sm text-on-surface font-bold">
+                        <span className="font-bold text-[15px] text-on-surface">
                           {exp.name}
                         </span>
-                        <div className="flex items-center gap-1.5 font-label-sm text-[11px] text-on-surface-variant">
+                        <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant">
                           <span>{exp.date}</span>
                           <span>•</span>
                           <span className="capitalize">{exp.type}</span>
@@ -274,12 +275,12 @@ export function OverviewTab({
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end">
-                      <span className="font-mono font-extrabold text-body-md text-on-surface">
-                        -{format(exp.amount)}
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="font-mono font-extrabold text-[15px] text-on-surface">
+                        -{formatParts(exp.amount).amount}
                       </span>
-                      <span className="font-label-sm text-[10px] text-on-surface-variant/70 uppercase tracking-wider font-bold">
-                        {exp.place === 'bank' ? 'CIH BANK' : exp.place === 'wallet' ? 'DAILY WALLET' : 'HOME CASH'}
+                      <span className="text-[11px] font-bold text-on-surface-variant">
+                        {formatParts(exp.amount).currency}
                       </span>
                     </div>
                   </div>

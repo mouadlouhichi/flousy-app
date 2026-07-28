@@ -9,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -77,7 +78,7 @@ export default function LoginPage() {
       }
 
       if (isSignUp) {
-        await signUpEmail(email, password);
+        await signUpEmail(email, password, displayName.trim() || undefined);
         navigateTo('/onboarding');
       } else {
         await signInEmail(email, password);
@@ -121,16 +122,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8faf9] flex flex-col justify-center items-center px-4 py-8 font-sans">
-      <div className="w-full max-w-[420px] bg-white p-6 sm:p-8 rounded-[28px] border border-slate-100 shadow-md flex flex-col gap-5">
+    <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 py-8 font-sans">
+      <div className="w-full max-w-[420px] bg-surface p-6 sm:p-8 rounded-[28px] border border-outline-variant/50 shadow-md flex flex-col gap-5">
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
           <a href="/" className="flex flex-col items-center gap-1 group">
-            <span className="text-[32px] font-extrabold text-[#006A60] tracking-tight">
+            <span className="text-[32px] font-extrabold text-primary tracking-tight">
               Flousy
             </span>
           </a>
-          <p className="text-[15px] font-medium text-slate-600 mt-0.5">
+          <p className="text-[15px] font-medium text-on-surface-variant mt-0.5">
             {isResetting
               ? 'Reset Your Password'
               : isSignUp
@@ -141,18 +142,18 @@ export default function LoginPage() {
 
         {/* Demo Mode Banner if Firebase is not connected */}
         {!isConfigured && (
-          <div className="p-4 bg-[#e6f2f0] border border-[#006A60]/20 rounded-2xl flex flex-col gap-2.5 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-[#006A60] font-bold text-[14px]">
+          <div className="p-4 bg-primary-container border border-primary/20 rounded-2xl flex flex-col gap-2.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-[14px]">
               <span className="material-symbols-outlined text-[18px]">info</span>
               <span>Demo Mode Available</span>
             </div>
-            <p className="text-[13px] text-slate-600 leading-snug">
+            <p className="text-[13px] text-on-surface-variant leading-snug">
               Experience Flousy instantly with sample data in local preview mode.
             </p>
             <button
               type="button"
               onClick={handleDemoAccess}
-              className="w-full py-2.5 bg-[#006A60] hover:bg-[#00544c] text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
+              className="w-full py-2.5 bg-primary hover:bg-primary text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
             >
               Continue in Demo Mode
             </button>
@@ -161,24 +162,44 @@ export default function LoginPage() {
 
         {/* Success Message Banner */}
         {message && (
-          <div className="p-3.5 bg-[#e6f2f0] border border-[#006A60]/30 rounded-xl text-[14px] text-[#006A60] font-medium">
+          <div className="p-3.5 bg-primary-container border border-primary/30 rounded-xl text-[14px] text-primary font-medium">
             {message}
           </div>
         )}
 
         {/* Error Banner */}
         {error && (
-          <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-[14px] text-red-600 font-medium">
+          <div className="p-3.5 bg-error-container/20 border border-error/40 rounded-xl text-[14px] text-error font-medium">
             {error}
           </div>
         )}
 
         {/* Email Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Display Name (Sign Up Only) */}
+          {isSignUp && !isResetting && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-bold text-on-surface-variant">Full Name</label>
+              <div className="relative flex items-center">
+                <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
+                  person
+                </span>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-bold text-slate-700">Email</label>
+            <label className="text-[13px] font-bold text-on-surface-variant">Email</label>
             <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[20px] pointer-events-none">
+              <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
                 mail
               </span>
               <input
@@ -187,7 +208,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
-                className="w-full pl-10 pr-4 py-3 bg-[#f8faf9] border border-slate-200 rounded-xl text-[15px] text-slate-900 placeholder:text-slate-400 focus:border-[#006A60] focus:bg-white transition-all outline-none"
+                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
               />
             </div>
           </div>
@@ -195,19 +216,19 @@ export default function LoginPage() {
           {!isResetting && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-[13px] font-bold text-slate-700">Password</label>
+                <label className="text-[13px] font-bold text-on-surface-variant">Password</label>
                 {!isSignUp && (
                   <button
                     type="button"
                     onClick={() => setIsResetting(true)}
-                    className="text-[13px] font-bold text-[#006A60] hover:underline cursor-pointer"
+                    className="text-[13px] font-bold text-primary hover:underline cursor-pointer"
                   >
                     Forgot password?
                   </button>
                 )}
               </div>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[20px] pointer-events-none">
+                <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
                   lock
                 </span>
                 <input
@@ -216,7 +237,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required={!isResetting}
-                  className="w-full pl-10 pr-4 py-3 bg-[#f8faf9] border border-slate-200 rounded-xl text-[15px] text-slate-900 placeholder:text-slate-400 focus:border-[#006A60] focus:bg-white transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>
@@ -225,7 +246,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold text-[16px] py-3.5 rounded-xl transition-all shadow-xs mt-1 disabled:opacity-50 cursor-pointer"
+            className="w-full bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold text-[16px] py-3.5 rounded-xl transition-all shadow-xs mt-1 disabled:opacity-50 cursor-pointer"
           >
             {submitting
               ? 'Processing...'
@@ -241,11 +262,11 @@ export default function LoginPage() {
           <>
             {/* OR Divider */}
             <div className="flex items-center gap-3 my-1">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="flex-1 h-px bg-surface-variant" />
+              <span className="text-[12px] font-bold text-on-surface-variant/60 uppercase tracking-wider">
                 OR
               </span>
-              <div className="flex-1 h-px bg-slate-200" />
+              <div className="flex-1 h-px bg-surface-variant" />
             </div>
 
             {/* Google Sign In Button */}
@@ -253,7 +274,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={submitting}
-              className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-[15px] flex items-center justify-center gap-3 transition-all shadow-2xs cursor-pointer"
+              className="w-full py-3.5 px-4 bg-surface hover:bg-surface-container-low text-on-surface-variant border border-outline-variant rounded-xl font-bold text-[15px] flex items-center justify-center gap-3 transition-all shadow-2xs cursor-pointer"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -279,11 +300,11 @@ export default function LoginPage() {
         )}
 
         {/* Toggle Sign Up vs Sign In */}
-        <div className="flex justify-center items-center gap-1.5 text-[14px] text-slate-600 pt-2 border-t border-slate-100">
+        <div className="flex justify-center items-center gap-1.5 text-[14px] text-on-surface-variant pt-2 border-t border-outline-variant/50">
           {isResetting ? (
             <button
               onClick={() => setIsResetting(false)}
-              className="text-[#006A60] font-bold hover:underline cursor-pointer"
+              className="text-primary font-bold hover:underline cursor-pointer"
             >
               Back to log in
             </button>
@@ -292,7 +313,7 @@ export default function LoginPage() {
               <span>Already have an account?</span>
               <button
                 onClick={() => setIsSignUp(false)}
-                className="text-[#006A60] font-bold hover:underline cursor-pointer"
+                className="text-primary font-bold hover:underline cursor-pointer"
               >
                 Log in
               </button>
@@ -302,7 +323,7 @@ export default function LoginPage() {
               <span>Don't have an account?</span>
               <button
                 onClick={() => setIsSignUp(true)}
-                className="text-[#006A60] font-bold hover:underline cursor-pointer"
+                className="text-primary font-bold hover:underline cursor-pointer"
               >
                 Create account
               </button>

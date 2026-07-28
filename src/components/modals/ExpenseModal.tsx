@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
+import { CustomInput } from '../ui/CustomInput';
+import { CustomTextarea } from '../ui/CustomTextarea';
 import { VariableExpense, MoneyPlace } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -146,44 +149,25 @@ export function ExpenseModal({
         </div>
 
         {/* Expense Title / Name */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            DESCRIPTION / MERCHANT
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((prev) => ({ ...prev, name: '' }));
-            }}
-            placeholder={`e.g. Supermarket, Coffee, ${type}`}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-          {errors.name && (
-            <p role="alert" className="font-label-sm text-label-sm text-error">
-              {errors.name}
-            </p>
-          )}
-        </div>
+        <CustomInput
+          label="Description / Merchant"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((prev) => ({ ...prev, name: '' }));
+          }}
+          placeholder={`e.g. Supermarket, Coffee, ${type}`}
+          error={errors.name}
+        />
 
         {/* Category Selection */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            CATEGORY
-          </label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          label="Category"
+          value={type}
+          onChange={setType}
+          options={categories.map((cat) => ({ value: cat, label: cat }))}
+        />
 
         {/* Money Place / Account Radio */}
         <div className="flex flex-col gap-xs">
@@ -251,49 +235,35 @@ export function ExpenseModal({
         </div>
 
         {/* Person (Household Member) */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            HOUSEHOLD MEMBER
-          </label>
-          <select
-            value={person}
-            onChange={(e) => setPerson(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            <option value="Self">Self</option>
-            <option value="Partner">Partner / Spouse</option>
-            <option value="Family">Family / Shared</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-          </select>
-        </div>
+        <CustomSelect
+          label="Household Member"
+          value={person}
+          onChange={setPerson}
+          options={[
+            { value: 'Self', label: 'Self' },
+            { value: 'Partner', label: 'Partner / Spouse' },
+            { value: 'Family', label: 'Family / Shared' },
+            { value: 'Queen', label: 'Queen' },
+            { value: 'King', label: 'King' },
+          ]}
+        />
 
         {/* Date */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            DATE
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-        </div>
+        <CustomInput
+          label="Date"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
 
         {/* Note */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            NOTE (OPTIONAL)
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="What was this for?"
-            rows={2}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none outline-none"
-          />
-        </div>
+        <CustomTextarea
+          label="Note (Optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="What was this for?"
+          rows={2}
+        />
 
         {/* Receipt Attachment */}
         <div className="flex flex-col gap-xs">
@@ -324,7 +294,7 @@ export function ExpenseModal({
         </div>
 
         {/* Submit & Delete Actions */}
-        <div className="flex gap-md pt-md border-t border-surface-variant">
+        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
           {initialExpense && onDelete && (
             <button
               type="button"
@@ -332,14 +302,14 @@ export function ExpenseModal({
                 onDelete(initialExpense);
                 onClose();
               }}
-              className="px-4 py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-md transition-colors"
+              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
           >
             {initialExpense ? 'Save Changes' : 'Add Expense'}
           </button>
