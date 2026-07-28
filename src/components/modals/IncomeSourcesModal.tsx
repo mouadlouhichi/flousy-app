@@ -157,14 +157,14 @@ export function IncomeSourcesModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Income Sources">
-      <div className="space-y-md">
+      <div className="space-y-lg">
         <p className="font-body-sm text-body-sm text-on-surface-variant">
           Specify all streams of income contributing to this month&apos;s budget.
         </p>
 
         {/* Total Summary */}
-        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center">
-          <div>
+        <div className="p-lg bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center">
+          <div className="flex flex-col gap-xs">
             <span className="font-label-sm text-label-sm text-on-surface-variant block">Combined Total Income</span>
             <span className="font-headline-md text-headline-md font-extrabold text-primary">
               {format(totalCalculated)}
@@ -174,7 +174,7 @@ export function IncomeSourcesModal({
         </div>
 
         {/* Sources List */}
-        <div className="space-y-2 max-h-72 overflow-y-auto">
+        <div className="space-y-sm max-h-72 overflow-y-auto">
           {sources.map((s) => {
             const isEditing = editingId === s.id;
             const share = totalCalculated > 0 ? Math.round(((s.amount || 0) / totalCalculated) * 100) : 0;
@@ -183,9 +183,9 @@ export function IncomeSourcesModal({
               return (
                 <div
                   key={s.id}
-                  className="p-3 bg-surface-container-low rounded-xl border border-primary/50 space-y-sm"
+                  className="p-md bg-surface-container-low rounded-xl border border-primary/50 space-y-sm"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
                     <CustomInput
                       autoFocus
                       value={editName}
@@ -213,13 +213,13 @@ export function IncomeSourcesModal({
                             commitEdit();
                           }
                         }}
-                        className={`w-full h-10 px-3 bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none pr-8 ${
+                        className={`w-full h-10 px-md bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none pr-8 ${
                           editErrors.amount
                             ? 'border-error focus:border-error'
                             : 'border-outline-variant focus:border-primary'
                         }`}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-body-sm text-on-surface-variant">
+                      <span className="absolute right-md top-1/2 -translate-y-1/2 font-bold text-body-sm text-on-surface-variant">
                         {symbol}
                       </span>
                     </div>
@@ -233,14 +233,14 @@ export function IncomeSourcesModal({
                     <button
                       type="button"
                       onClick={cancelEditing}
-                      className="px-3 py-1.5 rounded-lg text-label-sm font-bold text-on-surface-variant hover:bg-surface-variant/40 transition-colors"
+                      className="px-md py-xs rounded-lg text-label-sm font-bold text-on-surface-variant hover:bg-surface-variant/40 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
                       onClick={commitEdit}
-                      className="px-3 py-1.5 rounded-lg text-label-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-colors"
+                      className="px-md py-xs rounded-lg text-label-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-colors"
                     >
                       Confirm
                     </button>
@@ -252,7 +252,7 @@ export function IncomeSourcesModal({
             return (
               <div
                 key={s.id}
-                className="p-3 bg-surface-container-low rounded-xl border border-outline-variant"
+                className="p-md bg-surface-container-low rounded-xl border border-outline-variant"
               >
                 <div className="flex items-center justify-between gap-sm">
                   <div className="min-w-0 flex-1">
@@ -262,7 +262,7 @@ export function IncomeSourcesModal({
                       <span className="font-label-sm text-label-sm text-on-surface-variant">· {share}%</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-xs shrink-0">
                     <button
                       type="button"
                       onClick={() => startEditing(s)}
@@ -284,7 +284,7 @@ export function IncomeSourcesModal({
                   </div>
                 </div>
                 {/* Share bar */}
-                <div className="mt-2 h-1.5 w-full rounded-full bg-surface-variant/50 overflow-hidden">
+                <div className="mt-sm h-1.5 w-full rounded-full bg-surface-variant/50 overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${share}%` }}
@@ -298,7 +298,7 @@ export function IncomeSourcesModal({
         {/* Add New Source Form */}
         <div className="p-md bg-surface-container-high rounded-2xl space-y-sm">
           <h4 className="font-label-md text-label-md font-bold text-on-surface">Add Income Source</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
             <div>
               <input
                 type="text"
@@ -308,7 +308,7 @@ export function IncomeSourcesModal({
                   setNewName(e.target.value);
                   setAddErrors((prev) => ({ ...prev, name: '' }));
                 }}
-                className={`w-full px-3 py-2 bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none ${
+                className={`w-full px-md py-sm bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none ${
                   addErrors.name ? 'border-error focus:border-error' : 'border-outline-variant focus:border-primary'
                 }`}
               />
@@ -335,11 +335,11 @@ export function IncomeSourcesModal({
                       handleAddSource();
                     }
                   }}
-                  className={`w-full px-3 py-2 bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none pr-8 ${
+                  className={`w-full px-md py-sm bg-surface rounded-xl border text-body-sm text-on-surface focus:outline-none pr-8 ${
                     addErrors.amount ? 'border-error focus:border-error' : 'border-outline-variant focus:border-primary'
                   }`}
                 />
-                <span className="absolute right-3 top-2.5 font-bold text-body-sm text-on-surface-variant">
+                <span className="absolute right-md top-1/2 -translate-y-1/2 font-bold text-body-sm text-on-surface-variant">
                   {symbol}
                 </span>
               </div>
