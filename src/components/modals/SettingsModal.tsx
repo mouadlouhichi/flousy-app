@@ -49,48 +49,43 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account">
-        <div className="flex flex-col gap-xl">
-          {/* User Email & Account Info */}
+        <div className="flex flex-col gap-5">
+          {/* ── User Info ── */}
           {user && (
-            <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex items-center justify-between">
-              <div className="flex flex-col gap-sm">
-                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
                   Signed in as
                 </span>
-                <span className="font-body-lg text-body-lg text-on-surface font-medium truncate max-w-[220px]">
+                <span className="font-body-lg text-body-lg text-on-surface font-medium truncate max-w-[200px]">
                   {user.email || 'Anonymous User'}
                 </span>
               </div>
-              <span className="px-3 py-1.5 bg-primary/10 text-primary font-label-md text-label-md rounded-full font-semibold">
+              <span className="px-3 py-1.5 bg-primary/10 text-primary font-label-md text-label-md rounded-full font-bold text-[12px]">
                 {profile?.plan || 'Free'} Plan
               </span>
             </div>
           )}
 
-          {/* Go to Premium */}
-          {profile?.plan !== 'pro' && onOpenProModal && (
+          {/* ── Pro Upgrade ── */}
+          {onOpenProModal && (
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-primary to-tertiary text-on-primary font-body-md text-body-md font-semibold shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-sm"
+              className={`w-full py-3.5 rounded-xl font-bold text-[14px] transition-all flex items-center justify-center gap-2 ${
+                profile?.plan === 'pro'
+                  ? 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15'
+                  : 'bg-gradient-to-r from-primary to-tertiary text-on-primary shadow-sm hover:shadow-md'
+              }`}
             >
-              <span className="material-symbols-outlined text-[20px]">workspace_premium</span>
-              <span>Go to Premium</span>
+              <span className="material-symbols-outlined text-[20px]">
+                {profile?.plan === 'pro' ? 'verified' : 'workspace_premium'}
+              </span>
+              <span>{profile?.plan === 'pro' ? 'Pro Membership' : 'Go to Premium'}</span>
             </button>
           )}
 
-          {profile?.plan === 'pro' && onOpenProModal && (
-            <button
-              type="button"
-              onClick={onOpenProModal}
-              className="w-full py-4 rounded-2xl bg-primary/10 text-primary font-body-md text-body-md font-semibold border border-primary/20 hover:bg-primary/15 transition-all flex items-center justify-center gap-sm"
-            >
-              <span className="material-symbols-outlined text-[20px]">verified</span>
-              <span>Pro Membership</span>
-            </button>
-          )}
-
-          {/* Currency Selection */}
+          {/* ── Currency ── */}
           <CustomSelect
             label="Preferred Currency"
             value={currency}
@@ -101,67 +96,65 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             }))}
           />
 
-          {/* Appearance / Theme */}
-          <div className="flex flex-col gap-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+          {/* ── Appearance ── */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               Appearance Mode
             </label>
-            <div className="grid grid-cols-3 gap-sm">
+            <div className="grid grid-cols-3 gap-2">
               {(['light', 'dark', 'system'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => handleThemeChange(t)}
-                  className={`p-4 rounded-xl border flex flex-col items-center gap-sm transition-all capitalize font-label-md text-label-md ${
+                  className={`p-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all capitalize font-label-md text-label-md ${
                     currentTheme === t
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[20px]">
+                  <span className="material-symbols-outlined text-[22px]">
                     {t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'}
                   </span>
-                  <span>{t}</span>
+                  <span className="text-[13px] font-bold">{t}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Export Data */}
-          <div className="flex flex-col gap-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+          {/* ── Data Management ── */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               Data Management
             </label>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="w-full p-4 rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/50 flex items-center justify-between font-body-md text-body-md text-on-surface transition-colors"
+              className="w-full p-3.5 rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/50 flex items-center justify-between transition-colors"
             >
-              <div className="flex items-center gap-md">
+              <div className="flex items-center gap-2.5">
                 <span className="material-symbols-outlined text-primary text-[20px]">download</span>
-                <span>Export Budget Data (CSV)</span>
+                <span className="font-body-md text-body-md text-on-surface font-medium">Export Budget Data (CSV)</span>
               </div>
-              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">
-                chevron_right
-              </span>
+              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">chevron_right</span>
             </button>
           </div>
 
-          {/* Account Actions */}
-          <div className="flex flex-col gap-sm pt-xl border-t border-surface-variant">
+          {/* ── Account Actions ── */}
+          <div className="flex flex-col gap-2.5 pt-3 border-t border-surface-variant">
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-4 rounded-xl border border-outline-variant text-on-surface hover:bg-surface-variant/50 font-body-md text-body-md font-medium transition-colors"
+                  className="w-full py-3.5 rounded-xl border border-outline-variant text-on-surface hover:bg-surface-variant/50 font-bold text-[14px] transition-colors"
                 >
                   Sign Out
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-4 rounded-xl border border-error/30 text-error hover:bg-error-container/50 font-body-md text-body-md font-medium transition-colors"
+                  className="w-full py-3.5 rounded-xl border border-error/30 text-error hover:bg-error-container/50 font-bold text-[14px] transition-colors"
                 >
                   Delete Account & Erase Data
                 </button>
@@ -169,15 +162,15 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-4 rounded-xl bg-primary text-on-primary font-body-md text-body-md font-semibold hover:bg-primary/90 transition-colors"
+                className="w-full text-center py-3.5 rounded-xl bg-primary text-on-primary font-bold text-[14px] hover:bg-primary/90 transition-colors block"
               >
                 Sign In or Register Account
               </a>
             )}
           </div>
 
-          {/* Legal Links */}
-          <div className="flex justify-center gap-md pt-sm text-label-sm font-label-sm text-on-surface-variant">
+          {/* ── Legal Links ── */}
+          <div className="flex justify-center gap-4 pt-1 text-[12px] font-medium text-on-surface-variant">
             <a href="/privacy" className="hover:text-on-surface transition-colors">
               Privacy Policy
             </a>
@@ -189,7 +182,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
         </div>
       </Modal>
 
-      {/* Sign Out Confirm */}
       <ConfirmDialog
         isOpen={showSignOutConfirm}
         onClose={() => setShowSignOutConfirm(false)}
@@ -202,7 +194,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
         confirmLabel="Sign Out"
       />
 
-      {/* Delete Account Confirm */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}

@@ -110,22 +110,21 @@ export function SavingsModal({
 
   const getTitle = () => {
     switch (mode) {
-      case 'create':
-        return 'New Savings Goal';
-      case 'edit':
-        return 'Edit Goal';
-      case 'fund':
-        return `Fund "${goal?.name}"`;
-      case 'withdraw':
-        return `Withdraw from "${goal?.name}"`;
+      case 'create': return 'New Savings Goal';
+      case 'edit': return 'Edit Goal';
+      case 'fund': return `Fund "${goal?.name}"`;
+      case 'withdraw': return `Withdraw from "${goal?.name}"`;
     }
   };
 
+  const quickAmounts = mode === 'fund' ? [500, 1000, 2000, 5000] : [100, 200, 500, 1000];
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={getTitle()}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {mode === 'create' || mode === 'edit' ? (
           <>
+            {/* Goal Name */}
             <CustomInput
               label="Goal Name"
               type="text"
@@ -138,6 +137,7 @@ export function SavingsModal({
               error={errors.name}
             />
 
+            {/* Target Amount */}
             <CustomInput
               label={`Target Amount (${symbol})`}
               type="number"
@@ -151,6 +151,22 @@ export function SavingsModal({
               error={errors.target}
             />
 
+            {/* Quick target chips */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-bold text-on-surface-variant mr-0.5">Suggestions:</span>
+              {[5000, 10000, 25000, 50000].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => { setTarget(String(amt)); setErrors((p) => ({ ...p, target: '' })); }}
+                  className="px-2.5 py-1 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
+                >
+                  {symbol}{(amt).toLocaleString()}
+                </button>
+              ))}
+            </div>
+
+            {/* Source Place */}
             <CustomSelect
               label="Primary Source Place"
               value={place}
@@ -164,13 +180,13 @@ export function SavingsModal({
           </>
         ) : (
           <>
-            {/* Fund or Withdraw Amount Input */}
-            <div className="flex flex-col items-center justify-center py-sm">
-              <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
-                {mode === 'fund' ? 'DEPOSIT AMOUNT' : 'WITHDRAWAL AMOUNT'}
+            {/* Fund / Withdraw Amount */}
+            <div className="flex flex-col items-center justify-center py-2">
+              <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
+                {mode === 'fund' ? 'Deposit Amount' : 'Withdrawal Amount'}
               </label>
               <div className="flex items-center text-primary font-bold">
-                <span className="text-headline-lg mr-xs">{symbol}</span>
+                <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
                 <input
                   type="number"
                   step="any"
@@ -181,16 +197,34 @@ export function SavingsModal({
                     setErrors((prev) => ({ ...prev, amount: '' }));
                   }}
                   placeholder="0.00"
-                  className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 font-extrabold outline-none"
+                  className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
                 />
               </div>
               {errors.amount && (
-                <p role="alert" className="font-label-sm text-label-sm text-error mt-1 text-center">
-                  {errors.amount}
-                </p>
+                <p role="alert" className="text-[12px] font-medium text-error mt-1 text-center">{errors.amount}</p>
+              )}
+
+              {/* Quick amount chips */}
+              {mode !== 'withdraw' && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-3 justify-center">
+                  {quickAmounts.map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => {
+                        setAmount(String(amt));
+                        setErrors((prev) => ({ ...prev, amount: '' }));
+                      }}
+                      className="px-3 py-1.5 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
+                    >
+                      +{symbol}{(amt).toLocaleString()}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
+            {/* Account Selection */}
             <CustomSelect
               label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
               value={place}
@@ -201,11 +235,39 @@ export function SavingsModal({
                 { value: 'wallet', label: 'Wallet' },
               ]}
             />
+
+            {/* Goal info card */}
+            {goal && (
+              <div className="p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
+                <div className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined text-primary text-[20px]">savings</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-[14px] text-on-surface block">{goal.name}</span>
+                    <span className="text-[12px] text-on-surface-variant">
+                      Current: {format(goal.current)} · Target: {format(goal.target)}
+                    </span>
+                  </div>
+                  {goal.target > 0 && (
+                    <span className="text-[13px] font-bold text-primary">
+                      {Math.round((goal.current / goal.target) * 100)}%
+                    </span>
+                  )}
+                </div>
+                {goal.target > 0 && (
+                  <div className="w-full h-1.5 bg-surface-variant rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.round((goal.current / goal.target) * 100))}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
+        {/* ── Actions ── */}
+        <div className="flex gap-3 pt-2 border-t border-surface-variant">
           {mode === 'edit' && goal && onDelete && (
             <button
               type="button"
@@ -213,22 +275,21 @@ export function SavingsModal({
                 onDelete(goal.id);
                 onClose();
               }}
-              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
+              className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            {mode === 'create'
-              ? 'Create Goal'
-              : mode === 'edit'
-              ? 'Save Changes'
-              : mode === 'fund'
-              ? 'Add Funds'
-              : 'Withdraw Funds'}
+            <span className="material-symbols-outlined text-[18px]">
+              {mode === 'create' ? 'add' : mode === 'edit' ? 'check' : mode === 'fund' ? 'add_circle' : 'remove_circle'}
+            </span>
+            <span>
+              {mode === 'create' ? 'Create Goal' : mode === 'edit' ? 'Save Changes' : mode === 'fund' ? 'Add Funds' : 'Withdraw Funds'}
+            </span>
           </button>
         </div>
       </form>

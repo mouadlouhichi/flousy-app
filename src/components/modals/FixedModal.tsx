@@ -97,14 +97,14 @@ export function FixedModal({
       onClose={onClose}
       title={initialBill ? 'Edit Fixed Bill' : 'Add Fixed Charge'}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
-        {/* Amount */}
-        <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
-            MONTHLY CHARGE
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* ── Amount ── */}
+        <div className="flex flex-col items-center justify-center py-2">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
+            Monthly Charge
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-headline-lg mr-xs">{symbol}</span>
+            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
               type="number"
               step="any"
@@ -115,17 +115,15 @@ export function FixedModal({
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 font-extrabold outline-none"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
-            <p role="alert" className="font-label-sm text-label-sm text-error mt-1">
-              {errors.amount}
-            </p>
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
         </div>
 
-        {/* Bill Name */}
+        {/* ── Bill Name ── */}
         <CustomInput
           label="Bill / Subscription Name"
           type="text"
@@ -138,7 +136,7 @@ export function FixedModal({
           error={errors.name}
         />
 
-        {/* Category */}
+        {/* ── Category ── */}
         <CustomSelect
           label="Category"
           value={type}
@@ -149,7 +147,7 @@ export function FixedModal({
           }))}
         />
 
-        {/* Due Day / Date */}
+        {/* ── Due Day ── */}
         <CustomInput
           label="Due Day of Month"
           type="text"
@@ -158,7 +156,7 @@ export function FixedModal({
           placeholder="e.g. 1st of month, 15th"
         />
 
-        {/* Household Member */}
+        {/* ── Household Member ── */}
         <CustomSelect
           label="Household Member"
           value={person}
@@ -172,12 +170,12 @@ export function FixedModal({
           ]}
         />
 
-        {/* Account / Place */}
-        <div className="flex flex-col gap-sm">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+        {/* ── Paid From ── */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             Paid From
           </label>
-          <div className="grid grid-cols-3 gap-sm">
+          <div className="grid grid-cols-3 gap-2">
             {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (
               <label key={p} className="cursor-pointer">
                 <input
@@ -188,17 +186,20 @@ export function FixedModal({
                   onChange={() => setPlace(p)}
                   className="sr-only peer"
                 />
-                <div className="flex flex-col items-center gap-2 p-md rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 transition-all capitalize font-label-md text-label-md text-on-surface font-semibold">
-                  {p}
+                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 transition-all capitalize font-label-md text-label-md text-on-surface font-semibold">
+                  <span className="material-symbols-outlined text-[20px] text-outline peer-checked:text-primary">
+                    {p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'}
+                  </span>
+                  <span>{p}</span>
                 </div>
               </label>
             ))}
           </div>
         </div>
 
-        {/* Recurring Toggle */}
-        <div className="flex items-center justify-between p-md bg-surface border border-outline-variant rounded-xl">
-          <div className="flex items-center gap-xs">
+        {/* ── Recurring Toggle ── */}
+        <div className="flex items-center justify-between p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
+          <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined text-primary text-[20px]">event_repeat</span>
             <div>
               <span className="font-label-md text-label-md font-bold text-on-surface block">
@@ -209,16 +210,19 @@ export function FixedModal({
               </span>
             </div>
           </div>
-          <input
-            type="checkbox"
-            checked={recurring}
-            onChange={(e) => setRecurring(e.target.checked)}
-            className="w-5 h-5 accent-primary cursor-pointer"
-          />
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => setRecurring(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-surface-variant rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+          </label>
         </div>
 
-        {/* Submit / Delete */}
-        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
+        {/* ── Actions ── */}
+        <div className="flex gap-3 pt-2 border-t border-surface-variant">
           {initialBill && onDelete && (
             <button
               type="button"
@@ -226,16 +230,19 @@ export function FixedModal({
                 onDelete(initialBill);
                 onClose();
               }}
-              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
+              className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            {initialBill ? 'Save Changes' : 'Add Fixed Charge'}
+            <span className="material-symbols-outlined text-[18px]">
+              {initialBill ? 'check' : 'add'}
+            </span>
+            <span>{initialBill ? 'Save Changes' : 'Add Fixed Charge'}</span>
           </button>
         </div>
       </form>
