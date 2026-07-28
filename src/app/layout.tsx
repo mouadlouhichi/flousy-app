@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { headers,cookies } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { Instrument_Sans, JetBrains_Mono } from 'next/font/google';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
@@ -83,9 +83,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html
-      lang="en"
+      lang={locale}
+      dir={dir}
+      suppressHydrationWarning
       className={`${instrumentSans.variable} ${jetbrainsMono.variable}`}
-      lang={locale} dir={dir} suppressHydrationWarning
     >
       <head>
         <InstallPromptCapture />
