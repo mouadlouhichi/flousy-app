@@ -14,7 +14,7 @@ interface DebtModalProps {
 }
 
 export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: DebtModalProps) {
-  const { symbol, format } = useCurrency();
+  const { symbol } = useCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<DebtType>('debt');
@@ -71,14 +71,14 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? 'Edit Debt' : 'Add Debt'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
-        {/* Amount Input */}
-        <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
-            AMOUNT
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* ── Amount ── */}
+        <div className="flex flex-col items-center justify-center py-2">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
+            Amount
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-headline-lg mr-xs">{symbol}</span>
+            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
               type="number"
               step="any"
@@ -89,43 +89,47 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
-            <p role="alert" className="font-label-sm text-label-sm text-error mt-1">
-              {errors.amount}
-            </p>
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
         </div>
 
-        {/* Type Toggle */}
+        {/* ── Type Toggle ── */}
         <div className="flex bg-surface-variant/40 rounded-xl p-1">
           <button
             type="button"
             onClick={() => setType('debt')}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               type === 'debt'
                 ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant'
+                : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            I Owe
+            <span className="flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+              I Owe
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setType('credit')}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               type === 'credit'
                 ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant'
+                : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            Owed to Me
+            <span className="flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
+              Owed to Me
+            </span>
           </button>
         </div>
 
-        {/* Person Name */}
+        {/* ── Person / Entity ── */}
         <CustomInput
           label="Person / Entity"
           type="text"
@@ -138,38 +142,40 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           error={errors.name}
         />
 
-        {/* Status */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
-            STATUS
+        {/* ── Status ── */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+            Status
           </label>
-          <div className="grid grid-cols-2 gap-sm">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setStatus('open')}
-              className={`py-2.5 rounded-xl border text-sm font-bold transition-all ${
+              className={`py-3 rounded-xl border text-[14px] font-bold transition-all flex items-center justify-center gap-1.5 ${
                 status === 'open'
                   ? 'border-amber-400 bg-amber-50 text-amber-700'
                   : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
               }`}
             >
+              <span className="material-symbols-outlined text-[16px]">lock_open</span>
               Open
             </button>
             <button
               type="button"
               onClick={() => setStatus('settled')}
-              className={`py-2.5 rounded-xl border text-sm font-bold transition-all ${
+              className={`py-3 rounded-xl border text-[14px] font-bold transition-all flex items-center justify-center gap-1.5 ${
                 status === 'settled'
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
               }`}
             >
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
               Settled
             </button>
           </div>
         </div>
 
-        {/* Date */}
+        {/* ── Date ── */}
         <CustomInput
           label="Date"
           type="date"
@@ -177,7 +183,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           onChange={(e) => setDate(e.target.value)}
         />
 
-        {/* Note */}
+        {/* ── Note ── */}
         <CustomTextarea
           label="Note (Optional)"
           value={note}
@@ -186,8 +192,8 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           rows={2}
         />
 
-        {/* Submit & Delete */}
-        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
+        {/* ── Actions ── */}
+        <div className="flex gap-3 pt-2 border-t border-surface-variant">
           {initialDebt && onDelete && (
             <button
               type="button"
@@ -195,16 +201,19 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
                 onDelete(initialDebt.id);
                 onClose();
               }}
-              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
+              className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
           >
-            {initialDebt ? 'Save Changes' : 'Add Debt'}
+            <span className="material-symbols-outlined text-[18px]">
+              {initialDebt ? 'check' : 'add'}
+            </span>
+            <span>{initialDebt ? 'Save Changes' : 'Add Debt'}</span>
           </button>
         </div>
       </form>

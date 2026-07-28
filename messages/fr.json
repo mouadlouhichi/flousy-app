@@ -135,7 +135,9 @@
     "monthNavNext": "Mois suivant",
     "emailNotVerified": "Votre e-mail n'est pas vérifié.",
     "sendVerification": "Envoyer un E-mail de Vérification",
-    "verificationSent": "E-mail de vérification envoyé !"
+    "verificationSent": "E-mail de vérification envoyé !",
+    "trendsAndAnalytics": "Tendances & Analyses",
+    "debtsAndCredits": "Dettes & Crédits"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -254,7 +256,9 @@
       "sourceNamePlaceholder": "Nom de la source (ex. Freelance, Location)",
       "amountPlaceholder": "Montant",
       "addIncomeStream": "Ajouter Flux de Revenus",
-      "saveIncomeSources": "Enregistrer les Sources ({total})"
+      "saveIncomeSources": "Enregistrer les Sources ({total})",
+      "perSourceAnalytics": "Analyse par source",
+      "shareOfTotal": "{pct}% du revenu total"
     },
     "pro": {
       "title": "Passer à Flousy Pro",
@@ -311,7 +315,9 @@
       "noCharges": "Aucune charge fixe mensuelle configurée.",
       "addRentBills": "Ajouter Loyer, Factures ou Abonnements",
       "recurring": "Récurrent",
-      "oneTime": "Ponctuel"
+      "oneTime": "Ponctuel",
+      "recurringLabel": "Récurrent",
+      "carryOverNote": "Les factures récurrentes sont automatiquement reportées du mois précédent."
     },
     "savings": {
       "totalSaved": "TOTAL ÉPARGNÉ",
@@ -334,7 +340,42 @@
       "noCreditsTitle": "Aucune créance",
       "noDebtsDesc": "Gardez vos finances claires et équilibrées. Ajoutez tout prêt personnel ou argent que vous devez pour maîtriser votre budget.",
       "noCreditsDesc": "Suivez l'argent que les autres vous doivent. Ajoutez des créances pour garder un suivi clair et rester au courant des remboursements.",
-      "manageDebt": "GÉRER VOS DETTES SEREINEMENT"
+      "manageDebt": "GÉRER VOS DETTES SEREINEMENT",
+      "title": "Dettes & Crédits",
+      "openCount": "{count} ouvert",
+      "settledCount": "{count} réglé"
+    },
+    "trends": {
+      "title": "Tendances & Analyses",
+      "description": "Comparaison des dépenses, ventilation des revenus et aperçu par catégorie.",
+      "spentThisMonth": "Dépensé ce mois",
+      "budgetRemaining": "Budget restant",
+      "totalCash": "Trésorerie totale",
+      "activeGoals": "Objectifs actifs",
+      "monthOverMonth": "Dépenses mois par mois",
+      "month": "Mois",
+      "budget": "Budget",
+      "spent": "Dépensé",
+      "remaining": "Restant",
+      "savingsPercent": "Épargne %",
+      "notEnoughData": "Pas assez de données mensuelles.",
+      "addExpensesForTrends": "Ajoutez des dépenses sur plusieurs mois pour voir les tendances.",
+      "incomeSources": "Sources de revenus",
+      "totalCombinedIncome": "Revenu total combiné",
+      "noIncomeSources": "Aucune source de revenu configurée. Ajoutez-en depuis le menu latéral.",
+      "categoryBreakdown": "Répartition par catégorie",
+      "totalSpent": "Total dépensé",
+      "noExpenses": "Aucune dépense enregistrée pour ce mois.",
+      "householdSpending": "Dépenses par membre",
+      "variable": "Variable",
+      "fixed": "Fixe",
+      "budgetHealth": "Santé budgétaire",
+      "needsLabel": "Essentiel ({ratio}%)",
+      "wantsLabel": "Loisirs ({ratio}%)",
+      "vsLabel": "sur",
+      "ofLabel": "de",
+      "loadingTrends": "Chargement des tendances...",
+      "proLabel": "PRO"
     }
   },
   "alerts": {
@@ -345,7 +386,9 @@
     "wantsAlert": "Alerte Enveloppe Envies",
     "spentVsBudget": "Dépensé {spent} vs budget de {budget} ({percent}%).",
     "spentOfBudget": "Dépensé {spent} sur {budget} de budget ({percent}%).",
-    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté."
+    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté.",
+    "categoryAlertTitle": "Alerte {cat}",
+    "categoryAlertMessage": "{cat} représente {pct}% des dépenses variables ({amount}). Envisagez de revoir cette catégorie."
   },
   "legal": {
     "eyebrow": "Juridique",

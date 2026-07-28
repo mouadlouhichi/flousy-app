@@ -80,7 +80,7 @@ export function ExpenseModal({
     const parsedAmount = parseFloat(amount);
 
     const validationResult = expenseSchema.safeParse({
-      name: name || type, // Default to category name if title left blank
+      name: name || type,
       amount: parsedAmount,
       type,
       date,
@@ -120,14 +120,14 @@ export function ExpenseModal({
       onClose={onClose}
       title={initialExpense ? 'Edit Expense' : 'Add Expense'}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
-        {/* Amount Input */}
-        <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
-            AMOUNT
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* ── Amount Input ── */}
+        <div className="flex flex-col items-center justify-center py-2">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
+            Amount
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-headline-lg mr-xs">{symbol}</span>
+            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
               type="number"
               step="any"
@@ -138,17 +138,15 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
-            <p role="alert" className="font-label-sm text-label-sm text-error mt-1">
-              {errors.amount}
-            </p>
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
         </div>
 
-        {/* Expense Title / Name */}
+        {/* ── Description / Merchant ── */}
         <CustomInput
           label="Description / Merchant"
           type="text"
@@ -161,7 +159,7 @@ export function ExpenseModal({
           error={errors.name}
         />
 
-        {/* Category Selection */}
+        {/* ── Category ── */}
         <CustomSelect
           label="Category"
           value={type}
@@ -169,72 +167,36 @@ export function ExpenseModal({
           options={categories.map((cat) => ({ value: cat, label: cat }))}
         />
 
-        {/* Money Place / Account Radio */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
-            PAID FROM (MONEY PLACE)
+        {/* ── Money Place ── */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+            Paid From
           </label>
-          <div className="grid grid-cols-3 gap-sm">
-            <label className="cursor-pointer">
-              <input
-                type="radio"
-                name="place"
-                value="bank"
-                checked={place === 'bank'}
-                onChange={() => setPlace('bank')}
-                className="sr-only peer"
-              />
-              <div className="flex flex-col items-center gap-2 p-md rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
-                <span className="material-symbols-outlined text-outline peer-checked:text-primary">
-                  account_balance
-                </span>
-                <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold">
-                  Bank
-                </span>
-              </div>
-            </label>
-
-            <label className="cursor-pointer">
-              <input
-                type="radio"
-                name="place"
-                value="wallet"
-                checked={place === 'wallet'}
-                onChange={() => setPlace('wallet')}
-                className="sr-only peer"
-              />
-              <div className="flex flex-col items-center gap-2 p-md rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
-                <span className="material-symbols-outlined text-outline peer-checked:text-primary">
-                  account_balance_wallet
-                </span>
-                <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold">
-                  Wallet
-                </span>
-              </div>
-            </label>
-
-            <label className="cursor-pointer">
-              <input
-                type="radio"
-                name="place"
-                value="home"
-                checked={place === 'home'}
-                onChange={() => setPlace('home')}
-                className="sr-only peer"
-              />
-              <div className="flex flex-col items-center gap-2 p-md rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
-                <span className="material-symbols-outlined text-outline peer-checked:text-primary">
-                  home
-                </span>
-                <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold">
-                  Home
-                </span>
-              </div>
-            </label>
+          <div className="grid grid-cols-3 gap-2">
+            {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (
+              <label key={p} className="cursor-pointer">
+                <input
+                  type="radio"
+                  name="place"
+                  value={p}
+                  checked={place === p}
+                  onChange={() => setPlace(p)}
+                  className="sr-only peer"
+                />
+                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
+                  <span className="material-symbols-outlined text-[20px] text-outline peer-checked:text-primary">
+                    {p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'}
+                  </span>
+                  <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold capitalize">
+                    {p}
+                  </span>
+                </div>
+              </label>
+            ))}
           </div>
         </div>
 
-        {/* Person (Household Member) */}
+        {/* ── Household Member ── */}
         <CustomSelect
           label="Household Member"
           value={person}
@@ -248,7 +210,7 @@ export function ExpenseModal({
           ]}
         />
 
-        {/* Date */}
+        {/* ── Date ── */}
         <CustomInput
           label="Date"
           type="date"
@@ -256,7 +218,7 @@ export function ExpenseModal({
           onChange={(e) => setDate(e.target.value)}
         />
 
-        {/* Note */}
+        {/* ── Note ── */}
         <CustomTextarea
           label="Note (Optional)"
           value={note}
@@ -265,14 +227,14 @@ export function ExpenseModal({
           rows={2}
         />
 
-        {/* Receipt Attachment */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
-            RECEIPT / ATTACHMENT (OPTIONAL)
+        {/* ── Receipt Attachment ── */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+            Receipt / Attachment
           </label>
           {receiptUrl ? (
-            <div className="relative group p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
-              <div className="flex items-center gap-xs">
+            <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <img src={receiptUrl} alt="Receipt preview" className="w-12 h-12 object-cover rounded-lg" />
                 <span className="font-body-sm text-body-sm text-on-surface font-bold">Receipt Attached</span>
               </div>
@@ -280,21 +242,22 @@ export function ExpenseModal({
                 type="button"
                 onClick={() => setReceiptUrl(undefined)}
                 className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                aria-label="Remove receipt"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
           ) : (
-            <label className="p-md bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-xs cursor-pointer hover:bg-surface-variant/30 transition-colors">
+            <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
               <span className="material-symbols-outlined text-primary text-[20px]">add_a_photo</span>
-              <span className="font-label-md text-label-md text-on-surface-variant">Upload Receipt Photo</span>
+              <span className="font-label-md text-label-md text-on-surface-variant font-medium">Upload Receipt Photo</span>
               <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
             </label>
           )}
         </div>
 
-        {/* Submit & Delete Actions */}
-        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
+        {/* ── Actions ── */}
+        <div className="flex gap-3 pt-2 border-t border-surface-variant">
           {initialExpense && onDelete && (
             <button
               type="button"
@@ -302,16 +265,19 @@ export function ExpenseModal({
                 onDelete(initialExpense);
                 onClose();
               }}
-              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
+              className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            {initialExpense ? 'Save Changes' : 'Add Expense'}
+            <span className="material-symbols-outlined text-[18px]">
+              {initialExpense ? 'check' : 'add'}
+            </span>
+            <span>{initialExpense ? 'Save Changes' : 'Add Expense'}</span>
           </button>
         </div>
       </form>

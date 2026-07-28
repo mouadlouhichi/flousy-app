@@ -1,19 +1,50 @@
 'use client';
 
 import React from 'react';
-import { MonthBudget, UserProfile, calculateEnvelopeSpent } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
 interface TrendsTabProps {
   month: MonthBudget;
+  trendsMonths: { monthKey: string; month: MonthBudget }[];
+  trendsLoading: boolean;
   profile: UserProfile | null;
   onOpenProModal: () => void;
 }
 
-export function TrendsTab({ month }: TrendsTabProps) {
+const CHART_COLORS = [
+  '#00685f', '#3b82f6', '#8b5cf6', '#f97316',
+  '#ec4899', '#ef4444', '#eab308', '#06b6d4',
+  '#6366f1', '#10b981', '#b05e3d', '#84cc16',
+  '#d946ef', '#a855f7', '#14b8a6', '#f43f5e',
+];
+
+export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
 
-  // Person breakdown calculations
+  const isPro = profile?.plan === 'pro';
+  const hasMultiMonth = trendsMonths.length > 0;
+
+  // ── Current month calculations ──
+  const spent = calculateEnvelopeSpent(month);
+  const strategy = STRATEGIES[month.strategyId] || STRATEGIES['50-30-20'];
+  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+
+  // ── Income sources analytics ──
+  const incomeSources = month.incomeSources || [];
+  const totalIncome = incomeSources.reduce((acc, s) => acc + (s.amount || 0), month.totalBudget);
+
+  // ── Category breakdown ──
+  const categoryBreakdown: Record<string, number> = {};
+  (month.variableExpenses || []).forEach((exp) => {
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+  });
+  (month.fixedExpenses || []).forEach((exp) => {
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+  });
+  const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
+
+  // ── Person breakdown ──
   const personBreakdown: Record<string, { variable: number; fixed: number }> = {};
   (month.variableExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
@@ -26,166 +57,376 @@ export function TrendsTab({ month }: TrendsTabProps) {
     personBreakdown[person].fixed += exp.amount;
   });
 
-  const totalHouseholdSpent = Object.values(personBreakdown).reduce(
-    (a, b) => a + b.variable + b.fixed,
-    0
-  );
+  // ── Multi-month trend calculations ──
+  const monthOverMonth = trendsMonths.map(({ monthKey, month: m }) => {
+    const s = calculateEnvelopeSpent(m);
+    const env = calculateEnvelopeAmounts(m.totalBudget, m.strategyId);
+    return {
+      monthKey,
+      label: (() => {
+        const [y, num] = monthKey.split('-').map(Number);
+        return new Date(y, num - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      })(),
+      totalBudget: m.totalBudget,
+      totalSpent: s.totalSpent,
+      needsSpent: s.needs,
+      wantsSpent: s.wants,
+      needsCap: env.needs,
+      wantsCap: env.wants,
+      savings: env.savings,
+      remaining: Math.max(0, m.totalBudget - s.totalSpent),
+      totalCash: (m.bankPart || 0) + (m.homePart || 0) + (m.walletPart || 0),
+    };
+  }).reverse();
 
-  // Category breakdown for debts context
-  const categoryBreakdown: Record<string, number> = {};
-  (month.variableExpenses || []).forEach((exp) => {
-    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
-  });
-  (month.fixedExpenses || []).forEach((exp) => {
-    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
-  });
+  const prevMonth = monthOverMonth.length > 1 ? monthOverMonth[monthOverMonth.length - 2] : null;
+  const currentMonthData = monthOverMonth.length > 0 ? monthOverMonth[monthOverMonth.length - 1] : null;
+  const spendChange = prevMonth && currentMonthData
+    ? prevMonth.totalSpent > 0
+      ? ((currentMonthData.totalSpent - prevMonth.totalSpent) / prevMonth.totalSpent) * 100
+      : 0
+    : 0;
 
-  const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
-  const totalAllSpent = calculateEnvelopeSpent(month).totalSpent;
-
-  const DEBT_COLORS = [
-    '#00685f', '#3b82f6', '#8b5cf6', '#f97316',
-    '#ec4899', '#ef4444', '#eab308', '#06b6d4',
-    '#6366f1', '#10b981', '#b05e3d', '#84cc16',
-  ];
+  // Max spent for bar chart scaling
+  const maxSpent = Math.max(...monthOverMonth.map((m) => m.totalSpent), 1);
 
   return (
-    <div className="space-y-md pb-xl">
-      {/* Header card */}
-      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-xs">
-        <div className="flex items-center gap-xs">
-          <span className="material-symbols-outlined text-primary text-[24px]">handshake</span>
-          <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:font-headline-md font-extrabold text-on-surface">
-            Debts & Spending Breakdown
-          </h2>
-        </div>
-        <p className="font-body-sm text-body-sm text-on-surface-variant">
-          Track spending per household member and see who owes what for the current month.
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-sm">
-        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
-          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Total Spent</span>
-          <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{format(totalAllSpent)}</p>
-        </div>
-        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
-          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Members</span>
-          <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{Object.keys(personBreakdown).length || '—'}</p>
-        </div>
-        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant col-span-2 sm:col-span-1">
-          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">Budget Left</span>
-          <p className="font-headline-sm sm:font-headline-md font-extrabold text-primary mt-1">
-            {format(Math.max(0, month.totalBudget - totalAllSpent))}
-          </p>
-        </div>
-      </div>
-
-      {/* Household / Person Spending Breakdown */}
-      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md">
-        <div className="flex justify-between items-center">
+    <div className="space-y-6 pb-24">
+      {/* ── Header ── */}
+      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-2">
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-primary text-[28px]">trending_up</span>
           <div>
-            <h3 className="font-title-md text-title-md font-bold text-on-surface">Household Member Spending</h3>
+            <h2 className="font-headline-md text-headline-md font-extrabold text-on-surface">
+              Trends & Analytics
+            </h2>
             <p className="font-body-sm text-body-sm text-on-surface-variant">
-              Spending distributed by person for the current month.
+              Multi-month spending comparison, income breakdown, and category insights.
             </p>
           </div>
-          <span className="material-symbols-outlined text-primary text-[28px]">family_restroom</span>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-md">
-          {Object.entries(personBreakdown).length > 0 ? (
-            Object.entries(personBreakdown).map(([person, data], idx) => {
-              const total = data.variable + data.fixed;
-              const pct = totalHouseholdSpent > 0 ? Math.round((total / totalHouseholdSpent) * 100) : 0;
-              return (
-                <div
-                  key={person}
-                  className="p-md bg-surface-container-low rounded-2xl border border-outline-variant flex flex-col justify-between"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-lg text-label-lg font-bold text-on-surface">{person}</span>
-                    <span className="font-label-sm text-label-sm text-primary font-bold">{pct}%</span>
-                  </div>
-                  <div className="mt-sm">
-                    <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
-                      {format(total)}
-                    </span>
-                    <div className="w-full h-2 bg-surface-variant rounded-full mt-2 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length],
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-2 text-[11px] font-bold text-on-surface-variant">
-                      <span>Variable: {format(data.variable)}</span>
-                      <span>Fixed: {format(data.fixed)}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="font-body-sm text-body-sm text-on-surface-variant col-span-full text-center py-md">
-              No transactions yet. Add expenses to see the household breakdown.
-            </p>
+      {/* ── Summary Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Spent This Month</span>
+          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(spent.totalSpent)}</p>
+          {prevMonth && (
+            <span className={`text-[12px] font-bold ${spendChange > 0 ? 'text-error' : 'text-primary'}`}>
+              {spendChange > 0 ? '↑' : '↓'} {Math.abs(spendChange).toFixed(1)}% vs last month
+            </span>
           )}
         </div>
-      </div>
 
-      {/* Category Spending Breakdown */}
-      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="font-title-md text-title-md font-bold text-on-surface">Spending by Category</h3>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              See where your money goes this month.
-            </p>
-          </div>
-          <span className="material-symbols-outlined text-primary text-[28px]">category</span>
+        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Budget Remaining</span>
+          <p className="text-[22px] font-extrabold text-primary mt-1 font-mono">
+            {format(Math.max(0, month.totalBudget - spent.totalSpent))}
+          </p>
+          <span className="text-[12px] font-bold text-on-surface-variant">
+            of {format(month.totalBudget)}
+          </span>
         </div>
 
-        {sortedCategories.length > 0 ? (
-          <div className="flex flex-col gap-sm">
-            {sortedCategories.map(([cat, amount], idx) => {
-              const pct = totalAllSpent > 0 ? Math.round((amount / totalAllSpent) * 100) : 0;
+        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Total Cash</span>
+          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(totalCash)}</p>
+          <span className="text-[12px] font-bold text-on-surface-variant">
+            Bank {format(month.bankPart || 0)} · Wallet {format(month.walletPart || 0)} · Home {format(month.homePart || 0)}
+          </span>
+        </div>
+
+        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Active Goals</span>
+          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">
+            {format(month.monthlySavingsTarget || 0)}
+          </p>
+          <span className="text-[12px] font-bold text-on-surface-variant">
+            {strategy.name} · {Math.round(strategy.savingsRatio * 100)}% savings
+          </span>
+        </div>
+      </div>
+
+      {/* ── Multi-Month Trends (Pro feature) ── */}
+      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[24px]">bar_chart</span>
+            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Month-Over-Month Spending</h3>
+          </div>
+          {!isPro && (
+            <button
+              onClick={onOpenProModal}
+              className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+            >
+              PRO
+            </button>
+          )}
+        </div>
+
+        {trendsLoading ? (
+          <div className="h-48 bg-surface-variant/30 rounded-2xl animate-pulse flex items-center justify-center">
+            <span className="text-on-surface-variant font-medium">Loading trends...</span>
+          </div>
+        ) : monthOverMonth.length > 1 && (isPro || true) ? (
+          /* Bar chart with month-over-month comparison */
+          <div className="space-y-4">
+            <div className="flex items-end gap-2 sm:gap-3 h-48">
+              {monthOverMonth.map((m, idx) => {
+                const heightPct = Math.max(8, (m.totalSpent / maxSpent) * 100);
+                const isCurrent = idx === monthOverMonth.length - 1;
+                return (
+                  <div key={m.monthKey} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                    <span className="text-[10px] font-bold text-on-surface-variant font-mono">{format(m.totalSpent)}</span>
+                    <div
+                      className={`w-full rounded-lg transition-all duration-300 ${
+                        isCurrent ? 'bg-primary' : 'bg-primary/40'
+                      }`}
+                      style={{ height: `${heightPct}%`, minHeight: '16px' }}
+                    />
+                    <span className={`text-[10px] font-bold ${isCurrent ? 'text-primary' : 'text-on-surface-variant'}`}>
+                      {m.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trend summary table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="text-on-surface-variant font-extrabold uppercase tracking-wider border-b border-outline-variant">
+                    <th className="text-left py-2 pr-3">Month</th>
+                    <th className="text-right py-2 px-3">Budget</th>
+                    <th className="text-right py-2 px-3">Spent</th>
+                    <th className="text-right py-2 px-3">Remaining</th>
+                    <th className="text-right py-2 pl-3">Savings %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthOverMonth.map((m) => (
+                    <tr key={m.monthKey} className="border-b border-outline-variant/30">
+                      <td className="py-2 pr-3 font-bold text-on-surface">{m.label}</td>
+                      <td className="py-2 px-3 text-right font-mono text-on-surface">{format(m.totalBudget)}</td>
+                      <td className="py-2 px-3 text-right font-mono text-on-surface">{format(m.totalSpent)}</td>
+                      <td className="py-2 px-3 text-right font-mono text-primary">{format(m.remaining)}</td>
+                      <td className="py-2 pl-3 text-right font-mono text-on-surface">
+                        {m.totalBudget > 0 ? `${Math.round((m.savings / m.totalBudget) * 100)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="p-8 bg-surface/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
+            <span className="material-symbols-outlined text-outline text-[36px]">bar_chart</span>
+            <p className="font-body-md text-body-md text-on-surface-variant">Not enough month data yet.</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Add expenses across multiple months to see trends.</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Income Sources Breakdown ── */}
+      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-primary text-[24px]">payments</span>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Income Sources</h3>
+        </div>
+
+        {incomeSources.length > 0 ? (
+          <div className="space-y-3">
+            {incomeSources.map((src, idx) => {
+              const pct = totalIncome > 0 ? Math.round(((src.amount || 0) / totalIncome) * 100) : 0;
               return (
-                <div key={cat} className="flex flex-col gap-1">
+                <div key={src.id} className="flex flex-col gap-1">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length] }}
+                        style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{cat}</span>
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{src.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-label-sm text-label-sm text-on-surface-variant">{pct}%</span>
-                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface">{format(amount)}</span>
+                      <span className="text-[12px] font-bold text-on-surface-variant">{pct}%</span>
+                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${pct}%`,
-                        backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length],
+                        backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
                       }}
                     />
                   </div>
                 </div>
               );
             })}
+
+            <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
+              <span className="font-bold text-on-surface text-[15px]">Total Combined Income</span>
+              <span className="font-extrabold text-primary font-mono text-[18px]">{format(totalIncome)}</span>
+            </div>
           </div>
         ) : (
-          <p className="font-body-sm text-body-sm text-on-surface-variant text-center py-md">
-            No expenses recorded yet for this month.
-          </p>
+          <div className="p-6 bg-surface/40 rounded-2xl border border-dashed border-outline-variant text-center">
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              No income sources configured. Add them from the sidebar menu.
+            </p>
+          </div>
         )}
+      </div>
+
+      {/* ── Category Trend Breakdown ── */}
+      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-primary text-[24px]">category</span>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Category Breakdown</h3>
+        </div>
+
+        {sortedCategories.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {sortedCategories.map(([cat, amount], idx) => {
+              const pct = spent.totalSpent > 0 ? Math.round((amount / spent.totalSpent) * 100) : 0;
+              return (
+                <div key={cat} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                      />
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{cat}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-bold text-on-surface-variant">{pct}%</span>
+                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
+                    </div>
+                  </div>
+                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
+              <span className="font-bold text-on-surface text-[15px]">Total Spent</span>
+              <span className="font-extrabold text-on-surface font-mono text-[18px]">{format(spent.totalSpent)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 bg-surface/40 rounded-2xl border border-dashed border-outline-variant text-center">
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              No expenses recorded yet for the current month.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Household Spending Breakdown ── */}
+      {Object.keys(personBreakdown).length > 0 && (
+        <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-[24px]">family_restroom</span>
+            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Household Member Spending</h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {Object.entries(personBreakdown).map(([person, data], idx) => {
+              const total = data.variable + data.fixed;
+              const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
+              const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
+              return (
+                <div key={person} className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-label-lg text-label-lg font-bold text-on-surface">{person}</span>
+                    <span className="text-[12px] font-bold text-primary">{pct}%</span>
+                  </div>
+                  <span className="text-[20px] font-extrabold text-on-surface font-mono">{format(total)}</span>
+                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
+                    <span>Variable: {format(data.variable)}</span>
+                    <span>Fixed: {format(data.fixed)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Budget Health Summary ── */}
+      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-primary text-[24px]">health_and_safety</span>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Budget Health</h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Needs */}
+          <div className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                <span className="font-bold text-on-surface">Needs ({Math.round(strategy.needsRatio * 100)}%)</span>
+              </div>
+              <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.needs)} / {format(spent.needs + spent.wants + spent.savings > 0 ? (spent.needs / (spent.needs + spent.wants + spent.savings)) * 100 : 0).replace(/[0-9.,]/g, '').trim() || format(month.totalBudget)}</span>
+            </div>
+            {(() => {
+              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+              const pct = env.needs > 0 ? Math.min(100, Math.round((spent.needs / env.needs) * 100)) : 0;
+              return (
+                <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-primary'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Wants */}
+          <div className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
+                <span className="font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
+              </div>
+              <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.wants)}</span>
+            </div>
+            {(() => {
+              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+              const pct = env.wants > 0 ? Math.min(100, Math.round((spent.wants / env.wants) * 100)) : 0;
+              return (
+                <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-amber-500'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
     </div>
   );

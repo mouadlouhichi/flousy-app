@@ -70,42 +70,40 @@ export function ManageCategoriesModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Custom Categories">
-      <div className="flex flex-col gap-md">
-        {/* Existing Categories List */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
-            ACTIVE CATEGORIES
-          </label>
-          <div className="flex flex-wrap gap-sm p-sm bg-surface-container rounded-2xl border border-outline-variant">
+      <div className="flex flex-col gap-5">
+        {/* ── Active Categories ── */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+            Active Categories ({categories.length})
+          </span>
+          <div className="flex flex-wrap gap-2 p-3 bg-surface-container rounded-2xl border border-outline-variant min-h-[60px]">
             {categories.map((cat) => (
               <div
                 key={cat}
-                className="flex items-center gap-xs px-3 py-1.5 rounded-full bg-surface border border-outline-variant font-label-md text-label-md text-on-surface"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-outline-variant font-label-md text-label-md text-on-surface"
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: categoryColors[cat] || '#00685f' }}
                 />
-                <span>{cat}</span>
-                {categories.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveCategory(cat)}
-                    className="p-0.5 text-on-surface-variant hover:text-error rounded-full ml-xs"
-                    aria-label={`Remove category ${cat}`}
-                  >
-                    <span className="material-symbols-outlined text-[16px]">close</span>
-                  </button>
-                )}
+                <span className="text-[13px] font-medium">{cat}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveCategory(cat)}
+                  className="p-0.5 text-on-surface-variant hover:text-error rounded-full ml-0.5 transition-colors"
+                  aria-label={`Remove category ${cat}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Add New Category Form */}
-        <form onSubmit={handleAdd} className="flex flex-col gap-md p-md bg-surface border border-outline-variant rounded-2xl">
-          <span className="font-label-sm text-label-sm font-mono text-primary uppercase font-bold tracking-wider">
-            ADD NEW CATEGORY
+        {/* ── Add New Category ── */}
+        <form onSubmit={handleAdd} className="p-4 bg-surface-container/60 rounded-2xl border border-dashed border-outline-variant flex flex-col gap-3">
+          <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
+            Add New Category
           </span>
 
           <CustomInput
@@ -120,9 +118,9 @@ export function ManageCategoriesModal({
           />
 
           {/* Icon Picker */}
-          <div className="flex flex-col gap-xs">
-            <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase">
-              ICON
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              Icon
             </span>
             <div className="grid grid-cols-8 gap-1 max-h-[100px] overflow-y-auto">
               {PRESET_ICONS.map((ic) => (
@@ -132,9 +130,10 @@ export function ManageCategoriesModal({
                   onClick={() => setIcon(ic)}
                   className={`p-2 rounded-lg flex items-center justify-center transition-colors ${
                     icon === ic
-                      ? 'bg-primary text-on-primary font-bold'
+                      ? 'bg-primary text-on-primary'
                       : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
                   }`}
+                  aria-label={`Icon ${ic}`}
                 >
                   <span className="material-symbols-outlined text-[20px]">{ic}</span>
                 </button>
@@ -144,9 +143,10 @@ export function ManageCategoriesModal({
 
           <button
             type="submit"
-            className="w-full bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-3 rounded-xl hover:bg-primary-container transition-all"
+            className="w-full bg-primary text-on-primary font-bold text-[14px] py-2.5 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
           >
-            Add Category
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span>Add Category</span>
           </button>
         </form>
       </div>

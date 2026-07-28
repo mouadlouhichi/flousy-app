@@ -1,160 +1,232 @@
-# Flousy — MVP Readiness Analysis & Todo List
+# MVP Todo & Implementation Audit
 
-> Analysis date: 2026-07-26 · Branch: `arena/019f9fe2-mybudget-app` · Base commit: `b192c63`
-
----
-
-## 1. What the project is today
-
-**Stack:** Next.js 14.2.35 (App Router, all client components) · React 18 · TypeScript (strict) · Tailwind 3 (used only for layout utilities; visual styling is inline `style={{}}` + CSS variables in `globals.css`) · Firebase 12 (Auth + Firestore) · Recharts · Phosphor + Lucide icons.
-
-**Size:** 2,582 lines of source across 11 files. `src/app/dashboard/page.tsx` alone is **1,281 lines (~50% of the codebase)** and contains 8 modal components, 4 tab views, and the root dashboard container.
-
-**Build health:** ✅ `tsc --noEmit` passes clean. ✅ `next build` succeeds (5 static routes). No lint config, no tests, no CI.
-
-### Data model
-```
-users/{uid}                     → UserProfile { plan, currency, onboardingComplete, … }
-users/{uid}/months/{YYYY-MM}    → MonthBudget { totalBudget, bank/home/walletPart,
-                                    variableExpenses[], fixedExpenses[],
-                                    variable/fixedCategoryBases, activeCategories,
-                                    categoryColors, categoryIcons }
-users/{uid}/data/savings        → SavingsData { goals[] }   ← global, not per-month
-```
-
-### What already works end-to-end
-| Area | Status |
-|---|---|
-| Email/password + Google sign-in, password reset | ✅ Working |
-| 5-step onboarding (income → categories → bills → strategy → review) | ✅ Working |
-| Month rollover (carries budget plan, resets transactions) | ✅ Working |
-| Variable expenses by category, grouped + recent list | ✅ Working |
-| Fixed charges with actual-vs-budget tracking | ✅ Working |
-| Saving goals (global, active/pending, fund from bank/home/wallet) | ✅ Working |
-| Bank / Home / Wallet money-place split | ✅ Working |
-| Custom categories with color + icon picker | ✅ Working |
-| Live Firestore sync with error banners | ✅ Working |
-| Month-to-month navigation | ✅ Working |
-| Firestore security rules (per-user isolation) | ✅ Written, needs deploy |
-| Responsive: mobile bottom nav + desktop sidebar | ✅ Working |
-| PWA manifest + icons | ⚠️ Partial (no service worker → not installable-offline) |
-| Graceful "Firebase not configured" screen | ✅ Working |
+> Last updated: 2026-07-28
+>
+> Legend: ✅ Done · ⬜ Not started · 🔧 Partial / needs polish
 
 ---
 
-## 2. Critical blockers — must fix before MVP launch
+## 💰 Core Budgeting
 
-These are correctness/data-integrity bugs and legal requirements. Nothing ships without these.
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 1 | Four budgeting strategies (50/30/20, Zero-Based, Envelope, Pay-Yourself-First) | ✅ | Fully implemented in `store.ts` |
+| 2 | Strategy ratios sum to exactly 100% | ✅ | Enforced in `calculateEnvelopeAmounts()` |
+| 3 | Auto-scaled category budgets fill envelope to the last unit | ✅ | `calculateCategoryBudgets()` with remainder distribution |
+| 4 | Category bucket resolution per kind (variable vs fixed) | ✅ | `bucketOf()` in `store.ts` |
+| 5 | Editable per-category caps | ✅ | Via `ManageCategoriesModal` |
+| 6 | Live Budget Plan card (Overview tab) | ✅ | Shows needs/wants/savings progress bars |
+| 7 | Envelope amounts always sum to income (no rounding leak) | ✅ | Savings envelope absorbs remainder |
 
-- [ ] **B1 · No edit for any record.** Expenses, fixed charges, and saving goals can only be *created* and *deleted*. A typo'd amount forces delete-and-retype, and deleting a funded goal silently destroys the money that left the wallet. Add edit modals for `VariableExpense`, `FixedExpense`, and `SavingGoal`.
-- [ ] **B2 · Deleting a saving goal leaks money.** `delSaving` (dashboard/page.tsx:1136) removes the goal but never returns `goal.current` to its money place. Money vanishes from the app's accounting. Either return funds on delete or require an explicit "withdraw first" step.
-- [ ] **B3 · No withdraw-from-goal flow.** `AddFundsModal` moves money *in* only. There is no way to take money back out of a goal — a core saving-tracker operation.
-- [ ] **B4 · Money places don't decrement on spend.** Adding an expense updates `variableExpenses` but never reduces `bankPart`/`homePart`/`walletPart`. The three money-place tiles on the hero card drift out of sync with reality the moment you log spending. Either (a) attach a money place to each expense and decrement it, or (b) relabel the tiles as "allocation" not "balance". **This is the single biggest conceptual gap** — the app claims "every dirham lives in one of three places" but only savings honour it.
-- [ ] **B5 · "Spend Trajectory" chart is fake.** `sparkData` (page.tsx:546) hardcodes W1=18%, W2=35%, W3=56%, W4=82% of the current total. It's a fabricated curve, not real data. Compute real weekly buckets from `expense.date` or remove the chart.
-- [ ] **B6 · No Privacy Policy / Terms pages.** Required by Google Sign-In OAuth consent, the App/Play stores, and GDPR for any public launch. Add `/privacy` and `/terms` routes and link them from `/login`.
-- [ ] **B7 · Firestore rules have no validation.** Rules check ownership only. A malicious client can write a 10 MB month document or arbitrary fields, and there is no write rate-limiting. Add `request.resource.data` size/shape validation.
-- [ ] **B8 · `.next/` was not gitignored.** Build output was untracked-but-visible in `git status`. *(Fixed in this pass — added `.next/` and `*.tsbuildinfo` to `.gitignore`.)*
-- [ ] **B9 · Six stale `.diff` files committed at repo root** (`feat.diff`, `flousy_fix3.diff`, `flousy_fix4.diff`, `flousy_fixes2.diff`, `flousy_onboarding.diff`, `mybudget_fix5.diff` — 3,136 lines total). Dead patch artifacts from development. Delete them.
+## 💵 Money Places & Expenses
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 8 | Three money places: Bank, Home, Wallet | ✅ | `MoneyPlace` type |
+| 9 | All income starts in bank | ✅ | `createNewMonth()` defaults to bank |
+| 10 | Move Money between places | ✅ | `MoveMoneyModal` + `moveMoney()`, conserves total cash |
+| 11 | Add variable expense (debits money place) | ✅ | `addVariableExpense()` |
+| 12 | Edit variable expense (adjusts places correctly) | ✅ | `editVariableExpense()` — refunds old, debits new |
+| 13 | Delete variable expense (refunds place) | ✅ | `deleteVariableExpense()` |
+| 14 | Add fixed monthly charge | ✅ | `addFixedExpense()` |
+| 15 | Edit fixed charge | ✅ | `editFixedExpense()` |
+| 16 | Delete fixed charge | ✅ | `deleteFixedExpense()` |
+| 17 | Search & category filtering for variable expenses | ✅ | In `VariableTab` |
+| 18 | Month-to-month navigation | ✅ | Previous/next month buttons in header |
+| 19 | Month rollover — new month inherits plan with clean slate | ✅ | `normalizeMonth()` + `createNewMonth()` |
+| 20 | Places clamp at zero (never negative) | ✅ | `Math.max(0, ...)` in all operations |
+
+## 🎯 Savings Goals
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 21 | Savings goals are global (survive month rollover) | ✅ | Stored at `users/{uid}/data/savings` |
+| 22 | Create savings goal | ✅ | `SavingsModal` in 'create' mode |
+| 23 | Edit savings goal | ✅ | `SavingsModal` in 'edit' mode |
+| 24 | Fund goal (debits place → increases goal) | ✅ | `fundGoal()` |
+| 25 | Withdraw from goal (decreases goal → credits place) | ✅ | `withdrawGoal()` |
+| 26 | Delete funded goal returns balance to its place | ✅ | `deleteFundedGoal()` |
+
+## 🧾 Debts & Credits
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 27 | Add debt/credit entry | ✅ | `DebtModal` + `DebtsTab` |
+| 28 | Edit debt/credit | ✅ | `editDebt()` |
+| 29 | Delete debt/credit | ✅ | `deleteDebt()` |
+| 30 | Toggle debt status (open/settled) | ✅ | `toggleDebtStatus()` |
+| 31 | Debts tab with I Owe / Owed to Me toggle | ✅ | `DebtsTab` component |
+
+## 👤 Onboarding & Authentication
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 32 | 5-step guided onboarding (income → categories → bills → strategy → review) | ✅ | `/onboarding` page |
+| 33 | Email/password sign-in | ✅ | `signInEmail()` / `signUpEmail()` |
+| 34 | Google sign-in (popup + redirect fallback) | ✅ | `signInGoogle()` with in-app browser detection |
+| 35 | Password reset | ✅ | `sendResetEmail()` |
+| 36 | Email verification | ✅ | `sendVerificationEmail()` + banner |
+| 37 | Demo mode without Firebase | ✅ | localStorage fallback, triggered on `/login` |
+| 38 | User profile (plan, currency, onboardingComplete, theme, language) | ✅ | `UserProfile` in Firestore |
+
+## 🔧 Settings & Data Management
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 39 | Currency selection (12 currencies) | ✅ | `SUPPORTED_CURRENCIES` in `currency.ts` |
+| 40 | Locale-aware formatting | ✅ | `Intl.NumberFormat` per currency locale |
+| 41 | Dark mode / light mode / system | ✅ | Theme toggle in Settings modal |
+| 42 | CSV export | ✅ | `export.ts` with formula-injection protection |
+| 43 | CSV import | ✅ | `ImportCsvModal` with header-matching parser |
+| 44 | One-click account deletion | ✅ | `deleteAccount()` + `deleteUserAccountData()` |
+| 45 | Sign out | ✅ | Clears localStorage + sessionStorage |
+| 46 | Pro upgrade modal (Stripe mock checkout) | ✅ | Full 4-step mock checkout flow (`payments.ts`) |
+
+## 🏗 Categories
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 47 | Default categories with colors and icons | ✅ | 9 defaults in `normalizeMonth()` |
+| 48 | Custom categories with color + icon picker | ✅ | `ManageCategoriesModal` |
+| 49 | Category chips/indicators in UI | ✅ | Color dots, icon badges throughout |
+| 50 | Category icons from Material Symbols | ✅ | Preset icon grid |
+| 51 | Remove categories (minimum 1 enforced) | ✅ | Min 2 categories in UI, min 1 in data |
+
+## 👪 Household / Person Tracking
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 52 | Assign expenses to household member | ✅ | Person field in Expense/Fixed/Debt modals |
+| 53 | Household spending breakdown | ✅ | `TrendsTab` shows per-person spending |
+| 54 | Filter variable expenses by person | ✅ | Person filter in `VariableTab` |
+
+## 📱 PWA & Installability
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 55 | Web App Manifest | ✅ | `public/manifest.json` |
+| 56 | Maskable icons (separate from "any") | ✅ | Verified by PWA tests |
+| 57 | Service worker with fetch handler | ✅ | `public/sw.js` |
+| 58 | Service worker precaches only existing files | ✅ | Tested |
+| 59 | Service worker never caches Auth/Firestore traffic | ✅ | Bypasses `firestore.googleapis.com` and `identitytoolkit.googleapis.com` |
+| 60 | `beforeinstallprompt` capture pre-hydration | ✅ | `InstallPromptCapture` inline script |
+| 61 | Install button + iOS install sheet | ✅ | `InstallButton` + `IosInstallSheet` |
+| 62 | Install banner | ✅ | `InstallBanner` |
+| 63 | Offline app shell | ✅ | SW serves offline page |
+| 64 | Apple meta tags for standalone PWA | ✅ | `apple-mobile-web-app-capable` |
+
+## 🔐 Security & Infrastructure
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, plan pinning |
+| 66 | Content Security Policy (CSP) middleware | ✅ | Nonce-based, strict-dynamic, per-request nonce |
+| 67 | Zod validation on all forms | ✅ | `validation.ts` — expense, fixed bill, move money, goal, auth, category schemas |
+| 68 | CSV injection neutralisation | ✅ | `escapeCsvCell()` prepends `'` to formula triggers |
+| 69 | Demo mode fallback when Firebase unconfigured | ✅ | Graceful degradation throughout |
+| 70 | Error boundaries (route + global) | ✅ | `error.tsx` + `global-error.tsx` |
+| 71 | 404 page | ✅ | `not-found.tsx` |
+| 72 | Loading states / skeletons | ✅ | `loading.tsx` + skeleton loaders in dashboard |
+
+## 🌐 i18n & Internationalisation
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 73 | i18n framework (en, fr, ar) | ✅ | `translations.ts`, `i18n.ts`, `i18n-light.tsx`, `i18n-context.tsx` |
+| 74 | Message files for all 3 locales | ✅ | `messages/en.json`, `messages/fr.json`, `messages/ar.json` |
+| 75 | RTL support (Arabic) | ✅ | `dir` attribute, RTL locale detection |
+| 76 | ICU plural resolution | ✅ | `resolvePlural()` in `translations.ts` |
+| 77 | Locale-aware number formatting | ✅ | `getIntlLocale()` maps language to Intl locale |
+| 78 | Language cookie + localStorage persistence | ✅ | `setLanguageCookie()` + `LANG_STORAGE_KEY` |
+| **79** | **UI strings actually translated to FR/AR** | ✅ | All three locale files fully populated with localized translations. New keys added for trends, alerts, recurring bills, income source analytics, and debts/credits. |
+
+## 🚀 Landing Page & SEO
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 80 | Landing page with multiple sections | ✅ | Hero, Features, How It Works, Pricing, FAQ, etc. |
+| 81 | JSON-LD structured data (SoftwareApplication, Organization, FAQ) | ✅ | `json-ld.tsx` component |
+| 82 | Sitemap | ✅ | `sitemap.ts` excludes private routes |
+| 83 | Robots.txt | ✅ | `robots.ts` |
+| 84 | Open Graph / Twitter card metadata | ✅ | Per-page metadata |
+| 85 | `llms.txt` for AI crawlers | ✅ | `public/llms.txt` |
+| 86 | Blog posts | ✅ | 3 posts in `blog.ts` |
+| 87 | Legal pages (privacy, terms) | ✅ | `/privacy`, `/terms` |
+| 88 | Additional static pages (about, contact, careers, help, cookies) | ✅ | All present |
+
+## 🔄 Firestore & Persistence
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 89 | Live Firestore subscription for month budget | ✅ | `subscribeMonthBudget()` with `onSnapshot` |
+| 90 | Live Firestore subscription for savings goals | ✅ | `subscribeSavingsGoals()` |
+| 91 | Optimistic writes with fallback | ✅ | `updateAndSaveMonth()` + `updateAndSaveGoals()` |
+| 92 | localStorage fallback for offline/demo | ✅ | `flousy_month_${monthKey}` local caching |
+| 93 | Normalize legacy documents on read | ✅ | `normalizeMonth()` backfills missing fields |
+| 94 | `cleanUndefined()` utility for Firestore | ✅ | Prevents `undefined` field errors |
+| 95 | Detailed Firestore error handling | ✅ | `FirestoreErrorInfo` interface + console logging |
+
+## 🧪 Testing
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 96 | Store money-math invariants (strategy ratios, envelope sums, category budgets) | ✅ | `store.test.ts` — 4 strategies × 5 incomes |
+| 97 | End-to-end user journeys (add → edit → delete expense conserves cash) | ✅ | `flows.test.ts` |
+| 98 | Validation (NaN, Infinity, negative, absurd input) | ✅ | `validation.test.ts` |
+| 99 | CSV export (injection safety, ordering, empty accounts) | ✅ | `export.test.ts` |
+| 100 | PWA manifest, icons, SW, install prompt capture | ✅ | `pwa.test.ts` — 10+ tests |
+| 101 | SEO (sitemap, robots, llms.txt, currency/strategy alignment) | ✅ | `seo.test.ts` |
+
+## 📋 Remaining / Post-MVP Items
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| P1 | **Stripe mock payment integration** | ✅ | Realistic mock Checkout flow: plan selection → card form → 3D-secure simulation → receipt with transaction ID. See `payments.ts` and `ProUpgradeModal.tsx` |
+| P2 | **Recurring fixed charges (auto-carry bills between months)** | ✅ | `carryOverFixedExpenses()` in `store.ts` copies recurring bills on month rollover, plus `carryOverRecurring` in dashboard auto-loads from previous month when entering a fresh month |
+| P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
+| P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
+| P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
+| P6 | **Shared / household budgets** | ⬜ | Rules are strictly single-user; multi-user would require subcollection redesign |
+| P7 | **Bank sync (Plaid / Tink)** | ⬜ | Post-MVP; no API integrations exist |
+| P8 | **Receipt OCR / smart scanning** | ⬜ | Receipt upload works (base64 data URL); no OCR processing |
+| P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
+| P10 | **Push notifications** | ⬜ | No push notification infrastructure |
+| P11 | **Data export — JSON backup** | ⬜ | CSV export only |
+| P12 | **Month locking / archiving** | ⬜ | No concept of "closed" months |
+
+## 🐞 Known Issues / Tech Debt
+
+| # | Issue | Severity | Notes |
+|---|-------|----------|-------|
+| K1 | Whole-document writes per month (not subcollection) | Medium | Fine to ~2,000 transactions; a `transactions` subcollection would scale better |
+| K2 | Rules validate shape/size but don't rate-limit writes | Low | No write-frequency caps |
+| K3 | Styling mixes Tailwind utilities with inline styles and CSS variables | Low | Cosmetic tech debt |
+| K4 | `npm run lint` → `tsc --noEmit` (not ESLint) | Low | package.json has `lint` aliased to `typecheck`; ESLint config exists but isn't wired |
+| K5 | Receipts stored as base64 data URLs (not Firebase Storage) | Medium | Will bloat Firestore doc size; should move to Firebase Storage |
+| K6 | `Math.random()` used for ID generation | Medium | Should use `crypto.randomUUID()` or Firestore auto-IDs for production |
+| K7 | No rate limiting on Firestore writes | Low | Could hit Firestore write limits under heavy usage |
+| K8 | No email rate limiting for auth flows | Low | Password reset / verification emails could be spammed |
 
 ---
 
-## 3. High priority — needed for a credible MVP
+## Summary
 
-- [ ] **H1 · Currency is hardcoded to MAD.** `UserProfile.currency` exists in the model but is never read. `fmt()` hardcodes `'fr-MA'` locale and "MAD" is a literal string in 15+ places. Wire the profile field through a `useCurrency()` hook. Blocks every non-Moroccan user.
-- [ ] **H2 · No confirmation UI beyond `window.confirm`.** Native browser confirms (page.tsx:417, 1122) look broken inside a PWA/standalone shell. Replace with an in-app confirm sheet.
-- [ ] **H3 · No `error.tsx` / `not-found.tsx` / `loading.tsx`.** Any thrown render error shows the raw Next.js error overlay in prod. Add App Router error boundaries.
-- [ ] **H4 · Weak form validation.** `parseFloat` with no guards: negative amounts, `NaN`, and absurd values are all accepted. Settings' `parseFloat(total) || month.totalBudget` means entering `0` silently keeps the old value. Add a shared validation layer (Zod recommended).
-- [ ] **H5 · Category budgets are per-month copies, not templates.** Editing a category cap only affects the current month; rollover copies whatever the previous month had. Users expect budget caps to be a persistent plan. Consider a user-level `budgetTemplate` doc.
-- [ ] **H6 · No data export.** Advertised in the Pro upsell ("Unlimited months, insights, export") but not implemented at any tier. CSV export of expenses is a ~40-line feature and a major trust signal for a finance app.
-- [ ] **H7 · No account deletion / data wipe.** GDPR "right to erasure". Also needed for App Store review.
-- [ ] **H8 · Google sign-in uses `signInWithPopup` only.** Blocked in iOS in-app browsers (Instagram, LinkedIn webviews) and some Android WebViews. Add `signInWithRedirect` fallback.
-- [ ] **H9 · No email verification.** Anyone can register with any address.
-- [ ] **H10 · `listMonths()` is dead code.** Defined in `db.ts:73` and never called. Either build the month-history/trends view it was written for, or remove it.
-- [ ] **H11 · Accessibility gaps.** `maximumScale: 1, userScalable: false` in `layout.tsx` blocks pinch-zoom (WCAG 1.4.4 failure). No visible focus rings on custom buttons. Icon-only mobile tabs have `aria-label` but modals lack `role="dialog"`, focus trap, and Escape-to-close.
-
----
-
-## 4. Medium priority — quality & maintainability
-
-- [ ] **M1 · Split `dashboard/page.tsx` (1,281 lines).** Extract to `src/components/modals/*`, `src/components/tabs/*`, `src/components/ui/*`. Currently unreviewable and merge-conflict-prone.
-- [ ] **M2 · No linting.** Add `eslint-config-next` + Prettier + a `lint` npm script.
-- [ ] **M3 · No tests.** At minimum, unit-test the money math in `store.ts` (`withMoneyPlaceDelta`, `rolloverMonth`, `normalizeMonth`, `buildMonthFromOnboarding`) with Vitest.
-- [ ] **M4 · No CI.** Add a GitHub Action running `tsc --noEmit` + `next build` + tests on PR.
-- [ ] **M5 · Tailwind is barely used.** Design tokens live in `globals.css` CSS variables while components use inline styles. Move tokens into `tailwind.config.ts` and adopt utility classes, or drop Tailwind. The current split is the worst of both.
-- [ ] **M6 · No optimistic-update rollback.** `persist()` sets local state *then* writes to Firestore. On failure it shows an error but leaves the optimistic (wrong) state on screen until the next snapshot.
-- [ ] **M7 · Whole-document writes.** Every expense add rewrites the entire month document. At ~200 expenses/month this is wasteful and creates last-write-wins races across two open tabs. Consider a `transactions` subcollection.
-- [ ] **M8 · `id`s use `Math.random().toString(36).slice(2,10)`.** ~40 bits of entropy; collision risk is small but non-zero and it's duplicated in two places (`uid` and `uid2`). Use `crypto.randomUUID()`.
-- [ ] **M9 · Package name mismatch.** `package.json` says `"budget-tracker"`, the repo is `mybudget-app`, the product is "Flousy". Pick one.
-- [ ] **M10 · No `dev`-time env validation.** Missing env vars are handled at runtime but a build-time check would catch misconfigured deploys earlier.
-- [ ] **M11 · Google Fonts loaded via CSS `@import`.** Render-blocking. Use `next/font` for self-hosting + zero layout shift.
-- [ ] **M12 · No dark mode.** `themeColor` is hardcoded `#FFFFFF`; no `prefers-color-scheme` handling. Token architecture already supports it — it's a ~1 hour change.
-- [ ] **M13 · Dependencies drifting.** `next` 14.2.35 → 16.x, `react` 18 → 19, `lucide-react` 0.383 → 1.27, `recharts` 2 → 3, `tailwindcss` 3 → 4. Not urgent, but pin a plan.
-
----
-
-## 5. Remaining features (not yet built)
-
-### 5a. Feature gaps in what already exists
-| Feature | Why it matters |
-|---|---|
-| Edit expense / fixed charge / goal | ⚠️ **Blocker** — see B1 |
-| Withdraw from a saving goal | ⚠️ **Blocker** — see B3 |
-| Recurring / auto-repeating fixed charges | Fixed charges must be re-entered manually every month |
-| Search & filter transactions | Unusable past ~50 entries/month |
-| Multi-month history / trends view | Data is stored; `listMonths()` exists unused |
-| Income tracking (multiple income sources) | Only a single `totalBudget` number |
-| Transfers between money places | Can't move cash bank → wallet |
-| The `person` field on `VariableExpense` | Declared in the type, never written or displayed |
-| Attach money place to an expense | See B4 |
-| Notes / receipt photo on a transaction | Standard for budget apps |
-
-### 5b. Genuinely new features
-| Feature | Effort | Notes |
-|---|---|---|
-| **Stripe / Lemon Squeezy payments** | L | `plan: 'free' \| 'pro'` is modeled; UI shows a disabled "Soon" button. Needs Checkout + webhook + a server route (would be this app's first non-client code). |
-| **Pro feature gating** | M | Nothing currently differs between free and pro. Decide what's gated before wiring payments. |
-| **Data export (CSV / JSON)** | S | Also see H6 |
-| **Data import** | M | Migration path from spreadsheets — big adoption unlock |
-| **Budget alerts / notifications** | M | "You've used 80% of Alimentation" — needs FCM or in-app only |
-| **Service worker + offline mode** | M | Manifest exists but there's no SW; the PWA can't work offline today |
-| **Analytics** (PostHog / Plausible) | S | Zero product visibility right now |
-| **Error monitoring** (Sentry) | S | Errors go to `console.error` and vanish |
-| **Multi-currency** | M | See H1 |
-| **i18n (FR / AR)** | L | Category names are already French, UI is English. Morocco-targeted app with no Arabic is a real gap. |
-| **Shared / household budgets** | L | "Queen"/"King" categories imply couples usage; rules are strictly single-user |
-| **Bank sync (Plaid / Tink)** | XL | Post-MVP |
-| **Recurring income / payday scheduling** | M | |
-| **Debt tracking** | M | |
-| **Landing / marketing page** | S | `/` redirects straight to login — nothing explains the product |
-
----
-
-## 6. Suggested sequencing
-
-### Sprint 1 — Correctness (ship-blocking)
-`B1` edit flows → `B2`+`B3` goal money integrity → `B4` money-place decision → `B5` remove fake chart → `H4` validation → `B9` delete `.diff` files
-
-### Sprint 2 — Launch requirements
-`B6` legal pages → `B7` rules hardening → `H7` account deletion → `H3` error boundaries → `H8` redirect fallback → `H2` in-app confirms
-
-### Sprint 3 — Product credibility
-`H1` currency → `H6` CSV export → `H11` a11y → recurring fixed charges → search/filter → landing page
-
-### Sprint 4 — Engineering hygiene
-`M1` split dashboard → `M2` lint → `M3` tests on money math → `M4` CI → analytics + Sentry
-
-### Post-MVP
-Payments & Pro gating · offline SW · i18n · shared budgets · trends view · bank sync
-
----
-
-## 7. Definition of "MVP ready"
-
-- [ ] Every record can be created, **edited**, and deleted
-- [ ] Money accounting is internally consistent (no leaks, no fabricated numbers)
-- [ ] Privacy Policy + Terms published and linked
-- [ ] Users can export and delete all their own data
-- [ ] Firestore rules validate shape, not just ownership
-- [ ] Errors are caught by boundaries and reported to a monitoring service
-- [ ] Currency is not hardcoded
-- [ ] `lint` + `build` + `test` run green in CI
+| Category | Total | ✅ Done | 🔧 Partial | ⬜ Not started |
+|----------|-------|---------|------------|----------------|
+| Core Budgeting | 7 | 7 | 0 | 0 |
+| Money Places & Expenses | 13 | 13 | 0 | 0 |
+| Savings Goals | 6 | 6 | 0 | 0 |
+| Debts & Credits | 5 | 5 | 0 | 0 |
+| Onboarding & Auth | 7 | 7 | 0 | 0 |
+| Settings & Data | 8 | 8 | 0 | 0 |
+| Categories | 5 | 5 | 0 | 0 |
+| Household / Person | 3 | 3 | 0 | 0 |
+| PWA & Installability | 10 | 10 | 0 | 0 |
+| Security & Infra | 8 | 8 | 0 | 0 |
+| i18n | 6 | 6 | 0 | 0 |
+| Landing & SEO | 9 | 9 | 0 | 0 |
+| Firestore & Persistence | 7 | 7 | 0 | 0 |
+| Testing | 6 | 6 | 0 | 0 |
+| **Post-MVP / Remaining** | **12** | **6** | **0** | **6** |
+| **Known Issues / Tech Debt** | **8** | — | — | — |
+| **Grand Total (core + post-MVP)** | **112** | **106** | **0** | **6** |

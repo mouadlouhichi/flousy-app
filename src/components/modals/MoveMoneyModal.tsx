@@ -12,6 +12,12 @@ interface MoveMoneyModalProps {
   month: MonthBudget;
 }
 
+const MONEY_PLACE_ICONS: Record<MoneyPlace, string> = {
+  bank: 'account_balance',
+  home: 'home',
+  wallet: 'account_balance_wallet',
+};
+
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
   const { symbol, format } = useCurrency();
   const [from, setFrom] = useState<MoneyPlace>('bank');
@@ -70,61 +76,58 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     setErrors((prev) => ({ ...prev, amount: '' }));
   };
 
+  const placeOptions = [
+    { value: 'bank', label: `Bank (${format(month.bankPart)})` },
+    { value: 'home', label: `Home Cash (${format(month.homePart)})` },
+    { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
+  ];
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Move Money">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
-        {/* Source & Target Place Pickers */}
-        <div className="grid grid-cols-2 gap-md p-md bg-surface-container rounded-2xl border border-outline-variant">
-          {/* FROM */}
-          <CustomSelect
-            label="From"
-            value={from}
-            onChange={(newFrom) => {
-              setFrom(newFrom as MoneyPlace);
-              if (newFrom === to) {
-                setTo(newFrom === 'bank' ? 'wallet' : 'bank');
-              }
-              setErrors({});
-            }}
-            options={[
-              { value: 'bank', label: `Bank (${format(month.bankPart)})` },
-              { value: 'home', label: `Home Cash (${format(month.homePart)})` },
-              { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
-            ]}
-          />
-
-          {/* TO */}
-          <CustomSelect
-            label="To"
-            value={to}
-            onChange={(newTo) => {
-              setTo(newTo as MoneyPlace);
-              if (newTo === from) {
-                setFrom(newTo === 'bank' ? 'wallet' : 'bank');
-              }
-              setErrors({});
-            }}
-            options={[
-              { value: 'bank', label: `Bank (${format(month.bankPart)})` },
-              { value: 'home', label: `Home Cash (${format(month.homePart)})` },
-              { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
-            ]}
-          />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* ── From / To selectors ── */}
+        <div className="p-4 bg-surface-container/60 rounded-2xl border border-outline-variant flex flex-col gap-3">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+            Transfer Between Accounts
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <CustomSelect
+              label="From"
+              value={from}
+              onChange={(newFrom) => {
+                setFrom(newFrom as MoneyPlace);
+                if (newFrom === to) {
+                  setTo(newFrom === 'bank' ? 'wallet' : 'bank');
+                }
+                setErrors({});
+              }}
+              options={placeOptions}
+            />
+            <CustomSelect
+              label="To"
+              value={to}
+              onChange={(newTo) => {
+                setTo(newTo as MoneyPlace);
+                if (newTo === from) {
+                  setFrom(newTo === 'bank' ? 'wallet' : 'bank');
+                }
+                setErrors({});
+              }}
+              options={placeOptions}
+            />
+          </div>
+          {errors.to && (
+            <p role="alert" className="text-[12px] font-medium text-error">{errors.to}</p>
+          )}
         </div>
 
-        {errors.to && (
-          <p role="alert" className="font-label-sm text-label-sm text-error">
-            {errors.to}
-          </p>
-        )}
-
-        {/* Amount Input */}
-        <div className="flex flex-col items-center justify-center py-sm">
-          <label className="font-label-md text-label-md font-mono text-on-surface-variant uppercase tracking-wider mb-sm">
-            TRANSFER AMOUNT
+        {/* ── Amount ── */}
+        <div className="flex flex-col items-center justify-center py-1">
+          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
+            Transfer Amount
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-headline-lg mr-xs">{symbol}</span>
+            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
               type="number"
               step="any"
@@ -135,55 +138,64 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 font-extrabold outline-none"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
-            <p role="alert" className="font-label-sm text-label-sm text-error mt-1 text-center">
-              {errors.amount}
-            </p>
+            <p role="alert" className="text-[12px] font-medium text-error mt-1 text-center">{errors.amount}</p>
           )}
 
           {/* Quick Amount Chips */}
-          <div className="flex gap-xs mt-md">
+          <div className="flex items-center gap-1.5 flex-wrap mt-3 justify-center">
             {[100, 200, 500, 1000].map((chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => handleQuickAdd(chip)}
-                className="px-3 py-1.5 bg-surface-container hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md rounded-lg transition-colors border border-outline-variant"
+                className="px-3 py-1.5 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
               >
-                +{chip}
+                +{symbol}{(chip).toLocaleString()}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Live Balance Impact Preview */}
-        <div className="p-md bg-primary-container/10 border border-primary/20 rounded-2xl flex flex-col gap-sm">
-          <span className="font-label-sm text-label-sm font-mono text-primary uppercase font-bold tracking-wider">
-            PREVIEW BALANCES AFTER TRANSFER
+        {/* ── Balance Preview ── */}
+        <div className="p-3.5 bg-primary-container/10 border border-primary/20 rounded-2xl">
+          <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
+            Preview After Transfer
           </span>
-          <div className="flex justify-between items-center font-body-md text-body-md">
-            <span className="text-on-surface-variant capitalize">{from}:</span>
-            <span className="font-mono text-on-surface font-semibold">
-              {format(currentFromBalance)} → <span className="text-tertiary">{format(estimatedFromAfter)}</span>
-            </span>
-          </div>
-          <div className="flex justify-between items-center font-body-md text-body-md">
-            <span className="text-on-surface-variant capitalize">{to}:</span>
-            <span className="font-mono text-on-surface font-semibold">
-              {format(currentToBalance)} → <span className="text-primary font-bold">{format(estimatedToAfter)}</span>
-            </span>
+          <div className="flex flex-col gap-2 mt-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">{MONEY_PLACE_ICONS[from]}</span>
+                <span className="text-[13px] text-on-surface-variant capitalize font-medium">{from}:</span>
+              </div>
+              <span className="font-mono text-[13px] text-on-surface font-semibold">
+                {format(currentFromBalance)} <span className="text-on-surface-variant">→</span>{' '}
+                <span className="text-tertiary">{format(estimatedFromAfter)}</span>
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">{MONEY_PLACE_ICONS[to]}</span>
+                <span className="text-[13px] text-on-surface-variant capitalize font-medium">{to}:</span>
+              </div>
+              <span className="font-mono text-[13px] text-on-surface font-semibold">
+                {format(currentToBalance)} <span className="text-on-surface-variant">→</span>{' '}
+                <span className="text-primary font-bold">{format(estimatedToAfter)}</span>
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ── Submit ── */}
         <button
           type="submit"
-          className="w-full bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+          className="w-full bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
         >
-          Confirm Transfer
+          <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+          <span>Confirm Transfer</span>
         </button>
       </form>
     </Modal>

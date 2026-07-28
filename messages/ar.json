@@ -135,7 +135,9 @@
     "monthNavNext": "الشهر التالي",
     "emailNotVerified": "بريدك الإلكتروني غير مُحقق.",
     "sendVerification": "إرسال بريد التحقق",
-    "verificationSent": "تم إرسال بريد التحقق!"
+    "verificationSent": "تم إرسال بريد التحقق!",
+    "trendsAndAnalytics": "الاتجاهات والتحليلات",
+    "debtsAndCredits": "الديون والائتمانات"
   },
   "budgetPlan": {
     "totalIncome": "إجمالي الدخل",
@@ -254,7 +256,9 @@
       "sourceNamePlaceholder": "اسم المصدر (مثلاً: عمل حر، إيجار)",
       "amountPlaceholder": "المبلغ",
       "addIncomeStream": "إضافة مصدر دخل",
-      "saveIncomeSources": "حفظ مصادر الدخل ({total})"
+      "saveIncomeSources": "حفظ مصادر الدخل ({total})",
+      "perSourceAnalytics": "تحليل حسب المصدر",
+      "shareOfTotal": "{pct}% من إجمالي الدخل"
     },
     "pro": {
       "title": "الترقية إلى فلوسي برو",
@@ -311,7 +315,9 @@
       "noCharges": "لم يتم تكوين أي رسوم شهرية ثابتة.",
       "addRentBills": "إضافة إيجار أو فواتير أو اشتراكات",
       "recurring": "متكرر",
-      "oneTime": "مرة واحدة"
+      "oneTime": "مرة واحدة",
+      "recurringLabel": "متكرر",
+      "carryOverNote": "يتم ترحيل الفواتير المتكررة تلقائياً من الشهر السابق."
     },
     "savings": {
       "totalSaved": "إجمالي المدّخرات",
@@ -334,7 +340,42 @@
       "noCreditsTitle": "لا مستحقات بعد",
       "noDebtsDesc": "حافظ على وضوح أموالك وتوازنها. أضف أي قروض شخصية أو أموال مستحقة عليك لتبقى على اطلاع بميزانيتك.",
       "noCreditsDesc": "تتبع الأموال المستحقة لك. أضف المستحقات للحفاظ على سجل واضح ومتابعة السداد.",
-      "manageDebt": "إدارة الديون بسلام"
+      "manageDebt": "إدارة الديون بسلام",
+      "title": "الديون والائتمانات",
+      "openCount": "{count} مفتوح",
+      "settledCount": "{count} مسدد"
+    },
+    "trends": {
+      "title": "الاتجاهات والتحليلات",
+      "description": "مقارنة الإنفاق الشهري، توزيع الدخل، ونظرة عامة على الفئات.",
+      "spentThisMonth": "المصروف هذا الشهر",
+      "budgetRemaining": "الميزانية المتبقية",
+      "totalCash": "إجمالي النقد",
+      "activeGoals": "الأهداف النشطة",
+      "monthOverMonth": "الإنفاق شهرياً",
+      "month": "الشهر",
+      "budget": "الميزانية",
+      "spent": "المصروف",
+      "remaining": "المتبقي",
+      "savingsPercent": "نسبة الادخار",
+      "notEnoughData": "لا توجد بيانات شهرية كافية.",
+      "addExpensesForTrends": "أضف مصروفات عبر عدة أشهر لرؤية الاتجاهات.",
+      "incomeSources": "مصادر الدخل",
+      "totalCombinedIncome": "إجمالي الدخل المجمع",
+      "noIncomeSources": "لم يتم تكوين مصادر دخل. أضفها من القائمة الجانبية.",
+      "categoryBreakdown": "توزيع الفئات",
+      "totalSpent": "إجمالي المصروفات",
+      "noExpenses": "لا توجد مصروفات مسجلة لهذا الشهر.",
+      "householdSpending": "إنفاق أفراد الأسرة",
+      "variable": "متغير",
+      "fixed": "ثابت",
+      "budgetHealth": "صحة الميزانية",
+      "needsLabel": "الاحتياجات ({ratio}%)",
+      "wantsLabel": "الرغبات ({ratio}%)",
+      "vsLabel": "مقابل",
+      "ofLabel": "من",
+      "loadingTrends": "جاري تحميل الاتجاهات...",
+      "proLabel": "برو"
     }
   },
   "alerts": {
@@ -345,7 +386,9 @@
     "wantsAlert": "تنبيه ظرف الرغبات",
     "spentVsBudget": "أُنفق {spent} مقابل ميزانية {budget} ({percent}%).",
     "spentOfBudget": "أُنفق {spent} من ميزانية {budget} ({percent}%).",
-    "allHealthy": "جميع أظرف الميزانية سليمة! لم يُكتشف أي تجاوز."
+    "allHealthy": "جميع أظرف الميزانية سليمة! لم يُكتشف أي تجاوز.",
+    "categoryAlertTitle": "تنبيه إنفاق {cat}",
+    "categoryAlertMessage": "{cat} يمثل {pct}% من المصروفات المتغيرة ({amount}). فكر في مراجعة هذه الفئة."
   },
   "legal": {
     "eyebrow": "قانوني",

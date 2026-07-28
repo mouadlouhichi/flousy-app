@@ -135,7 +135,9 @@
     "monthNavNext": "Next month",
     "emailNotVerified": "Your email is not verified.",
     "sendVerification": "Send Verification Email",
-    "verificationSent": "Verification email sent!"
+    "verificationSent": "Verification email sent!",
+    "trendsAndAnalytics": "Trends & Analytics",
+    "debtsAndCredits": "Debts & Credits"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",
@@ -254,7 +256,9 @@
       "sourceNamePlaceholder": "Source Name (e.g., Freelance, Rental)",
       "amountPlaceholder": "Amount",
       "addIncomeStream": "Add Income Stream",
-      "saveIncomeSources": "Save Income Sources ({total})"
+      "saveIncomeSources": "Save Income Sources ({total})",
+      "perSourceAnalytics": "Per-Source Analytics",
+      "shareOfTotal": "{pct}% of total income"
     },
     "pro": {
       "title": "Upgrade to Flousy Pro",
@@ -311,7 +315,9 @@
       "noCharges": "No fixed monthly charges configured.",
       "addRentBills": "Add Rent, Bills or Subscriptions",
       "recurring": "Recurring",
-      "oneTime": "One-time"
+      "oneTime": "One-time",
+      "recurringLabel": "Recurring",
+      "carryOverNote": "Recurring bills are auto-carried from the previous month."
     },
     "savings": {
       "totalSaved": "TOTAL SAVED",
@@ -334,7 +340,42 @@
       "noCreditsTitle": "No credits yet",
       "noDebtsDesc": "Keep your finances clear and balanced. Add any personal loans or money you owe to stay on top of your budget.",
       "noCreditsDesc": "Track money others owe you. Add credits to keep a clear record and stay on top of repayments.",
-      "manageDebt": "MANAGE DEBT PEACEFULLY"
+      "manageDebt": "MANAGE DEBT PEACEFULLY",
+      "title": "Debts & Credits",
+      "openCount": "{count} open",
+      "settledCount": "{count} settled"
+    },
+    "trends": {
+      "title": "Trends & Analytics",
+      "description": "Multi-month spending comparison, income breakdown, and category insights.",
+      "spentThisMonth": "Spent This Month",
+      "budgetRemaining": "Budget Remaining",
+      "totalCash": "Total Cash",
+      "activeGoals": "Active Goals",
+      "monthOverMonth": "Month-Over-Month Spending",
+      "month": "Month",
+      "budget": "Budget",
+      "spent": "Spent",
+      "remaining": "Remaining",
+      "savingsPercent": "Savings %",
+      "notEnoughData": "Not enough month data yet.",
+      "addExpensesForTrends": "Add expenses across multiple months to see trends.",
+      "incomeSources": "Income Sources",
+      "totalCombinedIncome": "Total Combined Income",
+      "noIncomeSources": "No income sources configured. Add them from the sidebar menu.",
+      "categoryBreakdown": "Category Breakdown",
+      "totalSpent": "Total Spent",
+      "noExpenses": "No expenses recorded yet for the current month.",
+      "householdSpending": "Household Member Spending",
+      "variable": "Variable",
+      "fixed": "Fixed",
+      "budgetHealth": "Budget Health",
+      "needsLabel": "Needs ({ratio}%)",
+      "wantsLabel": "Wants ({ratio}%)",
+      "vsLabel": "vs",
+      "ofLabel": "of",
+      "loadingTrends": "Loading trends...",
+      "proLabel": "PRO"
     }
   },
   "alerts": {
@@ -345,7 +386,9 @@
     "wantsAlert": "Wants Envelope Alert",
     "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}%).",
     "spentOfBudget": "Spent {spent} of {budget} budget ({percent}%).",
-    "allHealthy": "All budget envelopes are healthy! No overspending detected."
+    "allHealthy": "All budget envelopes are healthy! No overspending detected.",
+    "categoryAlertTitle": "{cat} Spending Alert",
+    "categoryAlertMessage": "{cat} represents {pct}% of variable spending ({amount}). Consider reviewing this category."
   },
   "legal": {
     "eyebrow": "Legal",

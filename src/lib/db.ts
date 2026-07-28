@@ -168,6 +168,87 @@ export async function saveSavingsGoals(uid: string, goals: SavingGoal[]): Promis
   }
 }
 
+/**
+ * Fetch a single month budget once (non-subscription).
+ */
+export async function getMonthBudget(uid: string, monthKey: string): Promise<MonthBudget | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'months', monthKey));
+    if (snap.exists()) {
+      return normalizeMonth(snap.data() as MonthBudget, monthKey);
+    }
+    return null;
+  } catch (err) {
+    console.error('Error fetching month budget:', err);
+    return null;
+  }
+}
+
+/**
+ * List all available month keys for a user, sorted newest first.
+ */
+export async function listMonths(uid: string): Promise<string[]> {
+  if (!isFirebaseConfigured || !db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'months'));
+    const keys = snap.docs
+      .map((d) => d.id)
+      .filter((id) => /^\d{4}-\d{2}$/.test(id))
+      .sort()
+      .reverse();
+    return keys;
+  } catch (err) {
+    console.error('Error listing months:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch multiple month budgets at once for trends/comparison.
+ * Falls back to localStorage for months not in Firestore.
+ */
+export async function fetchMonthsForTrends(
+  uid: string | undefined,
+  currentKey: string,
+  count: number = 6,
+): Promise<{ monthKey: string; month: MonthBudget }[]> {
+  const results: { monthKey: string; month: MonthBudget }[] = [];
+
+  // Generate last N month keys including current
+  const [curY, curM] = currentKey.split('-').map(Number);
+  const monthKeys: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(curY, curM - 1 - i, 1);
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  for (const mk of monthKeys) {
+    let monthData: MonthBudget | null = null;
+
+    // Try Firestore
+    if (uid) {
+      monthData = await getMonthBudget(uid, mk);
+    }
+
+    // Fallback to localStorage
+    if (!monthData) {
+      try {
+        const local = localStorage.getItem(`flousy_month_${mk}`);
+        if (local) {
+          monthData = normalizeMonth(JSON.parse(local), mk);
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (monthData) {
+      results.push({ monthKey: mk, month: monthData });
+    }
+  }
+
+  return results;
+}
+
 // Delete all user account data from Firestore
 export async function deleteUserAccountData(uid: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;

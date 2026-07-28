@@ -6,7 +6,7 @@
 what your money is _for_ and where it actually _is_.**
 
 [![CI](https://img.shields.io/badge/CI-typecheck%20%7C%20lint%20%7C%20test%20%7C%20build-2ea44f)](ci/github-actions-ci.yml)
-[![Tests](https://img.shields.io/badge/tests-57%20passing-2ea44f)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-67%20passing-2ea44f)](#-testing)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
@@ -55,7 +55,7 @@ money leaves a real place. Delete it and it comes back. Fund a savings goal
 and it moves out of your account; withdraw and it returns.
 
 That invariant — money is never silently created or destroyed — is enforced
-by [57 tests](#-testing).
+by [67 tests](#-testing).
 
 ---
 
@@ -355,7 +355,7 @@ in exports; no bank connections and no card details ever collected.
 npm run test
 ```
 
-**57 tests across 4 suites:**
+**67 tests across 6 suites:**
 
 | Suite | Covers |
 | --- | --- |
@@ -476,13 +476,14 @@ git push
 
 **Shipped** — edit everywhere · money-place accounting · goal withdrawals ·
 real spend trajectory · legal pages · CSV export · account deletion ·
-hardened rules · 12 currencies · dark mode · offline shell · CI · 57 tests
+hardened rules · 12 currencies · dark mode · offline shell · CI · 67 tests ·
+Stripe mock checkout
 
 **Next**
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Stripe / Lemon Squeezy payments | L | `plan` field exists and is rule-protected; needs Checkout + Admin SDK webhook |
+| Stripe / Lemon Squeezy payments (live) | L | Mock checkout UI complete (`payments.ts`); needs real Checkout + Admin SDK webhook for production |
 | Recurring fixed charges | M | Bills are re-entered each month today |
 | Multi-month trends view | M | Data and `listMonths()` already available |
 | CSV import | M | Migration path from spreadsheets |
