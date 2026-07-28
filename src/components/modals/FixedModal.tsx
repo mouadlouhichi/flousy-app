@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
+import { CustomInput } from '../ui/CustomInput';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -124,81 +126,56 @@ export function FixedModal({
         </div>
 
         {/* Bill Name */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            BILL / SUBSCRIPTION NAME
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((prev) => ({ ...prev, name: '' }));
-            }}
-            placeholder="e.g. Apartment Rent, Electricity, Netflix"
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-          {errors.name && (
-            <p role="alert" className="font-label-sm text-label-sm text-error">
-              {errors.name}
-            </p>
-          )}
-        </div>
+        <CustomInput
+          label="Bill / Subscription Name"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((prev) => ({ ...prev, name: '' }));
+          }}
+          placeholder="e.g. Apartment Rent, Electricity, Netflix"
+          error={errors.name}
+        />
 
         {/* Category */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            CATEGORY
-          </label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          >
-            {['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          label="Category"
+          value={type}
+          onChange={setType}
+          options={['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => ({
+            value: c,
+            label: c,
+          }))}
+        />
 
         {/* Due Day / Date */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            DUE DAY OF MONTH
-          </label>
-          <input
-            type="text"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            placeholder="e.g. 1st of month, 15th"
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-        </div>
+        <CustomInput
+          label="Due Day of Month"
+          type="text"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          placeholder="e.g. 1st of month, 15th"
+        />
 
         {/* Household Member */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            HOUSEHOLD MEMBER
-          </label>
-          <select
-            value={person}
-            onChange={(e) => setPerson(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            <option value="Self">Self</option>
-            <option value="Partner">Partner / Spouse</option>
-            <option value="Family">Family / Shared</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-          </select>
-        </div>
+        <CustomSelect
+          label="Household Member"
+          value={person}
+          onChange={setPerson}
+          options={[
+            { value: 'Self', label: 'Self' },
+            { value: 'Partner', label: 'Partner / Spouse' },
+            { value: 'Family', label: 'Family / Shared' },
+            { value: 'Queen', label: 'Queen' },
+            { value: 'King', label: 'King' },
+          ]}
+        />
 
         {/* Account / Place */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            PAID FROM
+        <div className="flex flex-col gap-sm">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            Paid From
           </label>
           <div className="grid grid-cols-3 gap-sm">
             {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (
@@ -241,7 +218,7 @@ export function FixedModal({
         </div>
 
         {/* Submit / Delete */}
-        <div className="flex gap-md pt-md border-t border-surface-variant">
+        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
           {initialBill && onDelete && (
             <button
               type="button"
@@ -249,14 +226,14 @@ export function FixedModal({
                 onDelete(initialBill);
                 onClose();
               }}
-              className="px-4 py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-md transition-colors"
+              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
           >
             {initialBill ? 'Save Changes' : 'Add Fixed Charge'}
           </button>

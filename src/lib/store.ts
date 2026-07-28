@@ -90,6 +90,19 @@ export interface SavingGoal {
   category?: string;
 }
 
+export type DebtType = 'debt' | 'credit';
+export type DebtStatus = 'open' | 'settled';
+
+export interface DebtItem {
+  id: string;
+  name: string;       // person/entity
+  amount: number;
+  type: DebtType;     // 'debt' = I owe, 'credit' = owed to me
+  status: DebtStatus;
+  date: string;       // YYYY-MM-DD
+  note?: string;
+}
+
 export interface MonthBudget {
   totalBudget: number; // total income
   incomeSources?: IncomeSource[];
@@ -105,6 +118,7 @@ export interface MonthBudget {
   activeCategories: string[];
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
+  debts?: DebtItem[];
   updatedAt: string;
 }
 
@@ -404,6 +418,43 @@ export function deleteFundedGoal(
 }
 
 /**
+ * Debts CRUD
+ */
+export function addDebt(month: MonthBudget, debt: DebtItem): MonthBudget {
+  return {
+    ...month,
+    debts: [debt, ...(month.debts || [])],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function editDebt(month: MonthBudget, oldId: string, newDebt: DebtItem): MonthBudget {
+  return {
+    ...month,
+    debts: (month.debts || []).map((d) => (d.id === oldId ? newDebt : d)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function deleteDebt(month: MonthBudget, debtId: string): MonthBudget {
+  return {
+    ...month,
+    debts: (month.debts || []).filter((d) => d.id !== debtId),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudget {
+  return {
+    ...month,
+    debts: (month.debts || []).map((d) =>
+      d.id === debtId ? { ...d, status: d.status === 'open' ? 'settled' : 'open' } : d
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Normalizes a raw Firestore month document, backfilling missing or legacy properties.
  */
 export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, monthKey?: string): MonthBudget {
@@ -506,6 +557,15 @@ export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, mon
     activeCategories: raw?.activeCategories || defaultCategories,
     categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
     categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },
+    debts: (raw?.debts || []).map((d) => ({
+      id: d.id || Math.random().toString(36).substring(2, 9),
+      name: d.name || 'Unknown',
+      amount: typeof d.amount === 'number' ? d.amount : 0,
+      type: d.type || 'debt',
+      status: d.status || 'open',
+      date: d.date || new Date().toISOString().split('T')[0],
+      note: d.note,
+    })),
     updatedAt: raw?.updatedAt || new Date().toISOString(),
   };
 }

@@ -21,6 +21,10 @@ import {
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
+  DebtItem,
+  addDebt,
+  editDebt,
+  deleteDebt,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
@@ -35,6 +39,8 @@ import { VariableTab } from '../../components/tabs/VariableTab';
 import { FixedTab } from '../../components/tabs/FixedTab';
 import { SavingsTab } from '../../components/tabs/SavingsTab';
 import { TrendsTab } from '../../components/tabs/TrendsTab';
+import { DebtsTab } from '../../components/tabs/DebtsTab';
+import { DebtModal } from '../../components/modals/DebtModal';
 
 // Modals & UI
 import { ExpenseModal } from '../../components/modals/ExpenseModal';
@@ -91,6 +97,8 @@ export default function DashboardPage() {
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
 
   const [verificationSent, setVerificationSent] = useState(false);
 
@@ -264,6 +272,23 @@ export default function DashboardPage() {
     updateAndSaveMonth(updated);
   };
 
+  // Debt Handlers
+  const handleSaveDebt = (debt: DebtItem) => {
+    const existingIdx = (month.debts || []).findIndex((d) => d.id === debt.id);
+    let next: MonthBudget;
+    if (existingIdx >= 0) {
+      next = editDebt(month, debt.id, debt);
+    } else {
+      next = addDebt(month, debt);
+    }
+    updateAndSaveMonth(next);
+  };
+
+  const handleDeleteDebt = (debtId: string) => {
+    const next = deleteDebt(month, debtId);
+    updateAndSaveMonth(next);
+  };
+
   // Income Sources Handler
   const handleSaveIncomeSources = (sources: any[], total: number) => {
     const updated = normalizeMonth({
@@ -381,9 +406,9 @@ export default function DashboardPage() {
             }`}
           >
             <span className={`material-symbols-outlined text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-              analytics
+              description
             </span>
-            <span>Trends & Debts</span>
+            <span>Debts</span>
           </button>
 
           <div className="my-2 border-t border-surface-variant/40" />
@@ -463,11 +488,16 @@ export default function DashboardPage() {
         {/* Main Header Bar */}
         <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Mobile Logo */}
-            <div className="md:hidden flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[28px]">account_balance_wallet</span>
-              <span className="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">
-                Flousy
+            {/* Mobile Logo + Balance */}
+            <div className="md:hidden flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[24px]">account_balance_wallet</span>
+                <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
+                  Flousy
+                </span>
+              </div>
+              <span className="text-[11px] text-on-surface-variant font-medium">
+                Total Balance: {format((month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0))}
               </span>
             </div>
 
@@ -481,28 +511,32 @@ export default function DashboardPage() {
                 ? 'Fixed Bills'
                 : activeTab === 'savings'
                 ? 'Savings Goals'
-                : 'Trends & Debts'}
+                : 'Debts'}
             </h1>
           </div>
 
           {/* Center Month Selector */}
-          <div className="flex items-center gap-1 bg-surface-container px-3 py-1.5 rounded-2xl border border-outline-variant">
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant">
             <button
               onClick={handlePrevMonth}
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+              className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Previous month"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_left</span>
             </button>
-            <span className="font-label-lg text-label-lg font-bold text-on-surface min-w-[85px] text-center">
-              {currentMonthKey}
+            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
+              {(() => {
+                const [y, m] = currentMonthKey.split('-').map(Number);
+                const d = new Date(y, m - 1, 1);
+                return d.toLocaleDateString('en-US', { month: 'short' });
+              })()}
             </span>
             <button
               onClick={handleNextMonth}
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+              className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Next month"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_right</span>
             </button>
           </div>
 
@@ -519,20 +553,6 @@ export default function DashboardPage() {
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               <span>New Transaction</span>
-            </button>
-
-            <button
-              onClick={() => setIsProModalOpen(true)}
-              className={`px-3 py-1.5 rounded-xl font-label-sm text-label-sm font-extrabold flex items-center gap-1 transition-all ${
-                profile?.plan === 'pro'
-                  ? 'bg-primary/10 text-primary border border-primary/20'
-                  : 'bg-gradient-to-r from-primary to-tertiary text-on-primary shadow-xs hover:opacity-90'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {profile?.plan === 'pro' ? 'verified' : 'workspace_premium'}
-              </span>
-              <span className="hidden sm:inline">{profile?.plan === 'pro' ? 'Pro' : 'Go Pro'}</span>
             </button>
 
             <button
@@ -631,10 +651,12 @@ export default function DashboardPage() {
             )}
 
             {activeTab === 'trends' && (
-              <TrendsTab
+              <DebtsTab
                 month={month}
-                profile={profile}
-                onOpenProModal={() => setIsProModalOpen(true)}
+                onOpenDebtModal={() => {
+                  setSelectedDebt(null);
+                  setIsDebtModalOpen(true);
+                }}
               />
             )}
           </>
@@ -643,16 +665,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Floating Action Button (FAB for Mobile) */}
-      <button
-        onClick={() => {
-          setSelectedExpense(null);
-          setIsExpenseModalOpen(true);
-        }}
-        className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
-        aria-label="Add Expense"
-      >
-        <span className="material-symbols-outlined text-[30px]">add</span>
-      </button>
+      {activeTab !== 'trends' && (
+        <button
+          onClick={() => {
+            setSelectedExpense(null);
+            setIsExpenseModalOpen(true);
+          }}
+          className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
+          aria-label="Add Expense"
+        >
+          <span className="material-symbols-outlined text-[30px]">add</span>
+        </button>
+      )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
       <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
@@ -682,7 +706,7 @@ export default function DashboardPage() {
           title="Fixed Bills"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`}>
-            event_repeat
+            receipt_long
           </span>
         </button>
 
@@ -697,7 +721,7 @@ export default function DashboardPage() {
           title="Variable Expenses"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`}>
-            receipt_long
+            payments
           </span>
         </button>
 
@@ -723,11 +747,11 @@ export default function DashboardPage() {
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
           }`}
-          aria-label="Trends & Debts"
-          title="Trends & Debts"
+          aria-label="Debts"
+          title="Debts"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-            analytics
+            description
           </span>
         </button>
       </nav>
@@ -786,6 +810,10 @@ export default function DashboardPage() {
         month={month}
         goals={goals}
         monthKey={currentMonthKey}
+        onOpenProModal={() => {
+          setIsSettingsModalOpen(false);
+          setIsProModalOpen(true);
+        }}
       />
 
       <ManageCategoriesModal
@@ -816,6 +844,17 @@ export default function DashboardPage() {
         onClose={() => setIsIncomeModalOpen(false)}
         month={month}
         onSaveIncomeSources={handleSaveIncomeSources}
+      />
+
+      <DebtModal
+        isOpen={isDebtModalOpen}
+        onClose={() => {
+          setIsDebtModalOpen(false);
+          setSelectedDebt(null);
+        }}
+        onSave={handleSaveDebt}
+        onDelete={handleDeleteDebt}
+        initialDebt={selectedDebt}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { STRATEGIES, StrategyId, calculateEnvelopeAmounts, createNewMonth } from '../../lib/store';
 import { saveMonthBudget, setUserProfile } from '../../lib/db';
+import { CustomSelect } from '../../components/ui/CustomSelect';
 
 interface CategoryItem {
   name: string;
@@ -46,6 +47,21 @@ export default function OnboardingPage() {
 
   const [showAddCustom, setShowAddCustom] = useState<boolean>(false);
   const [customCatName, setCustomCatName] = useState<string>('');
+  const [customCatIcon, setCustomCatIcon] = useState<string>('category');
+
+  const CUSTOM_ICONS = [
+    'category', 'fitness_center', 'pets', 'flight',
+    'school', 'work', 'build', 'card_giftcard',
+    'local_cafe', 'medical_services', 'child_care', 'palette',
+    'music_note', 'sports_tennis', 'restaurant', 'shopping_bag',
+  ];
+
+  const RANDOM_COLORS = [
+    '#f97316', '#3b82f6', '#8b5cf6', '#ec4899',
+    '#14b8a6', '#f59e0b', '#6366f1', '#ef4444',
+    '#06b6d4', '#10b981', '#eab308', '#84cc16',
+    '#d946ef', '#a855f7', '#f43f5e', '#00685f',
+  ];
 
   const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([
     { name: 'Rent', amount: 1500, category: 'Housing' },
@@ -118,11 +134,16 @@ export default function OnboardingPage() {
     if (!customCatName.trim()) return;
     const trimmed = customCatName.trim();
     if (!allCategories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      const newItem: CategoryItem = { name: trimmed, color: '#006A60', icon: 'category' };
+      const usedColors = new Set(allCategories.map((c) => c.color));
+      const available = RANDOM_COLORS.filter((c) => !usedColors.has(c));
+      const pool = available.length > 0 ? available : RANDOM_COLORS;
+      const randomColor = pool[Math.floor(Math.random() * pool.length)];
+      const newItem: CategoryItem = { name: trimmed, color: randomColor, icon: customCatIcon };
       setAllCategories([...allCategories, newItem]);
       setSelectedCategoryNames([...selectedCategoryNames, trimmed]);
     }
     setCustomCatName('');
+    setCustomCatIcon('category');
     setShowAddCustom(false);
   };
 
@@ -176,22 +197,22 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8faf9] text-slate-900 flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
             onClick={handleBack}
-            className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-all active:scale-95 cursor-pointer"
+            className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-all active:scale-95 cursor-pointer"
             aria-label="Back"
           >
             <span className="material-symbols-outlined text-[22px]">arrow_back</span>
           </button>
 
-          <span className="text-[22px] font-extrabold text-[#006A60] tracking-tight">Flousy</span>
+          <span className="text-[22px] font-extrabold text-primary tracking-tight">Flousy</span>
 
-          <span className="text-[13px] font-bold text-slate-500 min-w-[60px] text-right">
+          <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-right">
             {step === 1
               ? '1/5'
               : step === 2
@@ -206,13 +227,13 @@ export default function OnboardingPage() {
 
         {/* Step Progress Bar */}
         <div className="flex flex-col gap-1 mb-6">
-          <div className="flex justify-between items-center text-[12px] font-extrabold text-slate-500 uppercase tracking-wider">
+          <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
             <span>STEP {step} OF 5</span>
             <span>{step * 20}%</span>
           </div>
-          <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-surface-variant/80 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#006A60] transition-all duration-300 rounded-full"
+              className="h-full bg-primary transition-all duration-300 rounded-full"
               style={{ width: `${step * 20}%` }}
             />
           </div>
@@ -228,30 +249,29 @@ export default function OnboardingPage() {
             className="flex flex-col gap-5"
           >
             <div className="text-center">
-              <h2 className="text-[26px] font-extrabold text-slate-900 leading-tight">
+              <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 What is your monthly income?
               </h2>
-              <p className="text-[15px] font-medium text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
                 We use this to set up your baseline budget and recommend saving goals.
               </p>
             </div>
 
-            <div className="bg-[#f8faf9] p-5 rounded-[24px] border border-slate-200 flex flex-col gap-4 shadow-2xs">
-              <label className="text-[13px] font-bold text-slate-700">Average Monthly Income</label>
+            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
+              <label className="text-[13px] font-bold text-on-surface-variant">Average Monthly Income</label>
 
-              <div className="flex items-center justify-between p-3.5 bg-white border border-slate-200/90 rounded-2xl">
+              <div className="flex items-center justify-between p-3.5 bg-surface border border-outline-variant/90 rounded-2xl gap-3">
                 {/* Currency Dropdown */}
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-3 py-2 text-[15px] font-bold text-slate-800 outline-none cursor-pointer"
-                >
-                  {Object.values(SUPPORTED_CURRENCIES).map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} ({c.symbol})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-32">
+                  <CustomSelect
+                    value={currency}
+                    onChange={setCurrency}
+                    options={Object.values(SUPPORTED_CURRENCIES).map((c) => ({
+                      value: c.code,
+                      label: `${c.code} (${c.symbol})`,
+                    }))}
+                  />
+                </div>
 
                 {/* Big Numeric Input */}
                 <input
@@ -263,7 +283,7 @@ export default function OnboardingPage() {
                     if (incomeError) setIncomeError('');
                   }}
                   placeholder="0.00"
-                  className="text-[32px] sm:text-[36px] font-extrabold text-slate-900 text-right bg-transparent outline-none w-full ml-2"
+                  className="text-[32px] sm:text-[36px] font-extrabold text-on-surface text-right bg-transparent outline-none w-full ml-2"
                 />
               </div>
 
@@ -283,10 +303,10 @@ export default function OnboardingPage() {
                       setIncome(amt);
                       if (incomeError) setIncomeError('');
                     }}
-                    className={`px-4 py-2 bg-white border rounded-full text-[14px] font-bold transition-all shadow-2xs cursor-pointer ${
+                    className={`px-4 py-2 bg-surface border rounded-full text-[14px] font-bold transition-all shadow-2xs cursor-pointer ${
                       income === amt
-                        ? 'border-[#006A60] bg-[#e8f5f3] text-[#006A60]'
-                        : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                        ? 'border-primary bg-primary-container text-primary'
+                        : 'border-outline-variant text-on-surface-variant hover:border-slate-300'
                     }`}
                   >
                     {Number(amt).toLocaleString()}
@@ -297,7 +317,7 @@ export default function OnboardingPage() {
 
             <button
               type="submit"
-              className="w-full py-4 bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
+              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
             >
               <span>Continue</span>
               <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
@@ -309,10 +329,10 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
-              <h2 className="text-[26px] font-extrabold text-slate-900 leading-tight">
+              <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 Select your budget categories
               </h2>
-              <p className="text-[15px] font-medium text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
                 Choose the main areas where you spend your money to tailor your dashboard.
               </p>
             </div>
@@ -327,8 +347,8 @@ export default function OnboardingPage() {
                     onClick={() => toggleCategory(cat.name)}
                     className={`p-3.5 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                       selected
-                        ? 'bg-[#e8f5f3] border-2 border-[#006A60] shadow-2xs'
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                        ? 'bg-primary-container border-2 border-primary shadow-2xs'
+                        : 'bg-surface border-outline-variant hover:bg-surface-container-low'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -336,16 +356,16 @@ export default function OnboardingPage() {
                         className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: cat.color }}
                       />
-                      <span className="material-symbols-outlined text-[20px] text-slate-700 shrink-0">
+                      <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">
                         {cat.icon}
                       </span>
-                      <span className="text-[15px] font-bold text-slate-900 truncate">
+                      <span className="text-[15px] font-bold text-on-surface truncate">
                         {cat.name}
                       </span>
                     </div>
 
                     {selected && (
-                      <span className="material-symbols-outlined text-[#006A60] text-[20px] shrink-0 ml-1">
+                      <span className="material-symbols-outlined text-primary text-[20px] shrink-0 ml-1">
                         check_circle
                       </span>
                     )}
@@ -361,28 +381,49 @@ export default function OnboardingPage() {
                   e.preventDefault();
                   handleAddCustomCategory();
                 }}
-                className="flex gap-2 p-2 bg-white border border-slate-200 rounded-2xl"
+                className="flex flex-col gap-2.5 p-3 bg-surface border border-outline-variant rounded-2xl"
               >
-                <input
-                  type="text"
-                  value={customCatName}
-                  onChange={(e) => setCustomCatName(e.target.value)}
-                  placeholder="Category Name (e.g. Gym)"
-                  className="flex-1 px-3 py-2 text-[14px] font-bold text-slate-900 bg-transparent outline-none"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#006A60] text-white font-bold rounded-xl text-[13px] hover:bg-[#00544c] cursor-pointer"
-                >
-                  Add
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customCatName}
+                    onChange={(e) => setCustomCatName(e.target.value)}
+                    placeholder="Category Name (e.g. Gym)"
+                    className="flex-1 px-3 py-2 text-[14px] font-bold text-on-surface bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:border-primary"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-[13px] hover:bg-primary cursor-pointer shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">Pick an Icon</span>
+                  <div className="grid grid-cols-8 gap-1">
+                    {CUSTOM_ICONS.map((ic) => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setCustomCatIcon(ic)}
+                        className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${
+                          customCatIcon === ic
+                            ? 'bg-primary text-white'
+                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{ic}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </form>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowAddCustom(true)}
-                className="text-[#006A60] font-bold text-[15px] hover:underline flex items-center justify-center gap-1 my-1 cursor-pointer"
+                className="text-primary font-bold text-[15px] hover:underline flex items-center justify-center gap-1 my-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 <span>Add Custom Category</span>
@@ -393,14 +434,14 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="w-full py-4 bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
+                className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
               >
                 Continue
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="text-slate-500 font-semibold text-[14px] hover:text-slate-800 transition-all text-center py-1 cursor-pointer"
+                className="text-on-surface-variant font-semibold text-[14px] hover:text-on-surface transition-all text-center py-1 cursor-pointer"
               >
                 Skip for now
               </button>
@@ -412,10 +453,10 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
-              <h2 className="text-[26px] font-extrabold text-slate-900 leading-tight">
+              <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 Add your monthly bills
               </h2>
-              <p className="text-[15px] font-medium text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
                 Enter recurring expenses like rent, utilities, and subscriptions.
               </p>
             </div>
@@ -426,51 +467,58 @@ export default function OnboardingPage() {
                 e.preventDefault();
                 handleAddBill();
               }}
-              className="bg-[#f8faf9] p-4 sm:p-5 rounded-[24px] border border-slate-200 flex flex-col gap-3"
+              className="bg-background p-4 sm:p-5 rounded-[24px] border border-outline-variant flex flex-col gap-3"
             >
               <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-slate-700">Bill Name</label>
+                <label className="text-[13px] font-bold text-on-surface-variant">Bill Name</label>
                 <input
                   type="text"
                   value={newBillName}
                   onChange={(e) => setNewBillName(e.target.value)}
                   placeholder="e.g. Rent, Netflix, Electricity"
-                  className="p-3 bg-white border border-slate-200 rounded-xl text-[14px] font-medium text-slate-900 outline-none focus:border-[#006A60]"
+                  className="p-3 bg-surface border border-outline-variant rounded-xl text-[14px] font-medium text-on-surface outline-none focus:border-primary"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-bold text-slate-700">Amount</label>
+                  <label className="text-[13px] font-bold text-on-surface-variant">Amount</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={newBillAmount}
                     onChange={(e) => setNewBillAmount(e.target.value)}
                     placeholder={`${symbol} 0.00`}
-                    className="p-3 bg-white border border-slate-200 rounded-xl text-[14px] font-mono font-bold text-slate-900 outline-none focus:border-[#006A60]"
+                    className="p-3 bg-surface border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface outline-none focus:border-primary"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-bold text-slate-700">Category</label>
-                  <select
-                    value={newBillCategory}
-                    onChange={(e) => setNewBillCategory(e.target.value)}
-                    className="p-3 bg-white border border-slate-200 rounded-xl text-[14px] font-medium text-slate-900 outline-none focus:border-[#006A60] cursor-pointer"
-                  >
-                    <option value="Housing">Housing / Rent</option>
-                    <option value="Utilities">Utilities</option>
-                    <option value="Subscriptions">Subscriptions</option>
-                    <option value="Insurance">Insurance</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Category"
+                  value={newBillCategory}
+                  onChange={setNewBillCategory}
+                  options={[
+                    { value: 'Housing', label: 'Housing / Rent' },
+                    { value: 'Utilities', label: 'Utilities' },
+                    { value: 'Internet & Phone', label: 'Internet & Phone' },
+                    { value: 'Subscriptions', label: 'Subscriptions' },
+                    { value: 'Insurance', label: 'Insurance' },
+                    { value: 'Transport', label: 'Transport / Fuel' },
+                    { value: 'Food & Groceries', label: 'Food & Groceries' },
+                    { value: 'Health', label: 'Health / Medical' },
+                    { value: 'Education', label: 'Education' },
+                    { value: 'Childcare', label: 'Childcare' },
+                    { value: 'Entertainment', label: 'Entertainment' },
+                    { value: 'Loans', label: 'Loans / Debt' },
+                    { value: 'Savings', label: 'Savings / Investment' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#e6f2f0] hover:bg-[#d0ece8] text-[#006A60] font-bold rounded-xl text-[14px] flex items-center justify-center gap-1 transition-all mt-1 cursor-pointer"
+                className="w-full py-3 bg-primary-container hover:bg-primary-container text-primary font-bold rounded-xl text-[14px] flex items-center justify-center gap-1 transition-all mt-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 <span>Add Bill</span>
@@ -480,41 +528,54 @@ export default function OnboardingPage() {
             {/* Added Bills List */}
             {bills.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[17px] font-extrabold text-slate-900">Added Bills</h3>
+                <h3 className="text-[17px] font-extrabold text-on-surface">Added Bills</h3>
                 <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto">
                   {bills.map((b, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-center"
+                      className="p-3.5 bg-surface border border-outline-variant rounded-2xl flex justify-between items-center"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                            b.category === 'Housing'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-teal-100 text-teal-700'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[20px]">
-                            {b.category === 'Housing' ? 'home' : 'bolt'}
-                          </span>
-                        </div>
+                        {(() => {
+                          const billIconMap: Record<string, { icon: string; bg: string; text: string }> = {
+                            'Housing': { icon: 'home', bg: 'bg-amber-100', text: 'text-amber-700' },
+                            'Utilities': { icon: 'bolt', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                            'Internet & Phone': { icon: 'wifi', bg: 'bg-blue-100', text: 'text-blue-700' },
+                            'Subscriptions': { icon: 'subscriptions', bg: 'bg-purple-100', text: 'text-purple-700' },
+                            'Insurance': { icon: 'shield', bg: 'bg-surface-container', text: 'text-on-surface-variant' },
+                            'Transport': { icon: 'directions_car', bg: 'bg-cyan-100', text: 'text-cyan-700' },
+                            'Food & Groceries': { icon: 'restaurant', bg: 'bg-orange-100', text: 'text-orange-700' },
+                            'Health': { icon: 'favorite', bg: 'bg-red-100', text: 'text-red-700' },
+                            'Education': { icon: 'school', bg: 'bg-indigo-100', text: 'text-indigo-700' },
+                            'Childcare': { icon: 'child_care', bg: 'bg-pink-100', text: 'text-pink-700' },
+                            'Entertainment': { icon: 'sports_esports', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+                            'Loans': { icon: 'account_balance', bg: 'bg-rose-100', text: 'text-rose-700' },
+                            'Savings': { icon: 'savings', bg: 'bg-teal-100', text: 'text-teal-700' },
+                            'Other': { icon: 'category', bg: 'bg-gray-100', text: 'text-gray-700' },
+                          };
+                          const m = billIconMap[b.category] || billIconMap['Other'];
+                          return (
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${m.bg} ${m.text}`}>
+                              <span className="material-symbols-outlined text-[20px]">{m.icon}</span>
+                            </div>
+                          );
+                        })()}
                         <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-slate-900">{b.name}</span>
-                          <span className="text-[12px] font-medium text-slate-500">
+                          <span className="text-[15px] font-bold text-on-surface">{b.name}</span>
+                          <span className="text-[12px] font-medium text-on-surface-variant">
                             • {b.category}
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="font-mono font-extrabold text-slate-900 text-[15px]">
+                        <span className="font-mono font-extrabold text-on-surface text-[15px]">
                           {format(b.amount)}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveBill(idx)}
-                          className="text-slate-400 hover:text-red-500 p-1 cursor-pointer"
+                          className="text-on-surface-variant/60 hover:text-red-500 p-1 cursor-pointer"
                         >
                           <span className="material-symbols-outlined text-[18px]">close</span>
                         </button>
@@ -524,9 +585,9 @@ export default function OnboardingPage() {
                 </div>
 
                 {/* Total Fixed Bills summary card */}
-                <div className="p-4 bg-[#f8faf9] border border-slate-200 rounded-2xl flex justify-between items-center mt-1">
-                  <span className="text-[15px] font-bold text-slate-700">Total Fixed Bills</span>
-                  <span className="text-[18px] font-extrabold text-slate-900 font-mono">
+                <div className="p-4 bg-background border border-outline-variant rounded-2xl flex justify-between items-center mt-1">
+                  <span className="text-[15px] font-bold text-on-surface-variant">Total Fixed Bills</span>
+                  <span className="text-[18px] font-extrabold text-on-surface font-mono">
                     {format(totalBills)}
                   </span>
                 </div>
@@ -537,14 +598,14 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 onClick={() => setStep(4)}
-                className="text-slate-500 font-semibold text-[14px] hover:text-slate-800 transition-all px-4 py-3 cursor-pointer"
+                className="text-on-surface-variant font-semibold text-[14px] hover:text-on-surface transition-all px-4 py-3 cursor-pointer"
               >
                 Skip for now
               </button>
               <button
                 type="button"
                 onClick={handleStep3Continue}
-                className="flex-1 py-4 bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
+                className="flex-1 py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
               >
                 Continue
               </button>
@@ -556,10 +617,10 @@ export default function OnboardingPage() {
         {step === 4 && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
-              <h2 className="text-[26px] font-extrabold text-slate-900 leading-tight">
+              <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 Choose your strategy
               </h2>
-              <p className="text-[15px] font-medium text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
                 Select a foundation for your financial goals. You can always adjust this later.
               </p>
             </div>
@@ -574,14 +635,14 @@ export default function OnboardingPage() {
                     onClick={() => setSelectedStrategy(strat.id)}
                     className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${
                       selected
-                        ? 'border-2 border-[#006A60] bg-[#e8f5f3]/30 shadow-2xs'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                        ? 'border-2 border-primary bg-primary-container/30 shadow-2xs'
+                        : 'border-outline-variant bg-surface hover:bg-surface-container-low'
                     }`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-[17px] font-extrabold text-slate-900">{strat.name}</h3>
-                        <p className="text-[13px] font-medium text-slate-500 mt-0.5 leading-snug">
+                        <h3 className="text-[17px] font-extrabold text-on-surface">{strat.name}</h3>
+                        <p className="text-[13px] font-medium text-on-surface-variant mt-0.5 leading-snug">
                           {strat.description}
                         </p>
                       </div>
@@ -589,22 +650,22 @@ export default function OnboardingPage() {
                       {/* Custom Radio Button */}
                       <div
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
-                          selected ? 'border-[#006A60] bg-[#006A60]' : 'border-slate-300'
+                          selected ? 'border-primary bg-primary' : 'border-slate-300'
                         }`}
                       >
-                        {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        {selected && <div className="w-2 h-2 rounded-full bg-surface" />}
                       </div>
                     </div>
 
                     {/* Segmented Bar Visual */}
                     {strat.id === '50-30-20' && (
                       <div className="flex flex-col gap-1.5 pt-1">
-                        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-100">
-                          <div className="h-full bg-[#006A60]" style={{ width: '50%' }} />
-                          <div className="h-full bg-[#9a3412]" style={{ width: '30%' }} />
-                          <div className="h-full bg-[#cbd5e1]" style={{ width: '20%' }} />
+                        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-surface-container">
+                          <div className="h-full bg-primary" style={{ width: '50%' }} />
+                          <div className="h-full bg-tertiary" style={{ width: '30%' }} />
+                          <div className="h-full bg-surface-variant" style={{ width: '20%' }} />
                         </div>
-                        <div className="flex justify-between text-[11px] font-extrabold uppercase text-slate-500">
+                        <div className="flex justify-between text-[11px] font-extrabold uppercase text-on-surface-variant">
                           <span>Needs</span>
                           <span>Wants</span>
                           <span>Save</span>
@@ -615,12 +676,12 @@ export default function OnboardingPage() {
                     {strat.id === 'zero-based' && (
                       <div className="flex flex-col gap-1.5 pt-1">
                         <div className="w-full h-2.5 rounded-full overflow-hidden flex gap-1">
-                          <div className="h-full flex-1 bg-[#006A60] rounded-sm" />
-                          <div className="h-full flex-1 bg-[#006A60] rounded-sm" />
-                          <div className="h-full flex-1 bg-[#006A60] rounded-sm" />
-                          <div className="h-full flex-1 bg-[#006A60] rounded-sm" />
+                          <div className="h-full flex-1 bg-primary rounded-sm" />
+                          <div className="h-full flex-1 bg-primary rounded-sm" />
+                          <div className="h-full flex-1 bg-primary rounded-sm" />
+                          <div className="h-full flex-1 bg-primary rounded-sm" />
                         </div>
-                        <span className="text-[12px] font-bold text-slate-600 text-center">
+                        <span className="text-[12px] font-bold text-on-surface-variant text-center">
                           Every dollar allocated ({format(0)} left)
                         </span>
                       </div>
@@ -628,13 +689,13 @@ export default function OnboardingPage() {
 
                     {strat.id === 'envelope' && (
                       <div className="flex gap-2 pt-1">
-                        <div className="flex-1 py-1 bg-[#e8f5f3] rounded-lg border border-[#006A60]/20 text-center text-[11px] font-bold text-[#006A60]">
+                        <div className="flex-1 py-1 bg-primary-container rounded-lg border border-primary/20 text-center text-[11px] font-bold text-primary">
                           Needs
                         </div>
                         <div className="flex-1 py-1 bg-amber-50 rounded-lg border border-amber-200 text-center text-[11px] font-bold text-amber-800">
                           Wants
                         </div>
-                        <div className="flex-1 py-1 bg-slate-100 rounded-lg border border-slate-200 text-center text-[11px] font-bold text-slate-700">
+                        <div className="flex-1 py-1 bg-surface-container rounded-lg border border-outline-variant text-center text-[11px] font-bold text-on-surface-variant">
                           Savings
                         </div>
                       </div>
@@ -642,12 +703,12 @@ export default function OnboardingPage() {
 
                     {strat.id === 'pay-first' && (
                       <div className="flex flex-col gap-1 pt-1">
-                        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-slate-100">
-                          <div className="h-full bg-[#006A60]" style={{ width: '30%' }} />
-                          <div className="h-full bg-slate-200" style={{ width: '70%' }} />
+                        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-surface-container">
+                          <div className="h-full bg-primary" style={{ width: '30%' }} />
+                          <div className="h-full bg-surface-variant" style={{ width: '70%' }} />
                         </div>
-                        <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                          <span className="text-[#006A60]">Save First</span>
+                        <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
+                          <span className="text-primary">Save First</span>
                           <span>Spend the rest</span>
                         </div>
                       </div>
@@ -660,7 +721,7 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setStep(5)}
-              className="w-full py-4 bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer"
+              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer"
             >
               Continue
             </button>
@@ -671,24 +732,24 @@ export default function OnboardingPage() {
         {step === 5 && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
-              <h2 className="text-[26px] font-extrabold text-slate-900 leading-tight">
+              <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 Your Budget Overview
               </h2>
-              <p className="text-[15px] font-medium text-slate-500 mt-1.5 max-w-sm mx-auto">
+              <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
                 Here is your calculated monthly plan based on the {STRATEGIES[selectedStrategy].name}.
               </p>
             </div>
 
             {/* Donut Chart Card */}
-            <div className="bg-white p-6 rounded-[28px] border border-slate-200/90 shadow-2xs flex flex-col items-center gap-5">
-              <div className="relative w-44 h-44 flex items-center justify-center">
+            <div className="bg-surface p-6 rounded-[28px] border border-outline-variant/90 shadow-2xs flex flex-col items-center gap-5">
+              <div className="relative w-52 h-52 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#e2e8f0"
+                    stroke="var(--surface-variant)"
                     strokeWidth="10"
                   />
                   {/* Needs Arc (50%) */}
@@ -697,7 +758,7 @@ export default function OnboardingPage() {
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#006A60"
+                    stroke="var(--primary)"
                     strokeWidth="10"
                     strokeDasharray="119.38 238.76"
                     strokeDashoffset="0"
@@ -708,7 +769,7 @@ export default function OnboardingPage() {
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#9a3412"
+                    stroke="var(--tertiary)"
                     strokeWidth="10"
                     strokeDasharray="71.63 238.76"
                     strokeDashoffset="-119.38"
@@ -719,18 +780,18 @@ export default function OnboardingPage() {
                     cy="50"
                     r="38"
                     fill="none"
-                    stroke="#475569"
+                    stroke="var(--secondary)"
                     strokeWidth="10"
                     strokeDasharray="47.75 238.76"
                     strokeDashoffset="-191.01"
                   />
                 </svg>
 
-                <div className="absolute flex flex-col items-center text-center">
-                  <span className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                <div className="absolute flex flex-col items-center text-center px-2">
+                  <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">
                     MONTHLY
                   </span>
-                  <span className="text-[24px] font-extrabold text-slate-900 font-mono">
+                  <span className="text-[18px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">
                     {format(parsedIncome)}
                   </span>
                 </div>
@@ -738,47 +799,47 @@ export default function OnboardingPage() {
 
               {/* Envelope Items */}
               <div className="w-full flex flex-col gap-2.5">
-                <div className="p-3.5 bg-[#f8faf9] rounded-2xl border border-slate-100 flex justify-between items-center">
+                <div className="p-3.5 bg-background rounded-2xl border border-outline-variant/50 flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-[#006A60]" />
+                    <span className="w-3 h-3 rounded-full bg-primary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-slate-900">Fixed Needs</span>
-                      <span className="text-[12px] font-medium text-slate-500">
+                      <span className="text-[14px] font-bold text-on-surface">Fixed Needs</span>
+                      <span className="text-[12px] font-medium text-on-surface-variant">
                         {Math.round(STRATEGIES[selectedStrategy].needsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>
-                  <span className="text-[16px] font-extrabold font-mono text-slate-900">
+                  <span className="text-[16px] font-extrabold font-mono text-on-surface">
                     {format(envelopes.needs)}
                   </span>
                 </div>
 
-                <div className="p-3.5 bg-[#f8faf9] rounded-2xl border border-slate-100 flex justify-between items-center">
+                <div className="p-3.5 bg-background rounded-2xl border border-outline-variant/50 flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-[#9a3412]" />
+                    <span className="w-3 h-3 rounded-full bg-tertiary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-slate-900">Variable Wants</span>
-                      <span className="text-[12px] font-medium text-slate-500">
+                      <span className="text-[14px] font-bold text-on-surface">Variable Wants</span>
+                      <span className="text-[12px] font-medium text-on-surface-variant">
                         {Math.round(STRATEGIES[selectedStrategy].wantsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>
-                  <span className="text-[16px] font-extrabold font-mono text-slate-900">
+                  <span className="text-[16px] font-extrabold font-mono text-on-surface">
                     {format(envelopes.wants)}
                   </span>
                 </div>
 
-                <div className="p-3.5 bg-[#f8faf9] rounded-2xl border border-slate-100 flex justify-between items-center">
+                <div className="p-3.5 bg-background rounded-2xl border border-outline-variant/50 flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full bg-[#475569]" />
+                    <span className="w-3 h-3 rounded-full bg-secondary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-slate-900">Future Savings</span>
-                      <span className="text-[12px] font-medium text-slate-500">
+                      <span className="text-[14px] font-bold text-on-surface">Future Savings</span>
+                      <span className="text-[12px] font-medium text-on-surface-variant">
                         {Math.round(STRATEGIES[selectedStrategy].savingsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>
-                  <span className="text-[16px] font-extrabold font-mono text-[#006A60]">
+                  <span className="text-[16px] font-extrabold font-mono text-primary">
                     {format(envelopes.savings)}
                   </span>
                 </div>
@@ -790,7 +851,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={handleCompleteOnboarding}
                 disabled={isCompleting}
-                className="w-full py-4 bg-[#006A60] hover:bg-[#00544c] active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span>{isCompleting ? 'Finishing setup...' : 'Confirm & Finish'}</span>
                 {!isCompleting && (
@@ -801,7 +862,7 @@ export default function OnboardingPage() {
                 type="button"
                 onClick={() => setStep(4)}
                 disabled={isCompleting}
-                className="text-[#006A60] font-bold text-[14px] hover:underline text-center py-1 cursor-pointer"
+                className="text-primary font-bold text-[14px] hover:underline text-center py-1 cursor-pointer"
               >
                 Edit Allocation
               </button>

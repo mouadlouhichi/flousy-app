@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomInput } from '../ui/CustomInput';
 import { customCategorySchema } from '../../lib/validation';
 
 interface ManageCategoriesModalProps {
@@ -12,10 +13,11 @@ interface ManageCategoriesModalProps {
   onRemoveCategory: (name: string) => void;
 }
 
-const PRESET_COLORS = [
+const RANDOM_COLORS = [
   '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
   '#ec4899', '#f97316', '#10b981', '#eab308',
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
+  '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
 ];
 
 const PRESET_ICONS = [
@@ -24,6 +26,13 @@ const PRESET_ICONS = [
   'movie', 'fitness_center', 'flight', 'pets',
   'school', 'work', 'build', 'card_giftcard',
 ];
+
+function getRandomColor(existingColors: Record<string, string>): string {
+  const usedColors = new Set(Object.values(existingColors));
+  const available = RANDOM_COLORS.filter((c) => !usedColors.has(c));
+  const pool = available.length > 0 ? available : RANDOM_COLORS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 export function ManageCategoriesModal({
   isOpen,
@@ -35,13 +44,13 @@ export function ManageCategoriesModal({
   onRemoveCategory,
 }: ManageCategoriesModalProps) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState('#00685f');
   const [icon, setIcon] = useState('shopping_bag');
   const [error, setError] = useState('');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    const valRes = customCategorySchema.safeParse({ name, color, icon });
+    const randomColor = getRandomColor(categoryColors);
+    const valRes = customCategorySchema.safeParse({ name, color: randomColor, icon });
 
     if (!valRes.success) {
       const firstErr = valRes.error.issues?.[0]?.message || (valRes.error as any).errors?.[0]?.message || 'Invalid category data';
@@ -54,20 +63,20 @@ export function ManageCategoriesModal({
       return;
     }
 
-    onAddCategory(name.trim(), color, icon);
+    onAddCategory(name.trim(), randomColor, icon);
     setName('');
     setError('');
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Custom Categories">
-      <div className="flex flex-col gap-lg">
+      <div className="flex flex-col gap-md">
         {/* Existing Categories List */}
         <div className="flex flex-col gap-xs">
           <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
             ACTIVE CATEGORIES
           </label>
-          <div className="flex flex-wrap gap-sm max-h-[160px] overflow-y-auto p-sm bg-surface-container rounded-2xl border border-outline-variant">
+          <div className="flex flex-wrap gap-sm p-sm bg-surface-container rounded-2xl border border-outline-variant">
             {categories.map((cat) => (
               <div
                 key={cat}
@@ -99,40 +108,16 @@ export function ManageCategoriesModal({
             ADD NEW CATEGORY
           </span>
 
-          <div className="flex flex-col gap-xs">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError('');
-              }}
-              placeholder="Category Name e.g. Gym, Pets, Travel"
-              className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
-            />
-            {error && <p role="alert" className="font-label-sm text-label-sm text-error">{error}</p>}
-          </div>
-
-          {/* Color Picker */}
-          <div className="flex flex-col gap-xs">
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-              COLOR
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                    color === c ? 'scale-110 border-on-surface shadow-md' : 'border-transparent'
-                  }`}
-                  style={{ backgroundColor: c }}
-                  aria-label={`Select color ${c}`}
-                />
-              ))}
-            </div>
-          </div>
+          <CustomInput
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError('');
+            }}
+            placeholder="Category Name e.g. Gym, Pets, Travel"
+            error={error}
+          />
 
           {/* Icon Picker */}
           <div className="flex flex-col gap-xs">
@@ -159,7 +144,7 @@ export function ManageCategoriesModal({
 
           <button
             type="submit"
-            className="w-full bg-primary text-on-primary font-headline-md text-headline-md py-3 rounded-xl hover:bg-primary-container transition-all"
+            className="w-full bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-3 rounded-xl hover:bg-primary-container transition-all"
           >
             Add Category
           </button>

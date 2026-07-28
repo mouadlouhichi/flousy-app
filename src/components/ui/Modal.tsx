@@ -11,10 +11,14 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children, triggerRef, className = '' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Lock background scroll & handle Escape key
   useEffect(() => {
     if (!isOpen) return;
+
+    // Store the element that had focus before modal opened
+    previouslyFocusedRef.current = document.activeElement as HTMLElement;
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -28,23 +32,27 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Focus trap inside modal
-    if (modalRef.current) {
-      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements.length > 0) {
-        focusableElements[0].focus();
+    // Focus first focusable element inside modal
+    requestAnimationFrame(() => {
+      if (modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length > 0) {
+          focusableElements[0].focus();
+        }
       }
-    }
+    });
 
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      // Restore focus to trigger element on close
-      if (triggerRef?.current) {
-        triggerRef.current.focus();
+      // Restore focus to previously focused element on close
+      const restoreTarget = triggerRef?.current || previouslyFocusedRef.current;
+      if (restoreTarget && typeof restoreTarget.focus === 'function') {
+        restoreTarget.focus();
       }
+      previouslyFocusedRef.current = null;
     };
   }, [isOpen, onClose, triggerRef]);
 
@@ -62,27 +70,27 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`w-full max-w-lg bg-surface rounded-t-3xl sm:rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] border border-outline-variant overflow-hidden flex flex-col max-h-[90vh] ${className}`}
+        className={`w-full max-w-lg bg-surface rounded-t-3xl sm:rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] border border-outline-variant overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] ${className}`}
       >
         {/* Drag handle on mobile */}
-        <div className="w-full flex justify-center pt-md pb-xs sm:hidden">
+        <div className="w-full flex justify-center pt-2 pb-1 sm:hidden">
           <div className="w-12 h-1.5 bg-outline-variant rounded-full"></div>
         </div>
 
         {/* Header */}
-        <div className="px-lg pt-sm sm:pt-lg pb-md flex justify-between items-center border-b border-surface-variant">
-          <h2 className="font-headline-md text-headline-md text-on-surface">{title}</h2>
+        <div className="px-4 py-2 sm:px-lg sm:pt-sm sm:pb-md flex justify-between items-center border-b border-surface-variant">
+          <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md text-on-surface">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+            className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined text-[20px] sm:text-[24px]">close</span>
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-lg overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-lg overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );
