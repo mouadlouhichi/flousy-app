@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers, cookies } from 'next/headers';
-import { Instrument_Sans, JetBrains_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
@@ -9,14 +9,55 @@ import { SITE_URL } from '@/lib/seo';
 import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
 import '../index.css';
 
-const instrumentSans = Instrument_Sans({
-  subsets: ['latin'],
+// Fonts are self-hosted (files in ./fonts) rather than pulled from Google
+// Fonts at build time: `next/font/google` needs network access to
+// fonts.googleapis.com during `next build`, and when that fetch fails the
+// build either dies or silently emits a fallback, which is how the app ended
+// up rendering system-ui instead of Instrument Sans.
+const instrumentSans = localFont({
+  src: [
+    {
+      path: './fonts/instrument-sans-latin-wght-normal.woff2',
+      weight: '400 700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/instrument-sans-latin-ext-wght-normal.woff2',
+      weight: '400 700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/instrument-sans-latin-wght-italic.woff2',
+      weight: '400 700',
+      style: 'italic',
+    },
+    {
+      path: './fonts/instrument-sans-latin-ext-wght-italic.woff2',
+      weight: '400 700',
+      style: 'italic',
+    },
+  ],
   variable: '--font-instrument',
+  display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'sans-serif'],
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
+const jetbrainsMono = localFont({
+  src: [
+    {
+      path: './fonts/jetbrains-mono-latin-wght-normal.woff2',
+      weight: '100 800',
+      style: 'normal',
+    },
+    {
+      path: './fonts/jetbrains-mono-latin-ext-wght-normal.woff2',
+      weight: '100 800',
+      style: 'normal',
+    },
+  ],
   variable: '--font-jetbrains',
+  display: 'swap',
+  fallback: ['ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
 });
 
 // Required for nonce-based CSP (src/middleware.ts): a per-request nonce
