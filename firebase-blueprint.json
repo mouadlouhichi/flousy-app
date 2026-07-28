@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account configuration and plan details.",
+      "type": "object",
+      "properties": {
+        "plan": {
+          "type": "string",
+          "enum": ["free", "pro"]
+        },
+        "currency": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "onboardingComplete": {
+          "type": "boolean"
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark", "system"]
+        }
+      },
+      "required": ["plan", "currency", "onboardingComplete"]
+    },
+    "MonthBudget": {
+      "title": "MonthBudget",
+      "description": "Monthly budget state including money places and expenses.",
+      "type": "object",
+      "properties": {
+        "totalBudget": { "type": "number" },
+        "bankPart": { "type": "number" },
+        "homePart": { "type": "number" },
+        "walletPart": { "type": "number" },
+        "strategyId": { "type": "string" },
+        "monthlySavingsTarget": { "type": "number" },
+        "variableExpenses": { "type": "array" },
+        "fixedExpenses": { "type": "array" },
+        "variableCategoryBases": { "type": "object" },
+        "fixedCategoryBases": { "type": "object" },
+        "activeCategories": { "type": "array" },
+        "categoryColors": { "type": "object" },
+        "categoryIcons": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["totalBudget", "bankPart", "homePart", "walletPart", "strategyId", "updatedAt"]
+    },
+    "SavingsData": {
+      "title": "SavingsData",
+      "description": "Global savings goals list for the user.",
+      "type": "object",
+      "properties": {
+        "goals": { "type": "array" }
+      },
+      "required": ["goals"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "Root user profile document"
+    },
+    "/users/{uid}/months/{monthKey}": {
+      "schema": "MonthBudget",
+      "description": "Monthly budget records"
+    },
+    "/users/{uid}/data/savings": {
+      "schema": "SavingsData",
+      "description": "Global savings goals document"
+    }
+  }
+}

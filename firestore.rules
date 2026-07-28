@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isMoney(val) {
+      return val is number && val >= 0 && val <= 1000000000;
+    }
+
+    function isValidMonthId(id) {
+      return id.matches('^[0-9]{4}-[0-9]{2}$');
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User document: users/{uid}
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && incoming().keys().hasAll(['plan', 'currency', 'onboardingComplete'])
+        && incoming().plan == 'free'
+        && incoming().currency is string
+        && incoming().onboardingComplete is bool;
+
+      allow update: if isOwner(uid)
+        && incoming().plan == existing().plan // plan is pinned, never client-writable
+        && (incoming().currency is string)
+        && (incoming().onboardingComplete is bool);
+
+      allow delete: if isOwner(uid);
+
+      // Monthly budgets: users/{uid}/months/{monthKey}
+      match /months/{monthKey} {
+        allow read: if isOwner(uid);
+
+        allow write: if isOwner(uid)
+          && isValidMonthId(monthKey)
+          && isMoney(incoming().totalBudget)
+          && isMoney(incoming().bankPart)
+          && isMoney(incoming().homePart)
+          && isMoney(incoming().walletPart)
+          && (!('variableExpenses' in incoming()) || incoming().variableExpenses.size() <= 2000)
+          && (!('fixedExpenses' in incoming()) || incoming().fixedExpenses.size() <= 500);
+
+        allow delete: if isOwner(uid);
+      }
+
+      // Savings Data: users/{uid}/data/savings
+      match /data/savings {
+        allow read: if isOwner(uid);
+
+        allow write: if isOwner(uid)
+          && (!('goals' in incoming()) || incoming().goals.size() <= 200);
+
+        allow delete: if isOwner(uid);
+      }
+    }
+  }
+}
+
