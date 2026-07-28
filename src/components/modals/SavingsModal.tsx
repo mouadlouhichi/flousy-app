@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
+import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -124,63 +126,41 @@ export function SavingsModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
         {mode === 'create' || mode === 'edit' ? (
           <>
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                GOAL NAME
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setErrors((prev) => ({ ...prev, name: '' }));
-                }}
-                placeholder="e.g. Emergency Fund, New Laptop, Vacation"
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
-              />
-              {errors.name && (
-                <p role="alert" className="font-label-sm text-label-sm text-error">
-                  {errors.name}
-                </p>
-              )}
-            </div>
+            <CustomInput
+              label="Goal Name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((prev) => ({ ...prev, name: '' }));
+              }}
+              placeholder="e.g. Emergency Fund, New Laptop, Vacation"
+              error={errors.name}
+            />
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                TARGET AMOUNT ({symbol})
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={target}
-                onChange={(e) => {
-                  setTarget(e.target.value);
-                  setErrors((prev) => ({ ...prev, target: '' }));
-                }}
-                placeholder="0.00"
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none font-mono"
-              />
-              {errors.target && (
-                <p role="alert" className="font-label-sm text-label-sm text-error">
-                  {errors.target}
-                </p>
-              )}
-            </div>
+            <CustomInput
+              label={`Target Amount (${symbol})`}
+              type="number"
+              step="any"
+              value={target}
+              onChange={(e) => {
+                setTarget(e.target.value);
+                setErrors((prev) => ({ ...prev, target: '' }));
+              }}
+              placeholder="0.00"
+              error={errors.target}
+            />
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                PRIMARY SOURCE PLACE
-              </label>
-              <select
-                value={place}
-                onChange={(e) => setPlace(e.target.value as MoneyPlace)}
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-              >
-                <option value="bank">Bank</option>
-                <option value="home">Home Cash</option>
-                <option value="wallet">Wallet</option>
-              </select>
-            </div>
+            <CustomSelect
+              label="Primary Source Place"
+              value={place}
+              onChange={(v) => setPlace(v as MoneyPlace)}
+              options={[
+                { value: 'bank', label: 'Bank' },
+                { value: 'home', label: 'Home Cash' },
+                { value: 'wallet', label: 'Wallet' },
+              ]}
+            />
           </>
         ) : (
           <>
@@ -211,25 +191,21 @@ export function SavingsModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                {mode === 'fund' ? 'DEDUCT FROM ACCOUNT' : 'DEPOSIT INTO ACCOUNT'}
-              </label>
-              <select
-                value={place}
-                onChange={(e) => setPlace(e.target.value as MoneyPlace)}
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-              >
-                <option value="bank">Bank</option>
-                <option value="home">Home Cash</option>
-                <option value="wallet">Wallet</option>
-              </select>
-            </div>
+            <CustomSelect
+              label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
+              value={place}
+              onChange={(v) => setPlace(v as MoneyPlace)}
+              options={[
+                { value: 'bank', label: 'Bank' },
+                { value: 'home', label: 'Home Cash' },
+                { value: 'wallet', label: 'Wallet' },
+              ]}
+            />
           </>
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-md pt-md border-t border-surface-variant">
+        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
           {mode === 'edit' && goal && onDelete && (
             <button
               type="button"
@@ -237,14 +213,14 @@ export function SavingsModal({
                 onDelete(goal.id);
                 onClose();
               }}
-              className="px-4 py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-md transition-colors"
+              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
           >
             {mode === 'create'
               ? 'Create Goal'

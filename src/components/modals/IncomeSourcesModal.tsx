@@ -139,7 +139,7 @@ export function IncomeSourcesModal({
         <button
           type="button"
           onClick={handleSave}
-          className="w-full py-3 px-md bg-primary text-on-primary rounded-xl font-label-lg text-label-lg font-bold shadow-md hover:opacity-90 transition-all"
+          className="w-full py-2.5 sm:py-3 px-md bg-primary text-on-primary rounded-xl font-label-md sm:font-label-lg text-label-md sm:text-label-lg font-bold shadow-md hover:opacity-90 transition-all"
         >
           Save Income Sources ({format(totalCalculated)})
         </button>

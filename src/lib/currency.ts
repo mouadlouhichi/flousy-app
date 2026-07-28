@@ -40,3 +40,26 @@ export function formatCurrency(amount: number, currencyCode: string = 'MAD'): st
 export function getCurrencySymbol(currencyCode: string = 'MAD'): string {
   return SUPPORTED_CURRENCIES[currencyCode]?.symbol || currencyCode;
 }
+
+export function formatCurrencyParts(amount: number, currencyCode: string = 'MAD'): { amount: string; currency: string } {
+  const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
+  const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.MAD;
+
+  try {
+    const formatted = new Intl.NumberFormat(config.locale, {
+      style: 'currency',
+      currency: config.code,
+      minimumFractionDigits: config.digits,
+      maximumFractionDigits: config.digits,
+    }).format(safeAmount);
+    // Split "32,500.00 MAD" or "€32,500.00" into amount and currency
+    const match = formatted.match(/^([^\d]*)([\d.,]+)(.*)$/);
+    if (match) {
+      const currency = (match[1] + match[3]).trim() || config.symbol;
+      return { amount: match[2], currency };
+    }
+    return { amount: formatted, currency: config.symbol };
+  } catch {
+    return { amount: safeAmount.toFixed(config.digits), currency: config.symbol };
+  }
+}

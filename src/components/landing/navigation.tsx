@@ -67,12 +67,14 @@ export function Navigation() {
             <a href="/login" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </a>
-            <Button
-              size="sm"
-              className={`bg-primary hover:bg-primary/90  hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
-            >
-              Start budgeting
-            </Button>
+            <a href="/login">
+              <Button
+                size="sm"
+                className={`bg-primary hover:bg-primary/90  hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              >
+                Start budgeting
+              </Button>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -128,19 +130,21 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button 
-              variant="outline" 
-              className="flex-1 rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Sign in
-            </Button>
-            <Button 
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Start budgeting
-            </Button>
+            <a href="/login" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button 
+                variant="outline" 
+                className="flex-1 rounded-full h-14 text-base w-full"
+              >
+                Sign in
+              </Button>
+            </a>
+            <a href="/login" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button 
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 text-base w-full"
+              >
+                Start budgeting
+              </Button>
+            </a>
           </div>
         </div>
       </div>
