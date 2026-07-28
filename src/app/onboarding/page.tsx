@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
@@ -207,7 +209,7 @@ export default function OnboardingPage() {
             className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-all active:scale-95 cursor-pointer"
             aria-label="Back"
           >
-            <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+            <AppIcon name="arrow_back" className=" text-[22px]" />
           </button>
 
           <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">Flousy</span>
@@ -320,7 +322,7 @@ export default function OnboardingPage() {
               className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
             >
               <span>Continue</span>
-              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+              <AppIcon name="arrow_forward" className=" text-[20px]" />
             </button>
           </form>
         )}
@@ -356,18 +358,14 @@ export default function OnboardingPage() {
                         className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: cat.color }}
                       />
-                      <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">
-                        {cat.icon}
-                      </span>
+                      <AppIcon name={cat.icon} className=" text-[20px] text-on-surface-variant shrink-0" />
                       <span className="text-[15px] font-bold text-on-surface truncate">
                         {cat.name}
                       </span>
                     </div>
 
                     {selected && (
-                      <span className="material-symbols-outlined text-primary text-[20px] shrink-0 ml-1">
-                        check_circle
-                      </span>
+                      <AppIcon name="check_circle" className=" text-primary text-[20px] shrink-0 ml-1" />
                     )}
                   </div>
                 );
@@ -413,7 +411,7 @@ export default function OnboardingPage() {
                             : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[18px]">{ic}</span>
+                        <AppIcon name={ic} className=" text-[18px]" />
                       </button>
                     ))}
                   </div>
@@ -425,7 +423,7 @@ export default function OnboardingPage() {
                 onClick={() => setShowAddCustom(true)}
                 className="text-primary font-bold text-[15px] hover:underline flex items-center justify-center gap-1 my-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <AppIcon name="add" className=" text-[18px]" />
                 <span>Add Custom Category</span>
               </button>
             )}
@@ -520,7 +518,7 @@ export default function OnboardingPage() {
                 type="submit"
                 className="w-full py-3 bg-primary-container hover:bg-primary-container text-primary font-bold rounded-xl text-[14px] flex items-center justify-center gap-1 transition-all mt-1 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <AppIcon name="add" className=" text-[18px]" />
                 <span>Add Bill</span>
               </button>
             </form>
@@ -556,7 +554,7 @@ export default function OnboardingPage() {
                           const m = billIconMap[b.category] || billIconMap['Other'];
                           return (
                             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${m.bg} ${m.text}`}>
-                              <span className="material-symbols-outlined text-[20px]">{m.icon}</span>
+                              <AppIcon name={m.icon} className=" text-[20px]" />
                             </div>
                           );
                         })()}
@@ -577,7 +575,7 @@ export default function OnboardingPage() {
                           onClick={() => handleRemoveBill(idx)}
                           className="text-on-surface-variant/60 hover:text-red-500 p-1 cursor-pointer"
                         >
-                          <span className="material-symbols-outlined text-[18px]">close</span>
+                          <AppIcon name="close" className=" text-[18px]" />
                         </button>
                       </div>
                     </div>
@@ -855,7 +853,7 @@ export default function OnboardingPage() {
               >
                 <span>{isCompleting ? 'Finishing setup...' : 'Confirm & Finish'}</span>
                 {!isCompleting && (
-                  <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                  <AppIcon name="check_circle" className=" text-[20px]" />
                 )}
               </button>
               <button

@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
@@ -396,7 +398,7 @@ export default function DashboardPage() {
         {/* Brand Logo */}
         <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
           <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-xs">
-            <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+            <AppIcon name="account_balance_wallet" className=" text-[24px]" />
           </div>
           <span className="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">
             Flousy
@@ -413,9 +415,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'overview' ? 'filled' : ''}`}>
-              grid_view
-            </span>
+            <AppIcon name="grid_view" className={` text-[22px] ${activeTab === 'overview' ? 'filled' : ''}`} />
             <span>Overview</span>
           </button>
 
@@ -427,9 +427,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'fixed' ? 'filled' : ''}`}>
-              event_repeat
-            </span>
+            <AppIcon name="event_repeat" className={` text-[22px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
             <span>Fixed Bills</span>
           </button>
 
@@ -441,9 +439,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'variable' ? 'filled' : ''}`}>
-              receipt_long
-            </span>
+            <AppIcon name="receipt_long" className={` text-[22px] ${activeTab === 'variable' ? 'filled' : ''}`} />
             <span>Variable Expenses</span>
           </button>
 
@@ -455,9 +451,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'savings' ? 'filled' : ''}`}>
-              savings
-            </span>
+            <AppIcon name="savings" className={` text-[22px] ${activeTab === 'savings' ? 'filled' : ''}`} />
             <span>Savings</span>
           </button>
 
@@ -469,9 +463,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-              trending_up
-            </span>
+            <AppIcon name="trending_up" className={` text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`} />
             <span>Trends</span>
           </button>
 
@@ -483,9 +475,7 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'debts' ? 'filled' : ''}`}>
-              description
-            </span>
+            <AppIcon name="description" className={` text-[22px] ${activeTab === 'debts' ? 'filled' : ''}`} />
             <span>Debts</span>
           </button>
 
@@ -496,7 +486,7 @@ export default function DashboardPage() {
             onClick={() => setIsIncomeModalOpen(true)}
             className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
-            <span className="material-symbols-outlined text-[20px]">payments</span>
+            <AppIcon name="payments" className=" text-[20px]" />
             <span>Income Sources</span>
           </button>
 
@@ -504,7 +494,7 @@ export default function DashboardPage() {
             onClick={() => setIsCsvModalOpen(true)}
             className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
-            <span className="material-symbols-outlined text-[20px]">upload_file</span>
+            <AppIcon name="upload_file" className=" text-[20px]" />
             <span>Import / Export CSV</span>
           </button>
         </nav>
@@ -529,7 +519,7 @@ export default function DashboardPage() {
             className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-xl transition-colors shrink-0"
             title="Settings"
           >
-            <span className="material-symbols-outlined text-[20px]">settings</span>
+            <AppIcon name="settings" className=" text-[20px]" />
           </button>
         </div>
       </aside>
@@ -540,7 +530,7 @@ export default function DashboardPage() {
         {user && !user.emailVerified && !dismissVerificationBanner && (
           <div className="bg-tertiary-container text-on-tertiary-container px-margin-mobile py-2.5 flex items-center justify-between font-label-md text-label-md">
             <div className="flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[20px]">mark_email_unread</span>
+              <AppIcon name="mark_email_unread" className=" text-[20px]" />
               <span>Please verify your email address to secure your account.</span>
               {verificationSent ? (
                 <span className="font-bold underline ml-xs">Verification email sent!</span>
@@ -558,7 +548,7 @@ export default function DashboardPage() {
               className="p-1 hover:bg-tertiary/20 rounded-full"
               aria-label="Dismiss banner"
             >
-              <span className="material-symbols-outlined text-[18px]">close</span>
+              <AppIcon name="close" className=" text-[18px]" />
             </button>
           </div>
         )}
@@ -569,7 +559,7 @@ export default function DashboardPage() {
             {/* Mobile Logo + Balance */}
             <div className="md:hidden flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-[24px]">account_balance_wallet</span>
+                <AppIcon name="account_balance_wallet" className=" text-primary text-[24px]" />
                 <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
                   Flousy
                 </span>
@@ -602,7 +592,7 @@ export default function DashboardPage() {
               className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Previous month"
             >
-              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_left</span>
+              <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
             </button>
             <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
               {(() => {
@@ -616,7 +606,7 @@ export default function DashboardPage() {
               className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Next month"
             >
-              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_right</span>
+              <AppIcon name="chevron_right" className=" text-[16px] sm:text-[18px]" />
             </button>
           </div>
 
@@ -633,7 +623,7 @@ export default function DashboardPage() {
               }}
               className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-xl font-label-md font-bold hover:bg-primary/90 shadow-xs transition-all"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
+              <AppIcon name="add" className=" text-[18px]" />
               <span>New Transaction</span>
             </button>
 
@@ -642,7 +632,7 @@ export default function DashboardPage() {
               className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors md:hidden"
               aria-label="Open Settings"
             >
-              <span className="material-symbols-outlined text-[22px]">settings</span>
+              <AppIcon name="settings" className=" text-[22px]" />
             </button>
           </div>
         </header>
@@ -766,7 +756,7 @@ export default function DashboardPage() {
           className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
           aria-label="Add Expense"
         >
-          <span className="material-symbols-outlined text-[30px]">add</span>
+          <AppIcon name="add" className=" text-[30px]" />
         </button>
       )}
 
@@ -782,9 +772,7 @@ export default function DashboardPage() {
           aria-label="Overview"
           title="Overview"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`}>
-            grid_view
-          </span>
+          <AppIcon name="grid_view" className={` text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -797,9 +785,7 @@ export default function DashboardPage() {
           aria-label="Fixed Bills"
           title="Fixed Bills"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`}>
-            receipt_long
-          </span>
+          <AppIcon name="receipt_long" className={` text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -812,9 +798,7 @@ export default function DashboardPage() {
           aria-label="Variable Expenses"
           title="Variable Expenses"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`}>
-            payments
-          </span>
+          <AppIcon name="payments" className={` text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -827,9 +811,7 @@ export default function DashboardPage() {
           aria-label="Savings Goals"
           title="Savings Goals"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'savings' ? 'filled' : ''}`}>
-            savings
-          </span>
+          <AppIcon name="savings" className={` text-[24px] ${activeTab === 'savings' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -842,9 +824,7 @@ export default function DashboardPage() {
           aria-label="Trends"
           title="Trends"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-            trending_up
-          </span>
+          <AppIcon name="trending_up" className={` text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -857,9 +837,7 @@ export default function DashboardPage() {
           aria-label="Debts"
           title="Debts"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`}>
-            description
-          </span>
+          <AppIcon name="description" className={` text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`} />
         </button>
       </nav>
 

@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -37,7 +38,7 @@ export function SavingsTab({
           onClick={onOpenCreateGoal}
           className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
         >
-          <span className="material-symbols-outlined text-[20px]">add</span>
+          <AppIcon name="add" className=" text-[20px]" />
           <span>New Goal</span>
         </button>
       </div>
@@ -45,7 +46,7 @@ export function SavingsTab({
       {/* Goals Grid */}
       {goals.length === 0 ? (
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
-          <span className="material-symbols-outlined text-outline text-[44px]">savings</span>
+          <AppIcon name="savings" className=" text-outline text-[44px]" />
           <p className="font-body-md text-body-md text-on-surface-variant">No active savings goals defined.</p>
           <button
             onClick={onOpenCreateGoal}
@@ -68,7 +69,7 @@ export function SavingsTab({
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-sm">
                     <div className="p-3 bg-secondary/10 text-secondary rounded-2xl">
-                      <span className="material-symbols-outlined text-[26px]">savings</span>
+                      <AppIcon name="savings" className=" text-[26px]" />
                     </div>
                     <div>
                       <h3 className="font-headline-sm text-headline-sm text-on-surface font-extrabold">
@@ -85,7 +86,7 @@ export function SavingsTab({
                     className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
                     aria-label="Edit goal"
                   >
-                    <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                    <AppIcon name="more_vert" className=" text-[20px]" />
                   </button>
                 </div>
 
@@ -117,7 +118,7 @@ export function SavingsTab({
                     onClick={() => onOpenFundModal(goal)}
                     className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                    <AppIcon name="add_circle" className=" text-[18px]" />
                     <span>Deposit</span>
                   </button>
 
@@ -125,7 +126,7 @@ export function SavingsTab({
                     onClick={() => onOpenWithdrawModal(goal)}
                     className="py-2.5 bg-surface-container hover:bg-surface-variant text-on-surface-variant rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px]">remove_circle</span>
+                    <AppIcon name="remove_circle" className=" text-[18px]" />
                     <span>Withdraw</span>
                   </button>
                 </div>

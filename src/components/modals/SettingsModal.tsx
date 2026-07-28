@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -78,9 +79,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                   : 'bg-gradient-to-r from-primary to-tertiary text-on-primary shadow-sm hover:shadow-md'
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">
-                {profile?.plan === 'pro' ? 'verified' : 'workspace_premium'}
-              </span>
+              <AppIcon name={profile?.plan === 'pro' ? 'verified' : 'workspace_premium'} className=" text-[20px]" />
               <span>{profile?.plan === 'pro' ? 'Pro Membership' : 'Go to Premium'}</span>
             </button>
           )}
@@ -113,9 +112,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                       : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[22px]">
-                    {t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'}
-                  </span>
+                  <AppIcon name={t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'} className=" text-[22px]" />
                   <span className="text-[13px] font-bold">{t}</span>
                 </button>
               ))}
@@ -133,10 +130,10 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
               className="w-full p-3.5 rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/50 flex items-center justify-between transition-colors"
             >
               <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-primary text-[20px]">download</span>
+                <AppIcon name="download" className=" text-primary text-[20px]" />
                 <span className="font-body-md text-body-md text-on-surface font-medium">Export Budget Data (CSV)</span>
               </div>
-              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">chevron_right</span>
+              <AppIcon name="chevron_right" className=" text-on-surface-variant text-[20px]" />
             </button>
           </div>
 

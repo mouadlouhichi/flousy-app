@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
@@ -168,7 +169,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           <div className="flex flex-col gap-2 mt-2">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">{MONEY_PLACE_ICONS[from]}</span>
+                <AppIcon name={MONEY_PLACE_ICONS[from]} className=" text-[16px] text-on-surface-variant" />
                 <span className="text-[13px] text-on-surface-variant capitalize font-medium">{from}:</span>
               </div>
               <span className="font-mono text-[13px] text-on-surface font-semibold">
@@ -178,7 +179,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
             </div>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">{MONEY_PLACE_ICONS[to]}</span>
+                <AppIcon name={MONEY_PLACE_ICONS[to]} className=" text-[16px] text-on-surface-variant" />
                 <span className="text-[13px] text-on-surface-variant capitalize font-medium">{to}:</span>
               </div>
               <span className="font-mono text-[13px] text-on-surface font-semibold">
@@ -194,7 +195,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           type="submit"
           className="w-full bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+          <AppIcon name="swap_horiz" className=" text-[18px]" />
           <span>Confirm Transfer</span>
         </button>
       </form>

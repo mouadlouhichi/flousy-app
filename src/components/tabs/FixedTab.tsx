@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
 import { MonthBudget, FixedExpense } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -29,7 +30,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
           onClick={onOpenAddModal}
           className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
         >
-          <span className="material-symbols-outlined text-[20px]">add</span>
+          <AppIcon name="add" className=" text-[20px]" />
           <span>Add Charge</span>
         </button>
       </div>
@@ -37,7 +38,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
       {/* Fixed Bills List */}
       {(month.fixedExpenses || []).length === 0 ? (
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
-          <span className="material-symbols-outlined text-outline text-[44px]">event_repeat</span>
+          <AppIcon name="event_repeat" className=" text-outline text-[44px]" />
           <p className="font-body-md text-body-md text-on-surface-variant">No fixed monthly charges configured.</p>
           <button
             onClick={onOpenAddModal}
@@ -56,7 +57,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
             >
               <div className="flex items-center gap-md">
                 <div className="p-3 bg-primary/10 text-primary rounded-xl">
-                  <span className="material-symbols-outlined text-[24px]">receipt_long</span>
+                  <AppIcon name="receipt_long" className=" text-[24px]" />
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-xs">
@@ -69,9 +70,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
                       </span>
                     )}
                     {bill.recurring && (
-                      <span className="material-symbols-outlined text-[16px] text-primary" title="Recurring monthly">
-                        sync
-                      </span>
+                      <AppIcon name="sync" className="text-[16px] text-primary" title="Recurring monthly" />
                     )}
                   </div>
                   <div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">

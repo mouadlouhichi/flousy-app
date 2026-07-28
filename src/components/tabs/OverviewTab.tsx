@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
 import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -40,7 +41,7 @@ export function OverviewTab({
         <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[22px]">account_balance</span>
+              <AppIcon name="account_balance" className=" text-[22px]" />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Bank</span>
@@ -59,7 +60,7 @@ export function OverviewTab({
             className="text-primary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Move Money</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            <AppIcon name="arrow_forward" className=" text-[16px]" />
           </button>
         </div>
 
@@ -67,7 +68,7 @@ export function OverviewTab({
         <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[22px]">home</span>
+              <AppIcon name="home" className=" text-[22px]" />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Home Cash</span>
@@ -86,7 +87,7 @@ export function OverviewTab({
             className="text-tertiary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Add Funds</span>
-            <span className="material-symbols-outlined text-[16px]">add</span>
+            <AppIcon name="add" className=" text-[16px]" />
           </button>
         </div>
 
@@ -94,7 +95,7 @@ export function OverviewTab({
         <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
-              <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+              <AppIcon name="account_balance_wallet" className=" text-[22px]" />
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Wallet</span>
@@ -113,7 +114,7 @@ export function OverviewTab({
             className="text-secondary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
           >
             <span>Withdraw</span>
-            <span className="material-symbols-outlined text-[16px]">south</span>
+            <AppIcon name="south" className=" text-[16px]" />
           </button>
         </div>
       </div>
@@ -240,7 +241,7 @@ export function OverviewTab({
 
             {recentExpenses.length === 0 ? (
               <div className="p-8 bg-surface/50 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
-                <span className="material-symbols-outlined text-outline text-[40px]">receipt_long</span>
+                <AppIcon name="receipt_long" className=" text-outline text-[40px]" />
                 <p className="font-body-md text-body-md text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
                   onClick={onOpenExpenseModal}
@@ -259,9 +260,7 @@ export function OverviewTab({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-[20px]">
-                          {month.categoryIcons?.[exp.type] || 'shopping_bag'}
-                        </span>
+                        <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className=" text-[20px]" />
                       </div>
                       <div className="flex flex-col">
                         <span className="font-bold text-[15px] text-on-surface">

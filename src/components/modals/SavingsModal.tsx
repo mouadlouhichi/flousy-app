@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
@@ -240,7 +241,7 @@ export function SavingsModal({
             {goal && (
               <div className="p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
                 <div className="flex items-center gap-2.5">
-                  <span className="material-symbols-outlined text-primary text-[20px]">savings</span>
+                  <AppIcon name="savings" className=" text-primary text-[20px]" />
                   <div className="flex-1">
                     <span className="font-bold text-[14px] text-on-surface block">{goal.name}</span>
                     <span className="text-[12px] text-on-surface-variant">
@@ -284,9 +285,7 @@ export function SavingsModal({
             type="submit"
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {mode === 'create' ? 'add' : mode === 'edit' ? 'check' : mode === 'fund' ? 'add_circle' : 'remove_circle'}
-            </span>
+            <AppIcon name={mode === 'create' ? 'add' : mode === 'edit' ? 'check' : mode === 'fund' ? 'add_circle' : 'remove_circle'} className=" text-[18px]" />
             <span>
               {mode === 'create' ? 'Create Goal' : mode === 'edit' ? 'Save Changes' : mode === 'fund' ? 'Add Funds' : 'Withdraw Funds'}
             </span>

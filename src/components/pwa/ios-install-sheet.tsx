@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useEffect, useRef } from 'react';
 
 interface IosInstallSheetProps {
@@ -61,7 +63,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
             aria-label="Close"
             className="rounded-xl p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <AppIcon name="close" className=" text-[20px]" />
           </button>
         </div>
 
@@ -79,7 +81,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-label-md font-bold text-primary">
                 {index + 1}
               </span>
-              <span className="material-symbols-outlined text-[22px] text-primary">{step.icon}</span>
+              <AppIcon name={step.icon} className=" text-[22px] text-primary" />
               <span className="text-body-md text-on-surface">{step.text}</span>
             </li>
           ))}

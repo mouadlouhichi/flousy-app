@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { VariableExpense, FixedExpense, MoneyPlace, MonthBudget } from '../../lib/store';
@@ -210,7 +212,7 @@ export function ImportCsvModal({
             className="hidden"
           />
           <label htmlFor="csv-file-input" className="cursor-pointer flex flex-col items-center gap-2">
-            <span className="material-symbols-outlined text-[44px] text-primary">upload_file</span>
+            <AppIcon name="upload_file" className=" text-[44px] text-primary" />
             <span className="font-label-lg text-label-lg font-bold text-on-surface">
               Click to upload CSV
             </span>
@@ -223,7 +225,7 @@ export function ImportCsvModal({
         {/* ── Error ── */}
         {error && (
           <div className="p-3 bg-error-container text-on-error-container rounded-xl text-[13px] font-medium flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
+            <AppIcon name="error" className=" text-[18px] shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
@@ -262,7 +264,7 @@ export function ImportCsvModal({
               onClick={handleConfirmImport}
               className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-[20px]">add_task</span>
+              <AppIcon name="add_task" className=" text-[20px]" />
               <span>Import {parsedRows.length} Item{parsedRows.length !== 1 ? 's' : ''}</span>
             </button>
           </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../lib/auth-context';
@@ -188,9 +190,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
         {/* ─────────────────────── HERO BANNER ─────────────────────── */}
         <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-tertiary text-on-primary shadow-lg flex flex-col items-center text-center relative overflow-hidden">
           <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-surface/10 rounded-full blur-2xl pointer-events-none" />
-          <span className="material-symbols-outlined text-[40px] sm:text-[48px] mb-2 font-light">
-            {step === 'receipt' ? 'verified' : 'workspace_premium'}
-          </span>
+          <AppIcon name={step === 'receipt' ? 'verified' : 'workspace_premium'} className=" text-[40px] sm:text-[48px] mb-2 font-light" />
           <h3 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md font-extrabold tracking-tight">
             {isPro ? 'You are a Pro Member!' : 'Unlock Full Budgeting Power'}
           </h3>
@@ -205,7 +205,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
         {isPro && (
           <div className="flex flex-col gap-4">
             <div className="p-4 bg-surface-container rounded-xl border border-outline-variant flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary text-[28px]">check_circle</span>
+              <AppIcon name="check_circle" className=" text-primary text-[28px]" />
               <div>
                 <p className="font-body-md text-body-md font-bold text-on-surface">Pro plan is active</p>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">
@@ -292,7 +292,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 { icon: 'cloud_sync', title: 'Priority Sync', desc: 'Faster Firestore sync and priority support.' },
               ].map((f) => (
                 <div key={f.icon} className="p-3 rounded-xl bg-surface-container-low border border-outline-variant flex gap-2.5 items-start">
-                  <span className="material-symbols-outlined text-primary text-[22px] shrink-0 mt-0.5">{f.icon}</span>
+                  <AppIcon name={f.icon} className=" text-primary text-[22px] shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-label-lg text-label-lg font-bold text-on-surface text-[14px]">{f.title}</h4>
                     <p className="font-body-sm text-body-sm text-on-surface-variant text-[13px] leading-snug">{f.desc}</p>
@@ -308,7 +308,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[16px] shadow-md hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
             >
               <span>Continue to Checkout</span>
-              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+              <AppIcon name="arrow_forward" className=" text-[20px]" />
             </button>
             <p className="text-center font-body-sm text-body-sm text-on-surface-variant">
               Secure checkout · Cancel anytime
@@ -419,7 +419,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
             {/* Secure badge */}
             <div className="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
-              <span className="material-symbols-outlined text-[18px]">lock</span>
+              <AppIcon name="lock" className=" text-[18px]" />
               <span>Your payment info is secure. This is a mock — no real charge will be made.</span>
             </div>
 
@@ -436,7 +436,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 type="submit"
                 className="flex-1 py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-[18px]">lock</span>
+                <AppIcon name="lock" className=" text-[18px]" />
                 <span>Pay {fmtPrice(price)}</span>
               </button>
             </div>
@@ -454,7 +454,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 style={{ animationDuration: '1.2s' }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[32px] text-primary">lock</span>
+                <AppIcon name="lock" className=" text-[32px] text-primary" />
               </div>
             </div>
 
@@ -482,11 +482,11 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 return (
                   <div key={label} className="flex items-center gap-2.5 text-[13px]">
                     {done ? (
-                      <span className="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+                      <AppIcon name="check_circle" className=" text-[18px] text-primary" />
                     ) : active ? (
                       <span className="w-[18px] h-[18px] border-2 border-primary border-t-transparent rounded-full animate-spin" style={{ animationDuration: '0.8s' }} />
                     ) : (
-                      <span className="material-symbols-outlined text-[18px] text-outline-variant">radio_button_unchecked</span>
+                      <AppIcon name="radio_button_unchecked" className=" text-[18px] text-outline-variant" />
                     )}
                     <span className={done ? 'text-on-surface font-medium' : 'text-outline-variant'}>{label}</span>
                   </div>
@@ -508,7 +508,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             {/* Success animation */}
             <div className="flex flex-col items-center gap-3 py-2">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[40px] text-primary">check_circle</span>
+                <AppIcon name="check_circle" className=" text-[40px] text-primary" />
               </div>
               <div className="text-center">
                 <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
@@ -530,7 +530,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                     {transactionId}
                   </p>
                 </div>
-                <span className="material-symbols-outlined text-primary">receipt_long</span>
+                <AppIcon name="receipt_long" className=" text-primary" />
               </div>
 
               {/* Receipt body */}
@@ -566,7 +566,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             {/* Demo mode note */}
             {isDemo && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[13px] text-amber-700 flex items-start gap-2">
-                <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">info</span>
+                <AppIcon name="info" className=" text-[18px] shrink-0 mt-0.5" />
                 <span>
                   <strong>Demo Mode:</strong> This is a mock payment. In production, a real Stripe Checkout
                   webhook would upgrade your account via the Admin SDK.
@@ -579,7 +579,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               onClick={onClose}
               className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[16px] shadow-md hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-[20px]">celebration</span>
+              <AppIcon name="celebration" className=" text-[20px]" />
               <span>Start Using Pro</span>
             </button>
           </div>
@@ -589,7 +589,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
         {!isPro && step === 'error' && (
           <div className="flex flex-col items-center gap-4 py-4">
             <div className="w-16 h-16 rounded-full bg-error-container/30 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[40px] text-error">error_outline</span>
+              <AppIcon name="error_outline" className=" text-[40px] text-error" />
             </div>
             <div className="text-center">
               <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Payment Failed</h3>
