@@ -109,8 +109,8 @@ export default function LoginPage() {
         navigateTo('/dashboard');
         return;
       }
-      await signInGoogle();
-      navigateTo('/dashboard');
+      const isNewUser = await signInGoogle();
+      navigateTo(isNewUser ? '/onboarding' : '/dashboard');
     } catch (err: any) {
       if (!isConfigured || err.message?.includes('not configured')) {
         localStorage.setItem('flousy_demo_mode', 'true');

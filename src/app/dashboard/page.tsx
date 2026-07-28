@@ -356,11 +356,19 @@ export default function DashboardPage() {
   };
 
   // Income Sources Handler
+  // TOTAL MONTHLY BUDGET = Bank + Wallet + Home
+  // Income goes first to Bank, then can be moved to Wallet/Home via Move Money
   const handleSaveIncomeSources = (sources: any[], total: number) => {
+    const oldTotal = month.totalBudget || 0;
+    const difference = total - oldTotal;
+    // New income goes first to Bank; if total is reduced, deduct from Bank
+    const newBankPart = Math.max(0, (month.bankPart || 0) + difference);
+
     const updated = normalizeMonth({
       ...month,
       incomeSources: sources,
       totalBudget: total,
+      bankPart: newBankPart,
     });
     updateAndSaveMonth(updated);
   };

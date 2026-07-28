@@ -26,7 +26,7 @@ interface AuthContextType {
   isConfigured: boolean;
   signInEmail: (e: string, p: string) => Promise<void>;
   signUpEmail: (e: string, p: string, displayName?: string) => Promise<void>;
-  signInGoogle: () => Promise<void>;
+  signInGoogle: () => Promise<boolean>;
   signOut: () => Promise<void>;
   sendResetEmail: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
@@ -72,10 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const syncUserProfile = async (u: User, displayName?: string) => {
+  const syncUserProfile = async (u: User, displayName?: string): Promise<boolean> => {
+    let isNewUser = false;
     try {
       let p = await getUserProfile(u.uid);
       if (!p) {
+        isNewUser = true;
         p = {
           plan: 'free',
           currency: 'MAD',
@@ -92,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
     }
+    return isNewUser;
   };
 
   const signInEmail = async (e: string, p: string) => {
@@ -120,11 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInGoogle = async () => {
+  const signInGoogle = async (): Promise<boolean> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      await syncUserProfile(res.user);
+      const isNew = await syncUserProfile(res.user);
+      return isNew;
     } catch (err: any) {
       // In-app browsers or popup blocked fallback
       if (
@@ -134,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         navigator.userAgent.includes('FBAN')
       ) {
         await signInWithRedirect(auth, googleProvider);
+        return false;
       } else {
         throw err;
       }
