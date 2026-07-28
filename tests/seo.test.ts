@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import sitemap from '../src/app/sitemap';
 import robots from '../src/app/robots';
+import { BLOG_POSTS } from '../src/lib/blog';
 import { SUPPORTED_CURRENCIES } from '../src/lib/currency';
 import {
   BUDGETING_STRATEGIES,
@@ -38,6 +39,11 @@ describe('SEO and GEO configuration', () => {
     assert.ok(urls.includes(SITE_URL));
     assert.ok(urls.includes(`${SITE_URL}/privacy`));
     assert.ok(urls.includes(`${SITE_URL}/terms`));
+
+    for (const post of BLOG_POSTS) {
+      assert.ok(urls.includes(`${SITE_URL}/blog/${post.slug}`));
+      assert.ok(llmsText.includes(`${SITE_URL}/blog/${post.slug}`));
+    }
 
     for (const privatePath of ['/login', '/dashboard', '/onboarding']) {
       assert.ok(!urls.includes(`${SITE_URL}${privatePath}`));

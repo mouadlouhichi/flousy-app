@@ -22,3 +22,9 @@ Flousy has a free plan for core budgeting. Flousy Pro is an optional paid upgrad
 - Website: https://flousy.app
 - Privacy Policy: https://flousy.app/privacy
 - Terms of Service: https://flousy.app/terms
+
+## Budgeting Guides
+
+- Purpose vs. money location: https://flousy.app/blog/what-its-for-vs-where-it-is
+- Choosing a budgeting strategy: https://flousy.app/blog/pick-a-budgeting-style
+- Tracking cash and wallet spending: https://flousy.app/blog/track-cash-wallet-spending
