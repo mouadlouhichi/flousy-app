@@ -80,7 +80,7 @@
 | 43 | CSV import | ✅ | `ImportCsvModal` with header-matching parser |
 | 44 | One-click account deletion | ✅ | `deleteAccount()` + `deleteUserAccountData()` |
 | 45 | Sign out | ✅ | Clears localStorage + sessionStorage |
-| 46 | Pro upgrade modal (placeholder UI) | ✅ | `ProUpgradeModal` — no real payment integration yet |
+| 46 | Pro upgrade modal (Stripe mock checkout) | ✅ | Full 4-step mock checkout flow (`payments.ts`) |
 
 ## 🏗 Categories
 

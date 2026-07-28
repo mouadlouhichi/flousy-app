@@ -26,13 +26,16 @@ interface LightLanguageContextType {
 const LightLanguageContext = createContext<LightLanguageContextType | null>(null);
 
 export function LightLanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(resolveClientLocale);
+  const [language, setLanguageState] = useState<Language>('en');
 
   useEffect(() => {
-    const rtl = isRTL(language);
+    const resolvedLanguage = resolveClientLocale();
+    setLanguageState(resolvedLanguage);
+
+    const rtl = isRTL(resolvedLanguage);
     document.documentElement.dir = rtl ? 'rtl' : 'ltr';
-    document.documentElement.lang = language;
-  }, [language]);
+    document.documentElement.lang = resolvedLanguage;
+  }, []);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
