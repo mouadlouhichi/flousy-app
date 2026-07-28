@@ -488,11 +488,16 @@ export default function DashboardPage() {
         {/* Main Header Bar */}
         <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Mobile Logo */}
-            <div className="md:hidden flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[28px]">account_balance_wallet</span>
-              <span className="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">
-                Flousy
+            {/* Mobile Logo + Balance */}
+            <div className="md:hidden flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[24px]">account_balance_wallet</span>
+                <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
+                  Flousy
+                </span>
+              </div>
+              <span className="text-[11px] text-on-surface-variant font-medium">
+                Total Balance: {format((month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0))}
               </span>
             </div>
 
@@ -511,23 +516,27 @@ export default function DashboardPage() {
           </div>
 
           {/* Center Month Selector */}
-          <div className="flex items-center gap-1 bg-surface-container px-3 py-1.5 rounded-2xl border border-outline-variant">
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant">
             <button
               onClick={handlePrevMonth}
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+              className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Previous month"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_left</span>
             </button>
-            <span className="font-label-lg text-label-lg font-bold text-on-surface min-w-[85px] text-center">
-              {currentMonthKey}
+            <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[52px] sm:min-w-[85px] text-center uppercase">
+              {(() => {
+                const [y, m] = currentMonthKey.split('-').map(Number);
+                const d = new Date(y, m - 1, 1);
+                return d.toLocaleDateString('en-US', { month: 'short' });
+              })()}
             </span>
             <button
               onClick={handleNextMonth}
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+              className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
               aria-label="Next month"
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[16px] sm:text-[18px]">chevron_right</span>
             </button>
           </div>
 

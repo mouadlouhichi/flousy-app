@@ -9,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -77,7 +78,7 @@ export default function LoginPage() {
       }
 
       if (isSignUp) {
-        await signUpEmail(email, password);
+        await signUpEmail(email, password, displayName.trim() || undefined);
         navigateTo('/onboarding');
       } else {
         await signInEmail(email, password);
@@ -175,6 +176,26 @@ export default function LoginPage() {
 
         {/* Email Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Display Name (Sign Up Only) */}
+          {isSignUp && !isResetting && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-bold text-slate-700">Full Name</label>
+              <div className="relative flex items-center">
+                <span className="material-symbols-outlined absolute left-3.5 text-slate-400 text-[20px] pointer-events-none">
+                  person
+                </span>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-[#f8faf9] border border-slate-200 rounded-xl text-[15px] text-slate-900 placeholder:text-slate-400 focus:border-[#006A60] focus:bg-white transition-all outline-none"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-bold text-slate-700">Email</label>
             <div className="relative flex items-center">

@@ -11,10 +11,14 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children, triggerRef, className = '' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   // Lock background scroll & handle Escape key
   useEffect(() => {
     if (!isOpen) return;
+
+    // Store the element that had focus before modal opened
+    previouslyFocusedRef.current = document.activeElement as HTMLElement;
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -28,23 +32,27 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Focus trap inside modal
-    if (modalRef.current) {
-      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements.length > 0) {
-        focusableElements[0].focus();
+    // Focus first focusable element inside modal
+    requestAnimationFrame(() => {
+      if (modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length > 0) {
+          focusableElements[0].focus();
+        }
       }
-    }
+    });
 
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
-      // Restore focus to trigger element on close
-      if (triggerRef?.current) {
-        triggerRef.current.focus();
+      // Restore focus to previously focused element on close
+      const restoreTarget = triggerRef?.current || previouslyFocusedRef.current;
+      if (restoreTarget && typeof restoreTarget.focus === 'function') {
+        restoreTarget.focus();
       }
+      previouslyFocusedRef.current = null;
     };
   }, [isOpen, onClose, triggerRef]);
 
