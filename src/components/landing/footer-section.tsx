@@ -4,30 +4,6 @@ import { ArrowUpRight } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedWave } from "./animated-wave";
 
-const footerLinks = {
-  Product: [
-    { name: "Features", href: "/#features" },
-    { name: "How it works", href: "/#how-it-works" },
-    { name: "Pricing", href: "/#pricing" },
-    { name: "Currencies", href: "/#integrations" },
-  ],
-  Support: [
-    { name: "Help center", href: "/help" },
-    { name: "Contact us", href: "/contact" },
-    { name: "Security", href: "/#security" },
-  ],
-  Company: [
-    { name: "About", href: "/about" },
-    { name: "Careers", href: "/careers", badge: "Hiring" },
-    { name: "Blog", href: "/blog" },
-  ],
-  Legal: [
-    { name: "Privacy policy", href: "/privacy" },
-    { name: "Terms of service", href: "/terms" },
-    { name: "Cookie policy", href: "/cookies" },
-  ],
-};
-
 const socialLinks = [
   { name: "Instagram", href: "#" },
   { name: "Twitter", href: "#" },
@@ -36,6 +12,30 @@ const socialLinks = [
 
 export function FooterSection() {
   const { messages: { landing: { footer: ft } } } = useLightLanguage();
+
+  const footerLinks = [
+    { title: ft.product || 'Product', links: [
+      { name: ft.features || 'Features', href: '/#features' },
+      { name: ft.howItWorks || 'How it works', href: '/#how-it-works' },
+      { name: ft.pricing || 'Pricing', href: '/#pricing' },
+      { name: ft.currencies || 'Currencies', href: '/#integrations' },
+    ]},
+    { title: ft.support || 'Support', links: [
+      { name: ft.helpCenter || 'Help center', href: '/help' },
+      { name: ft.contactUs || 'Contact us', href: '/contact' },
+      { name: ft.security || 'Security', href: '/#security' },
+    ]},
+    { title: ft.company || 'Company', links: [
+      { name: ft.about || 'About', href: '/about' },
+      { name: ft.careers || 'Careers', href: '/careers', badge: ft.hiring || 'Hiring' },
+      { name: ft.blog || 'Blog', href: '/blog' },
+    ]},
+    { title: ft.legalCol || 'Legal', links: [
+      { name: ft.privacyPolicy || 'Privacy policy', href: '/privacy' },
+      { name: ft.termsOfService || 'Terms of service', href: '/terms' },
+      { name: ft.cookiePolicy || 'Cookie policy', href: '/cookies' },
+    ]},
+  ];
   return (
     <footer className="relative border-t border-foreground/10">
       {/* Animated wave background */}

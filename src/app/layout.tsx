@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers, cookies } from 'next/headers';
-import { Instrument_Sans, JetBrains_Mono, Noto_Naskh_Arabic } from 'next/font/google';
+import { Instrument_Sans, JetBrains_Mono, Cairo } from 'next/font/google';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
@@ -19,10 +19,10 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains',
 });
 
-const notoNaskhArabic = Noto_Naskh_Arabic({
+const cairoArabic = Cairo({
   subsets: ['arabic'],
   variable: '--font-arabic',
-  weight: ['400', '500', '600', '700'],
+  weight: ['200', '300', '400', '500', '600', '700', '800', '900'],
 });
 
 // Required for nonce-based CSP (src/middleware.ts): a per-request nonce
@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={dir}
       suppressHydrationWarning
-      className={`${instrumentSans.variable} ${jetbrainsMono.variable} ${notoNaskhArabic.variable}`}
+      className={`${instrumentSans.variable} ${jetbrainsMono.variable} ${cairoArabic.variable}`}
     >
       <head>
         <InstallPromptCapture />

@@ -100,7 +100,7 @@ export function HeroSection() {
               className="group h-14 rounded-full bg-primary px-8 text-base text-white hover:bg-primary/90"
             >
               <a href="/login">
-                Start budgeting free
+                {m.landing.hero.ctaPrimary}
                 <ArrowRight className="ms-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
             </Button>
@@ -120,28 +120,12 @@ export function HeroSection() {
         <div className="marquee flex gap-16 whitespace-nowrap">
           {[...Array(2)].map((_, setIndex) => (
             <div key={setIndex} className="flex gap-16" aria-hidden={setIndex === 1}>
-              {[
-                {
-                  value: '4',
-                  label: 'budgeting styles to pick from',
-                  detail: '50/30/20 & MORE',
-                },
-                {
-                  value: '3',
-                  label: 'places to track your cash',
-                  detail: 'BANK · HOME · WALLET',
-                },
-                {
-                  value: '12',
-                  label: 'currencies supported',
-                  detail: 'MAD · EUR · USD',
-                },
-                {
-                  value: '100%',
-                  label: 'of your money accounted for',
-                  detail: 'NEVER LOST',
-                },
-              ].map((stat) => (
+              {(m.landing.hero.stats || [
+                { value: '4', label: 'budgeting styles to pick from', detail: '50/30/20 & MORE' },
+                { value: '3', label: 'places to track your cash', detail: 'BANK · HOME · WALLET' },
+                { value: '12', label: 'currencies supported', detail: 'MAD · EUR · USD' },
+                { value: '100%', label: 'of your money accounted for', detail: 'NEVER LOST' },
+              ]).map((stat) => (
                 <div key={`${stat.detail}-${setIndex}`} className="flex items-baseline gap-4">
                   <span className="font-display text-4xl lg:text-5xl">{stat.value}</span>
                   <span className="text-sm text-muted-foreground">
