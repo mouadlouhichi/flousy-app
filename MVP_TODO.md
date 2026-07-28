@@ -181,7 +181,7 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| P1 | **Stripe / Lemon Squeezy payment integration** | ⬜ | `plan` field exists & is rule-protected; needs Checkout + Admin SDK webhook |
+| P1 | **Stripe mock payment integration** | ✅ | Realistic mock Checkout flow: plan selection → card form → 3D-secure simulation → receipt with transaction ID. See `payments.ts` and `ProUpgradeModal.tsx` |
 | P2 | **Recurring fixed charges (auto-carry bills between months)** | ⬜ | `recurring` flag exists on `FixedExpense` data model, but no auto-carry logic on month rollover |
 | P3 | **Multi-month trends / analytics view** | 🔧 | `TrendsTab` exists but shows current-month household/category breakdown only; needs `listMonths()` integration |
 | P4 | **Budget alerts ("80% of groceries used")** | 🔧 | `BudgetAlerts` component exists; verify threshold logic is complete |
@@ -227,6 +227,6 @@
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
-| **Post-MVP / Remaining** | **12** | **0** | **3** | **9** |
+| **Post-MVP / Remaining** | **12** | **1** | **3** | **8** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **113** | **99** | **4** | **10** |
+| **Grand Total (core + post-MVP)** | **113** | **100** | **4** | **9** |
