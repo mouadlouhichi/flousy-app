@@ -69,7 +69,6 @@ export function Navigation() {
             </a>
             <Button
               size="sm"
-              href="/signup"
               className={`bg-primary hover:bg-primary/90  hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
             >
               Start budgeting
