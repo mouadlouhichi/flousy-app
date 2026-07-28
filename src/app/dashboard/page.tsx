@@ -82,6 +82,7 @@ export default function DashboardPage() {
   // Multi-month trends data
   const [trendsMonths, setTrendsMonths] = useState<{ monthKey: string; month: MonthBudget }[]>([]);
   const [trendsLoading, setTrendsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Auth Protection Effect
   useEffect(() => {
@@ -95,6 +96,10 @@ export default function DashboardPage() {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -573,7 +578,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <span className="text-[11px] text-on-surface-variant font-medium">
-                Total Balance: {format((month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0))}
+                Total Balance: {isMounted ? format((month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0)) : '0.00 MAD'}
               </span>
             </div>
 

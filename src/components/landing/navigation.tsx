@@ -4,9 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Moon, Sun, Globe } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { useAuth } from "@/lib/auth-context";
 
 export function Navigation() {
   const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
+  const { user } = useAuth();
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isLoggedIn = Boolean(user || isDemo);
 
   const navLinks = [
     { name: m.landing.nav.features, href: "/#features" },
@@ -117,16 +121,28 @@ export function Navigation() {
               </div>
             </div>
 
-            <a href="/login" className={`font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
-              Sign in
-            </a>
-            <Button
-              asChild
-              size="sm"
-              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
-            >
-              <a href="/login">{m.landing.nav.startBudgeting}</a>
-            </Button>
+            {isLoggedIn ? (
+              <Button
+                asChild
+                size="sm"
+                className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
+              >
+                <a href="/dashboard">Go to Dashboard</a>
+              </Button>
+            ) : (
+              <>
+                <a href="/login" className={`font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
+                  Sign in
+                </a>
+                <Button
+                  asChild
+                  size="sm"
+                  className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
+                >
+                  <a href="/login">{m.landing.nav.startBudgeting}</a>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -206,19 +222,30 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button
-              asChild
-              variant="outline"
-              className="flex-1 rounded-full h-14 text-base"
-            >
-              <a href="/login">{m.landing.nav.signIn}</a>
-            </Button>
-            <Button
-              asChild
-              className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
-            >
-              <a href="/login">{m.landing.nav.startBudgeting}</a>
-            </Button>
+            {isLoggedIn ? (
+              <Button
+                asChild
+                className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
+              >
+                <a href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>Go to Dashboard</a>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="flex-1 rounded-full h-14 text-base"
+                >
+                  <a href="/login">{m.landing.nav.signIn}</a>
+                </Button>
+                <Button
+                  asChild
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
+                >
+                  <a href="/login">{m.landing.nav.startBudgeting}</a>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

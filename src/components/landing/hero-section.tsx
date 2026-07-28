@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { useLightLanguage } from "@/lib/i18n-light";
+import { useAuth } from '@/lib/auth-context';
 import { AnimatedSphere } from './animated-sphere';
-
-
 
 export function HeroSection() {
   const { messages: m, isRTL } = useLightLanguage();
+  const { user } = useAuth();
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isLoggedIn = Boolean(user || isDemo);
   const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
 
@@ -99,8 +101,8 @@ export function HeroSection() {
               size="lg"
               className="group h-14 rounded-full bg-primary px-8 text-base text-white hover:bg-primary/90"
             >
-              <a href="/login">
-                {m.landing.hero.ctaPrimary}
+              <a href={isLoggedIn ? "/dashboard" : "/login"}>
+                {isLoggedIn ? "Go to Dashboard" : m.landing.hero.ctaPrimary}
                 <ArrowRight className="ms-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
             </Button>

@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { useAuth } from '@/lib/auth-context';
 import { AnimatedTetrahedron } from "./animated-tetrahedron";
 
 export function CtaSection() {
   const { messages: m } = useLightLanguage();
+  const { user } = useAuth();
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isLoggedIn = Boolean(user || isDemo);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -69,8 +73,8 @@ export function CtaSection() {
                     size="lg"
                     className="bg-primary hover:bg-primary/90 text-white px-8 h-14 text-base rounded-full group"
                   >
-                    <a href="/login">
-                      Start budgeting free
+                    <a href={isLoggedIn ? "/dashboard" : "/login"}>
+                      {isLoggedIn ? "Go to Dashboard" : "Start budgeting free"}
                       <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1" />
                     </a>
                   </Button>

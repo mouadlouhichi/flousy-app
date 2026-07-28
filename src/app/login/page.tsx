@@ -9,7 +9,7 @@ import { loginSchema } from '../../lib/validation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
+  const { user, loading, signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -18,6 +18,32 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (loading) return;
+
+    const isDemo =
+      typeof window !== 'undefined' &&
+      localStorage.getItem('flousy_demo_mode') === 'true';
+
+    if (user || isDemo) {
+      try {
+        router.replace('/dashboard');
+      } catch {
+        window.location.href = '/dashboard';
+      }
+    }
+  }, [user, loading, router]);
+
+  const isDemoMode = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+
+  if (loading || user || isDemoMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const navigateTo = (path: string) => {
     try {

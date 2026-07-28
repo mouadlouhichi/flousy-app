@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   poweredByHeader: false, // stop advertising "X-Powered-By: Next.js"
   async headers() {

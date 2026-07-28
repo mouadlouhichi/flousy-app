@@ -22,7 +22,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const { currency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
-  const { language, setLanguage, localeNames } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
@@ -49,135 +49,161 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
     downloadCsv(`flousy-budget-${monthKey}.csv`, csvContent);
   };
 
+  const userInitial = user?.email?.[0]?.toUpperCase() || 'M';
+
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account">
-        <div className="flex flex-col gap-5">
-          {/* ── User Info ── */}
-          {user && (
-            <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-                  Signed in as
-                </span>
-                <span className="font-body-lg text-body-lg text-on-surface font-medium truncate max-w-[200px]">
-                  {user.email || 'Anonymous User'}
-                </span>
+      <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account" className="max-w-md">
+        <div className="space-y-6">
+          {/* ── User Profile Section ── */}
+          <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant/30 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-headline-md text-headline-md font-semibold">
+                {userInitial}
               </div>
-              <span className="px-3 py-1.5 bg-primary/10 text-primary font-label-md text-label-md rounded-full font-bold text-[12px]">
-                {profile?.plan || 'Free'} Plan
-              </span>
+              <div>
+                <p className="font-body-md text-body-md font-medium text-on-surface truncate max-w-[200px]">
+                  {user?.email || 'mouadlouhichi@gmail.com'}
+                </p>
+                <div className="inline-flex items-center px-2 py-1 mt-1 rounded-full bg-surface-tint/10 text-primary font-label-sm text-label-sm">
+                  {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* ── Pro Upgrade ── */}
+          {/* ── Primary Action: Upgrade ── */}
           {onOpenProModal && (
             <button
               type="button"
               onClick={onOpenProModal}
-              className={`w-full py-3.5 rounded-xl font-bold text-[14px] transition-all flex items-center justify-center gap-2 ${
-                profile?.plan === 'pro'
-                  ? 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15'
-                  : 'bg-gradient-to-r from-primary to-tertiary text-on-primary shadow-sm hover:shadow-md'
-              }`}
+              className="w-full bg-primary hover:bg-primary-container text-on-primary py-3 rounded-lg font-body-lg text-body-lg font-medium transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <AppIcon name={profile?.plan === 'pro' ? 'verified' : 'workspace_premium'} className=" text-[20px]" />
+              <AppIcon name="workspace_premium" className="text-sm text-on-primary" />
               <span>{profile?.plan === 'pro' ? 'Pro Membership' : 'Go to Premium'}</span>
             </button>
           )}
 
-          {/* ── Currency ── */}
-          <CustomSelect
-            label="Preferred Currency"
-            value={currency}
-            onChange={setCurrency}
-            options={Object.values(SUPPORTED_CURRENCIES).map((c) => ({
-              value: c.code,
-              label: `${c.code} — ${c.name} (${c.symbol})`,
-            }))}
-          />
+          {/* ── Configuration Sections ── */}
+          <div className="space-y-6 pt-sm">
+            {/* Preferred Currency */}
+            <div className="flex flex-col space-y-2">
+              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
+                Preferred Currency
+              </label>
+              <div className="relative">
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                >
+                  {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} - {c.name}
+                    </option>
+                  ))}
+                </select>
+                <AppIcon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]" />
+              </div>
+            </div>
 
-          {/* ── Appearance ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Appearance Mode
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['light', 'dark', 'system'] as const).map((t) => (
+            {/* Language */}
+            <div className="flex flex-col space-y-2">
+              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
+                Language
+              </label>
+              <div className="relative">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as 'en' | 'fr' | 'ar')}
+                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                >
+                  <option value="en">English</option>
+                  <option value="fr">Français</option>
+                  <option value="ar">العربية</option>
+                </select>
+                <AppIcon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]" />
+              </div>
+            </div>
+
+            {/* Appearance Mode */}
+            <div className="flex flex-col space-y-2">
+              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
+                Appearance
+              </label>
+              <div className="flex bg-surface-container-low p-1 rounded-lg border border-outline-variant/30">
                 <button
-                  key={t}
                   type="button"
-                  onClick={() => handleThemeChange(t)}
-                  className={`p-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all capitalize font-label-md text-label-md ${
-                    currentTheme === t
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
+                  onClick={() => handleThemeChange('light')}
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'light'
+                      ? 'bg-surface shadow-sm text-primary'
+                      : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name={t === 'light' ? 'light_mode' : t === 'dark' ? 'dark_mode' : 'desktop_windows'} className=" text-[22px]" />
-                  <span className="text-[13px] font-bold">{t}</span>
+                  <AppIcon name="light_mode" className="text-sm" />
+                  <span>Light</span>
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange('dark')}
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'dark'
+                      ? 'bg-surface shadow-sm text-primary'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <AppIcon name="dark_mode" className="text-sm" />
+                  <span>Dark</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange('system')}
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'system'
+                      ? 'bg-surface shadow-sm text-primary'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <AppIcon name="desktop_windows" className="text-sm" />
+                  <span>System</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* ── Language ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Language
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['en', 'fr', 'ar'] as const).map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => setLanguage(lang)}
-                  className={`p-3.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all capitalize font-label-md text-label-md ${
-                    language === lang
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/50'
-                  }`}
-                >
-                  <span className="text-[13px] font-bold">{localeNames[lang]}</span>
-                  <span className="text-[10px] font-medium uppercase">{lang}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <hr className="border-outline-variant/30" />
 
           {/* ── Data Management ── */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Data Management
-            </label>
+          <div>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="w-full p-3.5 rounded-xl border border-outline-variant bg-surface hover:bg-surface-variant/50 flex items-center justify-between transition-colors"
+              className="w-full flex items-center justify-between p-3 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface border border-outline-variant/30 cursor-pointer"
             >
-              <div className="flex items-center gap-2.5">
-                <AppIcon name="download" className=" text-primary text-[20px]" />
-                <span className="font-body-md text-body-md text-on-surface font-medium">Export Budget Data (CSV)</span>
+              <div className="flex items-center space-x-3">
+                <AppIcon name="download" className="text-on-surface-variant text-[20px]" />
+                <span className="font-body-md text-body-md font-medium">Export Budget Data (CSV)</span>
               </div>
-              <AppIcon name="chevron_right" className=" text-on-surface-variant text-[20px]" />
+              <AppIcon name="chevron_right" className="text-on-surface-variant text-[20px]" />
             </button>
           </div>
 
-          {/* ── Account Actions ── */}
-          <div className="flex flex-col gap-2.5 pt-3 border-t border-surface-variant">
+          {/* ── Destructive Actions ── */}
+          <div className="pt-lg space-y-md">
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3.5 rounded-xl border border-outline-variant text-on-surface hover:bg-surface-variant/50 font-bold text-[14px] transition-colors"
+                  className="w-full py-3 rounded-lg border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container font-body-md text-body-md font-medium transition-colors cursor-pointer"
                 >
                   Sign Out
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3.5 rounded-xl border border-error/30 text-error hover:bg-error-container/50 font-bold text-[14px] transition-colors"
+                  className="w-full py-3 text-error hover:bg-error-container/20 rounded-lg font-body-md text-body-md font-medium transition-colors cursor-pointer"
                 >
                   Delete Account & Erase Data
                 </button>
@@ -185,7 +211,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-3.5 rounded-xl bg-primary text-on-primary font-bold text-[14px] hover:bg-primary/90 transition-colors block"
+                className="w-full text-center py-3 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-medium hover:bg-primary-container transition-colors block"
               >
                 Sign In or Register Account
               </a>

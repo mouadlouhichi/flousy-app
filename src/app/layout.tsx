@@ -5,9 +5,9 @@ import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { LightLanguageProvider } from '@/lib/i18n-light';
+import { AppProviders } from '@/components/app-providers';
 import { SITE_URL } from '@/lib/seo';
 import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
-import { Analytics } from '@vercel/analytics/react';
 import '../index.css';
 
 const instrumentSans = Instrument_Sans({
@@ -111,11 +111,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>
-          {children}
+          <AppProviders>
+            {children}
+          </AppProviders>
         </LightLanguageProvider>
         <InstallBanner />
         <ServiceWorkerRegistrar />
-        <Analytics />
       </body>
     </html>
   );

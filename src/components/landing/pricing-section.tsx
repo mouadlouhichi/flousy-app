@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { useAuth } from '@/lib/auth-context';
 
 const plansBase = [
   { price: { monthly: 0, annual: 0 }, popular: false },
@@ -11,6 +12,9 @@ const plansBase = [
 
 export function PricingSection() {
   const { messages: m } = useLightLanguage();
+  const { user } = useAuth();
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isLoggedIn = Boolean(user || isDemo);
   const pricingData = m.landing.pricing;
   const [isAnnual, setIsAnnual] = useState(true);
 
@@ -116,16 +120,17 @@ export function PricingSection() {
               </ul>
 
               {/* CTA */}
-              <button
+              <a
+                href={isLoggedIn ? "/dashboard" : "/login"}
                 className={`w-full py-4 flex items-center justify-center gap-2 text-sm font-medium transition-all group ${
                   priceInfo.popular
                     ? "bg-primary text-white hover:bg-primary/90"
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"
                 }`}
               >
-                {planData.cta}
+                {isLoggedIn ? "Go to Dashboard" : planData.cta}
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </button>
+              </a>
             </div>
             );
           }

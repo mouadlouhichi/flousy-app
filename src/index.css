@@ -381,14 +381,12 @@
     font-size: 0.75rem; /* 12px */
     line-height: 1rem; /* 16px */
     font-weight: 600;
-    letter-spacing: 0.05em;
   }
   @media (min-width: 768px) {
     .font-label-md , .text-label-md {
       font-size: 1rem; /* 12px */
       line-height: 1.24; /* 16px */
       font-weight: 600;
-      letter-spacing: 0.05em;
     }
     
   }
