@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 const notoNaskhArabic = Noto_Naskh_Arabic({
   subsets: ['arabic'],
   variable: '--font-arabic',
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: ['400', '500', '600', '700'],
 });
 
 // Required for nonce-based CSP (src/middleware.ts): a per-request nonce
