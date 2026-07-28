@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomInput } from '../ui/CustomInput';
+import { CustomTextarea } from '../ui/CustomTextarea';
 import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -124,26 +126,17 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
         </div>
 
         {/* Person Name */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            PERSON / ENTITY
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((prev) => ({ ...prev, name: '' }));
-            }}
-            placeholder="e.g. John, Bank, Friend"
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-          {errors.name && (
-            <p role="alert" className="font-label-sm text-label-sm text-error">
-              {errors.name}
-            </p>
-          )}
-        </div>
+        <CustomInput
+          label="Person / Entity"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((prev) => ({ ...prev, name: '' }));
+          }}
+          placeholder="e.g. John, Bank, Friend"
+          error={errors.name}
+        />
 
         {/* Status */}
         <div className="flex flex-col gap-xs">
@@ -177,31 +170,21 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
         </div>
 
         {/* Date */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            DATE
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
-          />
-        </div>
+        <CustomInput
+          label="Date"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
 
         {/* Note */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            NOTE (OPTIONAL)
-          </label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="What is this debt for?"
-            rows={2}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all resize-none outline-none"
-          />
-        </div>
+        <CustomTextarea
+          label="Note (Optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="What is this debt for?"
+          rows={2}
+        />
 
         {/* Submit & Delete */}
         <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">

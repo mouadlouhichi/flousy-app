@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
+import { CustomInput } from '../ui/CustomInput';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -125,78 +126,56 @@ export function FixedModal({
         </div>
 
         {/* Bill Name */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            BILL / SUBSCRIPTION NAME
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((prev) => ({ ...prev, name: '' }));
-            }}
-            placeholder="e.g. Apartment Rent, Electricity, Netflix"
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-          {errors.name && (
-            <p role="alert" className="font-label-sm text-label-sm text-error">
-              {errors.name}
-            </p>
-          )}
-        </div>
+        <CustomInput
+          label="Bill / Subscription Name"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((prev) => ({ ...prev, name: '' }));
+          }}
+          placeholder="e.g. Apartment Rent, Electricity, Netflix"
+          error={errors.name}
+        />
 
         {/* Category */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            CATEGORY
-          </label>
-          <CustomSelect
-            value={type}
-            onChange={setType}
-            options={['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => ({
-              value: c,
-              label: c,
-            }))}
-          />
-        </div>
+        <CustomSelect
+          label="Category"
+          value={type}
+          onChange={setType}
+          options={['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => ({
+            value: c,
+            label: c,
+          }))}
+        />
 
         {/* Due Day / Date */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            DUE DAY OF MONTH
-          </label>
-          <input
-            type="text"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            placeholder="e.g. 1st of month, 15th"
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          />
-        </div>
+        <CustomInput
+          label="Due Day of Month"
+          type="text"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          placeholder="e.g. 1st of month, 15th"
+        />
 
         {/* Household Member */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            HOUSEHOLD MEMBER
-          </label>
-          <CustomSelect
-            value={person}
-            onChange={setPerson}
-            options={[
-              { value: 'Self', label: 'Self' },
-              { value: 'Partner', label: 'Partner / Spouse' },
-              { value: 'Family', label: 'Family / Shared' },
-              { value: 'Queen', label: 'Queen' },
-              { value: 'King', label: 'King' },
-            ]}
-          />
-        </div>
+        <CustomSelect
+          label="Household Member"
+          value={person}
+          onChange={setPerson}
+          options={[
+            { value: 'Self', label: 'Self' },
+            { value: 'Partner', label: 'Partner / Spouse' },
+            { value: 'Family', label: 'Family / Shared' },
+            { value: 'Queen', label: 'Queen' },
+            { value: 'King', label: 'King' },
+          ]}
+        />
 
         {/* Account / Place */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            PAID FROM
+        <div className="flex flex-col gap-sm">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+            Paid From
           </label>
           <div className="grid grid-cols-3 gap-sm">
             {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (

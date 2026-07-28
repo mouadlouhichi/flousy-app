@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomInput } from '../ui/CustomInput';
 import { customCategorySchema } from '../../lib/validation';
 
 interface ManageCategoriesModalProps {
@@ -107,19 +108,16 @@ export function ManageCategoriesModal({
             ADD NEW CATEGORY
           </span>
 
-          <div className="flex flex-col gap-xs">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError('');
-              }}
-              placeholder="Category Name e.g. Gym, Pets, Travel"
-              className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
-            />
-            {error && <p role="alert" className="font-label-sm text-label-sm text-error">{error}</p>}
-          </div>
+          <CustomInput
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError('');
+            }}
+            placeholder="Category Name e.g. Gym, Pets, Travel"
+            error={error}
+          />
 
           {/* Icon Picker */}
           <div className="flex flex-col gap-xs">

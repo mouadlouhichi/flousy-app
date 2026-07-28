@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
+import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -125,48 +126,30 @@ export function SavingsModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
         {mode === 'create' || mode === 'edit' ? (
           <>
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                GOAL NAME
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setErrors((prev) => ({ ...prev, name: '' }));
-                }}
-                placeholder="e.g. Emergency Fund, New Laptop, Vacation"
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
-              />
-              {errors.name && (
-                <p role="alert" className="font-label-sm text-label-sm text-error">
-                  {errors.name}
-                </p>
-              )}
-            </div>
+            <CustomInput
+              label="Goal Name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((prev) => ({ ...prev, name: '' }));
+              }}
+              placeholder="e.g. Emergency Fund, New Laptop, Vacation"
+              error={errors.name}
+            />
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                TARGET AMOUNT ({symbol})
-              </label>
-              <input
-                type="number"
-                step="any"
-                value={target}
-                onChange={(e) => {
-                  setTarget(e.target.value);
-                  setErrors((prev) => ({ ...prev, target: '' }));
-                }}
-                placeholder="0.00"
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none font-mono"
-              />
-              {errors.target && (
-                <p role="alert" className="font-label-sm text-label-sm text-error">
-                  {errors.target}
-                </p>
-              )}
-            </div>
+            <CustomInput
+              label={`Target Amount (${symbol})`}
+              type="number"
+              step="any"
+              value={target}
+              onChange={(e) => {
+                setTarget(e.target.value);
+                setErrors((prev) => ({ ...prev, target: '' }));
+              }}
+              placeholder="0.00"
+              error={errors.target}
+            />
 
             <CustomSelect
               label="Primary Source Place"
