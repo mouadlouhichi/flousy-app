@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeSpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
-import { useLanguage } from '../../lib/i18n-context';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -11,142 +10,80 @@ interface TrendsTabProps {
   onOpenProModal: () => void;
 }
 
-export function TrendsTab({ month, profile, onOpenProModal }: TrendsTabProps) {
+export function TrendsTab({ month }: TrendsTabProps) {
   const { format } = useCurrency();
-  const { t } = useLanguage();
-
-  const isPro = profile?.plan === 'pro';
-
-  // Sample data points for multi-month trends chart
-  const historicalData = [
-    { month: 'Apr', income: month.totalBudget * 0.95, spent: month.totalBudget * 0.72, savings: month.totalBudget * 0.23 },
-    { month: 'May', income: month.totalBudget * 0.98, spent: month.totalBudget * 0.68, savings: month.totalBudget * 0.30 },
-    { month: 'Jun', income: month.totalBudget, spent: month.totalBudget * 0.75, savings: month.totalBudget * 0.25 },
-    { month: 'Jul', income: month.totalBudget, spent: calculateEnvelopeSpent(month).totalSpent, savings: calculateEnvelopeSpent(month).savings },
-  ];
-
-  const maxVal = Math.max(...historicalData.map((d) => Math.max(d.income, d.spent)));
 
   // Person breakdown calculations
-  const personBreakdown: Record<string, number> = {};
+  const personBreakdown: Record<string, { variable: number; fixed: number }> = {};
   (month.variableExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
-    personBreakdown[person] = (personBreakdown[person] || 0) + exp.amount;
+    if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
+    personBreakdown[person].variable += exp.amount;
   });
   (month.fixedExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
-    personBreakdown[person] = (personBreakdown[person] || 0) + exp.amount;
+    if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
+    personBreakdown[person].fixed += exp.amount;
   });
 
-  const totalHouseholdSpent = Object.values(personBreakdown).reduce((a, b) => a + b, 0);
+  const totalHouseholdSpent = Object.values(personBreakdown).reduce(
+    (a, b) => a + b.variable + b.fixed,
+    0
+  );
+
+  // Category breakdown for debts context
+  const categoryBreakdown: Record<string, number> = {};
+  (month.variableExpenses || []).forEach((exp) => {
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+  });
+  (month.fixedExpenses || []).forEach((exp) => {
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+  });
+
+  const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
+  const totalAllSpent = calculateEnvelopeSpent(month).totalSpent;
+
+  const DEBT_COLORS = [
+    '#00685f', '#3b82f6', '#8b5cf6', '#f97316',
+    '#ec4899', '#ef4444', '#eab308', '#06b6d4',
+    '#6366f1', '#10b981', '#b05e3d', '#84cc16',
+  ];
 
   return (
     <div className="space-y-md pb-xl">
       {/* Header card */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col md:flex-row justify-between items-start md:items-center gap-md">
-        <div>
-          <div className="flex items-center gap-xs">
-            <h2 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
-              Multi-Month Trends & Analytics
-            </h2>
-            {!isPro && (
-              <span className="px-2 py-0.5 rounded-full bg-tertiary-container text-on-tertiary-container font-label-sm text-[11px] font-bold">
-                PRO FEATURE
-              </span>
-            )}
-          </div>
-          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-            Track income stability, expense velocity, and household spending patterns over time.
-          </p>
+      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-xs">
+        <div className="flex items-center gap-xs">
+          <span className="material-symbols-outlined text-primary text-[24px]">handshake</span>
+          <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:font-headline-md font-extrabold text-on-surface">
+            Debts & Spending Breakdown
+          </h2>
         </div>
-
-        {!isPro && (
-          <button
-            type="button"
-            onClick={onOpenProModal}
-            className="py-2.5 px-md bg-gradient-to-r from-primary to-tertiary text-on-primary rounded-xl font-label-md text-label-md font-bold shadow-md hover:opacity-90 transition-all flex items-center gap-xs whitespace-nowrap"
-          >
-            <span className="material-symbols-outlined text-[20px]">workspace_premium</span>
-            <span>Unlock Historical Trends</span>
-          </button>
-        )}
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
+          Track spending per household member and see who owes what for the current month.
+        </p>
       </div>
 
-      {/* Main Income vs Expense Multi-Month Chart */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md relative">
-        {!isPro && (
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-[2px] z-10 rounded-3xl flex flex-col items-center justify-center p-md text-center">
-            <span className="material-symbols-outlined text-[40px] text-primary mb-2">lock</span>
-            <h3 className="font-title-md text-title-md font-extrabold text-on-surface">Pro Analytics Preview</h3>
-            <p className="font-body-sm text-body-sm text-on-surface-variant max-w-sm mb-md">
-              Upgrade to Pro to visualize historical month-over-month performance and spending trends.
-            </p>
-            <button
-              type="button"
-              onClick={onOpenProModal}
-              className="py-2 px-md bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold shadow-sm hover:opacity-90 transition-all"
-            >
-              Upgrade to Unlock
-            </button>
-          </div>
-        )}
-
-        <div className="flex justify-between items-center">
-          <h3 className="font-title-md text-title-md font-bold text-on-surface">
-            Income vs Spending History
-          </h3>
-          <div className="flex items-center gap-md text-label-sm">
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-primary" />
-              <span>Income</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-error" />
-              <span>Spent</span>
-            </div>
-          </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-sm">
+        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
+          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Total Spent</span>
+          <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{format(totalAllSpent)}</p>
         </div>
-
-        {/* Visual Bar Graph */}
-        <div className="h-64 flex items-end justify-between gap-md pt-md px-xs border-b border-outline-variant">
-          {historicalData.map((d, idx) => {
-            const incomeHeight = maxVal > 0 ? (d.income / maxVal) * 100 : 0;
-            const spentHeight = maxVal > 0 ? (d.spent / maxVal) * 100 : 0;
-
-            return (
-              <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end gap-xs">
-                <div className="w-full flex justify-center items-end gap-1.5 h-full">
-                  {/* Income bar */}
-                  <div
-                    style={{ height: `${incomeHeight}%` }}
-                    className="w-1/2 max-w-[32px] bg-primary/80 hover:bg-primary rounded-t-lg transition-all relative group"
-                  >
-                    <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-on-surface text-[10px] px-1.5 py-0.5 rounded shadow-md whitespace-nowrap pointer-events-none transition-opacity font-bold">
-                      {format(d.income)}
-                    </span>
-                  </div>
-
-                  {/* Spent bar */}
-                  <div
-                    style={{ height: `${spentHeight}%` }}
-                    className="w-1/2 max-w-[32px] bg-error/80 hover:bg-error rounded-t-lg transition-all relative group"
-                  >
-                    <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-surface-container-highest text-on-surface text-[10px] px-1.5 py-0.5 rounded shadow-md whitespace-nowrap pointer-events-none transition-opacity font-bold">
-                      {format(d.spent)}
-                    </span>
-                  </div>
-                </div>
-                <span className="font-label-md text-label-md font-bold text-on-surface-variant">
-                  {d.month}
-                </span>
-              </div>
-            );
-          })}
+        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant">
+          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Members</span>
+          <p className="font-headline-sm sm:font-headline-md font-extrabold text-on-surface mt-1">{Object.keys(personBreakdown).length || '—'}</p>
+        </div>
+        <div className="p-md bg-surface-container rounded-2xl border border-outline-variant col-span-2 sm:col-span-1">
+          <span className="font-label-sm text-label-sm text-on-surface-variant uppercase">Budget Left</span>
+          <p className="font-headline-sm sm:font-headline-md font-extrabold text-primary mt-1">
+            {format(Math.max(0, month.totalBudget - totalAllSpent))}
+          </p>
         </div>
       </div>
 
       {/* Household / Person Spending Breakdown */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md">
+      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md">
         <div className="flex justify-between items-center">
           <div>
             <h3 className="font-title-md text-title-md font-bold text-on-surface">Household Member Spending</h3>
@@ -159,8 +96,9 @@ export function TrendsTab({ month, profile, onOpenProModal }: TrendsTabProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-md">
           {Object.entries(personBreakdown).length > 0 ? (
-            Object.entries(personBreakdown).map(([person, amount]) => {
-              const pct = totalHouseholdSpent > 0 ? Math.round((amount / totalHouseholdSpent) * 100) : 0;
+            Object.entries(personBreakdown).map(([person, data], idx) => {
+              const total = data.variable + data.fixed;
+              const pct = totalHouseholdSpent > 0 ? Math.round((total / totalHouseholdSpent) * 100) : 0;
               return (
                 <div
                   key={person}
@@ -172,21 +110,82 @@ export function TrendsTab({ month, profile, onOpenProModal }: TrendsTabProps) {
                   </div>
                   <div className="mt-sm">
                     <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
-                      {format(amount)}
+                      {format(total)}
                     </span>
                     <div className="w-full h-2 bg-surface-variant rounded-full mt-2 overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length],
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-2 text-[11px] font-bold text-on-surface-variant">
+                      <span>Variable: {format(data.variable)}</span>
+                      <span>Fixed: {format(data.fixed)}</span>
                     </div>
                   </div>
                 </div>
               );
             })
           ) : (
-            <p className="font-body-sm text-body-sm text-on-surface-variant col-span-full">
-              No transactions with designated household members yet.
+            <p className="font-body-sm text-body-sm text-on-surface-variant col-span-full text-center py-md">
+              No transactions yet. Add expenses to see the household breakdown.
             </p>
           )}
         </div>
+      </div>
+
+      {/* Category Spending Breakdown */}
+      <div className="p-md sm:p-lg bg-surface-container rounded-3xl border border-outline-variant space-y-md">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="font-title-md text-title-md font-bold text-on-surface">Spending by Category</h3>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              See where your money goes this month.
+            </p>
+          </div>
+          <span className="material-symbols-outlined text-primary text-[28px]">category</span>
+        </div>
+
+        {sortedCategories.length > 0 ? (
+          <div className="flex flex-col gap-sm">
+            {sortedCategories.map(([cat, amount], idx) => {
+              const pct = totalAllSpent > 0 ? Math.round((amount / totalAllSpent) * 100) : 0;
+              return (
+                <div key={cat} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length] }}
+                      />
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{cat}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-label-sm text-label-sm text-on-surface-variant">{pct}%</span>
+                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface">{format(amount)}</span>
+                    </div>
+                  </div>
+                  <div className="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${pct}%`,
+                        backgroundColor: DEBT_COLORS[idx % DEBT_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="font-body-sm text-body-sm text-on-surface-variant text-center py-md">
+            No expenses recorded yet for this month.
+          </p>
+        )}
       </div>
     </div>
   );

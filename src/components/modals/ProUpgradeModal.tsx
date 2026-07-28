@@ -136,7 +136,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 type="button"
                 onClick={handleUpgrade}
                 disabled={loading || success}
-                className="w-full py-3 px-lg bg-primary text-on-primary rounded-xl font-label-lg text-label-lg font-bold shadow-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-xs"
+                className="w-full py-2.5 sm:py-3 px-lg bg-primary text-on-primary rounded-xl font-label-md sm:font-label-lg text-label-md sm:text-label-lg font-bold shadow-md hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-xs"
               >
                 {loading ? (
                   <span>Processing...</span>

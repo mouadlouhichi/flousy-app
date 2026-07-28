@@ -324,7 +324,7 @@ export function ExpenseModal({
         </div>
 
         {/* Submit & Delete Actions */}
-        <div className="flex gap-md pt-md border-t border-surface-variant">
+        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
           {initialExpense && onDelete && (
             <button
               type="button"
@@ -332,14 +332,14 @@ export function ExpenseModal({
                 onDelete(initialExpense);
                 onClose();
               }}
-              className="px-4 py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-md transition-colors"
+              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
             >
               Delete
             </button>
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
           >
             {initialExpense ? 'Save Changes' : 'Add Expense'}
           </button>

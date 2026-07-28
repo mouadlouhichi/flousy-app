@@ -13,9 +13,10 @@ interface SettingsModalProps {
   month: MonthBudget;
   goals: SavingGoal[];
   monthKey: string;
+  onOpenProModal?: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose, month, goals, monthKey }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const { currency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -63,6 +64,29 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey }: Setti
                 {profile?.plan || 'Free'} Plan
               </span>
             </div>
+          )}
+
+          {/* Go to Premium */}
+          {profile?.plan !== 'pro' && onOpenProModal && (
+            <button
+              type="button"
+              onClick={onOpenProModal}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-tertiary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-xs"
+            >
+              <span className="material-symbols-outlined text-[20px]">workspace_premium</span>
+              <span>Go to Premium</span>
+            </button>
+          )}
+
+          {profile?.plan === 'pro' && onOpenProModal && (
+            <button
+              type="button"
+              onClick={onOpenProModal}
+              className="w-full py-3 rounded-xl bg-primary/10 text-primary font-label-lg text-label-lg font-bold border border-primary/20 hover:bg-primary/15 transition-all flex items-center justify-center gap-xs"
+            >
+              <span className="material-symbols-outlined text-[20px]">verified</span>
+              <span>Pro Membership</span>
+            </button>
           )}
 
           {/* Currency Selection */}

@@ -113,7 +113,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(err.message || 'Google sign-in failed');
+        setError(err.message || 'Google sign-in failed. Please try again.');
       }
     } finally {
       setSubmitting(false);

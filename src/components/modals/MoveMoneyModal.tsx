@@ -190,7 +190,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
         {/* Submit */}
         <button
           type="submit"
-          className="w-full bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+          className="w-full bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
         >
           Confirm Transfer
         </button>

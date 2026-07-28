@@ -66,12 +66,14 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Auth Protection Effect
+  // Auth Protection Effect + Onboarding Redirect
   useEffect(() => {
     if (!user) {
       router.push('/login');
+    } else if (profile && !profile.onboardingComplete) {
+      router.push('/onboarding');
     }
-  }, [user, router]);
+  }, [user, profile, router]);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -381,9 +383,9 @@ export default function DashboardPage() {
             }`}
           >
             <span className={`material-symbols-outlined text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-              analytics
+              receipt_long
             </span>
-            <span>Trends & Debts</span>
+            <span>Debts</span>
           </button>
 
           <div className="my-2 border-t border-surface-variant/40" />
@@ -481,7 +483,7 @@ export default function DashboardPage() {
                 ? 'Fixed Bills'
                 : activeTab === 'savings'
                 ? 'Savings Goals'
-                : 'Trends & Debts'}
+                : 'Debts'}
             </h1>
           </div>
 
@@ -519,20 +521,6 @@ export default function DashboardPage() {
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
               <span>New Transaction</span>
-            </button>
-
-            <button
-              onClick={() => setIsProModalOpen(true)}
-              className={`px-3 py-1.5 rounded-xl font-label-sm text-label-sm font-extrabold flex items-center gap-1 transition-all ${
-                profile?.plan === 'pro'
-                  ? 'bg-primary/10 text-primary border border-primary/20'
-                  : 'bg-gradient-to-r from-primary to-tertiary text-on-primary shadow-xs hover:opacity-90'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">
-                {profile?.plan === 'pro' ? 'verified' : 'workspace_premium'}
-              </span>
-              <span className="hidden sm:inline">{profile?.plan === 'pro' ? 'Pro' : 'Go Pro'}</span>
             </button>
 
             <button
@@ -723,11 +711,11 @@ export default function DashboardPage() {
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
           }`}
-          aria-label="Trends & Debts"
-          title="Trends & Debts"
+          aria-label="Debts"
+          title="Debts"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-            analytics
+            handshake
           </span>
         </button>
       </nav>
@@ -786,6 +774,10 @@ export default function DashboardPage() {
         month={month}
         goals={goals}
         monthKey={currentMonthKey}
+        onOpenProModal={() => {
+          setIsSettingsModalOpen(false);
+          setIsProModalOpen(true);
+        }}
       />
 
       <ManageCategoriesModal
