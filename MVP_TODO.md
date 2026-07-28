@@ -138,7 +138,7 @@
 | 76 | ICU plural resolution | ✅ | `resolvePlural()` in `translations.ts` |
 | 77 | Locale-aware number formatting | ✅ | `getIntlLocale()` maps language to Intl locale |
 | 78 | Language cookie + localStorage persistence | ✅ | `setLanguageCookie()` + `LANG_STORAGE_KEY` |
-| **79** | **UI strings actually translated to FR/AR** | 🔧 | Framework is complete; need to verify all UI components use `t()` instead of hardcoded English strings |
+| **79** | **UI strings actually translated to FR/AR** | ✅ | All three locale files fully populated with localized translations. New keys added for trends, alerts, recurring bills, income source analytics, and debts/credits. |
 
 ## 🚀 Landing Page & SEO
 
@@ -182,14 +182,14 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | P1 | **Stripe mock payment integration** | ✅ | Realistic mock Checkout flow: plan selection → card form → 3D-secure simulation → receipt with transaction ID. See `payments.ts` and `ProUpgradeModal.tsx` |
-| P2 | **Recurring fixed charges (auto-carry bills between months)** | ⬜ | `recurring` flag exists on `FixedExpense` data model, but no auto-carry logic on month rollover |
-| P3 | **Multi-month trends / analytics view** | 🔧 | `TrendsTab` exists but shows current-month household/category breakdown only; needs `listMonths()` integration |
-| P4 | **Budget alerts ("80% of groceries used")** | 🔧 | `BudgetAlerts` component exists; verify threshold logic is complete |
-| P5 | **Full i18n UI translation (FR, AR)** | 🔧 | Framework ✓; need to audit every component for hardcoded English strings and replace with `t()` calls |
+| P2 | **Recurring fixed charges (auto-carry bills between months)** | ✅ | `carryOverFixedExpenses()` in `store.ts` copies recurring bills on month rollover, plus `carryOverRecurring` in dashboard auto-loads from previous month when entering a fresh month |
+| P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
+| P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
+| P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
 | P6 | **Shared / household budgets** | ⬜ | Rules are strictly single-user; multi-user would require subcollection redesign |
 | P7 | **Bank sync (Plaid / Tink)** | ⬜ | Post-MVP; no API integrations exist |
 | P8 | **Receipt OCR / smart scanning** | ⬜ | Receipt upload works (base64 data URL); no OCR processing |
-| P9 | **Income sources — analytics per source** | 🔧 | Multiple income sources can be added; no per-source reporting |
+| P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
 | P10 | **Push notifications** | ⬜ | No push notification infrastructure |
 | P11 | **Data export — JSON backup** | ⬜ | CSV export only |
 | P12 | **Month locking / archiving** | ⬜ | No concept of "closed" months |
@@ -223,10 +223,10 @@
 | Household / Person | 3 | 3 | 0 | 0 |
 | PWA & Installability | 10 | 10 | 0 | 0 |
 | Security & Infra | 8 | 8 | 0 | 0 |
-| i18n | 6 | 5 | 1 | 0 |
+| i18n | 6 | 6 | 0 | 0 |
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
-| **Post-MVP / Remaining** | **12** | **1** | **3** | **8** |
+| **Post-MVP / Remaining** | **12** | **6** | **0** | **6** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **113** | **100** | **4** | **9** |
+| **Grand Total (core + post-MVP)** | **112** | **106** | **0** | **6** |

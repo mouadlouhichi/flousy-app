@@ -48,6 +48,40 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     });
   }
 
+  // Category-level alerts: check each category against its theoretical share of the envelope
+  const activeCats = month.activeCategories || [];
+  const variableExpenses = month.variableExpenses || [];
+  const fixedExpenses = month.fixedExpenses || [];
+
+  // Calculate spending per category
+  const categorySpending: Record<string, number> = {};
+  variableExpenses.forEach((exp) => {
+    categorySpending[exp.type] = (categorySpending[exp.type] || 0) + exp.amount;
+  });
+  fixedExpenses.forEach((exp) => {
+    categorySpending[exp.type] = (categorySpending[exp.type] || 0) + exp.amount;
+  });
+
+  // For each active category with spending, check if it's above a reasonable share
+  // We use a simple heuristic: categories with >60% of total variable spending get flagged
+  const totalVariableSpent = variableExpenses.reduce((a, e) => a + e.amount, 0);
+  const CATEGORY_ALERT_THRESHOLD = 0.6; // 60% of variable spending in one category
+
+  if (totalVariableSpent > 0) {
+    Object.entries(categorySpending)
+      .filter(([cat]) => activeCats.includes(cat))
+      .forEach(([cat, amount]) => {
+        const pct = (amount / totalVariableSpent) * 100;
+        if (pct >= CATEGORY_ALERT_THRESHOLD * 100) {
+          alerts.push({
+            title: `"${cat}" Spending Alert`,
+            message: `${cat} represents ${Math.round(pct)}% of variable spending (${format(amount)}). Consider reviewing this category.`,
+            severity: pct >= 80 ? 'error' : 'warning',
+          });
+        }
+      });
+  }
+
   return (
     <div className="relative">
       <button

@@ -25,12 +25,16 @@ import {
   addDebt,
   editDebt,
   deleteDebt,
+  carryOverFixedExpenses,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
   saveMonthBudget,
   subscribeSavingsGoals,
   saveSavingsGoals,
+  fetchMonthsForTrends,
+  getMonthBudget,
+  listMonths,
 } from '../../lib/db';
 
 // Tabs
@@ -66,12 +70,16 @@ export default function DashboardPage() {
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'variable' | 'fixed' | 'savings' | 'trends'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'variable' | 'fixed' | 'savings' | 'trends' | 'debts'>('overview');
 
   // Core State
   const [month, setMonth] = useState<MonthBudget>(() => normalizeMonth({ totalBudget: 0 }));
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Multi-month trends data
+  const [trendsMonths, setTrendsMonths] = useState<{ monthKey: string; month: MonthBudget }[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(false);
 
   // Auth Protection Effect
   useEffect(() => {
@@ -169,6 +177,55 @@ export default function DashboardPage() {
       saveSavingsGoals(user.uid, newGoals).catch((e) => console.error(e));
     }
   };
+
+  // Carry over recurring fixed expenses from previous month
+  const carryOverRecurring = async (monthKey: string) => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+    if (user) {
+      const prev = await getMonthBudget(user.uid, prevKey);
+      if (prev) {
+        const withCarry = carryOverFixedExpenses(month, prev);
+        if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
+          updateAndSaveMonth(withCarry);
+        }
+      }
+    } else {
+      try {
+        const local = localStorage.getItem(`flousy_month_${prevKey}`);
+        if (local) {
+          const prev = normalizeMonth(JSON.parse(local), prevKey);
+          const withCarry = carryOverFixedExpenses(month, prev);
+          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
+            updateAndSaveMonth(withCarry);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  };
+
+  // Automatically carry over recurring bills when entering a fresh month
+  useEffect(() => {
+    if (!loading && month && month.totalBudget > 0 &&
+        (month.variableExpenses || []).length === 0 &&
+        (month.fixedExpenses || []).length === 0) {
+      carryOverRecurring(currentMonthKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonthKey, loading]);
+
+  // Load multi-month data when Trends tab is active
+  useEffect(() => {
+    if (activeTab === 'trends' && month.totalBudget > 0) {
+      setTrendsLoading(true);
+      fetchMonthsForTrends(user?.uid, currentMonthKey, 6)
+        .then((data) => setTrendsMonths(data))
+        .catch(() => {})
+        .finally(() => setTrendsLoading(false));
+    }
+  }, [activeTab, currentMonthKey, user?.uid, month.totalBudget]);
 
   // Month navigation
   const handlePrevMonth = () => {
@@ -413,6 +470,20 @@ export default function DashboardPage() {
             }`}
           >
             <span className={`material-symbols-outlined text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`}>
+              trending_up
+            </span>
+            <span>Trends</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('debts')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-all ${
+              activeTab === 'debts'
+                ? 'bg-primary/10 text-primary font-bold shadow-xs'
+                : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-[22px] ${activeTab === 'debts' ? 'filled' : ''}`}>
               description
             </span>
             <span>Debts</span>
@@ -518,7 +589,9 @@ export default function DashboardPage() {
                 ? 'Fixed Bills'
                 : activeTab === 'savings'
                 ? 'Savings Goals'
-                : 'Debts'}
+                : activeTab === 'trends'
+                ? 'Trends & Analytics'
+                : 'Debts & Credits'}
             </h1>
           </div>
 
@@ -660,6 +733,16 @@ export default function DashboardPage() {
             )}
 
             {activeTab === 'trends' && (
+              <TrendsTab
+                month={month}
+                trendsMonths={trendsMonths}
+                trendsLoading={trendsLoading}
+                profile={profile}
+                onOpenProModal={() => setIsProModalOpen(true)}
+              />
+            )}
+
+            {activeTab === 'debts' && (
               <DebtsTab
                 month={month}
                 onOpenDebtModal={() => {
@@ -674,7 +757,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Floating Action Button (FAB for Mobile) */}
-      {activeTab !== 'trends' && (
+      {activeTab !== 'trends' && activeTab !== 'debts' && (
         <button
           onClick={() => {
             setSelectedExpense(null);
@@ -756,10 +839,25 @@ export default function DashboardPage() {
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
           }`}
+          aria-label="Trends"
+          title="Trends"
+        >
+          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
+            trending_up
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('debts')}
+          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+            activeTab === 'debts'
+              ? 'bg-primary text-on-primary shadow-sm scale-105'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+          }`}
           aria-label="Debts"
           title="Debts"
         >
-          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
+          <span className={`material-symbols-outlined text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`}>
             description
           </span>
         </button>

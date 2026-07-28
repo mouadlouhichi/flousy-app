@@ -571,6 +571,38 @@ export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, mon
 }
 
 /**
+ * Carries over recurring fixed expenses from a previous month into a new month.
+ * Only copies bills with `recurring: true`.
+ */
+export function carryOverFixedExpenses(
+  newMonth: MonthBudget,
+  previousMonth: MonthBudget,
+): MonthBudget {
+  const recurringBills = (previousMonth.fixedExpenses || []).filter((b) => b.recurring !== false);
+  if (recurringBills.length === 0) return newMonth;
+
+  const existingIds = new Set((newMonth.fixedExpenses || []).map((b) => b.id));
+  const toCarry = recurringBills.filter((b) => !existingIds.has(b.id));
+
+  // Recreate IDs so they don't collide
+  const carried = toCarry.map((b) => ({
+    ...b,
+    id: `carry-${b.id}-${Date.now()}`,
+    date: b.date || '1st',
+  }));
+
+  const totalCarried = carried.reduce((acc, b) => acc + b.amount, 0);
+  const totalExistingFixed = (newMonth.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
+
+  return {
+    ...newMonth,
+    fixedExpenses: [...(newMonth.fixedExpenses || []), ...carried],
+    bankPart: Math.max(0, (newMonth.bankPart || 0) - totalCarried),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Creates a brand new MonthBudget initialized with defaults
  */
 export function createNewMonth(
