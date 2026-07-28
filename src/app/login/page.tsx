@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
@@ -144,7 +146,7 @@ export default function LoginPage() {
         {!isConfigured && (
           <div className="p-4 bg-primary-container border border-primary/20 rounded-2xl flex flex-col gap-2.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-[14px]">
-              <span className="material-symbols-outlined text-[18px]">info</span>
+              <AppIcon name="info" className=" text-[18px]" />
               <span>Demo Mode Available</span>
             </div>
             <p className="text-[13px] text-on-surface-variant leading-snug">
@@ -181,9 +183,7 @@ export default function LoginPage() {
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] font-bold text-on-surface-variant">Full Name</label>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
-                  person
-                </span>
+                <AppIcon name="person" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
                 <input
                   type="text"
                   value={displayName}
@@ -199,9 +199,7 @@ export default function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-bold text-on-surface-variant">Email</label>
             <div className="relative flex items-center">
-              <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
-                mail
-              </span>
+              <AppIcon name="mail" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
               <input
                 type="email"
                 value={email}
@@ -228,9 +226,7 @@ export default function LoginPage() {
                 )}
               </div>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none">
-                  lock
-                </span>
+                <AppIcon name="lock" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
                 <input
                   type="password"
                   value={password}

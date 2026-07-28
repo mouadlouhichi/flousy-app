@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, bucketOf } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -90,7 +92,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
         className="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors"
         aria-label="View Budget Alerts"
       >
-        <span className="material-symbols-outlined text-[24px]">notifications</span>
+        <AppIcon name="notifications" className=" text-[24px]" />
         {alerts.length > 0 && (
           <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full animate-pulse" />
         )}
@@ -100,7 +102,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
         <div className="absolute right-0 top-12 w-80 bg-surface-container-high border border-outline-variant shadow-xl rounded-2xl p-md z-50 space-y-sm">
           <div className="flex justify-between items-center border-b border-outline-variant pb-2">
             <div className="flex items-center gap-xs">
-              <span className="material-symbols-outlined text-primary text-[20px]">notifications</span>
+              <AppIcon name="notifications" className=" text-primary text-[20px]" />
               <h4 className="font-label-lg text-label-lg font-bold text-on-surface">Budget Health</h4>
             </div>
             <button
@@ -122,9 +124,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
                       : 'bg-tertiary-container/40 border-tertiary/50 text-on-tertiary-container'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">
-                    {a.severity === 'error' ? 'error' : 'warning'}
-                  </span>
+                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} className=" text-[20px] shrink-0 mt-0.5" />
                   <div>
                     <h5 className="font-label-md text-label-md font-bold">{a.title}</h5>
                     <p className="font-body-sm text-body-sm text-[12px] opacity-90">{a.message}</p>

@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
@@ -187,9 +188,7 @@ export function FixedModal({
                   className="sr-only peer"
                 />
                 <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 transition-all capitalize font-label-md text-label-md text-on-surface font-semibold">
-                  <span className="material-symbols-outlined text-[20px] text-outline peer-checked:text-primary">
-                    {p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'}
-                  </span>
+                  <AppIcon name={p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'} className=" text-[20px] text-outline peer-checked:text-primary" />
                   <span>{p}</span>
                 </div>
               </label>
@@ -200,7 +199,7 @@ export function FixedModal({
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
           <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-[20px]">event_repeat</span>
+            <AppIcon name="event_repeat" className=" text-primary text-[20px]" />
             <div>
               <span className="font-label-md text-label-md font-bold text-on-surface block">
                 Repeat Every Month
@@ -239,9 +238,7 @@ export function FixedModal({
             type="submit"
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {initialBill ? 'check' : 'add'}
-            </span>
+            <AppIcon name={initialBill ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialBill ? 'Save Changes' : 'Add Fixed Charge'}</span>
           </button>
         </div>

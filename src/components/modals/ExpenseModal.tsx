@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomSelect } from '../ui/CustomSelect';
@@ -184,9 +185,7 @@ export function ExpenseModal({
                   className="sr-only peer"
                 />
                 <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
-                  <span className="material-symbols-outlined text-[20px] text-outline peer-checked:text-primary">
-                    {p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'}
-                  </span>
+                  <AppIcon name={p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'} className=" text-[20px] text-outline peer-checked:text-primary" />
                   <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold capitalize">
                     {p}
                   </span>
@@ -244,12 +243,12 @@ export function ExpenseModal({
                 className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
                 aria-label="Remove receipt"
               >
-                <span className="material-symbols-outlined text-[18px]">close</span>
+                <AppIcon name="close" className=" text-[18px]" />
               </button>
             </div>
           ) : (
             <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
-              <span className="material-symbols-outlined text-primary text-[20px]">add_a_photo</span>
+              <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
               <span className="font-label-md text-label-md text-on-surface-variant font-medium">Upload Receipt Photo</span>
               <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
             </label>
@@ -274,9 +273,7 @@ export function ExpenseModal({
             type="submit"
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            <span className="material-symbols-outlined text-[18px]">
-              {initialExpense ? 'check' : 'add'}
-            </span>
+            <AppIcon name={initialExpense ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialExpense ? 'Save Changes' : 'Add Expense'}</span>
           </button>
         </div>

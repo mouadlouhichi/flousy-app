@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { MonthBudget, IncomeSource } from '../../lib/store';
@@ -172,7 +174,7 @@ export function IncomeSourcesModal({
             </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-[24px]">payments</span>
+            <AppIcon name="payments" className=" text-primary text-[24px]" />
           </div>
         </div>
 
@@ -184,7 +186,7 @@ export function IncomeSourcesModal({
 
           {sources.length === 0 ? (
             <div className="p-6 bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
-              <span className="material-symbols-outlined text-outline text-[32px]">payments</span>
+              <AppIcon name="payments" className=" text-outline text-[32px]" />
               <p className="font-body-sm text-body-sm text-on-surface-variant">No income sources yet. Add one below.</p>
             </div>
           ) : (
@@ -265,9 +267,7 @@ export function IncomeSourcesModal({
                         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                         style={{ backgroundColor: `${color}18` }}
                       >
-                        <span className="material-symbols-outlined text-[18px]" style={{ color }}>
-                          attach_money
-                        </span>
+                        <AppIcon name="attach_money" className="text-[18px]" style={{ color }} />
                       </div>
 
                       {/* Source info */}
@@ -303,7 +303,7 @@ export function IncomeSourcesModal({
                           className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                           aria-label={`Edit ${src.name}`}
                         >
-                          <span className="material-symbols-outlined text-[18px]">edit</span>
+                          <AppIcon name="edit" className=" text-[18px]" />
                         </button>
                         {sources.length > 1 && (
                           <button
@@ -312,7 +312,7 @@ export function IncomeSourcesModal({
                             className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
                             aria-label={`Remove ${src.name}`}
                           >
-                            <span className="material-symbols-outlined text-[18px]">close</span>
+                            <AppIcon name="close" className=" text-[18px]" />
                           </button>
                         )}
                       </div>
@@ -378,7 +378,7 @@ export function IncomeSourcesModal({
                 disabled={!newName.trim() || !newAmount}
                 className="py-2.5 px-3 bg-primary text-on-primary rounded-xl font-bold text-[14px] hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <AppIcon name="add" className=" text-[18px]" />
                 <span>Add</span>
               </button>
             </div>
@@ -409,7 +409,7 @@ export function IncomeSourcesModal({
           onClick={handleSave}
           className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
         >
-          <span className="material-symbols-outlined text-[20px]">check</span>
+          <AppIcon name="check" className=" text-[20px]" />
           <span>Save Income Sources ({format(totalCalculated)})</span>
         </button>
       </div>

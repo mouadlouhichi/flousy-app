@@ -1,5 +1,7 @@
 'use client';
 
+import { AppIcon } from '@/components/ui/app-icon';
+
 import React, { useState } from 'react';
 import { usePwaInstall } from '../../hooks/use-pwa-install';
 import { IosInstallSheet } from './ios-install-sheet';
@@ -35,9 +37,9 @@ export function InstallButton({ className = '', compact = false }: InstallButton
         onClick={handleClick}
         disabled={isPrompting}
         aria-label="Install Flousy app"
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-label-md font-bold border border-primary/25 bg-primary/10 text-primary transition-all hover:bg-primary/20 disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-label-md font-bold border border-primary/25 bg-primary/10 text-primary transition-all hover:bg-primary/20 disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
       >
-        <span className="material-symbols-outlined text-[18px]">install_mobile</span>
+        <AppIcon name="install_mobile" className=" text-[18px]" />
         <span className={compact ? 'hidden sm:inline' : ''}>Install</span>
       </button>
 
