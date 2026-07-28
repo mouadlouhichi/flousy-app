@@ -73,7 +73,7 @@ export function FooterSection() {
             </div>
 
             {/* Link Columns */}
-            {Object.entries(footerLinks).map(([title, links]) => (
+            {footerLinks.map(({ title, links }) => (
               <div key={title}>
                 <h3 className="text-sm font-medium mb-6">{title}</h3>
                 <ul className="space-y-4">
