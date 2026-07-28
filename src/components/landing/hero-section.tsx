@@ -81,7 +81,7 @@ export function HeroSection() {
           </h1>
         </div>
 
-        <div className="grid items-end gap-12 lg:grid-cols-2 lg:gap-24">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-24">
           <p className="max-w-xl text-xl leading-relaxed text-muted-foreground lg:text-2xl">
             Your money answers two questions: what it&apos;s for, and where it is.
             Flousy keeps them separate — every dirham accounted for, always.
