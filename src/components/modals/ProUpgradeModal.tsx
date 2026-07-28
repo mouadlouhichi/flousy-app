@@ -56,7 +56,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       <div className="flex flex-col gap-4 sm:gap-md">
         {/* Hero Banner */}
         <div className="p-5 sm:p-lg rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-tertiary text-on-primary shadow-lg flex flex-col items-center text-center relative overflow-hidden">
-          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-surface/10 rounded-full blur-2xl pointer-events-none" />
           <span className="material-symbols-outlined text-[40px] sm:text-[48px] mb-2 font-light">workspace_premium</span>
           <h3 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md font-extrabold tracking-tight">
             {isPro ? 'You are a Pro Member!' : 'Unlock Full Budgeting Power'}

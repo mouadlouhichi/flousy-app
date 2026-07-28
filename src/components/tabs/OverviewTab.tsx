@@ -19,7 +19,7 @@ export function OverviewTab({
   onOpenEditExpense,
   onSelectTab,
 }: OverviewTabProps) {
-  const { format, symbol } = useCurrency();
+  const { format, formatParts } = useCurrency();
 
   const { needs, wants, savings } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
   const spent = calculateEnvelopeSpent(month);
@@ -37,16 +37,21 @@ export function OverviewTab({
       {/* Top 3 Money Places Cards */}
       <div className="flex flex-col gap-3">
         {/* Bank */}
-        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center">
               <span className="material-symbols-outlined text-[22px]">account_balance</span>
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Bank</span>
-              <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
-                {format(month.bankPart || 0)}
-              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.bankPart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.bankPart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -59,21 +64,26 @@ export function OverviewTab({
         </div>
 
         {/* Home Cash */}
-        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-[#b05e3d] text-white flex items-center justify-center">
+            <div className="w-11 h-11 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center">
               <span className="material-symbols-outlined text-[22px]">home</span>
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Home Cash</span>
-              <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
-                {format(month.homePart || 0)}
-              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.homePart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.homePart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="text-[#b05e3d] font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
+            className="text-tertiary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
           >
             <span>Add Funds</span>
             <span className="material-symbols-outlined text-[16px]">add</span>
@@ -81,21 +91,26 @@ export function OverviewTab({
         </div>
 
         {/* Wallet */}
-        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-[#6366f1] text-white flex items-center justify-center">
+            <div className="w-11 h-11 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
               <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
             </div>
             <div className="flex flex-col">
               <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Wallet</span>
-              <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
-                {format(month.walletPart || 0)}
-              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                  {formatParts(month.walletPart || 0).amount}
+                </span>
+                <span className="text-[13px] font-bold text-on-surface-variant">
+                  {formatParts(month.walletPart || 0).currency}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={onOpenMoveMoneyModal}
-            className="text-[#6366f1] font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
+            className="text-secondary font-label-md font-bold hover:underline flex items-center gap-1 text-[13px]"
           >
             <span>Withdraw</span>
             <span className="material-symbols-outlined text-[16px]">south</span>
@@ -127,7 +142,7 @@ export function OverviewTab({
                 </div>
                 <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{needsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${needsSpentPct >= 100 ? 'bg-error' : 'bg-primary'}`}
                   style={{ width: `${needsSpentPct}%` }}
@@ -148,7 +163,7 @@ export function OverviewTab({
                 </div>
                 <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-amber-500'}`}
                   style={{ width: `${wantsSpentPct}%` }}
@@ -174,7 +189,7 @@ export function OverviewTab({
                   {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
                   className="h-full bg-slate-600 transition-all duration-500 rounded-full"
                   style={{ width: `${Math.min(100, Math.round((goals.reduce((acc, g) => acc + g.current, 0) / (savings || 1)) * 100))}%` }}
@@ -240,10 +255,10 @@ export function OverviewTab({
                   <div
                     key={exp.id}
                     onClick={() => onOpenEditExpense(exp)}
-                    className="p-3 bg-white rounded-2xl border border-slate-200/60 flex justify-between items-center hover:border-primary transition-all cursor-pointer"
+                    className="p-3 bg-surface rounded-2xl border border-outline-variant/60 flex justify-between items-center hover:border-primary transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 text-primary flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined text-[20px]">
                           {month.categoryIcons?.[exp.type] || 'shopping_bag'}
                         </span>
@@ -260,9 +275,14 @@ export function OverviewTab({
                       </div>
                     </div>
 
-                    <span className="font-mono font-extrabold text-[15px] text-on-surface">
-                      -{format(exp.amount)}
-                    </span>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="font-mono font-extrabold text-[15px] text-on-surface">
+                        -{formatParts(exp.amount).amount}
+                      </span>
+                      <span className="text-[11px] font-bold text-on-surface-variant">
+                        {formatParts(exp.amount).currency}
+                      </span>
+                    </div>
                   </div>
                 ))}
 
