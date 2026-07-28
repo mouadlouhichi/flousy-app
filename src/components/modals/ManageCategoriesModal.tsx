@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
@@ -93,7 +94,7 @@ export function ManageCategoriesModal({
                   className="p-0.5 text-on-surface-variant hover:text-error rounded-full ml-0.5 transition-colors"
                   aria-label={`Remove category ${cat}`}
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <AppIcon name="close" className=" text-[16px]" />
                 </button>
               </div>
             ))}
@@ -135,7 +136,7 @@ export function ManageCategoriesModal({
                   }`}
                   aria-label={`Icon ${ic}`}
                 >
-                  <span className="material-symbols-outlined text-[20px]">{ic}</span>
+                  <AppIcon name={ic} className=" text-[20px]" />
                 </button>
               ))}
             </div>
@@ -145,7 +146,7 @@ export function ManageCategoriesModal({
             type="submit"
             className="w-full bg-primary text-on-primary font-bold text-[14px] py-2.5 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <AppIcon name="add" className=" text-[18px]" />
             <span>Add Category</span>
           </button>
         </form>

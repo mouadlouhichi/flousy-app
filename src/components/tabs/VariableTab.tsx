@@ -1,3 +1,4 @@
+import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import { MonthBudget, VariableExpense } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -53,13 +54,13 @@ export function VariableTab({
             className="p-3 bg-surface hover:bg-surface-variant text-on-surface border border-outline-variant rounded-xl font-label-md text-label-md font-semibold flex items-center gap-xs"
             title="Manage Categories"
           >
-            <span className="material-symbols-outlined text-[20px]">label</span>
+            <AppIcon name="label" className=" text-[20px]" />
           </button>
           <button
             onClick={onOpenAddModal}
             className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
           >
-            <span className="material-symbols-outlined text-[20px]">add</span>
+            <AppIcon name="add" className=" text-[20px]" />
             <span>Add Expense</span>
           </button>
         </div>
@@ -68,9 +69,7 @@ export function VariableTab({
       {/* Search & Category Chips */}
       <div className="flex flex-col gap-md">
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
-            search
-          </span>
+          <AppIcon name="search" className=" absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" />
           <input
             type="text"
             value={search}
@@ -100,7 +99,7 @@ export function VariableTab({
       {/* Expense List */}
       {filteredExpenses.length === 0 ? (
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
-          <span className="material-symbols-outlined text-outline text-[44px]">search_off</span>
+          <AppIcon name="search_off" className=" text-outline text-[44px]" />
           <p className="font-body-md text-body-md text-on-surface-variant">No matching variable expenses found.</p>
         </div>
       ) : (
@@ -113,9 +112,7 @@ export function VariableTab({
             >
               <div className="flex items-center gap-md">
                 <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">
-                  <span className="material-symbols-outlined text-[22px]">
-                    {month.categoryIcons?.[exp.type] || 'shopping_bag'}
-                  </span>
+                  <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className=" text-[22px]" />
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-xs">
@@ -128,9 +125,7 @@ export function VariableTab({
                       </span>
                     )}
                     {exp.receiptUrl && (
-                      <span className="material-symbols-outlined text-[16px] text-primary" title="Has receipt">
-                        receipt_long
-                      </span>
+                      <AppIcon name="receipt_long" className="text-[16px] text-primary" title="Has receipt" />
                     )}
                   </div>
                   <div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">
