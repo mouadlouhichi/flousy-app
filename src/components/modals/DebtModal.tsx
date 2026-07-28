@@ -1,0 +1,230 @@
+import React, { useState, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
+import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
+import { useCurrency } from '../../lib/currency-context';
+
+interface DebtModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (debt: DebtItem) => void;
+  onDelete?: (debtId: string) => void;
+  initialDebt?: DebtItem | null;
+}
+
+export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: DebtModalProps) {
+  const { symbol, format } = useCurrency();
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState('');
+  const [type, setType] = useState<DebtType>('debt');
+  const [status, setStatus] = useState<DebtStatus>('open');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [note, setNote] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (initialDebt) {
+      setName(initialDebt.name);
+      setAmount(String(initialDebt.amount));
+      setType(initialDebt.type);
+      setStatus(initialDebt.status);
+      setDate(initialDebt.date || new Date().toISOString().split('T')[0]);
+      setNote(initialDebt.note || '');
+    } else {
+      setName('');
+      setAmount('');
+      setType('debt');
+      setStatus('open');
+      setDate(new Date().toISOString().split('T')[0]);
+      setNote('');
+    }
+    setErrors({});
+  }, [initialDebt, isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmount = parseFloat(amount);
+
+    if (!name.trim()) {
+      setErrors({ name: 'Please enter a name or person' });
+      return;
+    }
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setErrors({ amount: 'Please enter a valid amount' });
+      return;
+    }
+
+    const debt: DebtItem = {
+      id: initialDebt ? initialDebt.id : Math.random().toString(36).substring(2, 9),
+      name: name.trim(),
+      amount: parsedAmount,
+      type,
+      status,
+      date,
+      note: note.trim() || undefined,
+    };
+
+    onSave(debt);
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? 'Edit Debt' : 'Add Debt'}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-lg">
+        {/* Amount Input */}
+        <div className="flex flex-col items-center justify-center py-sm">
+          <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">
+            AMOUNT
+          </label>
+          <div className="flex items-center text-primary font-bold">
+            <span className="text-headline-lg mr-xs">{symbol}</span>
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
+          {errors.amount && (
+            <p role="alert" className="font-label-sm text-label-sm text-error mt-1">
+              {errors.amount}
+            </p>
+          )}
+        </div>
+
+        {/* Type Toggle */}
+        <div className="flex bg-surface-variant/40 rounded-xl p-1">
+          <button
+            type="button"
+            onClick={() => setType('debt')}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+              type === 'debt'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'text-on-surface-variant'
+            }`}
+          >
+            I Owe
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('credit')}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+              type === 'credit'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'text-on-surface-variant'
+            }`}
+          >
+            Owed to Me
+          </button>
+        </div>
+
+        {/* Person Name */}
+        <div className="flex flex-col gap-xs">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+            PERSON / ENTITY
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setErrors((prev) => ({ ...prev, name: '' }));
+            }}
+            placeholder="e.g. John, Bank, Friend"
+            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
+          />
+          {errors.name && (
+            <p role="alert" className="font-label-sm text-label-sm text-error">
+              {errors.name}
+            </p>
+          )}
+        </div>
+
+        {/* Status */}
+        <div className="flex flex-col gap-xs">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+            STATUS
+          </label>
+          <div className="grid grid-cols-2 gap-sm">
+            <button
+              type="button"
+              onClick={() => setStatus('open')}
+              className={`py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                status === 'open'
+                  ? 'border-amber-400 bg-amber-50 text-amber-700'
+                  : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
+              }`}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatus('settled')}
+              className={`py-2.5 rounded-xl border text-sm font-bold transition-all ${
+                status === 'settled'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
+              }`}
+            >
+              Settled
+            </button>
+          </div>
+        </div>
+
+        {/* Date */}
+        <div className="flex flex-col gap-xs">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+            DATE
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none"
+          />
+        </div>
+
+        {/* Note */}
+        <div className="flex flex-col gap-xs">
+          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
+            NOTE (OPTIONAL)
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What is this debt for?"
+            rows={2}
+            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all resize-none outline-none"
+          />
+        </div>
+
+        {/* Submit & Delete */}
+        <div className="flex gap-sm sm:gap-md pt-sm sm:pt-md border-t border-surface-variant">
+          {initialDebt && onDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                onDelete(initialDebt.id);
+                onClose();
+              }}
+              className="px-3 sm:px-4 py-2.5 sm:py-4 rounded-xl border border-error text-error hover:bg-error-container/20 font-headline-sm sm:font-headline-md transition-colors"
+            >
+              Delete
+            </button>
+          )}
+          <button
+            type="submit"
+            className="flex-1 bg-primary text-on-primary font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md py-2.5 sm:py-4 rounded-xl hover:bg-primary-container transition-all active:scale-[0.98] shadow-sm"
+          >
+            {initialDebt ? 'Save Changes' : 'Add Debt'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

@@ -21,6 +21,10 @@ import {
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
+  DebtItem,
+  addDebt,
+  editDebt,
+  deleteDebt,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
@@ -35,6 +39,8 @@ import { VariableTab } from '../../components/tabs/VariableTab';
 import { FixedTab } from '../../components/tabs/FixedTab';
 import { SavingsTab } from '../../components/tabs/SavingsTab';
 import { TrendsTab } from '../../components/tabs/TrendsTab';
+import { DebtsTab } from '../../components/tabs/DebtsTab';
+import { DebtModal } from '../../components/modals/DebtModal';
 
 // Modals & UI
 import { ExpenseModal } from '../../components/modals/ExpenseModal';
@@ -91,6 +97,8 @@ export default function DashboardPage() {
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
 
   const [verificationSent, setVerificationSent] = useState(false);
 
@@ -264,6 +272,23 @@ export default function DashboardPage() {
     updateAndSaveMonth(updated);
   };
 
+  // Debt Handlers
+  const handleSaveDebt = (debt: DebtItem) => {
+    const existingIdx = (month.debts || []).findIndex((d) => d.id === debt.id);
+    let next: MonthBudget;
+    if (existingIdx >= 0) {
+      next = editDebt(month, debt.id, debt);
+    } else {
+      next = addDebt(month, debt);
+    }
+    updateAndSaveMonth(next);
+  };
+
+  const handleDeleteDebt = (debtId: string) => {
+    const next = deleteDebt(month, debtId);
+    updateAndSaveMonth(next);
+  };
+
   // Income Sources Handler
   const handleSaveIncomeSources = (sources: any[], total: number) => {
     const updated = normalizeMonth({
@@ -381,7 +406,7 @@ export default function DashboardPage() {
             }`}
           >
             <span className={`material-symbols-outlined text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-              receipt_long
+              description
             </span>
             <span>Debts</span>
           </button>
@@ -617,10 +642,12 @@ export default function DashboardPage() {
             )}
 
             {activeTab === 'trends' && (
-              <TrendsTab
+              <DebtsTab
                 month={month}
-                profile={profile}
-                onOpenProModal={() => setIsProModalOpen(true)}
+                onOpenDebtModal={() => {
+                  setSelectedDebt(null);
+                  setIsDebtModalOpen(true);
+                }}
               />
             )}
           </>
@@ -629,16 +656,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Floating Action Button (FAB for Mobile) */}
-      <button
-        onClick={() => {
-          setSelectedExpense(null);
-          setIsExpenseModalOpen(true);
-        }}
-        className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
-        aria-label="Add Expense"
-      >
-        <span className="material-symbols-outlined text-[30px]">add</span>
-      </button>
+      {activeTab !== 'trends' && (
+        <button
+          onClick={() => {
+            setSelectedExpense(null);
+            setIsExpenseModalOpen(true);
+          }}
+          className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
+          aria-label="Add Expense"
+        >
+          <span className="material-symbols-outlined text-[30px]">add</span>
+        </button>
+      )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
       <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
@@ -668,7 +697,7 @@ export default function DashboardPage() {
           title="Fixed Bills"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`}>
-            event_repeat
+            receipt_long
           </span>
         </button>
 
@@ -683,7 +712,7 @@ export default function DashboardPage() {
           title="Variable Expenses"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`}>
-            receipt_long
+            payments
           </span>
         </button>
 
@@ -713,7 +742,7 @@ export default function DashboardPage() {
           title="Debts"
         >
           <span className={`material-symbols-outlined text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`}>
-            handshake
+            description
           </span>
         </button>
       </nav>
@@ -806,6 +835,17 @@ export default function DashboardPage() {
         onClose={() => setIsIncomeModalOpen(false)}
         month={month}
         onSaveIncomeSources={handleSaveIncomeSources}
+      />
+
+      <DebtModal
+        isOpen={isDebtModalOpen}
+        onClose={() => {
+          setIsDebtModalOpen(false);
+          setSelectedDebt(null);
+        }}
+        onSave={handleSaveDebt}
+        onDelete={handleDeleteDebt}
+        initialDebt={selectedDebt}
       />
     </div>
   );
