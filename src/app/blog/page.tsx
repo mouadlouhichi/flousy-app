@@ -1,34 +1,38 @@
-import type { Metadata } from "next";
-import { StaticPageShell } from "@/components/static/page-shell";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { StaticPageShell } from '@/components/static/page-shell';
+import { BLOG_POSTS } from '@/lib/blog';
+import { OG_IMAGE, SITE_NAME } from '@/lib/seo';
+
+const description = 'Practical guides from Flousy about budgeting methods, money places, and building reliable spending habits.';
 
 export const metadata: Metadata = {
-  title: "Blog — Flousy",
-  description: "Notes on budgeting, money habits, and building Flousy.",
+  title: 'Blog',
+  description,
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: '/blog',
+  },
+  openGraph: {
+    title: 'Budgeting Guides · Flousy',
+    description,
+    url: '/blog',
+    siteName: SITE_NAME,
+    type: 'website',
+    locale: 'en_US',
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Budgeting Guides · Flousy',
+    description,
+    images: [OG_IMAGE.url],
+  },
 };
-
-const posts = [
-  {
-    title: "Why 'what it's for' and 'where it is' are two different questions",
-    excerpt:
-      "Most budgeting frustration comes from mixing up two things that should stay separate: what your money is meant to cover, and where it physically sits right now.",
-    date: "July 2026",
-    readTime: "4 min read",
-  },
-  {
-    title: "Picking a budgeting style that actually fits you",
-    excerpt:
-      "50/30/20 isn't for everyone. Here's how to think about which split of needs, wants, and savings matches how you actually live.",
-    date: "June 2026",
-    readTime: "5 min read",
-  },
-  {
-    title: "The wallet leak: where small cash spending quietly adds up",
-    excerpt:
-      "Card spending is easy to track. Cash is where budgets usually spring a leak. A few habits that make wallet spending visible again.",
-    date: "May 2026",
-    readTime: "3 min read",
-  },
-];
 
 export default function BlogPage() {
   return (
@@ -38,27 +42,45 @@ export default function BlogPage() {
       subtitle="Short, practical writing about budgeting well — from the team building Flousy."
       maxWidth="max-w-4xl"
     >
-      <div className="divide-y divide-foreground/10">
-        {posts.map((post) => (
-          <article key={post.title} className="py-10 first:pt-0">
-            <div className="flex items-center gap-3 text-sm font-mono text-muted-foreground mb-4">
-              <span>{post.date}</span>
-              <span className="text-foreground/20">|</span>
+      <div className="divide-y divide-foreground/10 border-y border-foreground/10">
+        {BLOG_POSTS.map((post) => (
+          <article key={post.slug} className="group py-10 first:pt-10 lg:py-12">
+            <div className="mb-4 flex items-center gap-3 font-mono text-sm text-muted-foreground">
+              <time dateTime={post.dateTime}>{post.date}</time>
+              <span aria-hidden="true" className="text-foreground/20">
+                |
+              </span>
               <span>{post.readTime}</span>
             </div>
-            <h2 className="font-display text-2xl lg:text-3xl text-foreground mb-3">
-              {post.title}
+            <h2 className="mb-3 font-display text-2xl text-foreground lg:text-3xl">
+              <Link
+                href={`/blog/${post.slug}`}
+                className="transition-colors hover:text-primary"
+              >
+                {post.title}
+              </Link>
             </h2>
-            <p className="text-muted-foreground leading-relaxed max-w-2xl">{post.excerpt}</p>
+            <p className="max-w-2xl leading-relaxed text-muted-foreground">{post.excerpt}</p>
+            <Link
+              href={`/blog/${post.slug}`}
+              className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              aria-label={`Read ${post.title}`}
+            >
+              Read article
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </article>
         ))}
       </div>
 
       <p className="mt-16 text-muted-foreground">
-        More on the way. Have a topic you'd like us to cover?{" "}
-        <a href="/contact" className="text-foreground underline underline-offset-4 hover:no-underline">
+        More on the way. Have a topic you&apos;d like us to cover?{' '}
+        <Link
+          href="/contact"
+          className="text-foreground underline underline-offset-4 hover:no-underline"
+        >
           Let us know
-        </a>
+        </Link>
         .
       </p>
     </StaticPageShell>

@@ -3,7 +3,7 @@ import { StaticPageShell } from "@/components/static/page-shell";
 import { Mail } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Careers — Flousy",
+  title: "Careers",
   description: "Join the team building Flousy.",
 };
 

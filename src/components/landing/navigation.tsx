@@ -8,7 +8,8 @@ const navLinks = [
   { name: "Features", href: "/#features" },
   { name: "How it works", href: "/#how-it-works" },
   { name: "Security", href: "/#security" },
-  { name: "Roadmap", href: "/#pricing" },
+  { name: "Pricing", href: "/#pricing" },
+  { name: "FAQ", href: "/#faq" },
 ];
 
 export function Navigation() {
@@ -67,14 +68,13 @@ export function Navigation() {
             <a href="/login" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
               Sign in
             </a>
-            <a href="/login">
-              <Button
-                size="sm"
-                className={`bg-primary hover:bg-primary/90  hover:cursor-pointer text-card rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
-              >
-                Start budgeting
-              </Button>
-            </a>
+            <Button
+              asChild
+              size="sm"
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-white rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+            >
+              <a href="/login">Start budgeting</a>
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -130,21 +130,19 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <a href="/login" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button 
-                variant="outline" 
-                className="flex-1 rounded-full h-14 text-base w-full"
-              >
-                Sign in
-              </Button>
-            </a>
-            <a href="/login" className="flex-1" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button 
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-14 text-base w-full"
-              >
-                Start budgeting
-              </Button>
-            </a>
+            <Button
+              asChild
+              variant="outline"
+              className="flex-1 rounded-full h-14 text-base"
+            >
+              <a href="/login">Sign in</a>
+            </Button>
+            <Button
+              asChild
+              className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
+            >
+              <a href="/login">Start budgeting</a>
+            </Button>
           </div>
         </div>
       </div>

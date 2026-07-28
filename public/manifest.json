@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Flousy — Budget & Money Tracker",
+  "name": "Flousy – Private Budget Tracker",
   "short_name": "Flousy",
-  "description": "Private, mobile-first budget tracker separating budget envelopes from money places.",
+  "description": "Private budget tracker that separates needs, wants, and savings from money held in your bank, home, and wallet.",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",

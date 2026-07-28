@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { StaticPageShell } from "@/components/static/page-shell";
 
 export const metadata: Metadata = {
-  title: "About — Flousy",
+  title: "About",
   description:
     "Flousy is a simple, private budgeting app built around one idea: your money should always be easy to understand.",
 };

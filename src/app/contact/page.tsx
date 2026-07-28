@@ -3,7 +3,7 @@ import { StaticPageShell } from "@/components/static/page-shell";
 import { ContactForm, ContactEmailNote } from "@/components/static/contact-form";
 
 export const metadata: Metadata = {
-  title: "Contact — Flousy",
+  title: "Contact",
   description: "Get in touch with the Flousy team.",
 };
 

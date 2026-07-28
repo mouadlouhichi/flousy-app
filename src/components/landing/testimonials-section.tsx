@@ -55,9 +55,9 @@ export function TestimonialsSection() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         {/* Section Label */}
         <div className="flex items-center gap-4 mb-16">
-          <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
+          <h2 className="font-mono text-xs tracking-widest text-muted-foreground uppercase">
             What people say
-          </span>
+          </h2>
           <div className="flex-1 h-px bg-foreground/10" />
           <span className="font-mono text-xs text-muted-foreground">
             {String(activeIndex + 1).padStart(2, "0")} / {String(testimonials.length).padStart(2, "0")}
@@ -117,6 +117,8 @@ export function TestimonialsSection() {
               {testimonials.map((_, idx) => (
                 <button
                   key={idx}
+                  type="button"
+                  aria-label={`Show testimonial ${idx + 1}`}
                   onClick={() => {
                     setIsAnimating(true);
                     setTimeout(() => {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { StaticPageShell } from "@/components/static/page-shell";
 
 export const metadata: Metadata = {
-  title: "Cookie Policy — Flousy",
+  title: "Cookie Policy",
   description: "How Flousy uses cookies and similar technologies.",
 };
 
