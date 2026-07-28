@@ -46,6 +46,21 @@ export default function OnboardingPage() {
 
   const [showAddCustom, setShowAddCustom] = useState<boolean>(false);
   const [customCatName, setCustomCatName] = useState<string>('');
+  const [customCatIcon, setCustomCatIcon] = useState<string>('category');
+
+  const CUSTOM_ICONS = [
+    'category', 'fitness_center', 'pets', 'flight',
+    'school', 'work', 'build', 'card_giftcard',
+    'local_cafe', 'medical_services', 'child_care', 'palette',
+    'music_note', 'sports_tennis', 'restaurant', 'shopping_bag',
+  ];
+
+  const RANDOM_COLORS = [
+    '#f97316', '#3b82f6', '#8b5cf6', '#ec4899',
+    '#14b8a6', '#f59e0b', '#6366f1', '#ef4444',
+    '#06b6d4', '#10b981', '#eab308', '#84cc16',
+    '#d946ef', '#a855f7', '#f43f5e', '#006A60',
+  ];
 
   const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([
     { name: 'Rent', amount: 1500, category: 'Housing' },
@@ -118,11 +133,16 @@ export default function OnboardingPage() {
     if (!customCatName.trim()) return;
     const trimmed = customCatName.trim();
     if (!allCategories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
-      const newItem: CategoryItem = { name: trimmed, color: '#006A60', icon: 'category' };
+      const usedColors = new Set(allCategories.map((c) => c.color));
+      const available = RANDOM_COLORS.filter((c) => !usedColors.has(c));
+      const pool = available.length > 0 ? available : RANDOM_COLORS;
+      const randomColor = pool[Math.floor(Math.random() * pool.length)];
+      const newItem: CategoryItem = { name: trimmed, color: randomColor, icon: customCatIcon };
       setAllCategories([...allCategories, newItem]);
       setSelectedCategoryNames([...selectedCategoryNames, trimmed]);
     }
     setCustomCatName('');
+    setCustomCatIcon('category');
     setShowAddCustom(false);
   };
 
@@ -361,22 +381,43 @@ export default function OnboardingPage() {
                   e.preventDefault();
                   handleAddCustomCategory();
                 }}
-                className="flex gap-2 p-2 bg-white border border-slate-200 rounded-2xl"
+                className="flex flex-col gap-2.5 p-3 bg-white border border-slate-200 rounded-2xl"
               >
-                <input
-                  type="text"
-                  value={customCatName}
-                  onChange={(e) => setCustomCatName(e.target.value)}
-                  placeholder="Category Name (e.g. Gym)"
-                  className="flex-1 px-3 py-2 text-[14px] font-bold text-slate-900 bg-transparent outline-none"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#006A60] text-white font-bold rounded-xl text-[13px] hover:bg-[#00544c] cursor-pointer"
-                >
-                  Add
-                </button>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customCatName}
+                    onChange={(e) => setCustomCatName(e.target.value)}
+                    placeholder="Category Name (e.g. Gym)"
+                    className="flex-1 px-3 py-2 text-[14px] font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#006A60]"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#006A60] text-white font-bold rounded-xl text-[13px] hover:bg-[#00544c] cursor-pointer shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Pick an Icon</span>
+                  <div className="grid grid-cols-8 gap-1">
+                    {CUSTOM_ICONS.map((ic) => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setCustomCatIcon(ic)}
+                        className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${
+                          customCatIcon === ic
+                            ? 'bg-[#006A60] text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{ic}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </form>
             ) : (
               <button
@@ -461,8 +502,17 @@ export default function OnboardingPage() {
                   >
                     <option value="Housing">Housing / Rent</option>
                     <option value="Utilities">Utilities</option>
+                    <option value="Internet & Phone">Internet & Phone</option>
                     <option value="Subscriptions">Subscriptions</option>
                     <option value="Insurance">Insurance</option>
+                    <option value="Transport">Transport / Fuel</option>
+                    <option value="Food & Groceries">Food & Groceries</option>
+                    <option value="Health">Health / Medical</option>
+                    <option value="Education">Education</option>
+                    <option value="Childcare">Childcare</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Loans">Loans / Debt</option>
+                    <option value="Savings">Savings / Investment</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -488,17 +538,30 @@ export default function OnboardingPage() {
                       className="p-3.5 bg-white border border-slate-200 rounded-2xl flex justify-between items-center"
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
-                            b.category === 'Housing'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-teal-100 text-teal-700'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-[20px]">
-                            {b.category === 'Housing' ? 'home' : 'bolt'}
-                          </span>
-                        </div>
+                        {(() => {
+                          const billIconMap: Record<string, { icon: string; bg: string; text: string }> = {
+                            'Housing': { icon: 'home', bg: 'bg-amber-100', text: 'text-amber-700' },
+                            'Utilities': { icon: 'bolt', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+                            'Internet & Phone': { icon: 'wifi', bg: 'bg-blue-100', text: 'text-blue-700' },
+                            'Subscriptions': { icon: 'subscriptions', bg: 'bg-purple-100', text: 'text-purple-700' },
+                            'Insurance': { icon: 'shield', bg: 'bg-slate-100', text: 'text-slate-700' },
+                            'Transport': { icon: 'directions_car', bg: 'bg-cyan-100', text: 'text-cyan-700' },
+                            'Food & Groceries': { icon: 'restaurant', bg: 'bg-orange-100', text: 'text-orange-700' },
+                            'Health': { icon: 'favorite', bg: 'bg-red-100', text: 'text-red-700' },
+                            'Education': { icon: 'school', bg: 'bg-indigo-100', text: 'text-indigo-700' },
+                            'Childcare': { icon: 'child_care', bg: 'bg-pink-100', text: 'text-pink-700' },
+                            'Entertainment': { icon: 'sports_esports', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+                            'Loans': { icon: 'account_balance', bg: 'bg-rose-100', text: 'text-rose-700' },
+                            'Savings': { icon: 'savings', bg: 'bg-teal-100', text: 'text-teal-700' },
+                            'Other': { icon: 'category', bg: 'bg-gray-100', text: 'text-gray-700' },
+                          };
+                          const m = billIconMap[b.category] || billIconMap['Other'];
+                          return (
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${m.bg} ${m.text}`}>
+                              <span className="material-symbols-outlined text-[20px]">{m.icon}</span>
+                            </div>
+                          );
+                        })()}
                         <div className="flex flex-col">
                           <span className="text-[15px] font-bold text-slate-900">{b.name}</span>
                           <span className="text-[12px] font-medium text-slate-500">
@@ -681,7 +744,7 @@ export default function OnboardingPage() {
 
             {/* Donut Chart Card */}
             <div className="bg-white p-6 rounded-[28px] border border-slate-200/90 shadow-2xs flex flex-col items-center gap-5">
-              <div className="relative w-44 h-44 flex items-center justify-center">
+              <div className="relative w-52 h-52 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle
                     cx="50"
@@ -726,11 +789,11 @@ export default function OnboardingPage() {
                   />
                 </svg>
 
-                <div className="absolute flex flex-col items-center text-center">
-                  <span className="text-[11px] font-extrabold tracking-wider text-slate-400 uppercase">
+                <div className="absolute flex flex-col items-center text-center px-2">
+                  <span className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">
                     MONTHLY
                   </span>
-                  <span className="text-[24px] font-extrabold text-slate-900 font-mono">
+                  <span className="text-[18px] font-extrabold text-slate-900 font-mono leading-tight max-w-full truncate">
                     {format(parsedIncome)}
                   </span>
                 </div>

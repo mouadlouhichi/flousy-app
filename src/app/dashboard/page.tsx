@@ -66,14 +66,12 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Auth Protection Effect + Onboarding Redirect
+  // Auth Protection Effect
   useEffect(() => {
     if (!user) {
       router.push('/login');
-    } else if (profile && !profile.onboardingComplete) {
-      router.push('/onboarding');
     }
-  }, [user, profile, router]);
+  }, [user, router]);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
