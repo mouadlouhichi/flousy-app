@@ -423,7 +423,7 @@ export default function DashboardPage() {
           {/* Quick Tools */}
           <button
             onClick={() => setIsIncomeModalOpen(true)}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-label-md text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
             <span className="material-symbols-outlined text-[20px]">payments</span>
             <span>Income Sources</span>
@@ -431,7 +431,7 @@ export default function DashboardPage() {
 
           <button
             onClick={() => setIsCsvModalOpen(true)}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-label-md text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
             <span className="material-symbols-outlined text-[20px]">upload_file</span>
             <span>Import / Export CSV</span>
