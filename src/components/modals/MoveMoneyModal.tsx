@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
 import { MoneyPlace, MonthBudget } from '../../lib/store';
 import { moveMoneySchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -75,50 +76,40 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
         {/* Source & Target Place Pickers */}
         <div className="grid grid-cols-2 gap-md p-md bg-surface-container rounded-2xl border border-outline-variant">
           {/* FROM */}
-          <div className="flex flex-col gap-xs">
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-              FROM
-            </span>
-            <select
-              value={from}
-              onChange={(e) => {
-                const newFrom = e.target.value as MoneyPlace;
-                setFrom(newFrom);
-                if (newFrom === to) {
-                  setTo(newFrom === 'bank' ? 'wallet' : 'bank');
-                }
-                setErrors({});
-              }}
-              className="w-full p-sm bg-surface border border-outline-variant rounded-xl font-label-lg text-label-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-            >
-              <option value="bank">Bank ({format(month.bankPart)})</option>
-              <option value="home">Home Cash ({format(month.homePart)})</option>
-              <option value="wallet">Wallet ({format(month.walletPart)})</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="From"
+            value={from}
+            onChange={(newFrom) => {
+              setFrom(newFrom as MoneyPlace);
+              if (newFrom === to) {
+                setTo(newFrom === 'bank' ? 'wallet' : 'bank');
+              }
+              setErrors({});
+            }}
+            options={[
+              { value: 'bank', label: `Bank (${format(month.bankPart)})` },
+              { value: 'home', label: `Home Cash (${format(month.homePart)})` },
+              { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
+            ]}
+          />
 
           {/* TO */}
-          <div className="flex flex-col gap-xs">
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-              TO
-            </span>
-            <select
-              value={to}
-              onChange={(e) => {
-                const newTo = e.target.value as MoneyPlace;
-                setTo(newTo);
-                if (newTo === from) {
-                  setFrom(newTo === 'bank' ? 'wallet' : 'bank');
-                }
-                setErrors({});
-              }}
-              className="w-full p-sm bg-surface border border-outline-variant rounded-xl font-label-lg text-label-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-            >
-              <option value="bank">Bank ({format(month.bankPart)})</option>
-              <option value="home">Home Cash ({format(month.homePart)})</option>
-              <option value="wallet">Wallet ({format(month.walletPart)})</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="To"
+            value={to}
+            onChange={(newTo) => {
+              setTo(newTo as MoneyPlace);
+              if (newTo === from) {
+                setFrom(newTo === 'bank' ? 'wallet' : 'bank');
+              }
+              setErrors({});
+            }}
+            options={[
+              { value: 'bank', label: `Bank (${format(month.bankPart)})` },
+              { value: 'home', label: `Home Cash (${format(month.homePart)})` },
+              { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
+            ]}
+          />
         </div>
 
         {errors.to && (

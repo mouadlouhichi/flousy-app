@@ -6,6 +6,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
+import { CustomSelect } from '../ui/CustomSelect';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -90,22 +91,15 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           )}
 
           {/* Currency Selection */}
-          <div className="flex flex-col gap-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-              Preferred Currency
-            </label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="w-full p-4 bg-surface border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all outline-none"
-            >
-              {Object.values(SUPPORTED_CURRENCIES).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} — {c.name} ({c.symbol})
-                </option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Preferred Currency"
+            value={currency}
+            onChange={setCurrency}
+            options={Object.values(SUPPORTED_CURRENCIES).map((c) => ({
+              value: c.code,
+              label: `${c.code} — ${c.name} (${c.symbol})`,
+            }))}
+          />
 
           {/* Appearance / Theme */}
           <div className="flex flex-col gap-sm">

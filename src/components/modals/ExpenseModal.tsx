@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
 import { VariableExpense, MoneyPlace } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -168,22 +169,12 @@ export function ExpenseModal({
         </div>
 
         {/* Category Selection */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            CATEGORY
-          </label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          label="Category"
+          value={type}
+          onChange={setType}
+          options={categories.map((cat) => ({ value: cat, label: cat }))}
+        />
 
         {/* Money Place / Account Radio */}
         <div className="flex flex-col gap-xs">
@@ -251,22 +242,18 @@ export function ExpenseModal({
         </div>
 
         {/* Person (Household Member) */}
-        <div className="flex flex-col gap-xs">
-          <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-            HOUSEHOLD MEMBER
-          </label>
-          <select
-            value={person}
-            onChange={(e) => setPerson(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            <option value="Self">Self</option>
-            <option value="Partner">Partner / Spouse</option>
-            <option value="Family">Family / Shared</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-          </select>
-        </div>
+        <CustomSelect
+          label="Household Member"
+          value={person}
+          onChange={setPerson}
+          options={[
+            { value: 'Self', label: 'Self' },
+            { value: 'Partner', label: 'Partner / Spouse' },
+            { value: 'Family', label: 'Family / Shared' },
+            { value: 'Queen', label: 'Queen' },
+            { value: 'King', label: 'King' },
+          ]}
+        />
 
         {/* Date */}
         <div className="flex flex-col gap-xs">

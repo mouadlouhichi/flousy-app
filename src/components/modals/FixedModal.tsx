@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -150,17 +151,14 @@ export function FixedModal({
           <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
             CATEGORY
           </label>
-          <select
+          <CustomSelect
             value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none"
-          >
-            {['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+            onChange={setType}
+            options={['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => ({
+              value: c,
+              label: c,
+            }))}
+          />
         </div>
 
         {/* Due Day / Date */}
@@ -182,17 +180,17 @@ export function FixedModal({
           <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
             HOUSEHOLD MEMBER
           </label>
-          <select
+          <CustomSelect
             value={person}
-            onChange={(e) => setPerson(e.target.value)}
-            className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none cursor-pointer"
-          >
-            <option value="Self">Self</option>
-            <option value="Partner">Partner / Spouse</option>
-            <option value="Family">Family / Shared</option>
-            <option value="Queen">Queen</option>
-            <option value="King">King</option>
-          </select>
+            onChange={setPerson}
+            options={[
+              { value: 'Self', label: 'Self' },
+              { value: 'Partner', label: 'Partner / Spouse' },
+              { value: 'Family', label: 'Family / Shared' },
+              { value: 'Queen', label: 'Queen' },
+              { value: 'King', label: 'King' },
+            ]}
+          />
         </div>
 
         {/* Account / Place */}

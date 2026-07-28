@@ -7,6 +7,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { STRATEGIES, StrategyId, calculateEnvelopeAmounts, createNewMonth } from '../../lib/store';
 import { saveMonthBudget, setUserProfile } from '../../lib/db';
+import { CustomSelect } from '../../components/ui/CustomSelect';
 
 interface CategoryItem {
   name: string;
@@ -259,19 +260,18 @@ export default function OnboardingPage() {
             <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
               <label className="text-[13px] font-bold text-on-surface-variant">Average Monthly Income</label>
 
-              <div className="flex items-center justify-between p-3.5 bg-surface border border-outline-variant/90 rounded-2xl">
+              <div className="flex items-center justify-between p-3.5 bg-surface border border-outline-variant/90 rounded-2xl gap-3">
                 {/* Currency Dropdown */}
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="bg-surface-container hover:bg-surface-variant border border-outline-variant rounded-xl px-3 py-2 text-[15px] font-bold text-on-surface outline-none cursor-pointer"
-                >
-                  {Object.values(SUPPORTED_CURRENCIES).map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} ({c.symbol})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-32">
+                  <CustomSelect
+                    value={currency}
+                    onChange={setCurrency}
+                    options={Object.values(SUPPORTED_CURRENCIES).map((c) => ({
+                      value: c.code,
+                      label: `${c.code} (${c.symbol})`,
+                    }))}
+                  />
+                </div>
 
                 {/* Big Numeric Input */}
                 <input
@@ -493,29 +493,27 @@ export default function OnboardingPage() {
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-bold text-on-surface-variant">Category</label>
-                  <select
-                    value={newBillCategory}
-                    onChange={(e) => setNewBillCategory(e.target.value)}
-                    className="p-3 bg-surface border border-outline-variant rounded-xl text-[14px] font-medium text-on-surface outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="Housing">Housing / Rent</option>
-                    <option value="Utilities">Utilities</option>
-                    <option value="Internet & Phone">Internet & Phone</option>
-                    <option value="Subscriptions">Subscriptions</option>
-                    <option value="Insurance">Insurance</option>
-                    <option value="Transport">Transport / Fuel</option>
-                    <option value="Food & Groceries">Food & Groceries</option>
-                    <option value="Health">Health / Medical</option>
-                    <option value="Education">Education</option>
-                    <option value="Childcare">Childcare</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Loans">Loans / Debt</option>
-                    <option value="Savings">Savings / Investment</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Category"
+                  value={newBillCategory}
+                  onChange={setNewBillCategory}
+                  options={[
+                    { value: 'Housing', label: 'Housing / Rent' },
+                    { value: 'Utilities', label: 'Utilities' },
+                    { value: 'Internet & Phone', label: 'Internet & Phone' },
+                    { value: 'Subscriptions', label: 'Subscriptions' },
+                    { value: 'Insurance', label: 'Insurance' },
+                    { value: 'Transport', label: 'Transport / Fuel' },
+                    { value: 'Food & Groceries', label: 'Food & Groceries' },
+                    { value: 'Health', label: 'Health / Medical' },
+                    { value: 'Education', label: 'Education' },
+                    { value: 'Childcare', label: 'Childcare' },
+                    { value: 'Entertainment', label: 'Entertainment' },
+                    { value: 'Loans', label: 'Loans / Debt' },
+                    { value: 'Savings', label: 'Savings / Investment' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                />
               </div>
 
               <button

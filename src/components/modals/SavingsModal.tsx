@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { CustomSelect } from '../ui/CustomSelect';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -167,20 +168,16 @@ export function SavingsModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                PRIMARY SOURCE PLACE
-              </label>
-              <select
-                value={place}
-                onChange={(e) => setPlace(e.target.value as MoneyPlace)}
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-              >
-                <option value="bank">Bank</option>
-                <option value="home">Home Cash</option>
-                <option value="wallet">Wallet</option>
-              </select>
-            </div>
+            <CustomSelect
+              label="Primary Source Place"
+              value={place}
+              onChange={(v) => setPlace(v as MoneyPlace)}
+              options={[
+                { value: 'bank', label: 'Bank' },
+                { value: 'home', label: 'Home Cash' },
+                { value: 'wallet', label: 'Wallet' },
+              ]}
+            />
           </>
         ) : (
           <>
@@ -211,20 +208,16 @@ export function SavingsModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-xs">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase">
-                {mode === 'fund' ? 'DEDUCT FROM ACCOUNT' : 'DEPOSIT INTO ACCOUNT'}
-              </label>
-              <select
-                value={place}
-                onChange={(e) => setPlace(e.target.value as MoneyPlace)}
-                className="w-full p-md bg-surface border border-outline-variant rounded-xl font-body-lg text-body-lg text-on-surface focus:border-primary transition-all outline-none capitalize"
-              >
-                <option value="bank">Bank</option>
-                <option value="home">Home Cash</option>
-                <option value="wallet">Wallet</option>
-              </select>
-            </div>
+            <CustomSelect
+              label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
+              value={place}
+              onChange={(v) => setPlace(v as MoneyPlace)}
+              options={[
+                { value: 'bank', label: 'Bank' },
+                { value: 'home', label: 'Home Cash' },
+                { value: 'wallet', label: 'Wallet' },
+              ]}
+            />
           </>
         )}
 
