@@ -391,13 +391,35 @@ rounding-hostile values (`1`, `7`, `12345`, `1000001`), verifying that:
 ## 📱 Progressive Web App
 
 Installable on iOS and Android with a manifest, maskable icons and a service
-worker that caches the app shell for offline launch.
+worker that serves an offline page when the network is gone.
+
+**How the install flow works**
+
+| Piece | File | Why it's needed |
+| --- | --- | --- |
+| Manifest | `public/manifest.json` | Name, `start_url`, `display: standalone`, and 192/512 icons |
+| Icons | `public/icon-{192,512}.png`, `icon-maskable-{192,512}.png` | `any` and `maskable` are **separate** entries so Android doesn't crop the logo |
+| Service worker | `public/sw.js` | Chrome only offers an install prompt once a worker with a `fetch` handler is active |
+| Registration | `src/components/pwa/service-worker-registrar.tsx` | Registers `/sw.js` after `load`, production only |
+| Prompt capture | `src/components/pwa/install-prompt-capture.tsx` | Inline `<head>` script that catches `beforeinstallprompt` before React hydrates |
+| Install UI | `install-button.tsx`, `install-banner.tsx`, `ios-install-sheet.tsx` | Header button, auto banner, and manual iOS instructions |
+
+Anything that needs install state can use the `usePwaInstall()` hook:
+
+```ts
+const { canInstall, isInstalled, isIos, promptInstall } = usePwaInstall();
+```
 
 > [!IMPORTANT]
 > The service worker **deliberately never caches Firestore or Auth traffic.**
 > Showing stale financial data would be worse than an honest offline state,
 > and the Firebase SDK has its own offline persistence. It also only registers
 > in production, so it can't serve stale bundles during development.
+
+> [!NOTE]
+> `beforeinstallprompt` only fires over **HTTPS** (or `localhost`), and never in
+> Firefox or on iOS. iOS Safari users get the "Add to Home Screen" sheet instead.
+> Chrome also won't re-prompt an app that is already installed.
 
 ---
 

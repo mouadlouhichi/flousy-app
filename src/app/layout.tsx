@@ -4,6 +4,9 @@ import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '../lib/auth-context';
 import { CurrencyProvider } from '../lib/currency-context';
 import { LanguageProvider } from '../lib/i18n-context';
+import { InstallBanner } from '../components/pwa/install-banner';
+import { InstallPromptCapture } from '../components/pwa/install-prompt-capture';
+import { ServiceWorkerRegistrar } from '../components/pwa/service-worker-registrar';
 import '../index.css';
 
 const instrumentSans = Instrument_Sans({ 
@@ -27,6 +30,23 @@ export const metadata: Metadata = {
   description:
     'Flousy is the simple budgeting app that splits your income into needs, wants and savings, and tracks every dirham across your bank, home and wallet. Free to start, with Pro features to help you save even more.',
   manifest: '/manifest.json',
+  applicationName: 'Flousy',
+  appleWebApp: {
+    capable: true,
+    title: 'Flousy',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export const viewport = {
@@ -41,6 +61,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <InstallPromptCapture />
+        {/*
+          Next only emits the modern `mobile-web-app-capable`. iOS still reads
+          the Apple-prefixed tag to launch in standalone mode.
+        */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
@@ -53,9 +79,13 @@ export default function RootLayout({
       <body className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <AuthProvider>
           <LanguageProvider>
-            <CurrencyProvider>{children}</CurrencyProvider>
+            <CurrencyProvider>
+              {children}
+              <InstallBanner />
+            </CurrencyProvider>
           </LanguageProvider>
         </AuthProvider>
+        <ServiceWorkerRegistrar />
         <Analytics />
       </body>
     </html>

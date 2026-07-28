@@ -53,6 +53,7 @@ import { ProUpgradeModal } from '../../components/modals/ProUpgradeModal';
 import { ImportCsvModal } from '../../components/modals/ImportCsvModal';
 import { IncomeSourcesModal } from '../../components/modals/IncomeSourcesModal';
 import { BudgetAlerts } from '../../components/ui/BudgetAlerts';
+import { InstallButton } from '../../components/pwa/install-button';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -542,6 +543,8 @@ export default function DashboardPage() {
 
           {/* Header Action Tools */}
           <div className="flex items-center gap-2">
+            <InstallButton compact />
+
             <BudgetAlerts month={month} />
 
             <button
