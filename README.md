@@ -400,7 +400,15 @@ users/{uid}/data/savings        SavingsData
 Documents written by older versions are upgraded on read by `normalizeMonth()`,
 which backfills missing fields (including defaulting a legacy expense's `place`
 to `bank`). A machine-readable schema lives in
-[`firebase-blueprint.json`](firebase-blueprint.json).
+[`firebase-blueprint.json`](firebase-blueprint.json) — it covers every entity
+plus the nested item shapes (expenses, goals, debts, income sources).
+
+Nothing reads that file at runtime, so [`tests/blueprint.test.ts`](tests/blueprint.test.ts)
+keeps it honest: it parses `src/lib/store.ts` with the TypeScript compiler and
+fails the build if the blueprint's fields, `required` list, string-literal enums
+or array element types drift from the interfaces. It also cross-checks the
+document paths against `src/lib/db.ts` and the month-ID pattern, array caps and
+money bounds against `firestore.rules`. **Change a type — update the blueprint.**
 
 ---
 
