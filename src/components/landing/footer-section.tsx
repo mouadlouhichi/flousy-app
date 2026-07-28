@@ -29,9 +29,11 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { name: "Instagram", href: "#" },
-  { name: "Twitter", href: "#" },
-  { name: "LinkedIn", href: "#" },
+  { name: "Facebook", href: "https://facebook.com/flousyapp" },
+  { name: "Twitter", href: "https://twitter.com/flousyapp" },
+  { name: "Instagram", href: "https://instagram.com/flousyapp" },
+  { name: "LinkedIn", href: "https://linkedin.com/company/flousy" },
+  { name: "YouTube", href: "https://youtube.com/@flousyapp" },
 ];
 
 export function FooterSection() {
@@ -53,12 +55,18 @@ export function FooterSection() {
                 <span className="text-2xl font-display">Flousy</span>
               </a>
 
-              <p className="text-muted-foreground leading-relaxed mb-8 max-w-xs">
+              <p className="text-muted-foreground leading-relaxed mb-6 max-w-xs">
                 {ft.tagline}
               </p>
 
+              {/* Contact Info for Local SEO */}
+              <address className="text-sm text-muted-foreground mb-8 not-italic">
+                <p>123 Budget St, Finance City, FC 12345</p>
+                <p><a href="tel:+15551234567" className="hover:text-foreground">+1 (555) 123-4567</a></p>
+              </address>
+
               {/* Social Links */}
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-4">
                 {socialLinks.map((link) => (
                   <a
                     key={link.name}
