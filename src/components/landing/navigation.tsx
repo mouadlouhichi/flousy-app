@@ -57,7 +57,7 @@ export function Navigation() {
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
+                className="text-sm md:text-base font-semiBold text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
               >
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
@@ -67,13 +67,13 @@ export function Navigation() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="/login" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
+            <a href="/login" className={` font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
               Sign in
             </a>
             <Button
               asChild
               size="sm"
-              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer text-white rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={`bg-primary hover:bg-primary/90 hover:cursor-pointer  rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
             >
               <a href="/login">{m.landing.nav.startBudgeting}</a>
             </Button>

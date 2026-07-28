@@ -1,3 +1,4 @@
+"use client"
 import Link from 'next/link';
 import { LANDING_FAQS, type LandingFaq } from '@/lib/seo';
 import { useLightLanguage } from "@/lib/i18n-light";
