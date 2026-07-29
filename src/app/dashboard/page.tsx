@@ -32,6 +32,7 @@ import {
   deleteDebt,
   carryOverFixedExpenses,
   StrategyId,
+  UserProfile,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
