@@ -208,6 +208,7 @@ const icons: Record<string, LucideIcon> = {
   package: Package,
 };
 
+
 export function AppIcon({ name, title, ...props }: LucideProps & { name: string; title?: string }) {
   const Icon = icons[name] ?? icons.category;
   return (
