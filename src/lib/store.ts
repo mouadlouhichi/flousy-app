@@ -140,6 +140,7 @@ export interface MonthBudget {
   variableCategoryBases: Record<string, number>;
   fixedCategoryBases: Record<string, number>;
   categoryBudgets?: Record<string, number>; // Pro feature: planned maximum per category
+  rolloverFromPrevious?: Record<string, number>; // Pro feature: amounts rolled over from previous month
   activeCategories: string[];
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
@@ -156,6 +157,7 @@ export interface UserProfile {
   language?: 'en' | 'fr' | 'ar';
   householdMembers?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
+  enableRollover?: boolean; // Pro feature: carry unused budget to next month
 }
 
 /**
@@ -350,6 +352,28 @@ export function updateDefaultCategoryBudget(
     ...profile,
     defaultCategoryBudgets: updatedBudgets,
   };
+}
+
+/**
+ * Calculate rollover amounts from previous month (Pro feature)
+ * Returns unused budget for each category that can carry forward
+ */
+export function calculateRolloverAmounts(
+  previousMonth: MonthBudget
+): Record<string, number> {
+  const rollover: Record<string, number> = {};
+  const categoryBudgets = previousMonth.categoryBudgets || {};
+  
+  Object.entries(categoryBudgets).forEach(([category, budget]) => {
+    const spent = calculateCategorySpent(previousMonth, category);
+    const remaining = Math.max(0, budget - spent);
+    
+    if (remaining > 0) {
+      rollover[category] = remaining;
+    }
+  });
+  
+  return rollover;
 }
 
 /**
@@ -605,11 +629,13 @@ export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudge
 
 /**
  * Normalizes a raw Firestore month document, backfilling missing or legacy properties.
+ * Handles rollover from previous month for Pro users.
  */
 export function normalizeMonth(
   raw: Partial<MonthBudget> | null | undefined, 
   monthKey?: string,
-  userProfile?: UserProfile
+  userProfile?: UserProfile,
+  previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
   const defaultEnvelopes = calculateEnvelopeAmounts(fallbackIncome, raw?.strategyId || '50-30-20');
@@ -696,9 +722,23 @@ export function normalizeMonth(
   const walletPart = typeof raw?.walletPart === 'number' ? raw.walletPart : 0;
 
   // Copy default category budgets from user profile if month doesn't have any set
-  const categoryBudgets = raw?.categoryBudgets && Object.keys(raw.categoryBudgets).length > 0
+  let categoryBudgets = raw?.categoryBudgets && Object.keys(raw.categoryBudgets).length > 0
     ? raw.categoryBudgets
     : (userProfile?.defaultCategoryBudgets || {});
+
+  // Apply rollover from previous month (Pro feature)
+  let rolloverFromPrevious: Record<string, number> | undefined;
+  if (userProfile?.enableRollover && previousMonth && !raw?.rolloverFromPrevious) {
+    rolloverFromPrevious = calculateRolloverAmounts(previousMonth);
+    
+    // Add rollover amounts to category budgets
+    categoryBudgets = { ...categoryBudgets };
+    Object.entries(rolloverFromPrevious).forEach(([category, amount]) => {
+      categoryBudgets[category] = (categoryBudgets[category] || 0) + amount;
+    });
+  } else {
+    rolloverFromPrevious = raw?.rolloverFromPrevious;
+  }
 
   return {
     totalBudget,
@@ -713,6 +753,7 @@ export function normalizeMonth(
     variableCategoryBases: raw?.variableCategoryBases || {},
     fixedCategoryBases: raw?.fixedCategoryBases || {},
     categoryBudgets,
+    rolloverFromPrevious,
     activeCategories: raw?.activeCategories || defaultCategories,
     categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
     categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },

@@ -143,25 +143,48 @@ export default function DashboardPage() {
 
   const [verificationSent, setVerificationSent] = useState(false);
 
+  // Helper to get previous month data for rollover
+  const getPreviousMonth = async (monthKey: string): Promise<MonthBudget | undefined> => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+    if (user) {
+      const prev = await getMonthBudget(user.uid, prevKey);
+      return prev || undefined;
+    } else {
+      try {
+        const local = localStorage.getItem(`flousy_month_${prevKey}`);
+        if (local) {
+          return normalizeMonth(JSON.parse(local), prevKey, profile);
+        }
+      } catch { /* ignore */ }
+    }
+    return undefined;
+  };
+
   // 1. Subscribe or load month budget
   useEffect(() => {
     setLoading(true);
 
     if (user) {
-      const unsub = subscribeMonthBudget(user.uid, currentMonthKey, (data) => {
+      const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
         } else {
+          // Fetch previous month for rollover
+          const previousMonth = await getPreviousMonth(currentMonthKey);
+          
           // If no month document exists in Firestore, check local storage or initialize clean default
           const local = localStorage.getItem(`flousy_month_${currentMonthKey}`);
           if (local) {
             try {
-              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey, profile));
+              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey, profile, previousMonth));
             } catch {
-              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
+              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
             }
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile);
+            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth);
             setMonth(clean);
           }
         }
@@ -169,8 +192,10 @@ export default function DashboardPage() {
       });
       return () => unsub();
     } else {
-      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
-      setLoading(false);
+      getPreviousMonth(currentMonthKey).then((previousMonth) => {
+        setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
+        setLoading(false);
+      });
     }
   }, [user, currentMonthKey, profile]);
 
