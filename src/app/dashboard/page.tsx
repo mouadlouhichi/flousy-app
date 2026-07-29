@@ -291,12 +291,6 @@ export default function DashboardPage() {
     setCurrentMonthKey(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`);
   };
 
-  // Scroll to top when changing tabs (for absolute positioned nav)
-  const handleTabChange = (tab: typeof activeTab) => {
-    setActiveTab(tab);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // Expense Handlers
   const handleSaveVariableExpense = (exp: VariableExpense) => {
     if (selectedExpense) {
@@ -947,7 +941,7 @@ export default function DashboardPage() {
         />
         
         <button
-          onClick={() => handleTabChange('overview')}
+          onClick={() => setActiveTab('overview')}
           className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'overview'
               ? 'text-on-primary'
@@ -960,7 +954,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          onClick={() => handleTabChange('fixed')}
+          onClick={() => setActiveTab('fixed')}
           className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'fixed'
               ? 'text-on-primary'
@@ -973,7 +967,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          onClick={() => handleTabChange('variable')}
+          onClick={() => setActiveTab('variable')}
           className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'variable'
               ? 'text-on-primary'
@@ -986,7 +980,7 @@ export default function DashboardPage() {
         </button>
 
         <button
-          onClick={() => handleTabChange('savings')}
+          onClick={() => setActiveTab('savings')}
           className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'savings'
               ? 'text-on-primary'
@@ -1000,7 +994,7 @@ export default function DashboardPage() {
 
         {isPro && (
           <button
-            onClick={() => handleTabChange('trends')}
+            onClick={() => setActiveTab('trends')}
             className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
               activeTab === 'trends'
                 ? 'text-on-primary'
@@ -1014,7 +1008,7 @@ export default function DashboardPage() {
         )}
 
         <button
-          onClick={() => handleTabChange('debts')}
+          onClick={() => setActiveTab('debts')}
           className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'debts'
               ? 'text-on-primary'
