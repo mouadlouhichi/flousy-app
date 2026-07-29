@@ -80,7 +80,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
         <button
           type="button"
           onClick={onOpenDebtModal}
-          className="sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-1.5 hover:bg-accent-foreground transition-all shadow-sm"
+          className="w-full sm:w-auto sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center justify-center sm:justify-start gap-1.5 hover:bg-accent-foreground transition-all shadow-sm"
         >
           <AppIcon name="add" className=" text-[18px]" />
           Add
@@ -133,62 +133,21 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
         </div>
       ) : (
         <div className="flex flex-col items-center text-center py-8">
-          {/* Illustration */}
-          <div className="w-64 h-56 mb-6 flex items-center justify-center">
-            <svg viewBox="0 0 240 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Background circle */}
-              <ellipse cx="120" cy="180" rx="80" ry="10" fill="var(--primary-container)" />
-              {/* Person body */}
-              <rect x="95" y="110" width="50" height="60" rx="8" fill="var(--primary)" />
-              {/* Head */}
-              <circle cx="120" cy="90" r="20" fill="var(--primary)" />
-              {/* Hair */}
-              <path d="M100 85 C100 70, 140 70, 140 85 C140 80, 100 80, 100 85" fill="#1a1a2e" />
-              {/* Face */}
-              <circle cx="113" cy="88" r="2" fill="white" />
-              <circle cx="127" cy="88" r="2" fill="white" />
-              <path d="M115 95 Q120 98 125 95" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-              {/* Legs */}
-              <rect x="100" y="170" width="14" height="18" rx="4" fill="#1a1a2e" />
-              <rect x="126" y="170" width="14" height="18" rx="4" fill="#1a1a2e" />
-              {/* Arm holding coin */}
-              <rect x="145" y="115" width="8" height="30" rx="4" fill="var(--primary)" transform="rotate(15 145 115)" />
-              {/* Coin */}
-              <circle cx="160" cy="110" r="18" fill="#f59e0b" />
-              <text x="160" y="116" textAnchor="middle" fill="white" fontWeight="bold" fontSize="16">$</text>
-              {/* Coin glow */}
-              <circle cx="160" cy="110" r="22" fill="none" stroke="#f59e0b" strokeWidth="1" opacity="0.3" />
-              <line x1="160" y1="82" x2="160" y2="78" stroke="var(--tertiary)" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-              <line x1="175" y1="92" x2="178" y2="89" stroke="var(--tertiary)" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-              <line x1="145" y1="92" x2="142" y2="89" stroke="var(--tertiary)" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
-              {/* Balance scale */}
-              <line x1="60" y1="170" x2="60" y2="100" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
-              <line x1="40" y1="100" x2="80" y2="100" stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" />
-              {/* Left pan */}
-              <line x1="40" y1="100" x2="32" y2="130" stroke="var(--primary)" strokeWidth="2" />
-              <line x1="40" y1="100" x2="48" y2="130" stroke="var(--primary)" strokeWidth="2" />
-              <ellipse cx="40" cy="132" rx="10" ry="4" fill="var(--primary)" />
-              {/* Left coins */}
-              <rect x="34" y="124" width="6" height="6" rx="1" fill="#f59e0b" />
-              <rect x="40" y="122" width="6" height="6" rx="1" fill="#f59e0b" />
-              <rect x="37" y="118" width="6" height="6" rx="1" fill="#f59e0b" />
-              {/* Right pan */}
-              <line x1="80" y1="100" x2="72" y2="130" stroke="var(--primary)" strokeWidth="2" />
-              <line x1="80" y1="100" x2="88" y2="130" stroke="var(--primary)" strokeWidth="2" />
-              <ellipse cx="80" cy="132" rx="10" ry="4" fill="var(--primary)" />
-              {/* Right coins */}
-              <rect x="74" y="124" width="6" height="6" rx="1" fill="#f59e0b" />
-              <rect x="80" y="122" width="6" height="6" rx="1" fill="#f59e0b" />
-              <rect x="77" y="118" width="6" height="6" rx="1" fill="#f59e0b" />
-            </svg>
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+            <AppIcon name="account_balance" className="text-[40px] text-primary" />
           </div>
-          <span className="text-[13px] font-extrabold tracking-wider text-[var(--primary)] uppercase mb-4">
-            MANAGE DEBT PEACEFULLY
-          </span>
           <h3 className="text-[22px] font-extrabold text-on-surface">{emptyTitle}</h3>
           <p className="text-[15px] text-on-surface-variant mt-2 max-w-xs leading-relaxed">
             {emptyDesc}
           </p>
+          <button
+            type="button"
+            onClick={onOpenDebtModal}
+            className="mt-6 px-6 py-3 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-accent-foreground transition-all shadow-sm"
+          >
+            <AppIcon name="add" className="text-[18px]" />
+            {activeTab === 'debts' ? 'Add Debt' : 'Add Credit'}
+          </button>
         </div>
       )}
     </div>
