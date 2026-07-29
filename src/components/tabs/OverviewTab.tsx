@@ -190,11 +190,11 @@ export function OverviewTab({
                   className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
                   aria-label="Change budget strategy"
                 >
-                  <AppIcon name="tune" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
+                  <AppIcon name="sliders" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
                   <span className="font-label-sm text-label-sm font-bold text-on-surface">
                     {strategy.name}
                   </span>
-                  <AppIcon name="expand_more" className="text-[14px] text-on-surface-variant" />
+                  <AppIcon name="chevron_right" className="text-[14px] text-on-surface-variant rotate-90" />
                 </button>
               ) : (
                 <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">

@@ -13,10 +13,10 @@ interface StrategySelectorModalProps {
 }
 
 const STRATEGY_ICONS: Record<string, string> = {
-  '50-30-20': 'balance',
+  '50-30-20': 'pie_chart',
   '70-20-10': 'shield',
-  '80-20': 'tune',
-  'zero-based': 'grid_view',
+  '80-20': 'sliders',
+  'zero-based': 'grid_3x3',
   'envelope': 'mail',
   'pay-first': 'savings',
 };
