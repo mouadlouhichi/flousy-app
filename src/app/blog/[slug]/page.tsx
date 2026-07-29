@@ -176,7 +176,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 All articles
               </Link>
 
-              <h1 className="mb-6 font-display text-4xl tracking-tight text-foreground md:text-5xl lg:text-6xl">
+              <h1 className="mb-6 font-display text-3xl sm:text-4xl tracking-tight text-foreground md:text-5xl lg:text-6xl">
                 {post.title}
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
@@ -200,7 +200,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="mx-auto max-w-3xl px-6 pb-24 lg:px-12 lg:pb-32">
             {post.sections.map((section) => (
               <section key={section.heading} className="mb-12 last:mb-0">
-                <h2 className="mb-5 font-display text-3xl tracking-tight text-foreground">
+                <h2 className="mb-5 font-display text-2xl sm:text-3xl tracking-tight text-foreground">
                   {section.heading}
                 </h2>
 
@@ -248,7 +248,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
         <aside aria-labelledby="related-articles" className="border-t border-foreground/10 py-20">
           <div className="mx-auto max-w-5xl px-6 lg:px-12">
-            <h2 id="related-articles" className="mb-10 font-display text-3xl text-foreground">
+            <h2 id="related-articles" className="mb-10 font-display text-2xl sm:text-3xl text-foreground">
               Continue reading
             </h2>
             <div className="grid gap-8 md:grid-cols-2">

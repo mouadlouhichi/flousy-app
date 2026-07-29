@@ -25,7 +25,7 @@ export function StaticPageShell({
             <span className="w-8 h-px bg-foreground/30" />
             {eyebrow}
           </span>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl tracking-tight text-foreground mb-6">
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-foreground mb-6">
             {title}
           </h1>
           {subtitle && (

@@ -203,17 +203,17 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       <div className="flex flex-col gap-xl">
         {/* ─────────────────────── HERO CARD ─────────────────────── */}
         <div className="rounded-[24px] border border-surface-container-highest bg-surface-container shadow-sm overflow-hidden">
-          <div className="relative overflow-hidden bg-surface-container p-8 sm:p-10 text-center">
+          <div className="relative overflow-hidden bg-surface-container p-6 sm:p-10 text-center">
             <div className="absolute inset-x-[-40px] top-0 h-40 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative z-10 flex flex-col items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-primary shadow-sm">
-                <AppIcon name={step === 'receipt' ? 'verified' : 'workspace_premium'} className="text-[32px]" />
+            <div className="relative z-10 flex flex-col items-center gap-3 sm:gap-4">
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-3xl bg-primary/10 text-primary shadow-sm">
+                <AppIcon name={step === 'receipt' ? 'verified' : 'workspace_premium'} className="text-[28px] sm:text-[32px]" />
               </div>
-              <div className="space-y-3 max-w-3xl">
-                <h3 className="text-3xl font-bold tracking-tight leading-tight sm:text-4xl text-on-surface">
+              <div className="space-y-2 sm:space-y-3 max-w-3xl">
+                <h3 className="font-headline-lg text-headline-lg font-extrabold tracking-tight text-on-surface">
                   {isPro ? 'You are a Pro Member!' : 'Unlock Full Budgeting Power'}
                 </h3>
-                <p className="mx-auto max-w-xl text-base leading-7 text-on-surface-variant">
+                <p className="mx-auto max-w-xl text-sm sm:text-base leading-6 sm:leading-7 text-on-surface-variant">
                   {isPro
                     ? 'Thank you for supporting Flousy. All premium features are active.'
                     : 'Multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
