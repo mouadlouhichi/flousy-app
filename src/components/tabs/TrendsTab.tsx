@@ -405,7 +405,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
               const pct = env.needs > 0 ? Math.min(100, Math.round((spent.needs / env.needs) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-primary/10rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-primary'}`}
                     style={{ width: `${pct}%` }}
@@ -428,7 +428,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
               const pct = env.wants > 0 ? Math.min(100, Math.round((spent.wants / env.wants) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-amber-500'}`}
                     style={{ width: `${pct}%` }}

@@ -212,7 +212,7 @@ export function OverviewTab({
                 </div>
                 <span className="text-[11px] font-semibold text-on-surface-variant">{needsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${needsSpentPct >= 100 ? 'bg-error' : 'bg-primary'}`}
                   style={{ width: `${needsSpentPct}%` }}
@@ -233,7 +233,7 @@ export function OverviewTab({
                 </div>
                 <span className="text-[11px] font-semibold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-primary/10rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-amber-500'}`}
                   style={{ width: `${wantsSpentPct}%` }}
@@ -259,7 +259,7 @@ export function OverviewTab({
                   {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-slate-600 transition-all duration-500 rounded-full"
                   style={{ width: `${Math.min(100, Math.round((goals.reduce((acc, g) => acc + g.current, 0) / (savings || 1)) * 100))}%` }}

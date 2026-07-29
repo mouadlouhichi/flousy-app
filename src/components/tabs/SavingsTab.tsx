@@ -101,7 +101,7 @@ export function SavingsTab({
                     </span>
                   </div>
 
-                  <div className="w-full h-3 bg-outline-variant rounded-full overflow-hidden">
+                  <div className="w-full h-3 bg-primary/20 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-secondary transition-all duration-500"
                       style={{ width: `${pct}%` }}
