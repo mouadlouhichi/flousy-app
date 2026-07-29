@@ -2,6 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useRef, useState } from 'react';
 import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES, StrategyId } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 
 interface OverviewTabProps {
   month: MonthBudget;
@@ -32,6 +33,7 @@ export function OverviewTab({
   const editFinishedRef = useRef(false);
   const [draftBudget, setDraftBudget] = useState(String(month.totalBudget || 0));
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
 
   const { needs, wants, savings } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
   const spent = calculateEnvelopeSpent(month);
@@ -79,6 +81,7 @@ export function OverviewTab({
   };
 
   return (
+    <>
     <div className="flex flex-col gap-6 pb-24">
       {/* Top 3 Money Places Cards */}
       <div className="flex flex-col gap-3">
@@ -181,18 +184,18 @@ export function OverviewTab({
                 Budget Plan
               </h3>
               {onUpdateStrategy ? (
-                <select
-                  value={month.strategyId}
-                  onChange={(e) => onUpdateStrategy(e.target.value as StrategyId)}
-                  className="bg-surface-variant border-0 rounded-lg px-3 py-1.5 font-label-sm text-label-sm font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer max-w-[140px] sm:max-w-none"
-                  aria-label="Select budget strategy"
+                <button
+                  type="button"
+                  onClick={() => setIsStrategyModalOpen(true)}
+                  className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
+                  aria-label="Change budget strategy"
                 >
-                  {Object.values(STRATEGIES).filter(s => s.id !== 'custom').map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  <AppIcon name="tune" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
+                  <span className="font-label-sm text-label-sm font-bold text-on-surface">
+                    {strategy.name}
+                  </span>
+                  <AppIcon name="expand_more" className="text-[14px] text-on-surface-variant" />
+                </button>
               ) : (
                 <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">
                   {strategy.name}
@@ -428,5 +431,15 @@ export function OverviewTab({
         </div>
       </div>
     </div>
+    {isStrategyModalOpen && onUpdateStrategy && (
+        <StrategySelectorModal
+          isOpen={isStrategyModalOpen}
+          onClose={() => setIsStrategyModalOpen(false)}
+          currentStrategyId={month.strategyId}
+          totalBudget={month.totalBudget}
+          onSelect={(strategyId) => onUpdateStrategy(strategyId)}
+        />
+      )}
+    </>
   );
 }
