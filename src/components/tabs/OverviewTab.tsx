@@ -360,7 +360,7 @@ export function OverviewTab({
 
         {/* Right Column (Recent Activity) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-4 shadow-xs h-full">
+          <div className="flex flex-col gap-4 h-full">
             <div className="flex justify-between items-center">
               <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
                 Recent Activity
@@ -374,7 +374,7 @@ export function OverviewTab({
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="p-8 bg-surface-container-high/30 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
+              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
                 <AppIcon name="receipt_long" className=" text-outline text-[40px]" />
                 <p className="font-body-md text-body-md text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
@@ -385,7 +385,7 @@ export function OverviewTab({
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 bg-surface-container rounded-3xl border border-outline-variant p-6 shadow-xs">
                 {recentExpenses.map((exp) => (
                   <div
                     key={exp.id}
@@ -418,13 +418,6 @@ export function OverviewTab({
                     </div>
                   </div>
                 ))}
-
-                <button
-                  onClick={() => onSelectTab('variable')}
-                  className="w-full py-2.5 mt-2 text-center text-primary hover:text-primary/80 font-label-md text-xs font-bold transition-all"
-                >
-                  View All History
-                </button>
               </div>
             )}
           </div>
