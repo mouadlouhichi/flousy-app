@@ -41,7 +41,7 @@ export function ConfirmDialog({
             className={`px-5 py-2.5 rounded-xl font-label-md text-label-md text-white transition-colors focus:outline-none focus:ring-2 ${
               isDestructive
                 ? 'bg-error hover:bg-error/90 focus:ring-error'
-                : 'bg-primary hover:bg-primary/90 focus:ring-primary'
+                : 'bg-primary hover:bg-accent-foreground focus:ring-primary'
             }`}
           >
             {confirmLabel}

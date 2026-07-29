@@ -6,6 +6,8 @@ import { CustomInput } from '../ui/CustomInput';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
+import { isProUser } from '../../lib/pro-features';
+import { useAuth } from '../../lib/auth-context';
 
 interface FixedModalProps {
   isOpen: boolean;
@@ -25,6 +27,8 @@ export function FixedModal({
   categories,
 }: FixedModalProps) {
   const { symbol } = useCurrency();
+  const { profile } = useAuth();
+  const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Rent');
@@ -158,18 +162,24 @@ export function FixedModal({
         />
 
         {/* ── Household Member ── */}
-        <CustomSelect
-          label="Household Member"
-          value={person}
-          onChange={setPerson}
-          options={[
-            { value: 'Self', label: 'Self' },
-            { value: 'Partner', label: 'Partner / Spouse' },
-            { value: 'Family', label: 'Family / Shared' },
-            { value: 'Queen', label: 'Queen' },
-            { value: 'King', label: 'King' },
-          ]}
-        />
+        {isPro ? (
+          <CustomSelect
+            label="Household Member"
+            value={person}
+            onChange={setPerson}
+            options={[
+              { value: 'Self', label: 'Self' },
+              { value: 'Partner', label: 'Partner / Spouse' },
+              { value: 'Family', label: 'Family / Shared' },
+              { value: 'Queen', label: 'Queen' },
+              { value: 'King', label: 'King' },
+            ]}
+          />
+        ) : (
+          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
+          </div>
+        )}
 
         {/* ── Paid From ── */}
         <div className="flex flex-col gap-1.5">
@@ -236,7 +246,7 @@ export function FixedModal({
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialBill ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialBill ? 'Save Changes' : 'Add Fixed Charge'}</span>

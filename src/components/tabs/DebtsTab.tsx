@@ -80,7 +80,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
         <button
           type="button"
           onClick={onOpenDebtModal}
-          className="sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-1.5 hover:bg-primary/90 transition-all shadow-sm"
+          className="sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-1.5 hover:bg-accent-foreground transition-all shadow-sm"
         >
           <AppIcon name="add" className=" text-[18px]" />
           Add

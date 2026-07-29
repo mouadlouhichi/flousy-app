@@ -1,5 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -10,6 +10,8 @@ interface OverviewTabProps {
   onOpenMoveMoneyModal: () => void;
   onOpenEditExpense: (expense: any) => void;
   onSelectTab: (tab: 'overview' | 'variable' | 'fixed' | 'savings') => void;
+  onUpdateTotalBudget: (value: number) => void;
+  onEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
 }
 
 export function OverviewTab({
@@ -19,8 +21,12 @@ export function OverviewTab({
   onOpenMoveMoneyModal,
   onOpenEditExpense,
   onSelectTab,
+  onUpdateTotalBudget,
+  onEditMoneyPlaces,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const [draftBudget, setDraftBudget] = useState(String(month.totalBudget || 0));
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
 
   const { needs, wants, savings } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
   const spent = calculateEnvelopeSpent(month);
@@ -32,6 +38,22 @@ export function OverviewTab({
   const wantsSpentPct = wants > 0 ? Math.min(100, Math.round((spent.wants / wants) * 100)) : 0;
 
   const recentExpenses = (month.variableExpenses || []).slice(0, 5);
+
+  useEffect(() => {
+    setDraftBudget(String(month.totalBudget || 0));
+  }, [month.totalBudget]);
+
+  const handleBudgetSave = () => {
+    const parsed = Number.parseFloat(draftBudget);
+    if (!Number.isFinite(parsed)) {
+      setDraftBudget(String(month.totalBudget || 0));
+      setIsEditingBudget(false);
+      return;
+    }
+
+    onUpdateTotalBudget(Math.max(0, parsed));
+    setIsEditingBudget(false);
+  };
 
   return (
     <div className="flex flex-col gap-6 pb-24">
@@ -55,13 +77,15 @@ export function OverviewTab({
               </div>
             </div>
           </div>
-          <button
-            onClick={onOpenMoveMoneyModal}
-            className="text-primary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
-          >
-            <span>Move Money</span>
-            <AppIcon name="arrow_forward" className=" text-[16px]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenMoveMoneyModal}
+              className="text-primary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+            >
+              <span>Move</span>
+              <AppIcon name="swap_horiz" className=" text-[16px]" />
+            </button>
+          </div>
         </div>
 
         {/* Home Cash */}
@@ -82,13 +106,15 @@ export function OverviewTab({
               </div>
             </div>
           </div>
-          <button
-            onClick={onOpenMoveMoneyModal}
-            className="text-tertiary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
-          >
-            <span>Add Funds</span>
-            <AppIcon name="add" className=" text-[16px]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenMoveMoneyModal}
+              className="text-tertiary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+            >
+              <span>Deposit</span>
+              <AppIcon name="add" className=" text-[16px]" />
+            </button>
+          </div>
         </div>
 
         {/* Wallet */}
@@ -109,13 +135,15 @@ export function OverviewTab({
               </div>
             </div>
           </div>
-          <button
-            onClick={onOpenMoveMoneyModal}
-            className="text-secondary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
-          >
-            <span>Withdraw</span>
-            <AppIcon name="south" className=" text-[16px]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenMoveMoneyModal}
+              className="text-secondary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+            >
+              <span>Withdraw</span>
+              <AppIcon name="south" className=" text-[16px]" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -209,9 +237,34 @@ export function OverviewTab({
               <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-extrabold">
                 TOTAL MONTHLY BUDGET
               </span>
-              <h3 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-1">
-                {format(month.totalBudget)}
-              </h3>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={draftBudget}
+                  readOnly={!isEditingBudget}
+                  onChange={(e) => setDraftBudget(e.target.value)}
+                  onBlur={handleBudgetSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleBudgetSave();
+                    }
+                  }}
+                  className="w-40 bg-transparent font-headline-lg text-headline-lg text-on-surface font-extrabold outline-none"
+                />
+                <span className="font-label-md text-label-md text-on-surface-variant font-semibold">
+                  {formatParts(month.totalBudget).currency}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onEditMoneyPlaces({ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 })}
+                  className="ml-2 flex items-center gap-1 rounded-full border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+                >
+                  <AppIcon name="edit" className="text-[14px]" />
+                </button>
+              </div>
             </div>
             <div className="text-right">
               <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block">
@@ -245,7 +298,7 @@ export function OverviewTab({
                 <p className="font-body-md text-body-md text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
                   onClick={onOpenExpenseModal}
-                  className="px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold shadow-xs hover:bg-primary/90 transition-all"
+                  className="px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-full font-bold shadow-xs hover:bg-accent-foreground transition-all"
                 >
                   Add First Expense
                 </button>

@@ -341,6 +341,19 @@ export function moveMoney(month: MonthBudget, from: MoneyPlace, to: MoneyPlace, 
   };
 }
 
+export function updateMoneyPlaces(
+  month: MonthBudget,
+  values: Partial<Record<MoneyPlace, number>>
+): MonthBudget {
+  return {
+    ...month,
+    bankPart: Math.max(0, values.bank ?? month.bankPart ?? 0),
+    homePart: Math.max(0, values.home ?? month.homePart ?? 0),
+    walletPart: Math.max(0, values.wallet ?? month.walletPart ?? 0),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function fundGoal(
   month: MonthBudget,
   goals: SavingGoal[],

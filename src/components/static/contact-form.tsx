@@ -56,7 +56,7 @@ export function ContactForm() {
       <Button
         type="submit"
         size="lg"
-        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 text-base rounded-full group"
+        className="bg-primary hover:bg-accent-foreground text-primary-foreground px-8 h-14 text-base rounded-full group"
       >
         Send message
         <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1" />

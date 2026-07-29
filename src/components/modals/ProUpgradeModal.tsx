@@ -464,7 +464,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-sm hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-sm hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <AppIcon name="lock" className="text-[18px]" />
                 <span>Pay {fmtPrice(price)}</span>
@@ -584,7 +584,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[16px] shadow-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[16px] shadow-sm hover:bg-accent-foreground transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <AppIcon name="celebration" className="text-[20px]" />
               <span>Start Using Pro</span>
@@ -607,7 +607,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             <button
               type="button"
               onClick={() => setStep('card')}
-              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-sm hover:bg-primary/90 transition-all"
+              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-sm hover:bg-accent-foreground transition-all"
             >
               Try Again
             </button>

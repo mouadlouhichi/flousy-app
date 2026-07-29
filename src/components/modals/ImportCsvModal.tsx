@@ -262,7 +262,7 @@ export function ImportCsvModal({
             <button
               type="button"
               onClick={handleConfirmImport}
-              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <AppIcon name="add_task" className=" text-[20px]" />
               <span>Import {parsedRows.length} Item{parsedRows.length !== 1 ? 's' : ''}</span>

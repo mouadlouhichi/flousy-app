@@ -7,6 +7,8 @@ import { CustomTextarea } from '../ui/CustomTextarea';
 import { VariableExpense, MoneyPlace } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
+import { isProUser } from '../../lib/pro-features';
+import { useAuth } from '../../lib/auth-context';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -30,6 +32,8 @@ export function ExpenseModal({
   categoryIcons = {},
 }: ExpenseModalProps) {
   const { symbol } = useCurrency();
+  const { profile } = useAuth();
+  const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState(categories[0] || 'Groceries');
@@ -196,18 +200,24 @@ export function ExpenseModal({
         </div>
 
         {/* ── Household Member ── */}
-        <CustomSelect
-          label="Household Member"
-          value={person}
-          onChange={setPerson}
-          options={[
-            { value: 'Self', label: 'Self' },
-            { value: 'Partner', label: 'Partner / Spouse' },
-            { value: 'Family', label: 'Family / Shared' },
-            { value: 'Queen', label: 'Queen' },
-            { value: 'King', label: 'King' },
-          ]}
-        />
+        {isPro ? (
+          <CustomSelect
+            label="Household Member"
+            value={person}
+            onChange={setPerson}
+            options={[
+              { value: 'Self', label: 'Self' },
+              { value: 'Partner', label: 'Partner / Spouse' },
+              { value: 'Family', label: 'Family / Shared' },
+              { value: 'Queen', label: 'Queen' },
+              { value: 'King', label: 'King' },
+            ]}
+          />
+        ) : (
+          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
+            <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
+          </div>
+        )}
 
         {/* ── Date ── */}
         <CustomInput
@@ -231,27 +241,33 @@ export function ExpenseModal({
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             Receipt / Attachment
           </label>
-          {receiptUrl ? (
-            <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img src={receiptUrl} alt="Receipt preview" className="w-12 h-12 object-cover rounded-lg" />
-                <span className="font-body-sm text-body-sm text-on-surface font-bold">Receipt Attached</span>
+          {isPro ? (
+            receiptUrl ? (
+              <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src={receiptUrl} alt="Receipt preview" className="w-12 h-12 object-cover rounded-lg" />
+                  <span className="font-body-sm text-body-sm text-on-surface font-bold">Receipt Attached</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReceiptUrl(undefined)}
+                  className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                  aria-label="Remove receipt"
+                >
+                  <AppIcon name="close" className=" text-[18px]" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setReceiptUrl(undefined)}
-                className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
-                aria-label="Remove receipt"
-              >
-                <AppIcon name="close" className=" text-[18px]" />
-              </button>
-            </div>
+            ) : (
+              <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
+                <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
+                <span className="font-label-md text-label-md text-on-surface-variant font-medium">Upload Receipt Photo</span>
+                <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
+              </label>
+            )
           ) : (
-            <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
-              <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
-              <span className="font-label-md text-label-md text-on-surface-variant font-medium">Upload Receipt Photo</span>
-              <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
-            </label>
+            <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50 text-center">
+              <p className="font-body-sm text-body-sm text-on-surface-variant">Receipt attachments are available in Pro.</p>
+            </div>
           )}
         </div>
 
@@ -271,7 +287,7 @@ export function ExpenseModal({
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialExpense ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialExpense ? 'Save Changes' : 'Add Expense'}</span>

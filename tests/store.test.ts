@@ -18,6 +18,7 @@ import {
   SavingGoal,
   MonthBudget,
   VariableExpense,
+  updateMoneyPlaces,
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
@@ -150,6 +151,18 @@ describe('Store & Money Math Invariants', () => {
 
     assert.strictEqual(month.bankPart, startingTotal);
     assert.strictEqual(goals.find((g) => g.id === 'g1'), undefined);
+  });
+
+  it('updateMoneyPlaces replaces the three wallet balances without changing the monthly budget', () => {
+    const month = createNewMonth(10000, '50-30-20', ['Groceries'], [], '2026-07');
+
+    const updated = updateMoneyPlaces(month, { bank: 2500, home: 600, wallet: 1200 });
+
+    assert.strictEqual(updated.totalBudget, month.totalBudget);
+    assert.strictEqual(updated.bankPart, 2500);
+    assert.strictEqual(updated.homePart, 600);
+    assert.strictEqual(updated.walletPart, 1200);
+    assert.ok(updated.updatedAt);
   });
 
   it('normalizeMonth backfills missing properties for legacy docs', () => {

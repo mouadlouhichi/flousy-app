@@ -209,7 +209,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
           >
             <AppIcon name={initialDebt ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialDebt ? 'Save Changes' : 'Add Debt'}</span>

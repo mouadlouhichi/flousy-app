@@ -71,7 +71,7 @@ export function CtaSection() {
                   <Button
                     asChild
                     size="lg"
-                    className="bg-primary hover:bg-primary/90 text-white px-8 h-14 text-base rounded-full group"
+                    className="bg-primary hover:bg-accent-foreground text-white px-8 h-14 text-base rounded-full group"
                   >
                     <a href={isLoggedIn ? "/dashboard" : "/login"}>
                       {isLoggedIn ? "Go to Dashboard" : "Start budgeting free"}

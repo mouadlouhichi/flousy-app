@@ -237,7 +237,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               </p>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-primary/90"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-accent-foreground"
               >
                 Start budgeting free
                 <ArrowRight className="h-4 w-4" />

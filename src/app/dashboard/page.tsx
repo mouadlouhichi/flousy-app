@@ -13,6 +13,7 @@ import {
   FixedExpense,
   MoneyPlace,
   normalizeMonth,
+  calculateEnvelopeAmounts,
   addVariableExpense,
   editVariableExpense,
   deleteVariableExpense,
@@ -58,8 +59,11 @@ import { ManageCategoriesModal } from '../../components/modals/ManageCategoriesM
 import { ProUpgradeModal } from '../../components/modals/ProUpgradeModal';
 import { ImportCsvModal } from '../../components/modals/ImportCsvModal';
 import { IncomeSourcesModal } from '../../components/modals/IncomeSourcesModal';
+import { EditMoneyPlacesModal } from '../../components/modals/EditMoneyPlacesModal';
 import { BudgetAlerts } from '../../components/ui/BudgetAlerts';
 import { InstallButton } from '../../components/pwa/install-button';
+import { isProUser } from '../../lib/pro-features';
+import { getMobileQuickActions } from '../../lib/dashboard-quick-actions';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -101,9 +105,18 @@ export default function DashboardPage() {
     setIsMounted(true);
   }, []);
 
+  const isPro = isProUser(profile);
+
+  useEffect(() => {
+    if (!isPro && activeTab === 'trends') {
+      setActiveTab('overview');
+    }
+  }, [activeTab, isPro]);
+
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<VariableExpense | null>(null);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const [isMoveMoneyModalOpen, setIsMoveMoneyModalOpen] = useState(false);
 
@@ -119,6 +132,7 @@ export default function DashboardPage() {
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isEditMoneyPlacesOpen, setIsEditMoneyPlacesOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
 
@@ -378,6 +392,31 @@ export default function DashboardPage() {
     updateAndSaveMonth(updated);
   };
 
+  const handleUpdateTotalBudget = (newTotalBudget: number) => {
+    const safeBudget = Math.max(0, Number.isFinite(newTotalBudget) ? newTotalBudget : month.totalBudget || 0);
+    const delta = safeBudget - (month.totalBudget || 0);
+
+    const updated = normalizeMonth({
+      ...month,
+      totalBudget: safeBudget,
+      bankPart: Math.max(0, (month.bankPart || 0) + delta),
+      monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
+    }, currentMonthKey);
+
+    updateAndSaveMonth(updated);
+  };
+
+  const handleEditMoneyPlaces = (values: { bank: number; home: number; wallet: number }) => {
+    const updated = normalizeMonth({
+      ...month,
+      bankPart: Math.max(0, values.bank ?? month.bankPart ?? 0),
+      homePart: Math.max(0, values.home ?? month.homePart ?? 0),
+      walletPart: Math.max(0, values.wallet ?? month.walletPart ?? 0),
+    }, currentMonthKey);
+
+    updateAndSaveMonth(updated);
+  };
+
   // CSV Import Handlers
   const handleBatchImportVariable = (newExpenses: VariableExpense[]) => {
     let current = month;
@@ -468,17 +507,19 @@ export default function DashboardPage() {
             <span>Savings</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('trends')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-all ${
-              activeTab === 'trends'
-                ? 'bg-primary/10 text-primary font-bold shadow-xs'
-                : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
-            }`}
-          >
-            <AppIcon name="trending_up" className={` text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`} />
-            <span>Trends</span>
-          </button>
+          {isPro && (
+            <button
+              onClick={() => setActiveTab('trends')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-all ${
+                activeTab === 'trends'
+                  ? 'bg-primary/10 text-primary font-bold shadow-xs'
+                  : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+              }`}
+            >
+              <AppIcon name="trending_up" className={` text-[22px] ${activeTab === 'trends' ? 'filled' : ''}`} />
+              <span>Trends</span>
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab('debts')}
@@ -496,7 +537,13 @@ export default function DashboardPage() {
 
           {/* Quick Tools */}
           <button
-            onClick={() => setIsIncomeModalOpen(true)}
+            onClick={() => {
+              if (!isPro) {
+                setIsProModalOpen(true);
+                return;
+              }
+              setIsIncomeModalOpen(true);
+            }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
             <AppIcon name="payments" className=" text-[20px]" />
@@ -504,7 +551,13 @@ export default function DashboardPage() {
           </button>
 
           <button
-            onClick={() => setIsCsvModalOpen(true)}
+            onClick={() => {
+              if (!isPro) {
+                setIsProModalOpen(true);
+                return;
+              }
+              setIsCsvModalOpen(true);
+            }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
           >
             <AppIcon name="upload_file" className=" text-[20px]" />
@@ -634,7 +687,7 @@ export default function DashboardPage() {
                 setSelectedExpense(null);
                 setIsExpenseModalOpen(true);
               }}
-              className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-primary/90 shadow-xs transition-all"
+              className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-accent-foreground shadow-xs transition-all"
             >
               <AppIcon name="add" className=" text-[18px]" />
               <span>New Transaction</span>
@@ -677,6 +730,8 @@ export default function DashboardPage() {
                   setIsExpenseModalOpen(true);
                 }}
                 onSelectTab={(tab) => setActiveTab(tab)}
+                onUpdateTotalBudget={handleUpdateTotalBudget}
+                onEditMoneyPlaces={() => setIsEditMoneyPlacesOpen(true)}
               />
             )}
 
@@ -759,18 +814,62 @@ export default function DashboardPage() {
       </main>
       </div>
 
-      {/* Primary Floating Action Button (FAB for Mobile) */}
+      {/* Mobile quick actions overlay */}
       {activeTab !== 'trends' && activeTab !== 'debts' && (
-        <button
-          onClick={() => {
-            setSelectedExpense(null);
-            setIsExpenseModalOpen(true);
-          }}
-          className="md:hidden fixed bottom-22 right-5 z-40 w-14 h-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-primary-container active:scale-95 transition-all"
-          aria-label="Add Expense"
-        >
-          <AppIcon name="add" className=" text-[30px]" />
-        </button>
+        <>
+          {isQuickActionsOpen && (
+            <button
+              type="button"
+              aria-label="Close quick actions"
+              className="md:hidden fixed inset-0 z-30 bg-transparent"
+              onClick={() => setIsQuickActionsOpen(false)}
+            />
+          )}
+
+          <div
+            className={`md:hidden fixed bottom-38 right-5 z-40 flex flex-col items-end gap-2 transition-all duration-300 ease-out ${
+              isQuickActionsOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-3 opacity-0 pointer-events-none'
+            }`}
+          >
+            {getMobileQuickActions().map((action, index) => (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => {
+                  setIsQuickActionsOpen(false);
+
+                  if (action.id === 'expense') {
+                    setSelectedExpense(null);
+                    setIsExpenseModalOpen(true);
+                  } else if (action.id === 'charge') {
+                    setSelectedFixed(null);
+                    setIsFixedModalOpen(true);
+                  } else if (action.id === 'savings') {
+                    setSelectedGoal(null);
+                    setSavingsModalMode('create');
+                    setIsSavingsModalOpen(true);
+                  }
+                }}
+                className="flex items-center gap-2 rounded-full bg-surface/95 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] border border-outline-variant backdrop-blur-xl transition-all duration-300"
+                style={{ transitionDelay: `${index * 70}ms` }}
+                aria-label={action.label}
+              >
+                <span className="font-label-md text-label-md text-on-surface whitespace-nowrap">{action.label}</span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary">
+                  <AppIcon name={action.icon} className="text-[18px]" />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setIsQuickActionsOpen((prev) => !prev)}
+            className="md:hidden fixed bottom-22 right-5 z-40 h-14 w-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-accent-foreground active:scale-95 transition-all"
+            aria-label={isQuickActionsOpen ? 'Close quick actions' : 'Open quick actions'}
+          >
+            <AppIcon name={isQuickActionsOpen ? 'close' : 'add'} className={`text-[30px] transition-transform duration-300 ${isQuickActionsOpen ? 'rotate-45' : 'rotate-0'}`} />
+          </button>
+        </>
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
@@ -827,18 +926,20 @@ export default function DashboardPage() {
           <AppIcon name="savings" className={` text-[24px] ${activeTab === 'savings' ? 'filled' : ''}`} />
         </button>
 
-        <button
-          onClick={() => setActiveTab('trends')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
-            activeTab === 'trends'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
-          }`}
-          aria-label="Trends"
-          title="Trends"
-        >
-          <AppIcon name="trending_up" className={` text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`} />
-        </button>
+        {isPro && (
+          <button
+            onClick={() => setActiveTab('trends')}
+            className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+              activeTab === 'trends'
+                ? 'bg-primary text-on-primary shadow-sm scale-105'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+            }`}
+            aria-label="Trends"
+            title="Trends"
+          >
+            <AppIcon name="trending_up" className={` text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`} />
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('debts')}
@@ -911,6 +1012,16 @@ export default function DashboardPage() {
         onOpenProModal={() => {
           setIsSettingsModalOpen(false);
           setIsProModalOpen(true);
+        }}
+      />
+
+      <EditMoneyPlacesModal
+        isOpen={isEditMoneyPlacesOpen}
+        onClose={() => setIsEditMoneyPlacesOpen(false)}
+        initialValues={{ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 }}
+        onSave={(values) => {
+          handleEditMoneyPlaces(values);
+          setIsEditMoneyPlacesOpen(false);
         }}
       />
 

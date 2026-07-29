@@ -253,7 +253,7 @@ export function IncomeSourcesModal({
                         <button
                           type="button"
                           onClick={saveEdit}
-                          className="px-4 py-1.5 bg-primary text-on-primary text-[13px] font-bold rounded-xl hover:bg-primary/90 transition-colors"
+                          className="px-4 py-1.5 bg-primary text-on-primary text-[13px] font-bold rounded-xl hover:bg-accent-foreground transition-colors"
                         >
                           Save
                         </button>
@@ -376,7 +376,7 @@ export function IncomeSourcesModal({
                 type="button"
                 onClick={handleAddSource}
                 disabled={!newName.trim() || !newAmount}
-                className="py-2.5 px-3 bg-primary text-on-primary rounded-xl font-bold text-[14px] hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                className="py-2.5 px-3 bg-primary text-on-primary rounded-xl font-bold text-[14px] hover:bg-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 <AppIcon name="add" className=" text-[18px]" />
                 <span>Add</span>
@@ -407,7 +407,7 @@ export function IncomeSourcesModal({
         <button
           type="button"
           onClick={handleSave}
-          className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2"
         >
           <AppIcon name="check" className=" text-[20px]" />
           <span>Save Income Sources ({format(totalCalculated)})</span>

@@ -144,7 +144,7 @@ export function ManageCategoriesModal({
 
           <button
             type="submit"
-            className="w-full bg-primary text-on-primary font-bold text-[14px] py-2.5 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+            className="w-full bg-primary text-on-primary font-bold text-[14px] py-2.5 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
           >
             <AppIcon name="add" className=" text-[18px]" />
             <span>Add Category</span>
