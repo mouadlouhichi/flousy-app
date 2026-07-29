@@ -67,18 +67,18 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account" className="max-w-md">
-        <div className="space-y-lg">
+        <div className="space-y-6">
           {/* ── User Profile Section ── */}
-          <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant/30 flex items-center justify-between">
-            <div className="flex items-center space-x-md">
-              <div className="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-headline-md text-headline-md font-bold shrink-0">
+          <div className="bg-surface-container-low rounded-lg p-4 border border-outline-variant/30 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center text-xl font-bold shrink-0">
                 {userInitial}
               </div>
               <div className="min-w-0">
-                <p className="font-body-md text-body-md font-medium text-on-surface truncate">
+                <p className="text-sm font-medium text-on-surface truncate">
                   {user?.email || profile?.displayName || 'mouadlouhichi@gmail.com'}
                 </p>
-                <div className="inline-flex items-center px-2 py-1 mt-1 rounded-full bg-surface-tint/10 text-primary font-label-sm text-label-sm font-semibold">
+                <div className="inline-flex items-center px-2 py-1 mt-1 rounded-full bg-surface-tint/10 text-primary text-xs font-semibold">
                   {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
                 </div>
               </div>
@@ -90,7 +90,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full bg-primary hover:bg-primary-container text-on-primary rounded-xl font-body-lg text-body-lg font-bold transition-all shadow-md flex items-center justify-center space-x-3 py-3 cursor-pointer"
+              className="w-full bg-primary hover:bg-primary-container text-on-primary rounded-xl text-base font-bold transition-all shadow-md flex items-center justify-center space-x-3 py-3 cursor-pointer"
             >
               <AppIcon name="workspace_premium" className="text-lg" />
               <span className="tracking-wide">Go to Premium</span>
@@ -98,17 +98,17 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           )}
 
           {/* ── Configuration Sections ── */}
-          <div className="pt-sm space-y-md">
+          <div className="pt-2 space-y-4">
             {/* Preferred Currency */}
             <div className="flex flex-col">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant mb-1">
+              <label className="text-sm font-medium text-on-surface-variant mb-1">
                 Preferred Currency
               </label>
               <div className="relative">
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
                 >
                   {Object.values(SUPPORTED_CURRENCIES).map((c) => (
                     <option key={c.code} value={c.code}>
@@ -122,14 +122,14 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
             {/* Language */}
             <div className="flex flex-col">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant mb-1">
+              <label className="text-sm font-medium text-on-surface-variant mb-1">
                 Language
               </label>
               <div className="relative">
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as 'en' | 'fr' | 'ar')}
-                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
                 >
                   <option value="en">English</option>
                   <option value="fr">Français</option>
@@ -141,14 +141,14 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
             {/* Appearance */}
             <div className="flex flex-col">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant mb-1">
+              <label className="text-sm font-medium text-on-surface-variant mb-1">
                 Appearance
               </label>
               <div className="flex bg-surface-container-low p-1 rounded-full border border-outline-variant/30">
                 <button
                   type="button"
                   onClick={() => handleThemeChange('light')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
                     currentTheme === 'light'
                       ? 'bg-surface shadow-xs text-primary font-semibold'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -160,7 +160,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <button
                   type="button"
                   onClick={() => handleThemeChange('dark')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
                     currentTheme === 'dark'
                       ? 'bg-surface shadow-xs text-primary font-semibold'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -172,7 +172,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <button
                   type="button"
                   onClick={() => handleThemeChange('system')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
                     currentTheme === 'system'
                       ? 'bg-surface shadow-xs text-primary font-semibold'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -196,27 +196,27 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             >
               <div className="flex items-center space-x-3">
                 <AppIcon name="download" className="text-on-surface-variant text-[20px]" />
-                <span className="font-body-md text-body-md font-medium">Export Budget Data (CSV)</span>
+                <span className="text-sm font-medium">Export Budget Data (CSV)</span>
               </div>
               <AppIcon name="chevron_right" className="text-on-surface-variant text-[20px]" />
             </button>
           </div>
 
           {/* ── Destructive Actions / Sign Out ── */}
-          <div className="pt-md space-y-sm">
+          <div className="pt-4 space-y-2">
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface text-sm font-medium hover:bg-surface-container transition-colors cursor-pointer"
                 >
                   Sign Out
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-2 text-error/70 hover:text-error font-body-md text-body-md font-medium transition-colors text-center cursor-pointer block"
+                  className="w-full py-2 text-error/70 hover:text-error text-sm font-medium transition-colors text-center cursor-pointer block"
                 >
                   Delete Account & Erase Data
                 </button>
@@ -224,7 +224,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-3 rounded-xl border border-outline-variant/50 text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container transition-colors block"
+                className="w-full text-center py-3 rounded-xl border border-outline-variant/50 text-on-surface text-sm font-medium hover:bg-surface-container transition-colors block"
               >
                 Sign In
               </a>
