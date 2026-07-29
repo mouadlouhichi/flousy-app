@@ -81,6 +81,7 @@ import {
   Tag,
   TrendingUp,
   Upload,
+  Package,
   User,
   Users,
   Utensils,
@@ -194,6 +195,9 @@ const icons: Record<string, LucideIcon> = {
   wifi: Wifi,
   work: BriefcaseBusiness,
   workspace_premium: Crown,
+  wrench: Wrench,
+  x: X,
+  package: Package,
 };
 
 export function AppIcon({ name, title, ...props }: LucideProps & { name: string; title?: string }) {

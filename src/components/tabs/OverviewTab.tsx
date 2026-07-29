@@ -190,7 +190,7 @@ export function OverviewTab({
                   className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
                   aria-label="Change budget strategy"
                 >
-                  <AppIcon name="sliders" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
+                  <AppIcon name="package" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
                   <span className="font-label-sm text-label-sm font-bold text-on-surface">
                     {strategy.name}
                   </span>
