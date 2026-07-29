@@ -13,3 +13,14 @@ coverage/
 .cache/
 .cursor/
 tsconfig.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# Expo / Mobile
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/*.apk
+apps/mobile/*.aab
+

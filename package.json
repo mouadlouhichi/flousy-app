@@ -3,6 +3,13 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
+    "dev:web": "pnpm -F @flousy/web run dev",
+    "dev:mobile": "pnpm -F @flousy/mobile run start",
+    "android": "pnpm -F @flousy/mobile run android",
+    "android:prebuild": "pnpm -F @flousy/mobile run prebuild:android",
+    "build:android:apk": "pnpm -F @flousy/mobile run build:android:apk",
+    "build:android:aab": "pnpm -F @flousy/mobile run build:android:aab",
+    "build:android:local": "pnpm -F @flousy/mobile run build:android:local",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
