@@ -924,7 +924,7 @@ export default function DashboardPage() {
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
-      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
+      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-4 py-3 flex justify-around items-center">
         <button
           onClick={() => setActiveTab('overview')}
           className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
@@ -935,7 +935,7 @@ export default function DashboardPage() {
           aria-label="Overview"
           title="Overview"
         >
-          <AppIcon name="grid_view" className={` text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`} />
+          <AppIcon name="house" className={` text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -948,7 +948,7 @@ export default function DashboardPage() {
           aria-label="Fixed Bills"
           title="Fixed Bills"
         >
-          <AppIcon name="receipt_long" className={` text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
+          <AppIcon name="receipt" className={` text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -961,7 +961,7 @@ export default function DashboardPage() {
           aria-label="Variable Expenses"
           title="Variable Expenses"
         >
-          <AppIcon name="payments" className={` text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`} />
+          <AppIcon name="shopping_cart" className={` text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`} />
         </button>
 
         <button
@@ -1002,7 +1002,7 @@ export default function DashboardPage() {
           aria-label="Debts"
           title="Debts"
         >
-          <AppIcon name="description" className={` text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`} />
+          <AppIcon name="account_balance" className={` text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`} />
         </button>
       </nav>
 
