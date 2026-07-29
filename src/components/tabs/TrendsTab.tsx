@@ -259,7 +259,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -312,7 +312,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -359,7 +359,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     <span className="text-[12px] font-bold text-primary">{pct}%</span>
                   </div>
                   <span className="text-[20px] font-extrabold text-on-surface font-mono">{format(total)}</span>
-                  <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
@@ -405,7 +405,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
               const pct = env.needs > 0 ? Math.min(100, Math.round((spent.needs / env.needs) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-primary'}`}
                     style={{ width: `${pct}%` }}
@@ -428,7 +428,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
               const pct = env.wants > 0 ? Math.min(100, Math.round((spent.wants / env.wants) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-outline-variant rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-amber-500'}`}
                     style={{ width: `${pct}%` }}
