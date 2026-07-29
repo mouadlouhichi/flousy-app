@@ -26,6 +26,8 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   const { language, setLanguage } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [displayName, setDisplayName] = useState(profile?.displayName || '');
 
   const currentTheme = profile?.theme || 'system';
 
@@ -46,13 +48,21 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
     }
   };
 
+  const handleSaveName = async () => {
+    if (displayName.trim()) {
+      await updateProfileData({ displayName: displayName.trim() });
+      trackEvent('update_display_name');
+    }
+    setIsEditingName(false);
+  };
+
   const handleExportCsv = () => {
     const csvContent = exportMonthToCsv(month, goals, monthKey, currency);
     downloadCsv(`flousy-budget-${monthKey}.csv`, csvContent);
     trackEvent('export_csv');
   };
 
-  const userInitial = user?.email?.[0]?.toUpperCase() || 'M';
+  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
 
   return (
     <>
@@ -60,20 +70,77 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
         <div className="space-y-5">
           {/* ── User Profile Card ── */}
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-5 border border-primary/20">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm shrink-0">
                 {userInitial}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-label-lg text-label-lg font-bold text-on-surface truncate">
-                  {user?.email || 'mouadlouhichi@gmail.com'}
-                </p>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1.5 rounded-full bg-primary/10 text-primary">
-                  <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
-                  <span className="font-label-sm text-label-sm font-bold">
-                    {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
-                  </span>
-                </div>
+                {isEditingName ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveName();
+                        if (e.key === 'Escape') {
+                          setIsEditingName(false);
+                          setDisplayName(profile?.displayName || '');
+                        }
+                      }}
+                      placeholder="Enter your name"
+                      className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg font-label-lg text-label-lg font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveName}
+                        className="flex-1 py-1.5 bg-primary text-on-primary rounded-lg font-label-sm text-label-sm font-bold hover:bg-primary/90 transition-all"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingName(false);
+                          setDisplayName(profile?.displayName || '');
+                        }}
+                        className="flex-1 py-1.5 bg-surface-variant text-on-surface-variant rounded-lg font-label-sm text-label-sm font-bold hover:bg-surface-variant/80 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <p className="font-label-lg text-label-lg font-bold text-on-surface truncate">
+                        {profile?.displayName || 'Set your name'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingName(true);
+                          setDisplayName(profile?.displayName || '');
+                        }}
+                        className="p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        title="Edit name"
+                      >
+                        <AppIcon name="edit" className="text-[14px]" />
+                      </button>
+                    </div>
+                    <p className="font-label-sm text-label-sm text-on-surface-variant truncate mt-0.5">
+                      {user?.email || 'mouadlouhichi@gmail.com'}
+                    </p>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2 rounded-full bg-primary/10 text-primary">
+                      <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                      <span className="font-label-sm text-label-sm font-bold">
+                        {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
