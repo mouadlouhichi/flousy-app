@@ -87,6 +87,7 @@ import {
   Users,
   Utensils,
   Wallet,
+  WalletCards,
   Wrench,
   Wifi,
   House,
@@ -102,7 +103,7 @@ import {
  */
 const icons: Record<string, LucideIcon> = {
   account_balance: Landmark,
-  account_balance_wallet: Wallet,
+  account_balance_wallet: WalletCards,
   add: CirclePlus,
   add_a_photo: Camera,
   add_box: PackagePlus,
