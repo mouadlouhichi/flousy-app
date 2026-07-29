@@ -924,10 +924,10 @@ export default function DashboardPage() {
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
-      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-4 py-3 flex justify-around items-center">
+      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
             activeTab === 'overview'
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
@@ -940,7 +940,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
             activeTab === 'fixed'
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
@@ -953,7 +953,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
             activeTab === 'variable'
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
@@ -966,7 +966,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('savings')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
             activeTab === 'savings'
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
@@ -980,7 +980,7 @@ export default function DashboardPage() {
         {isPro && (
           <button
             onClick={() => setActiveTab('trends')}
-            className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
               activeTab === 'trends'
                 ? 'bg-primary text-on-primary shadow-sm scale-105'
                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
@@ -994,7 +994,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('debts')}
-          className={`relative p-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
             activeTab === 'debts'
               ? 'bg-primary text-on-primary shadow-sm scale-105'
               : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
