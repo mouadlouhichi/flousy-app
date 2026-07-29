@@ -373,7 +373,7 @@ export function OverviewTab({
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto shadow-2xs">
+              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3  shadow-2xs">
                 <AppIcon name="receipt_long" className="text-outline text-[40px]" />
                 <p className="text-xs text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
