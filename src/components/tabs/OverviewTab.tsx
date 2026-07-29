@@ -233,7 +233,7 @@ export function OverviewTab({
                 </div>
                 <span className="text-[11px] font-semibold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-primary/10rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-amber-500'}`}
                   style={{ width: `${wantsSpentPct}%` }}
@@ -373,7 +373,7 @@ export function OverviewTab({
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3  shadow-2xs">
+              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto shadow-2xs">
                 <AppIcon name="receipt_long" className="text-outline text-[40px]" />
                 <p className="text-xs text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
