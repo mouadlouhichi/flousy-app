@@ -57,178 +57,203 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account" className="max-w-md">
-        <div className="space-y-6">
-          {/* ── User Profile Section ── */}
-          <div className="bg-surface-container-low rounded-lg p-md border border-outline-variant/30 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center font-headline-md text-headline-md font-semibold">
+        <div className="space-y-5">
+          {/* ── User Profile Card ── */}
+          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-5 border border-primary/20">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm">
                 {userInitial}
               </div>
-              <div>
-                <p className="font-body-md text-body-md font-medium text-on-surface truncate max-w-[200px]">
+              <div className="flex-1 min-w-0">
+                <p className="font-label-lg text-label-lg font-bold text-on-surface truncate">
                   {user?.email || 'mouadlouhichi@gmail.com'}
                 </p>
-                <div className="inline-flex items-center px-2 py-1 mt-1 rounded-full bg-surface-tint/10 text-primary font-label-sm text-label-sm">
-                  {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1.5 rounded-full bg-primary/10 text-primary">
+                  <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                  <span className="font-label-sm text-label-sm font-bold">
+                    {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ── Primary Action: Upgrade ── */}
-          {onOpenProModal && (
+          {/* ── Upgrade CTA ── */}
+          {onOpenProModal && profile?.plan !== 'pro' && (
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full bg-primary hover:bg-primary-container text-on-primary py-3 rounded-lg font-body-lg text-body-lg font-medium transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full bg-primary hover:bg-primary/90 text-on-primary py-3.5 rounded-xl font-label-lg text-label-lg font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
-              <AppIcon name="workspace_premium" className="text-sm text-on-primary" />
-              <span>{profile?.plan === 'pro' ? 'Pro Membership' : 'Go to Premium'}</span>
+              <AppIcon name="workspace_premium" className="text-[20px]" />
+              <span>Upgrade to Pro</span>
             </button>
           )}
 
-          {/* ── Configuration Sections ── */}
-          <div className="space-y-6 pt-sm">
-            {/* Preferred Currency */}
-            <div className="flex flex-col space-y-2">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
-                Preferred Currency
-              </label>
-              <div className="relative">
+          {/* ── Preferences Section ── */}
+          <div className="space-y-3">
+            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">
+              Preferences
+            </h3>
+            <div className="bg-surface-container rounded-xl border border-outline-variant/50 divide-y divide-outline-variant/30">
+              {/* Currency */}
+              <div className="flex items-center justify-between p-4 gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center shrink-0">
+                    <AppIcon name="payments" className="text-[20px] text-primary" />
+                  </div>
+                  <label className="font-label-lg text-label-lg font-medium text-on-surface">
+                    Currency
+                  </label>
+                </div>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                  className="bg-surface-variant border-0 rounded-lg px-3 py-2 font-label-md text-label-md font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer min-w-[120px]"
                 >
                   {Object.values(SUPPORTED_CURRENCIES).map((c) => (
                     <option key={c.code} value={c.code}>
-                      {c.code} - {c.name}
+                      {c.code}
                     </option>
                   ))}
                 </select>
-                <AppIcon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]" />
               </div>
-            </div>
 
-            {/* Language */}
-            <div className="flex flex-col space-y-2">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
-                Language
-              </label>
-              <div className="relative">
+              {/* Language */}
+              <div className="flex items-center justify-between p-4 gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center shrink-0">
+                    <AppIcon name="language" className="text-[20px] text-primary" />
+                  </div>
+                  <label className="font-label-lg text-label-lg font-medium text-on-surface">
+                    Language
+                  </label>
+                </div>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as 'en' | 'fr' | 'ar')}
-                  className="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg p-3 appearance-none font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+                  className="bg-surface-variant border-0 rounded-lg px-3 py-2 font-label-md text-label-md font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer min-w-[120px]"
                 >
                   <option value="en">English</option>
                   <option value="fr">Français</option>
                   <option value="ar">العربية</option>
                 </select>
-                <AppIcon name="expand_more" className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]" />
               </div>
             </div>
+          </div>
 
-            {/* Appearance Mode */}
-            <div className="flex flex-col space-y-2">
-              <label className="font-body-md text-body-md font-medium text-on-surface-variant">
-                Appearance
-              </label>
-              <div className="flex bg-surface-container-low p-1 rounded-lg border border-outline-variant/30">
+          {/* ── Appearance Section ── */}
+          <div className="space-y-3">
+            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">
+              Appearance
+            </h3>
+            <div className="bg-surface-container rounded-xl border border-outline-variant/50 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center">
+                  <AppIcon name="palette" className="text-[20px] text-primary" />
+                </div>
+                <label className="font-label-lg text-label-lg font-medium text-on-surface">
+                  Theme
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-2 bg-surface-variant/50 p-1.5 rounded-lg">
                 <button
                   type="button"
                   onClick={() => handleThemeChange('light')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
                     currentTheme === 'light'
                       ? 'bg-surface shadow-sm text-primary'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="light_mode" className="text-sm" />
+                  <AppIcon name="light_mode" className="text-[20px]" />
                   <span>Light</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleThemeChange('dark')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
                     currentTheme === 'dark'
                       ? 'bg-surface shadow-sm text-primary'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="dark_mode" className="text-sm" />
+                  <AppIcon name="dark_mode" className="text-[20px]" />
                   <span>Dark</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleThemeChange('system')}
-                  className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-md font-body-md text-body-md font-medium transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
                     currentTheme === 'system'
                       ? 'bg-surface shadow-sm text-primary'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="desktop_windows" className="text-sm" />
+                  <AppIcon name="desktop_windows" className="text-[20px]" />
                   <span>System</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <hr className="border-outline-variant/30" />
-
-          {/* ── Data Management ── */}
-          <div>
+          {/* ── Data Management Section ── */}
+          <div className="space-y-3">
+            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">
+              Data
+            </h3>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="w-full flex items-center justify-between p-3 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface border border-outline-variant/30 cursor-pointer"
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors border border-outline-variant/50 cursor-pointer group"
             >
-              <div className="flex items-center space-x-3">
-                <AppIcon name="download" className="text-on-surface-variant text-[20px]" />
-                <span className="font-body-md text-body-md font-medium">Export Budget Data (CSV)</span>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <AppIcon name="download" className="text-[20px] text-primary" />
+                </div>
+                <span className="font-label-lg text-label-lg font-medium text-on-surface">Export CSV</span>
               </div>
-              <AppIcon name="chevron_right" className="text-on-surface-variant text-[20px]" />
+              <AppIcon name="chevron_right" className="text-[20px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
 
-          {/* ── Destructive Actions ── */}
-          <div className="pt-lg space-y-md">
+          {/* ── Account Actions ── */}
+          <div className="space-y-2 pt-2">
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3 rounded-lg border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container font-body-md text-body-md font-medium transition-colors cursor-pointer"
+                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
                 >
                   Sign Out
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3 text-error hover:bg-error-container/20 rounded-lg font-body-md text-body-md font-medium transition-colors cursor-pointer"
+                  className="w-full py-3 text-error hover:bg-error/5 rounded-xl font-label-lg text-label-lg font-medium transition-all cursor-pointer"
                 >
-                  Delete Account & Erase Data
+                  Delete Account
                 </button>
               </>
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-3 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-medium hover:bg-primary-container transition-colors block"
+                className="w-full text-center py-3.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary/90 transition-all shadow-sm block"
               >
-                Sign In or Register Account
+                Sign In
               </a>
             )}
           </div>
 
           {/* ── Legal Links ── */}
-          <div className="flex justify-center gap-4 pt-1 text-[12px] font-medium text-on-surface-variant">
-            <a href="/privacy" className="hover:text-on-surface transition-colors">
-              Privacy Policy
+          <div className="flex justify-center gap-4 pt-3 text-[12px] font-medium text-on-surface-variant">
+            <a href="/privacy" className="hover:text-primary transition-colors">
+              Privacy
             </a>
             <span className="text-outline-variant">·</span>
-            <a href="/terms" className="hover:text-on-surface transition-colors">
-              Terms of Service
+            <a href="/terms" className="hover:text-primary transition-colors">
+              Terms
             </a>
           </div>
         </div>
