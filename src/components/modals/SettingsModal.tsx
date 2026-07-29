@@ -144,7 +144,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
               className="w-full bg-primary hover:bg-primary/90 text-on-primary py-3.5 rounded-xl font-label-lg text-label-lg font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <AppIcon name="workspace_premium" className="text-[20px]" />
-              <span>Upgrade to Pro</span>
+              <span>Go to Premium</span>
             </button>
           )}
 
@@ -156,12 +156,12 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <div className="bg-surface-container rounded-xl border border-outline-variant/50 divide-y divide-outline-variant/30">
               {/* Currency */}
               <div className="flex items-center justify-between p-4 gap-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center shrink-0">
                     <AppIcon name="payments" className="text-[20px] text-primary" />
                   </div>
                   <label className="font-label-lg text-label-lg font-medium text-on-surface">
-                    Currency
+                    Preferred Currency
                   </label>
                 </div>
                 <select
@@ -171,7 +171,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 >
                   {Object.values(SUPPORTED_CURRENCIES).map((c) => (
                     <option key={c.code} value={c.code}>
-                      {c.code}
+                      {`${c.code} - ${c.name}`}
                     </option>
                   ))}
                 </select>
@@ -214,41 +214,35 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                   Theme
                 </label>
               </div>
-              <div className="grid grid-cols-3 gap-2 bg-surface-variant/50 p-1.5 rounded-lg">
+              <div className="flex items-center gap-2 bg-surface-variant p-1 rounded-full">
                 <button
                   type="button"
                   onClick={() => handleThemeChange('light')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'light'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'light' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="light_mode" className="text-[20px]" />
+                  <AppIcon name="light_mode" className="text-[18px]" />
                   <span>Light</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleThemeChange('dark')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'dark'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'dark' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="dark_mode" className="text-[20px]" />
+                  <AppIcon name="dark_mode" className="text-[18px]" />
                   <span>Dark</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleThemeChange('system')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'system'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-medium transition-all cursor-pointer ${
+                    currentTheme === 'system' ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
-                  <AppIcon name="desktop_windows" className="text-[20px]" />
+                  <AppIcon name="desktop_windows" className="text-[18px]" />
                   <span>System</span>
                 </button>
               </div>
@@ -269,7 +263,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                   <AppIcon name="download" className="text-[20px] text-primary" />
                 </div>
-                <span className="font-label-lg text-label-lg font-medium text-on-surface">Export CSV</span>
+                <span className="font-label-lg text-label-lg font-medium text-on-surface">Export Budget Data (CSV)</span>
               </div>
               <AppIcon name="chevron_right" className="text-[20px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform" />
             </button>
@@ -282,17 +276,19 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
+                  className="w-full py-3 rounded-xl border border-outline-variant/50 bg-surface text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
                 >
                   Sign Out
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3 text-error hover:bg-error/5 rounded-xl font-label-lg text-label-lg font-medium transition-all cursor-pointer"
-                >
-                  Delete Account
-                </button>
+                <div className="text-center mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-error text-sm font-medium hover:underline"
+                  >
+                    Delete Account & Erase Data
+                  </button>
+                </div>
               </>
             ) : (
               <a
