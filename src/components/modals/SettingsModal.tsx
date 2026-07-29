@@ -69,9 +69,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
       <Modal isOpen={isOpen} onClose={onClose} title="Settings & Account" className="max-w-md">
         <div className="space-y-5">
           {/* ── User Profile Card ── */}
-          <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-5 border border-primary/20">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm shrink-0">
+          <div className="bg-surface-container rounded-2xl p-4 border border-outline-variant shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary text-on-primary rounded-full flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm shrink-0">
                 {userInitial}
               </div>
               <div className="flex-1 min-w-0">
@@ -114,30 +114,21 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <p className="font-label-lg text-label-lg font-bold text-on-surface truncate">
-                        {profile?.displayName || 'Set your name'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEditingName(true);
-                          setDisplayName(profile?.displayName || '');
-                        }}
-                        className="p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-                        title="Edit name"
-                      >
-                        <AppIcon name="edit" className="text-[14px]" />
-                      </button>
-                    </div>
-                    <p className="font-label-sm text-label-sm text-on-surface-variant truncate mt-0.5">
-                      {user?.email || 'mouadlouhichi@gmail.com'}
-                    </p>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2 rounded-full bg-primary/10 text-primary">
-                      <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
-                      <span className="font-label-sm text-label-sm font-bold">
-                        {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-label-lg text-label-lg font-bold text-on-surface truncate">
+                          {profile?.displayName || user?.email || 'Set your name'}
+                        </p>
+                        <p className="font-label-sm text-label-sm text-on-surface-variant truncate mt-0.5">
+                          {user?.email || ''}
+                        </p>
+                      </div>
+                      <div className="ml-3 inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary">
+                        <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                        <span className="font-label-sm text-label-sm font-bold ml-2">
+                          {profile?.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
