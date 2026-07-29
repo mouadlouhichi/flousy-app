@@ -63,7 +63,7 @@ export function SavingsTab({
             return (
               <div
                 key={goal.id}
-                className="p-lg bg-surface rounded-3xl border border-outline-variant flex flex-col justify-between gap-md hover:border-primary transition-all"
+                className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col justify-between gap-md hover:border-primary transition-all shadow-2xs"
               >
                 {/* Header */}
                 <div className="flex justify-between items-start">

@@ -112,7 +112,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Spent This Month</span>
           <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(spent.totalSpent)}</p>
           {prevMonth && (
@@ -122,7 +122,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           )}
         </div>
 
-        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Budget Remaining</span>
           <p className="text-[22px] font-extrabold text-primary mt-1 font-mono">
             {format(Math.max(0, month.totalBudget - spent.totalSpent))}
@@ -132,7 +132,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </span>
         </div>
 
-        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Total Cash</span>
           <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(totalCash)}</p>
           <span className="text-[12px] font-bold text-on-surface-variant">
@@ -140,7 +140,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </span>
         </div>
 
-        <div className="p-4 bg-surface rounded-2xl border border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Active Goals</span>
           <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">
             {format(month.monthlySavingsTarget || 0)}
@@ -225,7 +225,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </div>
           </div>
         ) : (
-          <div className="p-8 bg-surface/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
+          <div className="p-8 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
             <AppIcon name="bar_chart" className=" text-outline text-[36px]" />
             <p className="font-body-md text-body-md text-on-surface-variant">Not enough month data yet.</p>
             <p className="font-body-sm text-body-sm text-on-surface-variant">Add expenses across multiple months to see trends.</p>
@@ -278,7 +278,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </div>
           </div>
         ) : (
-          <div className="p-6 bg-surface/40 rounded-2xl border border-dashed border-outline-variant text-center">
+          <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
               {isPro ? 'No income sources configured. Add them from the sidebar menu.' : 'Income source analytics are available in Pro.'}
             </p>
@@ -331,7 +331,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </div>
           </div>
         ) : (
-          <div className="p-6 bg-surface/40 rounded-2xl border border-dashed border-outline-variant text-center">
+          <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
               No expenses recorded yet for the current month.
             </p>
@@ -353,7 +353,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
               const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
               return (
-                <div key={person} className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+                <div key={person} className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
                   <div className="flex justify-between items-center">
                     <span className="font-label-lg text-label-lg font-bold text-on-surface">{person}</span>
                     <span className="text-[12px] font-bold text-primary">{pct}%</span>
@@ -393,7 +393,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Needs */}
-          <div className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -416,7 +416,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
 
           {/* Wants */}
-          <div className="p-4 bg-surface rounded-2xl border border-outline-variant flex flex-col gap-2">
+          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />

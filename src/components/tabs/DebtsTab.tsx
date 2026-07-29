@@ -60,7 +60,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
       </div>
 
       {/* Summary Card */}
-      <div className="bg-surface rounded-3xl border border-outline-variant/80 shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-surface-container rounded-3xl border border-outline-variant/80 shadow-2xs p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             {label}
@@ -93,7 +93,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
           {filtered.map((d) => (
             <div
               key={d.id}
-              className="bg-surface rounded-2xl border border-outline-variant/80 p-4 flex items-center justify-between gap-3"
+              className="bg-surface-container rounded-2xl border border-outline-variant/80 p-4 flex items-center justify-between gap-3 shadow-2xs"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div

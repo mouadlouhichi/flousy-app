@@ -53,7 +53,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
             <div
               key={bill.id}
               onClick={() => onEditBill(bill)}
-              className="p-md bg-surface rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer"
+              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer shadow-2xs"
             >
               <div className="flex items-center gap-md">
                 <div className="p-3 bg-primary/10 text-primary rounded-xl">

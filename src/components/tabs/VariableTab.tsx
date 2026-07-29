@@ -75,7 +75,7 @@ export function VariableTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search expenses or notes..."
-            className="w-full pl-10 pr-md py-3 bg-surface border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary transition-all outline-none"
+            className="w-full pl-10 pr-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function VariableTab({
             <div
               key={exp.id}
               onClick={() => onEditExpense(exp)}
-              className="p-md bg-surface rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer"
+              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer shadow-2xs"
             >
               <div className="flex items-center gap-md">
                 <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">
