@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import {
@@ -101,6 +102,7 @@ export default function DashboardOverviewScreen() {
         toVal + actualAmount,
     };
     await updateMonth(nextMonth);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   return (

@@ -13,3 +13,13 @@ coverage/
 .cache/
 .cursor/
 tsconfig.tsbuildinfo
+
+# ─── Mobile (Expo / React Native) ──────────────────────────────────
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.expo/
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+apps/mobile/*.keystore
+apps/mobile/*.jks
+apps/mobile/pc-api-key.json

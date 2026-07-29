@@ -1,0 +1,109 @@
+import type { ExpoConfig, ConfigContext } from "expo/config";
+import * as fs from "fs";
+import * as path from "path";
+
+const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID ?? "";
+
+// Check if google-services.json exists at build time
+const googleServicesPath = path.join(__dirname, "google-services.json");
+const hasGoogleServices = fs.existsSync(googleServicesPath);
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: "Flousy",
+  slug: "flousy",
+  version: "1.0.0",
+  scheme: "flousy",
+  orientation: "portrait",
+  userInterfaceStyle: "automatic",
+
+  // ─── Splash Screen ───────────────────────────────────────────────
+  splash: {
+    image: "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: "#2ea44f",
+  },
+
+  // ─── iOS ─────────────────────────────────────────────────────────
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: "com.flousy.app",
+    infoPlist: {
+      NSFaceIDUsageDescription:
+        "Flousy uses Face ID to securely unlock your private budget.",
+    },
+    googleServicesFile: "./GoogleService-Info.plist",
+  },
+
+  // ─── Android ─────────────────────────────────────────────────────
+  android: {
+    package: "com.flousy.app",
+    versionCode: 1,
+    googleServicesFile: hasGoogleServices ? "./google-services.json" : undefined,
+    permissions: [
+      "USE_BIOMETRIC",
+      "USE_FINGERPRINT",
+      "RECEIVE_BOOT_COMPLETED",
+      "VIBRATE",
+    ],
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#2ea44f",
+    },
+  },
+
+  // ─── Web ─────────────────────────────────────────────────────────
+  web: {
+    favicon: "./assets/favicon.png",
+  },
+
+  // ─── Plugins ─────────────────────────────────────────────────────
+  plugins: [
+    "expo-router",
+    "expo-localization",
+    "expo-local-authentication",
+    "expo-font",
+    "expo-splash-screen",
+    "expo-updates",
+    [
+      "@react-native-firebase/app",
+      {
+        googleWebClientId: GOOGLE_WEB_CLIENT_ID,
+      },
+    ],
+    "@react-native-google-signin/google-signin",
+    "expo-notifications",
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          deploymentTarget: "15.1",
+        },
+        android: {
+          compileSdkVersion: 35,
+          targetSdkVersion: 35,
+          minSdkVersion: 24,
+        },
+      },
+    ],
+    // Note: react-native-reanimated/plugin is in babel.config.js, not here
+  ],
+
+  // ─── EAS Updates ─────────────────────────────────────────────────
+  updates: {
+    url: "https://u.expo.dev/your-project-id-here",
+  },
+
+  // ─── Runtime Version ─────────────────────────────────────────────
+  runtimeVersion: {
+    policy: "appVersion",
+  },
+
+  // ─── Extra (env vars accessible at runtime) ──────────────────────
+  extra: {
+    googleWebClientId: GOOGLE_WEB_CLIENT_ID,
+    eas: {
+      projectId: "your-eas-project-id-here",
+    },
+  },
+});
