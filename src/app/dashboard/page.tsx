@@ -515,12 +515,11 @@ export default function DashboardPage() {
                 : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
             }`}
           >
-            <AppIcon name="grid_view" className={` text-[22px] ${activeTab === 'overview' ? 'filled' : ''}`} />
+            <AppIcon name="house" className={` text-[22px] ${activeTab === 'overview' ? 'filled' : ''}`} />
             <span>Overview</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('fixed')}
+          <button            onClick={() => setActiveTab('fixed')}
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-all ${
               activeTab === 'fixed'
                 ? 'bg-primary/10 text-primary font-bold shadow-xs'
