@@ -21,6 +21,7 @@ import {
   editFixedExpense,
   deleteFixedExpense,
   moveMoney,
+  updateMoneyPlaces,
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
@@ -417,14 +418,10 @@ export default function DashboardPage() {
     trackEvent('update_total_budget', { amount: safeBudget });
   };
 
+  // Editing cash balances must NOT change the monthly budget (budget = income plan,
+  // balances = current cash on hand). updateMoneyPlaces enforces that invariant.
   const handleEditMoneyPlaces = (values: { bank: number; home: number; wallet: number }) => {
-    const updated = normalizeMonth({
-      ...month,
-      bankPart: Math.max(0, values.bank ?? month.bankPart ?? 0),
-      homePart: Math.max(0, values.home ?? month.homePart ?? 0),
-      walletPart: Math.max(0, values.wallet ?? month.walletPart ?? 0),
-    }, currentMonthKey);
-
+    const updated = updateMoneyPlaces(month, values);
     updateAndSaveMonth(updated);
   };
 
@@ -1030,6 +1027,7 @@ export default function DashboardPage() {
         isOpen={isEditMoneyPlacesOpen}
         onClose={() => setIsEditMoneyPlacesOpen(false)}
         initialValues={{ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 }}
+        totalBudget={month.totalBudget || 0}
         onSave={(values) => {
           handleEditMoneyPlaces(values);
           setIsEditMoneyPlacesOpen(false);

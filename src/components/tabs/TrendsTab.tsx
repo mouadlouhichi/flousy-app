@@ -3,7 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 
@@ -35,7 +35,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
   // ── Income sources analytics ──
   const incomeSources = month.incomeSources || [];
-  const totalIncome = incomeSources.reduce((acc, s) => acc + (s.amount || 0), month.totalBudget);
+  const totalIncome = calculateTotalIncome(month);
 
   // ── Category breakdown ──
   const categoryBreakdown: Record<string, number> = {};

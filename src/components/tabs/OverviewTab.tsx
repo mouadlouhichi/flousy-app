@@ -1,5 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -11,7 +11,7 @@ interface OverviewTabProps {
   onOpenEditExpense: (expense: any) => void;
   onSelectTab: (tab: 'overview' | 'variable' | 'fixed' | 'savings') => void;
   onUpdateTotalBudget: (value: number) => void;
-  onEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
+  onEditMoneyPlaces: () => void;
 }
 
 export function OverviewTab({
@@ -25,6 +25,9 @@ export function OverviewTab({
   onEditMoneyPlaces,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const budgetInputRef = useRef<HTMLInputElement>(null);
+  // Set when Enter/Escape finishes editing so the programmatic blur doesn't re-trigger save
+  const editFinishedRef = useRef(false);
   const [draftBudget, setDraftBudget] = useState(String(month.totalBudget || 0));
   const [isEditingBudget, setIsEditingBudget] = useState(false);
 
@@ -33,6 +36,7 @@ export function OverviewTab({
   const strategy = STRATEGIES[month.strategyId] || STRATEGIES['50-30-20'];
 
   const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  const budgetParts = formatParts(month.totalBudget || 0);
 
   const needsSpentPct = needs > 0 ? Math.min(100, Math.round((spent.needs / needs) * 100)) : 0;
   const wantsSpentPct = wants > 0 ? Math.min(100, Math.round((spent.wants / wants) * 100)) : 0;
@@ -43,15 +47,32 @@ export function OverviewTab({
     setDraftBudget(String(month.totalBudget || 0));
   }, [month.totalBudget]);
 
-  const handleBudgetSave = () => {
-    const parsed = Number.parseFloat(draftBudget);
-    if (!Number.isFinite(parsed)) {
-      setDraftBudget(String(month.totalBudget || 0));
-      setIsEditingBudget(false);
-      return;
+  // While editing, keep the caret ready with the full value selected
+  useEffect(() => {
+    if (isEditingBudget) {
+      const el = budgetInputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
     }
+  }, [isEditingBudget]);
 
-    onUpdateTotalBudget(Math.max(0, parsed));
+  const handleBudgetSave = () => {
+    const parsed = Number.parseFloat(draftBudget.replace(/\s/g, ''));
+    const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : (month.totalBudget || 0);
+
+    setDraftBudget(String(safe));
+    setIsEditingBudget(false);
+
+    // Skip no-op writes (reversions, unchanged blurs)
+    if (safe !== (month.totalBudget || 0)) {
+      onUpdateTotalBudget(safe);
+    }
+  };
+
+  const handleBudgetCancel = () => {
+    setDraftBudget(String(month.totalBudget || 0));
     setIsEditingBudget(false);
   };
 
@@ -232,44 +253,87 @@ export function OverviewTab({
           </div>
 
           {/* Monthly Income Summary Banner */}
-          <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center shadow-xs">
-            <div>
+          <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center gap-4 shadow-xs">
+            <div className="min-w-0">
               <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-extrabold">
                 TOTAL MONTHLY BUDGET
               </span>
               <div className="mt-1 flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={draftBudget}
-                  readOnly={!isEditingBudget}
-                  onChange={(e) => setDraftBudget(e.target.value)}
-                  onBlur={handleBudgetSave}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleBudgetSave();
-                    }
-                  }}
-                  className="w-40 bg-transparent font-headline-lg text-headline-lg text-on-surface font-extrabold outline-none"
-                />
+                <div
+                  onClick={() => setIsEditingBudget(true)}
+                  className={`flex items-baseline gap-1.5 -ml-2 rounded-2xl px-2 py-0.5 transition-colors ${
+                    isEditingBudget
+                      ? 'bg-surface ring-2 ring-primary/40'
+                      : 'cursor-text hover:bg-surface-variant/60'
+                  }`}
+                  title="Click to edit your monthly budget"
+                >
+                  <input
+                    ref={budgetInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="Total monthly budget"
+                    size={Math.max(4, Math.min(14, (isEditingBudget ? draftBudget : budgetParts.amount).length))}
+                    value={isEditingBudget ? draftBudget : budgetParts.amount}
+                    readOnly={!isEditingBudget}
+                    onFocus={() => {
+                      if (!isEditingBudget) setIsEditingBudget(true);
+                    }}
+                    onChange={(e) => setDraftBudget(e.target.value)}
+                    onBlur={() => {
+                      if (editFinishedRef.current) {
+                        // Blur was triggered programmatically after Enter/Escape — already handled
+                        editFinishedRef.current = false;
+                        return;
+                      }
+                      if (isEditingBudget) handleBudgetSave();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        editFinishedRef.current = true;
+                        handleBudgetSave();
+                        budgetInputRef.current?.blur();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        editFinishedRef.current = true;
+                        handleBudgetCancel();
+                        budgetInputRef.current?.blur();
+                      }
+                    }}
+                    className="max-w-[160px] bg-transparent font-headline-lg text-headline-lg text-on-surface font-extrabold outline-none sm:max-w-[220px]"
+                  />
+                  <span className="shrink-0 text-[13px] font-bold text-on-surface-variant">{budgetParts.currency}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => onEditMoneyPlaces({ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 })}
-                  className="ml-2 flex items-center gap-1 rounded-full border border-outline-variant bg-surface px-2.5 py-1.5 text-[12px] font-bold text-on-surface-variant transition-colors hover:bg-surface-container"
+                  onClick={() => setIsEditingBudget(true)}
+                  aria-label="Edit total monthly budget"
+                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
                 >
                   <AppIcon name="edit" className="text-[14px]" />
                 </button>
               </div>
             </div>
-            <div className="text-right">
+            <div className="shrink-0 text-right">
               <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block">
                 TOTAL CASH ON HAND
               </span>
-              <span className="font-headline-sm text-headline-sm text-primary font-extrabold font-mono">
-                {format(totalCash)}
-              </span>
+              <div className="mt-1 flex items-center justify-end gap-2">
+                <span className="font-headline-sm text-headline-sm text-primary font-extrabold font-mono">
+                  {format(totalCash)}
+                </span>
+                <button
+                  type="button"
+                  onClick={onEditMoneyPlaces}
+                  aria-label="Adjust cash balances"
+                  title="Adjust cash balances"
+                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
+                >
+                  <AppIcon name="tune" className="text-[14px]" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

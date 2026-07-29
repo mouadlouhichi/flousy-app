@@ -19,6 +19,7 @@ import {
   MonthBudget,
   VariableExpense,
   updateMoneyPlaces,
+  calculateTotalIncome,
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
@@ -178,5 +179,42 @@ describe('Store & Money Math Invariants', () => {
     assert.strictEqual(normalized.variableExpenses[0].place, 'bank');
     assert.ok(normalized.activeCategories.length > 0);
     assert.strictEqual(normalized.bankPart, 3970);
+  });
+
+  it('calculateTotalIncome never double counts the backfilled default income source', () => {
+    // normalizeMonth backfills incomeSources with a default source equal to
+    // totalBudget — summing both would report 2× the monthly budget.
+    const normalized = normalizeMonth({ totalBudget: 10000 }, '2026-07');
+
+    assert.strictEqual(normalized.incomeSources.length, 1);
+    assert.strictEqual(normalized.incomeSources[0].amount, 10000);
+    assert.strictEqual(calculateTotalIncome(normalized), 10000);
+  });
+
+  it('calculateTotalIncome sums declared sources and falls back to totalBudget', () => {
+    // Multiple declared sources → their sum
+    const withSources = normalizeMonth({
+      totalBudget: 15000,
+      incomeSources: [
+        { id: 's1', name: 'Salary', amount: 12000 },
+        { id: 's2', name: 'Freelance', amount: 3000 },
+      ],
+    }, '2026-07');
+    assert.strictEqual(calculateTotalIncome(withSources), 15000);
+
+    // Explicit empty sources array → falls back to totalBudget
+    assert.strictEqual(calculateTotalIncome({ totalBudget: 8000, incomeSources: [] }), 8000);
+
+    // Zeroed-out sources → falls back to totalBudget instead of reporting 0
+    assert.strictEqual(
+      calculateTotalIncome({ totalBudget: 5000, incomeSources: [{ id: 's1', name: 'Zero', amount: 0 }] }),
+      5000
+    );
+
+    // Garbage amounts are ignored safely
+    assert.strictEqual(
+      calculateTotalIncome({ totalBudget: 0, incomeSources: [{ id: 's1', name: 'Bad', amount: NaN }] }),
+      0
+    );
   });
 });
