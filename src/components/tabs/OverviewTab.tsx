@@ -86,7 +86,7 @@ export function OverviewTab({
       {/* Top 3 Money Places Cards */}
       <div className="flex flex-col gap-3">
         {/* Bank */}
-        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center">
               <AppIcon name="account_balance" className=" text-[22px]" />
@@ -115,7 +115,7 @@ export function OverviewTab({
         </div>
 
         {/* Home Cash */}
-        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center">
               <AppIcon name="home" className=" text-[22px]" />
@@ -144,7 +144,7 @@ export function OverviewTab({
         </div>
 
         {/* Wallet */}
-        <div className="p-4 sm:p-5 bg-surface rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
               <AppIcon name="account_balance_wallet" className=" text-[22px]" />
@@ -374,7 +374,7 @@ export function OverviewTab({
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="p-8 bg-surface/50 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
+              <div className="p-8 bg-surface-container-high/30 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
                 <AppIcon name="receipt_long" className=" text-outline text-[40px]" />
                 <p className="font-body-md text-body-md text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
@@ -390,10 +390,10 @@ export function OverviewTab({
                   <div
                     key={exp.id}
                     onClick={() => onOpenEditExpense(exp)}
-                    className="p-3 bg-surface rounded-2xl border border-outline-variant/60 flex justify-between items-center hover:border-primary transition-all cursor-pointer"
+                    className="py-3 flex justify-between items-center hover:bg-surface-container-high/30 transition-all cursor-pointer -mx-2 px-2 rounded-lg"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-surface-container text-primary flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                         <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className=" text-[20px]" />
                       </div>
                       <div className="flex flex-col">
@@ -421,9 +421,9 @@ export function OverviewTab({
 
                 <button
                   onClick={() => onSelectTab('variable')}
-                  className="w-full py-2.5 mt-2 text-center text-on-surface-variant hover:text-on-surface bg-surface hover:bg-surface-variant/50 rounded-2xl border border-outline-variant/40 font-label-md text-xs font-bold transition-all"
+                  className="w-full py-2.5 mt-2 text-center text-primary hover:text-primary/80 font-label-md text-xs font-bold transition-all"
                 >
-                  Show more transactions
+                  View All History
                 </button>
               </div>
             )}
