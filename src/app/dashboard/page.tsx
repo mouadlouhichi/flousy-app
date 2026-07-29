@@ -64,6 +64,7 @@ import { BudgetAlerts } from '../../components/ui/BudgetAlerts';
 import { InstallButton } from '../../components/pwa/install-button';
 import { isProUser } from '../../lib/pro-features';
 import { getMobileQuickActions } from '../../lib/dashboard-quick-actions';
+import { trackEvent } from '../../lib/analytics';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -266,9 +267,11 @@ export default function DashboardPage() {
     if (selectedExpense) {
       const updated = editVariableExpense(month, selectedExpense, exp);
       updateAndSaveMonth(updated);
+      trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
       const updated = addVariableExpense(month, exp);
       updateAndSaveMonth(updated);
+      trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
     setSelectedExpense(null);
   };
@@ -276,6 +279,7 @@ export default function DashboardPage() {
   const handleDeleteVariableExpense = (exp: VariableExpense) => {
     const updated = deleteVariableExpense(month, exp);
     updateAndSaveMonth(updated);
+    trackEvent('delete_variable_expense', { category: exp.type });
     setSelectedExpense(null);
   };
 
@@ -284,9 +288,11 @@ export default function DashboardPage() {
     if (selectedFixed) {
       const updated = editFixedExpense(month, selectedFixed, bill);
       updateAndSaveMonth(updated);
+      trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
       const updated = addFixedExpense(month, bill);
       updateAndSaveMonth(updated);
+      trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
     setSelectedFixed(null);
   };
@@ -294,6 +300,7 @@ export default function DashboardPage() {
   const handleDeleteFixedBill = (bill: FixedExpense) => {
     const updated = deleteFixedExpense(month, bill);
     updateAndSaveMonth(updated);
+    trackEvent('delete_fixed_expense', { category: bill.type });
     setSelectedFixed(null);
   };
 
@@ -301,6 +308,7 @@ export default function DashboardPage() {
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     const updated = moveMoney(month, from, to, amount);
     updateAndSaveMonth(updated);
+    trackEvent('move_money', { from, to, amount });
   };
 
   // Savings Handlers
@@ -319,12 +327,14 @@ export default function DashboardPage() {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
     updateAndSaveMonth(res.month);
     updateAndSaveGoals(res.goals);
+    trackEvent('fund_goal', { amount, sourcePlace });
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
     updateAndSaveMonth(res.month);
     updateAndSaveGoals(res.goals);
+    trackEvent('withdraw_goal', { amount, targetPlace });
   };
 
   const handleDeleteGoal = (goalId: string) => {
@@ -404,6 +414,7 @@ export default function DashboardPage() {
     }, currentMonthKey);
 
     updateAndSaveMonth(updated);
+    trackEvent('update_total_budget', { amount: safeBudget });
   };
 
   const handleEditMoneyPlaces = (values: { bank: number; home: number; wallet: number }) => {

@@ -13,6 +13,7 @@ import {
 } from './i18n';
 import { formatMessage, getIntlLocale } from './translations';
 import { useAuth } from './auth-context';
+import { trackEvent } from './analytics';
 
 interface LanguageContextType {
   language: Language;
@@ -54,6 +55,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       setLanguageCookie(lang);
       try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
       updateProfileData({ language: lang }).catch((e) => console.error(e));
+      trackEvent('change_language', { language: lang });
     },
     [updateProfileData],
   );

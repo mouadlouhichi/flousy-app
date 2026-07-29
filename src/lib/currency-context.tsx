@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { formatCurrency, formatCurrencyParts, getCurrencySymbol } from './currency';
 import { useAuth } from './auth-context';
 import { useLanguage } from './i18n-context';
+import { trackEvent } from './analytics';
 
 interface CurrencyContextType {
   currency: string;
@@ -29,6 +30,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const setCurrency = (c: string) => {
     setCurrencyState(c);
     updateProfileData({ currency: c }).catch((e: unknown) => console.error(e));
+    trackEvent('change_currency', { currency: c });
   };
 
   const format = (amount: number) => formatCurrency(amount, currency, intlLocale);

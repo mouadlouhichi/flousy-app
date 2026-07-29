@@ -8,8 +8,8 @@ export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === 'development';
 
   const scriptSrc = isDev
-    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}' https://apis.google.com https://www.gstatic.com`
-    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com`;
+    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
+    : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`;
 
   const csp = [
     "default-src 'self'",
@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
-    `connect-src 'self' https://*.googleapis.com https://${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} wss://*.firebaseio.com`,
+    `connect-src 'self' https://*.googleapis.com https://${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} wss://*.firebaseio.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com`,
     `frame-src https://accounts.google.com https://${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}`,
     "object-src 'none'",
     "base-uri 'self'",

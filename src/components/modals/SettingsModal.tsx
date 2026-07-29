@@ -9,6 +9,7 @@ import { useLanguage } from '../../lib/i18n-context';
 import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
+import { trackEvent } from '../../lib/analytics';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
   const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
     updateProfileData({ theme });
+    trackEvent('change_theme', { theme });
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -47,6 +49,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   const handleExportCsv = () => {
     const csvContent = exportMonthToCsv(month, goals, monthKey, currency);
     downloadCsv(`flousy-budget-${monthKey}.csv`, csvContent);
+    trackEvent('export_csv');
   };
 
   const userInitial = user?.email?.[0]?.toUpperCase() || 'M';
