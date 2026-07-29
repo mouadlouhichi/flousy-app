@@ -1,10 +1,23 @@
-const CACHE_NAME = 'flousy-v2';
+const CACHE_NAME = 'flousy-v3';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
 // cache.addAll() reject, which aborts the whole service worker install and
 // silently disqualifies the app from being installable.
-const ASSETS_TO_CACHE = [OFFLINE_URL, '/manifest.json', '/icon-192.png', '/icon-512.png'];
+const ASSETS_TO_CACHE = [
+  OFFLINE_URL,
+  '/manifest.json',
+  '/site.webmanifest',
+  '/favicon.ico',
+  '/favicon.svg',
+  '/favicon-96x96.png',
+  '/apple-touch-icon.png',
+  '/web-app-manifest-192x192.png',
+  '/web-app-manifest-512x512.png',
+  // legacy compat
+  '/icon-192.png',
+  '/icon-512.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

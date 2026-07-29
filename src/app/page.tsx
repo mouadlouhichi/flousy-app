@@ -80,7 +80,7 @@ const organizationSchema = {
   '@type': 'Organization',
   name: SITE_NAME,
   url: SITE_URL,
-  logo: `${SITE_URL}/icon.png`,
+  logo: `${SITE_URL}/web-app-manifest-512x512.png`,
 };
 
 const faqSchema = {
@@ -100,7 +100,7 @@ const localBusinessSchema = {
   '@context': 'https://schema.org',
   '@type': 'LocalBusiness',
   name: SITE_NAME,
-  image: `${SITE_URL}/icon.png`,
+  image: `${SITE_URL}/web-app-manifest-512x512.png`,
   url: SITE_URL,
   telephone: '+1-555-123-4567',
   address: {
