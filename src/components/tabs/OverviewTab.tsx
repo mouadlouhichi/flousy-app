@@ -253,8 +253,8 @@ export function OverviewTab({
           </div>
 
           {/* Monthly Income Summary Banner */}
-          <div className="p-6 bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center gap-4 shadow-xs">
-            <div className="min-w-0">
+          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-4 shadow-xs">
+            <div className="min-w-0 flex-1">
               <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-extrabold">
                 TOTAL MONTHLY BUDGET
               </span>
@@ -316,11 +316,11 @@ export function OverviewTab({
                 </button>
               </div>
             </div>
-            <div className="shrink-0 text-right">
-              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block">
+            <div className="w-full sm:w-auto border-t border-outline-variant/50 sm:border-t-0 pt-4 sm:pt-0 shrink-0 sm:text-right">
+              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block sm:text-right">
                 TOTAL CASH ON HAND
               </span>
-              <div className="mt-1 flex items-center justify-end gap-2">
+              <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
                 <span className="font-headline-sm text-headline-sm text-primary font-extrabold font-mono">
                   {format(totalCash)}
                 </span>
