@@ -254,9 +254,6 @@ export function OverviewTab({
                   }}
                   className="w-40 bg-transparent font-headline-lg text-headline-lg text-on-surface font-extrabold outline-none"
                 />
-                <span className="font-label-md text-label-md text-on-surface-variant font-semibold">
-                  {formatParts(month.totalBudget).currency}
-                </span>
                 <button
                   type="button"
                   onClick={() => onEditMoneyPlaces({ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 })}
