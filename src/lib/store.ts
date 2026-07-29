@@ -1,6 +1,6 @@
 export type Envelope = 'needs' | 'wants' | 'savings';
 export type MoneyPlace = 'bank' | 'home' | 'wallet';
-export type StrategyId = '50-30-20' | 'zero-based' | 'envelope' | 'pay-first';
+export type StrategyId = '50-30-20' | '70-20-10' | '80-20' | 'zero-based' | 'envelope' | 'pay-first' | 'custom';
 export type ExpenseKind = 'variable' | 'fixed';
 
 export interface Strategy {
@@ -17,6 +17,22 @@ export const STRATEGIES: Record<StrategyId, Strategy> = {
     id: '50-30-20',
     name: '50/30/20 Rule',
     description: 'Balanced approach splitting income into Needs (50%), Wants (30%), and Savings (20%).',
+    needsRatio: 0.50,
+    wantsRatio: 0.30,
+    savingsRatio: 0.20,
+  },
+  '70-20-10': {
+    id: '70-20-10',
+    name: '70/20/10 Rule',
+    description: 'Conservative approach: Needs (70%), Wants (20%), Savings (10%). Great for beginners.',
+    needsRatio: 0.70,
+    wantsRatio: 0.20,
+    savingsRatio: 0.10,
+  },
+  '80-20': {
+    id: '80-20',
+    name: '80/20 Rule',
+    description: 'Simple approach: Spend 80% on Needs & Wants, save 20%. Flexible and easy.',
     needsRatio: 0.50,
     wantsRatio: 0.30,
     savingsRatio: 0.20,
@@ -44,6 +60,14 @@ export const STRATEGIES: Record<StrategyId, Strategy> = {
     needsRatio: 0.45,
     wantsRatio: 0.25,
     savingsRatio: 0.30,
+  },
+  custom: {
+    id: 'custom',
+    name: 'Custom Strategy',
+    description: 'Define your own allocation ratios for Needs, Wants, and Savings.',
+    needsRatio: 0.50,
+    wantsRatio: 0.30,
+    savingsRatio: 0.20,
   },
 };
 
@@ -146,6 +170,35 @@ export function calculateEnvelopeAmounts(income: number, strategyId: StrategyId)
   const savings = safeIncome - (needs + wants);
 
   return { needs, wants, savings };
+}
+
+/**
+ * Update budget strategy and recalculate envelopes
+ */
+export function updateBudgetStrategy(
+  month: MonthBudget,
+  strategyId: StrategyId,
+  customRatios?: { needs: number; wants: number; savings: number }
+): MonthBudget {
+  // If custom strategy, update the custom strategy ratios
+  if (strategyId === 'custom' && customRatios) {
+    const total = customRatios.needs + customRatios.wants + customRatios.savings;
+    if (Math.abs(total - 1.0) > 0.01) {
+      throw new Error('Custom ratios must sum to 1.0 (100%)');
+    }
+    STRATEGIES.custom.needsRatio = customRatios.needs;
+    STRATEGIES.custom.wantsRatio = customRatios.wants;
+    STRATEGIES.custom.savingsRatio = customRatios.savings;
+  }
+
+  const { savings } = calculateEnvelopeAmounts(month.totalBudget, strategyId);
+
+  return {
+    ...month,
+    strategyId,
+    monthlySavingsTarget: savings,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /**

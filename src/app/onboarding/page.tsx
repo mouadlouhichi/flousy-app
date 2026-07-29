@@ -741,49 +741,61 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
             {/* Donut Chart Card */}
             <div className="bg-surface p-6 rounded-[28px] border border-outline-variant/90 shadow-2xs flex flex-col items-center gap-5">
               <div className="relative w-52 h-52 flex items-center justify-center">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="none"
-                    stroke="var(--surface-variant)"
-                    strokeWidth="10"
-                  />
-                  {/* Needs Arc (50%) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="none"
-                    stroke="var(--primary)"
-                    strokeWidth="10"
-                    strokeDasharray="119.38 238.76"
-                    strokeDashoffset="0"
-                  />
-                  {/* Wants Arc (30%) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="none"
-                    stroke="var(--tertiary)"
-                    strokeWidth="10"
-                    strokeDasharray="71.63 238.76"
-                    strokeDashoffset="-119.38"
-                  />
-                  {/* Savings Arc (20%) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="38"
-                    fill="none"
-                    stroke="var(--secondary)"
-                    strokeWidth="10"
-                    strokeDasharray="47.75 238.76"
-                    strokeDashoffset="-191.01"
-                  />
-                </svg>
+                {(() => {
+                  const circumference = 2 * Math.PI * 38; // ~238.76
+                  const strategy = STRATEGIES[selectedStrategy];
+                  const needsArc = circumference * strategy.needsRatio;
+                  const wantsArc = circumference * strategy.wantsRatio;
+                  const savingsArc = circumference * strategy.savingsRatio;
+                  const wantsOffset = -needsArc;
+                  const savingsOffset = -(needsArc + wantsArc);
+
+                  return (
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="none"
+                        stroke="var(--surface-variant)"
+                        strokeWidth="10"
+                      />
+                      {/* Needs Arc */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="none"
+                        stroke="var(--primary)"
+                        strokeWidth="10"
+                        strokeDasharray={`${needsArc} ${circumference}`}
+                        strokeDashoffset="0"
+                      />
+                      {/* Wants Arc */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="none"
+                        stroke="var(--tertiary)"
+                        strokeWidth="10"
+                        strokeDasharray={`${wantsArc} ${circumference}`}
+                        strokeDashoffset={String(wantsOffset)}
+                      />
+                      {/* Savings Arc */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="38"
+                        fill="none"
+                        stroke="var(--secondary)"
+                        strokeWidth="10"
+                        strokeDasharray={`${savingsArc} ${circumference}`}
+                        strokeDashoffset={String(savingsOffset)}
+                      />
+                    </svg>
+                  );
+                })()}
 
                 <div className="absolute flex flex-col items-center text-center px-2">
                   <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">

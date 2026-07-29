@@ -22,6 +22,7 @@ import {
   deleteFixedExpense,
   moveMoney,
   updateMoneyPlaces,
+  updateBudgetStrategy,
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
@@ -30,6 +31,7 @@ import {
   editDebt,
   deleteDebt,
   carryOverFixedExpenses,
+  StrategyId,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
@@ -425,6 +427,13 @@ export default function DashboardPage() {
     updateAndSaveMonth(updated);
   };
 
+  // Strategy change handler: update the strategy and recalculate envelope amounts
+  const handleUpdateStrategy = (strategyId: StrategyId) => {
+    const updated = updateBudgetStrategy(month, strategyId);
+    updateAndSaveMonth(updated);
+    trackEvent('change_strategy', { strategyId });
+  };
+
   // CSV Import Handlers
   const handleBatchImportVariable = (newExpenses: VariableExpense[]) => {
     let current = month;
@@ -740,6 +749,7 @@ export default function DashboardPage() {
                 onSelectTab={(tab) => setActiveTab(tab)}
                 onUpdateTotalBudget={handleUpdateTotalBudget}
                 onEditMoneyPlaces={() => setIsEditMoneyPlacesOpen(true)}
+                onUpdateStrategy={handleUpdateStrategy}
               />
             )}
 

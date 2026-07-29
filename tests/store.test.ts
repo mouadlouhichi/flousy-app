@@ -23,7 +23,7 @@ import {
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
-  const strategies: StrategyId[] = ['50-30-20', 'zero-based', 'envelope', 'pay-first'];
+  const strategies: StrategyId[] = ['50-30-20', '70-20-10', '80-20', 'zero-based', 'envelope', 'pay-first', 'custom'];
   const testIncomes = [1, 7, 12345, 1000001, 4500];
 
   it('strategy ratios sum to exactly 1.0 (100%)', () => {

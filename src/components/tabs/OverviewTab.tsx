@@ -1,6 +1,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useRef, useState } from 'react';
-import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES } from '../../lib/store';
+import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES, StrategyId } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
 interface OverviewTabProps {
@@ -12,6 +12,7 @@ interface OverviewTabProps {
   onSelectTab: (tab: 'overview' | 'variable' | 'fixed' | 'savings') => void;
   onUpdateTotalBudget: (value: number) => void;
   onEditMoneyPlaces: () => void;
+  onUpdateStrategy?: (strategyId: StrategyId) => void;
 }
 
 export function OverviewTab({
@@ -23,6 +24,7 @@ export function OverviewTab({
   onSelectTab,
   onUpdateTotalBudget,
   onEditMoneyPlaces,
+  onUpdateStrategy,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
   const budgetInputRef = useRef<HTMLInputElement>(null);
@@ -174,13 +176,28 @@ export function OverviewTab({
         <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Budget Plan Card */}
           <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-5 shadow-xs">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
                 Budget Plan
               </h3>
-              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">
-                {strategy.name}
-              </span>
+              {onUpdateStrategy ? (
+                <select
+                  value={month.strategyId}
+                  onChange={(e) => onUpdateStrategy(e.target.value as StrategyId)}
+                  className="bg-surface-variant border-0 rounded-lg px-3 py-1.5 font-label-sm text-label-sm font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer max-w-[140px] sm:max-w-none"
+                  aria-label="Select budget strategy"
+                >
+                  {Object.values(STRATEGIES).filter(s => s.id !== 'custom').map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">
+                  {strategy.name}
+                </span>
+              )}
             </div>
 
             {/* Needs Bar */}
