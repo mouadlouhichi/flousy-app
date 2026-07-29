@@ -86,18 +86,18 @@ export function OverviewTab({
       {/* Top 3 Money Places Cards */}
       <div className="flex flex-col gap-3">
         {/* Bank */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-primary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-primary/40 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-primary text-on-primary flex items-center justify-center">
-              <AppIcon name="account_balance" className=" text-[22px]" />
+            <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-2xs">
+              <AppIcon name="account_balance" className="text-[20px]" />
             </div>
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Bank</span>
+              <span className="font-bold text-base text-on-surface">Bank</span>
               <div className="flex items-baseline gap-1">
-                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                <span className="text-xl font-bold text-on-surface font-mono">
                   {formatParts(month.bankPart || 0).amount}
                 </span>
-                <span className="text-[13px] font-bold text-on-surface-variant">
+                <span className="text-xs font-semibold text-on-surface-variant">
                   {formatParts(month.bankPart || 0).currency}
                 </span>
               </div>
@@ -106,27 +106,27 @@ export function OverviewTab({
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenMoveMoneyModal}
-              className="text-primary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+              className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Move</span>
-              <AppIcon name="swap_horiz" className=" text-[16px]" />
+              <AppIcon name="swap_horiz" className="text-[14px]" />
             </button>
           </div>
         </div>
 
         {/* Home Cash */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-tertiary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-tertiary/40 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center">
-              <AppIcon name="home" className=" text-[22px]" />
+            <div className="w-10 h-10 rounded-2xl bg-tertiary text-on-tertiary flex items-center justify-center shadow-2xs">
+              <AppIcon name="home" className="text-[20px]" />
             </div>
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Home Cash</span>
+              <span className="font-bold text-base text-on-surface">Home Cash</span>
               <div className="flex items-baseline gap-1">
-                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                <span className="text-xl font-bold text-on-surface font-mono">
                   {formatParts(month.homePart || 0).amount}
                 </span>
-                <span className="text-[13px] font-bold text-on-surface-variant">
+                <span className="text-xs font-semibold text-on-surface-variant">
                   {formatParts(month.homePart || 0).currency}
                 </span>
               </div>
@@ -135,27 +135,27 @@ export function OverviewTab({
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenMoveMoneyModal}
-              className="text-tertiary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+              className="text-xs font-bold text-tertiary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Deposit</span>
-              <AppIcon name="add" className=" text-[16px]" />
+              <AppIcon name="add" className="text-[14px]" />
             </button>
           </div>
         </div>
 
         {/* Wallet */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-2xl border border-outline-variant/80 shadow-xs flex items-center justify-between hover:border-secondary/40 transition-all">
+        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-secondary/40 transition-all">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
-              <AppIcon name="account_balance_wallet" className=" text-[22px]" />
+            <div className="w-10 h-10 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-2xs">
+              <AppIcon name="account_balance_wallet" className="text-[20px]" />
             </div>
             <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Wallet</span>
+              <span className="font-bold text-base text-on-surface">Wallet</span>
               <div className="flex items-baseline gap-1">
-                <span className="font-headline-md text-headline-md font-extrabold text-on-surface font-mono">
+                <span className="text-xl font-bold text-on-surface font-mono">
                   {formatParts(month.walletPart || 0).amount}
                 </span>
-                <span className="text-[13px] font-bold text-on-surface-variant">
+                <span className="text-xs font-semibold text-on-surface-variant">
                   {formatParts(month.walletPart || 0).currency}
                 </span>
               </div>
@@ -164,10 +164,10 @@ export function OverviewTab({
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenMoveMoneyModal}
-              className="text-secondary font-label-md font-bold cursor-pointer flex items-center gap-1 text-[13px]"
+              className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Withdraw</span>
-              <AppIcon name="south" className=" text-[16px]" />
+              <AppIcon name="south" className="text-[14px]" />
             </button>
           </div>
         </div>
@@ -178,9 +178,9 @@ export function OverviewTab({
         {/* Left Column (Budget Plan + Strategy) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Budget Plan Card */}
-          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-5 shadow-xs">
+          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-4 shadow-2xs">
             <div className="flex justify-between items-center gap-3">
-              <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
+              <h3 className="font-bold text-base text-on-surface">
                 Budget Plan
               </h3>
               {onUpdateStrategy ? (
@@ -190,14 +190,14 @@ export function OverviewTab({
                   className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
                   aria-label="Change budget strategy"
                 >
-                  <AppIcon name="package" className="text-[14px] text-primary group-hover:rotate-45 transition-transform" />
-                  <span className="font-label-sm text-label-sm font-bold text-on-surface">
+                  <AppIcon name="package" className="text-[12px] text-primary " />
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface">
                     {strategy.name}
                   </span>
-                  <AppIcon name="chevron_right" className="text-[14px] text-on-surface-variant rotate-90" />
+                  <AppIcon name="chevron_right" className="text-[12px] text-on-surface-variant rotate-90" />
                 </button>
               ) : (
-                <span className="font-label-sm text-label-sm font-mono text-on-surface-variant font-bold uppercase">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant">
                   {strategy.name}
                 </span>
               )}
@@ -205,12 +205,12 @@ export function OverviewTab({
 
             {/* Needs Bar */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                  <span className="font-label-lg font-bold text-on-surface">Needs ({Math.round(strategy.needsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">Needs ({Math.round(strategy.needsRatio * 100)}%)</span>
                 </div>
-                <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{needsSpentPct}% Used</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{needsSpentPct}% Used</span>
               </div>
               <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
@@ -218,20 +218,20 @@ export function OverviewTab({
                   style={{ width: `${needsSpentPct}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
-                <span className="font-mono font-bold">{format(spent.needs)}</span>
-                <span className="font-mono font-bold">{format(needs)}</span>
+              <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
+                <span>{format(spent.needs)}</span>
+                <span>{format(needs)}</span>
               </div>
             </div>
 
             {/* Wants Bar */}
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="font-label-lg font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
                 </div>
-                <span className="font-label-sm text-label-sm font-bold text-on-surface-variant">{wantsSpentPct}% Used</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
               <div className="w-full h-2.5 bg-surface-variant rounded-full overflow-hidden">
                 <div
@@ -239,9 +239,9 @@ export function OverviewTab({
                   style={{ width: `${wantsSpentPct}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
-                <span className="font-mono font-bold">{format(spent.wants)}</span>
-                <span className="font-mono font-bold">{format(wants)}</span>
+              <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
+                <span>{format(spent.wants)}</span>
+                <span>{format(wants)}</span>
               </div>
             </div>
 
@@ -250,12 +250,12 @@ export function OverviewTab({
               onClick={() => onSelectTab('savings')}
               className="flex flex-col gap-1.5 hover:opacity-80 transition-all cursor-pointer"
             >
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
-                  <span className="font-label-lg font-bold text-on-surface">Savings ({Math.round(strategy.savingsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">Savings ({Math.round(strategy.savingsRatio * 100)}%)</span>
                 </div>
-                <span className="font-label-sm text-label-sm font-bold text-primary">
+                <span className="text-[11px] font-semibold text-primary">
                   {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -265,17 +265,17 @@ export function OverviewTab({
                   style={{ width: `${Math.min(100, Math.round((goals.reduce((acc, g) => acc + g.current, 0) / (savings || 1)) * 100))}%` }}
                 />
               </div>
-              <div className="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
-                <span className="font-mono font-bold">{format(goals.reduce((acc, g) => acc + g.current, 0))}</span>
-                <span className="font-mono font-bold">{format(savings)}</span>
+              <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
+                <span>{format(goals.reduce((acc, g) => acc + g.current, 0))}</span>
+                <span>{format(savings)}</span>
               </div>
             </div>
           </div>
 
           {/* Monthly Income Summary Banner */}
-          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-4 shadow-xs">
+          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 shadow-2xs">
             <div className="min-w-0 flex-1">
-              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-extrabold">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant font-mono">
                 TOTAL MONTHLY BUDGET
               </span>
               <div className="mt-1 flex items-center gap-2">
@@ -303,7 +303,6 @@ export function OverviewTab({
                     onChange={(e) => setDraftBudget(e.target.value)}
                     onBlur={() => {
                       if (editFinishedRef.current) {
-                        // Blur was triggered programmatically after Enter/Escape — already handled
                         editFinishedRef.current = false;
                         return;
                       }
@@ -322,26 +321,26 @@ export function OverviewTab({
                         budgetInputRef.current?.blur();
                       }
                     }}
-                    className="max-w-[160px] bg-transparent font-headline-lg text-headline-lg text-on-surface font-extrabold outline-none sm:max-w-[220px]"
+                    className="max-w-[160px] bg-transparent text-2xl font-bold text-on-surface font-mono outline-none sm:max-w-[220px]"
                   />
-                  <span className="shrink-0 text-[13px] font-bold text-on-surface-variant">{budgetParts.currency}</span>
+                  <span className="shrink-0 text-xs font-semibold text-on-surface-variant">{budgetParts.currency}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsEditingBudget(true)}
                   aria-label="Edit total monthly budget"
-                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
+                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
                 >
                   <AppIcon name="edit" className="text-[14px]" />
                 </button>
               </div>
             </div>
             <div className="w-full sm:w-auto border-t border-outline-variant/50 sm:border-t-0 pt-4 sm:pt-0 shrink-0 sm:text-right">
-              <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider block sm:text-right">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant font-mono block sm:text-right">
                 TOTAL CASH ON HAND
               </span>
               <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
-                <span className="font-headline-sm text-headline-sm text-primary font-extrabold font-mono">
+                <span className="text-xl font-bold text-primary font-mono">
                   {format(totalCash)}
                 </span>
                 <button
@@ -349,7 +348,7 @@ export function OverviewTab({
                   onClick={onEditMoneyPlaces}
                   aria-label="Adjust cash balances"
                   title="Adjust cash balances"
-                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
+                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
                 >
                   <AppIcon name="tune" className="text-[14px]" />
                 </button>
@@ -362,58 +361,52 @@ export function OverviewTab({
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="flex flex-col gap-4 h-full">
             <div className="flex justify-between items-center">
-              <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
+              <h3 className="font-bold text-base text-on-surface">
                 Recent Activity
               </h3>
               <button
                 onClick={() => onSelectTab('variable')}
-                className="font-label-md text-label-md text-primary font-bold hover:underline"
+                className="text-xs font-bold text-primary hover:underline"
               >
-                View All History
+                View All
               </button>
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto">
-                <AppIcon name="receipt_long" className=" text-outline text-[40px]" />
-                <p className="font-body-md text-body-md text-on-surface-variant">No expenses logged yet this month.</p>
+              <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3 my-auto shadow-2xs">
+                <AppIcon name="receipt_long" className="text-outline text-[40px]" />
+                <p className="text-xs text-on-surface-variant">No expenses logged yet this month.</p>
                 <button
                   onClick={onOpenExpenseModal}
-                  className="px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-full font-bold shadow-xs hover:bg-accent-foreground transition-all"
+                  className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full shadow-2xs hover:bg-primary/90 transition-all"
                 >
                   Add First Expense
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 bg-surface-container rounded-3xl border border-outline-variant p-6 shadow-xs">
+              <div className="bg-surface-container rounded-3xl border border-outline-variant p-2 shadow-2xs flex flex-col divide-y divide-outline-variant/60">
                 {recentExpenses.map((exp) => (
                   <div
                     key={exp.id}
                     onClick={() => onOpenEditExpense(exp)}
-                    className="py-3 flex justify-between items-center hover:bg-surface-container-high/30 transition-all cursor-pointer -mx-2 px-2 rounded-lg"
+                    className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className=" text-[20px]" />
+                        <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className="text-[20px]" />
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-[15px] text-on-surface">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm text-on-surface truncate">
                           {exp.name}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[12px] text-on-surface-variant">
-                          <span>{exp.date}</span>
-                          <span>•</span>
-                          <span className="capitalize">{exp.type}</span>
-                        </div>
+                        <span className="text-xs text-on-surface-variant mt-0.5">
+                          {exp.date} • {exp.type}
+                        </span>
                       </div>
                     </div>
-
-                    <div className="flex items-baseline gap-0.5">
-                      <span className="font-mono font-extrabold text-[15px] text-on-surface">
-                        -{formatParts(exp.amount).amount}
-                      </span>
-                      <span className="text-[11px] font-bold text-on-surface-variant">
-                        {formatParts(exp.amount).currency}
+                    <div className="text-right shrink-0">
+                      <span className="font-bold text-sm font-mono text-on-surface">
+                        -{formatParts(exp.amount).amount} {formatParts(exp.amount).currency}
                       </span>
                     </div>
                   </div>
