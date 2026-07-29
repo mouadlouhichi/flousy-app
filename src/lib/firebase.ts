@@ -1,6 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAnalytics, Analytics, isSupported } from 'firebase/analytics';
 
 // Get config from env safely for Next.js
 const getFirebaseConfig = () => {
@@ -22,6 +23,9 @@ const getFirebaseConfig = () => {
   const appId =
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID ||
     process.env.FIREBASE_APP_ID;
+  const measurementId =
+    process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ||
+    process.env.FIREBASE_MEASUREMENT_ID;
 
   if (apiKey && projectId) {
     return {
@@ -31,6 +35,7 @@ const getFirebaseConfig = () => {
       storageBucket,
       messagingSenderId,
       appId,
+      measurementId,
     };
   }
 
@@ -42,17 +47,27 @@ export const firebaseConfig = getFirebaseConfig();
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let analytics: Analytics | null = null;
 
 if (firebaseConfig) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     auth = getAuth(app);
     db = getFirestore(app);
+    
+    // Initialize Analytics only on the client side
+    if (typeof window !== 'undefined') {
+      isSupported().then((supported) => {
+        if (supported && app) {
+          analytics = getAnalytics(app);
+        }
+      });
+    }
   } catch (err) {
     console.warn('Firebase initialization error:', err);
   }
 }
 
 export const isFirebaseConfigured = Boolean(app && auth && db);
-export { app, auth, db };
+export { app, auth, db, analytics };
 export const googleProvider = new GoogleAuthProvider();

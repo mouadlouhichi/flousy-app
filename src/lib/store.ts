@@ -149,6 +149,21 @@ export function calculateEnvelopeAmounts(income: number, strategyId: StrategyId)
 }
 
 /**
+ * Effective Monthly Income Calculation
+ * Prefers the sum of declared income sources; falls back to totalBudget.
+ * NOTE: normalizeMonth backfills a default source equal to totalBudget, so the
+ * two already agree — they must NEVER be added together (double counting).
+ */
+export function calculateTotalIncome(month: Pick<MonthBudget, 'totalBudget' | 'incomeSources'>): number {
+  const sources = month.incomeSources || [];
+  if (sources.length === 0) return month.totalBudget || 0;
+
+  const sum = sources.reduce((acc, s) => acc + (typeof s?.amount === 'number' && isFinite(s.amount) ? s.amount : 0), 0);
+  // If every source is zeroed out, keep the declared budget rather than showing 0.
+  return sum > 0 ? sum : (month.totalBudget || 0);
+}
+
+/**
  * Category Bucket Resolution
  * Resolves whether a category is a 'needs' or 'wants' bucket depending on kind ('variable' vs 'fixed').
  */

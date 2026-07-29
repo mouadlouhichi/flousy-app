@@ -18,6 +18,7 @@ import {
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { UserProfile } from './store';
 import { getUserProfile, setUserProfile, deleteUserAccountData } from './db';
+import { trackEvent } from './analytics';
 
 interface AuthContextType {
   user: User | null;
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!auth) throw new Error('Firebase Auth is not configured');
     const res = await signInWithEmailAndPassword(auth, e, p);
     await syncUserProfile(res.user);
+    trackEvent('login', { method: 'email' });
   };
 
   const signUpEmail = async (e: string, p: string, displayName?: string) => {
@@ -114,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     await syncUserProfile(res.user, displayName);
+    trackEvent('sign_up', { method: 'email' });
     if (res.user && !res.user.emailVerified) {
       try {
         await firebaseSendEmailVerification(res.user);
@@ -128,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const isNew = await syncUserProfile(res.user);
+      trackEvent(isNew ? 'sign_up' : 'login', { method: 'google' });
       return isNew;
     } catch (err: any) {
       // In-app browsers or popup blocked fallback
@@ -161,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (auth) {
       await firebaseSignOut(auth);
     }
+    trackEvent('logout');
     setUser(null);
     setProfile(null);
   };

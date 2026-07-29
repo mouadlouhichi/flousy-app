@@ -12,6 +12,7 @@ import {
   processPayment,
   upgradeUserPlan,
 } from '../../lib/payments';
+import { trackEvent } from '../../lib/analytics';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +69,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (isOpen) {
+      trackEvent('view_pro_modal', { isPro });
       setStep(isPro ? 'receipt' : 'plan');
       setBillingCycle('annual');
       setCardNumber('');
@@ -115,9 +117,10 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   // Simulated Stripe Checkout flow
   // -----------------------------------------------------------------------
   const handleStartCheckout = useCallback(() => {
+    trackEvent('begin_checkout', { billingCycle });
     setCardErrors({});
     setStep('card');
-  }, []);
+  }, [billingCycle]);
 
   const handleSubmitCard = useCallback(async () => {
     const errors: Record<string, string> = {};
@@ -174,6 +177,12 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     await upgradeUserPlan(user?.uid, billingCycle, updateProfileData, setDemoPlan);
 
     // 5) Show receipt
+    trackEvent('purchase', {
+      value: price,
+      currency: 'USD',
+      transaction_id: receipt.transactionId,
+      billing_cycle: billingCycle,
+    });
     await new Promise((r) => setTimeout(r, 500));
     setStep('receipt');
   }, [cardNumber, cardExpiry, cardCvc, cardName, receiptEmail, billingCycle, user?.uid, updateProfileData]);

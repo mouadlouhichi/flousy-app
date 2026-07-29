@@ -21,6 +21,7 @@ import {
   editFixedExpense,
   deleteFixedExpense,
   moveMoney,
+  updateMoneyPlaces,
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
@@ -64,6 +65,7 @@ import { BudgetAlerts } from '../../components/ui/BudgetAlerts';
 import { InstallButton } from '../../components/pwa/install-button';
 import { isProUser } from '../../lib/pro-features';
 import { getMobileQuickActions } from '../../lib/dashboard-quick-actions';
+import { trackEvent } from '../../lib/analytics';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -266,9 +268,11 @@ export default function DashboardPage() {
     if (selectedExpense) {
       const updated = editVariableExpense(month, selectedExpense, exp);
       updateAndSaveMonth(updated);
+      trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
       const updated = addVariableExpense(month, exp);
       updateAndSaveMonth(updated);
+      trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
     setSelectedExpense(null);
   };
@@ -276,6 +280,7 @@ export default function DashboardPage() {
   const handleDeleteVariableExpense = (exp: VariableExpense) => {
     const updated = deleteVariableExpense(month, exp);
     updateAndSaveMonth(updated);
+    trackEvent('delete_variable_expense', { category: exp.type });
     setSelectedExpense(null);
   };
 
@@ -284,9 +289,11 @@ export default function DashboardPage() {
     if (selectedFixed) {
       const updated = editFixedExpense(month, selectedFixed, bill);
       updateAndSaveMonth(updated);
+      trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
       const updated = addFixedExpense(month, bill);
       updateAndSaveMonth(updated);
+      trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
     setSelectedFixed(null);
   };
@@ -294,6 +301,7 @@ export default function DashboardPage() {
   const handleDeleteFixedBill = (bill: FixedExpense) => {
     const updated = deleteFixedExpense(month, bill);
     updateAndSaveMonth(updated);
+    trackEvent('delete_fixed_expense', { category: bill.type });
     setSelectedFixed(null);
   };
 
@@ -301,6 +309,7 @@ export default function DashboardPage() {
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     const updated = moveMoney(month, from, to, amount);
     updateAndSaveMonth(updated);
+    trackEvent('move_money', { from, to, amount });
   };
 
   // Savings Handlers
@@ -319,12 +328,14 @@ export default function DashboardPage() {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
     updateAndSaveMonth(res.month);
     updateAndSaveGoals(res.goals);
+    trackEvent('fund_goal', { amount, sourcePlace });
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
     updateAndSaveMonth(res.month);
     updateAndSaveGoals(res.goals);
+    trackEvent('withdraw_goal', { amount, targetPlace });
   };
 
   const handleDeleteGoal = (goalId: string) => {
@@ -404,16 +415,13 @@ export default function DashboardPage() {
     }, currentMonthKey);
 
     updateAndSaveMonth(updated);
+    trackEvent('update_total_budget', { amount: safeBudget });
   };
 
+  // Editing cash balances must NOT change the monthly budget (budget = income plan,
+  // balances = current cash on hand). updateMoneyPlaces enforces that invariant.
   const handleEditMoneyPlaces = (values: { bank: number; home: number; wallet: number }) => {
-    const updated = normalizeMonth({
-      ...month,
-      bankPart: Math.max(0, values.bank ?? month.bankPart ?? 0),
-      homePart: Math.max(0, values.home ?? month.homePart ?? 0),
-      walletPart: Math.max(0, values.wallet ?? month.walletPart ?? 0),
-    }, currentMonthKey);
-
+    const updated = updateMoneyPlaces(month, values);
     updateAndSaveMonth(updated);
   };
 
@@ -1019,6 +1027,7 @@ export default function DashboardPage() {
         isOpen={isEditMoneyPlacesOpen}
         onClose={() => setIsEditMoneyPlacesOpen(false)}
         initialValues={{ bank: month.bankPart || 0, home: month.homePart || 0, wallet: month.walletPart || 0 }}
+        totalBudget={month.totalBudget || 0}
         onSave={(values) => {
           handleEditMoneyPlaces(values);
           setIsEditMoneyPlacesOpen(false);
