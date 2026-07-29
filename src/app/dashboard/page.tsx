@@ -71,7 +71,7 @@ import { trackEvent } from '../../lib/analytics';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, profile, sendVerificationEmail, dismissVerificationBanner, setDismissVerificationBanner, loading: authLoading } = useAuth();
+  const { user, profile, sendVerificationEmail, dismissVerificationBanner, setDismissVerificationBanner, loading: authLoading, updateProfileData } = useAuth();
   const { format } = useCurrency();
 
   // Active Month Key (YYYY-MM)
@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'variable' | 'fixed' | 'savings' | 'trends' | 'debts'>('overview');
 
   // Core State
-  const [month, setMonth] = useState<MonthBudget>(() => normalizeMonth({ totalBudget: 0 }));
+  const [month, setMonth] = useState<MonthBudget>(() => normalizeMonth({ totalBudget: 0 }, undefined, profile));
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -155,12 +155,12 @@ export default function DashboardPage() {
           const local = localStorage.getItem(`flousy_month_${currentMonthKey}`);
           if (local) {
             try {
-              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey));
+              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey, profile));
             } catch {
-              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey));
+              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
             }
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey);
+            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile);
             setMonth(clean);
           }
         }
@@ -168,10 +168,10 @@ export default function DashboardPage() {
       });
       return () => unsub();
     } else {
-      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey));
+      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
       setLoading(false);
     }
-  }, [user, currentMonthKey]);
+  }, [user, currentMonthKey, profile]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function DashboardPage() {
       try {
         const local = localStorage.getItem(`flousy_month_${prevKey}`);
         if (local) {
-          const prev = normalizeMonth(JSON.parse(local), prevKey);
+          const prev = normalizeMonth(JSON.parse(local), prevKey, profile);
           const withCarry = carryOverFixedExpenses(month, prev);
           if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
             updateAndSaveMonth(withCarry);
@@ -401,7 +401,7 @@ export default function DashboardPage() {
       incomeSources: sources,
       totalBudget: total,
       bankPart: newBankPart,
-    });
+    }, currentMonthKey, profile);
     updateAndSaveMonth(updated);
   };
 
@@ -414,7 +414,7 @@ export default function DashboardPage() {
       totalBudget: safeBudget,
       bankPart: Math.max(0, (month.bankPart || 0) + delta),
       monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
-    }, currentMonthKey);
+    }, currentMonthKey, profile);
 
     updateAndSaveMonth(updated);
     trackEvent('update_total_budget', { amount: safeBudget });
@@ -432,6 +432,11 @@ export default function DashboardPage() {
     const updated = updateBudgetStrategy(month, strategyId);
     updateAndSaveMonth(updated);
     trackEvent('change_strategy', { strategyId });
+  };
+
+  // Profile update handler: update user profile (for persistent category budgets)
+  const handleUpdateProfile = async (updatedProfile: UserProfile) => {
+    await updateProfileData(updatedProfile);
   };
 
   // CSV Import Handlers
@@ -766,6 +771,7 @@ export default function DashboardPage() {
                 }}
                 onManageCategories={() => setIsManageCategoriesOpen(true)}
                 onUpdateMonth={updateAndSaveMonth}
+                onUpdateProfile={handleUpdateProfile}
                 onOpenProModal={() => setIsProModalOpen(true)}
               />
             )}

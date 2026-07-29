@@ -1,6 +1,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
-import { MonthBudget, VariableExpense, updateCategoryBudget, calculateCategorySpent } from '../../lib/store';
+import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { isProUser } from '../../lib/pro-features';
@@ -11,6 +11,7 @@ interface VariableTabProps {
   onEditExpense: (exp: VariableExpense) => void;
   onManageCategories: () => void;
   onUpdateMonth: (month: MonthBudget) => void;
+  onUpdateProfile: (profile: UserProfile) => void;
   onOpenProModal: () => void;
 }
 
@@ -20,6 +21,7 @@ export function VariableTab({
   onEditExpense,
   onManageCategories,
   onUpdateMonth,
+  onUpdateProfile,
   onOpenProModal,
 }: VariableTabProps) {
   const { format } = useCurrency();
@@ -49,8 +51,15 @@ export function VariableTab({
   const handleSetBudget = (category: string) => {
     const amount = parseFloat(budgetInput);
     if (!isNaN(amount) && amount >= 0) {
-      const updated = updateCategoryBudget(month, category, amount);
-      onUpdateMonth(updated);
+      // Update current month
+      const updatedMonth = updateCategoryBudget(month, category, amount);
+      onUpdateMonth(updatedMonth);
+      
+      // Update user profile defaults (for future months)
+      if (profile) {
+        const updatedProfile = updateDefaultCategoryBudget(profile, category, amount);
+        onUpdateProfile(updatedProfile);
+      }
     }
     setEditingCategory(null);
     setBudgetInput('');

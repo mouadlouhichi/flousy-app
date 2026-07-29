@@ -155,6 +155,7 @@ export interface UserProfile {
   theme?: 'light' | 'dark' | 'system';
   language?: 'en' | 'fr' | 'ar';
   householdMembers?: string[];
+  defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
 }
 
 /**
@@ -324,6 +325,30 @@ export function updateCategoryBudget(
     ...month,
     categoryBudgets: updatedBudgets,
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Update default category budget in user profile (Pro feature)
+ * These budgets persist across all months
+ */
+export function updateDefaultCategoryBudget(
+  profile: UserProfile,
+  category: string,
+  amount: number
+): UserProfile {
+  const currentBudgets = profile.defaultCategoryBudgets || {};
+  const updatedBudgets = { ...currentBudgets };
+  
+  if (amount > 0) {
+    updatedBudgets[category] = amount;
+  } else {
+    delete updatedBudgets[category];
+  }
+  
+  return {
+    ...profile,
+    defaultCategoryBudgets: updatedBudgets,
   };
 }
 
@@ -581,7 +606,11 @@ export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudge
 /**
  * Normalizes a raw Firestore month document, backfilling missing or legacy properties.
  */
-export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, monthKey?: string): MonthBudget {
+export function normalizeMonth(
+  raw: Partial<MonthBudget> | null | undefined, 
+  monthKey?: string,
+  userProfile?: UserProfile
+): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
   const defaultEnvelopes = calculateEnvelopeAmounts(fallbackIncome, raw?.strategyId || '50-30-20');
 
@@ -666,6 +695,11 @@ export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, mon
   const homePart = typeof raw?.homePart === 'number' ? raw.homePart : 0;
   const walletPart = typeof raw?.walletPart === 'number' ? raw.walletPart : 0;
 
+  // Copy default category budgets from user profile if month doesn't have any set
+  const categoryBudgets = raw?.categoryBudgets && Object.keys(raw.categoryBudgets).length > 0
+    ? raw.categoryBudgets
+    : (userProfile?.defaultCategoryBudgets || {});
+
   return {
     totalBudget,
     incomeSources,
@@ -678,7 +712,7 @@ export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, mon
     fixedExpenses,
     variableCategoryBases: raw?.variableCategoryBases || {},
     fixedCategoryBases: raw?.fixedCategoryBases || {},
-    categoryBudgets: raw?.categoryBudgets || {},
+    categoryBudgets,
     activeCategories: raw?.activeCategories || defaultCategories,
     categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
     categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },
