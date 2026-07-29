@@ -6,6 +6,8 @@ import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { LightLanguageProvider } from '@/lib/i18n-light';
 import { AppProviders } from '@/components/app-providers';
+import FirebaseAnalytics from '@/components/FirebaseAnalytics';
+import { Suspense } from 'react';
 import { SITE_URL } from '@/lib/seo';
 import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
 import '../index.css';
@@ -110,6 +112,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="font-sans antialiased">
+        <Suspense fallback={null}>
+          <FirebaseAnalytics />
+        </Suspense>
         <LightLanguageProvider>
           <AppProviders>
             {children}
