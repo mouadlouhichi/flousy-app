@@ -10,6 +10,7 @@
     "./messages/*": "./messages/*"
   },
   "scripts": {
+    "build": "echo 'core is source-only (no build step needed)'",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -8,6 +8,10 @@ const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID ?? "";
 const googleServicesPath = path.join(__dirname, "google-services.json");
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
+// Check if GoogleService-Info.plist exists at build time (iOS)
+const googleServicesPlistPath = path.join(__dirname, "GoogleService-Info.plist");
+const hasGoogleServicesPlist = fs.existsSync(googleServicesPlistPath);
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "Flousy",
@@ -32,6 +36,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSFaceIDUsageDescription:
         "Flousy uses Face ID to securely unlock your private budget.",
     },
+    // Always set the path — @react-native-firebase/app plugin requires it at prebuild time.
+    // If the real file doesn't exist, we create a minimal placeholder so prebuild succeeds.
     googleServicesFile: "./GoogleService-Info.plist",
   },
 
@@ -39,7 +45,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: "com.flousy.app",
     versionCode: 1,
-    googleServicesFile: hasGoogleServices ? "./google-services.json" : undefined,
+    // Always set the path — @react-native-firebase/app plugin requires it at prebuild time.
+    // If the real file doesn't exist, we create a minimal placeholder so prebuild succeeds.
+    googleServicesFile: "./google-services.json",
     permissions: [
       "USE_BIOMETRIC",
       "USE_FINGERPRINT",

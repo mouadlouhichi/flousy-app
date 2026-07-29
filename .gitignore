@@ -23,3 +23,5 @@ apps/mobile/GoogleService-Info.plist
 apps/mobile/*.keystore
 apps/mobile/*.jks
 apps/mobile/pc-api-key.json
+# Note: google-services.json and GoogleService-Info.plist are gitignored
+# but must exist as placeholders for prebuild. Replace with real files from Firebase Console.

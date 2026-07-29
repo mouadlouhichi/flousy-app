@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "dev": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -13,7 +14,8 @@
     "prebuild": "expo prebuild",
     "build:dev": "eas build --profile development --platform android",
     "build:preview": "eas build --profile preview --platform android",
-    "build:prod": "eas build --profile production --platform android"
+    "build:prod": "eas build --profile production --platform android",
+    "build": "echo '✅ @flousy/mobile — use build:dev, build:preview, or build:prod for EAS builds'"
   },
   "dependencies": {
     "@flousy/core": "workspace:*",
