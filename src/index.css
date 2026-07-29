@@ -482,6 +482,19 @@
   100% { background-position: 1000px 0; }
 }
 
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 0.4s ease-in-out;
+}
+
 .skeleton-loader {
   background: linear-gradient(90deg, var(--surface-variant) 0%, var(--surface-container) 50%, var(--surface-variant) 100%);
   background-size: 1000px 100%;

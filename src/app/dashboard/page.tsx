@@ -927,82 +927,82 @@ export default function DashboardPage() {
       <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
             activeTab === 'overview'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+              ? 'bg-primary text-on-primary shadow-sm scale-110'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
           }`}
           aria-label="Overview"
           title="Overview"
         >
-          <AppIcon name="house" className={` text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`} />
+          <AppIcon name="house" className={`text-[24px] transition-transform duration-300 ${activeTab === 'overview' ? 'filled animate-bounce-subtle' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
             activeTab === 'fixed'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+              ? 'bg-primary text-on-primary shadow-sm scale-110'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
           }`}
           aria-label="Fixed Bills"
           title="Fixed Bills"
         >
-          <AppIcon name="receipt" className={` text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
+          <AppIcon name="receipt" className={`text-[24px] transition-transform duration-300 ${activeTab === 'fixed' ? 'filled animate-bounce-subtle' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
             activeTab === 'variable'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+              ? 'bg-primary text-on-primary shadow-sm scale-110'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
           }`}
           aria-label="Variable Expenses"
           title="Variable Expenses"
         >
-          <AppIcon name="shopping_cart" className={` text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`} />
+          <AppIcon name="shopping_cart" className={`text-[24px] transition-transform duration-300 ${activeTab === 'variable' ? 'filled animate-bounce-subtle' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('savings')}
-          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
             activeTab === 'savings'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+              ? 'bg-primary text-on-primary shadow-sm scale-110'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
           }`}
           aria-label="Savings Goals"
           title="Savings Goals"
         >
-          <AppIcon name="savings" className={` text-[24px] ${activeTab === 'savings' ? 'filled' : ''}`} />
+          <AppIcon name="savings" className={`text-[24px] transition-transform duration-300 ${activeTab === 'savings' ? 'filled animate-bounce-subtle' : ''}`} />
         </button>
 
         {isPro && (
           <button
             onClick={() => setActiveTab('trends')}
-            className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
               activeTab === 'trends'
-                ? 'bg-primary text-on-primary shadow-sm scale-105'
-                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+                ? 'bg-primary text-on-primary shadow-sm scale-110'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
             }`}
             aria-label="Trends"
             title="Trends"
           >
-            <AppIcon name="trending_up" className={` text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`} />
+            <AppIcon name="trending_up" className={`text-[24px] transition-transform duration-300 ${activeTab === 'trends' ? 'filled animate-bounce-subtle' : ''}`} />
           </button>
         )}
 
         <button
           onClick={() => setActiveTab('debts')}
-          className={`relative px-4 py-3 rounded-full flex items-center justify-center transition-all duration-200 ${
+          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
             activeTab === 'debts'
-              ? 'bg-primary text-on-primary shadow-sm scale-105'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40'
+              ? 'bg-primary text-on-primary shadow-sm scale-110'
+              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
           }`}
           aria-label="Debts"
           title="Debts"
         >
-          <AppIcon name="account_balance" className={` text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`} />
+          <AppIcon name="account_balance" className={`text-[24px] transition-transform duration-300 ${activeTab === 'debts' ? 'filled animate-bounce-subtle' : ''}`} />
         </button>
       </nav>
 
