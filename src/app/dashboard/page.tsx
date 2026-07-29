@@ -942,7 +942,7 @@ export default function DashboardPage() {
         
         <button
           onClick={() => setActiveTab('overview')}
-          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'overview'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -955,7 +955,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'fixed'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -968,7 +968,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'variable'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -981,7 +981,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('savings')}
-          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'savings'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -995,7 +995,7 @@ export default function DashboardPage() {
         {isPro && (
           <button
             onClick={() => setActiveTab('trends')}
-            className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+            className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
               activeTab === 'trends'
                 ? 'text-on-primary'
                 : 'text-on-surface-variant hover:text-on-surface'
@@ -1009,7 +1009,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('debts')}
-          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 shrink-0 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'debts'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
