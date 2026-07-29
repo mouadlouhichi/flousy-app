@@ -924,85 +924,99 @@ export default function DashboardPage() {
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
-      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center">
+      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center relative">
+        {/* Sliding Active Background */}
+        <div 
+          className="absolute top-1.5 bottom-1.5 bg-primary rounded-full transition-all duration-300 ease-out shadow-sm"
+          style={{
+            width: 'calc(100% / 6 - 8px)',
+            left: activeTab === 'overview' ? '8px' :
+                  activeTab === 'fixed' ? 'calc(100% / 6 + 4px)' :
+                  activeTab === 'variable' ? 'calc(100% / 6 * 2)' :
+                  activeTab === 'savings' ? 'calc(100% / 6 * 3 - 4px)' :
+                  activeTab === 'trends' ? 'calc(100% / 6 * 4 - 8px)' :
+                  activeTab === 'debts' ? 'calc(100% / 6 * 5 - 12px)' : '8px',
+          }}
+        />
+        
         <button
           onClick={() => setActiveTab('overview')}
-          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'overview'
-              ? 'bg-primary text-on-primary shadow-sm scale-110'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+              ? 'text-on-primary'
+              : 'text-on-surface-variant hover:text-on-surface'
           }`}
           aria-label="Overview"
           title="Overview"
         >
-          <AppIcon name="house" className={`text-[24px] transition-transform duration-300 ${activeTab === 'overview' ? 'filled animate-bounce-subtle' : ''}`} />
+          <AppIcon name="house" className={`text-[24px] ${activeTab === 'overview' ? 'filled' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'fixed'
-              ? 'bg-primary text-on-primary shadow-sm scale-110'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+              ? 'text-on-primary'
+              : 'text-on-surface-variant hover:text-on-surface'
           }`}
           aria-label="Fixed Bills"
           title="Fixed Bills"
         >
-          <AppIcon name="receipt" className={`text-[24px] transition-transform duration-300 ${activeTab === 'fixed' ? 'filled animate-bounce-subtle' : ''}`} />
+          <AppIcon name="receipt" className={`text-[24px] ${activeTab === 'fixed' ? 'filled' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'variable'
-              ? 'bg-primary text-on-primary shadow-sm scale-110'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+              ? 'text-on-primary'
+              : 'text-on-surface-variant hover:text-on-surface'
           }`}
           aria-label="Variable Expenses"
           title="Variable Expenses"
         >
-          <AppIcon name="shopping_cart" className={`text-[24px] transition-transform duration-300 ${activeTab === 'variable' ? 'filled animate-bounce-subtle' : ''}`} />
+          <AppIcon name="shopping_cart" className={`text-[24px] ${activeTab === 'variable' ? 'filled' : ''}`} />
         </button>
 
         <button
           onClick={() => setActiveTab('savings')}
-          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'savings'
-              ? 'bg-primary text-on-primary shadow-sm scale-110'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+              ? 'text-on-primary'
+              : 'text-on-surface-variant hover:text-on-surface'
           }`}
           aria-label="Savings Goals"
           title="Savings Goals"
         >
-          <AppIcon name="savings" className={`text-[24px] transition-transform duration-300 ${activeTab === 'savings' ? 'filled animate-bounce-subtle' : ''}`} />
+          <AppIcon name="savings" className={`text-[24px] ${activeTab === 'savings' ? 'filled' : ''}`} />
         </button>
 
         {isPro && (
           <button
             onClick={() => setActiveTab('trends')}
-            className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+            className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
               activeTab === 'trends'
-                ? 'bg-primary text-on-primary shadow-sm scale-110'
-                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+                ? 'text-on-primary'
+                : 'text-on-surface-variant hover:text-on-surface'
             }`}
             aria-label="Trends"
             title="Trends"
           >
-            <AppIcon name="trending_up" className={`text-[24px] transition-transform duration-300 ${activeTab === 'trends' ? 'filled animate-bounce-subtle' : ''}`} />
+            <AppIcon name="trending_up" className={`text-[24px] ${activeTab === 'trends' ? 'filled' : ''}`} />
           </button>
         )}
 
         <button
           onClick={() => setActiveTab('debts')}
-          className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'debts'
-              ? 'bg-primary text-on-primary shadow-sm scale-110'
-              : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
+              ? 'text-on-primary'
+              : 'text-on-surface-variant hover:text-on-surface'
           }`}
           aria-label="Debts"
           title="Debts"
         >
-          <AppIcon name="account_balance" className={`text-[24px] transition-transform duration-300 ${activeTab === 'debts' ? 'filled animate-bounce-subtle' : ''}`} />
+          <AppIcon name="account_balance" className={`text-[24px] ${activeTab === 'debts' ? 'filled' : ''}`} />
         </button>
       </nav>
 
