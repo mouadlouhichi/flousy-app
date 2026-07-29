@@ -245,9 +245,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
         {/* ─────────────────────── STEP: PLAN SELECTION ─────────────────────── */}
         {!isPro && step === 'plan' && (
           <div className="grid gap-xl">
-            <div className="rounded-[24px] border border-surface-container-highest bg-surface p-6 shadow-sm">
               <div className="flex flex-col items-center gap-6">
-                <div className="bg-surface-container-high rounded-full p-1.5 shadow-sm w-full max-w-sm">
+                <div className="bg-surface-container-high rounded-full p-1.5 shadow-sm w-full ">
                   <div className="grid grid-cols-2 gap-1 rounded-full bg-surface-container p-1">
                     <button
                       type="button"
@@ -291,9 +290,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                   </p>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 gap-lg md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-md md:grid-cols-2">
               {[
                 { icon: 'trending_up', title: 'Multi-Month Trends', desc: 'Compare spending across months and forecast savings.' },
                 { icon: 'upload_file', title: 'CSV Data Import', desc: 'Import transactions from bank statements or CSV files.' },
@@ -302,8 +300,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 { icon: 'bar_chart', title: 'Advanced Reports', desc: 'Category-level breakdowns and per-person spending insights.' },
                 { icon: 'cloud_sync', title: 'Priority Sync', desc: 'Faster Firestore sync and priority support.' },
               ].map((feature) => (
-                <div key={feature.icon} className="rounded-[24px] border border-surface-container-highest bg-surface-container-lowest p-5 flex gap-4 shadow-sm">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <div key={feature.icon} className="rounded-[24px] border border-surface-container-highest bg-surface-container-lowest p-5 flex gap-2 md:gap-3 shadow-sm">
+                  <div className="flex p-3 h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <AppIcon name={feature.icon} className="text-[22px]" />
                   </div>
                   <div>

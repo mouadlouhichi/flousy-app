@@ -61,7 +61,7 @@ export function HeroSection() {
         </div>
 
         <div className="mb-12">
-          <h1 className="font-display text-[clamp(3rem,12vw,10rem)] leading-[0.9] tracking-tight">
+          <h1 className="font-display text-[clamp(3rem,12vw,10rem)] leading-[0.9] rtl:leading-tight tracking-tight">
             <span className="block">{m.landing.hero.titleLine1}</span>
             <span className="block">
               {m.landing.hero.titleLine2Prefix}{' '}
