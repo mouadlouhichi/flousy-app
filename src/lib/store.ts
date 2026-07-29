@@ -139,6 +139,7 @@ export interface MonthBudget {
   fixedExpenses: FixedExpense[];
   variableCategoryBases: Record<string, number>;
   fixedCategoryBases: Record<string, number>;
+  categoryBudgets?: Record<string, number>; // Pro feature: planned maximum per category
   activeCategories: string[];
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
@@ -300,6 +301,48 @@ export function calculateCategoryBudgets(
   distribute(wants, wantsCats);
 
   return result;
+}
+
+/**
+ * Update category budget (Pro feature)
+ */
+export function updateCategoryBudget(
+  month: MonthBudget,
+  category: string,
+  amount: number
+): MonthBudget {
+  const currentBudgets = month.categoryBudgets || {};
+  const updatedBudgets = { ...currentBudgets };
+  
+  if (amount > 0) {
+    updatedBudgets[category] = amount;
+  } else {
+    delete updatedBudgets[category];
+  }
+  
+  return {
+    ...month,
+    categoryBudgets: updatedBudgets,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Calculate spent amount for a specific category
+ */
+export function calculateCategorySpent(
+  month: MonthBudget,
+  category: string
+): number {
+  const variableSpent = (month.variableExpenses || [])
+    .filter((exp) => exp.type === category)
+    .reduce((acc, exp) => acc + exp.amount, 0);
+  
+  const fixedSpent = (month.fixedExpenses || [])
+    .filter((exp) => exp.type === category)
+    .reduce((acc, exp) => acc + exp.amount, 0);
+  
+  return variableSpent + fixedSpent;
 }
 
 /**
@@ -635,6 +678,7 @@ export function normalizeMonth(raw: Partial<MonthBudget> | null | undefined, mon
     fixedExpenses,
     variableCategoryBases: raw?.variableCategoryBases || {},
     fixedCategoryBases: raw?.fixedCategoryBases || {},
+    categoryBudgets: raw?.categoryBudgets || {},
     activeCategories: raw?.activeCategories || defaultCategories,
     categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
     categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },

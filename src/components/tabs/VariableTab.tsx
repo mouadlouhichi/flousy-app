@@ -1,13 +1,17 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
-import { MonthBudget, VariableExpense } from '../../lib/store';
+import { MonthBudget, VariableExpense, updateCategoryBudget, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useAuth } from '../../lib/auth-context';
+import { isProUser } from '../../lib/pro-features';
 
 interface VariableTabProps {
   month: MonthBudget;
   onOpenAddModal: () => void;
   onEditExpense: (exp: VariableExpense) => void;
   onManageCategories: () => void;
+  onUpdateMonth: (month: MonthBudget) => void;
+  onOpenProModal: () => void;
 }
 
 export function VariableTab({
@@ -15,11 +19,17 @@ export function VariableTab({
   onOpenAddModal,
   onEditExpense,
   onManageCategories,
+  onUpdateMonth,
+  onOpenProModal,
 }: VariableTabProps) {
   const { format } = useCurrency();
+  const { profile } = useAuth();
+  const isPro = isProUser(profile);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [budgetInput, setBudgetInput] = useState<string>('');
 
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
@@ -35,6 +45,26 @@ export function VariableTab({
   });
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
+
+  const handleSetBudget = (category: string) => {
+    const amount = parseFloat(budgetInput);
+    if (!isNaN(amount) && amount >= 0) {
+      const updated = updateCategoryBudget(month, category, amount);
+      onUpdateMonth(updated);
+    }
+    setEditingCategory(null);
+    setBudgetInput('');
+  };
+
+  const handleStartEdit = (category: string) => {
+    if (!isPro) {
+      onOpenProModal();
+      return;
+    }
+    setEditingCategory(category);
+    const currentBudget = month.categoryBudgets?.[category] || 0;
+    setBudgetInput(currentBudget > 0 ? currentBudget.toString() : '');
+  };
 
   return (
     <div className="flex flex-col gap-lg pb-24">
@@ -63,6 +93,128 @@ export function VariableTab({
             <AppIcon name="add" className=" text-[20px]" />
             <span>Add Expense</span>
           </button>
+        </div>
+      </div>
+
+      {/* Category Budgets (Pro Feature) */}
+      <div className="bg-surface-container rounded-3xl border border-outline-variant p-lg shadow-2xs">
+        <div className="flex justify-between items-center mb-md">
+          <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
+            Category Budgets
+          </h3>
+          {!isPro && (
+            <button
+              onClick={onOpenProModal}
+              className="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
+            >
+              PRO
+            </button>
+          )}
+        </div>
+        
+        <div className="flex flex-col gap-md">
+          {(month.activeCategories || []).map((category) => {
+            const budget = month.categoryBudgets?.[category] || 0;
+            const spent = calculateCategorySpent(month, category);
+            const progress = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+            const isOverBudget = budget > 0 && spent > budget;
+            const isEditing = editingCategory === category;
+
+            return (
+              <div key={category} className="flex flex-col gap-sm">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-sm">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <AppIcon 
+                        name={month.categoryIcons?.[category] || 'category'} 
+                        className="text-[18px] text-primary" 
+                      />
+                    </div>
+                    <span className="font-label-lg text-label-lg font-bold text-on-surface">
+                      {category}
+                    </span>
+                  </div>
+                  
+                  {isEditing ? (
+                    <div className="flex items-center gap-xs">
+                      <input
+                        type="number"
+                        value={budgetInput}
+                        onChange={(e) => setBudgetInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSetBudget(category);
+                          if (e.key === 'Escape') {
+                            setEditingCategory(null);
+                            setBudgetInput('');
+                          }
+                        }}
+                        placeholder="0"
+                        className="w-24 px-2 py-1 bg-surface border border-outline-variant rounded-lg font-mono text-sm text-on-surface focus:border-primary outline-none"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleSetBudget(category)}
+                        className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                      >
+                        <AppIcon name="check" className="text-[18px]" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingCategory(null);
+                          setBudgetInput('');
+                        }}
+                        className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
+                      >
+                        <AppIcon name="close" className="text-[18px]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleStartEdit(category)}
+                      className="flex items-center gap-xs text-on-surface-variant hover:text-primary transition-all"
+                    >
+                      <span className="font-mono font-bold text-sm">
+                        {format(spent)}
+                      </span>
+                      {budget > 0 && (
+                        <>
+                          <span className="text-xs">/</span>
+                          <span className="font-mono font-bold text-sm text-on-surface-variant">
+                            {format(budget)}
+                          </span>
+                        </>
+                      )}
+                      <AppIcon name="edit" className="text-[14px]" />
+                    </button>
+                  )}
+                </div>
+                
+                {budget > 0 && (
+                  <>
+                    <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 rounded-full ${
+                          isOverBudget ? 'bg-error' : progress >= 80 ? 'bg-amber-500' : 'bg-primary'
+                        }`}
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className={`font-bold ${isOverBudget ? 'text-error' : 'text-on-surface-variant'}`}>
+                        {progress.toFixed(0)}% used
+                      </span>
+                      <span className="font-mono text-on-surface-variant">
+                        {isOverBudget 
+                          ? `Over by ${format(spent - budget)}`
+                          : `${format(budget - spent)} left`
+                        }
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -765,6 +765,8 @@ export default function DashboardPage() {
                   setIsExpenseModalOpen(true);
                 }}
                 onManageCategories={() => setIsManageCategoriesOpen(true)}
+                onUpdateMonth={updateAndSaveMonth}
+                onOpenProModal={() => setIsProModalOpen(true)}
               />
             )}
 
