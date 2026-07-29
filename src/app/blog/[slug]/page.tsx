@@ -109,7 +109,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       url: SITE_URL,
       logo: {
         '@type': 'ImageObject',
-        url: `${SITE_URL}/icon.png`,
+        url: `${SITE_URL}/web-app-manifest-512x512.png`,
       },
     },
     image: `${SITE_URL}${OG_IMAGE.url}`,
