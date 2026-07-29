@@ -924,12 +924,13 @@ export default function DashboardPage() {
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
-      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center relative">
+      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center relative h-16">
         {/* Sliding Active Background */}
         <div 
-          className="absolute top-1.5 bottom-1.5 bg-primary rounded-full transition-all duration-300 ease-out shadow-sm"
+          className="absolute bg-primary rounded-full transition-all duration-300 ease-out shadow-sm h-11"
           style={{
             width: 'calc(100% / 6 - 8px)',
+            top: '10px',
             left: activeTab === 'overview' ? '8px' :
                   activeTab === 'fixed' ? 'calc(100% / 6 + 4px)' :
                   activeTab === 'variable' ? 'calc(100% / 6 * 2)' :
@@ -941,7 +942,7 @@ export default function DashboardPage() {
         
         <button
           onClick={() => setActiveTab('overview')}
-          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'overview'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -954,7 +955,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'fixed'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -967,7 +968,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'variable'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -980,7 +981,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('savings')}
-          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'savings'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
@@ -994,7 +995,7 @@ export default function DashboardPage() {
         {isPro && (
           <button
             onClick={() => setActiveTab('trends')}
-            className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+            className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
               activeTab === 'trends'
                 ? 'text-on-primary'
                 : 'text-on-surface-variant hover:text-on-surface'
@@ -1008,7 +1009,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => setActiveTab('debts')}
-          className={`relative z-10 px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-200 ${
+          className={`relative z-10 w-11 h-11 rounded-full flex items-center justify-center transition-colors duration-200 ${
             activeTab === 'debts'
               ? 'text-on-primary'
               : 'text-on-surface-variant hover:text-on-surface'
