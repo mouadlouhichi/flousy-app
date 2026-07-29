@@ -751,7 +751,7 @@ export default function DashboardPage() {
         </header>
 
         {/* Main Tab Content Workspace */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-6 md:pb-12">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12">
         {loading ? (
           <div className="flex flex-col gap-md py-xl">
             <div className="h-40 w-full skeleton-loader rounded-3xl" />
@@ -924,7 +924,7 @@ export default function DashboardPage() {
       )}
 
       {/* Floating Glass Bottom Navigation Bar (Mobile Only - Without Labels) */}
-      <nav className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center relative h-16">
+      <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center relative h-16">
         {/* Sliding Active Background */}
         <div 
           className="absolute bg-primary rounded-full transition-all duration-300 ease-out shadow-sm h-11"
