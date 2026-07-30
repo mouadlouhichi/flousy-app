@@ -1,5 +1,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { ChoiceChips } from '../ui/choice-chips';
@@ -349,12 +350,22 @@ export function FixedModal({
           />
 
           {/* Inline add/update form for custom categories (div, not a form —
-              the bill editor above is already a <form> and nesting is invalid) */}
-          {showCategoryForm && (
-            <div className="flex flex-col gap-2.5 p-3 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
-              <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
-                {editingCategory ? `Update "${editingCategory}"` : 'New Fixed Category'}
-              </span>
+              the bill editor above is already a <form> and nesting is invalid).
+              Expands/collapses with a height animation instead of popping in. */}
+          <AnimatePresence initial={false}>
+            {showCategoryForm && (
+              <motion.div
+                key="fixed-category-form"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-col gap-2.5 p-3 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
+                  <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
+                    {editingCategory ? `Update "${editingCategory}"` : 'New Fixed Category'}
+                  </span>
 
               <div className="flex gap-2">
                 <input
@@ -419,8 +430,10 @@ export function FixedModal({
                   ))}
                 </div>
               </div>
-            </div>
-          )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* ── Due Day — day-picker card (solid bg) ── */}
