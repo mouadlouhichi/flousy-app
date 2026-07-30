@@ -95,7 +95,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
               {label}
             </label>
             <div
-              className={`flex items-center gap-2 rounded-xl border bg-surface px-3 py-2 transition-colors focus-within:border-primary ${
+              className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-colors focus-within:border-primary ${
                 errors[key] ? 'border-error' : 'border-outline-variant'
               }`}
             >

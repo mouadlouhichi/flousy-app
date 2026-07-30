@@ -214,7 +214,7 @@ export function IncomeSourcesModal({
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                            className="px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] font-bold text-on-surface focus:border-primary outline-none transition-colors"
+                            className="px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-bold text-on-surface focus:border-primary outline-none transition-colors"
                             autoFocus
                             placeholder="Source name"
                           />
@@ -230,7 +230,7 @@ export function IncomeSourcesModal({
                               value={editAmount}
                               onChange={(e) => setEditAmount(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface focus:border-primary outline-none transition-colors pr-7"
+                              className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface focus:border-primary outline-none transition-colors pr-7"
                               placeholder="0"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-on-surface-variant">
@@ -342,7 +342,7 @@ export function IncomeSourcesModal({
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
                   placeholder="Source name"
-                  className="px-3.5 py-2.5 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors"
+                  className="px-3.5 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors"
                 />
                 {fieldErrors.newName && (
                   <p className="text-[11px] text-error font-medium">{fieldErrors.newName}</p>
@@ -361,7 +361,7 @@ export function IncomeSourcesModal({
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
                     placeholder="0"
-                    className="w-full px-3.5 py-2.5 bg-surface border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors pr-8"
+                    className="w-full px-3.5 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors pr-8"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-on-surface-variant">
                     {symbol}

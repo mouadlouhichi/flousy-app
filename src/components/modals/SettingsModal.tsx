@@ -89,7 +89,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                         }
                       }}
                       placeholder="Enter your name"
-                      className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg font-label-lg text-label-lg font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg font-label-lg text-label-lg font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                       autoFocus
                     />
                     <div className="flex gap-2">

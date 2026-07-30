@@ -160,7 +160,7 @@ export function ExpenseModal({
             Description / Merchant
           </label>
           <div
-            className={`flex items-center gap-2 w-full h-12 pl-4 pr-2 bg-surface border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
+            className={`flex items-center gap-2 w-full h-12 pl-4 pr-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
               errors.name ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
             }`}
           >
