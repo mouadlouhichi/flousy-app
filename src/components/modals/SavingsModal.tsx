@@ -1,7 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { CustomSelect } from '../ui/CustomSelect';
+import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
 import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
@@ -167,16 +167,12 @@ export function SavingsModal({
               ))}
             </div>
 
-            {/* Source Place */}
-            <CustomSelect
+            {/* Source Place — segmented with sliding background */}
+            <SegmentedControl
               label="Primary Source Place"
               value={place}
               onChange={(v) => setPlace(v as MoneyPlace)}
-              options={[
-                { value: 'bank', label: 'Bank' },
-                { value: 'home', label: 'Home Cash' },
-                { value: 'wallet', label: 'Wallet' },
-              ]}
+              options={MONEY_PLACE_OPTIONS}
             />
           </>
         ) : (
@@ -225,16 +221,12 @@ export function SavingsModal({
               )}
             </div>
 
-            {/* Account Selection */}
-            <CustomSelect
+            {/* Account Selection — segmented with sliding background */}
+            <SegmentedControl
               label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
               value={place}
               onChange={(v) => setPlace(v as MoneyPlace)}
-              options={[
-                { value: 'bank', label: 'Bank' },
-                { value: 'home', label: 'Home Cash' },
-                { value: 'wallet', label: 'Wallet' },
-              ]}
+              options={MONEY_PLACE_OPTIONS}
             />
 
             {/* Goal info card */}

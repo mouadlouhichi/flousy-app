@@ -171,6 +171,8 @@ export function DashboardModals() {
         onDelete={handleDeleteFixedBill}
         initialBill={dashboard.selectedFixed}
         categories={month.activeCategories || []}
+        categoryColors={month.categoryColors || {}}
+        categoryIcons={month.categoryIcons || {}}
       />
 
       <SavingsModal

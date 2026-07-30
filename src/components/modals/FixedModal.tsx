@@ -1,8 +1,10 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { CustomSelect } from '../ui/CustomSelect';
 import { CustomInput } from '../ui/CustomInput';
+import { ChoiceChips } from '../ui/choice-chips';
+import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { MemberBadges } from '../ui/member-badges';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -16,7 +18,34 @@ interface FixedModalProps {
   onDelete?: (bill: FixedExpense) => void;
   initialBill?: FixedExpense | null;
   categories: string[];
+  categoryColors?: Record<string, string>;
+  categoryIcons?: Record<string, string>;
 }
+
+const FIXED_TYPES = ['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'];
+
+/** Fallback icons/colors used when the month data has none for a bill type. */
+const FIXED_TYPE_ICONS: Record<string, string> = {
+  Rent: 'home',
+  Utilities: 'bolt',
+  Housing: 'house',
+  Subscriptions: 'subscriptions',
+  Insurance: 'shield',
+  Internet: 'wifi',
+  Gym: 'fitness_center',
+  Other: 'label',
+};
+
+const FIXED_TYPE_COLORS: Record<string, string> = {
+  Rent: '#8b5cf6',
+  Utilities: '#eab308',
+  Housing: '#f97316',
+  Subscriptions: '#6366f1',
+  Insurance: '#10b981',
+  Internet: '#06b6d4',
+  Gym: '#ec4899',
+  Other: '#6d7a77',
+};
 
 export function FixedModal({
   isOpen,
@@ -25,8 +54,10 @@ export function FixedModal({
   onDelete,
   initialBill,
   categories,
+  categoryColors = {},
+  categoryIcons = {},
 }: FixedModalProps) {
-  const { symbol } = useCurrency();
+  const { symbol, currency } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -105,9 +136,14 @@ export function FixedModal({
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* ── Amount ── */}
         <div className="flex flex-col items-center justify-center py-2">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-            Monthly Charge
-          </label>
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              Monthly Charge
+            </label>
+            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
+              {currency}
+            </span>
+          </div>
           <div className="flex items-center text-primary font-bold">
             <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
@@ -141,14 +177,16 @@ export function FixedModal({
           error={errors.name}
         />
 
-        {/* ── Category ── */}
-        <CustomSelect
+        {/* ── Category — pill chips ── */}
+        <ChoiceChips
           label="Category"
           value={type}
           onChange={setType}
-          options={['Rent', 'Utilities', 'Housing', 'Subscriptions', 'Insurance', 'Internet', 'Gym', 'Other'].map((c) => ({
+          options={FIXED_TYPES.map((c) => ({
             value: c,
             label: c,
+            icon: categoryIcons[c] || FIXED_TYPE_ICONS[c],
+            color: categoryColors[c] || FIXED_TYPE_COLORS[c],
           }))}
         />
 
@@ -161,50 +199,22 @@ export function FixedModal({
           placeholder="e.g. 1st of month, 15th"
         />
 
-        {/* ── Household Member ── */}
+        {/* ── Household Member — badges ── */}
         {isPro ? (
-          <CustomSelect
-            label="Household Member"
-            value={person}
-            onChange={setPerson}
-            options={[
-              { value: 'Self', label: 'Self' },
-              { value: 'Partner', label: 'Partner / Spouse' },
-              { value: 'Family', label: 'Family / Shared' },
-              { value: 'Queen', label: 'Queen' },
-              { value: 'King', label: 'King' },
-            ]}
-          />
+          <MemberBadges value={person} onChange={setPerson} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
           </div>
         )}
 
-        {/* ── Paid From ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Paid From
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (
-              <label key={p} className="cursor-pointer">
-                <input
-                  type="radio"
-                  name="fixed-place"
-                  value={p}
-                  checked={place === p}
-                  onChange={() => setPlace(p)}
-                  className="sr-only peer"
-                />
-                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 transition-all capitalize font-label-md text-label-md text-on-surface font-semibold">
-                  <AppIcon name={p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'} className=" text-[20px] text-outline peer-checked:text-primary" />
-                  <span>{p}</span>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
+        {/* ── Paid From — segmented group with sliding active background ── */}
+        <SegmentedControl
+          label="Paid From"
+          value={place}
+          onChange={(v) => setPlace(v as MoneyPlace)}
+          options={MONEY_PLACE_OPTIONS}
+        />
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">

@@ -1,9 +1,11 @@
 import { AppIcon } from '@/components/ui/app-icon';
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
+import { ChoiceChips } from '../ui/choice-chips';
+import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -20,20 +22,6 @@ interface ExpenseModalProps {
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
 }
-
-const PAID_FROM_OPTIONS: Array<{ value: MoneyPlace; label: string; icon: string }> = [
-  { value: 'bank', label: 'Bank', icon: 'account_balance' },
-  { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet' },
-  { value: 'home', label: 'Home', icon: 'home' },
-];
-
-const HOUSEHOLD_MEMBERS: Array<{ value: string; label: string }> = [
-  { value: 'Self', label: 'Self' },
-  { value: 'Partner', label: 'Partner' },
-  { value: 'Family', label: 'Family' },
-  { value: 'Queen', label: 'Queen' },
-  { value: 'King', label: 'King' },
-];
 
 export function ExpenseModal({
   isOpen,
@@ -57,7 +45,6 @@ export function ExpenseModal({
   const [person, setPerson] = useState('Self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const categoryRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialExpense) {
@@ -81,13 +68,6 @@ export function ExpenseModal({
     }
     setErrors({});
   }, [initialExpense, isOpen, categories]);
-
-  // Keep the selected category chip visible inside the scrollable row.
-  useEffect(() => {
-    if (!isOpen || !categoryRowRef.current) return;
-    const activeChip = categoryRowRef.current.querySelector<HTMLElement>('[data-active="true"]');
-    activeChip?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  }, [isOpen, type]);
 
   const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -218,142 +198,29 @@ export function ExpenseModal({
         </div>
 
         {/* ── Category — pill chips (color-coded per design system) ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Category
-          </label>
-          <div
-            ref={categoryRowRef}
-            role="group"
-            aria-label="Category"
-            className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 py-0.5"
-          >
-            {categories.map((cat) => {
-              const isActive = type === cat;
-              const color = categoryColors[cat] || 'var(--primary)';
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  data-active={isActive}
-                  aria-pressed={isActive}
-                  onClick={() => setType(cat)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.96] ${
-                    isActive
-                      ? 'border-transparent'
-                      : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
-                  }`}
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
-                          borderColor: `color-mix(in srgb, ${color} 35%, transparent)`,
-                          color,
-                        }
-                      : undefined
-                  }
-                >
-                  <AppIcon
-                    name={categoryIcons[cat] || 'category'}
-                    className="text-[16px]"
-                    style={isActive ? { color } : undefined}
-                  />
-                  <span>{cat}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <ChoiceChips
+          label="Category"
+          value={type}
+          onChange={setType}
+          options={categories.map((cat) => ({
+            value: cat,
+            label: cat,
+            icon: categoryIcons[cat] || 'category',
+            color: categoryColors[cat],
+          }))}
+        />
 
         {/* ── Paid From — segmented group with sliding active background ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Paid From
-          </label>
-          <div
-            role="radiogroup"
-            aria-label="Paid From"
-            className="flex w-full items-center gap-1 rounded-full border border-outline-variant/70 bg-surface-container-high/60 p-1"
-          >
-            {PAID_FROM_OPTIONS.map(({ value, label, icon }) => {
-              const isActive = place === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={isActive}
-                  onClick={() => setPlace(value)}
-                  className={`relative flex-1 rounded-full px-2 py-2.5 transition-colors duration-200 ${
-                    isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'
-                  }`}
-                >
-                  {/* Sliding active background — glides horizontally from the
-                      current segment to the tapped one. */}
-                  {isActive && (
-                    <motion.span
-                      layoutId="expense-paid-from-active-bg"
-                      className="absolute inset-0 rounded-full bg-primary shadow-sm"
-                      transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
-                    />
-                  )}
-                  <span className="relative z-10 flex items-center justify-center gap-1.5">
-                    <AppIcon
-                      name={icon}
-                      className={`text-[17px] transition-colors duration-200 ${
-                        isActive ? 'text-on-primary' : 'text-outline'
-                      }`}
-                    />
-                    <span
-                      className={`text-[12px] font-semibold transition-colors duration-200 ${
-                        isActive ? 'text-on-primary' : 'text-on-surface-variant'
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <SegmentedControl
+          label="Paid From"
+          value={place}
+          onChange={(v) => setPlace(v as MoneyPlace)}
+          options={MONEY_PLACE_OPTIONS}
+        />
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Household Member
-            </label>
-            <div role="group" aria-label="Household Member" className="flex flex-wrap gap-2 py-0.5">
-              {HOUSEHOLD_MEMBERS.map(({ value, label }) => {
-                const isActive = person === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setPerson(value)}
-                    className={`flex items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-semibold transition-all duration-200 active:scale-[0.96] ${
-                      isActive
-                        ? 'bg-primary text-on-primary shadow-sm'
-                        : 'border border-outline-variant text-on-surface hover:bg-surface-variant/40'
-                    }`}
-                  >
-                    {isActive ? (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-on-primary/20">
-                        <AppIcon name="check" className="text-[13px]" />
-                      </span>
-                    ) : (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-container-highest text-[10px] font-extrabold text-on-surface-variant">
-                        {label.charAt(0)}
-                      </span>
-                    )}
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <MemberBadges value={person} onChange={setPerson} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
