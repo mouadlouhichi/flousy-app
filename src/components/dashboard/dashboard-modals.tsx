@@ -17,6 +17,7 @@ import {
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
+  saveGoalWithBalance,
   addDebt,
   editDebt,
   deleteDebt,
@@ -28,7 +29,6 @@ import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { MoveMoneyModal } from '@/components/modals/MoveMoneyModal';
 import { FixedModal } from '@/components/modals/FixedModal';
 import { SavingsModal } from '@/components/modals/SavingsModal';
-import { SettingsModal } from '@/components/modals/SettingsModal';
 import { ManageCategoriesModal } from '@/components/modals/ManageCategoriesModal';
 import { ProUpgradeModal } from '@/components/modals/ProUpgradeModal';
 import { ImportCsvModal } from '@/components/modals/ImportCsvModal';
@@ -108,15 +108,22 @@ export function DashboardModals() {
   };
 
   // Savings handlers
-  const handleSaveGoal = (goal: SavingGoal) => {
-    const existingIdx = goals.findIndex((g) => g.id === goal.id);
-    let nextGoals: SavingGoal[];
-    if (existingIdx >= 0) {
-      nextGoals = goals.map((g) => (g.id === goal.id ? goal : g));
-    } else {
-      nextGoals = [...goals, goal];
-    }
-    updateAndSaveGoals(nextGoals);
+  //
+  // A goal can be created with money already saved for it. When the user asks
+  // for that opening balance to come out of a tracked money place we move the
+  // cash so totals stay conserved; otherwise it is recorded as-is.
+  const handleSaveGoal = (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => {
+    const isNew = !goals.some((g) => g.id === goal.id);
+    const res = saveGoalWithBalance(month, goals, goal, deductFromPlace);
+
+    if (res.month !== month) updateAndSaveMonth(res.month);
+    updateAndSaveGoals(res.goals);
+
+    trackEvent(isNew ? 'create_goal' : 'edit_goal', {
+      target: goal.target,
+      openingBalance: goal.current,
+      deductedFrom: deductFromPlace || 'none',
+    });
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
@@ -192,19 +199,13 @@ export function DashboardModals() {
         onFund={handleFundGoal}
         onWithdraw={handleWithdrawGoal}
         onDelete={handleDeleteGoal}
-      />
-
-      <SettingsModal
-        isOpen={dashboard.isSettingsModalOpen}
-        onClose={dashboard.closeSettingsModal}
-        month={month}
-        goals={goals}
-        monthKey={currentMonthKey}
-        onOpenProModal={() => {
-          dashboard.closeSettingsModal();
-          dashboard.openProModal();
+        placeBalances={{
+          bank: month.bankPart || 0,
+          home: month.homePart || 0,
+          wallet: month.walletPart || 0,
         }}
       />
+
 
       <EditMoneyPlacesModal
         isOpen={dashboard.isEditMoneyPlacesOpen}

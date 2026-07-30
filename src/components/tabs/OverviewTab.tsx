@@ -1,6 +1,14 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useRef, useState } from 'react';
-import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, STRATEGIES, StrategyId } from '../../lib/store';
+import {
+  MonthBudget,
+  SavingGoal,
+  CustomRatios,
+  calculateEnvelopeAmounts,
+  calculateEnvelopeSpent,
+  resolveMonthStrategy,
+  StrategyId,
+} from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 
@@ -13,7 +21,7 @@ interface OverviewTabProps {
   onSelectTab: (tab: 'overview' | 'variable' | 'fixed' | 'savings') => void;
   onUpdateTotalBudget: (value: number) => void;
   onEditMoneyPlaces: () => void;
-  onUpdateStrategy?: (strategyId: StrategyId) => void;
+  onUpdateStrategy?: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
 }
 
 export function OverviewTab({
@@ -35,9 +43,13 @@ export function OverviewTab({
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
 
-  const { needs, wants, savings } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+  const { needs, wants, savings } = calculateEnvelopeAmounts(
+    month.totalBudget,
+    month.strategyId,
+    month.customRatios,
+  );
   const spent = calculateEnvelopeSpent(month);
-  const strategy = STRATEGIES[month.strategyId] || STRATEGIES['50-30-20'];
+  const strategy = resolveMonthStrategy(month);
 
   const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
   const budgetParts = formatParts(month.totalBudget || 0);
@@ -275,8 +287,8 @@ export function OverviewTab({
           {/* Monthly Income Summary Banner */}
           <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 shadow-2xs">
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant font-mono">
-                TOTAL MONTHLY BUDGET
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+                Total Monthly Budget
               </span>
               <div className="mt-1 flex items-center gap-2">
                 <div
@@ -321,9 +333,9 @@ export function OverviewTab({
                         budgetInputRef.current?.blur();
                       }
                     }}
-                    className="max-w-[160px] bg-transparent text-2xl font-bold text-on-surface font-mono outline-none sm:max-w-[220px]"
+                    className="max-w-[160px] bg-transparent text-[28px] leading-tight font-extrabold tracking-tight text-on-surface tabular-nums outline-none sm:max-w-[220px] sm:text-[32px]"
                   />
-                  <span className="shrink-0 text-xs font-semibold text-on-surface-variant">{budgetParts.currency}</span>
+                  <span className="shrink-0 text-sm font-bold text-on-surface-variant">{budgetParts.currency}</span>
                 </div>
                 <button
                   type="button"
@@ -336,11 +348,11 @@ export function OverviewTab({
               </div>
             </div>
             <div className="w-full sm:w-auto border-t border-outline-variant/50 sm:border-t-0 pt-4 sm:pt-0 shrink-0 sm:text-right">
-              <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant font-mono block sm:text-right">
-                TOTAL CASH ON HAND
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant sm:text-right">
+                Total Cash on Hand
               </span>
               <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
-                <span className="text-xl font-bold text-primary font-mono">
+                <span className="text-xl font-extrabold tracking-tight text-primary tabular-nums">
                   {format(totalCash)}
                 </span>
                 <button
@@ -423,7 +435,8 @@ export function OverviewTab({
           onClose={() => setIsStrategyModalOpen(false)}
           currentStrategyId={month.strategyId}
           totalBudget={month.totalBudget}
-          onSelect={(strategyId) => onUpdateStrategy(strategyId)}
+          customRatios={month.customRatios}
+          onSelect={(strategyId, ratios) => onUpdateStrategy(strategyId, ratios)}
         />
       )}
     </>

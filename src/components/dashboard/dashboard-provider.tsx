@@ -17,6 +17,7 @@ import {
   FixedExpense,
   DebtItem,
   StrategyId,
+  CustomRatios,
   UserProfile,
   normalizeMonth,
   calculateEnvelopeAmounts,
@@ -75,7 +76,7 @@ interface DashboardContextType {
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
   handleEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
-  handleUpdateStrategy: (strategyId: StrategyId) => void;
+  handleUpdateStrategy: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: any[], total: number) => void;
 
@@ -107,10 +108,6 @@ interface DashboardContextType {
   isSavingsModalOpen: boolean;
   savingsModalMode: SavingsModalMode;
   selectedGoal: SavingGoal | null;
-
-  openSettingsModal: () => void;
-  closeSettingsModal: () => void;
-  isSettingsModalOpen: boolean;
 
   openManageCategories: () => void;
   closeManageCategories: () => void;
@@ -230,7 +227,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [savingsModalMode, setSavingsModalMode] = useState<SavingsModalMode>('create');
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
 
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -430,7 +426,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           ...month,
           totalBudget: safeBudget,
           bankPart: Math.max(0, (month.bankPart || 0) + delta),
-          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
+          monthlySavingsTarget: calculateEnvelopeAmounts(
+            safeBudget,
+            month.strategyId,
+            month.customRatios,
+          ).savings,
         },
         currentMonthKey,
         profile,
@@ -451,10 +451,19 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleUpdateStrategy = useCallback(
-    (strategyId: StrategyId) => {
-      const updated = updateBudgetStrategy(month, strategyId);
+    (strategyId: StrategyId, customRatios?: CustomRatios) => {
+      const updated = updateBudgetStrategy(month, strategyId, customRatios);
       updateAndSaveMonth(updated);
-      trackEvent('change_strategy', { strategyId });
+      trackEvent('change_strategy', {
+        strategyId,
+        ...(strategyId === 'custom' && updated.customRatios
+          ? {
+              needsPct: Math.round(updated.customRatios.needs * 100),
+              wantsPct: Math.round(updated.customRatios.wants * 100),
+              savingsPct: Math.round(updated.customRatios.savings * 100),
+            }
+          : {}),
+      });
     },
     [month, updateAndSaveMonth],
   );
@@ -584,9 +593,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setSelectedGoal(null);
   }, []);
 
-  const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
-  const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
-
   const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
   const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
 
@@ -657,9 +663,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
-      openSettingsModal,
-      closeSettingsModal,
-      isSettingsModalOpen,
       openManageCategories,
       closeManageCategories,
       isManageCategoriesOpen,
@@ -725,9 +728,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
-      openSettingsModal,
-      closeSettingsModal,
-      isSettingsModalOpen,
       openManageCategories,
       closeManageCategories,
       isManageCategoriesOpen,

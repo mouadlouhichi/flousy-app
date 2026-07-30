@@ -14,7 +14,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
 
-  const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+  const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const { needs: needsSpent, wants: wantsSpent } = calculateEnvelopeSpent(month);
 
   const needsRatio = needsCap > 0 ? (needsSpent / needsCap) * 100 : 0;

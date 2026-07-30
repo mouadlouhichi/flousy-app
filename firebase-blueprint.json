@@ -90,6 +90,17 @@
         "note": { "type": "string", "maxLength": 250 }
       },
       "required": ["id", "name", "amount", "type", "status", "date"]
+    },
+    "CustomRatios": {
+      "title": "CustomRatios",
+      "description": "User-defined allocation for the 'custom' strategy. Fractions of income that always sum to 1.",
+      "type": "object",
+      "properties": {
+        "needs": { "type": "number", "minimum": 0, "maximum": 1 },
+        "wants": { "type": "number", "minimum": 0, "maximum": 1 },
+        "savings": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["needs", "wants", "savings"]
     }
   },
   "entities": {
@@ -145,6 +156,10 @@
         "strategyId": {
           "type": "string",
           "enum": ["50-30-20", "70-20-10", "80-20", "zero-based", "envelope", "pay-first", "custom"]
+        },
+        "customRatios": {
+          "$ref": "#/definitions/CustomRatios",
+          "description": "Definable Needs/Wants/Savings split, applied when strategyId is 'custom'"
         },
         "monthlySavingsTarget": { "type": "number", "minimum": 0, "maximum": 1000000000 },
         "variableExpenses": {

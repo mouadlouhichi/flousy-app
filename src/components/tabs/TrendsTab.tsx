@@ -3,7 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, STRATEGIES } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 
@@ -30,7 +30,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
   // ── Current month calculations ──
   const spent = calculateEnvelopeSpent(month);
-  const strategy = STRATEGIES[month.strategyId] || STRATEGIES['50-30-20'];
+  const strategy = resolveMonthStrategy(month);
   const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
 
   // ── Income sources analytics ──
@@ -63,7 +63,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   // ── Multi-month trend calculations ──
   const monthOverMonth = trendsMonths.map(({ monthKey, month: m }) => {
     const s = calculateEnvelopeSpent(m);
-    const env = calculateEnvelopeAmounts(m.totalBudget, m.strategyId);
+    const env = calculateEnvelopeAmounts(m.totalBudget, m.strategyId, m.customRatios);
     return {
       monthKey,
       label: (() => {
@@ -402,7 +402,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.needs)} / {format(spent.needs + spent.wants + spent.savings > 0 ? (spent.needs / (spent.needs + spent.wants + spent.savings)) * 100 : 0).replace(/[0-9.,]/g, '').trim() || format(month.totalBudget)}</span>
             </div>
             {(() => {
-              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
               const pct = env.needs > 0 ? Math.min(100, Math.round((spent.needs / env.needs) * 100)) : 0;
               return (
                 <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
@@ -425,7 +425,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.wants)}</span>
             </div>
             {(() => {
-              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+              const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
               const pct = env.wants > 0 ? Math.min(100, Math.round((spent.wants / env.wants) * 100)) : 0;
               return (
                 <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
