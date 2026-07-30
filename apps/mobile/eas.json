@@ -10,7 +10,7 @@
         "buildType": "apk"
       },
       "env": {
-        "GOOGLE_WEB_CLIENT_ID": ""
+        "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -19,7 +19,7 @@
         "buildType": "apk"
       },
       "env": {
-        "GOOGLE_WEB_CLIENT_ID": ""
+        "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -27,7 +27,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "GOOGLE_WEB_CLIENT_ID": ""
+        "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
     }
   },

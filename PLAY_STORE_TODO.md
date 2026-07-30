@@ -2,11 +2,7 @@
 
 > **Goal:** Ship SmartJib v1.0.0 to the Google Play Store  
 > **Branch:** `feat/expo-mobile-monorepo`  
-<<<<<<< HEAD
-> **App:** `com.flousy.app` (Expo SDK 52, React Native 0.76)
-=======
 > **App:** `com.luigiagentz.smartjib` (Expo SDK 52, React Native 0.76)
->>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)
 
 ---
 
@@ -18,11 +14,7 @@
 
 - [ ] **1.2** Register Android app in Firebase
   - Firebase Console → Project Settings → Add App → Android
-<<<<<<< HEAD
-  - Package name: `com.flousy.app`
-=======
   - Package name: `com.luigiagentz.smartjib`
->>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)
   - App nickname: `SmartJib`
   - Debug SHA-1: Run `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`
 
@@ -101,11 +93,7 @@
 
 - [ ] **3.2** Verify Android manifest
   - Check `android/app/src/main/AndroidManifest.xml`:
-<<<<<<< HEAD
-    - `package="com.flousy.app"`
-=======
     - `package="com.luigiagentz.smartjib"`
->>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)
     - Permissions: `USE_BIOMETRIC`, `USE_FINGERPRINT`, `RECEIVE_BOOT_COMPLETED`, `VIBRATE`
     - Internet permission should be auto-added by Firebase
 
