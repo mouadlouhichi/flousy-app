@@ -79,20 +79,23 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
 
   // Enter/exit motion. On mobile the sheet pops up from the bottom edge with
   // a spring; on desktop the centered dialog fades in with a slight rise.
+  // The mobile sheet stays at opacity 1 throughout — it slides rather than
+  // fades, so the panel is always fully opaque and never lets the page bleed
+  // through its surface.
   const sheetInitial = reduceMotion
     ? { opacity: 0 }
     : isMobileSheet
-      ? { y: '110%' }
+      ? { y: '110%', opacity: 1 }
       : { opacity: 0, scale: 0.96, y: 16 };
   const sheetAnimate = reduceMotion
     ? { opacity: 1 }
     : isMobileSheet
-      ? { y: '0%' }
+      ? { y: '0%', opacity: 1 }
       : { opacity: 1, scale: 1, y: 0 };
   const sheetExit = reduceMotion
     ? { opacity: 0 }
     : isMobileSheet
-      ? { y: '110%' }
+      ? { y: '110%', opacity: 1 }
       : { opacity: 0, scale: 0.97, y: 8 };
   const sheetTransition: Transition = reduceMotion
     ? { duration: 0.15 }
@@ -103,11 +106,12 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
   const overlay = (
     <AnimatePresence>
       {isOpen && (
+        // The container must NOT animate opacity: CSS opacity applies to the
+        // whole subtree, so a fading wrapper drags the opaque panel down with
+        // it and the page shows through the sheet. The scrim and the panel
+        // each animate their own opacity instead. AnimatePresence still waits
+        // for these nested exit animations before unmounting.
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-margin-mobile md:p-margin-desktop"
           onClick={(e: React.MouseEvent<HTMLDivElement>) => {
             if (e.target === e.currentTarget) onClose();
@@ -117,8 +121,12 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
               a `backdrop-filter` layer makes mobile browsers rasterize its
               text at a lower resolution — that's what made the sheet look
               fuzzy ("flou") on phones. */}
-          <div
+          <motion.div
             aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             className="absolute inset-0 bg-surface/60 backdrop-blur-[8px]"
             onClick={onClose}
           />
