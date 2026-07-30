@@ -233,7 +233,7 @@ export function OverviewTab({
                 </div>
                 <span className="text-[11px] font-semibold text-on-surface-variant">{wantsSpentPct}% Used</span>
               </div>
-              <div className="w-full h-2.5 bg-primary/10rounded-full overflow-hidden">
+              <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 rounded-full ${wantsSpentPct >= 100 ? 'bg-error' : 'bg-amber-500'}`}
                   style={{ width: `${wantsSpentPct}%` }}

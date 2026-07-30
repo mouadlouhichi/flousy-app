@@ -93,6 +93,7 @@ import {
   Wifi,
   House,
   X,
+  EarthIcon,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
@@ -155,6 +156,7 @@ const icons: Record<string, LucideIcon> = {
   install_mobile: Smartphone,
   ios_share: ExternalLink,
   label: Tag,
+  language: EarthIcon,
   light_mode: Lightbulb,
   local_cafe: Coffee,
   local_dining: Utensils,
