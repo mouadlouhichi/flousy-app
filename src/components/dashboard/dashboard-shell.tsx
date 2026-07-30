@@ -21,7 +21,18 @@ import { DashboardSkeleton } from './dashboard-skeleton';
 const pageVariants: Variants = {
   enter: (direction: number) => ({ opacity: 0, x: direction * 64 }),
   center: { opacity: 1, x: 0 },
-  exit: (direction: number) => ({ opacity: 0, x: direction * -64 }),
+  // The outgoing page is pulled out of layout flow while it fades away so it
+  // cannot stack above/below the incoming one during the crossfade. Its
+  // `position` is applied instantly (no easing) to avoid a layout jump.
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction * -64,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    transition: { position: { duration: 0 } },
+  }),
 };
 
 function EmailVerificationBanner() {
@@ -89,9 +100,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <EmailVerificationBanner />
         <DashboardHeader />
 
-        {/* Routed screen content with a horizontal scroll transition */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
+        {/* Routed screen content with a horizontal scroll transition.
+            `mode="wait"` is deliberately NOT used: it defers the incoming
+            page's enter animation until the outgoing page reports its exit as
+            complete, and in this tree (whose screens mount Firestore
+            subscriptions as they render) that callback can fail to fire. The
+            new page then stays parked at its `enter` state — opacity 0 — so
+            the route looked blank until any resize forced a repaint.
+            Cross-fading instead keeps the animation self-contained: the
+            incoming page animates in on its own, independently of the
+            outgoing one, so content can never get stuck invisible. */}
+        <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
+          <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={pathname}
               custom={direction}
