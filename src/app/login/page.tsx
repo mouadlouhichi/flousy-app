@@ -10,7 +10,7 @@ import { loginSchema } from '../../lib/validation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, loading, signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
+  const { user, profile, loading, signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,14 +27,33 @@ export default function LoginPage() {
       typeof window !== 'undefined' &&
       localStorage.getItem('flousy_demo_mode') === 'true';
 
-    if (user || isDemo) {
+    const today = new Date();
+    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const onboardingDoneLocally =
+      typeof window !== 'undefined' &&
+      (localStorage.getItem('flousy_onboarding_done') === 'true' ||
+        !!localStorage.getItem(`flousy_month_${monthKey}`));
+
+    // Onboarding is always the first screen after signup (or whenever the
+    // profile still has onboardingComplete === false).
+    const needsOnboarding =
+      !!profile && profile.onboardingComplete === false && !onboardingDoneLocally;
+
+    let destination: string | null = null;
+    if (user) {
+      destination = needsOnboarding ? '/onboarding' : '/dashboard';
+    } else if (isDemo) {
+      destination = onboardingDoneLocally ? '/dashboard' : '/onboarding';
+    }
+
+    if (destination) {
       try {
-        router.replace('/dashboard');
+        router.replace(destination);
       } catch {
-        window.location.href = '/dashboard';
+        window.location.href = destination;
       }
     }
-  }, [user, loading, router]);
+  }, [user, profile, loading, router]);
 
   const isDemoMode = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
 
@@ -110,8 +129,14 @@ export default function LoginPage() {
         await signUpEmail(email, password, displayName.trim() || undefined);
         navigateTo('/onboarding');
       } else {
-        await signInEmail(email, password);
-        navigateTo('/dashboard');
+        const syncedProfile = await signInEmail(email, password);
+        // Onboarding is always the first screen when it hasn't been completed
+        const localDone = localStorage.getItem('flousy_onboarding_done') === 'true';
+        navigateTo(
+          syncedProfile && syncedProfile.onboardingComplete === false && !localDone
+            ? '/onboarding'
+            : '/dashboard',
+        );
       }
     } catch (err: any) {
       // If authentication failed because Firebase isn't configured, fallback gracefully to Demo Mode

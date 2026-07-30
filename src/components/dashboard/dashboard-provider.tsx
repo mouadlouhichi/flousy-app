@@ -172,7 +172,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const isPro = isProUser(profile);
 
-  // Auth Protection Effect
+  // Auth + Onboarding Protection Effect
   useEffect(() => {
     if (authLoading) return;
 
@@ -181,8 +181,37 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (!user && !isDemo) {
       router.push('/login');
+      return;
     }
-  }, [user, authLoading, router]);
+
+    // Onboarding must always be the first screen after signup — keep
+    // bouncing back to it until it has been completed.
+    // Local fallbacks: the flag written by the onboarding page and any
+    // previously saved budget data (covers the Firebase-save timeout path
+    // and pre-existing demo data).
+    const onboardingDoneLocally =
+      typeof window !== 'undefined' &&
+      (localStorage.getItem('flousy_onboarding_done') === 'true' ||
+        !!localStorage.getItem(`flousy_month_${defaultMonthKey}`));
+
+    if (isDemo) {
+      if (!onboardingDoneLocally) {
+        router.replace('/onboarding');
+      }
+      return;
+    }
+
+    if (user && profile && profile.onboardingComplete === false) {
+      if (!onboardingDoneLocally) {
+        router.replace('/onboarding');
+      } else {
+        // Self-heal: onboarding was finished on this device but the flag
+        // never made it to the cloud profile.
+        updateProfileData({ onboardingComplete: true }).catch(() => {});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData]);
 
   useEffect(() => {
     setIsMounted(true);

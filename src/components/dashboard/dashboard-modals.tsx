@@ -20,6 +20,7 @@ import {
   addDebt,
   editDebt,
   deleteDebt,
+  renameFixedCategory,
 } from '@/lib/store';
 import { trackEvent } from '@/lib/analytics';
 
@@ -91,6 +92,12 @@ export function DashboardModals() {
     const updated = deleteFixedExpense(month, bill);
     updateAndSaveMonth(updated);
     trackEvent('delete_fixed_expense', { category: bill.type });
+  };
+
+  // Retype existing bills when a custom fixed category is renamed
+  const handleRenameFixedCategory = (oldName: string, newName: string) => {
+    const updated = renameFixedCategory(month, oldName, newName);
+    if (updated !== month) updateAndSaveMonth(updated);
   };
 
   // Move money handler
@@ -173,6 +180,7 @@ export function DashboardModals() {
         categories={month.activeCategories || []}
         categoryColors={month.categoryColors || {}}
         categoryIcons={month.categoryIcons || {}}
+        onRenameCategory={handleRenameFixedCategory}
       />
 
       <SavingsModal

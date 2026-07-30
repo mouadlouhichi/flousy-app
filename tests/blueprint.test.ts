@@ -100,6 +100,7 @@ const SCHEMA_TO_INTERFACE: Record<string, string> = {
   'definitions.IncomeSource': 'IncomeSource',
   'definitions.VariableExpense': 'VariableExpense',
   'definitions.FixedExpense': 'FixedExpense',
+  'definitions.FixedCategoryItem': 'FixedCategoryItem',
   'definitions.SavingGoal': 'SavingGoal',
   'definitions.DebtItem': 'DebtItem',
 };

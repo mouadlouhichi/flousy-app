@@ -104,6 +104,25 @@ export interface FixedExpense {
   receiptUrl?: string;
 }
 
+/** Default fixed-bill categories offered in the Add Fixed Charge modal. */
+export const DEFAULT_FIXED_CATEGORIES = [
+  'Rent',
+  'Utilities',
+  'Housing',
+  'Subscriptions',
+  'Insurance',
+  'Internet',
+  'Gym',
+  'Other',
+];
+
+/** User-defined fixed-bill category stored on the profile. */
+export interface FixedCategoryItem {
+  name: string;
+  color: string;
+  icon: string;
+}
+
 export interface SavingGoal {
   id: string;
   name: string;
@@ -158,6 +177,7 @@ export interface UserProfile {
   householdMembers?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
+  fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
 }
 
 /**
@@ -355,6 +375,61 @@ export function updateDefaultCategoryBudget(
 }
 
 /**
+ * Add a custom fixed-bill category to the user profile.
+ * No-op when a category with the same name (case-insensitive) already exists.
+ */
+export function addFixedCategory(profile: UserProfile, item: FixedCategoryItem): UserProfile {
+  const existing = profile.fixedCategories || [];
+  if (existing.some((c) => c.name.toLowerCase() === item.name.toLowerCase())) {
+    return profile;
+  }
+  return { ...profile, fixedCategories: [...existing, item] };
+}
+
+/**
+ * Update (rename / recolor / re-icon) an existing custom fixed-bill category.
+ * Appends the item when no category matches `originalName`.
+ */
+export function updateFixedCategory(
+  profile: UserProfile,
+  originalName: string,
+  item: FixedCategoryItem,
+): UserProfile {
+  const existing = profile.fixedCategories || [];
+  const idx = existing.findIndex((c) => c.name === originalName);
+  if (idx === -1) return addFixedCategory(profile, item);
+  const next = [...existing];
+  next[idx] = item;
+  return { ...profile, fixedCategories: next };
+}
+
+/**
+ * Retype fixed bills after a custom fixed category is renamed so existing
+ * charges keep pointing at the updated category name.
+ */
+export function renameFixedCategory(
+  month: MonthBudget,
+  oldName: string,
+  newName: string,
+): MonthBudget {
+  const trimmed = newName.trim();
+  if (
+    !trimmed ||
+    trimmed === oldName ||
+    !(month.fixedExpenses || []).some((b) => b.type === oldName)
+  ) {
+    return month;
+  }
+  return {
+    ...month,
+    fixedExpenses: month.fixedExpenses.map((b) =>
+      b.type === oldName ? { ...b, type: trimmed } : b,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Calculate rollover amounts from previous month (Pro feature)
  * Returns unused budget for each category that can carry forward
  */
@@ -377,21 +452,19 @@ export function calculateRolloverAmounts(
 }
 
 /**
- * Calculate spent amount for a specific category
+ * Calculate spent amount for a specific category.
+ * Counts variable expenses only: category budgets govern variable spending,
+ * so fixed bills (e.g. bills added during onboarding) must not inflate the
+ * "spent" figure of a variable category budget. Fixed bills already count
+ * towards the strategy envelopes via calculateEnvelopeSpent().
  */
 export function calculateCategorySpent(
   month: MonthBudget,
   category: string
 ): number {
-  const variableSpent = (month.variableExpenses || [])
+  return (month.variableExpenses || [])
     .filter((exp) => exp.type === category)
     .reduce((acc, exp) => acc + exp.amount, 0);
-  
-  const fixedSpent = (month.fixedExpenses || [])
-    .filter((exp) => exp.type === category)
-    .reduce((acc, exp) => acc + exp.amount, 0);
-  
-  return variableSpent + fixedSpent;
 }
 
 /**

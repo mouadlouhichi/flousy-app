@@ -50,6 +50,17 @@
       },
       "required": ["id", "name", "amount", "type", "place"]
     },
+    "FixedCategoryItem": {
+      "title": "FixedCategoryItem",
+      "description": "Custom fixed-bill category stored on the user profile.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 50 },
+        "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" },
+        "icon": { "type": "string" }
+      },
+      "required": ["name", "color", "icon"]
+    },
     "SavingGoal": {
       "title": "SavingGoal",
       "description": "A global saving goal. Months move money into or out of it; it never resets at rollover.",
@@ -101,11 +112,13 @@
         "defaultCategoryBudgets": {
           "type": "object",
           "additionalProperties": { "type": "number" },
-          "description": "Pro feature: default budgets that persist across months"
+          "description": "Pro feature: default per-category budgets applied to new months"
         },
-        "enableRollover": {
-          "type": "boolean",
-          "description": "Pro feature: carry unused budget to next month"
+        "enableRollover": { "type": "boolean", "description": "Pro feature: carry unused category budget into the next month" },
+        "fixedCategories": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FixedCategoryItem" },
+          "description": "User-defined fixed-bill categories shown in the Add Fixed Charge modal"
         }
       },
       "required": ["plan", "currency", "onboardingComplete"]
@@ -144,6 +157,16 @@
           "items": { "$ref": "#/definitions/FixedExpense" },
           "maxItems": 500
         },
+        "categoryBudgets": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "Pro feature: planned maximum per category for the month"
+        },
+        "rolloverFromPrevious": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "Pro feature: unused category budgets rolled over from the previous month"
+        },
         "variableCategoryBases": {
           "type": "object",
           "additionalProperties": { "type": "number" },
@@ -153,16 +176,6 @@
           "type": "object",
           "additionalProperties": { "type": "number" },
           "description": "Planned amount per category for fixed bills"
-        },
-        "categoryBudgets": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: planned maximum per category"
-        },
-        "rolloverFromPrevious": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: amounts rolled over from previous month"
         },
         "activeCategories": { "type": "array", "items": { "type": "string" } },
         "categoryColors": {

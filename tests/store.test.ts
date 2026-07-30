@@ -14,9 +14,13 @@ import {
   normalizeMonth,
   createNewMonth,
   calculateCategoryBudgets,
+  addFixedCategory,
+  updateFixedCategory,
+  renameFixedCategory,
   StrategyId,
   SavingGoal,
   MonthBudget,
+  UserProfile,
   VariableExpense,
   updateMoneyPlaces,
   calculateTotalIncome,
@@ -216,5 +220,68 @@ describe('Store & Money Math Invariants', () => {
       calculateTotalIncome({ totalBudget: 0, incomeSources: [{ id: 's1', name: 'Bad', amount: NaN }] }),
       0
     );
+  });
+
+  it('addFixedCategory appends and dedupes case-insensitively', () => {
+    const base: UserProfile = { plan: 'free', currency: 'MAD', onboardingComplete: true };
+    const daycare = { name: 'Daycare', color: '#ec4899', icon: 'child_care' };
+
+    const added = addFixedCategory(base, daycare);
+    assert.deepStrictEqual(added.fixedCategories, [daycare]);
+    // original profile untouched (immutability)
+    assert.strictEqual(base.fixedCategories, undefined);
+
+    // Duplicate (any case) is a no-op — same reference returned
+    const again = addFixedCategory(added, { ...daycare, name: 'DAYCARE' });
+    assert.strictEqual(again, added);
+    assert.strictEqual(again.fixedCategories!.length, 1);
+  });
+
+  it('updateFixedCategory replaces in place and keeps the original color', () => {
+    const gym = { name: 'Gym', color: '#f97316', icon: 'fitness_center' };
+    const profile: UserProfile = {
+      plan: 'free',
+      currency: 'MAD',
+      onboardingComplete: true,
+      fixedCategories: [{ name: 'Daycare', color: '#ec4899', icon: 'child_care' }, gym],
+    };
+
+    const updated = updateFixedCategory(profile, 'Daycare', {
+      name: 'Childcare',
+      color: '#ec4899',
+      icon: 'school',
+    });
+    assert.deepStrictEqual(updated.fixedCategories, [
+      { name: 'Childcare', color: '#ec4899', icon: 'school' },
+      { name: 'Gym', color: '#f97316', icon: 'fitness_center' },
+    ]);
+    // other entries keep identity
+    assert.strictEqual(updated.fixedCategories![1], gym);
+
+    // Unknown original name → appends instead of failing
+    const appended = updateFixedCategory(profile, 'Nope', {
+      name: 'Pets',
+      color: '#10b981',
+      icon: 'pets',
+    });
+    assert.strictEqual(appended.fixedCategories!.length, 3);
+    assert.strictEqual(appended.fixedCategories![2].name, 'Pets');
+  });
+
+  it('renameFixedCategory retypes only matching bills', () => {
+    const month = createNewMonth(10000, '50-30-20', ['Food'], [
+      { name: 'Nursery', amount: 800, category: 'Daycare' },
+      { name: 'Rent', amount: 3000, category: 'Housing' },
+    ], '2026-07');
+
+    const renamed = renameFixedCategory(month, 'Daycare', 'Childcare');
+    assert.strictEqual(renamed.fixedExpenses[0].type, 'Childcare');
+    assert.strictEqual(renamed.fixedExpenses[1].type, 'Housing');
+
+    // No matching bills → same reference (caller can skip the save)
+    assert.strictEqual(renameFixedCategory(month, 'Unknown', 'X'), month);
+    // Same name / empty name → no-op
+    assert.strictEqual(renameFixedCategory(month, 'Daycare', 'Daycare'), month);
+    assert.strictEqual(renameFixedCategory(month, 'Daycare', '   '), month);
   });
 });
