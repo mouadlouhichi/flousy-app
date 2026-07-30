@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth-context';
+import { isProUser } from './pro-features';
 import { createHousehold, createHouseholdInvite, getHouseholdInvite, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
 
@@ -30,7 +31,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     return [{ id: 'self', label: 'Me' }, ...legacy.map((label, i) => ({ id: `legacy-${i}`, label, color: COLORS[i % COLORS.length] }))];
   }, [household, members, profile?.householdMembers]);
   const create = useCallback(async (name: string) => {
-    if (!user || !profile || profile.plan !== 'pro') throw new Error('Households are available with Pro.');
+    if (!user || !profile || !isProUser(profile)) throw new Error('Households are available with Pro.');
     const now = new Date().toISOString(), memberId = user.uid;
     const id = await createHousehold(user.uid, { name: name.trim() || 'My household', ownerId: user.uid, planOwnerId: user.uid, createdAt: now, updatedAt: now }, { id: memberId, displayName: profile.displayName || user.email?.split('@')[0] || 'Me', email: user.email || undefined, userId: user.uid, role: 'owner', status: 'active', avatarColor: COLORS[0], joinedAt: now });
     await updateProfileData({ activeHouseholdId: id, householdIds: [...new Set([...(profile.householdIds || []), id])] });

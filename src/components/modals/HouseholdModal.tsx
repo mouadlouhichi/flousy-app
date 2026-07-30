@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { AppIcon } from '../ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
+import { isProUser } from '@/lib/pro-features';
 import { useHousehold } from '@/lib/household-context';
 import type { MonthBudget } from '@/lib/store';
 
 export function HouseholdModal({ isOpen, onClose, onOpenPro, month }: { isOpen: boolean; onClose: () => void; onOpenPro?: () => void; month?: MonthBudget }) {
-  const { profile } = useAuth(); const { household, members, isOwner, create, addProfile, invite, acceptInvite, updateMember } = useHousehold();
+  const { profile } = useAuth(); const isPro = isProUser(profile); const { household, members, isOwner, create, addProfile, invite, acceptInvite, updateMember } = useHousehold();
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [memberName, setMemberName] = useState(''); const [role, setRole] = useState<'editor' | 'viewer'>('editor'); const [code, setCode] = useState(''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false);
   const run = async (fn: () => Promise<void>) => { setBusy(true); setNotice(''); try { await fn(); } catch (e) { setNotice(e instanceof Error ? e.message : 'Something went wrong.'); } finally { setBusy(false); } };
   const contributions = members.filter(m => m.status === 'active' && m.role !== 'profile').map(m => ({ member: m, total: [...(month?.variableExpenses || []), ...(month?.fixedExpenses || [])].filter(e => e.payerMemberId === m.id).reduce((sum, e) => sum + e.amount, 0) }));
@@ -16,7 +17,7 @@ export function HouseholdModal({ isOpen, onClose, onOpenPro, month }: { isOpen: 
   return <Modal isOpen={isOpen} onClose={onClose} title="Household collaboration" className="max-w-lg"><div className="space-y-5">
     {!household ? <>
       <p className="text-body-sm text-on-surface-variant">Create a shared household to track who paid, collaborate live, and see contribution balances.</p>
-      {profile?.plan !== 'pro' ? <button onClick={onOpenPro} className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary">Unlock with Pro</button> : <><input value={name} onChange={e => setName(e.target.value)} placeholder="Household name (e.g. The Silva family)" className="w-full rounded-xl border border-outline-variant bg-surface p-3" /><button disabled={busy} onClick={() => run(async () => { await create(name); setNotice('Household created. Your personal budget stays private; new shared activity is stored in this workspace.'); })} className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary">Create household</button></>}
+      {!isPro ? <button onClick={onOpenPro} className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary">Unlock with Pro</button> : <><input value={name} onChange={e => setName(e.target.value)} placeholder="Household name (e.g. The Silva family)" className="w-full rounded-xl border border-outline-variant bg-surface p-3" /><button disabled={busy} onClick={() => run(async () => { await create(name); setNotice('Household created. Your personal budget stays private; new shared activity is stored in this workspace.'); })} className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary">Create household</button></>}
       <div className="border-t border-outline-variant pt-4"><label className="text-sm font-bold">Have an invitation code?</label><div className="mt-2 flex gap-2"><input value={code} onChange={e=>setCode(e.target.value)} placeholder="Paste invitation code" className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface p-3"/><button disabled={!code || busy} onClick={() => run(async () => { await acceptInvite(code); setNotice('You joined the household.'); })} className="rounded-xl bg-secondary px-4 font-bold text-on-secondary">Join</button></div></div>
     </> : <>
       <div className="rounded-xl bg-primary/10 p-4"><p className="font-bold text-on-surface">{household.name}</p><p className="text-sm text-on-surface-variant">{members.filter(m=>m.status === 'active').length} active members · shared budget is live</p></div>
