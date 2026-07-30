@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
+import { motion } from 'motion/react';
 import { AppIcon } from './app-icon';
 
 export interface ChoiceChipOption {
@@ -21,9 +22,9 @@ interface ChoiceChipsProps {
 }
 
 /**
- * Single-select pill chips: white background when inactive, solid primary
- * green with white content when selected. The category color is kept as a
- * small accent on the icon while inactive.
+ * Single-select pill chips whose active background glides from the current
+ * chip to the tapped one (shared `layoutId` spring — the exact same motion
+ * timing as the SegmentedControl "Paid From" group and the bottom nav).
  */
 export function ChoiceChips({
   label,
@@ -34,6 +35,8 @@ export function ChoiceChips({
   wrap = false,
 }: ChoiceChipsProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  // Unique per instance so chip groups never steal each other's sliding pill.
+  const layoutId = useId();
 
   // Keep the selected chip visible inside the scrollable row.
   useEffect(() => {
@@ -68,20 +71,36 @@ export function ChoiceChips({
               data-active={isActive}
               aria-pressed={isActive}
               onClick={() => onChange(optionValue)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap transition-all duration-200 active:scale-[0.96] ${
+              className={`relative flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-semibold whitespace-nowrap transition-colors duration-200 active:scale-[0.96] ${
                 isActive
-                  ? 'border-transparent bg-primary text-on-primary shadow-sm'
+                  ? 'border-transparent text-on-primary'
                   : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
               }`}
             >
+              {/* Sliding active background — same spring as SegmentedControl */}
+              {isActive && (
+                <motion.span
+                  layoutId={layoutId}
+                  className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                  transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+                />
+              )}
               {icon && (
                 <AppIcon
                   name={icon}
-                  className="text-[16px]"
+                  className={`relative z-10 text-[16px] transition-colors duration-200 ${
+                    isActive ? 'text-on-primary' : ''
+                  }`}
                   style={!isActive && color ? { color } : undefined}
                 />
               )}
-              <span>{optionLabel}</span>
+              <span
+                className={`relative z-10 transition-colors duration-200 ${
+                  isActive ? 'text-on-primary' : ''
+                }`}
+              >
+                {optionLabel}
+              </span>
             </button>
           );
         })}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
@@ -26,6 +26,13 @@ export function BottomNav() {
   const items = getVisibleNavItems(isPro);
   const [isCompact, setIsCompact] = useState(false);
 
+  // The pill lives on its own schedule (see effect below): when a
+  // navigation happens while the bar is compact, the bar returns to normal
+  // size FIRST and only then the pill glides to the new item — otherwise the
+  // zoom spring and the pill slide fight and the pill lands off-target.
+  const [pillScreen, setPillScreen] = useState(activeScreen);
+  const restorePendingRef = useRef(false);
+
   // Track scroll direction with a small dead zone to avoid jitter.
   useEffect(() => {
     let lastY = window.scrollY;
@@ -47,6 +54,33 @@ export function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Keep the sliding pill in sync with the bar's size.
+  useEffect(() => {
+    if (activeScreen === pillScreen) return;
+
+    if (isCompact) {
+      // Restore the bar to normal size first; the pill move is deferred to
+      // the re-run of this effect once `isCompact` flips to false.
+      restorePendingRef.current = true;
+      setIsCompact(false);
+      return;
+    }
+
+    if (!restorePendingRef.current) {
+      // Bar already at normal size → slide the pill right away.
+      setPillScreen(activeScreen);
+      return;
+    }
+
+    // Coming back from compact: let the zoom spring settle, then glide the
+    // pill into place so it lands exactly on the active item.
+    const timer = window.setTimeout(() => {
+      restorePendingRef.current = false;
+      setPillScreen(activeScreen);
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [activeScreen, isCompact, pillScreen]);
+
   return (
     <motion.nav
       initial={false}
@@ -60,7 +94,7 @@ export function BottomNav() {
       className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center"
     >
       {items.map((item) => {
-        const isActive = activeScreen === item.id;
+        const isActive = pillScreen === item.id;
         return (
           <Link
             key={item.id}
