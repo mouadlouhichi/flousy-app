@@ -270,3 +270,93 @@ export async function deleteUserAccountData(uid: string): Promise<void> {
     console.error('Error deleting account data:', err);
   }
 }
+
+// Shared Household workspace -------------------------------------------------
+// Household documents are deliberately separate from private user documents.
+// This lets rules grant access by membership without exposing a user's profile.
+import type { Household, HouseholdInvite, HouseholdMember } from './household';
+
+export function subscribeHousehold(householdId: string | undefined, onData: (household: Household | null) => void) {
+  if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
+  return onSnapshot(doc(db, 'households', householdId), (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null));
+}
+
+export function subscribeHouseholdMembers(householdId: string | undefined, onData: (members: HouseholdMember[]) => void) {
+  if (!householdId || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  return onSnapshot(collection(db, 'households', householdId, 'members'), (snap) =>
+    onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember)))
+  );
+}
+
+export async function createHousehold(ownerId: string, household: Household, owner: HouseholdMember) {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const id = crypto.randomUUID();
+  await setDoc(doc(db, 'households', id), cleanUndefined(household));
+  await setDoc(doc(db, 'households', id, 'members', owner.id), cleanUndefined(owner));
+  return id;
+}
+
+export async function saveHouseholdMember(householdId: string, member: HouseholdMember) {
+  if (!isFirebaseConfigured || !db) return;
+  await setDoc(doc(db, 'households', householdId, 'members', member.id), cleanUndefined(member), { merge: true });
+}
+
+export async function saveHousehold(householdId: string, patch: Partial<Household>) {
+  if (!isFirebaseConfigured || !db) return;
+  await setDoc(doc(db, 'households', householdId), cleanUndefined({ ...patch, updatedAt: new Date().toISOString() }), { merge: true });
+}
+
+export async function createHouseholdInvite(invite: HouseholdInvite) {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  await setDoc(doc(db, 'householdInvites', invite.id), cleanUndefined(invite));
+}
+
+export async function getHouseholdInvite(inviteId: string): Promise<HouseholdInvite | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  const snap = await getDoc(doc(db, 'householdInvites', inviteId));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as HouseholdInvite) : null;
+}
+
+export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: string, displayName: string) {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const source = await getDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId));
+  const invitedMember = source.data() || {};
+  const member: Partial<HouseholdMember> = { ...invitedMember, userId, displayName: displayName || invitedMember.displayName, status: 'active', joinedAt: new Date().toISOString() };
+  // Authenticated members are indexed by their uid, allowing rules to authorise shared data reads.
+  await setDoc(doc(db, 'households', invite.householdId, 'members', userId), cleanUndefined(member));
+  await setDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId), { status: 'inactive' }, { merge: true });
+  await setDoc(doc(db, 'householdInvites', invite.id), { status: 'accepted' }, { merge: true });
+}
+
+export function subscribeHouseholdMonthBudget(householdId: string, monthKey: string, onData: (month: MonthBudget | null) => void) {
+  if (!isFirebaseConfigured || !db) { onData(null); return () => {}; }
+  return onSnapshot(doc(db, 'households', householdId, 'months', monthKey), (snap) => onData(snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null));
+}
+export async function saveHouseholdMonthBudget(householdId: string, monthKey: string, month: MonthBudget) {
+  if (!isFirebaseConfigured || !db) return;
+  await setDoc(doc(db, 'households', householdId, 'months', monthKey), cleanUndefined(month), { merge: true });
+}
+export async function getHouseholdMonthBudget(householdId: string, monthKey: string) {
+  if (!isFirebaseConfigured || !db) return null;
+  const snap = await getDoc(doc(db, 'households', householdId, 'months', monthKey));
+  return snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null;
+}
+export function subscribeHouseholdSavingsGoals(householdId: string, onData: (goals: SavingGoal[]) => void) {
+  if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  return onSnapshot(doc(db, 'households', householdId, 'data', 'savings'), (snap) => onData(snap.exists() ? (snap.data().goals || []) : []));
+}
+export async function saveHouseholdSavingsGoals(householdId: string, goals: SavingGoal[]) {
+  if (!isFirebaseConfigured || !db) return;
+  await setDoc(doc(db, 'households', householdId, 'data', 'savings'), cleanUndefined({ goals }), { merge: true });
+}
+export async function fetchHouseholdMonthsForTrends(householdId: string, currentKey: string, count = 6): Promise<{ monthKey: string; month: MonthBudget }[]> {
+  const results: { monthKey: string; month: MonthBudget }[] = [];
+  const [year, calendarMonth] = currentKey.split('-').map(Number);
+  for (let offset = 0; offset < count; offset++) {
+    const date = new Date(year, calendarMonth - 1 - offset, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const month = await getHouseholdMonthBudget(householdId, key);
+    if (month) results.push({ monthKey: key, month });
+  }
+  return results;
+}

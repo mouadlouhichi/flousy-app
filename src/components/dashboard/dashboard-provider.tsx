@@ -33,10 +33,18 @@ import {
   saveSavingsGoals,
   fetchMonthsForTrends,
   getMonthBudget,
+  subscribeHouseholdMonthBudget,
+  saveHouseholdMonthBudget,
+  subscribeHouseholdSavingsGoals,
+  saveHouseholdSavingsGoals,
+  getHouseholdMonthBudget,
+  fetchHouseholdMonthsForTrends,
 } from '../../lib/db';
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
 import { getScreenIdFromPath } from './nav-items';
+import { useHousehold } from '../../lib/household-context';
+import { householdStorageKey } from '../../lib/household';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -152,6 +160,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
+  const { household, canEdit } = useHousehold();
+  const householdId = household?.id;
 
   // Active Month Key (YYYY-MM)
   const today = new Date();
@@ -248,7 +258,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
+      if (householdId) {
+        const prev = await getHouseholdMonthBudget(householdId, prevKey);
+        return prev || undefined;
+      } else if (user) {
         const prev = await getMonthBudget(user.uid, prevKey);
         return prev || undefined;
       } else {
@@ -263,14 +276,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
       return undefined;
     },
-    [user, profile],
+    [user, profile, householdId],
   );
 
   // 1. Subscribe or load month budget
   useEffect(() => {
     setLoading(true);
 
-    if (user) {
+    if (householdId) {
+      const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
+        if (data) setMonth(data); else setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, await getPreviousMonth(currentMonthKey)));
+        setLoading(false);
+      });
+      return () => unsub();
+    } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
@@ -301,11 +320,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentMonthKey, profile]);
+  }, [user, householdId, currentMonthKey, profile]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
-    if (user) {
+    if (householdId) {
+      const unsub = subscribeHouseholdSavingsGoals(householdId, (data) => setGoals(data || []));
+      return () => unsub();
+    } else if (user) {
       const unsub = subscribeSavingsGoals(user.uid, (data) => {
         setGoals(data || []);
       });
@@ -313,30 +335,36 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       setGoals([]);
     }
-  }, [user]);
+  }, [user, householdId]);
 
   // Helper to persist month updates locally + cloud
   const updateAndSaveMonth = useCallback(
     (newMonth: MonthBudget) => {
+      if (householdId && !canEdit) return;
       setMonth(newMonth);
-      localStorage.setItem(`flousy_month_${currentMonthKey}`, JSON.stringify(newMonth));
-      if (user) {
+      localStorage.setItem(householdStorageKey(householdId, currentMonthKey), JSON.stringify(newMonth));
+      if (householdId) {
+        saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
+      } else if (user) {
         saveMonthBudget(user.uid, currentMonthKey, newMonth).catch((e) => console.error(e));
       }
     },
-    [currentMonthKey, user],
+    [currentMonthKey, user, householdId, canEdit],
   );
 
   // Helper to persist goals updates locally + cloud
   const updateAndSaveGoals = useCallback(
     (newGoals: SavingGoal[]) => {
+      if (householdId && !canEdit) return;
       setGoals(newGoals);
-      localStorage.setItem('flousy_savings_goals', JSON.stringify(newGoals));
-      if (user) {
+      localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      if (householdId) {
+        saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
+      } else if (user) {
         saveSavingsGoals(user.uid, newGoals).catch((e) => console.error(e));
       }
     },
-    [user],
+    [user, householdId, canEdit],
   );
 
   // Carry over recurring fixed expenses from previous month
@@ -346,13 +374,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
-        const prev = await getMonthBudget(user.uid, prevKey);
+      if (householdId || user) {
+        const prev = householdId ? await getHouseholdMonthBudget(householdId, prevKey) : await getMonthBudget(user!.uid, prevKey);
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
-          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
-            updateAndSaveMonth(withCarry);
-          }
+          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) updateAndSaveMonth(withCarry);
         }
       } else {
         try {
@@ -369,7 +395,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [month, profile, updateAndSaveMonth, user],
+    [month, profile, updateAndSaveMonth, user, householdId],
   );
 
   // Automatically carry over recurring bills when entering a fresh month
@@ -391,13 +417,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
-      fetchMonthsForTrends(user?.uid, currentMonthKey, 6)
+      (householdId ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6) : fetchMonthsForTrends(user?.uid, currentMonthKey, 6))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onTrendsScreen, currentMonthKey, user?.uid, month.totalBudget]);
+  }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
 
   // Month navigation
   const handlePrevMonth = useCallback(() => {

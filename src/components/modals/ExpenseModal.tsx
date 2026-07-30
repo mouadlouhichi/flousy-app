@@ -42,7 +42,8 @@ export function ExpenseModal({
   const [place, setPlace] = useState<MoneyPlace>('bank');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
-  const [person, setPerson] = useState('Self');
+  const [person, setPerson] = useState('Me');
+  const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,7 +55,8 @@ export function ExpenseModal({
       setPlace(initialExpense.place || 'bank');
       setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
       setNote(initialExpense.note || '');
-      setPerson(initialExpense.person || 'Self');
+      setPerson(initialExpense.person || 'Me');
+      setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
     } else {
       setName('');
@@ -63,7 +65,8 @@ export function ExpenseModal({
       setPlace('bank');
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
-      setPerson('Self');
+      setPerson('Me');
+      setPayerMemberId('self');
       setReceiptUrl(undefined);
     }
     setErrors({});
@@ -114,6 +117,7 @@ export function ExpenseModal({
       place,
       note: note.trim() || undefined,
       person,
+      payerMemberId,
       receiptUrl,
     };
 
@@ -220,7 +224,7 @@ export function ExpenseModal({
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
-          <MemberBadges value={person} onChange={setPerson} />
+          <MemberBadges value={payerMemberId} onChange={(id, label) => { setPayerMemberId(id); setPerson(label); }} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>

@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
+  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts \u2014 run `npm run test` after changing any of them.",
   "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
   "definitions": {
     "IncomeSource": {
@@ -7,89 +7,280 @@
       "description": "A single income stream contributing to the month's total budget.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "maxLength": 60 },
-        "amount": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "category": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "category": {
+          "type": "string"
+        }
       },
-      "required": ["id", "name", "amount"]
+      "required": [
+        "id",
+        "name",
+        "amount"
+      ]
     },
     "VariableExpense": {
       "title": "VariableExpense",
       "description": "A day-to-day expense logged against a category and a money place.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "maxLength": 100 },
-        "amount": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "type": { "type": "string", "description": "Category name, must exist in MonthBudget.activeCategories" },
-        "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
-        "place": { "type": "string", "enum": ["bank", "home", "wallet"] },
-        "note": { "type": "string", "maxLength": 250 },
-        "person": { "type": "string", "description": "Household member the expense belongs to" },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "receiptUrl": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "type": {
+          "type": "string",
+          "description": "Category name, must exist in MonthBudget.activeCategories"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "place": {
+          "type": "string",
+          "enum": [
+            "bank",
+            "home",
+            "wallet"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "person": {
+          "type": "string",
+          "description": "Household member the expense belongs to"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "receiptUrl": {
+          "type": "string"
+        },
+        "payerMemberId": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        },
+        "updatedByUserId": {
+          "type": "string"
+        }
       },
-      "required": ["id", "name", "amount", "type", "date", "place"]
+      "required": [
+        "id",
+        "name",
+        "amount",
+        "type",
+        "date",
+        "place"
+      ]
     },
     "FixedExpense": {
       "title": "FixedExpense",
       "description": "A recurring bill. `base` stores the planned amount so overspend can be measured.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "maxLength": 100 },
-        "amount": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "type": { "type": "string", "description": "Category name, must exist in MonthBudget.activeCategories" },
-        "date": { "type": "string", "description": "Due day such as \"1st\" or \"15th\", or a YYYY-MM-DD date" },
-        "place": { "type": "string", "enum": ["bank", "home", "wallet"] },
-        "base": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "person": { "type": "string", "description": "Household member the bill belongs to" },
-        "recurring": { "type": "boolean" },
-        "receiptUrl": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "type": {
+          "type": "string",
+          "description": "Category name, must exist in MonthBudget.activeCategories"
+        },
+        "date": {
+          "type": "string",
+          "description": "Due day such as \"1st\" or \"15th\", or a YYYY-MM-DD date"
+        },
+        "place": {
+          "type": "string",
+          "enum": [
+            "bank",
+            "home",
+            "wallet"
+          ]
+        },
+        "base": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "person": {
+          "type": "string",
+          "description": "Household member the bill belongs to"
+        },
+        "recurring": {
+          "type": "boolean"
+        },
+        "receiptUrl": {
+          "type": "string"
+        },
+        "payerMemberId": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        },
+        "updatedByUserId": {
+          "type": "string"
+        }
       },
-      "required": ["id", "name", "amount", "type", "place"]
+      "required": [
+        "id",
+        "name",
+        "amount",
+        "type",
+        "place"
+      ]
     },
     "FixedCategoryItem": {
       "title": "FixedCategoryItem",
       "description": "Custom fixed-bill category stored on the user profile.",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "maxLength": 50 },
-        "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" },
-        "icon": { "type": "string" }
+        "name": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+        },
+        "icon": {
+          "type": "string"
+        }
       },
-      "required": ["name", "color", "icon"]
+      "required": [
+        "name",
+        "color",
+        "icon"
+      ]
     },
     "SavingGoal": {
       "title": "SavingGoal",
       "description": "A global saving goal. Months move money into or out of it; it never resets at rollover.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "maxLength": 100 },
-        "target": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "current": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "source": { "type": "string", "enum": ["bank", "home", "wallet"] },
-        "active": { "type": "boolean" },
-        "category": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "current": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "bank",
+            "home",
+            "wallet"
+          ]
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "category": {
+          "type": "string"
+        }
       },
-      "required": ["id", "name", "target", "current", "source", "active"]
+      "required": [
+        "id",
+        "name",
+        "target",
+        "current",
+        "source",
+        "active"
+      ]
     },
     "DebtItem": {
       "title": "DebtItem",
       "description": "Money owed to someone ('debt') or owed to the user ('credit').",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "description": "Person or entity on the other side" },
-        "amount": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "type": { "type": "string", "enum": ["debt", "credit"] },
-        "status": { "type": "string", "enum": ["open", "settled"] },
-        "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
-        "note": { "type": "string", "maxLength": 250 }
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "description": "Person or entity on the other side"
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "debt",
+            "credit"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "settled"
+          ]
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 250
+        }
       },
-      "required": ["id", "name", "amount", "type", "status", "date"]
+      "required": [
+        "id",
+        "name",
+        "amount",
+        "type",
+        "status",
+        "date"
+      ]
     }
   },
   "entities": {
@@ -100,28 +291,77 @@
       "properties": {
         "plan": {
           "type": "string",
-          "enum": ["free", "pro"],
-          "description": "Pinned by firestore.rules — clients can never change it after creation"
+          "enum": [
+            "free",
+            "pro"
+          ],
+          "description": "Pinned by firestore.rules \u2014 clients can never change it after creation"
         },
-        "currency": { "type": "string", "maxLength": 10 },
-        "onboardingComplete": { "type": "boolean" },
-        "displayName": { "type": "string" },
-        "theme": { "type": "string", "enum": ["light", "dark", "system"] },
-        "language": { "type": "string", "enum": ["en", "fr", "ar"] },
-        "householdMembers": { "type": "array", "items": { "type": "string" } },
+        "currency": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "onboardingComplete": {
+          "type": "boolean"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark",
+            "system"
+          ]
+        },
+        "language": {
+          "type": "string",
+          "enum": [
+            "en",
+            "fr",
+            "ar"
+          ]
+        },
+        "householdMembers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "defaultCategoryBudgets": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "description": "Pro feature: default per-category budgets applied to new months"
         },
-        "enableRollover": { "type": "boolean", "description": "Pro feature: carry unused category budget into the next month" },
+        "enableRollover": {
+          "type": "boolean",
+          "description": "Pro feature: carry unused category budget into the next month"
+        },
         "fixedCategories": {
           "type": "array",
-          "items": { "$ref": "#/definitions/FixedCategoryItem" },
+          "items": {
+            "$ref": "#/definitions/FixedCategoryItem"
+          },
           "description": "User-defined fixed-bill categories shown in the Add Fixed Charge modal"
+        },
+        "activeHouseholdId": {
+          "type": "string"
+        },
+        "householdIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
-      "required": ["plan", "currency", "onboardingComplete"]
+      "required": [
+        "plan",
+        "currency",
+        "onboardingComplete"
+      ]
     },
     "MonthBudget": {
       "title": "MonthBudget",
@@ -136,70 +376,118 @@
         },
         "incomeSources": {
           "type": "array",
-          "items": { "$ref": "#/definitions/IncomeSource" },
+          "items": {
+            "$ref": "#/definitions/IncomeSource"
+          },
           "description": "Defaults to a single 'Primary Income' source equal to totalBudget"
         },
-        "bankPart": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "homePart": { "type": "number", "minimum": 0, "maximum": 1000000000 },
-        "walletPart": { "type": "number", "minimum": 0, "maximum": 1000000000 },
+        "bankPart": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "homePart": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "walletPart": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
         "strategyId": {
           "type": "string",
-          "enum": ["50-30-20", "70-20-10", "80-20", "zero-based", "envelope", "pay-first", "custom"]
+          "enum": [
+            "50-30-20",
+            "70-20-10",
+            "80-20",
+            "zero-based",
+            "envelope",
+            "pay-first",
+            "custom"
+          ]
         },
-        "monthlySavingsTarget": { "type": "number", "minimum": 0, "maximum": 1000000000 },
+        "monthlySavingsTarget": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
         "variableExpenses": {
           "type": "array",
-          "items": { "$ref": "#/definitions/VariableExpense" },
+          "items": {
+            "$ref": "#/definitions/VariableExpense"
+          },
           "maxItems": 2000
         },
         "fixedExpenses": {
           "type": "array",
-          "items": { "$ref": "#/definitions/FixedExpense" },
+          "items": {
+            "$ref": "#/definitions/FixedExpense"
+          },
           "maxItems": 500
         },
         "categoryBudgets": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: planned maximum per category for the month"
-        },
-        "rolloverFromPrevious": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: unused category budgets rolled over from the previous month"
-        },
-        "variableCategoryBases": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Planned amount per category for variable spending"
-        },
-        "fixedCategoryBases": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Planned amount per category for fixed bills"
-        },
-        "categoryBudgets": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "description": "Pro feature: planned maximum per category"
         },
         "rolloverFromPrevious": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "description": "Pro feature: amounts rolled over from previous month"
         },
-        "activeCategories": { "type": "array", "items": { "type": "string" } },
+        "variableCategoryBases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Planned amount per category for variable spending"
+        },
+        "fixedCategoryBases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Planned amount per category for fixed bills"
+        },
+        "activeCategories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "categoryColors": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Category name to hex colour, e.g. #f97316"
         },
         "categoryIcons": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Category name to Material Symbols icon name"
         },
-        "debts": { "type": "array", "items": { "$ref": "#/definitions/DebtItem" } },
-        "updatedAt": { "type": "string", "description": "ISO 8601 timestamp of the last write" }
+        "debts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DebtItem"
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp of the last write"
+        },
+        "updatedByUserId": {
+          "type": "string"
+        }
       },
       "required": [
         "totalBudget",
@@ -225,11 +513,110 @@
       "properties": {
         "goals": {
           "type": "array",
-          "items": { "$ref": "#/definitions/SavingGoal" },
+          "items": {
+            "$ref": "#/definitions/SavingGoal"
+          },
           "maxItems": 200
         }
       },
-      "required": ["goals"]
+      "required": [
+        "goals"
+      ]
+    },
+    "Household": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "ownerId": {
+          "type": "string"
+        },
+        "planOwnerId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "ownerId",
+        "planOwnerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HouseholdMember": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "avatarColor": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "displayName",
+        "role",
+        "status",
+        "avatarColor"
+      ]
+    },
+    "HouseholdInvite": {
+      "type": "object",
+      "properties": {
+        "householdId": {
+          "type": "string"
+        },
+        "memberId": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "householdId",
+        "memberId",
+        "email",
+        "role",
+        "createdBy",
+        "createdAt",
+        "expiresAt",
+        "status"
+      ]
     }
   },
   "firestore": {
@@ -245,6 +632,27 @@
     "/users/{uid}/data/savings": {
       "schema": "SavingsData",
       "description": "Global savings goals document"
+    },
+    "/households/{monthKey}": {
+      "schema": "Household",
+      "description": "Shared household workspace"
+    },
+    "/households/{monthKey}/members/{monthKey}": {
+      "schema": "HouseholdMember",
+      "description": "Household membership and roles"
+    },
+    "/householdInvites/{monthKey}": {
+      "schema": "HouseholdInvite",
+      "description": "Email-bound household invitation"
+    },
+    "/households/{monthKey}/months/{monthKey}": {
+      "schema": "MonthBudget",
+      "description": "Shared monthly budget",
+      "idPattern": "^[0-9]{4}-[0-9]{2}$"
+    },
+    "/households/{monthKey}/data/savings": {
+      "schema": "SavingsData",
+      "description": "Shared savings goals"
     }
   }
 }

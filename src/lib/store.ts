@@ -86,7 +86,10 @@ export interface VariableExpense {
   date: string; // YYYY-MM-DD
   place: MoneyPlace;
   note?: string;
-  person?: string;
+  person?: string; // payer display-name snapshot (legacy-compatible)
+  payerMemberId?: string;
+  createdByUserId?: string;
+  updatedByUserId?: string;
   tags?: string[];
   receiptUrl?: string;
 }
@@ -99,7 +102,10 @@ export interface FixedExpense {
   date?: string; // due day e.g. "1st", "15th" or YYYY-MM-DD
   place: MoneyPlace;
   base?: number;
-  person?: string;
+  person?: string; // payer display-name snapshot (legacy-compatible)
+  payerMemberId?: string;
+  createdByUserId?: string;
+  updatedByUserId?: string;
   recurring?: boolean;
   receiptUrl?: string;
 }
@@ -165,6 +171,7 @@ export interface MonthBudget {
   categoryIcons: Record<string, string>;
   debts?: DebtItem[];
   updatedAt: string;
+  updatedByUserId?: string;
 }
 
 export interface UserProfile {
@@ -174,7 +181,9 @@ export interface UserProfile {
   displayName?: string;
   theme?: 'light' | 'dark' | 'system';
   language?: 'en' | 'fr' | 'ar';
-  householdMembers?: string[];
+  householdMembers?: string[]; // legacy local person labels
+  activeHouseholdId?: string;
+  householdIds?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories

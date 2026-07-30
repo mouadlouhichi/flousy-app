@@ -58,12 +58,13 @@ export function DashboardModals() {
 
   // Expense handlers
   const handleSaveVariableExpense = (exp: VariableExpense) => {
+    const audited = { ...exp, createdByUserId: dashboard.selectedExpense?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedExpense) {
-      const updated = editVariableExpense(month, dashboard.selectedExpense, exp);
+      const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
-      const updated = addVariableExpense(month, exp);
+      const updated = addVariableExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
@@ -77,12 +78,13 @@ export function DashboardModals() {
 
   // Fixed bills handlers
   const handleSaveFixedBill = (bill: FixedExpense) => {
+    const audited = { ...bill, createdByUserId: dashboard.selectedFixed?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedFixed) {
-      const updated = editFixedExpense(month, dashboard.selectedFixed, bill);
+      const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
-      const updated = addFixedExpense(month, bill);
+      const updated = addFixedExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
