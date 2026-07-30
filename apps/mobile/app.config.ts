@@ -103,9 +103,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ],
 
   // ─── EAS Updates ─────────────────────────────────────────────────
-  updates: {
-    url: "https://u.expo.dev/your-project-id-here",
-  },
+  // eas init will populate the updates URL and projectId automatically
+  updates: {},
 
   // ─── Runtime Version ─────────────────────────────────────────────
   runtimeVersion: {
@@ -115,8 +114,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // ─── Extra (env vars accessible at runtime) ──────────────────────
   extra: {
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
-    eas: {
-      projectId: "your-eas-project-id-here",
-    },
+    // eas init will populate projectId automatically
+    eas: {},
   },
 });
