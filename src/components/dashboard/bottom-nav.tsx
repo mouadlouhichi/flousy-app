@@ -8,6 +8,13 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
 
+interface PillRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
  * Floating glass bottom navigation (mobile only).
  *
@@ -15,9 +22,12 @@ import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
  * (like the landing navbar reacting to scroll); scrolling back up — or
  * reaching the top — springs it back to full size.
  *
- * The active item is highlighted by a single background pill that slides
- * horizontally from the current page's button to the target page's button
- * whenever the route changes (shared `layoutId` animation).
+ * The active item is highlighted by a single background pill positioned in
+ * the bar's LAYOUT space (measured from the active button's offset* values)
+ * rather than a viewport-measured shared `layoutId`. Layout offsets do not
+ * change when the whole bar zooms (compact state) or while the page content
+ * transitions, so the pill always glides in one straight horizontal line
+ * and stays glued to its button — never an "up, then left" diagonal drift.
  */
 export function BottomNav() {
   const pathname = usePathname();
@@ -26,12 +36,8 @@ export function BottomNav() {
   const items = getVisibleNavItems(isPro);
   const [isCompact, setIsCompact] = useState(false);
 
-  // The pill lives on its own schedule (see effect below): when a
-  // navigation happens while the bar is compact, the bar returns to normal
-  // size FIRST and only then the pill glides to the new item — otherwise the
-  // zoom spring and the pill slide fight and the pill lands off-target.
-  const [pillScreen, setPillScreen] = useState(activeScreen);
-  const restorePendingRef = useRef(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const [pillRect, setPillRect] = useState<PillRect | null>(null);
 
   // Track scroll direction with a small dead zone to avoid jitter.
   useEffect(() => {
@@ -54,35 +60,30 @@ export function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Keep the sliding pill in sync with the bar's size.
+  // Measure the active button in nav-local layout space (transform-immune).
   useEffect(() => {
-    if (activeScreen === pillScreen) return;
+    const measure = () => {
+      const activeBtn = navRef.current?.querySelector<HTMLElement>(
+        `[data-nav-item="${activeScreen}"]`,
+      );
+      if (activeBtn) {
+        setPillRect({
+          x: activeBtn.offsetLeft,
+          y: activeBtn.offsetTop,
+          width: activeBtn.offsetWidth,
+          height: activeBtn.offsetHeight,
+        });
+      }
+    };
 
-    if (isCompact) {
-      // Restore the bar to normal size first; the pill move is deferred to
-      // the re-run of this effect once `isCompact` flips to false.
-      restorePendingRef.current = true;
-      setIsCompact(false);
-      return;
-    }
-
-    if (!restorePendingRef.current) {
-      // Bar already at normal size → slide the pill right away.
-      setPillScreen(activeScreen);
-      return;
-    }
-
-    // Coming back from compact: let the zoom spring settle, then glide the
-    // pill into place so it lands exactly on the active item.
-    const timer = window.setTimeout(() => {
-      restorePendingRef.current = false;
-      setPillScreen(activeScreen);
-    }, 220);
-    return () => window.clearTimeout(timer);
-  }, [activeScreen, isCompact, pillScreen]);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [activeScreen, items.length]);
 
   return (
     <motion.nav
+      ref={navRef}
       initial={false}
       animate={{
         x: '-50%',
@@ -93,13 +94,31 @@ export function BottomNav() {
       style={{ transformOrigin: 'bottom center' }}
       className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center"
     >
+      {/* Active pill — glides horizontally behind the buttons (same spring
+          language as the old layoutId pill / SegmentedControl). */}
+      {pillRect && (
+        <motion.span
+          aria-hidden
+          initial={false}
+          animate={{
+            x: pillRect.x,
+            y: pillRect.y,
+            width: pillRect.width,
+            height: pillRect.height,
+          }}
+          transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+          className="absolute left-0 top-0 rounded-full bg-primary shadow-sm"
+        />
+      )}
+
       {items.map((item) => {
-        const isActive = pillScreen === item.id;
+        const isActive = activeScreen === item.id;
         return (
           <Link
             key={item.id}
             href={item.href}
             prefetch={false}
+            data-nav-item={item.id}
             aria-label={item.label}
             title={item.label}
             className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-300 ease-out ${
@@ -108,15 +127,6 @@ export function BottomNav() {
                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
             }`}
           >
-            {/* Sliding active background — scrolls horizontally from the
-                previously active item to this one on navigation. */}
-            {isActive && (
-              <motion.span
-                layoutId="dashboard-active-nav-bg"
-                className="absolute inset-0 rounded-full bg-primary shadow-sm"
-                transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
-              />
-            )}
             <AppIcon
               name={item.mobileIcon}
               className={`relative z-10 text-[24px] transition-transform duration-300 ${
