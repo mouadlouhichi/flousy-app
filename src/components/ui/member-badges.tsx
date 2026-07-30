@@ -41,7 +41,7 @@ export function MemberBadges({ label = 'Household Member', value, onChange }: Me
               className={`flex items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-[12px] font-semibold transition-all duration-200 active:scale-[0.96] ${
                 isActive
                   ? 'bg-primary text-on-primary shadow-sm'
-                  : 'border border-outline-variant text-on-surface hover:bg-surface-variant/40'
+                  : 'border border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-variant/40'
               }`}
             >
               {isActive ? (
