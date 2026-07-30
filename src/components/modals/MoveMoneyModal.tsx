@@ -87,7 +87,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     <Modal isOpen={isOpen} onClose={onClose} title="Move Money">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* ── From / To selectors — segmented with sliding background ── */}
-        <div className="p-4 bg-surface-container/60 rounded-2xl border border-outline-variant flex flex-col gap-3">
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-3">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             Transfer Between Accounts
           </span>

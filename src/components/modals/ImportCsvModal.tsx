@@ -177,7 +177,7 @@ export function ImportCsvModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Import CSV Transactions">
       <div className="flex flex-col gap-5">
         {/* ── Type Selector ── */}
-        <div className="flex bg-surface-variant/40 rounded-xl p-1">
+        <div className="flex bg-surface-container-high rounded-xl p-1">
           <button
             type="button"
             onClick={() => setTargetType('variable')}
@@ -203,7 +203,7 @@ export function ImportCsvModal({
         </div>
 
         {/* ── Upload Box ── */}
-        <div className="p-6 bg-surface-container/40 border-2 border-dashed border-outline-variant rounded-2xl text-center hover:bg-surface-container transition-colors cursor-pointer">
+        <div className="p-6 bg-surface-container border-2 border-dashed border-outline-variant rounded-2xl text-center hover:bg-surface-container transition-colors cursor-pointer">
           <input
             type="file"
             accept=".csv"
@@ -272,7 +272,7 @@ export function ImportCsvModal({
 
         {/* ── Empty state ── */}
         {!fileText && !error && parsedRows.length === 0 && (
-          <div className="p-4 bg-surface-container/30 rounded-xl border border-dashed border-outline-variant text-center">
+          <div className="p-4 bg-surface-container rounded-xl border border-dashed border-outline-variant text-center">
             <p className="text-[13px] text-on-surface-variant">
               Select a CSV file to preview your transactions before importing.
             </p>

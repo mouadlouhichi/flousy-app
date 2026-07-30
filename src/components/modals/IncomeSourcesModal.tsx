@@ -185,7 +185,7 @@ export function IncomeSourcesModal({
           </span>
 
           {sources.length === 0 ? (
-            <div className="p-6 bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
+            <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
               <AppIcon name="payments" className=" text-outline text-[32px]" />
               <p className="font-body-sm text-body-sm text-on-surface-variant">No income sources yet. Add one below.</p>
             </div>
@@ -325,7 +325,7 @@ export function IncomeSourcesModal({
         </div>
 
         {/* ── Add New Source ── */}
-        <div className="p-4 bg-surface-container/60 rounded-2xl border border-dashed border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
           <div className="flex flex-col gap-3">
             <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
               ADD INCOME STREAM

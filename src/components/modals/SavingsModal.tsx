@@ -231,7 +231,7 @@ export function SavingsModal({
 
             {/* Goal info card */}
             {goal && (
-              <div className="p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
+              <div className="p-3.5 bg-surface-container rounded-xl border border-outline-variant">
                 <div className="flex items-center gap-2.5">
                   <AppIcon name="savings" className=" text-primary text-[20px]" />
                   <div className="flex-1">

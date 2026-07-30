@@ -51,7 +51,7 @@ export function SegmentedControl({
       <div
         role="radiogroup"
         aria-label={ariaLabel || label}
-        className="flex w-full items-stretch gap-1 rounded-full border border-outline-variant/70 bg-surface-container-high/60 p-1"
+        className="flex w-full items-stretch gap-1 rounded-full border border-outline-variant/70 bg-surface-container-high p-1"
       >
         {options.map(({ value: optionValue, label: optionLabel, icon, sublabel }) => {
           const isActive = value === optionValue;

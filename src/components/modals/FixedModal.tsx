@@ -5,6 +5,7 @@ import { CustomInput } from '../ui/CustomInput';
 import { ChoiceChips } from '../ui/choice-chips';
 import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
 import { MemberBadges } from '../ui/member-badges';
+import { DueDayPicker } from '../ui/day-picker';
 import { FixedExpense, MoneyPlace } from '../../lib/store';
 import { fixedBillSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -190,20 +191,14 @@ export function FixedModal({
           }))}
         />
 
-        {/* ── Due Day ── */}
-        <CustomInput
-          label="Due Day of Month"
-          type="text"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          placeholder="e.g. 1st of month, 15th"
-        />
+        {/* ── Due Day — day-picker card (solid bg) ── */}
+        <DueDayPicker value={date} onChange={setDate} />
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
           <MemberBadges value={person} onChange={setPerson} />
         ) : (
-          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
+          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
           </div>
         )}
@@ -217,7 +212,7 @@ export function FixedModal({
         />
 
         {/* ── Recurring Toggle ── */}
-        <div className="flex items-center justify-between p-3.5 bg-surface-container/60 rounded-xl border border-outline-variant">
+        <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">
           <div className="flex items-center gap-2.5">
             <AppIcon name="event_repeat" className=" text-primary text-[20px]" />
             <div>

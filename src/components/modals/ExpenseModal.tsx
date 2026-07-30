@@ -222,7 +222,7 @@ export function ExpenseModal({
         {isPro ? (
           <MemberBadges value={person} onChange={setPerson} />
         ) : (
-          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
+          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
           </div>
         )}
@@ -273,7 +273,7 @@ export function ExpenseModal({
               </label>
             )
           ) : (
-            <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50 text-center">
+            <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container text-center">
               <p className="font-body-sm text-body-sm text-on-surface-variant">Receipt attachments are available in Pro.</p>
             </div>
           )}
