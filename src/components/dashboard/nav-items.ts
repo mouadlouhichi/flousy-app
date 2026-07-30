@@ -74,6 +74,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     sidebarIcon: 'trending_up',
     mobileIcon: 'trending_up',
     proOnly: true,
+    hiddenFromNav: true,
   },
   {
     id: 'debts',

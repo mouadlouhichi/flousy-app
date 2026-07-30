@@ -11,7 +11,6 @@ import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
 import { SegmentedControl } from '../ui/segmented-control';
 import { trackEvent } from '../../lib/analytics';
-import { HouseholdModal } from './HouseholdModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,7 +29,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
-  const [householdOpen, setHouseholdOpen] = useState(false);
 
   const currentTheme = profile?.theme || 'system';
 
@@ -159,8 +157,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
               <span>Upgrade to Pro</span>
             </button>
           )}
-
-          {profile?.plan === 'pro' && <button type="button" onClick={() => setHouseholdOpen(true)} className="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/50"><span className="flex items-center gap-3 font-bold"><AppIcon name="family_restroom" className="text-primary text-[20px]" />Household collaboration</span><AppIcon name="chevron_right" className="text-on-surface-variant" /></button>}
 
           {/* ── Preferences Section ── */}
           <div className="space-y-3">
@@ -303,7 +299,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
         </div>
       </Modal>
-      <HouseholdModal isOpen={householdOpen} onClose={() => setHouseholdOpen(false)} onOpenPro={onOpenProModal} month={month} />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}

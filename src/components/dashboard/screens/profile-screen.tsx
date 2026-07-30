@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -12,6 +13,7 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { PRO_FEATURES } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
 import { useDashboard } from '../dashboard-provider';
+import { HouseholdModal } from '@/components/modals/HouseholdModal';
 
 /**
  * Account / profile page.
@@ -31,6 +33,7 @@ export function ProfileScreen() {
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [householdOpen, setHouseholdOpen] = useState(false);
 
   const currentTheme = profile?.theme || 'system';
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
@@ -215,6 +218,28 @@ export function ProfileScreen() {
               </span>
               <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
             </button>
+            <button
+              type="button"
+              onClick={() => setHouseholdOpen(true)}
+              className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
+            >
+              <span className="flex items-center gap-3">
+                <AppIcon name="family_restroom" className="text-[20px] text-primary" />
+                <span className="text-sm font-bold text-on-surface">Manage Household</span>
+              </span>
+              <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+            </button>
+            <Link
+              href="/dashboard/trends"
+              prefetch={false}
+              className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
+            >
+              <span className="flex items-center gap-3">
+                <AppIcon name="trending_up" className="text-[20px] text-primary" />
+                <span className="text-sm font-bold text-on-surface">Analytics & Insights</span>
+              </span>
+              <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+            </Link>
           </div>
         ) : (
           <button
@@ -361,6 +386,8 @@ export function ProfileScreen() {
           </a>
         </div>
       </section>
+
+      <HouseholdModal isOpen={householdOpen} onClose={() => setHouseholdOpen(false)} onOpenPro={openProModal} month={month} />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}
