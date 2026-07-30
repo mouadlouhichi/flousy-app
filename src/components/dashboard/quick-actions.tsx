@@ -14,8 +14,8 @@ export function QuickActions() {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const activeScreen = getScreenIdFromPath(pathname);
-  // Same screens as before hide the quick actions
-  if (activeScreen === 'trends' || activeScreen === 'debts') {
+  // Screens with no "add" affordance hide the quick actions
+  if (activeScreen === 'trends' || activeScreen === 'debts' || activeScreen === 'profile') {
     return null;
   }
 

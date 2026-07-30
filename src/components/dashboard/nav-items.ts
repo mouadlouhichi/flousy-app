@@ -4,7 +4,8 @@ export type DashboardScreenId =
   | 'variable'
   | 'savings'
   | 'trends'
-  | 'debts';
+  | 'debts'
+  | 'profile';
 
 export interface DashboardNavItem {
   id: DashboardScreenId;
@@ -20,6 +21,11 @@ export interface DashboardNavItem {
   mobileIcon: string;
   /** Screen only visible to PRO users */
   proOnly?: boolean;
+  /**
+   * Reachable screen that is intentionally absent from the sidebar / bottom
+   * nav (e.g. the profile page, opened from the avatar button).
+   */
+  hiddenFromNav?: boolean;
 }
 
 /**
@@ -77,6 +83,17 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     sidebarIcon: 'description',
     mobileIcon: 'account_balance',
   },
+  {
+    id: 'profile',
+    label: 'Profile',
+    title: 'Profile & Account',
+    href: '/dashboard/profile',
+    sidebarIcon: 'person',
+    mobileIcon: 'person',
+    // Opened from the avatar button in the header / sidebar footer instead of
+    // taking a slot in the navigation bars.
+    hiddenFromNav: true,
+  },
 ];
 
 /** Resolve the active screen id from the current pathname. */
@@ -95,5 +112,7 @@ export function getScreenIdFromPath(pathname: string | null): DashboardScreenId 
 
 /** Ordered list of screens visible to the current user. */
 export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
-  return DASHBOARD_NAV_ITEMS.filter((item) => !item.proOnly || isPro);
+  return DASHBOARD_NAV_ITEMS.filter(
+    (item) => !item.hiddenFromNav && (!item.proOnly || isPro),
+  );
 }

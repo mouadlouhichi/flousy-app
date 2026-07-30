@@ -12,6 +12,16 @@ export interface Strategy {
   savingsRatio: number;
 }
 
+/** User-defined allocation for the `custom` strategy (fractions of income). */
+export interface CustomRatios {
+  needs: number;
+  wants: number;
+  savings: number;
+}
+
+/** Fallback split used when a custom strategy has no (valid) ratios yet. */
+export const DEFAULT_CUSTOM_RATIOS: CustomRatios = { needs: 0.5, wants: 0.3, savings: 0.2 };
+
 export const STRATEGIES: Record<StrategyId, Strategy> = {
   '50-30-20': {
     id: '50-30-20',
@@ -65,11 +75,76 @@ export const STRATEGIES: Record<StrategyId, Strategy> = {
     id: 'custom',
     name: 'Custom Strategy',
     description: 'Define your own allocation ratios for Needs, Wants, and Savings.',
-    needsRatio: 0.50,
-    wantsRatio: 0.30,
-    savingsRatio: 0.20,
+    needsRatio: DEFAULT_CUSTOM_RATIOS.needs,
+    wantsRatio: DEFAULT_CUSTOM_RATIOS.wants,
+    savingsRatio: DEFAULT_CUSTOM_RATIOS.savings,
   },
 };
+
+/**
+ * Sanitize user-provided custom ratios.
+ *
+ * Accepts either fractions (0.5) or percentages (50) and always returns three
+ * finite, non-negative fractions summing to exactly 1. Savings absorbs the
+ * rounding remainder so the envelopes can never leak a unit of currency.
+ */
+export function normalizeCustomRatios(input?: Partial<CustomRatios> | null): CustomRatios {
+  const raw = {
+    needs: Number(input?.needs),
+    wants: Number(input?.wants),
+    savings: Number(input?.savings),
+  };
+
+  const safe = {
+    needs: Number.isFinite(raw.needs) && raw.needs > 0 ? raw.needs : 0,
+    wants: Number.isFinite(raw.wants) && raw.wants > 0 ? raw.wants : 0,
+    savings: Number.isFinite(raw.savings) && raw.savings > 0 ? raw.savings : 0,
+  };
+
+  const total = safe.needs + safe.wants + safe.savings;
+  if (total <= 0) return { ...DEFAULT_CUSTOM_RATIOS };
+
+  // Work in whole percents so the UI (integer sliders) round-trips exactly.
+  const needsPct = Math.round((safe.needs / total) * 100);
+  const wantsPct = Math.round((safe.wants / total) * 100);
+  const savingsPct = Math.max(0, 100 - needsPct - wantsPct);
+
+  return {
+    needs: needsPct / 100,
+    wants: wantsPct / 100,
+    savings: savingsPct / 100,
+  };
+}
+
+/**
+ * Resolve the effective strategy definition.
+ *
+ * For every preset this is just the static entry from `STRATEGIES`; for the
+ * `custom` strategy the ratios come from the month document so each month (and
+ * each user) keeps its own definable split instead of a shared global value.
+ */
+export function resolveStrategy(
+  strategyId: StrategyId,
+  customRatios?: Partial<CustomRatios> | null,
+): Strategy {
+  const base = STRATEGIES[strategyId] || STRATEGIES['50-30-20'];
+  if (base.id !== 'custom') return base;
+
+  const ratios = normalizeCustomRatios(customRatios);
+  return {
+    ...base,
+    needsRatio: ratios.needs,
+    wantsRatio: ratios.wants,
+    savingsRatio: ratios.savings,
+  };
+}
+
+/** Resolve the effective strategy of a month (honours its custom ratios). */
+export function resolveMonthStrategy(
+  month: Pick<MonthBudget, 'strategyId' | 'customRatios'>,
+): Strategy {
+  return resolveStrategy(month.strategyId, month.customRatios);
+}
 
 export interface IncomeSource {
   id: string;
@@ -159,6 +234,8 @@ export interface MonthBudget {
   homePart: number;
   walletPart: number;
   strategyId: StrategyId;
+  /** Allocation used when `strategyId === 'custom'` (fractions summing to 1). */
+  customRatios?: CustomRatios;
   monthlySavingsTarget: number;
   variableExpenses: VariableExpense[];
   fixedExpenses: FixedExpense[];
@@ -194,9 +271,13 @@ export interface UserProfile {
  * Needs + Wants + Savings MUST sum to exactly income with no rounding leak.
  * Savings envelope absorbs any rounding remainder.
  */
-export function calculateEnvelopeAmounts(income: number, strategyId: StrategyId): { needs: number; wants: number; savings: number } {
+export function calculateEnvelopeAmounts(
+  income: number,
+  strategyId: StrategyId,
+  customRatios?: Partial<CustomRatios> | null,
+): { needs: number; wants: number; savings: number } {
   const safeIncome = Math.max(0, isNaN(income) || !isFinite(income) ? 0 : Math.round(income * 100) / 100);
-  const strategy = STRATEGIES[strategyId] || STRATEGIES['50-30-20'];
+  const strategy = resolveStrategy(strategyId, customRatios);
 
   const needs = Math.floor(safeIncome * strategy.needsRatio);
   const wants = Math.floor(safeIncome * strategy.wantsRatio);
@@ -211,24 +292,21 @@ export function calculateEnvelopeAmounts(income: number, strategyId: StrategyId)
 export function updateBudgetStrategy(
   month: MonthBudget,
   strategyId: StrategyId,
-  customRatios?: { needs: number; wants: number; savings: number }
+  customRatios?: Partial<CustomRatios> | null
 ): MonthBudget {
-  // If custom strategy, update the custom strategy ratios
-  if (strategyId === 'custom' && customRatios) {
-    const total = customRatios.needs + customRatios.wants + customRatios.savings;
-    if (Math.abs(total - 1.0) > 0.01) {
-      throw new Error('Custom ratios must sum to 1.0 (100%)');
-    }
-    STRATEGIES.custom.needsRatio = customRatios.needs;
-    STRATEGIES.custom.wantsRatio = customRatios.wants;
-    STRATEGIES.custom.savingsRatio = customRatios.savings;
-  }
+  // The custom split is persisted on the month document so it survives
+  // reloads, syncs across devices and stays independent per month.
+  const nextCustomRatios =
+    strategyId === 'custom'
+      ? normalizeCustomRatios(customRatios ?? month.customRatios)
+      : month.customRatios;
 
-  const { savings } = calculateEnvelopeAmounts(month.totalBudget, strategyId);
+  const { savings } = calculateEnvelopeAmounts(month.totalBudget, strategyId, nextCustomRatios);
 
   return {
     ...month,
     strategyId,
+    ...(nextCustomRatios ? { customRatios: nextCustomRatios } : {}),
     monthlySavingsTarget: savings,
     updatedAt: new Date().toISOString(),
   };
@@ -308,9 +386,10 @@ export function calculateCategoryBudgets(
   income: number,
   strategyId: StrategyId,
   categories: string[],
-  kind: ExpenseKind = 'variable'
+  kind: ExpenseKind = 'variable',
+  customRatios?: Partial<CustomRatios> | null
 ): Record<string, number> {
-  const { needs, wants } = calculateEnvelopeAmounts(income, strategyId);
+  const { needs, wants } = calculateEnvelopeAmounts(income, strategyId, customRatios);
   const result: Record<string, number> = {};
 
   if (!categories || categories.length === 0) return result;
@@ -652,6 +731,63 @@ export function withdrawGoal(
   return { month: updatedMonth, goals: updatedGoals };
 }
 
+/**
+ * Create or update a savings goal while letting the user declare how much is
+ * ALREADY saved for it (opening balance).
+ *
+ * New users typically start with money set aside before they ever open the
+ * app, so a goal must be able to begin at a non-zero balance.
+ *
+ * `deductFromPlace`:
+ *  - `undefined`/`null` → the balance is held outside the tracked bank / home /
+ *    wallet cash, so no money place is touched (pure bookkeeping).
+ *  - a money place → the difference is transferred out of (or back into) that
+ *    place, exactly like funding/withdrawing, so total wealth is conserved.
+ */
+export function saveGoalWithBalance(
+  month: MonthBudget,
+  goals: SavingGoal[],
+  goal: SavingGoal,
+  deductFromPlace?: MoneyPlace | null,
+): { month: MonthBudget; goals: SavingGoal[] } {
+  const existing = goals.find((g) => g.id === goal.id);
+  const previousCurrent = Math.max(0, existing?.current ?? 0);
+  const requested = Math.max(0, Number.isFinite(goal.current) ? goal.current : 0);
+
+  let nextCurrent = requested;
+  let nextMonth = month;
+
+  if (deductFromPlace) {
+    const balance = month[`${deductFromPlace}Part`] || 0;
+    const delta = requested - previousCurrent;
+
+    if (delta > 0) {
+      // Never let a goal pull more than what actually sits in that place.
+      const actual = Math.min(balance, delta);
+      nextCurrent = previousCurrent + actual;
+      nextMonth = {
+        ...month,
+        [`${deductFromPlace}Part`]: balance - actual,
+        updatedAt: new Date().toISOString(),
+      };
+    } else if (delta < 0) {
+      nextMonth = {
+        ...month,
+        [`${deductFromPlace}Part`]: balance + -delta,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  const nextGoal: SavingGoal = { ...goal, current: nextCurrent };
+  const goalsWithout = goals.filter((g) => g.id !== goal.id);
+  const nextGoals = existing
+    ? goals.map((g) => (g.id === goal.id ? nextGoal : g))
+    : [...goalsWithout, nextGoal];
+
+  return { month: nextMonth, goals: nextGoals };
+}
+
 export function deleteFundedGoal(
   month: MonthBudget,
   goals: SavingGoal[],
@@ -720,7 +856,14 @@ export function normalizeMonth(
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
-  const defaultEnvelopes = calculateEnvelopeAmounts(fallbackIncome, raw?.strategyId || '50-30-20');
+  const strategyId: StrategyId = raw?.strategyId || '50-30-20';
+  // Persisted per-month custom split; only meaningful for the custom strategy
+  // but kept around so switching back and forth doesn't lose the definition.
+  const customRatios =
+    raw?.customRatios || strategyId === 'custom'
+      ? normalizeCustomRatios(raw?.customRatios)
+      : undefined;
+  const defaultEnvelopes = calculateEnvelopeAmounts(fallbackIncome, strategyId, customRatios);
 
   const defaultCategories = [
     'Groceries',
@@ -828,7 +971,8 @@ export function normalizeMonth(
     bankPart,
     homePart,
     walletPart,
-    strategyId: raw?.strategyId || '50-30-20',
+    strategyId,
+    ...(customRatios ? { customRatios } : {}),
     monthlySavingsTarget: raw?.monthlySavingsTarget ?? defaultEnvelopes.savings,
     variableExpenses,
     fixedExpenses,
@@ -892,9 +1036,12 @@ export function createNewMonth(
   strategyId: StrategyId,
   categories: string[],
   bills: { name: string; amount: number; category: string }[],
-  monthKey: string
+  monthKey: string,
+  customRatios?: Partial<CustomRatios> | null
 ): MonthBudget {
-  const { savings } = calculateEnvelopeAmounts(income, strategyId);
+  const resolvedCustomRatios =
+    strategyId === 'custom' ? normalizeCustomRatios(customRatios) : undefined;
+  const { savings } = calculateEnvelopeAmounts(income, strategyId, resolvedCustomRatios);
 
   const fixedExpenses: FixedExpense[] = bills.map((b, idx) => ({
     id: `fixed-${idx}-${Date.now()}`,
@@ -914,6 +1061,7 @@ export function createNewMonth(
     homePart: 0,
     walletPart: 0,
     strategyId,
+    ...(resolvedCustomRatios ? { customRatios: resolvedCustomRatios } : {}),
     monthlySavingsTarget: savings,
     fixedExpenses,
     variableExpenses: [],

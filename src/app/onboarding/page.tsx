@@ -8,7 +8,16 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
-import { STRATEGIES, StrategyId, calculateEnvelopeAmounts, createNewMonth } from '../../lib/store';
+import {
+  STRATEGIES,
+  StrategyId,
+  CustomRatios,
+  DEFAULT_CUSTOM_RATIOS,
+  calculateEnvelopeAmounts,
+  createNewMonth,
+  normalizeCustomRatios,
+  resolveStrategy,
+} from '../../lib/store';
 import { saveMonthBudget } from '../../lib/db';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 
@@ -37,6 +46,12 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<number>(1);
   const [income, setIncome] = useState<string>('15000');
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyId>('50-30-20');
+  // Custom strategy split, kept in whole percents while editing.
+  const [customSplit, setCustomSplit] = useState({
+    needs: Math.round(DEFAULT_CUSTOM_RATIOS.needs * 100),
+    wants: Math.round(DEFAULT_CUSTOM_RATIOS.wants * 100),
+    savings: Math.round(DEFAULT_CUSTOM_RATIOS.savings * 100),
+  });
 
   const [allCategories, setAllCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_ITEMS);
   const [selectedCategoryNames, setSelectedCategoryNames] = useState<string[]>([
@@ -81,7 +96,38 @@ export default function OnboardingPage() {
   // Clean numeric string parsing for income (handles comma/formatting)
   const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
   const parsedIncome = parseFloat(cleanNumStr) || 0;
-  const envelopes = calculateEnvelopeAmounts(parsedIncome, selectedStrategy);
+  const customRatios: CustomRatios = normalizeCustomRatios({
+    needs: customSplit.needs / 100,
+    wants: customSplit.wants / 100,
+    savings: customSplit.savings / 100,
+  });
+  const customSplitTotal = customSplit.needs + customSplit.wants + customSplit.savings;
+  const isCustomSplitValid = customSplitTotal === 100;
+  const activeStrategy = resolveStrategy(selectedStrategy, customRatios);
+  const envelopes = calculateEnvelopeAmounts(
+    parsedIncome,
+    selectedStrategy,
+    selectedStrategy === 'custom' ? customRatios : undefined,
+  );
+
+  /** Move one envelope and rebalance the other two so the split stays at 100%. */
+  const handleCustomSplitChange = (key: 'needs' | 'wants' | 'savings', rawValue: number) => {
+    const value = Math.min(100, Math.max(0, Math.round(rawValue)));
+    const others = (['needs', 'wants', 'savings'] as const).filter((k) => k !== key);
+    const remaining = 100 - value;
+    const othersTotal = others.reduce((acc, k) => acc + customSplit[k], 0);
+    const first =
+      othersTotal <= 0
+        ? Math.round(remaining / 2)
+        : Math.round((customSplit[others[0]] / othersTotal) * remaining);
+
+    setCustomSplit({
+      ...customSplit,
+      [key]: value,
+      [others[0]]: first,
+      [others[1]]: remaining - first,
+    });
+  };
   const totalBills = bills.reduce((acc, b) => acc + b.amount, 0);
 
   const handleStep1Continue = () => {
@@ -156,7 +202,14 @@ export default function OnboardingPage() {
 
     const today = new Date();
     const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const newMonth = createNewMonth(parsedIncome, selectedStrategy, selectedCategoryNames, bills, monthKey);
+    const newMonth = createNewMonth(
+      parsedIncome,
+      selectedStrategy,
+      selectedCategoryNames,
+      bills,
+      monthKey,
+      selectedStrategy === 'custom' ? customRatios : undefined,
+    );
 
     // Save in localStorage immediately
     try {
@@ -724,6 +777,76 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         </div>
                       </div>
                     )}
+
+                    {/* Custom strategy: definable split, editable in place */}
+                    {strat.id === 'custom' && (
+                      <div
+                        className="flex flex-col gap-3 pt-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-surface-container">
+                          <div className="h-full bg-primary" style={{ width: `${customSplit.needs}%` }} />
+                          <div className="h-full bg-tertiary" style={{ width: `${customSplit.wants}%` }} />
+                          <div className="h-full bg-surface-variant" style={{ width: `${customSplit.savings}%` }} />
+                        </div>
+
+                        {selected ? (
+                          <>
+                            {([
+                              { key: 'needs' as const, label: 'Needs', dot: 'bg-primary' },
+                              { key: 'wants' as const, label: 'Wants', dot: 'bg-tertiary' },
+                              { key: 'savings' as const, label: 'Savings', dot: 'bg-surface-variant' },
+                            ]).map(({ key, label, dot }) => (
+                              <div key={key} className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="flex items-center gap-2 text-[12px] font-bold text-on-surface">
+                                    <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+                                    {label}
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={customSplit[key]}
+                                      onChange={(e) => handleCustomSplitChange(key, Number(e.target.value))}
+                                      aria-label={`${label} percentage`}
+                                      className="w-16 rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] font-bold text-on-surface tabular-nums outline-none focus:border-primary"
+                                    />
+                                    <span className="text-[12px] font-bold text-on-surface-variant">%</span>
+                                  </span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  value={customSplit[key]}
+                                  onChange={(e) => handleCustomSplitChange(key, Number(e.target.value))}
+                                  aria-label={`${label} slider`}
+                                  className="w-full cursor-pointer"
+                                />
+                                <span className="text-[11px] font-bold text-on-surface-variant tabular-nums">
+                                  {format(Math.round((parsedIncome * customSplit[key]) / 100))}
+                                </span>
+                              </div>
+                            ))}
+
+                            {!isCustomSplitValid && (
+                              <p role="alert" className="text-[11px] font-bold text-error">
+                                Needs, Wants and Savings must add up to exactly 100% (currently {customSplitTotal}%).
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
+                            <span>{customSplit.needs}% Needs</span>
+                            <span>{customSplit.wants}% Wants</span>
+                            <span>{customSplit.savings}% Savings</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -732,7 +855,8 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
             <button
               type="button"
               onClick={() => setStep(5)}
-              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer"
+              disabled={selectedStrategy === 'custom' && !isCustomSplitValid}
+              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue
             </button>
@@ -747,7 +871,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 Your Budget Overview
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                Here is your calculated monthly plan based on the {STRATEGIES[selectedStrategy].name}.
+                Here is your calculated monthly plan based on the {activeStrategy.name}.
               </p>
             </div>
 
@@ -756,7 +880,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
               <div className="relative w-52 h-52 flex items-center justify-center">
                 {(() => {
                   const circumference = 2 * Math.PI * 38; // ~238.76
-                  const strategy = STRATEGIES[selectedStrategy];
+                  const strategy = activeStrategy;
                   const needsArc = circumference * strategy.needsRatio;
                   const wantsArc = circumference * strategy.wantsRatio;
                   const savingsArc = circumference * strategy.savingsRatio;
@@ -828,7 +952,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">Fixed Needs</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(STRATEGIES[selectedStrategy].needsRatio * 100)}% of income
+                        {Math.round(activeStrategy.needsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>
@@ -843,7 +967,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">Variable Wants</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(STRATEGIES[selectedStrategy].wantsRatio * 100)}% of income
+                        {Math.round(activeStrategy.wantsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>
@@ -858,7 +982,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">Future Savings</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(STRATEGIES[selectedStrategy].savingsRatio * 100)}% of income
+                        {Math.round(activeStrategy.savingsRatio * 100)}% of income
                       </span>
                     </div>
                   </div>

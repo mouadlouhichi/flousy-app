@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { InstallButton } from '@/components/pwa/install-button';
@@ -13,15 +14,18 @@ export function DashboardHeader() {
   const pathname = usePathname();
   const {
     month,
+    user,
+    profile,
     currentMonthKey,
     handlePrevMonth,
     handleNextMonth,
     openExpenseModal,
-    openSettingsModal,
   } = useDashboard();
 
   const activeScreen = getScreenIdFromPath(pathname);
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
+  const isProfileActive = activeScreen === 'profile';
+  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || '';
 
   const monthLabel = (() => {
     const [y, m] = currentMonthKey.split('-').map(Number);
@@ -88,13 +92,26 @@ export function DashboardHeader() {
           <span>New Transaction</span>
         </button>
 
-        <button
-          onClick={openSettingsModal}
-          className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors md:hidden"
-          aria-label="Open Settings"
+        {/* Profile entry point (mobile). Replaces the old settings gear so the
+            bottom nav can keep all 6 destinations without overflowing. */}
+        <Link
+          href="/dashboard/profile"
+          prefetch={false}
+          aria-label="Open profile and account"
+          title="Profile & Account"
+          aria-current={isProfileActive ? 'page' : undefined}
+          className={`md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+            isProfileActive
+              ? 'bg-primary text-on-primary'
+              : 'bg-primary/10 text-primary hover:bg-primary/20'
+          }`}
         >
-          <AppIcon name="settings" className=" text-[22px]" />
-        </button>
+          {userInitial ? (
+            <span>{userInitial}</span>
+          ) : (
+            <AppIcon name="person" className="text-[20px]" />
+          )}
+        </Link>
       </div>
     </header>
   );

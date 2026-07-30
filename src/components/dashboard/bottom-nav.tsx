@@ -35,6 +35,9 @@ export function BottomNav() {
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(isPro);
   const [isCompact, setIsCompact] = useState(false);
+  // With 6 destinations (PRO) the icons need to shrink a touch to keep
+  // comfortable tap targets without overflowing narrow viewports.
+  const isCompactLayout = items.length > 5;
 
   const navRef = useRef<HTMLElement | null>(null);
   const [pillRect, setPillRect] = useState<PillRect | null>(null);
@@ -92,7 +95,7 @@ export function BottomNav() {
       }}
       transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.9 }}
       style={{ transformOrigin: 'bottom center' }}
-      className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex justify-around items-center"
+      className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-1.5 py-1.5 flex justify-between items-center gap-0.5"
     >
       {/* Active pill — glides horizontally behind the buttons (same spring
           language as the old layoutId pill / SegmentedControl). */}
@@ -121,7 +124,10 @@ export function BottomNav() {
             data-nav-item={item.id}
             aria-label={item.label}
             title={item.label}
-            className={`relative px-5 py-3 rounded-full flex items-center justify-center transition-colors duration-300 ease-out ${
+            // `flex-1` + `min-w-0` lets the bar share its width evenly, so the
+            // 6th item PRO users get never pushes the pill off screen on
+            // narrow phones (fixed horizontal padding used to overflow).
+            className={`relative flex-1 min-w-0 py-3 rounded-full flex items-center justify-center transition-colors duration-300 ease-out ${
               isActive
                 ? ''
                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/40 active:scale-95'
@@ -129,7 +135,9 @@ export function BottomNav() {
           >
             <AppIcon
               name={item.mobileIcon}
-              className={`relative z-10 text-[24px] transition-transform duration-300 ${
+              className={`relative z-10 shrink-0 transition-transform duration-300 ${
+                isCompactLayout ? 'text-[21px]' : 'text-[24px]'
+              } ${
                 isActive
                   ? 'text-on-primary filled animate-bounce-subtle'
                   : 'text-on-surface-variant'

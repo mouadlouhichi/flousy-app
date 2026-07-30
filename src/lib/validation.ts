@@ -43,7 +43,21 @@ export const savingGoalSchema = z.object({
   name: z.string().trim().min(1, 'Goal name is required').max(100, 'Name is too long'),
   target: moneyAmountSchema.refine((val) => val > 0, { message: 'Target amount must be greater than zero' }),
   source: z.enum(['bank', 'home', 'wallet']),
+  /** Amount already saved towards the goal before it was tracked here. */
+  current: moneyAmountSchema.optional(),
 });
+
+/** Custom strategy split — whole percents that must add up to exactly 100. */
+export const customStrategySchema = z
+  .object({
+    needs: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+    wants: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+    savings: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+  })
+  .refine((data) => Math.round(data.needs + data.wants + data.savings) === 100, {
+    message: 'Needs, Wants and Savings must add up to 100%',
+    path: ['needs'],
+  });
 
 export const fundGoalSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),

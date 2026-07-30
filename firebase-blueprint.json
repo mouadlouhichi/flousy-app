@@ -281,6 +281,33 @@
         "status",
         "date"
       ]
+    },
+    "CustomRatios": {
+      "title": "CustomRatios",
+      "description": "User-defined allocation for the 'custom' strategy. Fractions of income that always sum to 1.",
+      "type": "object",
+      "properties": {
+        "needs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "wants": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "savings": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "needs",
+        "wants",
+        "savings"
+      ]
     }
   },
   "entities": {
@@ -408,6 +435,10 @@
             "custom"
           ]
         },
+        "customRatios": {
+          "$ref": "#/definitions/CustomRatios",
+          "description": "Definable Needs/Wants/Savings split, applied when strategyId is 'custom'"
+        },
         "monthlySavingsTarget": {
           "type": "number",
           "minimum": 0,
@@ -432,14 +463,14 @@
           "additionalProperties": {
             "type": "number"
           },
-          "description": "Pro feature: planned maximum per category"
+          "description": "Pro feature: planned maximum per category for the month"
         },
         "rolloverFromPrevious": {
           "type": "object",
           "additionalProperties": {
             "type": "number"
           },
-          "description": "Pro feature: amounts rolled over from previous month"
+          "description": "Pro feature: unused category budgets rolled over from the previous month"
         },
         "variableCategoryBases": {
           "type": "object",

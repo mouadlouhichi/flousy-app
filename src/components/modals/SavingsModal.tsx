@@ -12,11 +12,19 @@ interface SavingsModalProps {
   onClose: () => void;
   mode: 'create' | 'fund' | 'withdraw' | 'edit';
   goal?: SavingGoal | null;
-  onSaveGoal?: (goal: SavingGoal) => void;
+  /**
+   * `deductFromPlace` tells the caller where the goal's opening/edited balance
+   * should come from: a money place (bank / home / wallet) moves real cash, or
+   * `null` when the money is already parked outside the tracked balances.
+   */
+  onSaveGoal?: (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => void;
   onFund?: (goalId: string, amount: number, sourcePlace: MoneyPlace) => void;
   onWithdraw?: (goalId: string, amount: number, targetPlace: MoneyPlace) => void;
   onDelete?: (goalId: string) => void;
+  /** Balance of the currently selected place (fund/withdraw flows). */
   availableBalance?: number;
+  /** Live balances per money place, used to cap an opening goal balance. */
+  placeBalances?: Record<MoneyPlace, number>;
 }
 
 export function SavingsModal({
@@ -29,12 +37,18 @@ export function SavingsModal({
   onWithdraw,
   onDelete,
   availableBalance = 0,
+  placeBalances,
 }: SavingsModalProps) {
   const { symbol, format } = useCurrency();
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [amount, setAmount] = useState('');
   const [place, setPlace] = useState<MoneyPlace>('bank');
+  // Opening balance: how much is ALREADY saved for this goal.
+  const [current, setCurrent] = useState('');
+  // Whether that opening balance should be taken out of a tracked money place
+  // (it usually isn't — the cash already sits in a jar / separate account).
+  const [deductFromPlace, setDeductFromPlace] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -42,11 +56,14 @@ export function SavingsModal({
       setName(goal.name);
       setTarget(String(goal.target));
       setPlace(goal.source || 'bank');
+      setCurrent(goal.current ? String(goal.current) : '');
     } else {
       setName('');
       setTarget('');
       setPlace('bank');
+      setCurrent('');
     }
+    setDeductFromPlace(false);
     setAmount('');
     setErrors({});
   }, [goal, mode, isOpen]);
@@ -56,7 +73,13 @@ export function SavingsModal({
 
     if (mode === 'create' || mode === 'edit') {
       const parsedTarget = parseFloat(target);
-      const valRes = savingGoalSchema.safeParse({ name, target: parsedTarget, source: place });
+      const parsedCurrent = current.trim() === '' ? 0 : parseFloat(current);
+      const valRes = savingGoalSchema.safeParse({
+        name,
+        target: parsedTarget,
+        source: place,
+        current: Number.isFinite(parsedCurrent) ? parsedCurrent : NaN,
+      });
 
       if (!valRes.success) {
         const errs: Record<string, string> = {};
@@ -68,16 +91,33 @@ export function SavingsModal({
         return;
       }
 
+      if (parsedCurrent > parsedTarget) {
+        setErrors({ current: 'Already saved cannot be more than the target amount' });
+        return;
+      }
+
+      if (deductFromPlace) {
+        // Only the *increase* has to be covered by the place's balance.
+        const alreadyAllocated = goal ? goal.current : 0;
+        const delta = parsedCurrent - alreadyAllocated;
+        if (delta > selectedPlaceBalance) {
+          setErrors({
+            current: `Only ${format(selectedPlaceBalance)} available in ${place}. Uncheck the transfer option to just record the balance.`,
+          });
+          return;
+        }
+      }
+
       const newGoal: SavingGoal = {
         id: goal ? goal.id : Math.random().toString(36).substring(2, 9),
         name: name.trim(),
         target: parsedTarget,
-        current: goal ? goal.current : 0,
+        current: Math.max(0, parsedCurrent),
         source: place,
         active: true,
       };
 
-      if (onSaveGoal) onSaveGoal(newGoal);
+      if (onSaveGoal) onSaveGoal(newGoal, deductFromPlace ? place : null);
       onClose();
     } else if (mode === 'fund' && goal) {
       const parsedAmount = parseFloat(amount);
@@ -119,6 +159,11 @@ export function SavingsModal({
   };
 
   const quickAmounts = mode === 'fund' ? [500, 1000, 2000, 5000] : [100, 200, 500, 1000];
+
+  // Live preview values for the create/edit form
+  const parsedCurrentPreview = Math.max(0, parseFloat(current) || 0);
+  const parsedTargetPreview = Math.max(0, parseFloat(target) || 0);
+  const selectedPlaceBalance = placeBalances ? placeBalances[place] ?? 0 : availableBalance;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={getTitle()}>
@@ -165,6 +210,78 @@ export function SavingsModal({
                   {symbol}{(amt).toLocaleString()}
                 </button>
               ))}
+            </div>
+
+            {/* Already Saved (opening balance) */}
+            <div className="flex flex-col gap-2.5 rounded-2xl border border-outline-variant bg-surface-container p-4">
+              <CustomInput
+                label={`Already Saved (${symbol})`}
+                type="number"
+                step="any"
+                min="0"
+                value={current}
+                onChange={(e) => {
+                  setCurrent(e.target.value);
+                  setErrors((prev) => ({ ...prev, current: '' }));
+                }}
+                placeholder="0.00"
+                error={errors.current}
+              />
+              <p className="text-[11px] font-medium text-on-surface-variant leading-snug">
+                Starting an existing goal? Enter what you have put aside for it so far —
+                progress starts from there instead of zero.
+              </p>
+
+              {parsedCurrentPreview > 0 && (
+                <>
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={deductFromPlace}
+                      onChange={(e) => {
+                        setDeductFromPlace(e.target.checked);
+                        setErrors((prev) => ({ ...prev, current: '' }));
+                      }}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)] cursor-pointer"
+                    />
+                    <span className="text-[12px] font-semibold text-on-surface leading-snug">
+                      Move this amount out of my tracked{' '}
+                      <span className="capitalize">{place}</span> balance
+                      <span className="block text-[11px] font-medium text-on-surface-variant mt-0.5">
+                        Leave unchecked if this money is already kept separately and is not part
+                        of your bank / home / wallet totals. Available: {format(selectedPlaceBalance)}.
+                      </span>
+                    </span>
+                  </label>
+
+                  {/* Live progress preview */}
+                  {parsedTargetPreview > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
+                        <span>{format(parsedCurrentPreview)}</span>
+                        <span>
+                          {Math.min(
+                            100,
+                            Math.round((parsedCurrentPreview / parsedTargetPreview) * 100),
+                          )}
+                          % of {format(parsedTargetPreview)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-variant">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.round((parsedCurrentPreview / parsedTargetPreview) * 100),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Source Place — segmented with sliding background */}

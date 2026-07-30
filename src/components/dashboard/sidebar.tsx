@@ -17,8 +17,7 @@ import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
  */
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, profile, isPro, openSettingsModal, openIncomeModal, openCsvModal, openProModal } =
-    useDashboard();
+  const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(isPro);
 
@@ -104,9 +103,16 @@ export function Sidebar() {
         </button>
       </nav>
 
-      {/* Bottom Profile Footer */}
-      <div className="p-4 border-t border-surface-variant/50 flex items-center justify-between bg-surface-container/20">
-        <div className="flex items-center gap-3 overflow-hidden">
+      {/* Bottom Profile Footer — whole row opens the profile page. */}
+      <div className="p-4 border-t border-surface-variant/50 flex items-center justify-between gap-2 bg-surface-container/20">
+        <Link
+          href="/dashboard/profile"
+          prefetch={false}
+          aria-current={activeScreen === 'profile' ? 'page' : undefined}
+          className={`flex flex-1 items-center gap-3 overflow-hidden rounded-2xl p-1.5 -m-1.5 transition-colors ${
+            activeScreen === 'profile' ? 'bg-primary/10' : 'hover:bg-surface-variant/50'
+          }`}
+        >
           <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
             {profile?.displayName
               ? profile.displayName.charAt(0).toUpperCase()
@@ -119,17 +125,19 @@ export function Sidebar() {
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}
             </span>
             <span className="font-label-sm text-[10px] text-primary uppercase font-extrabold tracking-wider">
-              {profile?.plan === 'pro' ? 'PRO PLAN' : 'FREE PLAN'}
+              {isPro ? 'PRO PLAN' : 'FREE PLAN'}
             </span>
           </div>
-        </div>
-        <button
-          onClick={openSettingsModal}
+        </Link>
+        <Link
+          href="/dashboard/profile"
+          prefetch={false}
           className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-xl transition-colors shrink-0"
-          title="Settings"
+          title="Profile & Account"
+          aria-label="Profile & Account"
         >
-          <AppIcon name="settings" className=" text-[20px]" />
-        </button>
+          <AppIcon name="person" className=" text-[20px]" />
+        </Link>
       </div>
     </aside>
   );
