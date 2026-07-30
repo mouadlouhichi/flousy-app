@@ -93,7 +93,7 @@ import {
   Wifi,
   House,
   X,
-  EarthIcon
+  EarthIcon,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
