@@ -1,21 +1,8 @@
 import type { ExpoConfig, ConfigContext } from "expo/config";
-import * as fs from "fs";
-import * as path from "path";
 
 const GOOGLE_WEB_CLIENT_ID =
   process.env.GOOGLE_WEB_CLIENT_ID ??
   "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com";
-
-// Check if google-services.json exists at build time
-const googleServicesPath = path.join(__dirname, "google-services.json");
-const hasGoogleServices = fs.existsSync(googleServicesPath);
-
-// Check if GoogleService-Info.plist exists at build time (iOS)
-const googleServicesPlistPath = path.join(
-  __dirname,
-  "GoogleService-Info.plist"
-);
-const hasGoogleServicesPlist = fs.existsSync(googleServicesPlistPath);
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -41,8 +28,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSFaceIDUsageDescription:
         "SmartJib uses Face ID to securely unlock your private budget.",
     },
-    // Always set the path — @react-native-firebase/app plugin requires it at prebuild time.
-    // If the real file doesn't exist, we create a minimal placeholder so prebuild succeeds.
     googleServicesFile: "./GoogleService-Info.plist",
   },
 
@@ -50,8 +35,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: "com.luigiagentz.smartjib",
     versionCode: 1,
-    // Always set the path — @react-native-firebase/app plugin requires it at prebuild time.
-    // If the real file doesn't exist, we create a minimal placeholder so prebuild succeeds.
     googleServicesFile: "./google-services.json",
     permissions: [
       "USE_BIOMETRIC",
@@ -99,11 +82,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
-    // Note: react-native-reanimated/plugin is in babel.config.js, not here
   ],
 
   // ─── EAS Updates ─────────────────────────────────────────────────
-  // eas init will populate the updates URL and projectId automatically
   updates: {},
 
   // ─── Runtime Version ─────────────────────────────────────────────
@@ -114,7 +95,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // ─── Extra (env vars accessible at runtime) ──────────────────────
   extra: {
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
-    // eas init will populate projectId automatically
     eas: {},
   },
 });
