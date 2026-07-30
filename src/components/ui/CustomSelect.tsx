@@ -32,7 +32,7 @@ export function CustomSelect({ options, value, onChange, placeholder, label, cla
         </label>
       )}
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full h-12 px-4 bg-surface border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface hover:border-outline hover:bg-surface-container-low focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200">
+        <SelectTrigger className="w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface hover:border-outline hover:bg-surface-container-low focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200">
           <SelectValue placeholder={placeholder || 'Select...'} />
         </SelectTrigger>
         <SelectContent className="bg-surface border border-outline-variant rounded-xl shadow-lg">

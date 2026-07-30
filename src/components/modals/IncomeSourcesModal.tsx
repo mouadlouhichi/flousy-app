@@ -185,7 +185,7 @@ export function IncomeSourcesModal({
           </span>
 
           {sources.length === 0 ? (
-            <div className="p-6 bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
+            <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
               <AppIcon name="payments" className=" text-outline text-[32px]" />
               <p className="font-body-sm text-body-sm text-on-surface-variant">No income sources yet. Add one below.</p>
             </div>
@@ -214,7 +214,7 @@ export function IncomeSourcesModal({
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                            className="px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] font-bold text-on-surface focus:border-primary outline-none transition-colors"
+                            className="px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-bold text-on-surface focus:border-primary outline-none transition-colors"
                             autoFocus
                             placeholder="Source name"
                           />
@@ -230,7 +230,7 @@ export function IncomeSourcesModal({
                               value={editAmount}
                               onChange={(e) => setEditAmount(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
-                              className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface focus:border-primary outline-none transition-colors pr-7"
+                              className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface focus:border-primary outline-none transition-colors pr-7"
                               placeholder="0"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-bold text-on-surface-variant">
@@ -325,7 +325,7 @@ export function IncomeSourcesModal({
         </div>
 
         {/* ── Add New Source ── */}
-        <div className="p-4 bg-surface-container/60 rounded-2xl border border-dashed border-outline-variant">
+        <div className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
           <div className="flex flex-col gap-3">
             <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
               ADD INCOME STREAM
@@ -342,7 +342,7 @@ export function IncomeSourcesModal({
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
                   placeholder="Source name"
-                  className="px-3.5 py-2.5 bg-surface border border-outline-variant rounded-xl text-[14px] text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors"
+                  className="px-3.5 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors"
                 />
                 {fieldErrors.newName && (
                   <p className="text-[11px] text-error font-medium">{fieldErrors.newName}</p>
@@ -361,7 +361,7 @@ export function IncomeSourcesModal({
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
                     placeholder="0"
-                    className="w-full px-3.5 py-2.5 bg-surface border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors pr-8"
+                    className="w-full px-3.5 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors pr-8"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-on-surface-variant">
                     {symbol}

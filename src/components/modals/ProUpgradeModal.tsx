@@ -377,7 +377,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                   placeholder="4242 4242 4242 4242"
                   value={cardNumber}
                   onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                  className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                  className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                   autoFocus
                 />
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
@@ -402,7 +402,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                   placeholder="MM/YY"
                   value={cardExpiry}
                   onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                  className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                  className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                 />
                 {cardErrors.cardExpiry && (
                   <p role="alert" className="font-label-sm text-label-sm text-error mt-0.5">{cardErrors.cardExpiry}</p>
@@ -416,7 +416,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                   placeholder="123"
                   value={cardCvc}
                   onChange={(e) => setCardCvc(formatCvc(e.target.value))}
-                  className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                  className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                 />
                 {cardErrors.cardCvc && (
                   <p role="alert" className="font-label-sm text-label-sm text-error mt-0.5">{cardErrors.cardCvc}</p>
@@ -432,7 +432,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 placeholder="Jane Doe"
                 value={cardName}
                 onChange={(e) => setCardName(e.target.value)}
-                className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
               />
               {cardErrors.cardName && (
                 <p role="alert" className="font-label-sm text-label-sm text-error mt-0.5">{cardErrors.cardName}</p>
@@ -447,7 +447,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 placeholder="you@example.com"
                 value={receiptEmail}
                 onChange={(e) => setReceiptEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
               />
               {cardErrors.receiptEmail && (
                 <p role="alert" className="font-label-sm text-label-sm text-error mt-0.5">{cardErrors.receiptEmail}</p>

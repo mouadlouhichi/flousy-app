@@ -102,7 +102,7 @@ export function ManageCategoriesModal({
         </div>
 
         {/* ── Add New Category ── */}
-        <form onSubmit={handleAdd} className="p-4 bg-surface-container/60 rounded-2xl border border-dashed border-outline-variant flex flex-col gap-3">
+        <form onSubmit={handleAdd} className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col gap-3">
           <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
             Add New Category
           </span>

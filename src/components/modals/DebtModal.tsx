@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
+import { SegmentedControl } from '../ui/segmented-control';
 import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -98,37 +99,16 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           )}
         </div>
 
-        {/* ── Type Toggle ── */}
-        <div className="flex bg-surface-variant/40 rounded-xl p-1">
-          <button
-            type="button"
-            onClick={() => setType('debt')}
-            className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
-              type === 'debt'
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <AppIcon name="arrow_upward" className=" text-[18px]" />
-              I Owe
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setType('credit')}
-            className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
-              type === 'credit'
-                ? 'bg-primary text-on-primary shadow-sm'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-1.5">
-              <AppIcon name="arrow_downward" className=" text-[18px]" />
-              Owed to Me
-            </span>
-          </button>
-        </div>
+        {/* ── Type — segmented with sliding active background ── */}
+        <SegmentedControl
+          ariaLabel="Debt type"
+          value={type}
+          onChange={(v) => setType(v as DebtType)}
+          options={[
+            { value: 'debt', label: 'I Owe', icon: 'arrow_upward' },
+            { value: 'credit', label: 'Owed to Me', icon: 'arrow_downward' },
+          ]}
+        />
 
         {/* ── Person / Entity ── */}
         <CustomInput

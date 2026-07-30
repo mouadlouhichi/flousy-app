@@ -1,7 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { CustomSelect } from '../ui/CustomSelect';
+import { SegmentedControl } from '../ui/segmented-control';
 import { MoneyPlace, MonthBudget } from '../../lib/store';
 import { moveMoneySchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -78,45 +78,43 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
   };
 
   const placeOptions = [
-    { value: 'bank', label: `Bank (${format(month.bankPart)})` },
-    { value: 'home', label: `Home Cash (${format(month.homePart)})` },
-    { value: 'wallet', label: `Wallet (${format(month.walletPart)})` },
+    { value: 'bank', label: 'Bank', icon: 'account_balance', sublabel: format(month.bankPart) },
+    { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', sublabel: format(month.walletPart) },
+    { value: 'home', label: 'Home Cash', icon: 'home', sublabel: format(month.homePart) },
   ];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Move Money">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* ── From / To selectors ── */}
-        <div className="p-4 bg-surface-container/60 rounded-2xl border border-outline-variant flex flex-col gap-3">
+        {/* ── From / To selectors — segmented with sliding background ── */}
+        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-3">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             Transfer Between Accounts
           </span>
-          <div className="grid grid-cols-2 gap-3">
-            <CustomSelect
-              label="From"
-              value={from}
-              onChange={(newFrom) => {
-                setFrom(newFrom as MoneyPlace);
-                if (newFrom === to) {
-                  setTo(newFrom === 'bank' ? 'wallet' : 'bank');
-                }
-                setErrors({});
-              }}
-              options={placeOptions}
-            />
-            <CustomSelect
-              label="To"
-              value={to}
-              onChange={(newTo) => {
-                setTo(newTo as MoneyPlace);
-                if (newTo === from) {
-                  setFrom(newTo === 'bank' ? 'wallet' : 'bank');
-                }
-                setErrors({});
-              }}
-              options={placeOptions}
-            />
-          </div>
+          <SegmentedControl
+            label="From"
+            value={from}
+            onChange={(newFrom) => {
+              setFrom(newFrom as MoneyPlace);
+              if (newFrom === to) {
+                setTo(newFrom === 'bank' ? 'wallet' : 'bank');
+              }
+              setErrors({});
+            }}
+            options={placeOptions}
+          />
+          <SegmentedControl
+            label="To"
+            value={to}
+            onChange={(newTo) => {
+              setTo(newTo as MoneyPlace);
+              if (newTo === from) {
+                setFrom(newTo === 'bank' ? 'wallet' : 'bank');
+              }
+              setErrors({});
+            }}
+            options={placeOptions}
+          />
           {errors.to && (
             <p role="alert" className="text-[12px] font-medium text-error">{errors.to}</p>
           )}

@@ -86,7 +86,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
         </p>
 
         {MONEY_PLACES.map(({ key, label, icon }) => (
-          <div key={key} className="rounded-2xl border border-outline-variant bg-surface-container/50 p-3">
+          <div key={key} className="rounded-2xl border border-outline-variant bg-surface-container p-3">
             <label
               htmlFor={`money-place-${key}`}
               className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
@@ -95,7 +95,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
               {label}
             </label>
             <div
-              className={`flex items-center gap-2 rounded-xl border bg-surface px-3 py-2 transition-colors focus-within:border-primary ${
+              className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-colors focus-within:border-primary ${
                 errors[key] ? 'border-error' : 'border-outline-variant'
               }`}
             >

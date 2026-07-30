@@ -9,6 +9,7 @@ import { useLanguage } from '../../lib/i18n-context';
 import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
+import { SegmentedControl } from '../ui/segmented-control';
 import { trackEvent } from '../../lib/analytics';
 
 interface SettingsModalProps {
@@ -89,7 +90,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                         }
                       }}
                       placeholder="Enter your name"
-                      className="w-full px-3 py-2 bg-surface border border-outline-variant rounded-lg font-label-lg text-label-lg font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg font-label-lg text-label-lg font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
                       autoFocus
                     />
                     <div className="flex gap-2">
@@ -223,44 +224,17 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                   Theme
                 </label>
               </div>
-              <div className="grid grid-cols-3 gap-2 bg-surface-variant/50 p-1.5 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange('light')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'light'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <AppIcon name="light_mode" className="text-[20px]" />
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange('dark')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'dark'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <AppIcon name="dark_mode" className="text-[20px]" />
-                  <span>Dark</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange('system')}
-                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-md font-label-md text-label-md font-medium transition-all cursor-pointer ${
-                    currentTheme === 'system'
-                      ? 'bg-surface shadow-sm text-primary'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <AppIcon name="desktop_windows" className="text-[20px]" />
-                  <span>System</span>
-                </button>
-              </div>
+              {/* Sliding segmented control — active pill glides between themes. */}
+              <SegmentedControl
+                ariaLabel="Theme"
+                value={currentTheme}
+                onChange={(v) => handleThemeChange(v as 'light' | 'dark' | 'system')}
+                options={[
+                  { value: 'light', label: 'Light', icon: 'light_mode' },
+                  { value: 'dark', label: 'Dark', icon: 'dark_mode' },
+                  { value: 'system', label: 'System', icon: 'desktop_windows' },
+                ]}
+              />
             </div>
           </div>
 

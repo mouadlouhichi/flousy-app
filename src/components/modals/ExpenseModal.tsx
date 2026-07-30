@@ -1,9 +1,11 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { CustomSelect } from '../ui/CustomSelect';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
+import { ChoiceChips } from '../ui/choice-chips';
+import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
@@ -31,7 +33,7 @@ export function ExpenseModal({
   categoryColors = {},
   categoryIcons = {},
 }: ExpenseModalProps) {
-  const { symbol } = useCurrency();
+  const { symbol, currency } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -119,6 +121,9 @@ export function ExpenseModal({
     onClose();
   };
 
+  const activeCategoryColor = categoryColors[type] || 'var(--primary)';
+  const activeCategoryIcon = categoryIcons[type] || 'category';
+
   return (
     <Modal
       isOpen={isOpen}
@@ -126,17 +131,58 @@ export function ExpenseModal({
       title={initialExpense ? 'Edit Expense' : 'Add Expense'}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* ── Description / Merchant (with live category icon) ── */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="expense-name"
+            className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            Description / Merchant
+          </label>
+          <div
+            className={`flex items-center gap-2 w-full h-12 pl-4 pr-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
+              errors.name ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
+            }`}
+          >
+            <input
+              id="expense-name"
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((prev) => ({ ...prev, name: '' }));
+              }}
+              placeholder={`e.g. Supermarket, Coffee, ${type}`}
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+            />
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
+              style={{ backgroundColor: `color-mix(in srgb, ${activeCategoryColor} 12%, transparent)` }}
+              aria-hidden="true"
+            >
+              <AppIcon name={activeCategoryIcon} className="text-[20px]" style={{ color: activeCategoryColor }} />
+            </span>
+          </div>
+          {errors.name && (
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.name}</p>
+          )}
+        </div>
+
         {/* ── Amount Input ── */}
         <div className="flex flex-col items-center justify-center py-2">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-            Amount
-          </label>
+          <div className="flex items-center gap-2 mb-1">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              Amount
+            </label>
+            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
+              {currency}
+            </span>
+          </div>
           <div className="flex items-center text-primary font-bold">
             <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
             <input
               type="number"
               step="any"
-              autoFocus
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
@@ -151,70 +197,32 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* ── Description / Merchant ── */}
-        <CustomInput
-          label="Description / Merchant"
-          type="text"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setErrors((prev) => ({ ...prev, name: '' }));
-          }}
-          placeholder={`e.g. Supermarket, Coffee, ${type}`}
-          error={errors.name}
-        />
-
-        {/* ── Category ── */}
-        <CustomSelect
+        {/* ── Category — pill chips (color-coded per design system) ── */}
+        <ChoiceChips
           label="Category"
           value={type}
           onChange={setType}
-          options={categories.map((cat) => ({ value: cat, label: cat }))}
+          options={categories.map((cat) => ({
+            value: cat,
+            label: cat,
+            icon: categoryIcons[cat] || 'category',
+            color: categoryColors[cat],
+          }))}
         />
 
-        {/* ── Money Place ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Paid From
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['bank', 'wallet', 'home'] as MoneyPlace[]).map((p) => (
-              <label key={p} className="cursor-pointer">
-                <input
-                  type="radio"
-                  name="place"
-                  value={p}
-                  checked={place === p}
-                  onChange={() => setPlace(p)}
-                  className="sr-only peer"
-                />
-                <div className="flex flex-col items-center gap-2 p-3 rounded-xl border border-outline-variant peer-checked:border-primary peer-checked:bg-primary/10 hover:bg-surface-variant/30 transition-all">
-                  <AppIcon name={p === 'bank' ? 'account_balance' : p === 'wallet' ? 'account_balance_wallet' : 'home'} className=" text-[20px] text-outline peer-checked:text-primary" />
-                  <span className="font-label-md text-label-md text-on-surface peer-checked:text-primary font-semibold capitalize">
-                    {p}
-                  </span>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
+        {/* ── Paid From — segmented group with sliding active background ── */}
+        <SegmentedControl
+          label="Paid From"
+          value={place}
+          onChange={(v) => setPlace(v as MoneyPlace)}
+          options={MONEY_PLACE_OPTIONS}
+        />
 
-        {/* ── Household Member ── */}
+        {/* ── Household Member — badges ── */}
         {isPro ? (
-          <CustomSelect
-            label="Household Member"
-            value={person}
-            onChange={setPerson}
-            options={[
-              { value: 'Self', label: 'Self' },
-              { value: 'Partner', label: 'Partner / Spouse' },
-              { value: 'Family', label: 'Family / Shared' },
-              { value: 'Queen', label: 'Queen' },
-              { value: 'King', label: 'King' },
-            ]}
-          />
+          <MemberBadges value={person} onChange={setPerson} />
         ) : (
-          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50">
+          <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
           </div>
         )}
@@ -265,7 +273,7 @@ export function ExpenseModal({
               </label>
             )
           ) : (
-            <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container/50 text-center">
+            <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container text-center">
               <p className="font-body-sm text-body-sm text-on-surface-variant">Receipt attachments are available in Pro.</p>
             </div>
           )}
