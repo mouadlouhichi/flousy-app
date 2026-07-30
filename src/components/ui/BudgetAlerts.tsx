@@ -3,7 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
-import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, bucketOf } from '../../lib/store';
+import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
 interface BudgetAlertsProps {
@@ -50,39 +50,32 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     });
   }
 
-  // Category-level alerts: check each category against its theoretical share of the envelope
-  const activeCats = month.activeCategories || [];
-  const variableExpenses = month.variableExpenses || [];
-  const fixedExpenses = month.fixedExpenses || [];
+  // Category-level alerts: only for categories where the user explicitly set
+  // a budget limit (Pro). No implicit/default limits — spending in a category
+  // without a user-defined budget never raises an alert. Thresholds mirror
+  // the progress bar on the Variable Expenses screen (80% warn, 100% error).
+  const categoryBudgets = month.categoryBudgets || {};
 
-  // Calculate spending per category
-  const categorySpending: Record<string, number> = {};
-  variableExpenses.forEach((exp) => {
-    categorySpending[exp.type] = (categorySpending[exp.type] || 0) + exp.amount;
-  });
-  fixedExpenses.forEach((exp) => {
-    categorySpending[exp.type] = (categorySpending[exp.type] || 0) + exp.amount;
-  });
+  Object.entries(categoryBudgets).forEach(([cat, budget]) => {
+    if (!budget || budget <= 0) return;
 
-  // For each active category with spending, check if it's above a reasonable share
-  // We use a simple heuristic: categories with >60% of total variable spending get flagged
-  const totalVariableSpent = variableExpenses.reduce((a, e) => a + e.amount, 0);
-  const CATEGORY_ALERT_THRESHOLD = 0.6; // 60% of variable spending in one category
+    const spent = calculateCategorySpent(month, cat);
+    const pct = (spent / budget) * 100;
 
-  if (totalVariableSpent > 0) {
-    Object.entries(categorySpending)
-      .filter(([cat]) => activeCats.includes(cat))
-      .forEach(([cat, amount]) => {
-        const pct = (amount / totalVariableSpent) * 100;
-        if (pct >= CATEGORY_ALERT_THRESHOLD * 100) {
-          alerts.push({
-            title: `"${cat}" Spending Alert`,
-            message: `${cat} represents ${Math.round(pct)}% of variable spending (${format(amount)}). Consider reviewing this category.`,
-            severity: pct >= 80 ? 'error' : 'warning',
-          });
-        }
+    if (pct >= 100) {
+      alerts.push({
+        title: `"${cat}" Budget Exceeded`,
+        message: `Spent ${format(spent)} vs ${format(budget)} budget (${Math.round(pct)}%).`,
+        severity: 'error',
       });
-  }
+    } else if (pct >= 80) {
+      alerts.push({
+        title: `"${cat}" Budget Alert`,
+        message: `Spent ${format(spent)} of ${format(budget)} budget (${Math.round(pct)}%).`,
+        severity: 'warning',
+      });
+    }
+  });
 
   return (
     <div className="relative">

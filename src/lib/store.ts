@@ -377,21 +377,19 @@ export function calculateRolloverAmounts(
 }
 
 /**
- * Calculate spent amount for a specific category
+ * Calculate spent amount for a specific category.
+ * Counts variable expenses only: category budgets govern variable spending,
+ * so fixed bills (e.g. bills added during onboarding) must not inflate the
+ * "spent" figure of a variable category budget. Fixed bills already count
+ * towards the strategy envelopes via calculateEnvelopeSpent().
  */
 export function calculateCategorySpent(
   month: MonthBudget,
   category: string
 ): number {
-  const variableSpent = (month.variableExpenses || [])
+  return (month.variableExpenses || [])
     .filter((exp) => exp.type === category)
     .reduce((acc, exp) => acc + exp.amount, 0);
-  
-  const fixedSpent = (month.fixedExpenses || [])
-    .filter((exp) => exp.type === category)
-    .reduce((acc, exp) => acc + exp.amount, 0);
-  
-  return variableSpent + fixedSpent;
 }
 
 /**
