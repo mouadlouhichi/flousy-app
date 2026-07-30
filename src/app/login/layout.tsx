@@ -3,7 +3,7 @@ import { AppProviders } from '@/components/app-providers';
 
 export const metadata: Metadata = {
   title: 'Sign in',
-  description: 'Sign in to your Flousy account.',
+  description: 'Sign in to your SmartJib account.',
   robots: {
     index: false,
     follow: false,

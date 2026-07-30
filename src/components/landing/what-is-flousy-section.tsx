@@ -11,7 +11,7 @@ export function WhatIsFlousySection() {
           id="what-is-flousy"
           className="font-display text-3xl tracking-tight text-foreground lg:text-4xl"
         >
-          What is Flousy?
+          What is SmartJib?
         </h2>
         <p className="max-w-4xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
           {FLOUSY_FACTUAL_DESCRIPTION}

@@ -308,7 +308,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           onClose();
         }}
         title="Sign Out"
-        message="Are you sure you want to sign out of your Flousy account?"
+        message="Are you sure you want to sign out of your SmartJib account?"
         confirmLabel="Sign Out"
       />
 

@@ -3,6 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
@@ -214,7 +215,17 @@ export default function OnboardingPage() {
             <AppIcon name="arrow_back" className=" text-[22px]" />
           </button>
 
-          <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">Flousy</span>
+          <span className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="SmartJib logo"
+              width={30}
+              height={30}
+              className="object-contain"
+              priority
+            />
+            <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">SmartJib</span>
+          </span>
 
           <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-right">
             {step === 1

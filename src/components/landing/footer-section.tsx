@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedWave } from "./animated-wave";
@@ -52,7 +53,14 @@ export function FooterSection() {
             {/* Brand Column */}
             <div className="col-span-2">
               <a href="/" className="inline-flex items-center gap-2 mb-6">
-                <span className="text-2xl font-display">Flousy</span>
+                <Image
+                  src="/logo.png"
+                  alt="SmartJib logo"
+                  width={30}
+                  height={30}
+                  className="object-contain"
+                />
+                <span className="text-2xl font-display">SmartJib</span>
               </a>
 
               <p className="text-muted-foreground leading-relaxed mb-6 max-w-xs">

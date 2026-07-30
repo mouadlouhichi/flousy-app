@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable Firestore data model for Flousy. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
+  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
   "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
   "definitions": {
     "IncomeSource": {
@@ -176,6 +176,16 @@
           "type": "object",
           "additionalProperties": { "type": "number" },
           "description": "Planned amount per category for fixed bills"
+        },
+        "categoryBudgets": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "Pro feature: planned maximum per category"
+        },
+        "rolloverFromPrevious": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "Pro feature: amounts rolled over from previous month"
         },
         "activeCategories": { "type": "array", "items": { "type": "string" } },
         "categoryColors": {

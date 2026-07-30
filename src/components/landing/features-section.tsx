@@ -13,7 +13,7 @@ const features = [
   {
     number: "02",
     title: "Pick a style that fits you",
-    description: "Choose from a few proven budgeting styles, or let Flousy suggest one. Your income splits itself automatically, no spreadsheets required.",
+    description: "Choose from a few proven budgeting styles, or let SmartJib suggest one. Your income splits itself automatically, no spreadsheets required.",
     visual: "ai",
   },
   {

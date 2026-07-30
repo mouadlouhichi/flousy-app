@@ -22,9 +22,9 @@ import {
   SITE_URL,
 } from '@/lib/seo';
 
-const title = 'Flousy - Free Private Budgeting & Money Tracker App';
+const title = 'SmartJib - Free Private Budgeting & Money Tracker App';
 const description =
-  'Track money in bank, home, and wallet for free. Start budgeting with Flousy, the private budget tracker supporting MAD, dirham, and 12 currencies with 4 budgeting styles.';
+  'Track money in bank, home, and wallet for free. Start budgeting with SmartJib, the private budget tracker supporting MAD, dirham, and 12 currencies with 4 budgeting styles.';
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -66,7 +66,7 @@ const softwareApplicationSchema = {
   operatingSystem: 'Web, iOS (PWA), Android (PWA)',
   offers: {
     '@type': 'Offer',
-    name: 'Flousy Free',
+    name: 'SmartJib Free',
     price: '0',
     priceCurrency: 'USD',
   },

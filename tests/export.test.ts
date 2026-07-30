@@ -30,7 +30,7 @@ describe('CSV Export Utilities', () => {
     const month = normalizeMonth({});
     const csv = exportMonthToCsv(month, [], '2026-07', 'MAD');
 
-    assert.ok(csv.includes('Flousy Financial Export - 2026-07'));
+    assert.ok(csv.includes('SmartJib Financial Export - 2026-07'));
     assert.ok(csv.includes('"No fixed charges recorded"'));
     assert.ok(csv.includes('"No variable expenses recorded"'));
     assert.ok(csv.includes('"No active savings goals"'));

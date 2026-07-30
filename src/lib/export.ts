@@ -17,7 +17,7 @@ function escapeCsvCell(val: string | number | null | undefined): string {
 export function exportMonthToCsv(month: MonthBudget, goals: SavingGoal[], monthKey: string, currency: string = 'MAD'): string {
   const lines: string[] = [];
 
-  lines.push(`"Flousy Financial Export - ${monthKey}"`);
+  lines.push(`"SmartJib Financial Export - ${monthKey}"`);
   lines.push(`"Export Date",${escapeCsvCell(new Date().toISOString())}`);
   lines.push(`"Currency",${escapeCsvCell(currency)}`);
   lines.push('');

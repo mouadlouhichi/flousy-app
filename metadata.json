@@ -1,5 +1,5 @@
 {
-  "name": "Flousy",
+  "name": "SmartJib",
   "description": "A private, mobile-first budget tracker that separates what money is FOR from where it IS.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

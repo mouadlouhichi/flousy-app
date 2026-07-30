@@ -1,12 +1,12 @@
 export const SITE_URL = 'https://flousy.app';
 
-export const SITE_NAME = 'Flousy';
+export const SITE_NAME = 'SmartJib';
 
 export const OG_IMAGE = {
   url: '/opengraph-image',
   width: 1200,
   height: 630,
-  alt: 'Flousy budget tracker for needs, wants, savings, and money places',
+  alt: 'SmartJib budget tracker for needs, wants, savings, and money places',
 } as const;
 
 export const SUPPORTED_CURRENCY_CODES = [
@@ -32,7 +32,7 @@ export const BUDGETING_STRATEGIES = [
 ] as const;
 
 export const FLOUSY_FACTUAL_DESCRIPTION =
-  'Flousy is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. Flousy does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.';
+  'SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.';
 
 export interface LandingFaq {
   question: string;
@@ -45,19 +45,19 @@ export interface LandingFaq {
 
 export const LANDING_FAQS: readonly LandingFaq[] = [
   {
-    question: 'Is Flousy free?',
+    question: 'Is SmartJib free?',
     answer:
-      'Flousy has a free plan for core budgeting. Flousy Pro is an optional paid upgrade.',
+      'SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade.',
   },
   {
-    question: 'Does Flousy connect to my bank?',
+    question: 'Does SmartJib connect to my bank?',
     answer:
-      'No, Flousy does not connect to your bank. You manually enter transactions for privacy and control.',
+      'No, SmartJib does not connect to your bank. You manually enter transactions for privacy and control.',
   },
   {
-    question: 'What currencies does Flousy support?',
+    question: 'What currencies does SmartJib support?',
     answer:
-      'Flousy supports 12 currencies: MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD, and XOF.',
+      'SmartJib supports 12 currencies: MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD, and XOF.',
   },
   {
     question: 'Is my data private?',
@@ -69,9 +69,9 @@ export const LANDING_FAQS: readonly LandingFaq[] = [
     },
   },
   {
-    question: 'What budgeting methods does Flousy support?',
+    question: 'What budgeting methods does SmartJib support?',
     answer:
-      'Flousy supports 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first.',
+      'SmartJib supports 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first.',
   },
   {
     question: 'Can I export my data?',

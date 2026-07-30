@@ -1,6 +1,6 @@
-# Flousy – Private Budget Tracker
+# SmartJib – Private Budget Tracker
 
-Flousy is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. Flousy does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.
+SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.
 
 ## Key Features
 
@@ -11,11 +11,11 @@ Flousy is a private budget tracker that separates what money is for—needs, wan
 - **Private accounts**: Account data is cached locally and synced to Firebase when a user signs in. Financial data is not sold to third parties or used to build advertising profiles.
 - **CSV export**: Budgeting data can be exported from Settings.
 - **Account deletion**: An account and its associated budgeting data can be permanently deleted from Settings.
-- **PWA**: Flousy is installable as a web app.
+- **PWA**: SmartJib is installable as a web app.
 
 ## Pricing
 
-Flousy has a free plan for core budgeting. Flousy Pro is an optional paid upgrade.
+SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade.
 
 ## Links
 

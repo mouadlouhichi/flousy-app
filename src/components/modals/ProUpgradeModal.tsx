@@ -199,7 +199,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isPro ? 'Flousy Pro' : 'Upgrade to Flousy Pro'} className="max-w-2xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={isPro ? 'SmartJib Pro' : 'Upgrade to SmartJib Pro'} className="max-w-2xl">
       <div className="flex flex-col gap-xl">
         {/* ─────────────────────── HERO CARD ─────────────────────── */}
         <div className="rounded-[24px] border border-surface-container-highest bg-surface-container shadow-sm overflow-hidden">
@@ -215,7 +215,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 </h3>
                 <p className="mx-auto max-w-xl text-sm sm:text-base leading-6 sm:leading-7 text-on-surface-variant">
                   {isPro
-                    ? 'Thank you for supporting Flousy. All premium features are active.'
+                    ? 'Thank you for supporting SmartJib. All premium features are active.'
                     : 'Multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
                 </p>
               </div>
@@ -543,7 +543,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 Payment Successful!
               </h3>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                Flousy Pro is now active on your account.
+                SmartJib Pro is now active on your account.
               </p>
             </div>
 

@@ -3,7 +3,7 @@ import { AppProviders } from '@/components/app-providers';
 
 export const metadata: Metadata = {
   title: 'Set up your budget',
-  description: 'Set up your private Flousy budget.',
+  description: 'Set up your private SmartJib budget.',
   robots: {
     index: false,
     follow: false,

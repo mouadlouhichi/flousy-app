@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Flousy",
+    "appName": "SmartJib",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "delete": "Supprimer",
@@ -47,7 +47,7 @@
     "authFailed": "Échec de l'authentification. Veuillez vérifier vos identifiants.",
     "googleSignInFailed": "Échec de la connexion Google",
     "demoMode": "Mode Démo Disponible",
-    "demoModeDescription": "Découvrez Flousy instantanément avec des données d'exemple en mode aperçu local.",
+    "demoModeDescription": "Découvrez SmartJib instantanément avec des données d'exemple en mode aperçu local.",
     "continueDemo": "Continuer en Mode Démo",
     "demoResetRequested": "Mode Démo : Réinitialisation demandée pour {email}",
     "signedInAs": "Connecté en tant que",
@@ -56,7 +56,7 @@
     "signInOrRegister": "Se connecter ou créer un compte",
     "deleteAccount": "Supprimer le compte et les données",
     "signOutConfirmTitle": "Déconnexion",
-    "signOutConfirmMessage": "Êtes-vous sûr de vouloir vous déconnecter de votre compte Flousy ?",
+    "signOutConfirmMessage": "Êtes-vous sûr de vouloir vous déconnecter de votre compte SmartJib ?",
     "deleteConfirmTitle": "Supprimer le compte définitivement",
     "deleteConfirmMessage": "Cette action est irréversible. Toutes vos données budgétaires, dépenses et objectifs d'épargne seront définitivement supprimés de Firestore.",
     "firebaseNotConfigured": "Firebase n'est pas configuré"
@@ -261,11 +261,11 @@
       "shareOfTotal": "{pct}% du revenu total"
     },
     "pro": {
-      "title": "Passer à Flousy Pro",
-      "memberTitle": "Adhésion Flousy Pro",
+      "title": "Passer à SmartJib Pro",
+      "memberTitle": "Adhésion SmartJib Pro",
       "youArePro": "Vous êtes Membre Pro !",
       "unlockPower": "Débloquez la Puissance Budgétaire",
-      "proActiveDescription": "Merci de soutenir Flousy. Toutes les fonctionnalités premium, analyses multi-mois, import CSV et outils famille sont actifs.",
+      "proActiveDescription": "Merci de soutenir SmartJib. Toutes les fonctionnalités premium, analyses multi-mois, import CSV et outils famille sont actifs.",
       "upgradeDescription": "Prenez le contrôle total de votre argent avec les tendances multi-mois, imports CSV, pièces jointes de reçus et budget familial.",
       "monthly": "Mensuel (4,99$/mois)",
       "annual": "Annuel (39,99$/an)",
@@ -395,7 +395,7 @@
     "privacyTitle": "Politique de Confidentialité",
     "privacySubtitle": "Dernière mise à jour juillet 2026. Version en langage clair ci-dessous — en résumé : votre budget vous appartient, et ça ne changera pas.",
     "termsTitle": "Conditions d'Utilisation",
-    "termsSubtitle": "Dernière mise à jour juillet 2026. Ces conditions couvrent comment vous pouvez utiliser Flousy, et ce que vous pouvez attendre de nous.",
+    "termsSubtitle": "Dernière mise à jour juillet 2026. Ces conditions couvrent comment vous pouvez utiliser SmartJib, et ce que vous pouvez attendre de nous.",
     "authoritativeNotice": "Remarque : La version anglaise de ce document est la version juridiquement faisant foi.",
     "privacy": {
       "s1Title": "1. Ce que nous collectons",
@@ -416,22 +416,22 @@
       "s8Body": "Des questions sur cette politique ou vos données ? Contactez-nous à tout moment depuis notre page Contact."
     },
     "terms": {
-      "s1Title": "1. Utilisation de Flousy",
-      "s1Body": "En créant un compte, vous acceptez d'utiliser Flousy pour son usage prévu — le suivi de votre budget personnel. Vous êtes responsable de la sécurité de vos identifiants de connexion et de l'exactitude des informations que vous saisissez.",
+      "s1Title": "1. Utilisation de SmartJib",
+      "s1Body": "En créant un compte, vous acceptez d'utiliser SmartJib pour son usage prévu — le suivi de votre budget personnel. Vous êtes responsable de la sécurité de vos identifiants de connexion et de l'exactitude des informations que vous saisissez.",
       "s2Title": "2. Votre compte",
-      "s2Body": "Vous devez être en mesure de conclure légalement ces conditions pour utiliser Flousy. Un compte est pour le budget d'une seule personne ; si vous avez besoin d'un budget partagé ou familial, surveillez cette fonctionnalité sur notre feuille de route.",
+      "s2Body": "Vous devez être en mesure de conclure légalement ces conditions pour utiliser SmartJib. Un compte est pour le budget d'une seule personne ; si vous avez besoin d'un budget partagé ou familial, surveillez cette fonctionnalité sur notre feuille de route.",
       "s3Title": "3. Plans Gratuit et Pro",
-      "s3Body": "Les fonctionnalités principales de Flousy sont gratuites, sans limite de temps. Flousy Pro est une mise à niveau payante optionnelle qui débloque des fonctionnalités supplémentaires. Les abonnements Pro se renouvellent automatiquement jusqu'à annulation, et vous pouvez annuler à tout moment depuis les Paramètres.",
-      "s4Title": "4. Ce que Flousy n'est pas",
-      "s4Body": "Flousy est un outil de budgétisation et de suivi. Ce n'est pas une banque, il ne déplace pas d'argent réel en votre nom et ne fournit pas de conseils financiers, d'investissement ou fiscaux. Les décisions concernant vos finances restent entièrement les vôtres.",
+      "s3Body": "Les fonctionnalités principales de SmartJib sont gratuites, sans limite de temps. SmartJib Pro est une mise à niveau payante optionnelle qui débloque des fonctionnalités supplémentaires. Les abonnements Pro se renouvellent automatiquement jusqu'à annulation, et vous pouvez annuler à tout moment depuis les Paramètres.",
+      "s4Title": "4. Ce que SmartJib n'est pas",
+      "s4Body": "SmartJib est un outil de budgétisation et de suivi. Ce n'est pas une banque, il ne déplace pas d'argent réel en votre nom et ne fournit pas de conseils financiers, d'investissement ou fiscaux. Les décisions concernant vos finances restent entièrement les vôtres.",
       "s5Title": "5. Utilisation acceptable",
-      "s5Body": "Veuillez ne pas utiliser Flousy pour stocker des informations qui ne sont pas les vôtres, pour tenter d'accéder aux comptes d'autres utilisateurs, ou pour interférer avec le fonctionnement normal de l'application.",
+      "s5Body": "Veuillez ne pas utiliser SmartJib pour stocker des informations qui ne sont pas les vôtres, pour tenter d'accéder aux comptes d'autres utilisateurs, ou pour interférer avec le fonctionnement normal de l'application.",
       "s6Title": "6. Annulation ou suppression de votre compte",
       "s6Body": "Vous pouvez annuler un abonnement Pro ou supprimer entièrement votre compte à tout moment depuis les Paramètres. La suppression de votre compte supprime définitivement vos données de nos systèmes.",
       "s7Title": "7. Modifications du service",
-      "s7Body": "Nous pouvons ajouter, modifier ou supprimer des fonctionnalités au fil du temps à mesure que Flousy s'améliore. Nous ferons de notre mieux pour communiquer les changements significatifs à l'avance.",
+      "s7Body": "Nous pouvons ajouter, modifier ou supprimer des fonctionnalités au fil du temps à mesure que SmartJib s'améliore. Nous ferons de notre mieux pour communiquer les changements significatifs à l'avance.",
       "s8Title": "8. Limitation de responsabilité",
-      "s8Body": "Flousy est fourni \"tel quel\". Bien que nous travaillions dur pour garder vos données exactes et disponibles, nous ne pouvons pas garantir que le service sera ininterrompu ou sans erreur, et nous ne sommes pas responsables des décisions financières prises en utilisant l'application.",
+      "s8Body": "SmartJib est fourni \"tel quel\". Bien que nous travaillions dur pour garder vos données exactes et disponibles, nous ne pouvons pas garantir que le service sera ininterrompu ou sans erreur, et nous ne sommes pas responsables des décisions financières prises en utilisant l'application.",
       "s9Title": "9. Contact",
       "s9Body": "Des questions sur ces conditions ? Contactez-nous depuis notre page Contact."
     }
@@ -466,7 +466,7 @@
   },
   "pwa": {
     "installApp": "Installer l'App",
-    "installBanner": "Installez Flousy pour la meilleure expérience",
+    "installBanner": "Installez SmartJib pour la meilleure expérience",
     "install": "Installer",
     "dismiss": "Ignorer"
   },
@@ -482,7 +482,7 @@
     },
     "hero": {
       "eyebrow": "Besoins, envies, épargne — et chaque emplacement d'argent.",
-      "titleLine1": "L'app Flousy",
+      "titleLine1": "L'app SmartJib",
       "titleLine2Prefix": "pour",
       "words": [
         "épargner",
@@ -490,7 +490,7 @@
         "planifier",
         "grandir"
       ],
-      "description": "Votre argent répond à deux questions : à quoi il sert, et où il se trouve. Flousy les sépare — chaque dirham comptabilisé, toujours.",
+      "description": "Votre argent répond à deux questions : à quoi il sert, et où il se trouve. SmartJib les sépare — chaque dirham comptabilisé, toujours.",
       "ctaPrimary": "Commencer gratuitement",
       "ctaSecondary": "Voir comment ça marche",
       "stats": [
@@ -517,7 +517,7 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "Qu'est-ce que Flousy ?"
+      "title": "Qu'est-ce que SmartJib ?"
     },
     "features": {
       "eyebrow": "Fonctionnalités",
@@ -530,7 +530,7 @@
         },
         {
           "title": "Choisissez votre style",
-          "description": "Choisissez parmi plusieurs méthodes éprouvées, ou laissez Flousy en suggérer une. Votre revenu se répartit automatiquement, sans tableur."
+          "description": "Choisissez parmi plusieurs méthodes éprouvées, ou laissez SmartJib en suggérer une. Votre revenu se répartit automatiquement, sans tableur."
         },
         {
           "title": "Voyez où c'est vraiment",
@@ -568,7 +568,7 @@
         },
         {
           "title": "Choisissez un style de budget",
-          "description": "Flousy répartit votre revenu en besoins, envies et épargne pour vous. Vous préférez un autre équilibre ? Changez de style quand vous voulez.",
+          "description": "SmartJib répartit votre revenu en besoins, envies et épargne pour vous. Vous préférez un autre équilibre ? Changez de style quand vous voulez.",
           "snapshotLabel": "Votre plan mensuel",
           "lines": [
             {
@@ -610,7 +610,7 @@
       "eyebrow": "Gratuit, avec de la marge",
       "titleLine1": "Commencez gratuitement.",
       "titleLine2": "Passez au Pro quand vous êtes prêt.",
-      "description": "Tout ce dont vous avez besoin pour bien budgétiser est gratuit, pour toujours. Quand vous voulez un aperçu plus profond de vos habitudes, Flousy Pro est là.",
+      "description": "Tout ce dont vous avez besoin pour bien budgétiser est gratuit, pour toujours. Quand vous voulez un aperçu plus profond de vos habitudes, SmartJib Pro est là.",
       "statFree": "Gratuit",
       "statFreeLabel": "Budget de base",
       "stat3": "3",
@@ -739,7 +739,7 @@
           "metric": "Zéro découvert surprise"
         },
         {
-          "quote": "J'ai remplacé un tableur que je maintenais depuis des années. Flousy l'a remplacé en un week-end.",
+          "quote": "J'ai remplacé un tableur que je maintenais depuis des années. SmartJib l'a remplacé en un week-end.",
           "author": "Karim M.",
           "role": "Ingénieur logiciel",
           "company": "Marrakech",
@@ -788,7 +788,7 @@
       ]
     },
     "faq": {
-      "eyebrow": "Les faits Flousy",
+      "eyebrow": "Les faits SmartJib",
       "title": "Questions fréquentes"
     },
     "cta": {
@@ -819,7 +819,7 @@
       "privacyPolicy": "Politique de confidentialité",
       "termsOfService": "Conditions d'utilisation",
       "cookiePolicy": "Politique des cookies",
-      "copyright": "2026 Flousy. Tous droits réservés.",
+      "copyright": "2026 SmartJib. Tous droits réservés.",
       "allSystems": "Tous les systèmes opérationnels"
     }
   },
@@ -827,13 +827,13 @@
     "about": {
       "eyebrow": "À propos",
       "title": "L'argent enfin compréhensible.",
-      "subtitle": "Flousy est né d'une frustration simple : les apps de budget qui disent ce que vous avez dépensé, mais n'expliquent jamais pourquoi votre argent file quand même.",
+      "subtitle": "SmartJib est né d'une frustration simple : les apps de budget qui disent ce que vous avez dépensé, mais n'expliquent jamais pourquoi votre argent file quand même.",
       "s1Title": "Deux questions, une app",
-      "s1Body": "Toute question de budget se résume à deux choses : à quoi sert cet argent, et où se trouve-t-il maintenant ? La plupart des apps mélangent les deux jusqu'à ce que ni l'un ni l'autre n'ait de sens. Flousy les sépare, pour que vous sachiez toujours les deux — sans tableur, sans devinette.",
+      "s1Body": "Toute question de budget se résume à deux choses : à quoi sert cet argent, et où se trouve-t-il maintenant ? La plupart des apps mélangent les deux jusqu'à ce que ni l'un ni l'autre n'ait de sens. SmartJib les sépare, pour que vous sachiez toujours les deux — sans tableur, sans devinette.",
       "s2Title": "Conçu pour la vie quotidienne",
-      "s2Body": "Nous avons conçu Flousy pour les vrais budgets — l'argent dans votre portefeuille, celui à la maison, et ce qui reste en banque. Pas de connexion bancaire, pas de configuration compliquée. Ajoutez vos revenus, choisissez un style, et commencez à enregistrer.",
+      "s2Body": "Nous avons conçu SmartJib pour les vrais budgets — l'argent dans votre portefeuille, celui à la maison, et ce qui reste en banque. Pas de connexion bancaire, pas de configuration compliquée. Ajoutez vos revenus, choisissez un style, et commencez à enregistrer.",
       "s3Title": "Gratuit pour commencer, honnête pour la suite",
-      "s3Body": "L'essentiel de Flousy — suivi, styles de budget, objectifs d'épargne — est gratuit, et le restera toujours. Flousy Pro existe pour ceux qui veulent un regard plus approfondi sur leurs habitudes.",
+      "s3Body": "L'essentiel de SmartJib — suivi, styles de budget, objectifs d'épargne — est gratuit, et le restera toujours. SmartJib Pro existe pour ceux qui veulent un regard plus approfondi sur leurs habitudes.",
       "s4Title": "Vos affaires restent les vôtres",
       "s4Body": "Budgétiser implique de partager des détails personnels. Nous prenons ça au sérieux : vos données sont privées, jamais vendues, et vous pouvez les exporter ou les supprimer quand vous voulez."
     },
@@ -846,26 +846,26 @@
       "faqs": [
         {
           "question": "Dois-je connecter mon compte bancaire ?",
-          "answer": "Non. Flousy ne demande jamais votre identifiant bancaire, numéro de carte ou de compte. Vous ajoutez vous-même vos revenus et dépenses, et choisissez l'emplacement — banque, maison ou portefeuille."
+          "answer": "Non. SmartJib ne demande jamais votre identifiant bancaire, numéro de carte ou de compte. Vous ajoutez vous-même vos revenus et dépenses, et choisissez l'emplacement — banque, maison ou portefeuille."
         },
         {
-          "question": "Comment Flousy décide-t-il de mon budget ?",
-          "answer": "Vous choisissez un style de budget qui correspond à votre façon de penser l'argent. Flousy répartit ensuite automatiquement votre revenu en besoins, envies et épargne. Changez de style quand vous voulez."
+          "question": "Comment SmartJib décide-t-il de mon budget ?",
+          "answer": "Vous choisissez un style de budget qui correspond à votre façon de penser l'argent. SmartJib répartit ensuite automatiquement votre revenu en besoins, envies et épargne. Changez de style quand vous voulez."
         },
         {
           "question": "Quelle est la différence entre 'à quoi ça sert' et 'où c'est' ?",
-          "answer": "Votre budget décide à quoi sert votre argent — le loyer est un besoin, un dîner au restaurant une envie. Séparément, Flousy suit où cet argent se trouve — en banque, à la maison ou dans votre portefeuille."
+          "answer": "Votre budget décide à quoi sert votre argent — le loyer est un besoin, un dîner au restaurant une envie. Séparément, SmartJib suit où cet argent se trouve — en banque, à la maison ou dans votre portefeuille."
         },
         {
           "question": "Puis-je utiliser plusieurs devises ?",
-          "answer": "Oui. Flousy supporte 12 devises, et vous pouvez changer votre devise d'affichage à tout moment dans les Paramètres."
+          "answer": "Oui. SmartJib supporte 12 devises, et vous pouvez changer votre devise d'affichage à tout moment dans les Paramètres."
         },
         {
           "question": "Que se passe-t-il si je supprime une dépense par erreur ?",
           "answer": "L'argent est restitué exactement d'où il venait, instantanément. Vos soldes ne sont jamais désynchronisés."
         },
         {
-          "question": "Qu'est-ce que Flousy Pro apporte ?",
+          "question": "Qu'est-ce que SmartJib Pro apporte ?",
           "answer": "Pro ajoute les tendances de dépenses, les factures récurrentes automatiques, les alertes de dépassement et l'import de dépenses passées — en plus de tout le plan gratuit."
         },
         {
@@ -881,7 +881,7 @@
     "contact": {
       "eyebrow": "Contact",
       "title": "Parlons-en.",
-      "subtitle": "Questions sur votre compte, Flousy Pro, ou juste envie de dire bonjour ? Envoyez-nous un message.",
+      "subtitle": "Questions sur votre compte, SmartJib Pro, ou juste envie de dire bonjour ? Envoyez-nous un message.",
       "emailNote": "Préférez l'e-mail ? Écrivez-nous à hello@flousy.app",
       "yourName": "Votre nom",
       "emailAddress": "Adresse e-mail",
@@ -896,7 +896,7 @@
     "careers": {
       "eyebrow": "Carrières",
       "title": "Nous ne recrutons pas en ce moment — mais nous serions ravis de vous connaître.",
-      "subtitle": "Flousy est une petite équipe qui construit une app de budget que les gens aiment vraiment utiliser. Pas de poste ouvert pour le moment, mais nous gardons chaque introduction pour plus tard.",
+      "subtitle": "SmartJib est une petite équipe qui construit une app de budget que les gens aiment vraiment utiliser. Pas de poste ouvert pour le moment, mais nous gardons chaque introduction pour plus tard.",
       "valuesTitle": "Ce qui nous tient à cœur",
       "values": [
         {
@@ -919,15 +919,15 @@
     "cookies": {
       "eyebrow": "Juridique",
       "title": "Politique des Cookies",
-      "subtitle": "Dernière mise à jour juillet 2026. Une explication courte et honnête des quelques cookies que Flousy utilise.",
+      "subtitle": "Dernière mise à jour juillet 2026. Une explication courte et honnête des quelques cookies que SmartJib utilise.",
       "sections": [
         {
           "title": "1. Quels cookies nous utilisons",
-          "body": "Flousy utilise un petit nombre de cookies et d'entrées de stockage local pour vous garder connecté, mémoriser vos préférences (comme la devise et le mode sombre), et assurer le bon fonctionnement entre les visites."
+          "body": "SmartJib utilise un petit nombre de cookies et d'entrées de stockage local pour vous garder connecté, mémoriser vos préférences (comme la devise et le mode sombre), et assurer le bon fonctionnement entre les visites."
         },
         {
           "title": "2. Cookies essentiels",
-          "body": "Ceux-ci sont nécessaires au fonctionnement de l'app — par exemple, rester connecté à votre compte. Vous ne pouvez pas les désactiver sans perdre la possibilité d'utiliser Flousy."
+          "body": "Ceux-ci sont nécessaires au fonctionnement de l'app — par exemple, rester connecté à votre compte. Vous ne pouvez pas les désactiver sans perdre la possibilité d'utiliser SmartJib."
         },
         {
           "title": "3. Analytique optionnelle",
@@ -935,11 +935,11 @@
         },
         {
           "title": "4. Pas de cookies publicitaires",
-          "body": "Flousy n'utilise pas de cookies publicitaires ou de suivi inter-sites. Nous ne vendons ni l'attention ni les données."
+          "body": "SmartJib n'utilise pas de cookies publicitaires ou de suivi inter-sites. Nous ne vendons ni l'attention ni les données."
         },
         {
           "title": "5. Gérer les cookies",
-          "body": "Vous pouvez contrôler ou effacer les cookies via les paramètres de votre navigateur à tout moment. Notez que bloquer les cookies essentiels peut empêcher Flousy de fonctionner correctement."
+          "body": "Vous pouvez contrôler ou effacer les cookies via les paramètres de votre navigateur à tout moment. Notez que bloquer les cookies essentiels peut empêcher SmartJib de fonctionner correctement."
         }
       ]
     }

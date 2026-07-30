@@ -20,7 +20,7 @@ const steps = [
   {
     number: "II",
     title: "Pick a budgeting style",
-    description: "Flousy splits your income into needs, wants and savings for you. Prefer a different balance? Switch styles anytime.",
+    description: "SmartJib splits your income into needs, wants and savings for you. Prefer a different balance? Switch styles anytime.",
     snapshot: {
       label: "Your monthly plan",
       lines: [

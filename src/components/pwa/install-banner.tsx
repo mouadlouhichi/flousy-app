@@ -42,7 +42,7 @@ export function InstallBanner() {
     <>
       <div
         role="region"
-        aria-label="Install Flousy"
+        aria-label="Install SmartJib"
         className={`fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md transition-all duration-500 md:inset-x-auto md:right-6 md:bottom-6 ${
           visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
         }`}
@@ -53,7 +53,7 @@ export function InstallBanner() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="font-label-lg text-label-lg font-bold text-on-surface">Install Flousy</p>
+            <p className="font-label-lg text-label-lg font-bold text-on-surface">Install SmartJib</p>
             <p className="truncate text-body-sm text-on-surface-variant">
               Faster access, works offline.
             </p>
