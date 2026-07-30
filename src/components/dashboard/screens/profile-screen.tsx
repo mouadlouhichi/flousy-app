@@ -131,13 +131,30 @@ export function ProfileScreen() {
               </div>
             ) : (
               <>
-                {/* `min-w-0` on the name lets it truncate instead of forcing
-                    the row wider and shoving the edit button off; `shrink-0`
-                    keeps that button at its natural size. */}
-                <div className="flex min-w-0 items-center justify-center gap-1.5 sm:justify-start">
+                {/* Name, plan badge and edit affordance share one row.
+                    `min-w-0` on the name lets it truncate instead of forcing
+                    the row wider; `shrink-0` on the badge and button keeps
+                    them at their natural size so a long name ellipses rather
+                    than squashing them. */}
+                <div className="flex min-w-0 items-center justify-center gap-2 sm:justify-start">
                   <p className="min-w-0 truncate text-xl font-extrabold leading-tight text-on-surface">
                     {profile?.displayName || 'Set your name'}
                   </p>
+
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${
+                      isPro
+                        ? 'bg-amber-400/15 text-amber-700 ring-1 ring-inset ring-amber-400/40 dark:text-amber-300'
+                        : 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
+                    }`}
+                  >
+                    <AppIcon
+                      name={isPro ? 'workspace_premium' : 'person'}
+                      className="text-[13px]"
+                    />
+                    {isPro ? 'Pro Plan' : 'Free Plan'}
+                  </span>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -159,22 +176,8 @@ export function ProfileScreen() {
                   {user?.email}
                 </p>
 
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-                      isPro
-                        ? 'bg-amber-400/15 text-amber-700 ring-1 ring-inset ring-amber-400/40 dark:text-amber-300'
-                        : 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
-                    }`}
-                  >
-                    <AppIcon
-                      name={isPro ? 'workspace_premium' : 'person'}
-                      className="text-[14px]"
-                    />
-                    {isPro ? 'Pro Plan' : 'Free Plan'}
-                  </span>
-
-                  {!isPro && (
+                {!isPro && (
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                     <button
                       type="button"
                       onClick={openProModal}
@@ -183,8 +186,8 @@ export function ProfileScreen() {
                       <AppIcon name="workspace_premium" className="text-[13px]" />
                       Upgrade
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             )}
           </div>
