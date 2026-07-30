@@ -14,10 +14,10 @@ const hasGoogleServicesPlist = fs.existsSync(googleServicesPlistPath);
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: "Flousy",
-  slug: "flousy",
+  name: "SmartJib",
+  slug: "smartjib",
   version: "1.0.0",
-  scheme: "flousy",
+  scheme: "smartjib",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
 
@@ -34,7 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: "com.flousy.app",
     infoPlist: {
       NSFaceIDUsageDescription:
-        "Flousy uses Face ID to securely unlock your private budget.",
+        "SmartJib uses Face ID to securely unlock your private budget.",
     },
     // Always set the path — @react-native-firebase/app plugin requires it at prebuild time.
     // If the real file doesn't exist, we create a minimal placeholder so prebuild succeeds.

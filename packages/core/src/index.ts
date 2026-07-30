@@ -5,6 +5,8 @@ export * from './export';
 export * from './translations';
 export * from './blog';
 export * from './seo';
+export * from './pro-features';
+export * from './dashboard-quick-actions';
 
 import en from '../messages/en.json';
 import fr from '../messages/fr.json';

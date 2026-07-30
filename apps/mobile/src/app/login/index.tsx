@@ -77,7 +77,7 @@ export default function LoginScreen() {
             <Text className="text-3xl font-bold text-white">F</Text>
           </View>
           <Text className="text-2xl font-bold text-neutral-900 dark:text-white">
-            Flousy
+            SmartJib
           </Text>
           <Text className="text-neutral-500 dark:text-neutral-400 text-center mt-1">
             {t('auth.welcomeBack')}

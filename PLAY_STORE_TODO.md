@@ -1,6 +1,6 @@
-# 🚀 Flousy — Google Play Store Deployment TODO
+# 🚀 SmartJib — Google Play Store Deployment TODO
 
-> **Goal:** Ship Flousy v1.0.0 to the Google Play Store  
+> **Goal:** Ship SmartJib v1.0.0 to the Google Play Store  
 > **Branch:** `feat/expo-mobile-monorepo`  
 > **App:** `com.flousy.app` (Expo SDK 52, React Native 0.76)
 
@@ -15,7 +15,7 @@
 - [ ] **1.2** Register Android app in Firebase
   - Firebase Console → Project Settings → Add App → Android
   - Package name: `com.flousy.app`
-  - App nickname: `Flousy`
+  - App nickname: `SmartJib`
   - Debug SHA-1: Run `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`
 
 - [ ] **1.3** Download `google-services.json`
@@ -169,7 +169,7 @@
   - Complete account verification
 
 - [ ] **5.2** Create the app listing
-  - App name: `Flousy`
+  - App name: `SmartJib`
   - Default language: `English`
   - App or game: `App`
   - Free or paid: `Free`
@@ -181,7 +181,7 @@
     ```
   - [ ] **Full description** (4000 chars max):
     ```
-    Flousy is your personal budget companion that helps you manage money using 
+    SmartJib is your personal budget companion that helps you manage money using 
     the proven envelope budgeting strategy. Split your income into Needs, Wants, 
     and Savings envelopes, track where your money is (bank, home, wallet), and 
     stay on top of your financial goals.
@@ -216,7 +216,7 @@
     Import and export your budget data as CSV. No vendor lock-in.
     ```
   - [ ] **App icon**: Use `apps/mobile/assets/icon.png` (512×512 minimum)
-  - [ ] **Feature graphic** (1024×500): Create a banner showing Flousy's key features
+  - [ ] **Feature graphic** (1024×500): Create a banner showing SmartJib's key features
   - [ ] **Phone screenshots** (minimum 4, maximum 8):
     - Take screenshots from a physical device or emulator
     - Recommended: 1080×1920 or 1080×2340
@@ -312,7 +312,7 @@
 
 - [ ] **8.1** Create feature graphic (1024×500)
   - Banner image for the Play Store listing
-  - Should show Flousy's key value proposition
+  - Should show SmartJib's key value proposition
 
 - [ ] **8.2** Take store screenshots
   - Use Android Studio's screenshot tool or `adb shell screencap`

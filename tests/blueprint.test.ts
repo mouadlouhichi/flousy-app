@@ -13,12 +13,12 @@ import ts from 'typescript';
  *   3. the constraints in firestore.rules             (what the server allows)
  */
 
-const repoRoot = new URL('../../../', import.meta.url);
+const repoRoot = new URL('../', import.meta.url);
 const readRepoFile = (relativePath: string) => readFileSync(new URL(relativePath, repoRoot), 'utf8');
 
 const blueprint = JSON.parse(readRepoFile('firebase-blueprint.json'));
-const storeSource = readRepoFile('packages/core/src/store.ts');
-const dbSource = readRepoFile('apps/web/src/lib/db.ts');
+const storeSource = readRepoFile('src/lib/store.ts');
+const dbSource = readRepoFile('src/lib/db.ts');
 const rulesSource = readRepoFile('firestore.rules');
 
 // --- Parse src/lib/store.ts -------------------------------------------------
@@ -100,6 +100,7 @@ const SCHEMA_TO_INTERFACE: Record<string, string> = {
   'definitions.IncomeSource': 'IncomeSource',
   'definitions.VariableExpense': 'VariableExpense',
   'definitions.FixedExpense': 'FixedExpense',
+  'definitions.FixedCategoryItem': 'FixedCategoryItem',
   'definitions.SavingGoal': 'SavingGoal',
   'definitions.DebtItem': 'DebtItem',
 };

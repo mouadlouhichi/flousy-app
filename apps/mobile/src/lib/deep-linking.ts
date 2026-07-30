@@ -1,10 +1,10 @@
 import * as Linking from 'expo-linking';
 
 /**
- * Build the deep link prefix for Flousy.
+ * Build the deep link prefix for SmartJib.
  * Matches the "scheme" in app.config.ts → "flousy"
  */
-export const FLousY_DEEP_LINK_PREFIX = 'flousy://';
+export const SMARTJIB_DEEP_LINK_PREFIX = 'smartjib://';
 
 /**
  * Common deep link paths used by the app.

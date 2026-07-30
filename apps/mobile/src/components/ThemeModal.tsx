@@ -40,7 +40,7 @@ export function ThemeModal({ visible, onClose }: ThemeModalProps) {
           </View>
 
           <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-            Flousy uses CSS-variable design tokens for seamless light and dark mode styling.
+            SmartJib uses CSS-variable design tokens for seamless light and dark mode styling.
           </Text>
 
           <View className="space-y-3">

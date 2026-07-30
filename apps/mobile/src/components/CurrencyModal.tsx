@@ -49,7 +49,7 @@ export function CurrencyModal({
           </View>
 
           <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-            Flousy formats your amounts using locale-aware Intl formatters for 12 currencies.
+            SmartJib formats your amounts using locale-aware Intl formatters for 12 currencies.
           </Text>
 
           <ScrollView showsVerticalScrollIndicator={false} className="space-y-2">
