@@ -23,3 +23,7 @@ apps/mobile/GoogleService-Info.plist
 apps/mobile/*.keystore
 apps/mobile/*.jks
 apps/mobile/pc-api-key.json
+<<<<<<< HEAD
+=======
+apps/mobile/.env
+>>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)

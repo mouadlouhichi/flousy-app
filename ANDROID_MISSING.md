@@ -39,7 +39,11 @@ These are things you must do manually (they involve secrets/credentials that can
 ### 1. Download `google-services.json`
 ```
 Firebase Console → Project Settings → Add Android App
+<<<<<<< HEAD
   → Package name: com.flousy.app
+=======
+  → Package name: com.luigiagentz.smartjib
+>>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)
   → SHA-1: (from your signing key, run `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`)
   → Download google-services.json
   → Place at: apps/mobile/google-services.json
