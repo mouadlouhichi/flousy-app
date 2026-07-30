@@ -25,8 +25,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   isConfigured: boolean;
-  signInEmail: (e: string, p: string) => Promise<void>;
-  signUpEmail: (e: string, p: string, displayName?: string) => Promise<void>;
+  signInEmail: (e: string, p: string) => Promise<UserProfile | null>;
+  signUpEmail: (e: string, p: string, displayName?: string) => Promise<UserProfile | null>;
   signInGoogle: () => Promise<boolean>;
   signOut: () => Promise<void>;
   sendResetEmail: (email: string) => Promise<void>;
@@ -73,8 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const syncUserProfile = async (u: User, displayName?: string): Promise<boolean> => {
+  const syncUserProfile = async (
+    u: User,
+    displayName?: string,
+  ): Promise<{ profile: UserProfile | null; isNewUser: boolean }> => {
     let isNewUser = false;
+    let result: UserProfile | null = null;
     try {
       let p = await getUserProfile(u.uid);
       if (!p) {
@@ -91,21 +95,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         p.displayName = displayName;
         await setUserProfile(u.uid, { displayName });
       }
+      result = p;
       setProfile(p);
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
     }
-    return isNewUser;
+    return { profile: result, isNewUser };
   };
 
-  const signInEmail = async (e: string, p: string) => {
+  const signInEmail = async (e: string, p: string): Promise<UserProfile | null> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     const res = await signInWithEmailAndPassword(auth, e, p);
-    await syncUserProfile(res.user);
+    const { profile: synced } = await syncUserProfile(res.user);
     trackEvent('login', { method: 'email' });
+    return synced;
   };
 
-  const signUpEmail = async (e: string, p: string, displayName?: string) => {
+  const signUpEmail = async (e: string, p: string, displayName?: string): Promise<UserProfile | null> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     const res = await createUserWithEmailAndPassword(auth, e, p);
     if (displayName && res.user) {
@@ -115,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // non-blocking
       }
     }
-    await syncUserProfile(res.user, displayName);
+    const { profile: synced } = await syncUserProfile(res.user, displayName);
     trackEvent('sign_up', { method: 'email' });
     if (res.user && !res.user.emailVerified) {
       try {
@@ -124,13 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // non-blocking
       }
     }
+    return synced;
   };
 
   const signInGoogle = async (): Promise<boolean> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      const isNew = await syncUserProfile(res.user);
+      const { isNewUser: isNew } = await syncUserProfile(res.user);
       trackEvent(isNew ? 'sign_up' : 'login', { method: 'google' });
       return isNew;
     } catch (err: any) {

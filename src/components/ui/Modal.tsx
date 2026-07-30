@@ -1,5 +1,8 @@
+'use client';
+
 import { AppIcon } from '@/components/ui/app-icon';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion, type Transition } from 'motion/react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -13,6 +16,18 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children, triggerRef, className = '' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const reduceMotion = useReducedMotion();
+
+  // Bottom-sheet layout lives below the `sm` breakpoint (see the container
+  // classes below: `items-end sm:items-center`), so match it exactly.
+  const [isMobileSheet, setIsMobileSheet] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 639px)');
+    const onChange = () => setIsMobileSheet(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   // Lock background scroll & handle Escape key
   useEffect(() => {
@@ -57,42 +72,75 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
     };
   }, [isOpen, onClose, triggerRef]);
 
-  if (!isOpen) return null;
+  // Enter/exit motion. On mobile the sheet pops up from the bottom edge with
+  // a spring; on desktop the centered dialog fades in with a slight rise.
+  const sheetInitial = reduceMotion
+    ? { opacity: 0 }
+    : isMobileSheet
+      ? { y: '110%' }
+      : { opacity: 0, scale: 0.96, y: 16 };
+  const sheetAnimate = reduceMotion
+    ? { opacity: 1 }
+    : isMobileSheet
+      ? { y: '0%' }
+      : { opacity: 1, scale: 1, y: 0 };
+  const sheetExit = reduceMotion
+    ? { opacity: 0 }
+    : isMobileSheet
+      ? { y: '110%' }
+      : { opacity: 0, scale: 0.97, y: 8 };
+  const sheetTransition: Transition = reduceMotion
+    ? { duration: 0.15 }
+    : isMobileSheet
+      ? { type: 'spring', stiffness: 400, damping: 32, mass: 0.9 }
+      : { duration: 0.22, ease: [0.32, 0.72, 0, 1] };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-surface/60 backdrop-blur-[8px] p-margin-mobile md:p-margin-desktop transition-opacity"
-      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`w-full max-w-lg bg-surface rounded-t-3xl sm:rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] border border-outline-variant overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] ${className}`}
-      >
-        {/* Drag handle on mobile */}
-        <div className="w-full flex justify-center pt-2 pb-1 sm:hidden">
-          <div className="w-12 h-1.5 bg-outline-variant rounded-full"></div>
-        </div>
-
-        {/* Header */}
-        <div className="px-4 py-2 sm:px-lg sm:pt-sm sm:pb-md flex justify-between items-center border-b border-surface-variant">
-          <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md text-on-surface">{title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close modal"
-            className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-surface/60 backdrop-blur-[8px] p-margin-mobile md:p-margin-desktop"
+          onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            initial={sheetInitial}
+            animate={sheetAnimate}
+            exit={sheetExit}
+            transition={sheetTransition}
+            className={`w-full max-w-lg bg-surface rounded-t-3xl sm:rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] border border-outline-variant overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] ${className}`}
           >
-            <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
-          </button>
-        </div>
+            {/* Drag handle on mobile */}
+            <div className="w-full flex justify-center pt-2 pb-1 sm:hidden">
+              <div className="w-12 h-1.5 bg-outline-variant rounded-full"></div>
+            </div>
 
-        {/* Body */}
-        <div className="p-4 sm:p-lg overflow-y-auto flex-1">{children}</div>
-      </div>
-    </div>
+            {/* Header */}
+            <div className="px-4 py-2 sm:px-lg sm:pt-sm sm:pb-md flex justify-between items-center border-b border-surface-variant">
+              <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md text-on-surface">{title}</h2>
+              <button
+                onClick={onClose}
+                aria-label="Close modal"
+                className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
+              >
+                <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-lg overflow-y-auto flex-1">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
