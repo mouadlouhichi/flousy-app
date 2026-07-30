@@ -324,7 +324,7 @@ export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: str
   const member: Partial<HouseholdMember> = { ...invitedMember, userId, displayName: displayName || invitedMember.displayName, status: 'active', joinedAt: new Date().toISOString() };
   // Authenticated members are indexed by their uid, allowing rules to authorise shared data reads.
   await setDoc(doc(db, 'households', invite.householdId, 'members', userId), cleanUndefined(member));
-  await setDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId), { status: 'inactive' }, { merge: true });
+  await setDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId), { status: 'inactive', userId }, { merge: true });
   await setDoc(doc(db, 'householdInvites', invite.id), { status: 'accepted' }, { merge: true });
 }
 
