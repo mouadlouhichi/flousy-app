@@ -177,16 +177,6 @@
           "additionalProperties": { "type": "number" },
           "description": "Planned amount per category for fixed bills"
         },
-        "categoryBudgets": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: planned maximum per category"
-        },
-        "rolloverFromPrevious": {
-          "type": "object",
-          "additionalProperties": { "type": "number" },
-          "description": "Pro feature: amounts rolled over from previous month"
-        },
         "activeCategories": { "type": "array", "items": { "type": "string" } },
         "categoryColors": {
           "type": "object",
