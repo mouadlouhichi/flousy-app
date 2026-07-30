@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'Flousy budget tracker for needs, wants, savings, and money places';
+export const alt = 'SmartJib budget tracker for needs, wants, savings, and money places';
 export const size = {
   width: 1200,
   height: 630,
@@ -86,9 +86,9 @@ export default function OpenGraphImage() {
                 fontWeight: 800,
               }}
             >
-              F
+              S
             </div>
-            <div style={{ display: 'flex', fontSize: 34, fontWeight: 750 }}>Flousy</div>
+            <div style={{ display: 'flex', fontSize: 34, fontWeight: 750 }}>SmartJib</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>

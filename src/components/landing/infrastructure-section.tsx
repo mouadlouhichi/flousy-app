@@ -61,7 +61,7 @@ export function InfrastructureSection() {
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
               Everything you need to budget well is free, forever. When you
               want deeper insight into your habits and a little help staying
-              on track, Flousy Pro is right there.
+              on track, SmartJib Pro is right there.
             </p>
 
             {/* Stats */}

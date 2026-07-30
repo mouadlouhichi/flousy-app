@@ -27,12 +27,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   }
 
   const path = `/blog/${post.slug}`;
-  const socialTitle = `${post.title} · Flousy`;
+  const socialTitle = `${post.title} · SmartJib`;
 
   return {
     title: post.title,
     description: post.excerpt,
-    authors: [{ name: 'Flousy Team' }],
+    authors: [{ name: 'SmartJib Team' }],
     robots: {
       index: true,
       follow: true,
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       locale: 'en_US',
       publishedTime: post.dateTime,
       modifiedTime: post.dateTime,
-      authors: ['Flousy Team'],
+      authors: ['SmartJib Team'],
       images: [OG_IMAGE],
     },
     twitter: {
@@ -100,7 +100,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     },
     author: {
       '@type': 'Organization',
-      name: 'Flousy Team',
+      name: 'SmartJib Team',
       url: SITE_URL,
     },
     publisher: {
@@ -184,7 +184,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-foreground/10 pt-6 font-mono text-sm text-muted-foreground">
-                <span>By Flousy Team</span>
+                <span>By SmartJib Team</span>
                 <span aria-hidden="true" className="text-foreground/20">
                   |
                 </span>
@@ -233,7 +233,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
             <div className="mt-16 border-y border-foreground/10 py-8">
               <p className="mb-5 text-muted-foreground">
-                Flousy keeps budget envelopes separate from bank, home, and wallet balances.
+                SmartJib keeps budget envelopes separate from bank, home, and wallet balances.
               </p>
               <Link
                 href="/login"

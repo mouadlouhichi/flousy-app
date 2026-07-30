@@ -5,7 +5,7 @@ import { StaticPageShell } from '@/components/static/page-shell';
 import { BLOG_POSTS } from '@/lib/blog';
 import { OG_IMAGE, SITE_NAME } from '@/lib/seo';
 
-const description = 'Practical guides from Flousy about budgeting methods, money places, and building reliable spending habits.';
+const description = 'Practical guides from SmartJib about budgeting methods, money places, and building reliable spending habits.';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     canonical: '/blog',
   },
   openGraph: {
-    title: 'Budgeting Guides · Flousy',
+    title: 'Budgeting Guides · SmartJib',
     description,
     url: '/blog',
     siteName: SITE_NAME,
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Budgeting Guides · Flousy',
+    title: 'Budgeting Guides · SmartJib',
     description,
     images: [OG_IMAGE.url],
   },
@@ -39,7 +39,7 @@ export default function BlogPage() {
     <StaticPageShell
       eyebrow="Blog"
       title="Notes on money and habits."
-      subtitle="Short, practical writing about budgeting well — from the team building Flousy."
+      subtitle="Short, practical writing about budgeting well — from the team building SmartJib."
       maxWidth="max-w-4xl"
     >
       <div className="divide-y divide-foreground/10 border-y border-foreground/10">

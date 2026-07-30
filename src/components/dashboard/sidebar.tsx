@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -25,11 +26,16 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
       {/* Brand Logo */}
       <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
-        <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-xs">
-          <AppIcon name="account_balance_wallet" className=" text-[24px]" />
-        </div>
+        <Image
+          src="/logo.png"
+          alt="SmartJib logo"
+          width={40}
+          height={40}
+          className="object-contain"
+          priority
+        />
         <span className="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">
-          Flousy
+          SmartJib
         </span>
       </div>
 

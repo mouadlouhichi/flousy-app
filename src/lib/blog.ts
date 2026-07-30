@@ -35,7 +35,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
       {
         heading: "The first question: what is the money for?",
         paragraphs: [
-          'This is the planning side of budgeting. Flousy groups a plan into needs, wants, and savings. Categories make those broad envelopes useful: rent and basic groceries can sit under needs, while dining out or entertainment can sit under wants.',
+          'This is the planning side of budgeting. SmartJib groups a plan into needs, wants, and savings. Categories make those broad envelopes useful: rent and basic groceries can sit under needs, while dining out or entertainment can sit under wants.',
           'The answer should remain meaningful even if you move cash from the bank to your wallet. A transfer changes where the money is held, but it does not turn grocery money into entertainment money or change the purpose of your savings.',
         ],
         bullets: [
@@ -77,7 +77,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
         heading: 'Clarity comes from keeping both views',
         paragraphs: [
           'A category-only budget can show that you overspent on dining out, but not whether the missing cash came from your wallet or bank. A balance-only tracker can show how much is in each place, but not whether that money is reserved for next week’s rent.',
-          'Keeping purpose and location separate provides both answers without forcing one set of labels to do two jobs. That distinction is the basis of Flousy’s needs, wants, and savings envelopes and its bank, home, and wallet money places.',
+          'Keeping purpose and location separate provides both answers without forcing one set of labels to do two jobs. That distinction is the basis of SmartJib’s needs, wants, and savings envelopes and its bank, home, and wallet money places.',
         ],
       },
     ],
@@ -108,13 +108,13 @@ export const BLOG_POSTS: readonly BlogPost[] = [
           'Use percentages as planning guides, not as a verdict. A realistic budget you can follow is more useful than an ideal split that fails every month.',
       },
       {
-        heading: 'The four strategies available in Flousy',
+        heading: 'The four strategies available in SmartJib',
         paragraphs: [
-          'Flousy offers four strategies. Each one divides income into needs, wants, and savings, while still letting you edit category caps to match your month.',
+          'SmartJib offers four strategies. Each one divides income into needs, wants, and savings, while still letting you edit category caps to match your month.',
         ],
         bullets: [
           '50/30/20 uses 50% for needs, 30% for wants, and 20% for savings. It is a balanced starting point when essentials fit near half of income.',
-          'Zero-based budgeting starts at 60% for needs, 25% for wants, and 15% for savings in Flousy. Its core habit is giving all income an explicit job rather than leaving money unplanned.',
+          'Zero-based budgeting starts at 60% for needs, 25% for wants, and 15% for savings in SmartJib. Its core habit is giving all income an explicit job rather than leaving money unplanned.',
           'Envelope budgeting starts at 55% for needs, 35% for wants, and 10% for savings. It suits people who want visible category limits and frequent spending checks.',
           'Pay-yourself-first uses 45% for needs, 25% for wants, and 30% for savings. It puts a larger savings allocation in place before optional spending.',
         ],

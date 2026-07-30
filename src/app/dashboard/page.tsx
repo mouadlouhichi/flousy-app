@@ -3,7 +3,7 @@ import { OverviewScreen } from '@/components/dashboard/screens/overview-screen';
 
 export const metadata: Metadata = {
   title: 'Dashboard Overview',
-  description: 'Your private Flousy budgeting dashboard.',
+  description: 'Your private SmartJib budgeting dashboard.',
   robots: { index: false, follow: false },
 };
 

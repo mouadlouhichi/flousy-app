@@ -54,7 +54,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
             id="ios-install-title"
             className="font-headline-sm text-headline-sm font-extrabold text-on-surface"
           >
-            Install Flousy
+            Install SmartJib
           </h2>
           <button
             ref={closeRef}
@@ -68,7 +68,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
         </div>
 
         <p className="mb-5 text-body-md text-on-surface-variant">
-          Add Flousy to your Home Screen for a full-screen, app-like experience.
+          Add SmartJib to your Home Screen for a full-screen, app-like experience.
         </p>
 
         <ol className="space-y-3">

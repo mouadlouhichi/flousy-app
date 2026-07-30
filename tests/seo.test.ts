@@ -29,7 +29,7 @@ describe('SEO and GEO configuration', () => {
   });
 
   it('keeps the free-plan description identical in the FAQ and llms.txt', () => {
-    const pricingAnswer = LANDING_FAQS.find((faq) => faq.question === 'Is Flousy free?')?.answer;
+    const pricingAnswer = LANDING_FAQS.find((faq) => faq.question === 'Is SmartJib free?')?.answer;
     assert.ok(pricingAnswer);
     assert.ok(llmsText.includes(pricingAnswer));
   });

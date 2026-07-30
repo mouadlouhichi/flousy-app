@@ -37,15 +37,15 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Flousy - Free Private Budget Tracker & Money Manager App',
-    template: '%s · Flousy',
+    default: 'SmartJib - Free Private Budget Tracker & Money Manager App',
+    template: '%s · SmartJib',
   },
   description:
-    'Flousy is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.',
-  applicationName: 'Flousy',
-  authors: [{ name: 'Flousy Team' }],
-  creator: 'Flousy Team',
-  publisher: 'Flousy',
+    'SmartJib is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.',
+  applicationName: 'SmartJib',
+  authors: [{ name: 'SmartJib Team' }],
+  creator: 'SmartJib Team',
+  publisher: 'SmartJib',
   keywords: [
     'budget tracker',
     'expense manager',
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     'needs wants savings budget',
     'money place tracking',
     'budgeting',
-    'flousy',
+    'smartjib',
     'money',
     'free',
     'dirham',
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'Flousy',
+    title: 'SmartJib',
     statusBarStyle: 'default',
   },
   icons: {

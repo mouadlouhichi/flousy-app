@@ -1,20 +1,18 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { InstallButton } from '@/components/pwa/install-button';
-import { useCurrency } from '@/lib/currency-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
 
 /** Main header bar: page title, month selector and action tools. */
 export function DashboardHeader() {
   const pathname = usePathname();
-  const { format } = useCurrency();
   const {
     month,
-    isMounted,
     currentMonthKey,
     handlePrevMonth,
     handleNextMonth,
@@ -34,19 +32,18 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
       <div className="flex self-center gap-3 ">
-        {/* Mobile Logo + Balance */}
-        <div className="md:hidden flex flex-col">
-          <div className="flex items-center gap-2">
-            <AppIcon name="account_balance_wallet" className=" text-primary text-[24px]" />
-            <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
-              Flousy
-            </span>
-          </div>
-          <span className="text-[11px] text-on-surface-variant font-medium">
-            Total Balance:{' '}
-            {isMounted
-              ? format((month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0))
-              : '0.00 MAD'}
+        {/* Mobile Logo */}
+        <div className="md:hidden flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="SmartJib logo"
+            width={26}
+            height={28}
+            className="object-contain"
+            priority
+          />
+          <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
+            SmartJib
           </span>
         </div>
 

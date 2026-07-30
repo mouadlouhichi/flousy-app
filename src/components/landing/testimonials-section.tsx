@@ -5,14 +5,14 @@ import { useLightLanguage } from "@/lib/i18n-light";
 
 const testimonials = [
   {
-    quote: "I finally stopped guessing where my cash went. Flousy showed me my wallet was leaking money I thought was still in the bank.",
+    quote: "I finally stopped guessing where my cash went. SmartJib showed me my wallet was leaking money I thought was still in the bank.",
     author: "Salma Idrissi",
     role: "Freelance designer",
     company: "Casablanca",
     metric: "20% more saved monthly",
   },
   {
-    quote: "The budgeting style Flousy suggested just clicks. My rent and groceries never eat into my fun money anymore, because the app won't let them.",
+    quote: "The budgeting style SmartJib suggested just clicks. My rent and groceries never eat into my fun money anymore, because the app won't let them.",
     author: "Yassine Amrani",
     role: "Software engineer",
     company: "Rabat",

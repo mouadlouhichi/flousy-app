@@ -9,10 +9,10 @@ Here is the to-do list for the remaining tasks from the SEOptimer audit. These a
 
 ## 📱 Social Media & Third-Party Accounts (Low Priority)
 *I have already added the links to the website's footer, but you need to actually create and configure these profiles.*
-- [ ] **Create a Facebook Page:** Set up a business page for Flousy and ensure the handle matches `facebook.com/flousyapp`.
+- [ ] **Create a Facebook Page:** Set up a business page for SmartJib and ensure the handle matches `facebook.com/flousyapp`.
 - [ ] **Create an X (Twitter) Profile:** Claim the `@flousyapp` handle.
 - [ ] **Create an Instagram Profile:** Claim the `@flousyapp` handle.
-- [ ] **Create a LinkedIn Company Page:** Set up a company page for Flousy.
+- [ ] **Create a LinkedIn Company Page:** Set up a company page for SmartJib.
 - [ ] **Create a YouTube Channel:** Claim the `@flousyapp` handle.
 - [ ] **Install a Facebook Pixel (Optional):** If you plan on running Meta/Facebook Ads in the future, you will need to generate a Facebook Pixel ID from your Meta Business Manager. Once you have it, we can easily add it to the website's code alongside the Vercel Analytics.
 
@@ -20,5 +20,5 @@ Here is the to-do list for the remaining tasks from the SEOptimer audit. These a
 - [ ] **Execute a Link Building Strategy:** The audit flagged this as "High Priority". You need to get other reputable websites, finance blogs, or directory listings to link back to `https://flousy.app`. This signals authority to Google and will significantly boost your rankings.
 
 ## ℹ️ Safe to Ignore (False Positives)
-- [x] **Remove Inline Styles:** The report flagged inline styles as a negative. In modern frameworks like React and Next.js (which Flousy uses), inline styles are standard practice for handling dynamic widths, progress bars, and animations. This is a false positive from SEOptimer and will not harm your actual Google ranking. 
+- [x] **Remove Inline Styles:** The report flagged inline styles as a negative. In modern frameworks like React and Next.js (which SmartJib uses), inline styles are standard practice for handling dynamic widths, progress bars, and animations. This is a false positive from SEOptimer and will not harm your actual Google ranking. 
 - [x] **Optimize for Mobile PageSpeed:** Next.js and Vercel natively optimize mobile loading out of the box. SEOptimer sometimes runs its mobile test from a distant US server causing a slight delay. Your core metrics (like Core Web Vitals) will naturally perform well in production.

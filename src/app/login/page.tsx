@@ -3,6 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema } from '../../lib/validation';
@@ -154,9 +155,17 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] bg-surface p-6 sm:p-8 rounded-[28px] border border-outline-variant/50 shadow-md flex flex-col gap-5">
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
-          <a href="/" className="flex flex-col items-center gap-1 group">
+          <a href="/" className="flex flex-col items-center gap-1.5 group">
+            <Image
+              src="/logo.png"
+              alt="SmartJib logo"
+              width={64}
+              height={64}
+              className="object-contain"
+              priority
+            />
             <span className="font-display text-[32px] font-extrabold text-primary tracking-tight">
-              Flousy
+              SmartJib
             </span>
           </a>
           <p className="text-[15px] font-medium text-on-surface-variant mt-0.5">
@@ -176,7 +185,7 @@ export default function LoginPage() {
               <span>Demo Mode Available</span>
             </div>
             <p className="text-[13px] text-on-surface-variant leading-snug">
-              Experience Flousy instantly with sample data in local preview mode.
+              Experience SmartJib instantly with sample data in local preview mode.
             </p>
             <button
               type="button"

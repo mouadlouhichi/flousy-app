@@ -3,7 +3,7 @@ import { DashboardLayoutClient } from '@/components/dashboard/dashboard-layout-c
 
 export const metadata: Metadata = {
   title: 'Dashboard',
-  description: 'Your private Flousy budgeting dashboard.',
+  description: 'Your private SmartJib budgeting dashboard.',
   robots: {
     index: false,
     follow: false,
