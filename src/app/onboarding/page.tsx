@@ -8,7 +8,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { STRATEGIES, StrategyId, calculateEnvelopeAmounts, createNewMonth } from '../../lib/store';
-import { saveMonthBudget, setUserProfile } from '../../lib/db';
+import { saveMonthBudget } from '../../lib/db';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 
 interface CategoryItem {
@@ -30,7 +30,7 @@ const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, updateProfileData } = useAuth();
   const { currency, setCurrency, symbol, format } = useCurrency();
 
   const [step, setStep] = useState<number>(1);
@@ -172,9 +172,11 @@ export default function OnboardingPage() {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Firebase timeout')), 2000)
         );
+        // updateProfileData also flips the in-context profile so route guards
+        // immediately treat onboarding as complete.
         const dbPromise = Promise.all([
           saveMonthBudget(user.uid, monthKey, newMonth),
-          setUserProfile(user.uid, { currency, onboardingComplete: true }),
+          updateProfileData({ currency, onboardingComplete: true }),
         ]);
         await Promise.race([dbPromise, timeoutPromise]);
       } catch (e) {
