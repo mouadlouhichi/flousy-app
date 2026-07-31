@@ -18,12 +18,8 @@ tsconfig.tsbuildinfo
 apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/.expo/
-apps/mobile/google-services.json
 apps/mobile/GoogleService-Info.plist
 apps/mobile/*.keystore
 apps/mobile/*.jks
 apps/mobile/pc-api-key.json
-<<<<<<< HEAD
-=======
 apps/mobile/.env
->>>>>>> 6b570ec (feat: configure Android app with real Firebase credentials)
