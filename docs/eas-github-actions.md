@@ -32,6 +32,17 @@ git commit -m "ci: EAS Android build workflow"
 git push origin arena/019fb60a-flousy-app
 ```
 
+## Triggering a build afterwards
+
+```bash
+bash scripts/trigger-eas-build.sh
+```
+
+Writes a timestamp to `apps/mobile/.build-trigger` and pushes, which matches the
+workflow's `apps/mobile/**` path filter. Needed because `workflow_dispatch` is
+unavailable until `eas-build.yml` exists on the default branch (GitHub only
+lists dispatchable workflows from the default branch).
+
 ## How the workflow triggers
 
 | Trigger | Result |
