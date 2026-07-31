@@ -360,3 +360,15 @@ export async function fetchHouseholdMonthsForTrends(householdId: string, current
   }
   return results;
 }
+
+// Contributor invoices are separate from the private monthly budget document.
+// This lets rules grant submission access without exposing balances or debts.
+import type { HouseholdInvoice } from './household';
+export function subscribeHouseholdInvoices(householdId: string, onData: (invoices: HouseholdInvoice[]) => void) {
+  if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  return onSnapshot(collection(db, 'households', householdId, 'invoices'), (snap) => onData(snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseholdInvoice))));
+}
+export async function saveHouseholdInvoice(householdId: string, invoice: HouseholdInvoice) {
+  if (!isFirebaseConfigured || !db) return;
+  await setDoc(doc(db, 'households', householdId, 'invoices', invoice.id), cleanUndefined(invoice));
+}

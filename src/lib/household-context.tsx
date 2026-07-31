@@ -7,9 +7,9 @@ import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, House
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
 type HouseholdContextValue = {
-  household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean;
+  household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean;
   payers: HouseholdPayer[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: 'editor' | 'viewer') => Promise<string>;
+  invite: (name: string, email: string, role: 'editor' | 'contributor' | 'viewer') => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
 };
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
@@ -25,6 +25,8 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const myMember = members.find((m) => m.userId === user?.uid);
   const isOwner = myMember?.role === 'owner' || household?.ownerId === user?.uid;
   const canEdit = isOwner || myMember?.role === 'editor';
+  const memberRole = myMember?.role;
+  const isContributor = memberRole === 'contributor';
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) return [{ id: 'household', label: 'Household funds' }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
     const legacy = profile?.householdMembers || [];
@@ -40,7 +42,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     if (!householdId) throw new Error('Create a household first.');
     await saveHouseholdMember(householdId, { id: crypto.randomUUID(), displayName: name.trim(), role: 'profile', status: 'active', avatarColor: COLORS[members.length % COLORS.length] });
   }, [householdId, members.length]);
-  const invite = useCallback(async (name: string, email: string, role: 'editor' | 'viewer') => {
+  const invite = useCallback(async (name: string, email: string, role: 'editor' | 'contributor' | 'viewer') => {
     if (!householdId || !user) throw new Error('Create a household first.');
     const memberId = crypto.randomUUID(), id = crypto.randomUUID(), now = new Date().toISOString();
     await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
@@ -55,6 +57,6 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     await updateProfileData({ activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
   }, [user, profile, updateProfileData]);
   const updateMember = useCallback(async (member: HouseholdMember) => { if (!householdId) return; await saveHouseholdMember(householdId, member); }, [householdId]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, payers, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, payers, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

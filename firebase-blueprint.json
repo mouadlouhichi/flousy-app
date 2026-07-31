@@ -648,6 +648,56 @@
         "expiresAt",
         "status"
       ]
+    },
+    "HouseholdInvoice": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "payerMemberId": {
+          "type": "string"
+        },
+        "submitterId": {
+          "type": "string"
+        },
+        "receiptUrl": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "submitted",
+            "approved",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "amount",
+        "category",
+        "date",
+        "payerMemberId",
+        "submitterId",
+        "status",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -684,6 +734,10 @@
     "/households/{monthKey}/data/savings": {
       "schema": "SavingsData",
       "description": "Shared savings goals"
+    },
+    "/households/{monthKey}/invoices/{monthKey}": {
+      "schema": "HouseholdInvoice",
+      "description": "Contributor invoice submissions isolated from private budgets"
     }
   }
 }

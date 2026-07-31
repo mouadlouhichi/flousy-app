@@ -13,7 +13,9 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { PRO_FEATURES } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
 import { useDashboard } from '../dashboard-provider';
+import { useHousehold } from '@/lib/household-context';
 import { HouseholdModal } from '@/components/modals/HouseholdModal';
+import { ContributorInvoiceForm } from '../contributor-invoice-form';
 
 /**
  * Account / profile page.
@@ -28,6 +30,8 @@ export function ProfileScreen() {
   const { language, setLanguage } = useLanguage();
   const { month, goals, currentMonthKey, isPro, openProModal, openCsvModal, openIncomeModal } =
     useDashboard();
+
+  const { isContributor } = useHousehold();
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
@@ -196,6 +200,8 @@ export function ProfileScreen() {
           </div>
         </div>
       </div>
+
+      <ContributorInvoiceForm />
 
       {/* ── Pro features ── */}
       <section className="flex flex-col gap-3">

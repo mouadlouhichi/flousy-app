@@ -31,6 +31,18 @@ service cloud.firestore {
         allow update: if householdOwner(hid) || (memberId == request.auth.uid && resource.data.email == request.auth.token.email && request.resource.data.userId == request.auth.uid);
         allow delete: if householdOwner(hid);
       }
+      // Contributor invoices are isolated from private monthly balances, debts and savings.
+      match /invoices/{invoiceId} {
+        allow get: if householdEditor(hid) || (signedIn() && resource.data.submitterId == request.auth.uid);
+        allow list: if householdEditor(hid);
+        allow create: if householdMember(hid)
+          && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor', 'contributor']
+          && request.resource.data.submitterId == request.auth.uid
+          && request.resource.data.status == 'submitted';
+        allow update: if householdEditor(hid);
+        allow delete: if householdOwner(hid);
+      }
+
       match /months/{key} { allow read: if householdMember(hid); allow write: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500); }
       match /data/savings { allow read: if householdMember(hid); allow write: if householdEditor(hid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
     }
