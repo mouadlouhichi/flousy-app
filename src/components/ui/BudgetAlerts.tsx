@@ -109,7 +109,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
             </button>
           </div>
 
-          <div className="space-y-xs max-h-60 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Household invitations</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">Household invitation</span><span className="block text-xs text-on-surface-variant">Open to join as {invite.role}.</span></Link>)}</div>}
             <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Budget health</p>
             {alerts.length > 0 ? (
