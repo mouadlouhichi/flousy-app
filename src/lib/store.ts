@@ -260,6 +260,7 @@ export interface UserProfile {
   language?: 'en' | 'fr' | 'ar';
   householdMembers?: string[]; // legacy local person labels
   activeHouseholdId?: string;
+  activeWorkspace?: 'personal' | 'household';
   householdIds?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month

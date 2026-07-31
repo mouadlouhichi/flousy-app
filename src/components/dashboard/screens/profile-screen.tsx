@@ -35,7 +35,7 @@ export function ProfileScreen() {
   const { month, goals, currentMonthKey, isPro, openProModal, openCsvModal, openIncomeModal } =
     useDashboard();
 
-  const { isContributor } = useHousehold();
+  const { isContributor, household, workspace, selectWorkspace, memberRole } = useHousehold();
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
@@ -80,6 +80,14 @@ export function ProfileScreen() {
 
   return (
     <div className="flex flex-col gap-6 pb-24">
+      <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Workspace</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => selectWorkspace('personal')} className={`rounded-xl border p-3 text-left ${workspace === 'personal' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}><span className="block font-bold">My SmartJib</span><span className="text-xs text-on-surface-variant">Private personal dashboard</span></button>
+          {profile?.activeHouseholdId && <button type="button" onClick={() => selectWorkspace('household')} className={`rounded-xl border p-3 text-left ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}><span className="block font-bold">{household?.name || 'Household Dashboard'}</span><span className="text-xs text-on-surface-variant">{memberRole || 'member'} access</span></button>}
+        </div>
+      </section>
+
       {/* ── Identity card ── */}
       <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-5 sm:p-6">
         {/* Soft decorative glow, clipped by the card's overflow-hidden. */}

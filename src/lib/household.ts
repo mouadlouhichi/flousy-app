@@ -1,6 +1,7 @@
 import type { MonthBudget } from './store';
+import type { HouseholdPermissions } from './household-rbac';
 
-export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'profile';
+export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
 
 export interface Household {
@@ -20,6 +21,7 @@ export interface HouseholdMember {
   role: HouseholdRole;
   status: HouseholdMemberStatus;
   avatarColor: string;
+  permissions?: HouseholdPermissions;
   invitedAt?: string;
   joinedAt?: string;
 }
@@ -29,7 +31,7 @@ export interface HouseholdInvite {
   householdId: string;
   memberId: string;
   email: string;
-  role: Extract<HouseholdRole, 'editor' | 'contributor' | 'viewer'>;
+  role: Extract<HouseholdRole, 'editor' | 'contributor' | 'viewer' | 'custom'>;
   createdBy: string;
   createdAt: string;
   expiresAt: string;

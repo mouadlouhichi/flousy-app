@@ -382,6 +382,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "activeWorkspace": {
+          "type": "string",
+          "enum": [
+            "personal",
+            "household"
+          ]
         }
       },
       "required": [
