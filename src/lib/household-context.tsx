@@ -60,6 +60,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     const invite = await getHouseholdInvite(code.trim());
     if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) throw new Error('This invitation is invalid, expired, or belongs to a different email.');
     await acceptHouseholdInvite(invite, user.uid, profile.displayName || user.email?.split('@')[0] || 'Member');
+    setPendingInvites(current => current.filter(item => item.id !== invite.id));
     await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
   }, [user, profile, updateProfileData]);
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { InstallButton } from '@/components/pwa/install-button';
-import { HouseholdInviteNotifications } from './household-invite-notifications';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
@@ -25,7 +24,7 @@ export function DashboardHeader() {
   } = useDashboard();
 
   const { workspace, canEditArea } = useHousehold();
-  const canAddExpense = workspace === 'personal' || canEditArea('expenses', true);
+  const canAddExpense = !!profile && (workspace === 'personal' || canEditArea('expenses', true));
 
   const activeScreen = getScreenIdFromPath(pathname);
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
@@ -88,7 +87,6 @@ export function DashboardHeader() {
         <InstallButton compact />
 
         <BudgetAlerts month={month} />
-        <HouseholdInviteNotifications />
 
         {canAddExpense && <button
           onClick={() => openExpenseModal()}
