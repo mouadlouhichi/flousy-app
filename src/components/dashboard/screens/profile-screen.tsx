@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -26,6 +27,8 @@ import { HouseholdInvoiceReview } from '../household-invoice-review';
  * their plan unlocks, free users get the same list as an upgrade pitch.
  */
 export function ProfileScreen() {
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get('invite') || undefined;
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage } = useLanguage();
@@ -39,6 +42,7 @@ export function ProfileScreen() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [householdOpen, setHouseholdOpen] = useState(false);
+  useEffect(() => { if (inviteCode) setHouseholdOpen(true); }, [inviteCode]);
 
   const currentTheme = profile?.theme || 'system';
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
@@ -444,7 +448,7 @@ export function ProfileScreen() {
         </div>
       </section>
 
-      <HouseholdModal isOpen={householdOpen} onClose={() => setHouseholdOpen(false)} onOpenPro={openProModal} month={month} />
+      <HouseholdModal isOpen={householdOpen} onClose={() => setHouseholdOpen(false)} onOpenPro={openProModal} month={month} initialInviteCode={inviteCode} />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}

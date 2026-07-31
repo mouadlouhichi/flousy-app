@@ -7,9 +7,9 @@ import { isProUser } from '@/lib/pro-features';
 import { useHousehold } from '@/lib/household-context';
 import type { MonthBudget } from '@/lib/store';
 
-export function HouseholdModal({ isOpen, onClose, onOpenPro, month }: { isOpen: boolean; onClose: () => void; onOpenPro?: () => void; month?: MonthBudget }) {
+export function HouseholdModal({ isOpen, onClose, onOpenPro, month, initialInviteCode }: { isOpen: boolean; onClose: () => void; onOpenPro?: () => void; month?: MonthBudget; initialInviteCode?: string }) {
   const { profile } = useAuth(); const isPro = isProUser(profile); const { household, members, isOwner, create, invite, acceptInvite, updateMember } = useHousehold();
-  const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [memberName, setMemberName] = useState(''); const [role, setRole] = useState<'editor' | 'contributor' | 'viewer'>('contributor'); const [code, setCode] = useState(''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false);
+  const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [memberName, setMemberName] = useState(''); const [role, setRole] = useState<'editor' | 'contributor' | 'viewer'>('contributor'); const [code, setCode] = useState(initialInviteCode || ''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false);
   const run = async (fn: () => Promise<void>) => { setBusy(true); setNotice(''); try { await fn(); } catch (e) { setNotice(e instanceof Error ? e.message : 'Something went wrong.'); } finally { setBusy(false); } };
   const contributions = members.filter(m => m.status === 'active' && m.role !== 'profile').map(m => ({ member: m, total: [...(month?.variableExpenses || []), ...(month?.fixedExpenses || [])].filter(e => e.payerMemberId === m.id).reduce((sum, e) => sum + e.amount, 0) }));
   const paidTotal = contributions.reduce((sum, item) => sum + item.total, 0);
