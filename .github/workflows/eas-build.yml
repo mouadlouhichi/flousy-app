@@ -1,6 +1,20 @@
 name: EAS Build
 
+# Install this file to .github/workflows/eas-build.yml
+#   bash scripts/setup-eas-ci.sh
+# (Arena's GitHub App token cannot write .github/workflows/**, so it lives here
+# in ci/ and is copied into place by a human-run script.)
+
 on:
+  # EVERY commit pushed to ANY branch queues an Android development build on
+  # EAS. Builds show up at:
+  # https://expo.dev/accounts/mouadlouhichi/projects/smartjib/builds
+  #
+  # Escape hatch: put [skip eas] (or [skip ci]) in the commit message.
+  push:
+    branches:
+      - "**"
+
   workflow_dispatch:
     inputs:
       profile:
@@ -21,60 +35,148 @@ on:
           - android
           - ios
           - all
+      wait:
+        description: "Wait for the build to finish (uses CI minutes)"
+        required: false
+        default: false
+        type: boolean
+      submit:
+        description: "Submit to Play Store after a production build"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  # Rapid successive commits: cancel the queued GitHub job that hasn't reached
+  # the `eas build` step yet, so we don't stack up duplicate EAS builds.
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROFILE: ${{ github.event.inputs.profile || 'development' }}
+  PLATFORM: ${{ github.event.inputs.platform || 'android' }}
+  EXPO_ACCOUNT: mouadlouhichi
+  EXPO_PROJECT: smartjib
 
 jobs:
   build:
-    name: EAS Build (${{ github.event.inputs.profile }} / ${{ github.event.inputs.platform }})
+    name: EAS ${{ github.event.inputs.profile || 'development' }} / ${{ github.event.inputs.platform || 'android' }}
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'push' ||
+      (
+        !contains(github.event.head_commit.message, '[skip eas]') &&
+        !contains(github.event.head_commit.message, '[skip ci]')
+      )
     steps:
+      - name: Verify EXPO_TOKEN secret is configured
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN repository secret is missing."
+            echo "::error::Add it with: gh secret set EXPO_TOKEN --body '<token>'"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          cache: pnpm
 
       - name: Install dependencies
+        # .npmrc sets node-linker=hoisted so `expo` resolves from apps/mobile/
         run: pnpm install --frozen-lockfile
 
       - name: Setup EAS CLI
-        run: npm install -g eas-cli
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build with EAS
+      - name: Show EAS account
+        run: eas whoami
+
+      - name: Trigger EAS build
+        id: eas
         working-directory: apps/mobile
-        run: eas build --profile ${{ github.event.inputs.profile }} --platform ${{ github.event.inputs.platform }} --non-interactive --wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -o pipefail
+          # Label the build in the Expo dashboard with the commit that produced it.
+          MESSAGE="$(git -C "$GITHUB_WORKSPACE" log -1 --pretty=%s | cut -c1-140) (${GITHUB_SHA::7})"
+          echo "Build message: $MESSAGE"
+          if [ "${{ github.event.inputs.wait }}" = "true" ]; then
+            eas build --profile "$PROFILE" --platform "$PLATFORM" --message "$MESSAGE" --non-interactive --wait
+          else
+            eas build --profile "$PROFILE" --platform "$PLATFORM" --message "$MESSAGE" --non-interactive --no-wait --json \
+              | tee "$RUNNER_TEMP/eas-build.json"
+            node -e '
+              const fs = require("fs");
+              const out = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/eas-build.json", "utf8"));
+              const builds = Array.isArray(out) ? out : [out];
+              const lines = builds.map(b =>
+                `- **${b.platform}** \`${b.buildProfile ?? process.env.PROFILE}\` — [${b.id}](https://expo.dev/accounts/${process.env.EXPO_ACCOUNT}/projects/${process.env.EXPO_PROJECT}/builds/${b.id})`
+              );
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                `## EAS builds queued\n\n${lines.join("\n")}\n\nAll builds: https://expo.dev/accounts/${process.env.EXPO_ACCOUNT}/projects/${process.env.EXPO_PROJECT}/builds\n`);
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, `build_id=${builds[0]?.id ?? ""}\n`);
+            '
+          fi
+
+      - name: Link to dashboard
+        if: always()
+        run: |
+          echo "Builds: https://expo.dev/accounts/${EXPO_ACCOUNT}/projects/${EXPO_PROJECT}/builds"
 
   submit:
     name: Submit to Play Store
     runs-on: ubuntu-latest
     needs: build
-    if: github.event.inputs.profile == 'production'
+    if: github.event.inputs.profile == 'production' && github.event.inputs.submit == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Setup EAS CLI
-        run: npm install -g eas-cli
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Submit to Play Store
+      - name: Restore Play Console service account key
         working-directory: apps/mobile
-        run: eas submit --profile production --platform android --non-interactive
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::PLAY_SERVICE_ACCOUNT_JSON secret is missing (contents of pc-api-key.json)."
+            exit 1
+          fi
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > pc-api-key.json
+
+      - name: Submit latest build
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas submit --profile production --platform android --latest --non-interactive
