@@ -32,7 +32,7 @@
     "@react-native-firebase/auth": "^21.6.0",
     "@react-native-firebase/firestore": "^21.6.0",
     "@react-native-google-signin/google-signin": "^13.0.0",
-    "react-native-mmkv": "^3.0.0",
+    "react-native-mmkv": "~2.12.2",
     "react-hook-form": "^7.62.0",
     "@hookform/resolvers": "^3.9.0",
     "react-i18next": "^15.0.0",

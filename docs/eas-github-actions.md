@@ -145,6 +145,27 @@ grep kotlin android/build.gradle       # classpath must carry :$kotlinVersion
 rm -rf android                          # generated dir is git-ignored
 ```
 
+### `:react-native-mmkv:compileDebugJavaWithJavac` — `cannot find symbol: class NativeMmkvPlatformContextSpec`
+
+Fixed by pinning `react-native-mmkv` to `~2.12.2` in `apps/mobile/package.json`.
+
+`react-native-mmkv` v3 is **New Architecture only**. Its
+`MmkvPlatformContextModule.java` extends a TurboModule spec that its
+`android/build.gradle` only generates inside
+`if (isNewArchitectureEnabled()) { java.srcDirs += ".../generated/source/codegen/java" }`.
+This app runs the old architecture, so the spec never exists and the Java
+compile fails. v2.12.2 is the last old-arch release; the JS API used in
+`apps/mobile/src/lib/storage.ts` (`new MMKV({ id })`, `getString`, `getBoolean`,
+`set`, `delete`, `getAllKeys`) is unchanged, and its CMake only links
+`ReactAndroid::jsi`, which RN 0.76 still exposes.
+
+The alternative is to enable the New Architecture
+(`expo-build-properties` → `android.newArchEnabled: true`) and keep mmkv v3.
+Every other native dependency here (screens, reanimated, gesture-handler, svg,
+safe-area-context, skia, google-signin) guards its new-arch code and supports
+both, so that route is open — but it changes the runtime for the whole app, so
+it isn't the thing to do while chasing a first green build.
+
 ### `The NODE_ENV environment variable is required but was not specified`
 
 Harmless — printed by `:expo-constants:createExpoConfig`; the build continues.
