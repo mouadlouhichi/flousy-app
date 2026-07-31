@@ -1,11 +1,9 @@
-import type { ExpoConfig, ConfigContext } from "expo/config";
-
 const GOOGLE_WEB_CLIENT_ID =
   process.env.GOOGLE_WEB_CLIENT_ID ??
   "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com";
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
-  ...config,
+/** @type {import('expo/config').ExpoConfig} */
+const config = {
   name: "SmartJib",
   slug: "smartjib",
   version: "1.0.0",
@@ -97,4 +95,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
     eas: {},
   },
-});
+};
+
+module.exports = config;
