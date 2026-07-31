@@ -32,6 +32,7 @@ export interface HouseholdInvite {
   memberId: string;
   email: string;
   role: Extract<HouseholdRole, 'editor' | 'contributor' | 'viewer' | 'custom'>;
+  permissions?: HouseholdPermissions;
   createdBy: string;
   createdAt: string;
   expiresAt: string;

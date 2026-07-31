@@ -10,7 +10,7 @@ const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'
 type HouseholdContextValue = {
   household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean; workspace: 'personal' | 'household'; selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>; canViewArea: (area: HouseholdArea) => boolean; canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
   payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: 'editor' | 'contributor' | 'viewer') => Promise<string>;
+  invite: (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
 };
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
@@ -48,11 +48,11 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     if (!householdId) throw new Error('Create a household first.');
     await saveHouseholdMember(householdId, { id: crypto.randomUUID(), displayName: name.trim(), role: 'profile', status: 'active', avatarColor: COLORS[members.length % COLORS.length] });
   }, [householdId, members.length]);
-  const invite = useCallback(async (name: string, email: string, role: 'editor' | 'contributor' | 'viewer') => {
+  const invite = useCallback(async (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => {
     if (!householdId || !user) throw new Error('Create a household first.');
     const memberId = crypto.randomUUID(), id = crypto.randomUUID(), now = new Date().toISOString();
-    await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
-    await createHouseholdInvite({ id, householdId, memberId, email: email.trim().toLowerCase(), role, createdBy: user.uid, createdAt: now, expiresAt: new Date(Date.now() + 14 * 864e5).toISOString(), status: 'pending' });
+    await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, permissions, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
+    await createHouseholdInvite({ id, householdId, memberId, email: email.trim().toLowerCase(), role, permissions, createdBy: user.uid, createdAt: now, expiresAt: new Date(Date.now() + 14 * 864e5).toISOString(), status: 'pending' });
     return id;
   }, [householdId, user, members.length]);
   const acceptInvite = useCallback(async (code: string) => {

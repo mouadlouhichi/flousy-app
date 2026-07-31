@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!email || !householdName || !role || !inviteId || !/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ error: 'A valid recipient, household, role, and invitation are required.' }, { status: 400 });
     }
-    if (!['contributor', 'editor', 'viewer'].includes(role)) {
+    if (!['editor', 'viewer', 'custom'].includes(role)) {
       return NextResponse.json({ error: 'Invalid household role.' }, { status: 400 });
     }
     const baseUrl = process.env.APP_URL || request.nextUrl.origin;
