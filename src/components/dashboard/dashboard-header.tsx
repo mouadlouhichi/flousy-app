@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { InstallButton } from '@/components/pwa/install-button';
+import { HouseholdInviteNotifications } from './household-invite-notifications';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
 
@@ -83,6 +84,7 @@ export function DashboardHeader() {
         <InstallButton compact />
 
         <BudgetAlerts month={month} />
+        <HouseholdInviteNotifications />
 
         <button
           onClick={() => openExpenseModal()}

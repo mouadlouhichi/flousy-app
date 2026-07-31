@@ -2,13 +2,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth-context';
 import { isProUser } from './pro-features';
-import { createHousehold, createHouseholdInvite, getHouseholdInvite, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers } from './db';
+import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
 type HouseholdContextValue = {
   household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean;
-  payers: HouseholdPayer[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
+  payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
   invite: (name: string, email: string, role: 'editor' | 'contributor' | 'viewer') => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
 };
@@ -19,9 +19,11 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const householdId = profile?.activeHouseholdId;
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
   useEffect(() => { setLoading(!!householdId); return subscribeHousehold(householdId, (h) => { setHousehold(h); setLoading(false); }); }, [householdId]);
   useEffect(() => subscribeHouseholdMembers(householdId, setMembers), [householdId]);
+  useEffect(() => subscribePendingHouseholdInvites(user?.email, setPendingInvites), [user?.email]);
   const myMember = members.find((m) => m.userId === user?.uid);
   const isOwner = myMember?.role === 'owner' || household?.ownerId === user?.uid;
   const canEdit = isOwner || myMember?.role === 'editor';
@@ -57,6 +59,6 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     await updateProfileData({ activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
   }, [user, profile, updateProfileData]);
   const updateMember = useCallback(async (member: HouseholdMember) => { if (!householdId) return; await saveHouseholdMember(householdId, member); }, [householdId]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, payers, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

@@ -48,6 +48,8 @@ service cloud.firestore {
     }
     match /householdInvites/{inviteId} {
       allow get: if signedIn() && (resource.data.email == request.auth.token.email || householdOwner(resource.data.householdId));
+      // A recipient's query is constrained to their own email by the client query.
+      allow list: if signedIn() && resource.data.email == request.auth.token.email;
       allow create: if signedIn() && householdOwner(request.resource.data.householdId) && request.resource.data.createdBy == request.auth.uid;
       allow update: if signedIn() && (householdOwner(resource.data.householdId) || (resource.data.email == request.auth.token.email && request.resource.data.status == 'pending' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])));
     }

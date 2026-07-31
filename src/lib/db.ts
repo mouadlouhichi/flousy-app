@@ -6,6 +6,8 @@ import {
   onSnapshot,
   collection,
   getDocs,
+  query,
+  where,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
 import { MonthBudget, SavingGoal, UserProfile, normalizeMonth } from './store';
@@ -371,4 +373,10 @@ export function subscribeHouseholdInvoices(householdId: string, onData: (invoice
 export async function saveHouseholdInvoice(householdId: string, invoice: HouseholdInvoice) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId, 'invoices', invoice.id), cleanUndefined(invoice));
+}
+
+export function subscribePendingHouseholdInvites(email: string | null | undefined, onData: (invites: HouseholdInvite[]) => void) {
+  if (!email || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  const invites = query(collection(db, 'householdInvites'), where('email', '==', email.toLowerCase()), where('status', '==', 'pending'));
+  return onSnapshot(invites, (snap) => onData(snap.docs.map(item => ({ id: item.id, ...item.data() } as HouseholdInvite))));
 }
