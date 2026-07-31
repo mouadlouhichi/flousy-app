@@ -115,6 +115,34 @@ the CI job to go red when the build fails.
 
   After that, all CI builds work unattended.
 
+## Running the app locally
+
+Always start Expo from **`apps/mobile/`**, never the repo root. The root
+`package.json` is the monorepo/Next.js project with no Expo entry, so
+`npx expo start` there fails with:
+
+```
+Unable to resolve "../../App" from "node_modules/expo/AppEntry.js"
+```
+
+and (worse) rewrites the **root** `tsconfig.json` to `extends: expo/tsconfig.base`.
+If that happens, undo it with `git checkout tsconfig.json`.
+
+From the repo root, use the convenience scripts instead:
+
+```bash
+pnpm mobile           # expo start --dev-client  (use with the EAS dev build)
+pnpm mobile:go        # expo start               (Expo Go — limited, see below)
+pnpm mobile:android   # expo run:android         (needs local Android SDK)
+```
+
+or `cd apps/mobile && npx expo start --dev-client`.
+
+**Expo Go won't fully run this app.** It uses native modules (Firebase, MMKV,
+Skia, `expo-dev-client`) that aren't in Expo Go. Install the development APK
+from an EAS build on your device/emulator, then `pnpm mobile` and open the
+project in that dev client. Add `--tunnel` if the phone isn't on the same LAN.
+
 ## Gradle troubleshooting
 
 ### `:expo-modules-core:compileDebugKotlin` — "This version (1.5.15) of the Compose Compiler requires Kotlin version 1.9.25 but you appear to be using Kotlin version 1.9.24"
