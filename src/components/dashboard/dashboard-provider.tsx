@@ -291,7 +291,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (householdId && !isContributor) {
       const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
-        if (data) setMonth(data); else setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, await getPreviousMonth(currentMonthKey)));
+        if (data) {
+          setMonth(data);
+        } else {
+          // A new household starts from the owner's current personal month so
+          // creating collaboration does not make their visible balance vanish.
+          const personal = user && canEdit ? await getMonthBudget(user.uid, currentMonthKey) : null;
+          if (personal && personal.totalBudget > 0) {
+            const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
+            setMonth(initialSharedMonth);
+            saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
+          } else {
+            setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, await getPreviousMonth(currentMonthKey)));
+          }
+        }
         setLoading(false);
       });
       return () => unsub();
@@ -330,7 +343,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, householdId, isContributor, currentMonthKey, profile]);
+  }, [user, householdId, isContributor, canEdit, currentMonthKey, profile]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {

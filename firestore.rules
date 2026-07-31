@@ -17,7 +17,7 @@ service cloud.firestore {
       allow update: if owner(uid) && incoming().plan == existing().plan && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
       allow delete: if owner(uid);
       match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500); }
-      match /data/savings { allow read, write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
+      match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
     }
 
     match /households/{hid} {
