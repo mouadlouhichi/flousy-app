@@ -10,7 +10,6 @@
       "android": {
         "buildType": "apk"
       },
-      "installCommand": "cd ../../ && pnpm install --frozen-lockfile",
       "env": {
         "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
@@ -20,7 +19,6 @@
       "android": {
         "buildType": "apk"
       },
-      "installCommand": "cd ../../ && pnpm install --frozen-lockfile",
       "env": {
         "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
@@ -29,7 +27,6 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "installCommand": "cd ../../ && pnpm install --frozen-lockfile",
       "env": {
         "GOOGLE_WEB_CLIENT_ID": "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com"
       }
