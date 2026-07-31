@@ -143,6 +143,31 @@ Skia, `expo-dev-client`) that aren't in Expo Go. Install the development APK
 from an EAS build on your device/emulator, then `pnpm mobile` and open the
 project in that dev client. Add `--tunnel` if the phone isn't on the same LAN.
 
+## Metro / Babel troubleshooting
+
+### `Cannot find module 'react-native-worklets/plugin'`
+
+Caused by NativeWind drift. `"nativewind": "^4.1.0"` floated to **4.2.6**, which
+depends on `react-native-css-interop@0.2.6` whose `babel.js` hardcodes
+`react-native-worklets/plugin` — the reanimated **4** worklets plugin — while
+this app is on reanimated **3.16** (the Expo SDK 52 pin). Metro's Babel step
+then can't resolve that plugin and bundling fails.
+
+Fixed by pinning `"nativewind": "~4.1.23"` → `react-native-css-interop@0.1.22`,
+whose babel preset uses `react-native-reanimated/plugin` (correct for
+reanimated 3). Do **not** add `react-native-worklets` to satisfy it — that's for
+reanimated 4 and would mismatch the SDK 52 native build.
+
+The three sources that add the reanimated plugin (babel-preset-expo,
+nativewind/babel, and the explicit entry in `babel.config.js`) dedupe to a
+single instance, so the config is correct as written.
+
+### `Could not parse Expo config: ios.googleServicesFile: "./GoogleService-Info.plist"`
+
+Harmless — the repo only ships `GoogleService-Info.plist.example`. `app.config.js`
+now sets `ios.googleServicesFile` only when the real file exists, so the warning
+no longer prints. Android's `google-services.json` is committed and unaffected.
+
 ## Gradle troubleshooting
 
 ### `:expo-modules-core:compileDebugKotlin` — "This version (1.5.15) of the Compose Compiler requires Kotlin version 1.9.25 but you appear to be using Kotlin version 1.9.24"

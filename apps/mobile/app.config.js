@@ -2,6 +2,18 @@ const GOOGLE_WEB_CLIENT_ID =
   process.env.GOOGLE_WEB_CLIENT_ID ??
   "636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com";
 
+const fs = require("fs");
+const path = require("path");
+
+// Only reference the iOS Firebase plist when it actually exists. The repo ships
+// GoogleService-Info.plist.example; without the real file Expo prints
+// "Could not parse Expo config: ios.googleServicesFile" on every command.
+const iosGoogleServicesFile = fs.existsSync(
+  path.join(__dirname, "GoogleService-Info.plist"),
+)
+  ? "./GoogleService-Info.plist"
+  : undefined;
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
   name: "SmartJib",
@@ -27,7 +39,7 @@ const config = {
       NSFaceIDUsageDescription:
         "SmartJib uses Face ID to securely unlock your private budget.",
     },
-    googleServicesFile: "./GoogleService-Info.plist",
+    googleServicesFile: iosGoogleServicesFile,
   },
 
   // ─── Android ─────────────────────────────────────────────────────
