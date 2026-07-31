@@ -45,7 +45,6 @@ import { trackEvent } from '../../lib/analytics';
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
-import { SCREEN_AREA } from '../../lib/household-rbac';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -161,17 +160,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace, canViewArea } = useHousehold();
+  const { household, canEdit, isContributor, workspace } = useHousehold();
   const householdId = household?.id;
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
-  useEffect(() => {
-    const screen = getScreenIdFromPath(pathname);
-    const requiredArea = SCREEN_AREA[screen];
-    if (workspace === 'household' && requiredArea && !canViewArea(requiredArea)) router.replace('/dashboard/profile');
-  }, [workspace, pathname, router, canViewArea]);
-
   // Active Month Key (YYYY-MM)
   const today = new Date();
   const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
