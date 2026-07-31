@@ -24,3 +24,7 @@ export function canView(role: HouseholdRole | undefined, area: HouseholdArea, cu
 export function canEdit(role: HouseholdRole | undefined, area: HouseholdArea, custom?: HouseholdPermissions, own = false) {
   const access = role ? permissionsFor(role, custom)[area] || 'none' : 'none'; return access === 'editAll' || (own && access === 'editOwn');
 }
+
+export const SCREEN_AREA: Partial<Record<string, HouseholdArea>> = {
+  overview: 'dashboard', variable: 'expenses', fixed: 'fixedBills', savings: 'savings', debts: 'debts', trends: 'analytics',
+};

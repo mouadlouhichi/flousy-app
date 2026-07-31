@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { useHousehold } from '@/lib/household-context';
+import { SCREEN_AREA } from '@/lib/household-rbac';
 
 /**
  * Desktop left sidebar navigation (hidden on mobile).
@@ -19,7 +21,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(isPro);
+  const { workspace, canViewArea } = useHousehold();
+  const items = getVisibleNavItems(isPro).filter((item) => workspace !== 'household' || !SCREEN_AREA[item.id] || canViewArea(SCREEN_AREA[item.id]!));
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
