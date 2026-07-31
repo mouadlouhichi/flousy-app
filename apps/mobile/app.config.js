@@ -78,6 +78,15 @@ const config = {
           compileSdkVersion: 35,
           targetSdkVersion: 35,
           minSdkVersion: 24,
+          // The SDK 52 template sets ext.kotlinVersion = 1.9.25 (so
+          // expo-modules-core picks Compose compiler 1.5.15 + KSP
+          // 1.9.25-1.0.20), but the root build.gradle declares
+          // `classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')` with no
+          // version, so the Kotlin plugin actually resolves to 1.9.24 via
+          // @react-native/gradle-plugin. That mismatch fails
+          // :expo-modules-core:compileDebugKotlin. Setting kotlinVersion here
+          // makes expo-build-properties pin the classpath to 1.9.25.
+          kotlinVersion: "1.9.25",
         },
       },
     ],

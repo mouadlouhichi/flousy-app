@@ -76,6 +76,40 @@ the CI job to go red when the build fails.
 
   After that, all CI builds work unattended.
 
+## Gradle troubleshooting
+
+### `:expo-modules-core:compileDebugKotlin` — "This version (1.5.15) of the Compose Compiler requires Kotlin version 1.9.25 but you appear to be using Kotlin version 1.9.24"
+
+Fixed by `android.kotlinVersion: "1.9.25"` in the `expo-build-properties` plugin
+config in `apps/mobile/app.config.js`.
+
+Why it happens on SDK 52:
+
+- The prebuild template writes `ext.kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'`.
+- `expo-modules-core/android/build.gradle` maps that ext value to the Compose
+  compiler (`1.9.25 → 1.5.15`) and KSP (`1.9.25-1.0.20`).
+- But the same template declares the plugin **without a version**:
+  `classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')`, so the real Kotlin
+  Gradle Plugin comes from `@react-native/gradle-plugin`, which pins
+  `kotlin = "1.9.24"` — hence the mismatch (and the
+  `ksp-1.9.25-1.0.20 is too new for kotlin-1.9.24` warnings just before it).
+
+Setting `kotlinVersion` makes `expo-build-properties` rewrite that line to
+`classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")`, so the
+Kotlin plugin, the Compose compiler and KSP all line up on 1.9.25.
+
+Verify locally after any change with:
+
+```bash
+cd apps/mobile && npx expo prebuild --platform android --no-install
+grep kotlin android/build.gradle       # classpath must carry :$kotlinVersion
+rm -rf android                          # generated dir is git-ignored
+```
+
+### `The NODE_ENV environment variable is required but was not specified`
+
+Harmless — printed by `:expo-constants:createExpoConfig`; the build continues.
+
 ## Play Store submission
 
 Dispatch the workflow with `profile=production` and `submit=true`. The submit
