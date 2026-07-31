@@ -7,7 +7,34 @@ Builds land in the Expo dashboard:
 
 Arena's GitHub App token is not permitted to write `.github/workflows/**` or
 repository secrets, so the workflow lives in [`ci/eas-build.yml`](../ci/eas-build.yml)
-and is installed by a script:
+and is installed once by hand. After that, every commit builds automatically.
+
+### Windows / PowerShell (no `gh` required)
+
+```powershell
+git checkout arena/019fb60a-flousy-app
+git pull
+powershell -ExecutionPolicy Bypass -File scripts\setup-eas-ci.ps1
+```
+
+The script sets the secret with `gh` if it's installed, otherwise it prints the
+URL and waits while you paste the token into the GitHub UI:
+**Settings → Secrets and variables → Actions → New repository secret**,
+name `EXPO_TOKEN`
+(<https://github.com/mouadlouhichi/flousy-app/settings/secrets/actions/new>).
+
+Fully manual equivalent:
+
+```powershell
+# 1. add the EXPO_TOKEN secret in the browser (link above), then:
+New-Item -ItemType Directory -Force -Path .github\workflows
+Copy-Item ci\eas-build.yml .github\workflows\eas-build.yml -Force
+git add .github/workflows/eas-build.yml
+git commit -m "ci: EAS build on every commit"
+git push origin arena/019fb60a-flousy-app
+```
+
+### macOS / Linux / Git Bash
 
 ```bash
 git fetch origin arena/019fb60a-flousy-app
@@ -15,22 +42,12 @@ git checkout arena/019fb60a-flousy-app
 EXPO_TOKEN=Rm785vOZYvxuYj-960jGA9KU7yikXedA_E44pjtF bash scripts/setup-eas-ci.sh
 ```
 
-The script:
+Either way the final push is itself a commit, so the workflow fires immediately
+and a **development / android** build is queued.
 
-1. `gh secret set EXPO_TOKEN` — the personal access token the CLI authenticates with.
-2. Copies `ci/eas-build.yml` → `.github/workflows/eas-build.yml`, commits and pushes.
-3. That push itself matches the workflow's `push` trigger, so a **development /
-   android** build is queued immediately.
+> Installing the GitHub CLI on Windows is optional but handy:
+> `winget install --id GitHub.cli` then `gh auth login`.
 
-Manual equivalent if you prefer:
-
-```bash
-gh secret set EXPO_TOKEN --body 'Rm785vOZYvxuYj-960jGA9KU7yikXedA_E44pjtF'
-mkdir -p .github/workflows && cp ci/eas-build.yml .github/workflows/eas-build.yml
-git add .github/workflows/eas-build.yml
-git commit -m "ci: EAS Android build workflow"
-git push origin arena/019fb60a-flousy-app
-```
 
 ## How the workflow triggers
 
