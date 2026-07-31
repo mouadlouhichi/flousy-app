@@ -16,6 +16,7 @@ import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { HouseholdModal } from '@/components/modals/HouseholdModal';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
+import { HouseholdInvoiceReview } from '../household-invoice-review';
 
 /**
  * Account / profile page.
@@ -202,6 +203,7 @@ export function ProfileScreen() {
       </div>
 
       <ContributorInvoiceForm />
+      <HouseholdInvoiceReview />
 
       {/* ── Pro features ── */}
       <section className="flex flex-col gap-3">
