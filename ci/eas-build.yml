@@ -95,6 +95,9 @@ jobs:
         # .npmrc sets node-linker=hoisted so `expo` resolves from apps/mobile/
         run: pnpm install --frozen-lockfile
 
+      - name: Check native deps against the Expo SDK matrix
+        run: node scripts/check-expo-deps.mjs
+
       - name: Setup EAS CLI
         uses: expo/expo-github-action@v8
         with:

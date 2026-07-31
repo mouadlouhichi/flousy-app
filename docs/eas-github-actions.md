@@ -166,6 +166,39 @@ safe-area-context, skia, google-signin) guards its new-arch code and supports
 both, so that route is open — but it changes the runtime for the whole app, so
 it isn't the thing to do while chasing a first green build.
 
+### `:react-native-screens:compileDebugKotlin` — `Operator '!=' cannot be applied to 'Insets' and 'EdgeInsets'`
+
+Caused by native dependency drift: `react-native-screens` was at 4.18.0 and
+`react-native-safe-area-context` at 4.14.1, while Expo SDK 52 pins ~4.4.0 and
+4.12.0. screens 4.18 ships a `safearea/SafeAreaView.kt` written against
+safe-area-context 5.x types; that file doesn't even exist in 4.4.0.
+
+Fixed by aligning every native module with
+`node_modules/expo/bundledNativeModules.json` — the version matrix Expo
+actually tests together:
+
+| Package | was | now |
+|---|---|---|
+| `react-native` | 0.76.0 | 0.76.9 |
+| `react-native-screens` | ~4.18.0 | ~4.4.0 |
+| `react-native-safe-area-context` | ^4.12.0 | 4.12.0 |
+| `react-native-svg` | ^15.8.0 | 15.8.0 |
+| `expo-router` | ~4.0.0 | ~4.0.22 |
+| + 8 `expo-*` packages | `~x.y.0` | exact SDK pin |
+
+Note the caret/tilde ranges were the real hazard: `^4.12.0` silently floated
+`safe-area-context` to 4.14.1 months after the code was written.
+
+**Guard:** [`scripts/check-expo-deps.mjs`](../scripts/check-expo-deps.mjs) runs
+offline against that same manifest and fails on any drift. It runs in the EAS
+workflow before `eas build`, so drift costs 5 seconds instead of a 3-minute
+Gradle failure.
+
+```bash
+pnpm --filter @smartjib/mobile check:deps        # report
+node scripts/check-expo-deps.mjs --fix           # rewrite versions, then pnpm install
+```
+
 ### `The NODE_ENV environment variable is required but was not specified`
 
 Harmless — printed by `:expo-constants:createExpoConfig`; the build continues.
