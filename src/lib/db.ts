@@ -321,13 +321,23 @@ export async function getHouseholdInvite(inviteId: string): Promise<HouseholdInv
 
 export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: string, displayName: string) {
   if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
-  const source = await getDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId));
-  const invitedMember = source.data() || {};
-  const member: Partial<HouseholdMember> = { ...invitedMember, userId, displayName: displayName || invitedMember.displayName, status: 'active', joinedAt: new Date().toISOString() };
-  // Authenticated members are indexed by their uid, allowing rules to authorise shared data reads.
-  await setDoc(doc(db, 'households', invite.householdId, 'members', userId), cleanUndefined(member));
-  await setDoc(doc(db, 'households', invite.householdId, 'members', invite.memberId), { status: 'inactive', userId }, { merge: true });
-  await setDoc(doc(db, 'householdInvites', invite.id), { status: 'accepted' }, { merge: true });
+  // Create the recipient's UID-indexed membership directly from the
+  // email-bound invite. This avoids making acceptance depend on a write to
+  // the owner's pending-member record.
+  const member: HouseholdMember = {
+    id: userId,
+    displayName: displayName || invite.email.split('@')[0] || 'Member',
+    email: invite.email,
+    userId,
+    role: invite.role,
+    status: 'active',
+    avatarColor: '#00685f',
+    joinedAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, 'households', invite.householdId, 'members', userId), cleanUndefined(member), { merge: true });
+  // The active membership is the source of truth. Marking the invitation
+  // accepted is non-critical and must never block a recipient from joining.
+  setDoc(doc(db, 'householdInvites', invite.id), { status: 'accepted' }, { merge: true }).catch(() => {});
 }
 
 export function subscribeHouseholdMonthBudget(householdId: string, monthKey: string, onData: (month: MonthBudget | null) => void) {
