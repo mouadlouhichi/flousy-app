@@ -3,9 +3,8 @@
 #
 #   bash scripts/trigger-eas-build.sh
 #
-# The "EAS Build" workflow runs on pushes to the session branch that touch
-# apps/mobile/**, so this writes a timestamp to apps/mobile/.build-trigger and
-# pushes it. (workflow_dispatch cannot be used until eas-build.yml lives on the
+# The "EAS Build" workflow runs on every push, so this just pushes an empty
+# commit. (workflow_dispatch cannot be used until eas-build.yml lives on the
 # repository's default branch — a GitHub limitation, not a config problem.)
 
 set -euo pipefail
@@ -19,9 +18,7 @@ if [ ! -f .github/workflows/eas-build.yml ]; then
   exit 1
 fi
 
-date -u +"%Y-%m-%dT%H:%M:%SZ" > apps/mobile/.build-trigger
-git add apps/mobile/.build-trigger
-git commit -m "chore: trigger EAS build ($(cat apps/mobile/.build-trigger))"
+git commit --allow-empty -m "chore: trigger EAS build ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 git push origin "$BRANCH"
 
 echo

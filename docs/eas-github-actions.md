@@ -32,28 +32,39 @@ git commit -m "ci: EAS Android build workflow"
 git push origin arena/019fb60a-flousy-app
 ```
 
-## Triggering a build afterwards
+## How the workflow triggers
+
+| Trigger | Result |
+|---|---|
+| **Every commit pushed to any branch** | `development` / `android` build, queued with `--no-wait` |
+| `workflow_dispatch` | Choose `profile` (development / preview / production), `platform`, `wait`, `submit` |
+
+Each build is labelled in the Expo dashboard with its commit subject and short
+SHA (`eas build --message`), so the builds list maps 1:1 to your git history.
+
+### Skipping a build
+
+Put `[skip eas]` (or the usual `[skip ci]`) anywhere in the commit message:
+
+```bash
+git commit -m "docs: fix typo [skip eas]"
+```
+
+Handy for README/doc commits — EAS build minutes are not free.
+
+Only one build per branch is queued at a time: `concurrency` with
+`cancel-in-progress: true` cancels a superseded GitHub job before it reaches the
+`eas build` step, so a burst of commits doesn't create a pile of builds.
+
+### Triggering without a code change
 
 ```bash
 bash scripts/trigger-eas-build.sh
 ```
 
-Writes a timestamp to `apps/mobile/.build-trigger` and pushes, which matches the
-workflow's `apps/mobile/**` path filter. Needed because `workflow_dispatch` is
-unavailable until `eas-build.yml` exists on the default branch (GitHub only
-lists dispatchable workflows from the default branch).
-
-## How the workflow triggers
-
-| Trigger | Result |
-|---|---|
-| Push to `arena/019fb60a-flousy-app` touching `apps/mobile/**`, `packages/**`, `.npmrc`, `pnpm-lock.yaml` | `development` / `android` build, queued with `--no-wait` |
-| `workflow_dispatch` | Choose `profile` (development / preview / production), `platform`, `wait`, `submit` |
-
-> `workflow_dispatch` only shows up in the Actions UI once `eas-build.yml`
-> exists on the repository's **default branch** (`main`). Until this branch is
-> merged, use the push trigger (any commit under `apps/mobile/`), or
-> `gh workflow run eas-build.yml --ref <branch>` after merging.
+Pushes an empty commit. Needed because `workflow_dispatch` is unavailable until
+`eas-build.yml` exists on the default branch (GitHub only lists dispatchable
+workflows from the default branch).
 
 ## What the job does
 
