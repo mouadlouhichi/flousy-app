@@ -28,7 +28,14 @@ service cloud.firestore {
         allow get: if householdMember(hid) || householdOwner(hid) || (signedIn() && resource.data.email == request.auth.token.email);
         allow list: if householdMember(hid) || householdOwner(hid);
         allow create: if householdOwner(hid) || (memberId == request.auth.uid && request.resource.data.userId == request.auth.uid);
-        allow update: if householdOwner(hid) || (memberId == request.auth.uid && resource.data.email == request.auth.token.email && request.resource.data.userId == request.auth.uid);
+        allow update: if householdOwner(hid)
+          // A recipient activates their UID-indexed membership after accepting.
+          || (memberId == request.auth.uid && resource.data.email == request.auth.token.email && request.resource.data.userId == request.auth.uid)
+          // Then the recipient retires the email-bound pending member record.
+          || (resource.data.email == request.auth.token.email
+            && resource.data.status == 'invited'
+            && request.resource.data.status == 'inactive'
+            && request.resource.data.userId == request.auth.uid);
         allow delete: if householdOwner(hid);
       }
       // Contributor invoices are isolated from private monthly balances, debts and savings.
