@@ -16,6 +16,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
   const { pendingInvites } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
+  const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
 
   const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const { needs: needsSpent, wants: wantsSpent } = calculateEnvelopeSpent(month);
@@ -80,16 +81,29 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     }
   });
 
+  const budgetAlertKey = `${month.updatedAt || ''}:${alerts.map((alert) => `${alert.title}:${alert.message}`).join('|')}`;
+  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('flousy_seen_budget_alerts');
+  const hasUnreadBudgetAlerts = alerts.length > 0 && seenBudgetKey !== budgetAlertKey && storedBudgetKey !== budgetAlertKey;
+  const hasUnreadNotifications = hasUnreadBudgetAlerts || pendingInvites.length > 0;
+  const openNotifications = () => {
+    const nextOpen = !isOpen;
+    setIsOpen(nextOpen);
+    if (nextOpen && alerts.length > 0) {
+      localStorage.setItem('flousy_seen_budget_alerts', budgetAlertKey);
+      setSeenBudgetKey(budgetAlertKey);
+    }
+  };
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={openNotifications}
         className="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors"
         aria-label={`View notifications (${alerts.length + pendingInvites.length})`}
       >
         <AppIcon name="notifications" className=" text-[24px]" />
-        {(alerts.length + pendingInvites.length) > 0 && (
+        {hasUnreadNotifications && (
           <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full animate-pulse" />
         )}
       </button>
