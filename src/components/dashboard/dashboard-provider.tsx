@@ -283,6 +283,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // 1. Subscribe or load month budget
   useEffect(() => {
+    // Do not subscribe to the personal workspace while the authenticated
+    // profile (and its selected workspace) is still hydrating. Otherwise the
+    // personal month paints briefly before the household subscription wins.
+    if (authLoading || (user && !profile)) {
+      setLoading(true);
+      return;
+    }
     setLoading(true);
 
     if (householdId && !isContributor) {
@@ -339,10 +346,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, householdId, isContributor, canEdit, currentMonthKey, profile]);
+  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profile]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
+    if (authLoading || (user && !profile)) return;
     if (householdId && !isContributor) {
       const unsub = subscribeHouseholdSavingsGoals(householdId, (data) => setGoals(data || []));
       return () => unsub();
@@ -357,7 +365,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       setGoals([]);
     }
-  }, [user, householdId, isContributor]);
+  }, [user, authLoading, profile, householdId, isContributor]);
 
   // Helper to persist month updates locally + cloud
   const updateAndSaveMonth = useCallback(
