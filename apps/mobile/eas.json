@@ -5,7 +5,6 @@
   },
   "build": {
     "development": {
-      "workingdir": "apps/mobile",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -16,7 +15,6 @@
       }
     },
     "preview": {
-      "workingdir": "apps/mobile",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -26,7 +24,6 @@
       }
     },
     "production": {
-      "workingdir": "apps/mobile",
       "android": {
         "buildType": "app-bundle"
       },
@@ -38,7 +35,7 @@
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "apps/mobile/pc-api-key.json",
+        "serviceAccountKeyPath": "./pc-api-key.json",
         "track": "internal"
       }
     }

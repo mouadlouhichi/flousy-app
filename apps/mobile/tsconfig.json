@@ -11,8 +11,15 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["src/**/*", "app.config.js", "app.json"]
+  "include": [
+    "src/**/*",
+    "app.config.js",
+    "app.json",
+    "nativewind-env.d.ts"
+  ]
 }
