@@ -83,7 +83,9 @@ const config = {
   ],
 
   // ─── EAS Updates ─────────────────────────────────────────────────
-  updates: {},
+  updates: {
+    url: "https://u.expo.dev/67a3635e-ac8a-430b-b861-f327d921e4ea",
+  },
 
   // ─── Runtime Version ─────────────────────────────────────────────
   runtimeVersion: {
@@ -93,7 +95,9 @@ const config = {
   // ─── Extra (env vars accessible at runtime) ──────────────────────
   extra: {
     googleWebClientId: GOOGLE_WEB_CLIENT_ID,
-    eas: {},
+    eas: {
+      projectId: "67a3635e-ac8a-430b-b861-f327d921e4ea",
+    },
   },
 };
 
