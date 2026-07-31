@@ -1,5 +1,5 @@
 {
-  "name": "@flousy/mobile",
+  "name": "@smartjib/mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -15,7 +15,7 @@
     "build:dev": "eas build --profile development --platform android",
     "build:preview": "eas build --profile preview --platform android",
     "build:prod": "eas build --profile production --platform android",
-    "build": "echo '✅ @flousy/mobile — use build:dev, build:preview, or build:prod for EAS builds'"
+    "build": "echo '\u2705 @smartjib/mobile \u2014 use build:dev, build:preview, or build:prod for EAS builds'"
   },
   "dependencies": {
     "@flousy/core": "workspace:*",
