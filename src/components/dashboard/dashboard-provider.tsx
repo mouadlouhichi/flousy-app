@@ -17,7 +17,6 @@ import {
   FixedExpense,
   DebtItem,
   StrategyId,
-  CustomRatios,
   UserProfile,
   normalizeMonth,
   calculateEnvelopeAmounts,
@@ -34,10 +33,18 @@ import {
   saveSavingsGoals,
   fetchMonthsForTrends,
   getMonthBudget,
+  subscribeHouseholdMonthBudget,
+  saveHouseholdMonthBudget,
+  subscribeHouseholdSavingsGoals,
+  saveHouseholdSavingsGoals,
+  getHouseholdMonthBudget,
+  fetchHouseholdMonthsForTrends,
 } from '../../lib/db';
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
 import { getScreenIdFromPath } from './nav-items';
+import { useHousehold } from '../../lib/household-context';
+import { householdStorageKey } from '../../lib/household';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -76,7 +83,7 @@ interface DashboardContextType {
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
   handleEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
-  handleUpdateStrategy: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
+  handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: any[], total: number) => void;
 
@@ -108,6 +115,10 @@ interface DashboardContextType {
   isSavingsModalOpen: boolean;
   savingsModalMode: SavingsModalMode;
   selectedGoal: SavingGoal | null;
+
+  openSettingsModal: () => void;
+  closeSettingsModal: () => void;
+  isSettingsModalOpen: boolean;
 
   openManageCategories: () => void;
   closeManageCategories: () => void;
@@ -149,7 +160,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
+  const { household, canEdit, isContributor, workspace } = useHousehold();
+  const householdId = household?.id;
 
+  // Contributors never load private household month documents. Their invoice
+  // submissions live in a separate collection with dedicated rules.
   // Active Month Key (YYYY-MM)
   const today = new Date();
   const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -227,6 +242,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [savingsModalMode, setSavingsModalMode] = useState<SavingsModalMode>('create');
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
 
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -244,7 +260,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
+      if (householdId) {
+        const prev = await getHouseholdMonthBudget(householdId, prevKey);
+        return prev || undefined;
+      } else if (user) {
         const prev = await getMonthBudget(user.uid, prevKey);
         return prev || undefined;
       } else {
@@ -259,14 +278,44 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
       return undefined;
     },
-    [user, profile],
+    [user, profile, householdId],
   );
 
   // 1. Subscribe or load month budget
   useEffect(() => {
+    // Do not subscribe to the personal workspace while the authenticated
+    // profile (and its selected workspace) is still hydrating. Otherwise the
+    // personal month paints briefly before the household subscription wins.
+    if (authLoading || (user && !profile)) {
+      setLoading(true);
+      return;
+    }
     setLoading(true);
 
-    if (user) {
+    if (householdId && !isContributor) {
+      const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
+        if (data) {
+          setMonth(data);
+        } else {
+          // A new household starts from the owner's current personal month so
+          // creating collaboration does not make their visible balance vanish.
+          const personal = user && canEdit ? await getMonthBudget(user.uid, currentMonthKey) : null;
+          if (personal && personal.totalBudget > 0) {
+            const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
+            setMonth(initialSharedMonth);
+            saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
+          } else {
+            setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, await getPreviousMonth(currentMonthKey)));
+          }
+        }
+        setLoading(false);
+      });
+      return () => unsub();
+    } else if (householdId && isContributor) {
+      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
+      setLoading(false);
+      return;
+    } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
@@ -297,11 +346,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentMonthKey, profile]);
+  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profile]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
-    if (user) {
+    if (authLoading || (user && !profile)) return;
+    if (householdId && !isContributor) {
+      const unsub = subscribeHouseholdSavingsGoals(householdId, (data) => setGoals(data || []));
+      return () => unsub();
+    } else if (householdId && isContributor) {
+      setGoals([]);
+      return;
+    } else if (user) {
       const unsub = subscribeSavingsGoals(user.uid, (data) => {
         setGoals(data || []);
       });
@@ -309,30 +365,36 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       setGoals([]);
     }
-  }, [user]);
+  }, [user, authLoading, profile, householdId, isContributor]);
 
   // Helper to persist month updates locally + cloud
   const updateAndSaveMonth = useCallback(
     (newMonth: MonthBudget) => {
+      if (householdId && !canEdit) return;
       setMonth(newMonth);
-      localStorage.setItem(`flousy_month_${currentMonthKey}`, JSON.stringify(newMonth));
-      if (user) {
+      localStorage.setItem(householdStorageKey(householdId, currentMonthKey), JSON.stringify(newMonth));
+      if (householdId) {
+        saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
+      } else if (user) {
         saveMonthBudget(user.uid, currentMonthKey, newMonth).catch((e) => console.error(e));
       }
     },
-    [currentMonthKey, user],
+    [currentMonthKey, user, householdId, canEdit],
   );
 
   // Helper to persist goals updates locally + cloud
   const updateAndSaveGoals = useCallback(
     (newGoals: SavingGoal[]) => {
+      if (householdId && !canEdit) return;
       setGoals(newGoals);
-      localStorage.setItem('flousy_savings_goals', JSON.stringify(newGoals));
-      if (user) {
+      localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      if (householdId) {
+        saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
+      } else if (user) {
         saveSavingsGoals(user.uid, newGoals).catch((e) => console.error(e));
       }
     },
-    [user],
+    [user, householdId, canEdit],
   );
 
   // Carry over recurring fixed expenses from previous month
@@ -342,13 +404,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
-        const prev = await getMonthBudget(user.uid, prevKey);
+      if (householdId || user) {
+        const prev = householdId ? await getHouseholdMonthBudget(householdId, prevKey) : await getMonthBudget(user!.uid, prevKey);
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
-          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
-            updateAndSaveMonth(withCarry);
-          }
+          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) updateAndSaveMonth(withCarry);
         }
       } else {
         try {
@@ -365,7 +425,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [month, profile, updateAndSaveMonth, user],
+    [month, profile, updateAndSaveMonth, user, householdId],
   );
 
   // Automatically carry over recurring bills when entering a fresh month
@@ -387,13 +447,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
-      fetchMonthsForTrends(user?.uid, currentMonthKey, 6)
+      (householdId ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6) : fetchMonthsForTrends(user?.uid, currentMonthKey, 6))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onTrendsScreen, currentMonthKey, user?.uid, month.totalBudget]);
+  }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
 
   // Month navigation
   const handlePrevMonth = useCallback(() => {
@@ -426,11 +486,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           ...month,
           totalBudget: safeBudget,
           bankPart: Math.max(0, (month.bankPart || 0) + delta),
-          monthlySavingsTarget: calculateEnvelopeAmounts(
-            safeBudget,
-            month.strategyId,
-            month.customRatios,
-          ).savings,
+          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
         },
         currentMonthKey,
         profile,
@@ -451,19 +507,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleUpdateStrategy = useCallback(
-    (strategyId: StrategyId, customRatios?: CustomRatios) => {
-      const updated = updateBudgetStrategy(month, strategyId, customRatios);
+    (strategyId: StrategyId) => {
+      const updated = updateBudgetStrategy(month, strategyId);
       updateAndSaveMonth(updated);
-      trackEvent('change_strategy', {
-        strategyId,
-        ...(strategyId === 'custom' && updated.customRatios
-          ? {
-              needsPct: Math.round(updated.customRatios.needs * 100),
-              wantsPct: Math.round(updated.customRatios.wants * 100),
-              savingsPct: Math.round(updated.customRatios.savings * 100),
-            }
-          : {}),
-      });
+      trackEvent('change_strategy', { strategyId });
     },
     [month, updateAndSaveMonth],
   );
@@ -593,6 +640,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setSelectedGoal(null);
   }, []);
 
+  const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
+  const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
+
   const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
   const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
 
@@ -663,6 +713,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSettingsModal,
+      closeSettingsModal,
+      isSettingsModalOpen,
       openManageCategories,
       closeManageCategories,
       isManageCategoriesOpen,
@@ -728,6 +781,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSettingsModal,
+      closeSettingsModal,
+      isSettingsModalOpen,
       openManageCategories,
       closeManageCategories,
       isManageCategoriesOpen,

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { InstallButton } from '@/components/pwa/install-button';
+import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
 
@@ -21,6 +22,9 @@ export function DashboardHeader() {
     handleNextMonth,
     openExpenseModal,
   } = useDashboard();
+
+  const { workspace, canEditArea } = useHousehold();
+  const canAddExpense = !!profile && (workspace === 'personal' || canEditArea('expenses', true));
 
   const activeScreen = getScreenIdFromPath(pathname);
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
@@ -84,13 +88,13 @@ export function DashboardHeader() {
 
         <BudgetAlerts month={month} />
 
-        <button
+        {canAddExpense && <button
           onClick={() => openExpenseModal()}
           className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-accent-foreground shadow-xs transition-all"
         >
           <AppIcon name="add" className=" text-[18px]" />
           <span>New Transaction</span>
-        </button>
+        </button>}
 
         {/* Profile entry point (mobile). Replaces the old settings gear so the
             bottom nav can keep all 6 destinations without overflowing. */}

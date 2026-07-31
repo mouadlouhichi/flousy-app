@@ -3,6 +3,8 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useHousehold } from '@/lib/household-context';
 import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -12,7 +14,9 @@ interface BudgetAlertsProps {
 
 export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
+  const { pendingInvites } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
+  const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
 
   const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const { needs: needsSpent, wants: wantsSpent } = calculateEnvelopeSpent(month);
@@ -77,16 +81,29 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     }
   });
 
+  const budgetAlertKey = `${month.updatedAt || ''}:${alerts.map((alert) => `${alert.title}:${alert.message}`).join('|')}`;
+  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('flousy_seen_budget_alerts');
+  const hasUnreadBudgetAlerts = alerts.length > 0 && seenBudgetKey !== budgetAlertKey && storedBudgetKey !== budgetAlertKey;
+  const hasUnreadNotifications = hasUnreadBudgetAlerts || pendingInvites.length > 0;
+  const openNotifications = () => {
+    const nextOpen = !isOpen;
+    setIsOpen(nextOpen);
+    if (nextOpen && alerts.length > 0) {
+      localStorage.setItem('flousy_seen_budget_alerts', budgetAlertKey);
+      setSeenBudgetKey(budgetAlertKey);
+    }
+  };
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={openNotifications}
         className="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors"
-        aria-label="View Budget Alerts"
+        aria-label={`View notifications (${alerts.length + pendingInvites.length})`}
       >
         <AppIcon name="notifications" className=" text-[24px]" />
-        {alerts.length > 0 && (
+        {hasUnreadNotifications && (
           <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full animate-pulse" />
         )}
       </button>
@@ -96,7 +113,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
           <div className="flex justify-between items-center border-b border-outline-variant pb-2">
             <div className="flex items-center gap-xs">
               <AppIcon name="notifications" className=" text-primary text-[20px]" />
-              <h4 className="font-label-lg text-label-lg font-bold text-on-surface">Budget Health</h4>
+              <h4 className="font-label-lg text-label-lg font-bold text-on-surface">Notifications</h4>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -106,7 +123,9 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
             </button>
           </div>
 
-          <div className="space-y-xs max-h-60 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Household invitations</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">Household invitation</span><span className="block text-xs text-on-surface-variant">Open to join as {invite.role}.</span></Link>)}</div>}
+            <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Budget health</p>
             {alerts.length > 0 ? (
               alerts.map((a, idx) => (
                 <div

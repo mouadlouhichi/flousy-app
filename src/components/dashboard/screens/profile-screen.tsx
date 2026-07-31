@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -12,6 +14,10 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { PRO_FEATURES } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
 import { useDashboard } from '../dashboard-provider';
+import { useHousehold } from '@/lib/household-context';
+import { HouseholdModal } from '@/components/modals/HouseholdModal';
+import { ContributorInvoiceForm } from '../contributor-invoice-form';
+import { HouseholdInvoiceReview } from '../household-invoice-review';
 
 /**
  * Account / profile page.
@@ -21,16 +27,22 @@ import { useDashboard } from '../dashboard-provider';
  * their plan unlocks, free users get the same list as an upgrade pitch.
  */
 export function ProfileScreen() {
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get('invite') || undefined;
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage } = useLanguage();
   const { month, goals, currentMonthKey, isPro, openProModal, openCsvModal, openIncomeModal } =
     useDashboard();
 
+  const { isContributor, household, workspace, selectWorkspace, memberRole } = useHousehold();
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [householdOpen, setHouseholdOpen] = useState(false);
+  useEffect(() => { if (inviteCode) setHouseholdOpen(true); }, [inviteCode]);
 
   const currentTheme = profile?.theme || 'system';
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
@@ -68,6 +80,14 @@ export function ProfileScreen() {
 
   return (
     <div className="flex flex-col gap-6 pb-24">
+      <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">Workspace</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => selectWorkspace('personal')} className={`rounded-xl border p-3 text-left ${workspace === 'personal' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}><span className="block font-bold">My SmartJib</span><span className="text-xs text-on-surface-variant">Private personal dashboard</span></button>
+          {profile?.activeHouseholdId && <button type="button" onClick={() => selectWorkspace('household')} className={`rounded-xl border p-3 text-left ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}><span className="block font-bold">{household?.name || 'Household Dashboard'}</span><span className="text-xs text-on-surface-variant">{memberRole || 'member'} access</span></button>}
+        </div>
+      </section>
+
       {/* ── Identity card ── */}
       <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-5 sm:p-6">
         {/* Soft decorative glow, clipped by the card's overflow-hidden. */}
@@ -194,6 +214,9 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      <ContributorInvoiceForm />
+      <HouseholdInvoiceReview />
+
       {/* ── Pro features ── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 px-1">
@@ -264,6 +287,28 @@ export function ProfileScreen() {
               </span>
               <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
             </button>
+            <button
+              type="button"
+              onClick={() => setHouseholdOpen(true)}
+              className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
+            >
+              <span className="flex items-center gap-3">
+                <AppIcon name="family_restroom" className="text-[20px] text-primary" />
+                <span className="text-sm font-bold text-on-surface">Manage Household</span>
+              </span>
+              <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+            </button>
+            <Link
+              href="/dashboard/trends"
+              prefetch={false}
+              className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
+            >
+              <span className="flex items-center gap-3">
+                <AppIcon name="trending_up" className="text-[20px] text-primary" />
+                <span className="text-sm font-bold text-on-surface">Analytics & Insights</span>
+              </span>
+              <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+            </Link>
           </div>
         ) : (
           <button
@@ -410,6 +455,8 @@ export function ProfileScreen() {
           </a>
         </div>
       </section>
+
+      <HouseholdModal isOpen={householdOpen} onClose={() => setHouseholdOpen(false)} onOpenPro={openProModal} month={month} initialInviteCode={inviteCode} />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}

@@ -102,7 +102,8 @@ export function FixedModal({
   const [type, setType] = useState('Rent');
   const [place, setPlace] = useState<MoneyPlace>('bank');
   const [date, setDate] = useState('1st');
-  const [person, setPerson] = useState('Self');
+  const [person, setPerson] = useState('Me');
+  const [payerMemberId, setPayerMemberId] = useState('self');
   const [recurring, setRecurring] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -208,7 +209,8 @@ export function FixedModal({
       setType(initialBill.type || 'Rent');
       setPlace(initialBill.place || 'bank');
       setDate(initialBill.date || '1st');
-      setPerson(initialBill.person || 'Self');
+      setPerson(initialBill.person || 'Me');
+      setPayerMemberId(initialBill.payerMemberId || initialBill.person || 'self');
       setRecurring(initialBill.recurring ?? true);
     } else {
       setName('');
@@ -216,7 +218,8 @@ export function FixedModal({
       setType('Rent');
       setPlace('bank');
       setDate('1st');
-      setPerson('Self');
+      setPerson('Me');
+      setPayerMemberId('self');
       setRecurring(true);
     }
     setErrors({});
@@ -253,6 +256,7 @@ export function FixedModal({
       date,
       place,
       person,
+      payerMemberId,
       recurring,
     };
 
@@ -441,7 +445,7 @@ export function FixedModal({
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
-          <MemberBadges value={person} onChange={setPerson} />
+          <MemberBadges value={payerMemberId} onChange={(id, label) => { setPayerMemberId(id); setPerson(label); }} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>

@@ -17,7 +17,6 @@ import {
   fundGoal,
   withdrawGoal,
   deleteFundedGoal,
-  saveGoalWithBalance,
   addDebt,
   editDebt,
   deleteDebt,
@@ -29,6 +28,7 @@ import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { MoveMoneyModal } from '@/components/modals/MoveMoneyModal';
 import { FixedModal } from '@/components/modals/FixedModal';
 import { SavingsModal } from '@/components/modals/SavingsModal';
+import { SettingsModal } from '@/components/modals/SettingsModal';
 import { ManageCategoriesModal } from '@/components/modals/ManageCategoriesModal';
 import { ProUpgradeModal } from '@/components/modals/ProUpgradeModal';
 import { ImportCsvModal } from '@/components/modals/ImportCsvModal';
@@ -58,12 +58,13 @@ export function DashboardModals() {
 
   // Expense handlers
   const handleSaveVariableExpense = (exp: VariableExpense) => {
+    const audited = { ...exp, createdByUserId: dashboard.selectedExpense?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedExpense) {
-      const updated = editVariableExpense(month, dashboard.selectedExpense, exp);
+      const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
-      const updated = addVariableExpense(month, exp);
+      const updated = addVariableExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
@@ -77,12 +78,13 @@ export function DashboardModals() {
 
   // Fixed bills handlers
   const handleSaveFixedBill = (bill: FixedExpense) => {
+    const audited = { ...bill, createdByUserId: dashboard.selectedFixed?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedFixed) {
-      const updated = editFixedExpense(month, dashboard.selectedFixed, bill);
+      const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
-      const updated = addFixedExpense(month, bill);
+      const updated = addFixedExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
@@ -108,22 +110,15 @@ export function DashboardModals() {
   };
 
   // Savings handlers
-  //
-  // A goal can be created with money already saved for it. When the user asks
-  // for that opening balance to come out of a tracked money place we move the
-  // cash so totals stay conserved; otherwise it is recorded as-is.
-  const handleSaveGoal = (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => {
-    const isNew = !goals.some((g) => g.id === goal.id);
-    const res = saveGoalWithBalance(month, goals, goal, deductFromPlace);
-
-    if (res.month !== month) updateAndSaveMonth(res.month);
-    updateAndSaveGoals(res.goals);
-
-    trackEvent(isNew ? 'create_goal' : 'edit_goal', {
-      target: goal.target,
-      openingBalance: goal.current,
-      deductedFrom: deductFromPlace || 'none',
-    });
+  const handleSaveGoal = (goal: SavingGoal) => {
+    const existingIdx = goals.findIndex((g) => g.id === goal.id);
+    let nextGoals: SavingGoal[];
+    if (existingIdx >= 0) {
+      nextGoals = goals.map((g) => (g.id === goal.id ? goal : g));
+    } else {
+      nextGoals = [...goals, goal];
+    }
+    updateAndSaveGoals(nextGoals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
@@ -199,13 +194,19 @@ export function DashboardModals() {
         onFund={handleFundGoal}
         onWithdraw={handleWithdrawGoal}
         onDelete={handleDeleteGoal}
-        placeBalances={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
       />
 
+      <SettingsModal
+        isOpen={dashboard.isSettingsModalOpen}
+        onClose={dashboard.closeSettingsModal}
+        month={month}
+        goals={goals}
+        monthKey={currentMonthKey}
+        onOpenProModal={() => {
+          dashboard.closeSettingsModal();
+          dashboard.openProModal();
+        }}
+      />
 
       <EditMoneyPlacesModal
         isOpen={dashboard.isEditMoneyPlacesOpen}

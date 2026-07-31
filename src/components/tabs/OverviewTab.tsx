@@ -11,6 +11,7 @@ import {
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
+import { useHousehold } from '@/lib/household-context';
 
 interface OverviewTabProps {
   month: MonthBudget;
@@ -36,6 +37,10 @@ export function OverviewTab({
   onUpdateStrategy,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const { workspace, canViewArea, canEditArea } = useHousehold();
+  const canSeeBalances = workspace === 'personal' || canViewArea('balances');
+  const canEditBalances = workspace === 'personal' || canEditArea('balances');
+  const redacted = '••••';
   const budgetInputRef = useRef<HTMLInputElement>(null);
   // Set when Enter/Escape finishes editing so the programmatic blur doesn't re-trigger save
   const editFinishedRef = useRef(false);
@@ -107,17 +112,17 @@ export function OverviewTab({
               <span className="font-bold text-base text-on-surface">Bank</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-on-surface font-mono">
-                  {formatParts(month.bankPart || 0).amount}
+                  {canSeeBalances ? formatParts(month.bankPart || 0).amount : redacted}
                 </span>
                 <span className="text-xs font-semibold text-on-surface-variant">
-                  {formatParts(month.bankPart || 0).currency}
+                  {canSeeBalances ? formatParts(month.bankPart || 0).currency : ''}
                 </span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenMoveMoneyModal}
+              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
               className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Move</span>
@@ -136,17 +141,17 @@ export function OverviewTab({
               <span className="font-bold text-base text-on-surface">Home Cash</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-on-surface font-mono">
-                  {formatParts(month.homePart || 0).amount}
+                  {canSeeBalances ? formatParts(month.homePart || 0).amount : redacted}
                 </span>
                 <span className="text-xs font-semibold text-on-surface-variant">
-                  {formatParts(month.homePart || 0).currency}
+                  {canSeeBalances ? formatParts(month.homePart || 0).currency : ''}
                 </span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenMoveMoneyModal}
+              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
               className="text-xs font-bold text-tertiary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Deposit</span>
@@ -165,17 +170,17 @@ export function OverviewTab({
               <span className="font-bold text-base text-on-surface">Wallet</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-on-surface font-mono">
-                  {formatParts(month.walletPart || 0).amount}
+                  {canSeeBalances ? formatParts(month.walletPart || 0).amount : redacted}
                 </span>
                 <span className="text-xs font-semibold text-on-surface-variant">
-                  {formatParts(month.walletPart || 0).currency}
+                  {canSeeBalances ? formatParts(month.walletPart || 0).currency : ''}
                 </span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenMoveMoneyModal}
+              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
               className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>Withdraw</span>
@@ -292,7 +297,7 @@ export function OverviewTab({
               </span>
               <div className="mt-1 flex items-center gap-2">
                 <div
-                  onClick={() => setIsEditingBudget(true)}
+                  onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
                   className={`flex items-baseline gap-1.5 -ml-2 rounded-2xl px-2 py-0.5 transition-colors ${
                     isEditingBudget
                       ? 'bg-surface ring-2 ring-primary/40'
@@ -307,7 +312,7 @@ export function OverviewTab({
                     autoComplete="off"
                     aria-label="Total monthly budget"
                     size={Math.max(4, Math.min(14, (isEditingBudget ? draftBudget : budgetParts.amount).length))}
-                    value={isEditingBudget ? draftBudget : budgetParts.amount}
+                    value={canSeeBalances ? (isEditingBudget ? draftBudget : budgetParts.amount) : redacted}
                     readOnly={!isEditingBudget}
                     onFocus={() => {
                       if (!isEditingBudget) setIsEditingBudget(true);
@@ -335,11 +340,11 @@ export function OverviewTab({
                     }}
                     className="max-w-[160px] bg-transparent text-[28px] leading-tight font-extrabold tracking-tight text-on-surface tabular-nums outline-none sm:max-w-[220px] sm:text-[32px]"
                   />
-                  <span className="shrink-0 text-sm font-bold text-on-surface-variant">{budgetParts.currency}</span>
+                  <span className="shrink-0 text-sm font-bold text-on-surface-variant">{canSeeBalances ? budgetParts.currency : ''}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsEditingBudget(true)}
+                  onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
                   aria-label="Edit total monthly budget"
                   className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
                 >
@@ -353,7 +358,7 @@ export function OverviewTab({
               </span>
               <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
                 <span className="text-xl font-extrabold tracking-tight text-primary tabular-nums">
-                  {format(totalCash)}
+                  {canSeeBalances ? format(totalCash) : redacted}
                 </span>
                 <button
                   type="button"

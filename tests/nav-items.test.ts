@@ -7,9 +7,9 @@ import {
 } from '../src/components/dashboard/nav-items';
 
 describe('Dashboard navigation items', () => {
-  it('keeps the bottom nav at 5 destinations for free users and 6 for PRO', () => {
+  it('keeps the bottom nav focused at 5 destinations for free and PRO users', () => {
     assert.strictEqual(getVisibleNavItems(false).length, 5);
-    assert.strictEqual(getVisibleNavItems(true).length, 6);
+    assert.strictEqual(getVisibleNavItems(true).length, 5);
   });
 
   it('never surfaces the profile page in the nav bars', () => {
