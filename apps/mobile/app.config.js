@@ -6,6 +6,7 @@ const GOOGLE_WEB_CLIENT_ID =
 const config = {
   name: "SmartJib",
   slug: "smartjib",
+  owner: "mouadlouhichi",
   version: "1.0.0",
   scheme: "smartjib",
   orientation: "portrait",
