@@ -4,6 +4,7 @@
 >
 > Legend: ✅ Done · ⬜ Not started · 🔧 Partial / needs polish
 
+
 ---
 
 ## 💰 Core Budgeting
