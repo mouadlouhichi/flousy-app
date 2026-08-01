@@ -4,17 +4,16 @@ name: EAS Build
 #   bash scripts/setup-eas-ci.sh
 # (Arena's GitHub App token cannot write .github/workflows/**, so it lives here
 # in ci/ and is copied into place by a human-run script.)
+#
+# Builds run ONLY when needed:
+#   * manually via workflow_dispatch (any branch / profile / platform), or
+#   * automatically on push to main when files that affect the mobile app
+#     actually change (apps/mobile, packages/core, .npmrc).
+# Web-only / docs / CI-only commits no longer burn EAS build minutes.
+# Escape hatch for auto builds: put [skip eas] (or [skip ci]) in the message.
 
 on:
-  # EVERY commit pushed to ANY branch queues an Android development build on
-  # EAS. Builds show up at:
-  # https://expo.dev/accounts/mouadlouhichi/projects/smartjib/builds
-  #
-  # Escape hatch: put [skip eas] (or [skip ci]) in the commit message.
-  push:
-    branches:
-      - "**"
-
+  # Manual trigger - build on demand for any branch.
   workflow_dispatch:
     inputs:
       profile:
@@ -45,6 +44,16 @@ on:
         required: false
         default: false
         type: boolean
+
+  # Automatic build only when the mobile app is actually affected, and only on
+  # the default branch. Feature-branch WIP commits won't trigger a build.
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/core/**'
+      - '.npmrc'
 
 concurrency:
   # Rapid successive commits: cancel the queued GitHub job that hasn't reached
