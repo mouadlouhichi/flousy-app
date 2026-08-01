@@ -3,9 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
-    "mobile": "pnpm --filter @smartjib/mobile run start:dev-client",
-    "mobile:go": "pnpm --filter @smartjib/mobile run start",
-    "mobile:android": "pnpm --filter @smartjib/mobile run android",
+    "mobile": "cd apps/mobile && pnpm start:dev-client",
+    "mobile:go": "cd apps/mobile && pnpm start",
+    "mobile:android": "cd apps/mobile && pnpm android",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
