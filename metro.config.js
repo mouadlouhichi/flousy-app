@@ -1,11 +1,10 @@
 // Root Metro config so `expo start` works even when launched from the
-// monorepo root (e.g. `npx expo start` in the project root). It points Metro at
-// the mobile app, so module resolution (react, react-native, etc.) is correct
-// for every screen — not just one file.
+// monorepo root. It points Metro at the mobile app and forces module resolution
+// (react, react-native, expo-*, etc.) to resolve from the hoisted node_modules,
+// so nothing can fail with "Unable to resolve 'react'".
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
-const fs = require('fs');
 
 const projectRoot = path.resolve(__dirname, 'apps/mobile');
 const workspaceRoot = __dirname;
@@ -19,23 +18,28 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
-// Force a single, always-resolvable copy of react so launching Expo from any
-// directory resolves `react` correctly (fixes "Unable to resolve 'react'" in
-// pnpm monorepos where the default lookup unexpectedly misses it).
-const reactTarget = [
-  path.resolve(projectRoot, 'node_modules', 'react'),
-  path.resolve(workspaceRoot, 'node_modules', 'react'),
-].find((p) => fs.existsSync(p));
-if (reactTarget) {
-  config.resolver.extraNodeModules = {
-    ...(config.resolver.extraNodeModules || {}),
-    react: reactTarget,
-  };
-}
+// Bulletproof fallback: if Metro's default lookup can't find a bare module,
+// resolve it from the mobile app / hoisted workspace node_modules via Node.
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  try {
+    return context.resolveRequest(context, moduleName, platform);
+  } catch (err) {
+    const isBare =
+      typeof moduleName === 'string' &&
+      !moduleName.startsWith('.') &&
+      !moduleName.startsWith('/') &&
+      /^[a-zA-Z@]/.test(moduleName);
+    if (isBare) {
+      try {
+        const abs = require.resolve(moduleName, { paths: [projectRoot, workspaceRoot] });
+        return { filePath: abs };
+      } catch (_) {}
+    }
+    throw err;
+  }
+};
 
 module.exports = withNativeWind(config, {
-  // Absolute paths: Metro is launched from the repo root, so relative paths
-  // would resolve against the wrong directory.
   input: path.resolve(projectRoot, 'src/global.css'),
   configPath: path.resolve(projectRoot, 'tailwind.config.js'),
 });

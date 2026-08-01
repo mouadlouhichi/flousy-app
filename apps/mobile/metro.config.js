@@ -1,7 +1,6 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 const path = require("path");
-const fs = require("fs");
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
@@ -15,16 +14,25 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
-// Force a single, always-resolvable copy of react (monorepo-safe).
-const reactTarget = [
-  path.resolve(projectRoot, "node_modules", "react"),
-  path.resolve(workspaceRoot, "node_modules", "react"),
-].find((p) => fs.existsSync(p));
-if (reactTarget) {
-  config.resolver.extraNodeModules = {
-    ...(config.resolver.extraNodeModules || {}),
-    react: reactTarget,
-  };
-}
+// Bulletproof fallback: force bare modules (react, etc.) to resolve from the
+// hoisted workspace node_modules.
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  try {
+    return context.resolveRequest(context, moduleName, platform);
+  } catch (err) {
+    const isBare =
+      typeof moduleName === "string" &&
+      !moduleName.startsWith(".") &&
+      !moduleName.startsWith("/") &&
+      /^[a-zA-Z@]/.test(moduleName);
+    if (isBare) {
+      try {
+        const abs = require.resolve(moduleName, { paths: [projectRoot, workspaceRoot] });
+        return { filePath: abs };
+      } catch (_) {}
+    }
+    throw err;
+  }
+};
 
 module.exports = withNativeWind(config, { input: "./src/global.css" });
