@@ -6,7 +6,7 @@
 what your money is _for_ and where it actually _is_.**
 
 [![CI](https://img.shields.io/badge/CI-typecheck%20%7C%20lint%20%7C%20test%20%7C%20build-2ea44f)](ci/github-actions-ci.yml)
-[![Tests](https://img.shields.io/badge/tests-37%20passing-2ea44f)](#-testing)
+[![Tests](https://img.shields.io/badge/tests-86%20passing-2ea44f)](#-testing)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -465,7 +465,7 @@ bypasses rules), driven by a payment webhook.
 npm run test
 ```
 
-**37 tests across 6 suites**, run by Node's built-in test runner through `tsx`:
+**86 tests across 18 suites**, run by Node's built-in test runner through `tsx`:
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
@@ -475,6 +475,7 @@ npm run test
 | `export.test.ts` | 3 | CSV escaping, injection safety, ordering, empty accounts |
 | `seo.test.ts` | 3 | Currency/strategy facts stay aligned across `seo.ts`, `llms.txt` and the sitemap |
 | `flows.test.ts` | 1 | A full monthly journey asserting total wealth is conserved end to end |
+| `household.test.ts` | 11 | Household RBAC permissions (`owner`, `editor`, `contributor`, `viewer`, `custom`), Pro upgrade visibility gating, storage key namespacing, and audit trail helpers |
 
 Money math is tested against **all 4 strategies × 5 incomes**, including
 rounding-hostile values (`1`, `7`, `12345`, `1000001`), verifying that:
@@ -600,9 +601,9 @@ git push
 **Shipped** — money-place accounting · edit everywhere · goal withdrawals ·
 debts & credits · multi-month trends · recurring bills · budget alerts ·
 income sources · CSV export *and* import · household/person tracking ·
-12 currencies · en/fr/ar with RTL · light/dark themes · offline shell ·
-nonce CSP · hardened rules · marketing site & blog · CI · 37 tests ·
-mock Pro checkout
+shared household workspaces & RBAC · 12 currencies · en/fr/ar with RTL ·
+light/dark themes · offline shell · nonce CSP · hardened rules ·
+marketing site & blog · CI · 84 tests · mock Pro checkout
 
 **Next**
 
@@ -610,7 +611,6 @@ mock Pro checkout
 | --- | --- | --- |
 | Real payments (Stripe / Lemon Squeezy) | L | Mock checkout UI is complete in `payments.ts`; needs live Checkout + an Admin SDK webhook to flip `plan` |
 | Move receipts to Firebase Storage | M | Currently stored as base64 data URLs inside the month document |
-| Shared / household budgets | L | Rules are strictly single-user today |
 | JSON backup export | S | CSV only right now |
 | Month locking / archiving | M | No concept of a "closed" month |
 | Push notifications | M | No infrastructure yet |

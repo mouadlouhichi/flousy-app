@@ -186,7 +186,7 @@
 | P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
 | P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
 | P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
-| P6 | **Shared / household budgets** | ⬜ | Rules are strictly single-user; multi-user would require subcollection redesign |
+| P6 | **Shared / household budgets** | ✅ | Multi-user household workspaces (`/households/{hid}`) with 5-role RBAC (`owner`, `editor`, `contributor`, `viewer`, `custom`), contributor invoice submission/review workflow, member invitation links via Resend, and dual personal/household workspace switching |
 | P7 | **Bank sync (Plaid / Tink)** | ⬜ | Post-MVP; no API integrations exist |
 | P8 | **Receipt OCR / smart scanning** | ⬜ | Receipt upload works (base64 data URL); no OCR processing |
 | P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
@@ -227,6 +227,6 @@
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
-| **Post-MVP / Remaining** | **12** | **6** | **0** | **6** |
+| **Post-MVP / Remaining** | **12** | **7** | **0** | **5** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **112** | **106** | **0** | **6** |
+| **Grand Total (core + post-MVP)** | **112** | **107** | **0** | **5** |

@@ -11,6 +11,8 @@ import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
 import { SegmentedControl } from '../ui/segmented-control';
 import { trackEvent } from '../../lib/analytics';
+import { useHousehold } from '../../lib/household-context';
+import { canShowProUpgrade } from '../../lib/household';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const { currency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
+  const { workspace } = useHousehold();
   const { language, setLanguage } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -147,7 +150,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* ── Upgrade CTA ── */}
-          {onOpenProModal && profile?.plan !== 'pro' && (
+          {onOpenProModal && canShowProUpgrade(profile?.plan === 'pro', workspace) && (
             <button
               type="button"
               onClick={onOpenProModal}

@@ -15,6 +15,7 @@ import { PRO_FEATURES } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
+import { canShowProUpgrade, isProFeatureUnlocked } from '@/lib/household';
 import { HouseholdModal } from '@/components/modals/HouseholdModal';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
 import { HouseholdInvoiceReview } from '../household-invoice-review';
@@ -36,6 +37,8 @@ export function ProfileScreen() {
     useDashboard();
 
   const { isContributor, household, workspace, selectWorkspace, memberRole } = useHousehold();
+  const showUpgrade = canShowProUpgrade(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
@@ -196,7 +199,7 @@ export function ProfileScreen() {
                   {user?.email}
                 </p>
 
-                {!isPro && (
+                {showUpgrade && (
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                     <button
                       type="button"
@@ -221,9 +224,9 @@ export function ProfileScreen() {
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 px-1">
           <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-on-surface-variant">
-            {isPro ? 'Your Pro Features' : 'Unlock with Pro'}
+            {proUnlocked ? 'Your Pro Features' : 'Unlock with Pro'}
           </h2>
-          {isPro && (
+          {proUnlocked && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
               <AppIcon name="check_circle" className="text-[13px]" />
               All active
@@ -236,14 +239,14 @@ export function ProfileScreen() {
             <div
               key={feature.id}
               className={`flex items-start gap-3 rounded-2xl border p-4 transition-all ${
-                isPro
+                proUnlocked
                   ? 'border-primary/25 bg-surface-container'
                   : 'border-outline-variant bg-surface-container/60'
               }`}
             >
               <div
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                  isPro ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant'
+                  proUnlocked ? 'bg-primary text-on-primary' : 'bg-surface-variant text-on-surface-variant'
                 }`}
               >
                 <AppIcon name={feature.icon} className="text-[20px]" />
@@ -251,7 +254,7 @@ export function ProfileScreen() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-sm font-bold text-on-surface">{feature.title}</h3>
-                  {!isPro && (
+                  {!proUnlocked && (
                     <AppIcon name="lock" className="text-[13px] text-on-surface-variant" />
                   )}
                 </div>
@@ -263,7 +266,7 @@ export function ProfileScreen() {
           ))}
         </div>
 
-        {isPro ? (
+        {proUnlocked ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
@@ -310,7 +313,7 @@ export function ProfileScreen() {
               <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
             </Link>
           </div>
-        ) : (
+        ) : showUpgrade ? (
           <button
             type="button"
             onClick={openProModal}
@@ -319,6 +322,10 @@ export function ProfileScreen() {
             <AppIcon name="workspace_premium" className="text-[20px]" />
             <span>Upgrade to Pro</span>
           </button>
+        ) : (
+          <div className="rounded-2xl border border-outline-variant bg-surface-container/60 p-4 text-center text-xs text-on-surface-variant">
+            Pro upgrades apply to your private workspace. Switch to <button type="button" onClick={() => selectWorkspace('personal')} className="font-bold text-primary underline">My SmartJib</button> to manage or upgrade your personal plan.
+          </div>
         )}
       </section>
 

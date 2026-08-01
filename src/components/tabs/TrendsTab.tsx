@@ -6,6 +6,8 @@ import React from 'react';
 import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
+import { useHousehold } from '../../lib/household-context';
+import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -24,8 +26,11 @@ const CHART_COLORS = [
 
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
+  const { workspace } = useHousehold();
 
   const isPro = isProUser(profile);
+  const showUpgrade = canShowProUpgrade(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const hasMultiMonth = trendsMonths.length > 0;
 
   // ── Current month calculations ──
@@ -158,7 +163,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
             <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Month-Over-Month Spending</h3>
           </div>
-          {!isPro && (
+          {showUpgrade && (
             <button
               onClick={onOpenProModal}
               className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
@@ -172,7 +177,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           <div className="h-48 bg-surface-variant/30 rounded-2xl animate-pulse flex items-center justify-center">
             <span className="text-on-surface-variant font-medium">Loading trends...</span>
           </div>
-        ) : monthOverMonth.length > 1 && isPro ? (
+        ) : monthOverMonth.length > 1 && proUnlocked ? (
           /* Bar chart with month-over-month comparison */
           <div className="space-y-4">
             <div className="flex items-end gap-2 sm:gap-3 h-48">
@@ -240,7 +245,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Income Sources</h3>
         </div>
 
-        {isPro && incomeSources.length > 0 ? (
+        {proUnlocked && incomeSources.length > 0 ? (
           <div className="space-y-3">
             {incomeSources.map((src, idx) => {
               const pct = totalIncome > 0 ? Math.round(((src.amount || 0) / totalIncome) * 100) : 0;
@@ -280,7 +285,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         ) : (
           <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
-              {isPro ? 'No income sources configured. Add them from the sidebar menu.' : 'Income source analytics are available in Pro.'}
+              {proUnlocked ? 'No income sources configured. Add them from the sidebar menu.' : 'Income source analytics are available in Pro.'}
             </p>
           </div>
         )}
@@ -340,7 +345,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       </div>
 
       {/* ── Household Spending Breakdown ── */}
-      {isPro && Object.keys(personBreakdown).length > 0 && (
+      {proUnlocked && Object.keys(personBreakdown).length > 0 && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <div className="flex items-center gap-2 mb-4">
             <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
@@ -376,7 +381,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         </div>
       )}
 
-      {!isPro && (
+      {showUpgrade && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <p className="font-body-sm text-body-sm text-on-surface-variant">
             Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.
