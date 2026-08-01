@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { useHousehold } from '@/lib/household-context';
+import { isProFeatureUnlocked } from '@/lib/household';
 
 /**
  * Desktop left sidebar navigation (hidden on mobile).
@@ -18,8 +20,10 @@ import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
 export function Sidebar() {
   const pathname = usePathname();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
+  const { workspace } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(isPro);
+  const items = getVisibleNavItems(proUnlocked);
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
@@ -76,7 +80,7 @@ export function Sidebar() {
         {/* Quick Tools */}
         <button
           onClick={() => {
-            if (!isPro) {
+            if (!proUnlocked) {
               openProModal();
               return;
             }
@@ -90,7 +94,7 @@ export function Sidebar() {
 
         <button
           onClick={() => {
-            if (!isPro) {
+            if (!proUnlocked) {
               openProModal();
               return;
             }

@@ -1,7 +1,7 @@
 import type { MonthBudget } from './store';
 import type { HouseholdPermissions } from './household-rbac';
 
-export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'custom' | 'profile';
+export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
 
 export interface Household {
@@ -67,3 +67,26 @@ export interface HouseholdInvoice {
   status: 'submitted' | 'approved' | 'rejected';
   createdAt: string;
 }
+
+/**
+ * Pro upgrades apply only to a user's private personal account.
+ * When inside a shared household workspace, Upgrade to Pro CTAs and modals must be hidden.
+ */
+export function canShowProUpgrade(
+  isProUser: boolean,
+  workspace: 'personal' | 'household' | undefined,
+): boolean {
+  return !isProUser && (workspace === undefined || workspace === 'personal');
+}
+
+/**
+ * Within a household workspace, Pro features (such as Trends, Category Budgets, CSV import/export)
+ * are unlocked for active household members.
+ */
+export function isProFeatureUnlocked(
+  isProUser: boolean,
+  workspace: 'personal' | 'household' | undefined,
+): boolean {
+  return isProUser || workspace === 'household';
+}
+

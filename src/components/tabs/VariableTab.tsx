@@ -4,6 +4,8 @@ import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCatego
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { isProUser } from '../../lib/pro-features';
+import { useHousehold } from '../../lib/household-context';
+import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 
 interface VariableTabProps {
   month: MonthBudget;
@@ -27,6 +29,7 @@ export function VariableTab({
   const { format } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
+  const { workspace } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -66,7 +69,7 @@ export function VariableTab({
   };
 
   const handleStartEdit = (category: string) => {
-    if (!isPro) {
+    if (!isProFeatureUnlocked(isPro, workspace)) {
       onOpenProModal();
       return;
     }
@@ -111,7 +114,7 @@ export function VariableTab({
           <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
             Category Budgets
           </h3>
-          {!isPro && (
+          {canShowProUpgrade(isPro, workspace) && (
             <button
               onClick={onOpenProModal}
               className="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"

@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { useHousehold } from '@/lib/household-context';
+import { isProFeatureUnlocked } from '@/lib/household';
 
 interface PillRect {
   x: number;
@@ -32,8 +34,10 @@ interface PillRect {
 export function BottomNav() {
   const pathname = usePathname();
   const { isPro } = useDashboard();
+  const { workspace } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(isPro);
+  const items = getVisibleNavItems(proUnlocked);
   const [isCompact, setIsCompact] = useState(false);
   // With 6 destinations (PRO) the icons need to shrink a touch to keep
   // comfortable tap targets without overflowing narrow viewports.

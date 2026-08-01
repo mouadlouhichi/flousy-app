@@ -646,7 +646,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
   const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
 
-  const openProModal = useCallback(() => setIsProModalOpen(true), []);
+  const openProModal = useCallback(() => {
+    if (workspace === 'household') return;
+    setIsProModalOpen(true);
+  }, [workspace]);
   const closeProModal = useCallback(() => setIsProModalOpen(false), []);
 
   const openCsvModal = useCallback(() => setIsCsvModalOpen(true), []);
