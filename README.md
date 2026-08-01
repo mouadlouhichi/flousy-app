@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💰 Flousy
+# 💰 SmartJib
 
 **A private, mobile-first budget tracker that knows the difference between
 what your money is _for_ and where it actually _is_.**
@@ -19,7 +19,7 @@ what your money is _for_ and where it actually _is_.**
 
 ## Table of contents
 
-- [Why Flousy](#-why-flousy)
+- [Why SmartJib](#-why-flousy)
 - [Features](#-features)
 - [Tech stack](#-tech-stack)
 - [Quick start](#-quick-start)
@@ -42,17 +42,17 @@ what your money is _for_ and where it actually _is_.**
 
 ---
 
-## 🎯 Why Flousy
+## 🎯 Why SmartJib
 
 Most budget apps conflate two different questions:
 
-| Question | Example | Flousy calls it |
+| Question | Example | SmartJib calls it |
 | --- | --- | --- |
 | What is this money **for**? | Rent is a *need*, dinner out is a *want* | **Budget envelope** |
 | Where is this money **sitting**? | In the bank, in a drawer, in my wallet | **Money place** |
 
 Mixing them produces nonsense — like a budgeting rule deciding how much cash
-you keep at home. Flousy keeps the two axes strictly separate, and the
+you keep at home. SmartJib keeps the two axes strictly separate, and the
 accounting honours it: **every dirham is conserved**. Log an expense and the
 money leaves a real place. Delete it and it comes back. Fund a savings goal
 and it moves out of your account; withdraw and it returns.
@@ -60,7 +60,7 @@ and it moves out of your account; withdraw and it returns.
 That invariant — money is never silently created or destroyed — is enforced by
 the [test suite](#-testing).
 
-Flousy **never connects to your bank**. You enter transactions yourself, which
+SmartJib **never connects to your bank**. You enter transactions yourself, which
 is the whole point: no credentials, no third-party aggregator, no card numbers.
 
 ---

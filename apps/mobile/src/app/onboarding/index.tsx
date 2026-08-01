@@ -119,7 +119,7 @@ export default function OnboardingScreen() {
         <Text className="text-sm font-semibold text-neutral-500 dark:text-neutral-400">
           Step {step} of 5
         </Text>
-        <Text className="text-sm font-semibold text-primary">Flousy Setup</Text>
+        <Text className="text-sm font-semibold text-primary">SmartJib Setup</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6 py-6">

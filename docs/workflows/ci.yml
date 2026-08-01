@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [feat/expo-mobile-monorepo, arena/019fab5a-flousy-app]
+  pull_request:
+    branches: [feat/expo-mobile-monorepo]
+
+jobs:
+  web-build:
+    name: Web Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @flousy/web build
+
+  core-tests:
+    name: Core Package Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm --filter @flousy/core test
+
+  mobile-typecheck:
+    name: Mobile TypeCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeCheck
+        working-directory: apps/mobile
+        run: npx tsc --noEmit

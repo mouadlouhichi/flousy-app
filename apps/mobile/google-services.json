@@ -1,0 +1,77 @@
+{
+
+  "project_info": {
+
+"project_number": "636070498350",
+
+"project_id": "luigi-wallet",
+
+"storage_bucket": "[luigi-wallet.firebasestorage.app](http://luigi-wallet.firebasestorage.app)"
+
+  },
+
+"client": [
+
+    {
+
+"client_info": {
+
+"mobilesdk_app_id": "1:636070498350:android:081dcba372125b99238fbf",
+
+"android_client_info": {
+
+"package_name": "com.luigiagentz.smartjib"
+
+        }
+
+      },
+
+"oauth_client": [
+
+        {
+
+"client_id": "[636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com](http://636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com)",
+
+"client_type": 3
+
+        }
+
+      ],
+
+"api_key": [
+
+        {
+
+"current_key": "AIzaSyDS4y-zAgXbc2xdAwMQumwNivSpZPkAD40"
+
+        }
+
+      ],
+
+"services": {
+
+"appinvite_service": {
+
+"other_platform_oauth_client": [
+
+            {
+
+"client_id": "[636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com](http://636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com)",
+
+"client_type": 3
+
+            }
+
+          ]
+
+        }
+
+      }
+
+    }
+
+  ],
+
+"configuration_version": "1"
+
+}

@@ -132,7 +132,7 @@ export default function SettingsScreen() {
       if (canShare) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'text/csv',
-          dialogTitle: `Export Flousy Budget (${currentMonthKey})`,
+          dialogTitle: `Export SmartJib Budget (${currentMonthKey})`,
         });
       } else {
         Alert.alert('Exported', `CSV file saved to ${fileUri}`);
@@ -299,7 +299,7 @@ export default function SettingsScreen() {
                 Biometric App-Lock
               </Text>
               <Text className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                Require Face ID / Fingerprint to open Flousy
+                Require Face ID / Fingerprint to open SmartJib
               </Text>
             </View>
             <Switch

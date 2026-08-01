@@ -2,7 +2,6 @@ import firestore from '@react-native-firebase/firestore';
 import {
   type UserProfile,
   type MonthBudget,
-  type SavingsData,
   type SavingGoal,
   normalizeMonth,
 } from '@flousy/core';
@@ -75,7 +74,7 @@ export async function getSavingsGoals(uid: string): Promise<SavingGoal[]> {
     .doc('savings')
     .get();
   if (!docSnap.exists) return [];
-  const data = docSnap.data() as SavingsData;
+  const data = docSnap.data() as { goals?: SavingGoal[] };
   return data?.goals || [];
 }
 

@@ -3,6 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
+    "mobile": "cd apps/mobile && pnpm start:dev-client",
+    "mobile:go": "cd apps/mobile && pnpm start",
+    "mobile:android": "cd apps/mobile && pnpm android",
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
@@ -11,7 +14,14 @@
   "devDependencies": {
     "turbo": "^2.4.0",
     "typescript": "^5.8.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "next": "^15.5.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react@>=19": "19.1.10",
+      "@types/react-dom@>=19": "19.1.7"
+    }
   },
   "packageManager": "pnpm@10.34.5"
 }

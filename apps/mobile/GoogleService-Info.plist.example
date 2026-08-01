@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Placeholder GoogleService-Info.plist for Flousy -->
+	<!-- Replace this file with the real one downloaded from Firebase Console -->
+	<!-- Firebase Console → Project Settings → iOS App → Download GoogleService-Info.plist -->
+	<key>IS_AD_UNIT_ID_ENABLED</key>
+	<false/>
+</dict>
+</plist>

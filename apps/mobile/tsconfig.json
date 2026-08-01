@@ -11,8 +11,21 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "react": [
+        "./node_modules/@types/react"
+      ],
+      "react/*": [
+        "./node_modules/@types/react/*"
+      ]
     }
   },
-  "include": ["src/**/*", "app.json"]
+  "include": [
+    "src/**/*",
+    "app.config.js",
+    "app.json",
+    "nativewind-env.d.ts"
+  ]
 }
