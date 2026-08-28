@@ -273,6 +273,32 @@ export async function deleteUserAccountData(uid: string): Promise<void> {
   }
 }
 
+/**
+ * Delete all of a user's personal budget data (every month document plus the
+ * savings goals) while keeping the account and profile settings intact.
+ *
+ * Used by the "Delete All Data" action in the profile screen, so a user can
+ * wipe their budget after downloading it without losing their account,
+ * currency, theme or plan.
+ */
+export async function deleteUserBudgetData(uid: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+
+  try {
+    // Delete savings data
+    await deleteDoc(doc(db, 'users', uid, 'data', 'savings'));
+
+    // Delete all months
+    const monthsRef = collection(db, 'users', uid, 'months');
+    const snap = await getDocs(monthsRef);
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+    }
+  } catch (err) {
+    console.error('Error deleting user budget data:', err);
+  }
+}
+
 // Shared Household workspace -------------------------------------------------
 // Household documents are deliberately separate from private user documents.
 // This lets rules grant access by membership without exposing a user's profile.

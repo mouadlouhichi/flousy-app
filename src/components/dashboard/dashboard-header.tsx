@@ -5,10 +5,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
-import { InstallButton } from '@/components/pwa/install-button';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
+import { getSourcePeriod } from '@/lib/utils';
+
+/** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
+function formatPeriodLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 /** Main header bar: page title, month selector and action tools. */
 export function DashboardHeader() {
@@ -36,6 +42,12 @@ export function DashboardHeader() {
     const d = new Date(y, m - 1, 1);
     return d.toLocaleDateString('en-US', { month: 'short' });
   })();
+
+  // When a monthly start date is configured, the navigator shows the budget
+  // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
+  const budgetPeriod = profile?.monthStartDate
+    ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
+    : null;
 
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
@@ -71,7 +83,16 @@ export function DashboardHeader() {
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
         <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[32px] sm:min-w-[64px] text-center uppercase">
-          {monthLabel}
+          {budgetPeriod ? (
+            <>
+              <span className="sm:hidden">{formatPeriodLabel(budgetPeriod.startDate)}</span>
+              <span className="hidden whitespace-nowrap sm:inline">
+                {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
+              </span>
+            </>
+          ) : (
+            monthLabel
+          )}
         </span>
         <button
           onClick={handleNextMonth}
@@ -84,8 +105,6 @@ export function DashboardHeader() {
 
       {/* Header Action Tools */}
       <div className="flex items-center gap-2">
-        <InstallButton compact />
-
         <BudgetAlerts month={month} />
 
         {canAddExpense && <button

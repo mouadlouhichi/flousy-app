@@ -14,6 +14,7 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { PRO_FEATURES } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
 import { useDashboard } from '../dashboard-provider';
+import { MonthlyStartDateControl } from '../monthly-start-date-control';
 import { useHousehold } from '@/lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '@/lib/household';
 import { HouseholdModal } from '@/components/modals/HouseholdModal';
@@ -30,7 +31,7 @@ import { HouseholdInvoiceReview } from '../household-invoice-review';
 export function ProfileScreen() {
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get('invite') || undefined;
-  const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
+  const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { language, setLanguage } = useLanguage();
   const { month, goals, currentMonthKey, isPro, openProModal, openCsvModal, openIncomeModal } =
@@ -44,6 +45,7 @@ export function ProfileScreen() {
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [householdOpen, setHouseholdOpen] = useState(false);
   useEffect(() => { if (inviteCode) setHouseholdOpen(true); }, [inviteCode]);
 
@@ -398,6 +400,13 @@ export function ProfileScreen() {
               ]}
             />
           </div>
+
+          <div className="p-4">
+            <MonthlyStartDateControl
+              value={profile?.monthStartDate}
+              onChange={(day) => updateProfileData({ monthStartDate: day })}
+            />
+          </div>
         </div>
       </section>
 
@@ -420,6 +429,22 @@ export function ProfileScreen() {
           <AppIcon
             name="chevron_right"
             className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+          />
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowDeleteDataConfirm(true)}
+          className="group flex w-full items-center justify-between rounded-2xl border border-error/30 bg-error/5 p-4 transition-colors hover:bg-error/10"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-error/10 transition-colors group-hover:bg-error/20">
+              <AppIcon name="delete_forever" className="text-[20px] text-error" />
+            </span>
+            <span className="text-sm font-medium text-error">Delete All Data</span>
+          </span>
+          <AppIcon
+            name="chevron_right"
+            className="text-[20px] text-error/70 transition-transform group-hover:translate-x-0.5"
           />
         </button>
       </section>
@@ -485,6 +510,18 @@ export function ProfileScreen() {
         title="Delete Account Permanently"
         message="This action is irreversible. All your budget data, expenses, and savings goals will be permanently deleted."
         confirmLabel="Delete Account"
+        isDestructive
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteDataConfirm}
+        onClose={() => setShowDeleteDataConfirm(false)}
+        onConfirm={async () => {
+          await deleteAllData();
+        }}
+        title="Delete All Data"
+        message="This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
+        confirmLabel="Delete All Data"
         isDestructive
       />
     </div>

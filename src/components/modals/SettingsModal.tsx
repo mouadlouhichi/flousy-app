@@ -2,6 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { InstallButton } from '../pwa/install-button';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
@@ -10,6 +11,7 @@ import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
 import { SegmentedControl } from '../ui/segmented-control';
+import { MonthlyStartDateControl } from '../dashboard/monthly-start-date-control';
 import { trackEvent } from '../../lib/analytics';
 import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade } from '../../lib/household';
@@ -25,10 +27,11 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const { currency, setCurrency } = useCurrency();
-  const { user, profile, signOut, deleteAccount, updateProfileData } = useAuth();
+  const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
   const { workspace } = useHousehold();
   const { language, setLanguage } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
@@ -241,6 +244,20 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             </div>
           </div>
 
+          {/* ── Budget Month (monthly start date) ── */}
+          <div className="space-y-3">
+            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">
+              Budget Month
+            </h3>
+            <div className="bg-surface-container rounded-xl border border-outline-variant/50 p-4">
+              <MonthlyStartDateControl
+                compact
+                value={profile?.monthStartDate}
+                onChange={(day) => updateProfileData({ monthStartDate: day })}
+              />
+            </div>
+          </div>
+
           {/* ── Data Management Section ── */}
           <div className="space-y-3">
             <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">
@@ -259,6 +276,24 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
               </div>
               <AppIcon name="chevron_right" className="text-[20px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform" />
             </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteDataConfirm(true)}
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors border border-error/30 cursor-pointer group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-colors">
+                  <AppIcon name="delete_forever" className="text-[20px] text-error" />
+                </div>
+                <span className="font-label-lg text-label-lg font-medium text-error">Delete All Data</span>
+              </div>
+              <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+
+          {/* ── Install App (moved here from the dashboard header) ── */}
+          <div className="flex justify-center pt-1">
+            <InstallButton />
           </div>
 
           {/* ── Account Actions ── */}
@@ -325,6 +360,19 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
         title="Delete Account Permanently"
         message="This action is irreversible. All your budget data, expenses, and savings goals will be permanently deleted from Firestore."
         confirmLabel="Delete Account"
+        isDestructive
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteDataConfirm}
+        onClose={() => setShowDeleteDataConfirm(false)}
+        onConfirm={async () => {
+          await deleteAllData();
+          onClose();
+        }}
+        title="Delete All Data"
+        message="This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
+        confirmLabel="Delete All Data"
         isDestructive
       />
     </>

@@ -251,6 +251,8 @@ export function DashboardModals() {
         isOpen={dashboard.isIncomeModalOpen}
         onClose={dashboard.closeIncomeModal}
         month={month}
+        monthKey={currentMonthKey}
+        defaultPayDay={dashboard.profile?.monthStartDate}
         onSaveIncomeSources={handleSaveIncomeSources}
       />
 

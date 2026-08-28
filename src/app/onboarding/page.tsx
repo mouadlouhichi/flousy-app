@@ -19,7 +19,9 @@ import {
   resolveStrategy,
 } from '../../lib/store';
 import { saveMonthBudget } from '../../lib/db';
+import { formatDayOfMonth, getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
+import { MonthDayPicker } from '../../components/ui/month-day-picker';
 
 interface CategoryItem {
   name: string;
@@ -40,11 +42,13 @@ const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, updateProfileData } = useAuth();
+  const { user, profile, updateProfileData } = useAuth();
   const { currency, setCurrency, symbol, format } = useCurrency();
 
   const [step, setStep] = useState<number>(1);
   const [income, setIncome] = useState<string>('15000');
+  // Optional: the day of the month the salary arrives (start of the budget month).
+  const [monthStartDate, setMonthStartDate] = useState<number | undefined>(profile?.monthStartDate);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyId>('50-30-20');
   // Custom strategy split, kept in whole percents while editing.
   const [customSplit, setCustomSplit] = useState({
@@ -201,7 +205,9 @@ export default function OnboardingPage() {
     setIsCompleting(true);
 
     const today = new Date();
-    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    // File the first month under the budget period containing today so the
+    // dashboard looks for the same key when a monthly start date is set.
+    const monthKey = getCurrentMonthKey(monthStartDate, today);
     const newMonth = createNewMonth(
       parsedIncome,
       selectedStrategy,
@@ -230,7 +236,7 @@ export default function OnboardingPage() {
         // immediately treat onboarding as complete.
         const dbPromise = Promise.all([
           saveMonthBudget(user.uid, monthKey, newMonth),
-          updateProfileData({ currency, onboardingComplete: true }),
+          updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
         ]);
         await Promise.race([dbPromise, timeoutPromise]);
       } catch (e) {
@@ -381,6 +387,28 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Monthly start date (salary payday) */}
+            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-bold text-on-surface-variant">
+                  Monthly start date <span className="font-medium">(optional)</span>
+                </label>
+                <p className="text-[12px] font-medium text-on-surface-variant">
+                  Pick the day your salary arrives each month — your budget month will start then.
+                </p>
+              </div>
+              <MonthDayPicker
+                value={monthStartDate}
+                onChange={setMonthStartDate}
+                label="Salary day"
+                hint={
+                  monthStartDate
+                    ? `Your budget month starts on the ${formatDayOfMonth(monthStartDate)} of each month.`
+                    : undefined
+                }
+              />
             </div>
 
             <button
