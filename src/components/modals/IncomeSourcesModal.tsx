@@ -4,6 +4,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
+import { MonthDayPicker } from '../ui/month-day-picker';
 import { MonthBudget, IncomeSource } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { formatDayOfMonth, getSourcePeriod } from '../../lib/utils';
@@ -281,25 +282,12 @@ export function IncomeSourcesModal({
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant">
-                          <AppIcon name="calendar_clock" className="text-[13px]" />
-                          Monthly start date
-                        </label>
-                        <select
-                          value={editPayDay === '' ? '' : String(editPayDay)}
-                          onChange={(e) => setEditPayDay(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="px-2 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-[12px] font-bold text-on-surface focus:border-primary outline-none transition-colors cursor-pointer"
-                          aria-label="Monthly start date"
-                        >
-                          <option value="">—</option>
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                            <option key={d} value={d}>
-                              {formatDayOfMonth(d)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <MonthDayPicker
+                        value={editPayDay === '' ? undefined : Number(editPayDay)}
+                        onChange={(d) => setEditPayDay(d === undefined ? '' : d)}
+                        label="Monthly start date"
+                        allowClear
+                      />
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
@@ -477,34 +465,20 @@ export function IncomeSourcesModal({
             </div>
 
             {/* Monthly start date (payday) */}
-            <div className="flex flex-col gap-1.5 pt-1 border-t border-outline-variant/40">
-              <label className="flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-                <AppIcon name="calendar_clock" className="text-[13px] text-primary" />
-                Monthly start date
-              </label>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <select
-                  value={newPayDay === '' ? '' : String(newPayDay)}
-                  onChange={(e) => {
-                    setNewPayDay(e.target.value === '' ? '' : Number(e.target.value));
-                    if (fieldErrors.newPayDay) setFieldErrors((p) => ({ ...p, newPayDay: '' }));
-                  }}
-                  className="px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[13px] font-bold text-on-surface focus:border-primary outline-none transition-colors cursor-pointer min-w-[140px]"
-                  aria-label="Monthly start date"
-                >
-                  <option value="">No fixed start date</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                    <option key={d} value={d}>
-                      {formatDayOfMonth(d)}
-                    </option>
-                  ))}
-                </select>
-                {newPayDay !== '' && (
-                  <p className="text-[11px] font-medium text-on-surface-variant">
-                    Salary arrives monthly on the {formatDayOfMonth(Number(newPayDay))} — your budget period for this source starts then.
-                  </p>
-                )}
-              </div>
+            <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/40">
+              <MonthDayPicker
+                value={newPayDay === '' ? undefined : Number(newPayDay)}
+                onChange={(d) => {
+                  setNewPayDay(d === undefined ? '' : d);
+                  if (fieldErrors.newPayDay) setFieldErrors((p) => ({ ...p, newPayDay: '' }));
+                }}
+                label="Monthly start date"
+                hint={
+                  newPayDay !== ''
+                    ? `Salary arrives monthly on the ${formatDayOfMonth(Number(newPayDay))} — your budget period for this source starts then.`
+                    : 'Optional: pick the day of the month this income arrives.'
+                }
+              />
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[1, 5, 10, 15, 20, 25, 30].map((d) => (
                   <button
@@ -524,9 +498,6 @@ export function IncomeSourcesModal({
                   </button>
                 ))}
               </div>
-              {fieldErrors.newPayDay && (
-                <p className="text-[11px] text-error font-medium">{fieldErrors.newPayDay}</p>
-              )}
             </div>
           </div>
         </div>
