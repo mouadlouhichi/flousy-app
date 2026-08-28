@@ -212,6 +212,24 @@ export interface SavingGoal {
   source: MoneyPlace;
   active: boolean;
   category?: string;
+  /**
+   * Money that was actually transferred INTO this goal through a deposit
+   * (the fund flow, or an opening balance moved out of a tracked money
+   * place via the transfer checkbox). "Already saved" balances recorded
+   * without that checkbox are pure bookkeeping and are NOT counted here,
+   * so the home-screen savings plan only reflects real deposits.
+   */
+  deposited?: number;
+}
+
+/** One savings deposit / withdrawal logged on the month for Recent Activity. */
+export interface SavingsActivityEntry {
+  id: string;
+  goalId: string;
+  goalName: string;
+  type: 'deposit' | 'withdraw';
+  amount: number;
+  date: string; // ISO timestamp
 }
 
 export type DebtType = 'debt' | 'credit';
@@ -247,6 +265,8 @@ export interface MonthBudget {
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
   debts?: DebtItem[];
+  /** Deposit / withdrawal log feeding the home-screen Recent Activity list. */
+  savingsActivity?: SavingsActivityEntry[];
   updatedAt: string;
   updatedByUserId?: string;
 }
@@ -680,6 +700,33 @@ export function updateMoneyPlaces(
   };
 }
 
+/** Cap for the per-month savings activity log (mirrored in firestore.rules). */
+export const MAX_SAVINGS_ACTIVITY = 200;
+
+/**
+ * Prepend a savings deposit/withdrawal to the month's Recent Activity log.
+ */
+function withSavingsActivity(
+  month: MonthBudget,
+  entry: Omit<SavingsActivityEntry, 'id'>,
+): MonthBudget {
+  const logged: SavingsActivityEntry = {
+    ...entry,
+    id: `sav-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+  };
+
+  return {
+    ...month,
+    savingsActivity: [logged, ...(month.savingsActivity || [])].slice(0, MAX_SAVINGS_ACTIVITY),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Sum of money actually deposited into goals (excludes bookkeeping balances). */
+export function calculateDepositedSavings(goals: SavingGoal[]): number {
+  return (goals || []).reduce((acc, g) => acc + (g.deposited ?? 0), 0);
+}
+
 export function fundGoal(
   month: MonthBudget,
   goals: SavingGoal[],
@@ -692,15 +739,32 @@ export function fundGoal(
   const currentBalance = month[`${sourcePlace}Part`] || 0;
   const actualAmount = Math.min(currentBalance, amount);
 
-  const updatedMonth = {
-    ...month,
-    [`${sourcePlace}Part`]: currentBalance - actualAmount,
-    updatedAt: new Date().toISOString(),
-  };
+  if (actualAmount <= 0) return { month, goals };
+
+  const goal = goals.find((g) => g.id === goalId);
+
+  const updatedMonth = withSavingsActivity(
+    {
+      ...month,
+      [`${sourcePlace}Part`]: currentBalance - actualAmount,
+    },
+    {
+      goalId,
+      goalName: goal?.name || 'Savings goal',
+      type: 'deposit',
+      amount: actualAmount,
+      date: new Date().toISOString(),
+    },
+  );
 
   const updatedGoals = goals.map((g) => {
     if (g.id === goalId) {
-      return { ...g, current: g.current + actualAmount, source: sourcePlace };
+      return {
+        ...g,
+        current: g.current + actualAmount,
+        deposited: (g.deposited ?? 0) + actualAmount,
+        source: sourcePlace,
+      };
     }
     return g;
   });
@@ -720,15 +784,30 @@ export function withdrawGoal(
 
   const actualWithdraw = Math.min(goal.current, amount);
 
-  const updatedMonth = {
-    ...month,
-    [`${targetPlace}Part`]: (month[`${targetPlace}Part`] || 0) + actualWithdraw,
-    updatedAt: new Date().toISOString(),
-  };
+  if (actualWithdraw <= 0) return { month, goals };
+
+  const updatedMonth = withSavingsActivity(
+    {
+      ...month,
+      [`${targetPlace}Part`]: (month[`${targetPlace}Part`] || 0) + actualWithdraw,
+    },
+    {
+      goalId,
+      goalName: goal.name,
+      type: 'withdraw',
+      amount: actualWithdraw,
+      date: new Date().toISOString(),
+    },
+  );
 
   const updatedGoals = goals.map((g) => {
     if (g.id === goalId) {
-      return { ...g, current: g.current - actualWithdraw };
+      return {
+        ...g,
+        current: g.current - actualWithdraw,
+        // Money left the goal, so it no longer counts as deposited savings.
+        deposited: Math.max(0, (g.deposited ?? 0) - actualWithdraw),
+      };
     }
     return g;
   });
@@ -757,9 +836,11 @@ export function saveGoalWithBalance(
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const existing = goals.find((g) => g.id === goal.id);
   const previousCurrent = Math.max(0, existing?.current ?? 0);
+  const previousDeposited = Math.max(0, existing?.deposited ?? 0);
   const requested = Math.max(0, Number.isFinite(goal.current) ? goal.current : 0);
 
   let nextCurrent = requested;
+  let nextDeposited = previousDeposited;
   let nextMonth = month;
 
   if (deductFromPlace) {
@@ -775,16 +856,46 @@ export function saveGoalWithBalance(
         [`${deductFromPlace}Part`]: balance - actual,
         updatedAt: new Date().toISOString(),
       };
+      // A checked transfer is a real deposit into the goal.
+      if (actual > 0) {
+        nextDeposited = previousDeposited + actual;
+        nextMonth = withSavingsActivity(nextMonth, {
+          goalId: goal.id,
+          goalName: goal.name,
+          type: 'deposit',
+          amount: actual,
+          date: new Date().toISOString(),
+        });
+      }
     } else if (delta < 0) {
       nextMonth = {
         ...month,
         [`${deductFromPlace}Part`]: balance + -delta,
         updatedAt: new Date().toISOString(),
       };
+      // Money returned to a tracked place is no longer deposited savings.
+      nextDeposited = Math.max(0, previousDeposited + delta);
+      if (-delta > 0) {
+        nextMonth = withSavingsActivity(nextMonth, {
+          goalId: goal.id,
+          goalName: goal.name,
+          type: 'withdraw',
+          amount: -delta,
+          date: new Date().toISOString(),
+        });
+      }
     }
   }
 
-  const nextGoal: SavingGoal = { ...goal, current: nextCurrent };
+  // Bookkeeping balances (unchecked checkbox) never change `deposited` — they
+  // are not real deposits. Keep the tracker consistent with the goal balance.
+  nextDeposited = Math.min(nextDeposited, nextCurrent);
+
+  const nextGoal: SavingGoal = {
+    ...goal,
+    current: nextCurrent,
+    deposited: Math.max(0, nextDeposited),
+  };
   const goalsWithout = goals.filter((g) => g.id !== goal.id);
   const nextGoals = existing
     ? goals.map((g) => (g.id === goal.id ? nextGoal : g))
@@ -997,6 +1108,17 @@ export function normalizeMonth(
       date: d.date || new Date().toISOString().split('T')[0],
       note: d.note,
     })),
+    savingsActivity: (raw?.savingsActivity || [])
+      .filter((evt) => evt && (evt.type === 'deposit' || evt.type === 'withdraw'))
+      .slice(0, MAX_SAVINGS_ACTIVITY)
+      .map((evt) => ({
+        id: evt.id || Math.random().toString(36).substring(2, 9),
+        goalId: evt.goalId || '',
+        goalName: evt.goalName || 'Savings goal',
+        type: evt.type,
+        amount: typeof evt.amount === 'number' && evt.amount >= 0 ? evt.amount : 0,
+        date: evt.date || new Date().toISOString(),
+      })),
     updatedAt: raw?.updatedAt || new Date().toISOString(),
   };
 }

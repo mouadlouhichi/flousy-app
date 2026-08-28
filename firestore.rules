@@ -21,7 +21,7 @@ service cloud.firestore {
       // payment webhook instead.
       allow update: if owner(uid) && incoming().plan in ['free', 'pro'] && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
       allow delete: if owner(uid);
-      match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500); }
+      match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
       match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
     }
 
@@ -55,7 +55,7 @@ service cloud.firestore {
         allow delete: if householdOwner(hid);
       }
 
-      match /months/{key} { allow read: if householdMember(hid); allow write: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500); }
+      match /months/{key} { allow read: if householdMember(hid); allow write: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
       match /data/savings { allow read: if householdMember(hid); allow write: if householdEditor(hid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
     }
     match /householdInvites/{inviteId} {

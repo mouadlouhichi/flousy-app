@@ -209,6 +209,12 @@
           "minimum": 0,
           "maximum": 1000000000
         },
+        "deposited": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000,
+          "description": "Money actually deposited into this goal (fund flow or checkbox transfer). Excludes bookkeeping \"already saved\" balances recorded without the transfer checkbox; the home-screen savings plan sums only this."
+        },
         "source": {
           "type": "string",
           "enum": [
@@ -279,6 +285,47 @@
         "amount",
         "type",
         "status",
+        "date"
+      ]
+    },
+    "SavingsActivityEntry": {
+      "title": "SavingsActivityEntry",
+      "description": "One savings deposit or withdrawal logged on the month for Recent Activity.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "goalId": {
+          "type": "string"
+        },
+        "goalName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "deposit",
+            "withdraw"
+          ]
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO timestamp of the transaction"
+        }
+      },
+      "required": [
+        "id",
+        "goalId",
+        "goalName",
+        "type",
+        "amount",
         "date"
       ]
     },
@@ -530,6 +577,14 @@
           "items": {
             "$ref": "#/definitions/DebtItem"
           }
+        },
+        "savingsActivity": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/definitions/SavingsActivityEntry"
+          },
+          "description": "Deposit / withdrawal log feeding the home-screen Recent Activity list"
         },
         "updatedAt": {
           "type": "string",
