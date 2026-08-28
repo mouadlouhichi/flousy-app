@@ -497,7 +497,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           ...month,
           totalBudget: safeBudget,
           bankPart: Math.max(0, (month.bankPart || 0) + delta),
-          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
+          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId, month.customRatios).savings,
         },
         currentMonthKey,
         profile,
