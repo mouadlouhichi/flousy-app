@@ -234,6 +234,11 @@ export interface SavingsActivityEntry {
   type: 'deposit' | 'withdraw';
   amount: number;
   date: string; // ISO timestamp
+  /**
+   * Money place the deposit was taken from / the withdrawal was paid back
+   * into. Older entries may omit it — the goal's source place is used then.
+   */
+  place?: MoneyPlace;
 }
 
 export type DebtType = 'debt' | 'credit';
@@ -761,6 +766,7 @@ export function fundGoal(
       type: 'deposit',
       amount: actualAmount,
       date: new Date().toISOString(),
+      place: sourcePlace,
     },
   );
 
@@ -804,6 +810,7 @@ export function withdrawGoal(
       type: 'withdraw',
       amount: actualWithdraw,
       date: new Date().toISOString(),
+      place: targetPlace,
     },
   );
 
@@ -872,6 +879,7 @@ export function saveGoalWithBalance(
           type: 'deposit',
           amount: actual,
           date: new Date().toISOString(),
+          place: deductFromPlace,
         });
       }
     } else if (delta < 0) {
@@ -889,6 +897,7 @@ export function saveGoalWithBalance(
           type: 'withdraw',
           amount: -delta,
           date: new Date().toISOString(),
+          place: deductFromPlace,
         });
       }
     }
@@ -923,12 +932,183 @@ export function deleteFundedGoal(
   const updatedMonth = {
     ...month,
     [`${returnPlace}Part`]: (month[`${returnPlace}Part`] || 0) + goal.current,
+    // The goal's balance goes back to its source place, so its deposits are no
+    // longer part of this month's savings plan — drop them from the log.
+    savingsActivity: (month.savingsActivity || []).filter((evt) => evt.goalId !== goalId),
     updatedAt: new Date().toISOString(),
   };
 
   const updatedGoals = goals.filter((g) => g.id !== goalId);
 
   return { month: updatedMonth, goals: updatedGoals };
+}
+
+/**
+ * Savings deposit log — editing & deleting entries
+ *
+ * The month's `savingsActivity` log is the source of truth for the savings
+ * plan (see `calculateMonthlyDepositedSavings`), so correcting or removing an
+ * entry has to move the same money back: the goal balance AND the money place
+ * the entry touched.
+ */
+
+/**
+ * Move the cash of one logged entry. `direction = 1` applies it, `-1` undoes
+ * it (used when an entry is edited or deleted).
+ *
+ * Returns the amount that actually moved: like funding / withdrawing a goal,
+ * an entry can never pull more cash out of a money place or a goal than they
+ * hold — otherwise editing an entry would invent (or destroy) money.
+ */
+function moveSavingsEntryCash(
+  month: MonthBudget,
+  goals: SavingGoal[],
+  entry: Pick<SavingsActivityEntry, 'goalId' | 'type' | 'amount' | 'place'>,
+  direction: 1 | -1,
+): { month: MonthBudget; goals: SavingGoal[]; applied: number } {
+  const amount = Math.max(0, Number.isFinite(entry.amount) ? entry.amount : 0);
+  const goal = goals.find((g) => g.id === entry.goalId);
+  if (amount === 0 || !goal) return { month, goals, applied: 0 };
+
+  const place: MoneyPlace = entry.place || goal?.source || 'bank';
+  const placeKey = `${place}Part` as const;
+  const placeBalance = month[placeKey] || 0;
+  const goalBalance = Math.max(0, goal?.current ?? 0);
+
+  // Side the cash is taken from: applying a deposit pulls from the money place
+  // (undoing it pulls back out of the goal), and mirrored for withdrawals.
+  const available = (entry.type === 'deposit') === (direction === 1) ? placeBalance : goalBalance;
+  const applied = Math.min(amount, available);
+
+  // A deposit pulls cash out of the place into the goal; a withdrawal pushes
+  // it back out of the goal into the place.
+  const placeDelta = entry.type === 'deposit' ? -applied * direction : applied * direction;
+  const goalDelta = -placeDelta;
+
+  const nextMonth: MonthBudget = {
+    ...month,
+    [placeKey]: Math.max(0, placeBalance + placeDelta),
+  };
+
+  const nextCurrent = Math.max(0, goalBalance + goalDelta);
+  const nextGoals = goals.map((g) =>
+    g.id === goal.id
+      ? {
+          ...g,
+          current: nextCurrent,
+          // Deposited savings track the goal balance, never exceed it.
+          deposited: Math.min(nextCurrent, Math.max(0, (g.deposited ?? 0) + goalDelta)),
+        }
+      : g,
+  );
+
+  return { month: nextMonth, goals: nextGoals, applied };
+}
+
+/** Sort the activity log newest-first (stable for equal timestamps). */
+function sortSavingsActivity(entries: SavingsActivityEntry[]): SavingsActivityEntry[] {
+  return [...entries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/**
+ * Edit a logged deposit / withdrawal: the old movement is undone and the new
+ * one applied, so balances, money places and the savings plan all follow.
+ */
+export function updateSavingsActivityEntry(
+  month: MonthBudget,
+  goals: SavingGoal[],
+  entryId: string,
+  patch: Partial<Pick<SavingsActivityEntry, 'amount' | 'type' | 'goalId' | 'place' | 'date'>>,
+): { month: MonthBudget; goals: SavingGoal[] } {
+  const entry = (month.savingsActivity || []).find((evt) => evt.id === entryId);
+  if (!entry) return { month, goals };
+
+  const requestedAmount =
+    patch.amount === undefined
+      ? entry.amount
+      : Math.max(0, Number.isFinite(patch.amount) ? patch.amount : entry.amount);
+
+  const candidate: SavingsActivityEntry = {
+    ...entry,
+    ...patch,
+    amount: requestedAmount,
+    goalName: (patch.goalId ? goals.find((g) => g.id === patch.goalId)?.name : undefined) || entry.goalName,
+  };
+
+  // Undo the old movement, then apply the edited one. The logged amount always
+  // matches the money that really moved.
+  const undone = moveSavingsEntryCash(month, goals, entry, -1);
+  const reapplied = moveSavingsEntryCash(undone.month, undone.goals, candidate, 1);
+  const goalExists = goals.some((g) => g.id === candidate.goalId);
+  const nextEntry: SavingsActivityEntry = {
+    ...candidate,
+    amount: goalExists ? reapplied.applied : requestedAmount,
+  };
+
+  return {
+    month: {
+      ...reapplied.month,
+      savingsActivity: sortSavingsActivity(
+        (reapplied.month.savingsActivity || []).map((evt) => (evt.id === entryId ? nextEntry : evt)),
+      ),
+      updatedAt: new Date().toISOString(),
+    },
+    goals: reapplied.goals,
+  };
+}
+
+/**
+ * Delete a logged deposit / withdrawal and put the money back where it came
+ * from, so the savings plan stops counting it.
+ */
+export function deleteSavingsActivityEntry(
+  month: MonthBudget,
+  goals: SavingGoal[],
+  entryId: string,
+): { month: MonthBudget; goals: SavingGoal[] } {
+  const entry = (month.savingsActivity || []).find((evt) => evt.id === entryId);
+  if (!entry) return { month, goals };
+
+  const undone = moveSavingsEntryCash(month, goals, entry, -1);
+
+  return {
+    month: {
+      ...undone.month,
+      savingsActivity: (undone.month.savingsActivity || []).filter((evt) => evt.id !== entryId),
+      updatedAt: new Date().toISOString(),
+    },
+    goals: undone.goals,
+  };
+}
+
+/**
+ * Deposits and withdrawals logged on THIS month.
+ *
+ * Savings goals live outside the month (a goal outlives the budget period), so
+ * the per-goal `deposited` counter is a lifetime figure and must never be used
+ * for a monthly plan: a 400 deposit made last month plus a 400 deposit this
+ * month would otherwise read as 800 saved in the current month.
+ */
+export function calculateMonthlySavingsFlow(month: MonthBudget): {
+  deposits: number;
+  withdrawals: number;
+  net: number;
+} {
+  let deposits = 0;
+  let withdrawals = 0;
+
+  for (const evt of month?.savingsActivity || []) {
+    const amount = Math.max(0, Number.isFinite(evt?.amount) ? evt.amount : 0);
+    if (evt?.type === 'deposit') deposits += amount;
+    else if (evt?.type === 'withdraw') withdrawals += amount;
+  }
+
+  return { deposits, withdrawals, net: Math.max(0, deposits - withdrawals) };
+}
+
+/** Money deposited into savings goals during this budget month. */
+export function calculateMonthlyDepositedSavings(month: MonthBudget): number {
+  return calculateMonthlySavingsFlow(month).net;
 }
 
 /**
@@ -1125,6 +1305,9 @@ export function normalizeMonth(
         type: evt.type,
         amount: typeof evt.amount === 'number' && evt.amount >= 0 ? evt.amount : 0,
         date: evt.date || new Date().toISOString(),
+        ...(evt.place === 'bank' || evt.place === 'home' || evt.place === 'wallet'
+          ? { place: evt.place }
+          : {}),
       })),
     updatedAt: raw?.updatedAt || new Date().toISOString(),
   };

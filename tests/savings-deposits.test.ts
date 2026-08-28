@@ -4,11 +4,17 @@ import {
   MonthBudget,
   SavingGoal,
   createNewMonth,
+  moveMoney,
   fundGoal,
   withdrawGoal,
   saveGoalWithBalance,
+  deleteFundedGoal,
+  updateSavingsActivityEntry,
+  deleteSavingsActivityEntry,
   normalizeMonth,
   calculateDepositedSavings,
+  calculateMonthlyDepositedSavings,
+  calculateMonthlySavingsFlow,
 } from '../src/lib/store';
 
 describe('Savings deposits: plan tracking & recent activity', () => {
@@ -164,5 +170,159 @@ describe('Savings deposits: plan tracking & recent activity', () => {
     const normalized = normalizeMonth(raw as any);
     assert.strictEqual(normalized.savingsActivity?.length, 1);
     assert.strictEqual(normalized.savingsActivity?.[0].id, 'a');
+  });
+
+  it('counts only THIS month\'s deposits in the savings plan (lifetime balances do not leak)', () => {
+    // July: one 400 deposit.
+    const july = newMonth();
+    const julyFunded = fundGoal(july, [goal()], 'g1', 400, 'bank');
+
+    // August: a fresh budget month, one more 400 deposit.
+    const august = createNewMonth(income, '50-30-20', [], [], '2026-09');
+    const augustFunded = fundGoal(august, julyFunded.goals, 'g1', 400, 'bank');
+
+    // The goal remembers 800 saved over its lifetime...
+    assert.strictEqual(augustFunded.goals[0].current, 800);
+    assert.strictEqual(calculateDepositedSavings(augustFunded.goals), 800);
+
+    // ...but the August plan only shows the 400 moved during August.
+    assert.strictEqual(calculateMonthlyDepositedSavings(augustFunded.month), 400);
+    assert.strictEqual(augustFunded.month.savingsActivity?.length, 1);
+  });
+
+  it('ignores an opening balance moved in a previous month when planning the current month', () => {
+    // Goal opened in July with 400 taken out of the bank (checkbox checked).
+    const july = newMonth();
+    const opened = saveGoalWithBalance(july, [], goal({ current: 400 }), 'bank');
+    assert.strictEqual(calculateMonthlyDepositedSavings(opened.month), 400);
+
+    const august = createNewMonth(income, '50-30-20', [], [], '2026-09');
+    const funded = fundGoal(august, opened.goals, 'g1', 400, 'bank');
+
+    assert.strictEqual(calculateMonthlyDepositedSavings(funded.month), 400);
+  });
+
+  it('edits a logged deposit: amount, place and goal follow the money', () => {
+    const month = newMonth();
+    const goals = [goal(), goal({ id: 'g2', name: 'Emergency Fund' })];
+    const funded = fundGoal(month, goals, 'g1', 400, 'bank');
+    // Park 250 in the wallet so the corrected entry has cash to draw from.
+    const withWallet = moveMoney(funded.month, 'bank', 'wallet', 250);
+    const bankAfterMove = withWallet.bankPart;
+    const entryId = withWallet.savingsActivity![0].id;
+
+    // Correct the deposit: it was actually 250 taken from the wallet.
+    const edited = updateSavingsActivityEntry(withWallet, funded.goals, entryId, {
+      amount: 250,
+      place: 'wallet',
+    });
+
+    assert.strictEqual(edited.month.walletPart, 0); // 250 - 250
+    assert.strictEqual(edited.month.bankPart, bankAfterMove + 400); // old movement undone
+    assert.strictEqual(edited.goals.find((g) => g.id === 'g1')!.current, 250);
+    assert.strictEqual(edited.goals.find((g) => g.id === 'g1')!.deposited, 250);
+    assert.strictEqual(calculateMonthlyDepositedSavings(edited.month), 250);
+    assert.strictEqual(edited.month.savingsActivity![0].place, 'wallet');
+
+    // Move the deposit onto another goal — the money follows it.
+    const moved = updateSavingsActivityEntry(edited.month, edited.goals, entryId, { goalId: 'g2' });
+    assert.strictEqual(moved.goals.find((g) => g.id === 'g1')!.current, 0);
+    assert.strictEqual(moved.goals.find((g) => g.id === 'g2')!.current, 250);
+    assert.strictEqual(moved.month.savingsActivity![0].goalName, 'Emergency Fund');
+    assert.strictEqual(calculateMonthlyDepositedSavings(moved.month), 250);
+  });
+
+  it('never moves more cash than the money place / goal actually holds', () => {
+    const month = newMonth();
+    const funded = fundGoal(month, [goal()], 'g1', 400, 'bank');
+    const entryId = funded.month.savingsActivity![0].id;
+
+    // The wallet is empty, so nothing can be pulled out of it.
+    const edited = updateSavingsActivityEntry(funded.month, funded.goals, entryId, { place: 'wallet' });
+
+    assert.strictEqual(edited.month.walletPart, 0);
+    assert.strictEqual(edited.goals[0].current, 0);
+    assert.strictEqual(calculateMonthlyDepositedSavings(edited.month), 0);
+    // Wealth is conserved: the bank got its 400 back.
+    assert.strictEqual(edited.month.bankPart, month.bankPart);
+  });
+
+  it('editing a deposit into a withdrawal reverses the money movement', () => {
+    const month = newMonth();
+    // 1,000 already saved (bookkeeping) + a 400 deposit made this month.
+    const started = saveGoalWithBalance(month, [], goal({ current: 1000 }), null);
+    const funded = fundGoal(started.month, started.goals, 'g1', 400, 'bank');
+    const entryId = funded.month.savingsActivity![0].id;
+
+    const flipped = updateSavingsActivityEntry(funded.month, funded.goals, entryId, {
+      type: 'withdraw',
+      amount: 400,
+    });
+
+    // The 400 deposit is undone and the withdrawal pays 400 back to the bank
+    // (the goal's 1,000 opening balance was bookkeeping, never tracked cash).
+    assert.strictEqual(flipped.month.bankPart, month.bankPart + 400);
+    assert.strictEqual(flipped.goals[0].current, 600);
+    assert.strictEqual(flipped.goals[0].deposited, 0);
+    assert.strictEqual(calculateMonthlyDepositedSavings(flipped.month), 0);
+    assert.strictEqual(calculateMonthlySavingsFlow(flipped.month).withdrawals, 400);
+  });
+
+  it('deletes a deposit and puts the money back where it came from', () => {
+    const month = newMonth();
+    const bankBefore = month.bankPart;
+    const funded = fundGoal(month, [goal()], 'g1', 400, 'bank');
+    const entryId = funded.month.savingsActivity![0].id;
+
+    const removed = deleteSavingsActivityEntry(funded.month, funded.goals, entryId);
+
+    assert.strictEqual(removed.month.bankPart, bankBefore);
+    assert.strictEqual(removed.goals[0].current, 0);
+    assert.strictEqual(removed.goals[0].deposited, 0);
+    assert.strictEqual(removed.month.savingsActivity?.length ?? 0, 0);
+    assert.strictEqual(calculateMonthlyDepositedSavings(removed.month), 0);
+  });
+
+  it('deletes a withdrawal and pulls the money back out of the money place', () => {
+    const month = newMonth();
+    const started = saveGoalWithBalance(month, [], goal({ current: 1000 }), null);
+    const withdrawn = withdrawGoal(started.month, started.goals, 'g1', 300, 'home');
+    assert.strictEqual(withdrawn.month.homePart, 300);
+
+    const entryId = withdrawn.month.savingsActivity![0].id;
+    const removed = deleteSavingsActivityEntry(withdrawn.month, withdrawn.goals, entryId);
+
+    assert.strictEqual(removed.month.homePart, 0);
+    assert.strictEqual(removed.goals[0].current, 1000);
+    assert.strictEqual(removed.month.savingsActivity?.length ?? 0, 0);
+    assert.strictEqual(calculateMonthlyDepositedSavings(removed.month), 0);
+  });
+
+  it('keeps the plan in sync when a funded goal is deleted', () => {
+    const month = newMonth();
+    const funded = fundGoal(month, [goal()], 'g1', 400, 'bank');
+    assert.strictEqual(calculateMonthlyDepositedSavings(funded.month), 400);
+
+    const deleted = deleteFundedGoal(funded.month, funded.goals, 'g1');
+    assert.strictEqual(calculateMonthlyDepositedSavings(deleted.month), 0);
+    assert.strictEqual(deleted.month.savingsActivity?.length ?? 0, 0);
+  });
+
+  it('remembers the money place of each entry through normalizeMonth', () => {
+    const month = newMonth();
+    const funded = fundGoal(month, [goal()], 'g1', 400, 'bank');
+    const entryId = funded.month.savingsActivity![0].id;
+
+    const normalized = normalizeMonth(JSON.parse(JSON.stringify(funded.month)));
+    assert.strictEqual(normalized.savingsActivity![0].place, 'bank');
+
+    // An edited entry keeps its place after a round-trip through storage
+    // (fund the home place first so the edit has cash to move).
+    const withHome = moveMoney(funded.month, 'bank', 'home', 400);
+    const edited = updateSavingsActivityEntry(withHome, funded.goals, entryId, { place: 'home' });
+    assert.strictEqual(edited.month.savingsActivity![0].place, 'home');
+
+    const renorm = normalizeMonth(JSON.parse(JSON.stringify(edited.month)));
+    assert.strictEqual(renorm.savingsActivity![0].place, 'home');
   });
 });

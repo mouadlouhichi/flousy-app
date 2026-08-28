@@ -29,6 +29,7 @@ import { ExpenseModal } from '@/components/modals/ExpenseModal';
 import { MoveMoneyModal } from '@/components/modals/MoveMoneyModal';
 import { FixedModal } from '@/components/modals/FixedModal';
 import { SavingsModal } from '@/components/modals/SavingsModal';
+import { SavingsDepositModal } from '@/components/modals/SavingsDepositModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { ManageCategoriesModal } from '@/components/modals/ManageCategoriesModal';
 import { ProUpgradeModal } from '@/components/modals/ProUpgradeModal';
@@ -198,6 +199,20 @@ export function DashboardModals() {
           home: month.homePart || 0,
           wallet: month.walletPart || 0,
         }}
+      />
+
+      <SavingsDepositModal
+        isOpen={dashboard.isSavingsEntryModalOpen}
+        onClose={dashboard.closeSavingsEntryModal}
+        entry={dashboard.selectedSavingsEntry}
+        goals={goals}
+        placeBalances={{
+          bank: month.bankPart || 0,
+          home: month.homePart || 0,
+          wallet: month.walletPart || 0,
+        }}
+        onSave={dashboard.handleSaveSavingsEntry}
+        onDelete={dashboard.handleDeleteSavingsEntry}
       />
 
       <SettingsModal
