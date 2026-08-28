@@ -17,7 +17,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { UserProfile } from './store';
-import { getUserProfile, setUserProfile, deleteUserAccountData } from './db';
+import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData } from './db';
 import { trackEvent } from './analytics';
 
 interface AuthContextType {
@@ -33,11 +33,29 @@ interface AuthContextType {
   sendVerificationEmail: () => Promise<void>;
   updateProfileData: (data: Partial<UserProfile>) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  deleteAllData: () => Promise<void>;
   dismissVerificationBanner: boolean;
   setDismissVerificationBanner: (val: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+/** Wipe every device-local `flousy_*` cache key (budget months, goals, pro
+ * flags, onboarding state) plus session storage. Used on sign-out and when
+ * deleting account data so the UI never re-hydrates from a stale cache. */
+function clearLocalData() {
+  if (typeof window === 'undefined') return;
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('flousy_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('Error clearing storage:', e);
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -157,18 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    if (typeof window !== 'undefined') {
-      try {
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('flousy_')) {
-            localStorage.removeItem(key);
-          }
-        });
-        sessionStorage.clear();
-      } catch (e) {
-        console.warn('Error clearing storage on logout:', e);
-      }
-    }
+    clearLocalData();
     if (auth) {
       await firebaseSignOut(auth);
     }
@@ -204,6 +211,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
+  /**
+   * Permanently wipe all of the user's budget data (every month, expenses,
+   * savings goals) from Firestore and the local cache, while keeping the
+   * account and profile preferences. The live Firestore listeners re-hydrate
+   * the dashboard with an empty budget right away.
+   */
+  const deleteAllData = async () => {
+    if (!user || !auth) return;
+    const uid = user.uid;
+    // Clear the local cache first so the subscriptions never re-hydrate from it.
+    clearLocalData();
+    await deleteUserBudgetData(uid);
+    trackEvent('delete_all_data');
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -219,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sendVerificationEmail,
         updateProfileData,
         deleteAccount,
+        deleteAllData,
         dismissVerificationBanner,
         setDismissVerificationBanner,
       }}

@@ -6,11 +6,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { MonthBudget, IncomeSource } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { formatDayOfMonth, getSourcePeriod } from '../../lib/utils';
 
 interface IncomeSourcesModalProps {
   isOpen: boolean;
   onClose: () => void;
   month: MonthBudget;
+  /** Current budget month key (YYYY-MM), used to resolve each source's period. */
+  monthKey: string;
+  /** Default monthly start date from settings, pre-filled on new sources. */
+  defaultPayDay?: number;
   onSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
 }
 
@@ -20,13 +25,23 @@ const CHART_COLORS = [
   '#6366f1', '#10b981', '#b05e3d', '#84cc16',
 ];
 
+/** "2026-08-25" → "Aug 25" for compact period badges. */
+function formatPeriodDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function IncomeSourcesModal({
   isOpen,
   onClose,
   month,
+  monthKey,
+  defaultPayDay,
   onSaveIncomeSources,
 }: IncomeSourcesModalProps) {
   const { format, symbol } = useCurrency();
+  const monthKeyRef = React.useRef(monthKey);
+  monthKeyRef.current = monthKey;
 
   const [sources, setSources] = useState<IncomeSource[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,6 +53,10 @@ export function IncomeSourcesModal({
   const [newName, setNewName] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [newPayDay, setNewPayDay] = useState<number | ''>('');
+
+  // Edit form
+  const [editPayDay, setEditPayDay] = useState<number | ''>('');
 
   // Reset state when modal opens
   useEffect(() => {
@@ -51,9 +70,10 @@ export function IncomeSourcesModal({
       setNewName('');
       setNewAmount('');
       setNewCategory('');
+      setNewPayDay(defaultPayDay ?? '');
       setFieldErrors({});
     }
-  }, [isOpen, month.totalBudget, month.incomeSources]);
+  }, [isOpen, month.totalBudget, month.incomeSources, defaultPayDay]);
 
   const totalCalculated = sources.reduce((acc, s) => acc + (s.amount || 0), 0);
 
@@ -62,6 +82,7 @@ export function IncomeSourcesModal({
     setEditingId(null);
     setEditName('');
     setEditAmount('');
+    setEditPayDay('');
     setFieldErrors({});
   }, []);
 
@@ -70,6 +91,7 @@ export function IncomeSourcesModal({
     setEditingId(src.id);
     setEditName(src.name);
     setEditAmount(String(src.amount));
+    setEditPayDay(src.payDay ?? '');
     setFieldErrors({});
   };
 
@@ -90,7 +112,7 @@ export function IncomeSourcesModal({
     setSources((prev) =>
       prev.map((s) =>
         s.id === editingId
-          ? { ...s, name: trimmedName, amount: parsedAmount }
+          ? { ...s, name: trimmedName, amount: parsedAmount, payDay: editPayDay === '' ? undefined : Number(editPayDay) }
           : s
       )
     );
@@ -106,6 +128,9 @@ export function IncomeSourcesModal({
     if (!trimmedName) errors.newName = 'Required';
     if (isNaN(parsedAmount) || parsedAmount <= 0) errors.newAmount = 'Enter a valid amount';
     if (parsedAmount > 1000000000) errors.newAmount = 'Amount exceeds limit';
+    if (newPayDay !== '' && (Number(newPayDay) < 1 || Number(newPayDay) > 31)) {
+      errors.newPayDay = 'Day must be between 1 and 31';
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -116,12 +141,14 @@ export function IncomeSourcesModal({
       name: trimmedName,
       amount: parsedAmount,
       category: newCategory.trim() || undefined,
+      payDay: newPayDay === '' ? undefined : Number(newPayDay),
     };
 
     setSources((prev) => [...prev, item]);
     setNewName('');
     setNewAmount('');
     setNewCategory('');
+    setNewPayDay('');
     setFieldErrors({});
   };
 
@@ -134,9 +161,20 @@ export function IncomeSourcesModal({
 
   // ── Save all ──
   const handleSave = () => {
-    // If currently editing, save that first
-    if (editingId) saveEdit();
-    onSaveIncomeSources(sources, totalCalculated);
+    // If currently editing, apply the pending edit synchronously so it is not
+    // lost when the modal closes (setState is async).
+    let finalSources = sources;
+    if (editingId) {
+      const trimmedName = editName.trim();
+      const parsedAmount = parseFloat(editAmount);
+      finalSources = sources.map((s) =>
+        s.id === editingId
+          ? { ...s, name: trimmedName, amount: parsedAmount, payDay: editPayDay === '' ? undefined : Number(editPayDay) }
+          : s
+      );
+    }
+    const finalTotal = finalSources.reduce((acc, s) => acc + (s.amount || 0), 0);
+    onSaveIncomeSources(finalSources, finalTotal);
     onClose();
   };
 
@@ -157,7 +195,8 @@ export function IncomeSourcesModal({
         {/* ── Description ── */}
         <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
           Specify all streams of income contributing to this month's budget.
-          Edit each source inline or add new ones below.
+          For a monthly salary, set its start date (payday) to track the period
+          it covers.
         </p>
 
         {/* ── Total Income Summary Card ── */}
@@ -242,6 +281,25 @@ export function IncomeSourcesModal({
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant">
+                          <AppIcon name="calendar_clock" className="text-[13px]" />
+                          Monthly start date
+                        </label>
+                        <select
+                          value={editPayDay === '' ? '' : String(editPayDay)}
+                          onChange={(e) => setEditPayDay(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="px-2 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-[12px] font-bold text-on-surface focus:border-primary outline-none transition-colors cursor-pointer"
+                          aria-label="Monthly start date"
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={d}>
+                              {formatDayOfMonth(d)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
@@ -286,6 +344,23 @@ export function IncomeSourcesModal({
                           </span>
                           <span className="text-[11px] font-bold text-on-surface-variant">{pct}% of total</span>
                         </div>
+                        {src.payDay &&
+                          (() => {
+                            const period = getSourcePeriod(monthKeyRef.current, src.payDay);
+                            return (
+                              <div className="flex flex-wrap items-center gap-1 mt-1">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                                  <AppIcon name="calendar_clock" className="text-[11px]" />
+                                  Starts the {formatDayOfMonth(src.payDay)}
+                                </span>
+                                {period && (
+                                  <span className="inline-flex items-center rounded-full bg-surface-variant px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">
+                                    Period {formatPeriodDate(period.startDate)} → {formatPeriodDate(period.endDate)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         {/* Mini progress bar */}
                         <div className="w-full h-1 bg-surface-variant rounded-full mt-1 overflow-hidden">
                           <div
@@ -399,6 +474,59 @@ export function IncomeSourcesModal({
                   {symbol}{(amt).toLocaleString()}
                 </button>
               ))}
+            </div>
+
+            {/* Monthly start date (payday) */}
+            <div className="flex flex-col gap-1.5 pt-1 border-t border-outline-variant/40">
+              <label className="flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+                <AppIcon name="calendar_clock" className="text-[13px] text-primary" />
+                Monthly start date
+              </label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <select
+                  value={newPayDay === '' ? '' : String(newPayDay)}
+                  onChange={(e) => {
+                    setNewPayDay(e.target.value === '' ? '' : Number(e.target.value));
+                    if (fieldErrors.newPayDay) setFieldErrors((p) => ({ ...p, newPayDay: '' }));
+                  }}
+                  className="px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[13px] font-bold text-on-surface focus:border-primary outline-none transition-colors cursor-pointer min-w-[140px]"
+                  aria-label="Monthly start date"
+                >
+                  <option value="">No fixed start date</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {formatDayOfMonth(d)}
+                    </option>
+                  ))}
+                </select>
+                {newPayDay !== '' && (
+                  <p className="text-[11px] font-medium text-on-surface-variant">
+                    Salary arrives monthly on the {formatDayOfMonth(Number(newPayDay))} — your budget period for this source starts then.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[1, 5, 10, 15, 20, 25, 30].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => {
+                      setNewPayDay(d);
+                      if (fieldErrors.newPayDay) setFieldErrors((p) => ({ ...p, newPayDay: '' }));
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[12px] font-bold transition-all ${
+                      newPayDay === d
+                        ? 'bg-primary text-on-primary'
+                        : 'bg-surface border border-outline-variant text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary'
+                    }`}
+                  >
+                    {formatDayOfMonth(d)}
+                  </button>
+                ))}
+              </div>
+              {fieldErrors.newPayDay && (
+                <p className="text-[11px] text-error font-medium">{fieldErrors.newPayDay}</p>
+              )}
             </div>
           </div>
         </div>

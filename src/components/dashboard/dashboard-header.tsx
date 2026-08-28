@@ -9,6 +9,13 @@ import { InstallButton } from '@/components/pwa/install-button';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
+import { getSourcePeriod } from '@/lib/utils';
+
+/** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
+function formatPeriodLabel(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 /** Main header bar: page title, month selector and action tools. */
 export function DashboardHeader() {
@@ -36,6 +43,12 @@ export function DashboardHeader() {
     const d = new Date(y, m - 1, 1);
     return d.toLocaleDateString('en-US', { month: 'short' });
   })();
+
+  // When a monthly start date is configured, show the shifted budget period
+  // the selected calendar month belongs to (e.g. "Budget: Aug 25 → Sep 24").
+  const budgetPeriod = profile?.monthStartDate
+    ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
+    : null;
 
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
@@ -80,6 +93,12 @@ export function DashboardHeader() {
         >
           <AppIcon name="chevron_right" className=" text-[16px] sm:text-[18px]" />
         </button>
+        {budgetPeriod && (
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary whitespace-nowrap">
+            <AppIcon name="calendar_clock" className="text-[11px]" />
+            {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
+          </span>
+        )}
       </div>
 
       {/* Header Action Tools */}

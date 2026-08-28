@@ -151,6 +151,10 @@ export interface IncomeSource {
   name: string;
   amount: number;
   category?: string;
+  /** Day of the month (1–31) this salary/income is paid, when it is a
+   * recurring monthly payment. Used to show the payment start date and, when
+   * present, to shift the budget period for the source. */
+  payDay?: number;
 }
 
 export interface VariableExpense {
@@ -289,6 +293,9 @@ export interface UserProfile {
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
+  /** Global preference for the day of the month a budget month starts.
+   * Mirrors the per-source salary start date used by Income Sources. */
+  monthStartDate?: number;
 }
 
 /**

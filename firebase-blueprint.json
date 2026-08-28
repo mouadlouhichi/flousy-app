@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts \u2014 run `npm run test` after changing any of them.",
+  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
   "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
   "definitions": {
     "IncomeSource": {
@@ -21,6 +21,12 @@
         },
         "category": {
           "type": "string"
+        },
+        "payDay": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 31,
+          "description": "Day of the month (1-31) this salary/income is paid; used as the source's monthly start date"
         }
       },
       "required": [
@@ -448,6 +454,12 @@
             "personal",
             "household"
           ]
+        },
+        "monthStartDate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 31,
+          "description": "Global preference for the day of the month a budget month starts; mirrors the per-source salary start date"
         }
       },
       "required": [

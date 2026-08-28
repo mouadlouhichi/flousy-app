@@ -72,6 +72,10 @@ export const withdrawGoalSchema = z.object({
 export const incomeSourceSchema = z.object({
   name: z.string().trim().min(1, 'Source name is required').max(60, 'Name is too long'),
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
+  // Optional salary pay day: 1–31, used as the monthly start date of the source.
+  payDay: z
+    .union([z.number().int().min(1).max(31), z.undefined()])
+    .optional(),
 });
 
 export const authEmailSchema = z.string().email('Invalid email address');
