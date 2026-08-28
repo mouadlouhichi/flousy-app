@@ -209,6 +209,12 @@
           "minimum": 0,
           "maximum": 1000000000
         },
+        "deposited": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000,
+          "description": "Money actually deposited into this goal (fund flow or checkbox transfer). Excludes bookkeeping \"already saved\" balances recorded without the transfer checkbox; the home-screen savings plan sums only this."
+        },
         "source": {
           "type": "string",
           "enum": [
@@ -282,6 +288,47 @@
         "date"
       ]
     },
+    "SavingsActivityEntry": {
+      "title": "SavingsActivityEntry",
+      "description": "One savings deposit or withdrawal logged on the month for Recent Activity.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "goalId": {
+          "type": "string"
+        },
+        "goalName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "deposit",
+            "withdraw"
+          ]
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO timestamp of the transaction"
+        }
+      },
+      "required": [
+        "id",
+        "goalId",
+        "goalName",
+        "type",
+        "amount",
+        "date"
+      ]
+    },
     "CustomRatios": {
       "title": "CustomRatios",
       "description": "User-defined allocation for the 'custom' strategy. Fractions of income that always sum to 1.",
@@ -322,7 +369,19 @@
             "free",
             "pro"
           ],
-          "description": "Pinned by firestore.rules \u2014 clients can never change it after creation"
+          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'; while payments are mocked the signed-in owner may flip it to 'pro' after checkout (validated by firestore.rules)."
+        },
+        "planBillingCycle": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "annual"
+          ],
+          "description": "Billing cycle selected at checkout, written to Firebase alongside `plan`"
+        },
+        "planNextBillingDate": {
+          "type": "string",
+          "description": "Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades"
         },
         "currency": {
           "type": "string",
@@ -518,6 +577,14 @@
           "items": {
             "$ref": "#/definitions/DebtItem"
           }
+        },
+        "savingsActivity": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/definitions/SavingsActivityEntry"
+          },
+          "description": "Deposit / withdrawal log feeding the home-screen Recent Activity list"
         },
         "updatedAt": {
           "type": "string",

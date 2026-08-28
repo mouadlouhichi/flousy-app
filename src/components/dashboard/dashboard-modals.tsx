@@ -16,6 +16,7 @@ import {
   moveMoney,
   fundGoal,
   withdrawGoal,
+  saveGoalWithBalance,
   deleteFundedGoal,
   addDebt,
   editDebt,
@@ -110,15 +111,13 @@ export function DashboardModals() {
   };
 
   // Savings handlers
-  const handleSaveGoal = (goal: SavingGoal) => {
-    const existingIdx = goals.findIndex((g) => g.id === goal.id);
-    let nextGoals: SavingGoal[];
-    if (existingIdx >= 0) {
-      nextGoals = goals.map((g) => (g.id === goal.id ? goal : g));
-    } else {
-      nextGoals = [...goals, goal];
-    }
-    updateAndSaveGoals(nextGoals);
+  const handleSaveGoal = (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => {
+    // Moves the goal's opening/edited balance out of the chosen money place
+    // when the transfer checkbox was checked, and tracks how much of the
+    // balance is real deposited money (vs. bookkeeping "already saved").
+    const res = saveGoalWithBalance(month, goals, goal, deductFromPlace ?? null);
+    if (res.month !== month) updateAndSaveMonth(res.month);
+    updateAndSaveGoals(res.goals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
@@ -194,6 +193,11 @@ export function DashboardModals() {
         onFund={handleFundGoal}
         onWithdraw={handleWithdrawGoal}
         onDelete={handleDeleteGoal}
+        placeBalances={{
+          bank: month.bankPart || 0,
+          home: month.homePart || 0,
+          wallet: month.walletPart || 0,
+        }}
       />
 
       <SettingsModal

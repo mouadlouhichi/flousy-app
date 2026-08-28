@@ -6,8 +6,10 @@ import {
   CustomRatios,
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
+  calculateDepositedSavings,
   resolveMonthStrategy,
   StrategyId,
+  SavingsActivityEntry,
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
@@ -63,6 +65,39 @@ export function OverviewTab({
   const wantsSpentPct = wants > 0 ? Math.min(100, Math.round((spent.wants / wants) * 100)) : 0;
 
   const recentExpenses = (month.variableExpenses || []).slice(0, 5);
+
+  // The savings plan only counts money actually deposited into goals — not
+  // "already saved" balances recorded without the transfer checkbox.
+  const depositedSavings = calculateDepositedSavings(goals);
+
+  // Recent Activity merges logged expenses with savings deposits/withdrawals,
+  // newest first.
+  const recentSavings: SavingsActivityEntry[] = (month.savingsActivity || []).slice(0, 5);
+  const recentItems: Array<
+    | { kind: 'expense'; id: string; name: string; subtitle: string; amount: number; icon: string; date: Date }
+    | { kind: 'savings'; id: string; name: string; subtitle: string; amount: number; isDeposit: boolean; date: Date }
+  > = [
+    ...recentExpenses.map((exp) => ({
+      kind: 'expense' as const,
+      id: exp.id,
+      name: exp.name,
+      subtitle: `${exp.date} • ${exp.type}`,
+      amount: exp.amount,
+      icon: month.categoryIcons?.[exp.type] || 'shopping_bag',
+      date: new Date(exp.date),
+    })),
+    ...recentSavings.map((evt) => ({
+      kind: 'savings' as const,
+      id: evt.id,
+      name: evt.goalName,
+      subtitle: `${evt.type === 'deposit' ? 'Deposit' : 'Withdrawal'} • Savings`,
+      amount: evt.amount,
+      isDeposit: evt.type === 'deposit',
+      date: new Date(evt.date),
+    })),
+  ]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .slice(0, 5);
 
   useEffect(() => {
     setDraftBudget(String(month.totalBudget || 0));
@@ -279,11 +314,11 @@ export function OverviewTab({
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-slate-600 transition-all duration-500 rounded-full"
-                  style={{ width: `${Math.min(100, Math.round((goals.reduce((acc, g) => acc + g.current, 0) / (savings || 1)) * 100))}%` }}
+                  style={{ width: `${Math.min(100, Math.round((depositedSavings / (savings || 1)) * 100))}%` }}
                 />
               </div>
               <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
-                <span>{format(goals.reduce((acc, g) => acc + g.current, 0))}</span>
+                <span>{format(depositedSavings)}</span>
                 <span>{format(savings)}</span>
               </div>
             </div>
@@ -389,10 +424,10 @@ export function OverviewTab({
               </button>
             </div>
 
-            {recentExpenses.length === 0 ? (
+            {recentItems.length === 0 ? (
               <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3  shadow-2xs">
                 <AppIcon name="receipt_long" className="text-outline text-[40px]" />
-                <p className="text-xs text-on-surface-variant">No expenses logged yet this month.</p>
+                <p className="text-xs text-on-surface-variant">No expenses or savings deposits yet this month.</p>
                 <button
                   onClick={onOpenExpenseModal}
                   className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full shadow-2xs hover:bg-primary/90 transition-all"
@@ -402,32 +437,63 @@ export function OverviewTab({
               </div>
             ) : (
               <div className="bg-surface-container rounded-3xl border border-outline-variant p-2 shadow-2xs flex flex-col divide-y divide-outline-variant/60">
-                {recentExpenses.map((exp) => (
-                  <div
-                    key={exp.id}
-                    onClick={() => onOpenEditExpense(exp)}
-                    className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className="text-[20px]" />
+                {recentItems.map((item) =>
+                  item.kind === 'expense' ? (
+                    <div
+                      key={`exp-${item.id}`}
+                      onClick={() => onOpenEditExpense(recentExpenses.find((exp) => exp.id === item.id))}
+                      className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <AppIcon name={item.icon} className="text-[20px]" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-sm text-on-surface truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-xs text-on-surface-variant mt-0.5">
+                            {item.subtitle}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm text-on-surface truncate">
-                          {exp.name}
-                        </span>
-                        <span className="text-xs text-on-surface-variant mt-0.5">
-                          {exp.date} • {exp.type}
+                      <div className="text-right shrink-0">
+                        <span className="font-bold text-sm font-mono text-on-surface">
+                          -{formatParts(item.amount).amount} {formatParts(item.amount).currency}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="font-bold text-sm font-mono text-on-surface">
-                        -{formatParts(exp.amount).amount} {formatParts(exp.amount).currency}
-                      </span>
+                  ) : (
+                    <div
+                      key={`sav-${item.id}`}
+                      onClick={() => onSelectTab('savings')}
+                      className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.isDeposit ? 'bg-secondary/10 text-secondary' : 'bg-surface-variant text-on-surface-variant'}`}>
+                          <AppIcon name="savings" className="text-[20px]" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-sm text-on-surface truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-xs text-on-surface-variant mt-0.5">
+                            {item.subtitle}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`font-bold text-sm font-mono ${item.isDeposit ? 'text-secondary' : 'text-on-surface-variant'}`}
+                        >
+                          {item.isDeposit
+                            ? `+${formatParts(item.amount).amount} ${formatParts(item.amount).currency}`
+                            : `-${formatParts(item.amount).amount} ${formatParts(item.amount).currency}`}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             )}
           </div>

@@ -119,7 +119,7 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, plan pinning |
+| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, Firebase-only plan (validated free↔pro flips) |
 | 66 | Content Security Policy (CSP) middleware | ✅ | Nonce-based, strict-dynamic, per-request nonce |
 | 67 | Zod validation on all forms | ✅ | `validation.ts` — expense, fixed bill, move money, goal, auth, category schemas |
 | 68 | CSV injection neutralisation | ✅ | `escapeCsvCell()` prepends `'` to formula triggers |

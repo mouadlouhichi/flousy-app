@@ -53,13 +53,19 @@ export const PRO_FEATURES: ProFeature[] = [
   },
 ];
 
+/**
+ * Pro access is always resolved from the `plan` field stored on the Firebase
+ * user profile (`users/{uid}.plan`) — never from a local flag. The localStorage
+ * demo flag only applies in pure demo mode, where no Firebase profile exists.
+ */
 export function isProUser(
   profile: ProUserLike,
   storage: Pick<Storage, 'getItem'> = typeof window !== 'undefined' ? window.localStorage : undefined as never,
 ): boolean {
-  if (!profile) return false;
-  if (profile.plan === 'pro') return true;
-
-  if (storage?.getItem?.('flousy_pro_plan') === 'true') return true;
-  return false;
+  if (!profile) {
+    // No Firebase profile (demo mode / signed out): honor the local demo flag
+    // so the mock checkout still unlocks features without a Firebase session.
+    return storage?.getItem?.('flousy_pro_plan') === 'true';
+  }
+  return profile.plan === 'pro';
 }
