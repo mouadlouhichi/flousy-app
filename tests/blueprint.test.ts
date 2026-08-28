@@ -293,8 +293,15 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     }
   });
 
-  it('keeps plan client-immutable in both the rules and the blueprint note', () => {
-    assert.match(rulesSource, /incoming\(\)\.plan == existing\(\)\.plan/);
-    assert.match(blueprint.entities.UserProfile.properties.plan.description, /never change it/i);
+  it('keeps plan Firebase-only in both the rules and the blueprint note', () => {
+    // New profiles always start on the free plan…
+    assert.match(rulesSource, /request\.resource\.data\.plan == 'free'/);
+    // …and updates may only flip the field between 'free' and 'pro' — the
+    // profile `plan` stays the single source of truth for Pro access.
+    assert.match(rulesSource, /incoming\(\)\.plan in \['free', 'pro'\]/);
+    assert.match(
+      blueprint.entities.UserProfile.properties.plan.description,
+      /single source of truth/i,
+    );
   });
 });

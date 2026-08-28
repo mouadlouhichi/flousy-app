@@ -14,7 +14,12 @@ service cloud.firestore {
     match /users/{uid} {
       allow get: if owner(uid);
       allow create: if owner(uid) && request.resource.data.plan == 'free' && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
-      allow update: if owner(uid) && incoming().plan == existing().plan && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
+      // The profile `plan` field is the single source of truth for Pro access.
+      // While payments are mocked, the signed-in owner may flip it between
+      // 'free' and 'pro' after checkout. With a real payment provider, re-pin
+      // it (incoming().plan == existing().plan) and write it from an Admin SDK
+      // payment webhook instead.
+      allow update: if owner(uid) && incoming().plan in ['free', 'pro'] && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
       allow delete: if owner(uid);
       match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500); }
       match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }

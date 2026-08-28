@@ -369,7 +369,9 @@ Places clamp at zero and never display a negative balance.
 
 ```
 users/{uid}                     UserProfile
-  ├── plan: 'free' | 'pro'      (rule-protected — clients cannot change it)
+  ├── plan: 'free' | 'pro'      (single source of truth for Pro access)
+  ├── planBillingCycle?         ('monthly' | 'annual', set at checkout)
+  ├── planNextBillingDate?      (YYYY-MM-DD, set at checkout)
   ├── currency: string
   ├── onboardingComplete: bool
   ├── displayName?, theme?
@@ -437,11 +439,14 @@ Three locales ship fully translated: **English**, **French**, **Arabic**.
 - ✅ Money fields validated as numbers in `0 … 1e9`
 - ✅ Array caps: 2,000 variable expenses, 500 fixed, 200 goals
 - ✅ Month IDs must match `^[0-9]{4}-[0-9]{2}$`
-- ✅ **`plan` is pinned** — a client cannot promote itself to Pro
-- ✅ Profile creation requires `plan == 'free'`
+- ✅ **`plan` is Firebase-only** — Pro access is always resolved from the
+  profile's `plan` field on Firestore, never a local flag
+- ✅ Profile creation requires `plan == 'free'`; updates may only flip it
+  between `'free'` and `'pro'` (validated in rules)
 
-Upgrading a user to Pro must happen server-side via the Admin SDK (which
-bypasses rules), driven by a payment webhook.
+While payments are mocked, the signed-in owner flips `plan` client-side after
+checkout. With a real payment provider, re-pin the field and move the write
+into an Admin SDK payment webhook (which bypasses rules).
 
 **Other measures**
 
@@ -609,7 +614,7 @@ marketing site & blog · CI · 84 tests · mock Pro checkout
 
 | Feature | Effort | Notes |
 | --- | --- | --- |
-| Real payments (Stripe / Lemon Squeezy) | L | Mock checkout UI is complete in `payments.ts`; needs live Checkout + an Admin SDK webhook to flip `plan` |
+| Real payments (Stripe / Lemon Squeezy) | L | Mock checkout UI is complete in `payments.ts` and already persists `plan` to the Firebase profile; needs live Checkout + an Admin SDK webhook to take over that write |
 | Move receipts to Firebase Storage | M | Currently stored as base64 data URLs inside the month document |
 | JSON backup export | S | CSV only right now |
 | Month locking / archiving | M | No concept of a "closed" month |

@@ -322,7 +322,19 @@
             "free",
             "pro"
           ],
-          "description": "Pinned by firestore.rules \u2014 clients can never change it after creation"
+          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'; while payments are mocked the signed-in owner may flip it to 'pro' after checkout (validated by firestore.rules)."
+        },
+        "planBillingCycle": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "annual"
+          ],
+          "description": "Billing cycle selected at checkout, written to Firebase alongside `plan`"
+        },
+        "planNextBillingDate": {
+          "type": "string",
+          "description": "Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades"
         },
         "currency": {
           "type": "string",

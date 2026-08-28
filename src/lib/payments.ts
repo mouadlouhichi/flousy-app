@@ -169,30 +169,37 @@ export async function failPayment(
 /**
  * Upgrade the user's plan.
  *
- * In production this should be done server-side (Admin SDK webhook).
- * In demo / local mode we store it directly.
+ * The `plan` on the Firebase user profile (`users/{uid}.plan`) is the single
+ * source of truth: for a signed-in user this always writes to Firestore, so
+ * Pro access follows the account across devices. The localStorage callback is
+ * only used in demo mode, where no Firebase session (and therefore no Firebase
+ * profile) exists.
  */
 export async function upgradeUserPlan(
   uid: string | undefined,
   billingCycle: BillingCycle,
-  updateProfile: (data: { plan: 'pro' }) => Promise<void>,
-  setDemoPlan?: (plan: 'pro') => void,
+  updateProfile: (data: {
+    plan: 'pro';
+    planBillingCycle: BillingCycle;
+    planNextBillingDate: string;
+  }) => Promise<void>,
+  setDemoPlan?: (data: { billingCycle: BillingCycle; nextBillingDate: string }) => void,
 ): Promise<void> {
-  // In demo mode (no Firebase user), store in localStorage
+  const nextBillingDate = getNextBillingDate(billingCycle);
+
+  // Demo mode (no Firebase session): keep the local demo state so the mock
+  // checkout still works without a Firebase profile.
   if (!uid) {
-    setDemoPlan?.('pro');
+    setDemoPlan?.({ billingCycle, nextBillingDate });
     return;
   }
 
-  // In Firebase mode, attempt to update.
-  // Firestore rules block client-side plan changes (pinned to 'free'),
-  // so this will fail unless bypassed by Admin SDK. We still call it
-  // so the pattern is correct when a real webhook is connected.
-  try {
-    await updateProfile({ plan: 'pro' });
-  } catch {
-    // If rules block it, fall back to demo storage so the mock still works
-    // for development. In production, the webhook handles this server-side.
-    setDemoPlan?.('pro');
-  }
+  // Signed-in: persist the upgrade on the Firebase profile. Failures surface
+  // to the caller (the upgrade modal shows its error step) instead of being
+  // silently swapped for a local-only flag.
+  await updateProfile({
+    plan: 'pro',
+    planBillingCycle: billingCycle,
+    planNextBillingDate: nextBillingDate,
+  });
 }

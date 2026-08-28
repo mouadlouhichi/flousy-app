@@ -253,6 +253,10 @@ export interface MonthBudget {
 
 export interface UserProfile {
   plan: 'free' | 'pro';
+  /** Billing cycle selected at checkout (Firebase-backed, mirrors `plan`). */
+  planBillingCycle?: 'monthly' | 'annual';
+  /** Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades. */
+  planNextBillingDate?: string;
   currency: string;
   onboardingComplete: boolean;
   displayName?: string;

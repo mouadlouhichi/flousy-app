@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../lib/auth-context';
+import { isProUser } from '../../lib/pro-features';
 import {
   type BillingCycle,
   PRO_PRICING,
@@ -46,7 +47,8 @@ function fmtPrice(cents: number): string {
 
 export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   const { user, profile, updateProfileData } = useAuth();
-  const isPro = profile?.plan === 'pro' || (typeof window !== 'undefined' && localStorage.getItem('flousy_pro_plan') === 'true');
+  // Pro state always comes from the `plan` field on the Firebase profile.
+  const isPro = isProUser(profile);
 
   // -- Checkout state --
   const [step, setStep] = useState<CheckoutStep>('plan');
@@ -165,16 +167,24 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     setTransactionId(receipt.transactionId);
     setNextBilling(receipt.nextBillingDate);
 
-    // 4) Upgrade the user's plan
+    // 4) Upgrade the user's plan — always persisted on the Firebase profile
+    // (`users/{uid}.plan`) for signed-in users. Demo mode (no Firebase
+    // session) keeps its local demo state via the callback below.
     setProgressText('Activating Pro features…');
 
-    const setDemoPlan = (plan: 'pro') => {
+    const setDemoPlan = ({ billingCycle: cycle, nextBillingDate }: { billingCycle: BillingCycle; nextBillingDate: string }) => {
       localStorage.setItem('flousy_pro_plan', 'true');
-      localStorage.setItem('flousy_pro_billing', billingCycle);
-      localStorage.setItem('flousy_pro_next_billing', receipt.nextBillingDate);
+      localStorage.setItem('flousy_pro_billing', cycle);
+      localStorage.setItem('flousy_pro_next_billing', nextBillingDate);
     };
 
-    await upgradeUserPlan(user?.uid, billingCycle, updateProfileData, setDemoPlan);
+    try {
+      await upgradeUserPlan(user?.uid, billingCycle, updateProfileData, setDemoPlan);
+    } catch (err) {
+      console.error('Plan upgrade failed:', err);
+      setStep('error');
+      return;
+    }
 
     // 5) Show receipt
     trackEvent('purchase', {
@@ -234,8 +244,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 <div>
                   <p className="font-headline-md text-body-lg font-semibold text-on-surface">Pro plan is active</p>
                   <p className="font-body-md text-on-surface-variant mt-1">
-                    {typeof window !== 'undefined' && localStorage.getItem('flousy_pro_next_billing')
-                      ? `Next billing: ${localStorage.getItem('flousy_pro_next_billing')}`
+                    {profile?.planNextBillingDate
+                      ? `Next billing: ${profile.planNextBillingDate}`
                       : 'All premium features unlocked.'}
                   </p>
                 </div>
