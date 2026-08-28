@@ -13,6 +13,7 @@ import { useAuth } from '../../lib/auth-context';
 import {
   MonthBudget,
   SavingGoal,
+  SavingsActivityEntry,
   VariableExpense,
   FixedExpense,
   DebtItem,
@@ -20,6 +21,8 @@ import {
   UserProfile,
   normalizeMonth,
   calculateEnvelopeAmounts,
+  updateSavingsActivityEntry,
+  deleteSavingsActivityEntry,
   addVariableExpense,
   addFixedExpense,
   updateMoneyPlaces,
@@ -116,6 +119,14 @@ interface DashboardContextType {
   isSavingsModalOpen: boolean;
   savingsModalMode: SavingsModalMode;
   selectedGoal: SavingGoal | null;
+
+  // Editor for a logged savings deposit / withdrawal (Recent Activity)
+  openSavingsEntryModal: (entry: SavingsActivityEntry) => void;
+  closeSavingsEntryModal: () => void;
+  isSavingsEntryModalOpen: boolean;
+  selectedSavingsEntry: SavingsActivityEntry | null;
+  handleSaveSavingsEntry: (entryId: string, patch: Partial<SavingsActivityEntry>) => void;
+  handleDeleteSavingsEntry: (entryId: string) => void;
 
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
@@ -252,6 +263,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false);
   const [savingsModalMode, setSavingsModalMode] = useState<SavingsModalMode>('create');
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
+
+  const [isSavingsEntryModalOpen, setIsSavingsEntryModalOpen] = useState(false);
+  const [selectedSavingsEntry, setSelectedSavingsEntry] = useState<SavingsActivityEntry | null>(null);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
@@ -651,6 +665,37 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setSelectedGoal(null);
   }, []);
 
+  const openSavingsEntryModal = useCallback((entry: SavingsActivityEntry) => {
+    setSelectedSavingsEntry(entry);
+    setIsSavingsEntryModalOpen(true);
+  }, []);
+  const closeSavingsEntryModal = useCallback(() => {
+    setIsSavingsEntryModalOpen(false);
+    setSelectedSavingsEntry(null);
+  }, []);
+
+  // Correcting a logged deposit rewinds the original money movement and
+  // replays the edited one, so the month's savings plan follows along.
+  const handleSaveSavingsEntry = useCallback(
+    (entryId: string, patch: Partial<SavingsActivityEntry>) => {
+      const res = updateSavingsActivityEntry(month, goals, entryId, patch);
+      updateAndSaveMonth(res.month);
+      updateAndSaveGoals(res.goals);
+      trackEvent('edit_savings_entry', { type: patch.type });
+    },
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+  );
+
+  const handleDeleteSavingsEntry = useCallback(
+    (entryId: string) => {
+      const res = deleteSavingsActivityEntry(month, goals, entryId);
+      updateAndSaveMonth(res.month);
+      updateAndSaveGoals(res.goals);
+      trackEvent('delete_savings_entry', {});
+    },
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+  );
+
   const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
@@ -727,6 +772,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSavingsEntryModal,
+      closeSavingsEntryModal,
+      isSavingsEntryModalOpen,
+      selectedSavingsEntry,
+      handleSaveSavingsEntry,
+      handleDeleteSavingsEntry,
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
@@ -795,6 +846,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSavingsEntryModal,
+      closeSavingsEntryModal,
+      isSavingsEntryModalOpen,
+      selectedSavingsEntry,
+      handleSaveSavingsEntry,
+      handleDeleteSavingsEntry,
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,

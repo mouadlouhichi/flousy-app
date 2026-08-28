@@ -6,7 +6,7 @@ import {
   CustomRatios,
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
-  calculateDepositedSavings,
+  calculateMonthlyDepositedSavings,
   resolveMonthStrategy,
   StrategyId,
   SavingsActivityEntry,
@@ -25,6 +25,8 @@ interface OverviewTabProps {
   onUpdateTotalBudget: (value: number) => void;
   onEditMoneyPlaces: () => void;
   onUpdateStrategy?: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
+  /** Open the editor for a logged savings deposit / withdrawal. */
+  onOpenEditSavings?: (entry: SavingsActivityEntry) => void;
 }
 
 export function OverviewTab({
@@ -37,6 +39,7 @@ export function OverviewTab({
   onUpdateTotalBudget,
   onEditMoneyPlaces,
   onUpdateStrategy,
+  onOpenEditSavings,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
   const { workspace, canViewArea, canEditArea } = useHousehold();
@@ -66,9 +69,10 @@ export function OverviewTab({
 
   const recentExpenses = (month.variableExpenses || []).slice(0, 5);
 
-  // The savings plan only counts money actually deposited into goals — not
-  // "already saved" balances recorded without the transfer checkbox.
-  const depositedSavings = calculateDepositedSavings(goals);
+  // The savings plan counts only the deposits logged on THIS month — goals
+  // outlive the budget period, so their lifetime balance (including "already
+  // saved" bookkeeping) must not leak into the current month's progress.
+  const depositedSavings = calculateMonthlyDepositedSavings(month);
 
   // Recent Activity merges logged expenses with savings deposits/withdrawals,
   // newest first.
@@ -318,7 +322,7 @@ export function OverviewTab({
                 />
               </div>
               <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
-                <span>{format(depositedSavings)}</span>
+                <span title="Deposited into goals this month">{format(depositedSavings)}</span>
                 <span>{format(savings)}</span>
               </div>
             </div>
@@ -466,7 +470,12 @@ export function OverviewTab({
                   ) : (
                     <div
                       key={`sav-${item.id}`}
-                      onClick={() => onSelectTab('savings')}
+                      role={onOpenEditSavings ? 'button' : undefined}
+                      onClick={() => {
+                        const entry = recentSavings.find((evt) => evt.id === item.id);
+                        if (onOpenEditSavings && entry) onOpenEditSavings(entry);
+                        else onSelectTab('savings');
+                      }}
                       className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
