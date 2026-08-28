@@ -42,6 +42,7 @@ import {
 } from '../../lib/db';
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
+import { getCurrentMonthKey } from '../../lib/utils';
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
@@ -165,9 +166,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
-  // Active Month Key (YYYY-MM)
+  // Active Month Key (YYYY-MM). When a monthly start date is configured, the
+  // active month is the budget period containing today (so on the 1st the
+  // month does not flip to the new calendar month until the start date).
   const today = new Date();
-  const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const defaultMonthKey = getCurrentMonthKey(profile?.monthStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
 
   // Core State
@@ -228,6 +231,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Snap the active month to the budget period containing today whenever the
+  // configured monthly start date changes (set during onboarding or config),
+  // so the app never shows a fresh month on the 1st before the start date.
+  useEffect(() => {
+    const resolved = getCurrentMonthKey(profile?.monthStartDate);
+    setCurrentMonthKey((prev) => (resolved === prev ? prev : resolved));
+  }, [profile?.monthStartDate]);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);

@@ -19,7 +19,7 @@ import {
   resolveStrategy,
 } from '../../lib/store';
 import { saveMonthBudget } from '../../lib/db';
-import { formatDayOfMonth } from '../../lib/utils';
+import { formatDayOfMonth, getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
 
@@ -205,7 +205,9 @@ export default function OnboardingPage() {
     setIsCompleting(true);
 
     const today = new Date();
-    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    // File the first month under the budget period containing today so the
+    // dashboard looks for the same key when a monthly start date is set.
+    const monthKey = getCurrentMonthKey(monthStartDate, today);
     const newMonth = createNewMonth(
       parsedIncome,
       selectedStrategy,

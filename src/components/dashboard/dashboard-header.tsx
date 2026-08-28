@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
-import { InstallButton } from '@/components/pwa/install-button';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
@@ -44,8 +43,8 @@ export function DashboardHeader() {
     return d.toLocaleDateString('en-US', { month: 'short' });
   })();
 
-  // When a monthly start date is configured, show the shifted budget period
-  // the selected calendar month belongs to (e.g. "Budget: Aug 25 → Sep 24").
+  // When a monthly start date is configured, the navigator shows the budget
+  // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
   const budgetPeriod = profile?.monthStartDate
     ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
     : null;
@@ -84,7 +83,16 @@ export function DashboardHeader() {
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
         <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[32px] sm:min-w-[64px] text-center uppercase">
-          {monthLabel}
+          {budgetPeriod ? (
+            <>
+              <span className="sm:hidden">{formatPeriodLabel(budgetPeriod.startDate)}</span>
+              <span className="hidden whitespace-nowrap sm:inline">
+                {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
+              </span>
+            </>
+          ) : (
+            monthLabel
+          )}
         </span>
         <button
           onClick={handleNextMonth}
@@ -93,18 +101,10 @@ export function DashboardHeader() {
         >
           <AppIcon name="chevron_right" className=" text-[16px] sm:text-[18px]" />
         </button>
-        {budgetPeriod && (
-          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary whitespace-nowrap">
-            <AppIcon name="calendar_clock" className="text-[11px]" />
-            {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
-          </span>
-        )}
       </div>
 
       {/* Header Action Tools */}
       <div className="flex items-center gap-2">
-        <InstallButton compact />
-
         <BudgetAlerts month={month} />
 
         {canAddExpense && <button

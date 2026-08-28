@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema } from '../../lib/validation';
+import { getCurrentMonthKey } from '../../lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function LoginPage() {
       localStorage.getItem('flousy_demo_mode') === 'true';
 
     const today = new Date();
-    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
     const onboardingDoneLocally =
       typeof window !== 'undefined' &&
       (localStorage.getItem('flousy_onboarding_done') === 'true' ||

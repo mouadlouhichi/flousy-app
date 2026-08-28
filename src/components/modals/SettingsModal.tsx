@@ -2,6 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { InstallButton } from '../pwa/install-button';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
@@ -288,6 +289,11 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
               </div>
               <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 transition-transform" />
             </button>
+          </div>
+
+          {/* ── Install App (moved here from the dashboard header) ── */}
+          <div className="flex justify-center pt-1">
+            <InstallButton />
           </div>
 
           {/* ── Account Actions ── */}
