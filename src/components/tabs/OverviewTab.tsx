@@ -328,9 +328,9 @@ export function OverviewTab({
                         }
                       }}
                       style={{ width: `${Math.max(4, Math.min(12, draftBudget.length + 1))}ch` }}
-                      className="bg-transparent text-[28px] font-extrabold leading-none tracking-tight text-on-surface tabular-nums outline-none sm:text-[32px]"
+                      className="bg-transparent text-xl font-bold font-mono text-on-surface outline-none"
                     />
-                    <span className="shrink-0 text-[13px] font-bold text-on-surface-variant">
+                    <span className="text-xs font-semibold text-on-surface-variant">
                       {budgetParts.currency}
                     </span>
                   </div>
@@ -341,11 +341,11 @@ export function OverviewTab({
                     title="Click to edit your monthly budget"
                     className="-ml-2 flex min-w-0 items-baseline gap-1 rounded-2xl px-2 py-0.5 text-left transition-colors hover:bg-surface-variant/60"
                   >
-                    <span className="text-[28px] font-extrabold leading-none tracking-tight text-on-surface tabular-nums sm:text-[32px]">
+                    <span className="text-xl font-bold font-mono text-on-surface">
                       {canSeeBalances ? budgetParts.amount : redacted}
                     </span>
                     {canSeeBalances && (
-                      <span className="shrink-0 text-[13px] font-bold text-on-surface-variant">
+                      <span className="text-xs font-semibold text-on-surface-variant">
                         {budgetParts.currency}
                       </span>
                     )}
@@ -496,6 +496,12 @@ export function OverviewTab({
           totalBudget={month.totalBudget}
           customRatios={month.customRatios}
           onSelect={(strategyId, ratios) => onUpdateStrategy(strategyId, ratios)}
+        />
+      )}
+    </>
+  );
+}
+teStrategy(strategyId, ratios)}
         />
       )}
     </>
