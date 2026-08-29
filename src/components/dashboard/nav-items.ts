@@ -100,6 +100,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
 /** Resolve the active screen id from the current pathname. */
 export function getScreenIdFromPath(pathname: string | null): DashboardScreenId {
   if (!pathname) return 'overview';
+  // Nested settings pages (/dashboard/profile/preferences, …) must stay on
+  // the profile screen so the main nav does not fall back to Overview.
+  if (pathname === '/dashboard/profile' || pathname.startsWith('/dashboard/profile/')) {
+    return 'profile';
+  }
   const match = DASHBOARD_NAV_ITEMS.find(
     (item) =>
       item.href === pathname ||
@@ -116,4 +121,22 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
   return DASHBOARD_NAV_ITEMS.filter(
     (item) => !item.hiddenFromNav && (!item.proOnly || isPro),
   );
+}
+
+const PROFILE_PAGE_TITLES: Record<string, string> = {
+  '/dashboard/profile': 'Profile & Account',
+  '/dashboard/profile/preferences': 'Preferences',
+  '/dashboard/profile/money-sources': 'Money Sources',
+  '/dashboard/profile/workspace': 'Workspace',
+  '/dashboard/profile/pro': 'Pro',
+  '/dashboard/profile/data': 'Data',
+  '/dashboard/profile/account': 'Account',
+};
+
+/** Desktop header title for the profile hub and its nested settings pages. */
+export function getProfilePageTitle(pathname: string | null): string | null {
+  if (!pathname) return null;
+  if (pathname in PROFILE_PAGE_TITLES) return PROFILE_PAGE_TITLES[pathname];
+  if (pathname.startsWith('/dashboard/profile/')) return 'Profile & Account';
+  return null;
 }

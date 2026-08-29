@@ -7,8 +7,8 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
-import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
-import { getSourcePeriod } from '@/lib/utils';
+import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
+import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
 /** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
 function formatPeriodLabel(iso: string): string {
@@ -48,6 +48,8 @@ export function DashboardHeader() {
   const budgetPeriod = profile?.monthStartDate
     ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
     : null;
+  const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate) : null;
+  const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate) : null;
 
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
@@ -69,12 +71,19 @@ export function DashboardHeader() {
 
         {/* Desktop Page Title */}
         <h1 className="hidden md:block font-headline-md text-headline-md font-extrabold text-on-surface capitalize">
-          {activeItem?.title ?? 'Dashboard Overview'}
+          {getProfilePageTitle(pathname) ?? activeItem?.title ?? 'Dashboard Overview'}
         </h1>
       </div>
 
       {/* Center Month Selector */}
-      <div className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant">
+      <div
+        className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
+        title={
+          profile?.monthStartDate
+            ? `Custom budget month (starts on the ${formatDayOfMonth(profile.monthStartDate)})`
+            : undefined
+        }
+      >
         <button
           onClick={handlePrevMonth}
           className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
@@ -82,13 +91,29 @@ export function DashboardHeader() {
         >
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
-        <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[32px] sm:min-w-[64px] text-center uppercase">
+        <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod ? (
             <>
-              <span className="sm:hidden">{formatPeriodLabel(budgetPeriod.startDate)}</span>
-              <span className="hidden whitespace-nowrap sm:inline">
-                {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
-              </span>
+              {(() => {
+                const start = formatPeriodParts(budgetPeriod.startDate);
+                const end = formatPeriodParts(budgetPeriod.endDate);
+                return (
+                  <>
+                    <span className="whitespace-nowrap">{start.month}</span>
+                    <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                      <AppIcon
+                        name="loop"
+                        className="shrink-0 text-[12px] text-primary sm:text-[14px]"
+                        aria-label="Custom budget month"
+                      />
+                      <span>{start.day}</span>
+                    </span>
+                    <span className="hidden whitespace-nowrap sm:inline">
+                      → {end.month} {end.day}
+                    </span>
+                  </>
+                );
+              })()}
             </>
           ) : (
             monthLabel

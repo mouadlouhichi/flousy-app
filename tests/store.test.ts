@@ -24,6 +24,13 @@ import {
   VariableExpense,
   updateMoneyPlaces,
   calculateTotalIncome,
+  addMoneyPlace,
+  updateMoneyPlace,
+  removeMoneyPlace,
+  reassignMoneyPlace,
+  getPlaceBalance,
+  totalCashOnHand,
+  nextMoneyPlaceId,
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
@@ -266,6 +273,41 @@ describe('Store & Money Math Invariants', () => {
     });
     assert.strictEqual(appended.fixedCategories!.length, 3);
     assert.strictEqual(appended.fixedCategories![2].name, 'Pets');
+  });
+
+  it('custom money places conserve cash when adding, spending and retiring', () => {
+    const profile: UserProfile = { plan: 'free', currency: 'MAD', onboardingComplete: true };
+    const added = addMoneyPlace(profile, { id: 'paypal', name: 'PayPal', icon: 'payments' });
+    assert.strictEqual(added.moneyPlaces!.length, 4);
+    assert.strictEqual(added.moneyPlaces!.at(-1)?.id, 'paypal');
+    // Duplicate name is a no-op
+    assert.strictEqual(addMoneyPlace(added, { id: 'pp2', name: 'paypal', icon: 'payments' }), added);
+
+    const renamed = updateMoneyPlace(added, 'paypal', { name: 'PayPal Wallet' });
+    assert.strictEqual(renamed.moneyPlaces!.at(-1)?.name, 'PayPal Wallet');
+
+    let month = createNewMonth(5000, '50-30-20', [], [], '2026-07');
+    month = updateMoneyPlaces(month, { paypal: 400 });
+    assert.strictEqual(getPlaceBalance(month, 'paypal'), 400);
+    const starting = totalCashOnHand(month);
+
+    month = addVariableExpense(month, {
+      id: 'e-pp',
+      name: 'App',
+      amount: 50,
+      type: 'Subscriptions',
+      date: '2026-07-02',
+      place: 'paypal',
+    });
+    assert.strictEqual(getPlaceBalance(month, 'paypal'), 350);
+
+    const afterRemove = removeMoneyPlace(renamed, 'paypal');
+    assert.strictEqual(afterRemove.moneyPlaces!.some((p) => p.id === 'paypal'), false);
+    const retired = reassignMoneyPlace(month, 'paypal', afterRemove.moneyPlaces![0].id);
+    assert.strictEqual(getPlaceBalance(retired, 'paypal'), 0);
+    assert.strictEqual(totalCashOnHand(retired), starting - 50);
+    assert.strictEqual(retired.variableExpenses[0].place, afterRemove.moneyPlaces![0].id);
+    assert.ok(nextMoneyPlaceId('PayPal', ['paypal']).startsWith('paypal-'));
   });
 
   it('renameFixedCategory retypes only matching bills', () => {

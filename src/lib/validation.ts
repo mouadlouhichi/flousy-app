@@ -16,7 +16,7 @@ export const expenseSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   type: z.string().min(1, 'Category is required'),
   date: z.string().min(1, 'Date is required'),
-  place: z.enum(['bank', 'home', 'wallet'], { message: 'Money place is required' }),
+  place: z.string().min(1, 'Money place is required'),
   note: z.string().max(250, 'Note is too long').optional(),
 });
 
@@ -25,13 +25,13 @@ export const fixedBillSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   type: z.string().min(1, 'Category is required'),
   date: z.string().optional(),
-  place: z.enum(['bank', 'home', 'wallet']),
+  place: z.string().min(1, 'Money place is required'),
 });
 
 export const moveMoneySchema = z
   .object({
-    from: z.enum(['bank', 'home', 'wallet']),
-    to: z.enum(['bank', 'home', 'wallet']),
+    from: z.string().min(1, 'Source is required'),
+    to: z.string().min(1, 'Destination is required'),
     amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   })
   .refine((data) => data.from !== data.to, {
@@ -42,7 +42,7 @@ export const moveMoneySchema = z
 export const savingGoalSchema = z.object({
   name: z.string().trim().min(1, 'Goal name is required').max(100, 'Name is too long'),
   target: moneyAmountSchema.refine((val) => val > 0, { message: 'Target amount must be greater than zero' }),
-  source: z.enum(['bank', 'home', 'wallet']),
+  source: z.string().min(1, 'Money place is required'),
   /** Amount already saved towards the goal before it was tracked here. */
   current: moneyAmountSchema.optional(),
 });
@@ -66,7 +66,7 @@ export const fundGoalSchema = z.object({
 
 export const withdrawGoalSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
-  targetPlace: z.enum(['bank', 'home', 'wallet']),
+  targetPlace: z.string().min(1, 'Money place is required'),
 });
 
 export const incomeSourceSchema = z.object({

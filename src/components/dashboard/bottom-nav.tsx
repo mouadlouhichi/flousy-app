@@ -68,6 +68,8 @@ export function BottomNav() {
   }, []);
 
   // Measure the active button in nav-local layout space (transform-immune).
+  // Profile (and any other screen missing from the bar) must clear the pill —
+  // otherwise the last destination stays highlighted while you're elsewhere.
   useEffect(() => {
     const measure = () => {
       const activeBtn = navRef.current?.querySelector<HTMLElement>(
@@ -80,6 +82,8 @@ export function BottomNav() {
           width: activeBtn.offsetWidth,
           height: activeBtn.offsetHeight,
         });
+      } else {
+        setPillRect(null);
       }
     };
 

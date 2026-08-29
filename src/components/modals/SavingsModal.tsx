@@ -1,10 +1,12 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 
 interface SavingsModalProps {
@@ -40,6 +42,7 @@ export function SavingsModal({
   placeBalances,
 }: SavingsModalProps) {
   const { symbol, format } = useCurrency();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [amount, setAmount] = useState('');
@@ -55,12 +58,12 @@ export function SavingsModal({
     if (goal && (mode === 'edit' || mode === 'fund' || mode === 'withdraw')) {
       setName(goal.name);
       setTarget(String(goal.target));
-      setPlace(goal.source || 'bank');
+      setPlace(goal.source || defaultPlace);
       setCurrent(goal.current ? String(goal.current) : '');
     } else {
       setName('');
       setTarget('');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setCurrent('');
     }
     setDeductFromPlace(false);
@@ -133,7 +136,7 @@ export function SavingsModal({
       if (parsedAmount - selectedPlaceBalance > 0.005) {
         setErrors({
           amount: `Only ${format(selectedPlaceBalance)} available in ${
-            MONEY_PLACE_LABELS[place] ?? place
+            placeLabel(place)
           }. Lower the deposit or move money into this place first.`,
         });
         return;
@@ -300,7 +303,7 @@ export function SavingsModal({
               label="Primary Source Place"
               value={place}
               onChange={(v) => setPlace(v as MoneyPlace)}
-              options={MONEY_PLACE_OPTIONS}
+              options={moneyPlaceOptions}
             />
           </>
         ) : (
@@ -311,7 +314,7 @@ export function SavingsModal({
                 {mode === 'fund' ? 'Deposit Amount' : 'Withdrawal Amount'}
               </label>
               <div className="flex items-center text-primary font-bold">
-                <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+                <AmountSymbol symbol={symbol} />
                 <input
                   type="number"
                   step="any"
@@ -357,13 +360,13 @@ export function SavingsModal({
                 setPlace(v as MoneyPlace);
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
-              options={MONEY_PLACE_OPTIONS}
+              options={moneyPlaceOptions}
             />
 
             {/* Live balance of the source account — the deposit cap for fund mode */}
             {mode === 'fund' && (
               <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-                Available in {MONEY_PLACE_LABELS[place] ?? place}:{' '}
+                Available in {placeLabel(place)}:{' '}
                 <span className="font-mono font-bold text-on-surface">
                   {format(selectedPlaceBalance)}
                 </span>

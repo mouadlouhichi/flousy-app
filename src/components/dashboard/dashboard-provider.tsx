@@ -47,6 +47,12 @@ import {
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
 import { getCurrentMonthKey } from '../../lib/utils';
+import {
+  readCachedMonth,
+  readStoredMonthKey,
+  writeCachedMonth,
+  writeStoredMonthKey,
+} from '../../lib/month-cache';
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
@@ -87,7 +93,7 @@ interface DashboardContextType {
 
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
-  handleEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
+  handleEditMoneyPlaces: (values: Record<string, number>) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: any[], total: number) => void;
@@ -184,6 +190,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const today = new Date();
   const defaultMonthKey = getCurrentMonthKey(profile?.monthStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const profileReady = Boolean(profile);
+  const hydratedStartRef = useRef(false);
+  const lastStartDateRef = useRef<number | undefined>(undefined);
 
   // Core State
   const [month, setMonth] = useState<MonthBudget>(() =>
@@ -244,13 +255,39 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
   }, []);
 
-  // Snap the active month to the budget period containing today whenever the
-  // configured monthly start date changes (set during onboarding or config),
-  // so the app never shows a fresh month on the 1st before the start date.
+  // Honour the last viewed month from storage so tab / month navigation does
+  // not snap back to "today's period" and trigger a loading refetch. Only
+  // jump to the period containing today when the user actually changes the
+  // monthly start date in settings.
   useEffect(() => {
-    const resolved = getCurrentMonthKey(profile?.monthStartDate);
-    setCurrentMonthKey((prev) => (resolved === prev ? prev : resolved));
-  }, [profile?.monthStartDate]);
+    if (authLoading || (user && !profileReady)) return;
+
+    const nextStart = profile?.monthStartDate;
+
+    if (!hydratedStartRef.current) {
+      hydratedStartRef.current = true;
+      lastStartDateRef.current = nextStart;
+      const stored = readStoredMonthKey();
+      if (stored) {
+        setCurrentMonthKey((prev) => (prev === stored ? prev : stored));
+      } else {
+        const resolved = getCurrentMonthKey(nextStart);
+        setCurrentMonthKey((prev) => (prev === resolved ? prev : resolved));
+        writeStoredMonthKey(resolved);
+      }
+      return;
+    }
+
+    if (lastStartDateRef.current === nextStart) return;
+    lastStartDateRef.current = nextStart;
+    const resolved = getCurrentMonthKey(nextStart);
+    setCurrentMonthKey(resolved);
+    writeStoredMonthKey(resolved);
+  }, [authLoading, user, profileReady, profile?.monthStartDate]);
+
+  useEffect(() => {
+    writeStoredMonthKey(currentMonthKey);
+  }, [currentMonthKey]);
 
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -307,21 +344,38 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [user, profile, householdId],
   );
 
-  // 1. Subscribe or load month budget
+  // 1. Subscribe or load month budget.
+  // Hydrate from localStorage first so tab / month navigation can paint the
+  // last known document instantly instead of flashing the dashboard skeleton
+  // while Firestore catches up. Snapshots are written back to the same key.
   useEffect(() => {
     // Do not subscribe to the personal workspace while the authenticated
     // profile (and its selected workspace) is still hydrating. Otherwise the
     // personal month paints briefly before the household subscription wins.
-    if (authLoading || (user && !profile)) {
+    if (authLoading || (user && !profileReady)) {
       setLoading(true);
       return;
     }
-    setLoading(true);
+
+    const activeProfile = profileRef.current;
+    const storageKey = householdStorageKey(householdId, currentMonthKey);
+    const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
+    if (cached) {
+      setMonth(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    const persist = (data: MonthBudget) => {
+      writeCachedMonth(storageKey, data);
+    };
 
     if (householdId && !isContributor) {
       const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
+          persist(data);
         } else {
           // A new household starts from the owner's current personal month so
           // creating collaboration does not make their visible balance vanish.
@@ -329,37 +383,39 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           if (personal && personal.totalBudget > 0) {
             const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
             setMonth(initialSharedMonth);
+            persist(initialSharedMonth);
             saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
           } else {
-            setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, await getPreviousMonth(currentMonthKey)));
+            const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, await getPreviousMonth(currentMonthKey));
+            setMonth(fresh);
+            persist(fresh);
           }
         }
         setLoading(false);
       });
       return () => unsub();
     } else if (householdId && isContributor) {
-      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile));
+      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile));
       setLoading(false);
       return;
     } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
+          persist(data);
         } else {
           // Fetch previous month for rollover
           const previousMonth = await getPreviousMonth(currentMonthKey);
 
           // If no month document exists in Firestore, check local storage or initialize clean default
-          const local = localStorage.getItem(`flousy_month_${currentMonthKey}`);
+          const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
           if (local) {
-            try {
-              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey, profile, previousMonth));
-            } catch {
-              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
-            }
+            setMonth(local);
+            persist(local);
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth);
+            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
             setMonth(clean);
+            persist(clean);
           }
         }
         setLoading(false);
@@ -367,12 +423,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return () => unsub();
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
-        setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
+        const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
+        const next = local ?? normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+        setMonth(next);
+        persist(next);
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profile]);
+  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profileReady]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
@@ -489,22 +548,40 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
 
+  // Apply a month key immediately: persist it, paint any cached document so
+  // the skeleton never flashes on a month the user has already opened, then
+  // let the subscribe effect revalidate in the background.
+  const applyMonthKey = useCallback(
+    (nextKey: string) => {
+      writeStoredMonthKey(nextKey);
+      const cached = readCachedMonth(
+        householdStorageKey(householdId, nextKey),
+        nextKey,
+        profileRef.current,
+      );
+      if (cached) {
+        setMonth(cached);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+      setCurrentMonthKey(nextKey);
+    },
+    [householdId],
+  );
+
   // Month navigation
   const handlePrevMonth = useCallback(() => {
-    setCurrentMonthKey((prevKey) => {
-      const [y, m] = prevKey.split('-').map(Number);
-      const prevDate = new Date(y, m - 2, 1);
-      return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-    });
-  }, []);
+    const [y, m] = currentMonthKey.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    applyMonthKey(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`);
+  }, [applyMonthKey, currentMonthKey]);
 
   const handleNextMonth = useCallback(() => {
-    setCurrentMonthKey((prevKey) => {
-      const [y, m] = prevKey.split('-').map(Number);
-      const nextDate = new Date(y, m, 1);
-      return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
-    });
-  }, []);
+    const [y, m] = currentMonthKey.split('-').map(Number);
+    const nextDate = new Date(y, m, 1);
+    applyMonthKey(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`);
+  }, [applyMonthKey, currentMonthKey]);
 
   // Budget handlers
   const handleUpdateTotalBudget = useCallback(
@@ -533,7 +610,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleEditMoneyPlaces = useCallback(
-    (values: { bank: number; home: number; wallet: number }) => {
+    (values: Record<string, number>) => {
       const updated = updateMoneyPlaces(month, values);
       updateAndSaveMonth(updated);
     },
