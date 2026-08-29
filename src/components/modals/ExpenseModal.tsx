@@ -175,7 +175,7 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, name: '' }));
               }}
               placeholder={`e.g. Supermarket, Coffee, ${type}`}
-              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
             />
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"

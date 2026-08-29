@@ -94,6 +94,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: '#00685f',
   colorScheme: 'light dark',
+  width: 'device-width',
+  initialScale: 1,
+  // iOS Safari auto-zooms focused inputs under 16px; cap scale so tapping a
+  // field never jumps the whole page. Form controls are also ≥16px.
+  maximumScale: 1,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

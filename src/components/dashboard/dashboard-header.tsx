@@ -8,7 +8,7 @@ import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
-import { getSourcePeriod } from '@/lib/utils';
+import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
 /** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
 function formatPeriodLabel(iso: string): string {
@@ -74,7 +74,14 @@ export function DashboardHeader() {
       </div>
 
       {/* Center Month Selector */}
-      <div className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant">
+      <div
+        className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
+        title={
+          profile?.monthStartDate
+            ? `Custom budget month (starts on the ${formatDayOfMonth(profile.monthStartDate)})`
+            : undefined
+        }
+      >
         <button
           onClick={handlePrevMonth}
           className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
@@ -82,7 +89,14 @@ export function DashboardHeader() {
         >
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
-        <span className="font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface min-w-[32px] sm:min-w-[64px] text-center uppercase">
+        <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
+          {budgetPeriod && (
+            <AppIcon
+              name="loop"
+              className="shrink-0 text-[12px] text-primary sm:text-[14px]"
+              aria-label="Custom budget month"
+            />
+          )}
           {budgetPeriod ? (
             <>
               <span className="sm:hidden">{formatPeriodLabel(budgetPeriod.startDate)}</span>

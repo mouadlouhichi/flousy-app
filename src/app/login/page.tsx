@@ -251,7 +251,7 @@ export default function LoginPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your full name"
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
-                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
               />
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required={!isResetting}
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>

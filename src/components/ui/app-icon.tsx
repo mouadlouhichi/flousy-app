@@ -166,6 +166,7 @@ const icons: Record<string, LucideIcon> = {
   local_dining: Utensils,
   lock: Lock,
   lock_open: LockKeyholeOpen,
+  loop: Repeat2,
   mail: Mail,
   mark_email_unread: Mail,
   medical: HeartPulse,
