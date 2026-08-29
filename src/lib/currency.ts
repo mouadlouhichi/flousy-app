@@ -47,25 +47,34 @@ export function isLetterCurrencySymbol(symbol: string): boolean {
   return symbol.trim().length > 1;
 }
 
+const AMOUNT_PART_TYPES = new Set(['integer', 'group', 'decimal', 'fraction', 'minusSign', 'plusSign']);
+
 export function formatCurrencyParts(amount: number, currencyCode: string = 'MAD', uiLocale?: string): { amount: string; currency: string } {
   const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
   const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.MAD;
   const locale = uiLocale || config.locale;
 
   try {
-    const formatted = new Intl.NumberFormat(locale, {
+    // formatToParts keeps French/Arabic grouping (narrow spaces, dots) inside
+    // the amount. A regex on the formatted string used to split "32 500,00 MAD"
+    // into amount "32" and currency "500,00 MAD".
+    const parts = new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: config.code,
       minimumFractionDigits: config.digits,
       maximumFractionDigits: config.digits,
-    }).format(safeAmount);
-    // Split "32,500.00 MAD" or "€32,500.00" into amount and currency
-    const match = formatted.match(/^([^\d]*)([\d.,]+)(.*)$/);
-    if (match) {
-      const currency = (match[1] + match[3]).trim() || config.symbol;
-      return { amount: match[2], currency };
+    }).formatToParts(safeAmount);
+
+    let amountText = '';
+    let currencyText = '';
+    for (const part of parts) {
+      if (part.type === 'currency') currencyText += part.value;
+      else if (AMOUNT_PART_TYPES.has(part.type)) amountText += part.value;
     }
-    return { amount: formatted, currency: config.symbol };
+    return {
+      amount: amountText || safeAmount.toFixed(config.digits),
+      currency: currencyText.trim() || config.symbol,
+    };
   } catch {
     return { amount: safeAmount.toFixed(config.digits), currency: config.symbol };
   }

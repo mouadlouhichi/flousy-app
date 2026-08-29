@@ -21,4 +21,19 @@ describe('formatCurrencyParts', () => {
     assert.match(parts.amount, /1[,.]?234/);
     assert.equal(parts.currency.includes('MAD') || parts.currency === 'MAD', true);
   });
+
+  it('keeps French grouping inside the amount instead of the currency', () => {
+    const parts = formatCurrencyParts(32500, 'MAD', 'fr-FR');
+    assert.match(parts.amount, /32/);
+    assert.match(parts.amount, /500/);
+    assert.equal(parts.currency, 'MAD');
+    assert.equal(parts.currency.includes('500'), false);
+  });
+
+  it('keeps Arabic grouping inside the amount', () => {
+    const parts = formatCurrencyParts(10000, 'MAD', 'ar-MA');
+    assert.match(parts.amount, /10/);
+    assert.match(parts.amount, /000/);
+    assert.equal(parts.amount.includes('د'), false);
+  });
 });

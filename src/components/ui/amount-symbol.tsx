@@ -19,7 +19,7 @@ export function AmountSymbol({
       className={cn(
         'font-extrabold',
         compact
-          ? 'mr-1.5 self-center text-[13px] tracking-wider text-on-surface-variant'
+          ? 'mr-1 self-center text-[13px] tracking-normal text-on-surface-variant'
           : 'mr-1 text-[28px]',
         className,
       )}
