@@ -10,10 +10,14 @@ import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
 import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
-/** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
-function formatPeriodLabel(iso: string): string {
+/** "2026-08-25" → { month: "Aug", day: "25" } (parsed locally, no UTC offset surprises). */
+function formatPeriodParts(iso: string): { month: string; day: string } {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const date = new Date(y, m - 1, d);
+  return {
+    month: date.toLocaleDateString('en-US', { month: 'short' }),
+    day: date.toLocaleDateString('en-US', { day: 'numeric' }),
+  };
 }
 
 /** Main header bar: page title, month selector and action tools. */
@@ -92,28 +96,20 @@ export function DashboardHeader() {
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
-          {budgetPeriod ? (
+          {budgetPeriod && periodStart && periodEnd ? (
             <>
-              {(() => {
-                const start = formatPeriodParts(budgetPeriod.startDate);
-                const end = formatPeriodParts(budgetPeriod.endDate);
-                return (
-                  <>
-                    <span className="whitespace-nowrap">{start.month}</span>
-                    <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
-                      <AppIcon
-                        name="loop"
-                        className="shrink-0 text-[12px] text-primary sm:text-[14px]"
-                        aria-label="Custom budget month"
-                      />
-                      <span>{start.day}</span>
-                    </span>
-                    <span className="hidden whitespace-nowrap sm:inline">
-                      → {end.month} {end.day}
-                    </span>
-                  </>
-                );
-              })()}
+              <span className="whitespace-nowrap">{periodStart.month}</span>
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                <AppIcon
+                  name="loop"
+                  className="shrink-0 text-[12px] text-primary sm:text-[14px]"
+                  aria-label="Custom budget month"
+                />
+                <span>{periodStart.day}</span>
+              </span>
+              <span className="hidden whitespace-nowrap sm:inline">
+                → {periodEnd.month} {periodEnd.day}
+              </span>
             </>
           ) : (
             monthLabel
