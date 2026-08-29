@@ -43,4 +43,14 @@ describe('Dashboard navigation items', () => {
     assert.strictEqual(new Set(ids).size, ids.length);
     assert.strictEqual(new Set(hrefs).size, hrefs.length);
   });
+
+  it('resolves the courses route but keeps it out of the nav bars', () => {
+    assert.strictEqual(getScreenIdFromPath('/dashboard/courses'), 'courses');
+    for (const isPro of [false, true]) {
+      assert.ok(
+        !getVisibleNavItems(isPro).some((item) => item.id === 'courses'),
+        'courses is reached from the quick actions, not the nav',
+      );
+    }
+  });
 });

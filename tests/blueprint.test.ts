@@ -104,6 +104,9 @@ const SCHEMA_TO_INTERFACE: Record<string, string> = {
   'definitions.SavingGoal': 'SavingGoal',
   'definitions.DebtItem': 'DebtItem',
   'definitions.MoneyPlaceConfig': 'MoneyPlaceConfig',
+  'definitions.SessionItem': 'SessionItem',
+  'entities.Product': 'Product',
+  'entities.CourseSession': 'CourseSession',
 };
 
 const schemaAt = (pointer: string) =>
@@ -247,7 +250,9 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
         .map((segment) => {
           const literal = segment.match(/^'([^']+)'$/);
           if (literal) return literal[1];
-          return segment === 'uid' ? '{uid}' : '{monthKey}';
+          // Variable segments keep their name ({uid}, {monthKey},
+          // {householdId}, {product.barcode}…) so blueprint paths stay readable.
+          return `{${segment}}`;
         })
         .join('/');
       documentPaths.add(`/${path}`);

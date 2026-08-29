@@ -1,12 +1,20 @@
 # Course Session — Solution Design
 
-> Status: **Design only — no implementation yet**
+> Status: **P1 implemented** (see `MVP_TODO.md` → "Course Session").
+> P2/P3 items below remain open.
 > Scope: a "course" (shopping trip) capture flow — start a session, scan
 > product barcodes, let the product auto-resolve, add prices with minimal
 > friction, and finish with a bill-format total.
 >
 > Companion docs: `README.md` (data model & invariants), `DESIGN.md`
 > (visual language), `firestore.rules` (security baseline).
+>
+> Implementation map (P1): `src/lib/course-session.ts` (pure logic),
+> `src/lib/product-lookup.ts` (OFF lookup), `src/app/api/barcode/lookup`
+> (proxy), `src/lib/db.ts` (catalog + sessions),
+> `src/hooks/use-barcode-scanner.ts`, `src/hooks/use-course-session.ts`,
+> `src/app/dashboard/courses/` + `src/components/dashboard/courses/`,
+> `tests/course-session.test.ts`.
 
 ---
 
