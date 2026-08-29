@@ -93,7 +93,7 @@ interface DashboardContextType {
 
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
-  handleEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
+  handleEditMoneyPlaces: (values: Record<string, number>) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: any[], total: number) => void;
@@ -610,7 +610,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleEditMoneyPlaces = useCallback(
-    (values: { bank: number; home: number; wallet: number }) => {
+    (values: Record<string, number>) => {
       const updated = updateMoneyPlaces(month, values);
       updateAndSaveMonth(updated);
     },

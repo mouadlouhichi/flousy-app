@@ -1,7 +1,9 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomSelect } from '../ui/CustomSelect';
 import { MoneyPlace, SavingGoal, SavingsActivityEntry } from '../../lib/store';
@@ -44,6 +46,8 @@ export function SavingsDepositModal({
   onDelete,
 }: SavingsDepositModalProps) {
   const { symbol, format } = useCurrency();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [type, setType] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
   const [goalId, setGoalId] = useState('');
@@ -58,7 +62,7 @@ export function SavingsDepositModal({
       // Fall back to the first goal when the entry's goal was deleted, so the
       // picker always starts from a valid value.
       setGoalId(goals.some((g) => g.id === entry.goalId) ? entry.goalId : goals[0]?.id || '');
-      setPlace(entry.place || goals.find((g) => g.id === entry.goalId)?.source || 'bank');
+      setPlace(entry.place || goals.find((g) => g.id === entry.goalId)?.source || defaultPlace);
       setDate(toDateInput(entry.date));
     }
     setErrors({});
@@ -105,7 +109,7 @@ export function SavingsDepositModal({
     ) {
       setErrors({
         amount: `Only ${format(availableInPlace)} available in ${
-          place === 'home' ? 'Home Cash' : place === 'wallet' ? 'Wallet' : 'Bank'
+          placeLabel(place)
         }.`,
       });
       return;
@@ -198,7 +202,7 @@ export function SavingsDepositModal({
           label={type === 'deposit' ? 'Taken From Account' : 'Returned To Account'}
           value={place}
           onChange={(v) => setPlace(v as MoneyPlace)}
-          options={MONEY_PLACE_OPTIONS}
+          options={moneyPlaceOptions}
         />
 
         {/* Date */}
@@ -221,10 +225,7 @@ export function SavingsDepositModal({
           {entry && onDelete && (
             <button
               type="button"
-              onClick={() => {
-                onDelete(entry.id);
-                onClose();
-              }}
+              onClick={() => setConfirmDelete(true)}
               className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
               Delete

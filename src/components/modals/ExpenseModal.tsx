@@ -4,7 +4,8 @@ import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
@@ -39,6 +40,7 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -56,7 +58,7 @@ export function ExpenseModal({
       setName(initialExpense.name);
       setAmount(String(initialExpense.amount));
       setType(initialExpense.type);
-      setPlace(initialExpense.place || 'bank');
+      setPlace(initialExpense.place || defaultPlace);
       setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
       setNote(initialExpense.note || '');
       setPerson(initialExpense.person || 'Me');
@@ -66,7 +68,7 @@ export function ExpenseModal({
       setName('');
       setAmount('');
       setType(categories[0] || 'Groceries');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
       setPerson('Me');
@@ -121,7 +123,7 @@ export function ExpenseModal({
     if (parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: `Only ${format(availableInPlace)} available in ${
-          MONEY_PLACE_LABELS[place] ?? place
+          placeLabel(place)
         }. Lower the amount or move money into this place first.`,
       });
       return;
@@ -241,10 +243,10 @@ export function ExpenseModal({
             setPlace(v as MoneyPlace);
             setErrors((prev) => ({ ...prev, amount: '' }));
           }}
-          options={MONEY_PLACE_OPTIONS}
+          options={moneyPlaceOptions}
         />
         <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          Available in {MONEY_PLACE_LABELS[place] ?? place}:{' '}
+          Available in {placeLabel(place)}:{' '}
           <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
         </p>
 

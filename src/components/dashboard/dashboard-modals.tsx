@@ -22,7 +22,9 @@ import {
   editDebt,
   deleteDebt,
   renameFixedCategory,
+  placeBalancesOf,
 } from '@/lib/store';
+import { useMoneyPlaces } from '@/lib/use-money-places';
 import { trackEvent } from '@/lib/analytics';
 
 import { ExpenseModal } from '@/components/modals/ExpenseModal';
@@ -44,6 +46,8 @@ import { DebtModal } from '@/components/modals/DebtModal';
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
+  const { places } = useMoneyPlaces(dashboard.month);
+  const placeBalances = placeBalancesOf(dashboard.month, places);
   const {
     month,
     goals,
@@ -164,11 +168,7 @@ export function DashboardModals() {
         categories={month.activeCategories || []}
         categoryColors={month.categoryColors}
         categoryIcons={month.categoryIcons}
-        placeBalances={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
+        placeBalances={placeBalances}
       />
 
       <MoveMoneyModal
@@ -187,11 +187,7 @@ export function DashboardModals() {
         categories={month.activeCategories || []}
         categoryColors={month.categoryColors || {}}
         categoryIcons={month.categoryIcons || {}}
-        placeBalances={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
+        placeBalances={placeBalances}
         onRenameCategory={handleRenameFixedCategory}
       />
 
@@ -204,11 +200,7 @@ export function DashboardModals() {
         onFund={handleFundGoal}
         onWithdraw={handleWithdrawGoal}
         onDelete={handleDeleteGoal}
-        placeBalances={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
+        placeBalances={placeBalances}
       />
 
       <SavingsDepositModal
@@ -216,11 +208,7 @@ export function DashboardModals() {
         onClose={dashboard.closeSavingsEntryModal}
         entry={dashboard.selectedSavingsEntry}
         goals={goals}
-        placeBalances={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
+        placeBalances={placeBalances}
         onSave={dashboard.handleSaveSavingsEntry}
         onDelete={dashboard.handleDeleteSavingsEntry}
       />
@@ -240,11 +228,7 @@ export function DashboardModals() {
       <EditMoneyPlacesModal
         isOpen={dashboard.isEditMoneyPlacesOpen}
         onClose={dashboard.closeEditMoneyPlaces}
-        initialValues={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
+        initialValues={placeBalances}
         totalBudget={month.totalBudget || 0}
         onSave={(values) => {
           handleEditMoneyPlaces(values);

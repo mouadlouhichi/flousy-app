@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { DueDayPicker } from '../ui/day-picker';
 import {
@@ -101,6 +102,7 @@ export function FixedModal({
 }: FixedModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -212,7 +214,7 @@ export function FixedModal({
       setName(initialBill.name);
       setAmount(String(initialBill.amount));
       setType(initialBill.type || 'Rent');
-      setPlace(initialBill.place || 'bank');
+      setPlace(initialBill.place || defaultPlace);
       setDate(initialBill.date || '1st');
       setPerson(initialBill.person || 'Me');
       setPayerMemberId(initialBill.payerMemberId || initialBill.person || 'self');
@@ -221,7 +223,7 @@ export function FixedModal({
       setName('');
       setAmount('');
       setType('Rent');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setDate('1st');
       setPerson('Me');
       setPayerMemberId('self');
@@ -262,7 +264,7 @@ export function FixedModal({
     if (parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: `Only ${format(availableInPlace)} available in ${
-          MONEY_PLACE_LABELS[place] ?? place
+          placeLabel(place)
         }. Lower the amount or move money into this place first.`,
       });
       return;
@@ -480,10 +482,10 @@ export function FixedModal({
             setPlace(v as MoneyPlace);
             setErrors((prev) => ({ ...prev, amount: '' }));
           }}
-          options={MONEY_PLACE_OPTIONS}
+          options={moneyPlaceOptions}
         />
         <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          Available in {MONEY_PLACE_LABELS[place] ?? place}:{' '}
+          Available in {placeLabel(place)}:{' '}
           <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
         </p>
 

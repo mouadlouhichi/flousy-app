@@ -3,10 +3,10 @@ import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React from 'react';
 import {
   SavingGoal,
-  MoneyPlace,
   MonthBudget,
   SavingsActivityEntry,
   calculateMonthlyDepositedSavings,
+  moneyPlaceLabel,
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -20,8 +20,6 @@ interface SavingsTabProps {
   month?: MonthBudget;
   /** Open the editor for a logged deposit / withdrawal. */
   onEditDeposit?: (entry: SavingsActivityEntry) => void;
-  /** Remove a logged deposit / withdrawal (after confirmation). */
-  onDeleteDeposit?: (entry: SavingsActivityEntry) => void;
   canEdit?: boolean;
 }
 
@@ -39,7 +37,6 @@ export function SavingsTab({
   onOpenEditGoal,
   month,
   onEditDeposit,
-  onDeleteDeposit,
   canEdit = true,
 }: SavingsTabProps) {
   const { format } = useCurrency();
@@ -211,7 +208,7 @@ export function SavingsTab({
                       </span>
                       <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
                         {isDeposit ? 'Deposit' : 'Withdrawal'} · {formatEntryDate(entry.date)}
-                        {entry.place ? ` · ${entry.place === 'home' ? 'Home Cash' : entry.place === 'wallet' ? 'Wallet' : 'Bank'}` : ''}
+                        {entry.place ? ` · ${moneyPlaceLabel(entry.place)}` : ''}
                       </span>
                     </div>
                   </div>
@@ -232,16 +229,6 @@ export function SavingsTab({
                         className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
                       >
                         <AppIcon name="edit" className=" text-[18px]" />
-                      </button>
-                    )}
-                    {canEdit && onDeleteDeposit && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDeposit(entry)}
-                        aria-label={`Delete ${isDeposit ? 'deposit' : 'withdrawal'}`}
-                        className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                      >
-                        <AppIcon name="delete" className=" text-[18px]" />
                       </button>
                     )}
                   </div>

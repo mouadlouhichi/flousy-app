@@ -8,10 +8,13 @@ import {
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
   calculateMonthlyDepositedSavings,
+  getPlaceBalance,
   resolveMonthStrategy,
+  totalCashOnHand,
   StrategyId,
   SavingsActivityEntry,
 } from '../../lib/store';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { useHousehold } from '@/lib/household-context';
@@ -43,6 +46,7 @@ export function OverviewTab({
   onOpenEditSavings,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const { places } = useMoneyPlaces(month);
   const { workspace, canViewArea, canEditArea } = useHousehold();
   const canSeeBalances = workspace === 'personal' || canViewArea('balances');
   const canEditBalances = workspace === 'personal' || canEditArea('balances');
@@ -62,7 +66,12 @@ export function OverviewTab({
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
 
-  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  const totalCash = totalCashOnHand(month);
+  const placeCardTones = [
+    { wrap: 'hover:border-primary/40', icon: 'bg-primary text-on-primary', action: 'text-primary' },
+    { wrap: 'hover:border-tertiary/40', icon: 'bg-tertiary text-on-tertiary', action: 'text-tertiary' },
+    { wrap: 'hover:border-secondary/40', icon: 'bg-secondary text-on-secondary', action: 'text-secondary' },
+  ];
   const budgetParts = formatParts(month.totalBudget || 0);
 
   const needsSpentPct = needs > 0 ? Math.min(100, Math.round((spent.needs / needs) * 100)) : 0;
@@ -140,94 +149,45 @@ export function OverviewTab({
   return (
     <>
     <div className="flex flex-col gap-6 pb-24">
-      {/* Top 3 Money Places Cards */}
+      {/* Money place cards */}
       <div className="flex flex-col gap-3">
-        {/* Bank */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-primary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-2xs">
-              <AppIcon name="account_balance" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Bank</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.bankPart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.bankPart || 0).currency : ''}
-                </span>
+        {places.map((place, index) => {
+          const tone = placeCardTones[index % placeCardTones.length];
+          const balance = getPlaceBalance(month, place.id);
+          const parts = formatParts(balance);
+          return (
+            <div
+              key={place.id}
+              className={`p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between ${tone.wrap} transition-all`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-10 h-10 rounded-2xl ${tone.icon} flex items-center justify-center shadow-2xs shrink-0`}>
+                  <AppIcon name={place.icon} className="text-[20px]" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-base text-on-surface truncate">{place.name}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-on-surface font-mono">
+                      {canSeeBalances ? parts.amount : redacted}
+                    </span>
+                    <span className="text-xs font-semibold text-on-surface-variant">
+                      {canSeeBalances ? parts.currency : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
+                  className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
+                >
+                  <span>Move</span>
+                  <AppIcon name="swap_horiz" className="text-[14px]" />
+                </button>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Move</span>
-              <AppIcon name="swap_horiz" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Home Cash */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-tertiary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-tertiary text-on-tertiary flex items-center justify-center shadow-2xs">
-              <AppIcon name="home" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Home Cash</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.homePart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.homePart || 0).currency : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-tertiary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Deposit</span>
-              <AppIcon name="add" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Wallet */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-secondary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-2xs">
-              <AppIcon name="account_balance_wallet" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Wallet</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.walletPart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.walletPart || 0).currency : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Withdraw</span>
-              <AppIcon name="south" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Main 2-Column Responsive Layout */}

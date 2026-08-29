@@ -7,7 +7,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
 import { useDashboard } from './dashboard-provider';
-import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
+import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
 import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
 /** "2026-08-25" → "Aug 25" (parsed locally, no UTC offset surprises). */
@@ -69,7 +69,7 @@ export function DashboardHeader() {
 
         {/* Desktop Page Title */}
         <h1 className="hidden md:block font-headline-md text-headline-md font-extrabold text-on-surface capitalize">
-          {activeItem?.title ?? 'Dashboard Overview'}
+          {getProfilePageTitle(pathname) ?? activeItem?.title ?? 'Dashboard Overview'}
         </h1>
       </div>
 
@@ -90,18 +90,18 @@ export function DashboardHeader() {
           <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
         </button>
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
-          {budgetPeriod && (
-            <AppIcon
-              name="loop"
-              className="shrink-0 text-[12px] text-primary sm:text-[14px]"
-              aria-label="Custom budget month"
-            />
-          )}
           {budgetPeriod ? (
             <>
-              <span className="sm:hidden">{formatPeriodLabel(budgetPeriod.startDate)}</span>
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                <AppIcon
+                  name="loop"
+                  className="shrink-0 text-[12px] text-primary sm:text-[14px]"
+                  aria-label="Custom budget month"
+                />
+                <span>{formatPeriodLabel(budgetPeriod.startDate)}</span>
+              </span>
               <span className="hidden whitespace-nowrap sm:inline">
-                {formatPeriodLabel(budgetPeriod.startDate)} → {formatPeriodLabel(budgetPeriod.endDate)}
+                → {formatPeriodLabel(budgetPeriod.endDate)}
               </span>
             </>
           ) : (

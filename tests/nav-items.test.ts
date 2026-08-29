@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DASHBOARD_NAV_ITEMS,
+  getProfilePageTitle,
   getScreenIdFromPath,
   getVisibleNavItems,
 } from '../src/components/dashboard/nav-items';
@@ -23,8 +24,12 @@ describe('Dashboard navigation items', () => {
 
   it('still resolves the profile route to its own screen id', () => {
     assert.strictEqual(getScreenIdFromPath('/dashboard/profile'), 'profile');
+    assert.strictEqual(getScreenIdFromPath('/dashboard/profile/preferences'), 'profile');
+    assert.strictEqual(getScreenIdFromPath('/dashboard/profile/money-sources'), 'profile');
     assert.strictEqual(getScreenIdFromPath('/dashboard'), 'overview');
     assert.strictEqual(getScreenIdFromPath('/dashboard/trends'), 'trends');
+    assert.strictEqual(getProfilePageTitle('/dashboard/profile/preferences'), 'Preferences');
+    assert.strictEqual(getProfilePageTitle('/dashboard/profile/money-sources'), 'Money Sources');
   });
 
   it('gives every destination a unique id and href', () => {

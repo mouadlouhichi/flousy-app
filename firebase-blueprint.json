@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
+  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts \u2014 run `npm run test` after changing any of them.",
   "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
   "definitions": {
     "IncomeSource": {
@@ -62,11 +62,7 @@
         },
         "place": {
           "type": "string",
-          "enum": [
-            "bank",
-            "home",
-            "wallet"
-          ]
+          "description": "Money source id (bank, home, wallet, or a user-defined location)"
         },
         "note": {
           "type": "string",
@@ -131,11 +127,7 @@
         },
         "place": {
           "type": "string",
-          "enum": [
-            "bank",
-            "home",
-            "wallet"
-          ]
+          "description": "Money source id (bank, home, wallet, or a user-defined location)"
         },
         "base": {
           "type": "number",
@@ -223,11 +215,7 @@
         },
         "source": {
           "type": "string",
-          "enum": [
-            "bank",
-            "home",
-            "wallet"
-          ]
+          "description": "Money source id (bank, home, wallet, or a user-defined location)"
         },
         "active": {
           "type": "boolean"
@@ -361,6 +349,27 @@
         "wants",
         "savings"
       ]
+    },
+    "MoneyPlaceConfig": {
+      "title": "MoneyPlaceConfig",
+      "description": "A tracked cash location the user can rename, add or remove from Profile.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "icon"
+      ]
     }
   },
   "entities": {
@@ -460,6 +469,13 @@
           "minimum": 1,
           "maximum": 31,
           "description": "Global preference for the day of the month a budget month starts; mirrors the per-source salary start date"
+        },
+        "moneyPlaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MoneyPlaceConfig"
+          },
+          "description": "Cash locations (Bank, Home, Wallet, plus any the user added)"
         }
       },
       "required": [
@@ -604,6 +620,15 @@
         },
         "updatedByUserId": {
           "type": "string"
+        },
+        "placeBalances": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "description": "Balances for user-defined money sources (beyond bank / home / wallet)"
         }
       },
       "required": [
