@@ -20,7 +20,7 @@ const MONEY_PLACE_ICONS: Record<MoneyPlace, string> = {
 };
 
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
-  const { symbol, format } = useCurrency();
+  const { symbol, format, formatParts } = useCurrency();
   const [from, setFrom] = useState<MoneyPlace>('bank');
   const [to, setTo] = useState<MoneyPlace>('wallet');
   const [amount, setAmount] = useState('');
@@ -77,17 +77,39 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     setErrors((prev) => ({ ...prev, amount: '' }));
   };
 
+  // Compact amount-only sublabels (no currency code) so Bank / Wallet / Home
+  // Cash fit inside the three source boxes instead of overflowing them.
+  const compactAmount = (value: number) => formatParts(value).amount;
+
   const placeOptions = [
-    { value: 'bank', label: 'Bank', icon: 'account_balance', sublabel: format(month.bankPart) },
-    { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', sublabel: format(month.walletPart) },
-    { value: 'home', label: 'Home Cash', icon: 'home', sublabel: format(month.homePart) },
+    {
+      value: 'bank',
+      label: 'Bank',
+      icon: 'account_balance',
+      sublabel: compactAmount(month.bankPart),
+      title: `Bank · ${format(month.bankPart)}`,
+    },
+    {
+      value: 'wallet',
+      label: 'Wallet',
+      icon: 'account_balance_wallet',
+      sublabel: compactAmount(month.walletPart),
+      title: `Wallet · ${format(month.walletPart)}`,
+    },
+    {
+      value: 'home',
+      label: 'Home',
+      icon: 'home',
+      sublabel: compactAmount(month.homePart),
+      title: `Home Cash · ${format(month.homePart)}`,
+    },
   ];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Move Money">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* ── From / To selectors — segmented with sliding background ── */}
-        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-outline-variant bg-surface-container p-4">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             Transfer Between Accounts
           </span>
@@ -164,23 +186,23 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
             Preview After Transfer
           </span>
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1.5">
-                <AppIcon name={MONEY_PLACE_ICONS[from]} className=" text-[16px] text-on-surface-variant" />
-                <span className="text-[13px] text-on-surface-variant capitalize font-medium">{from}:</span>
+          <div className="mt-2 flex flex-col gap-2">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <AppIcon name={MONEY_PLACE_ICONS[from]} className="shrink-0 text-[16px] text-on-surface-variant" />
+                <span className="truncate text-[13px] font-medium capitalize text-on-surface-variant">{from}:</span>
               </div>
-              <span className="font-mono text-[13px] text-on-surface font-semibold">
+              <span className="min-w-0 truncate text-right font-mono text-[13px] font-semibold text-on-surface">
                 {format(currentFromBalance)} <span className="text-on-surface-variant">→</span>{' '}
                 <span className="text-tertiary">{format(estimatedFromAfter)}</span>
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-1.5">
-                <AppIcon name={MONEY_PLACE_ICONS[to]} className=" text-[16px] text-on-surface-variant" />
-                <span className="text-[13px] text-on-surface-variant capitalize font-medium">{to}:</span>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <AppIcon name={MONEY_PLACE_ICONS[to]} className="shrink-0 text-[16px] text-on-surface-variant" />
+                <span className="truncate text-[13px] font-medium capitalize text-on-surface-variant">{to}:</span>
               </div>
-              <span className="font-mono text-[13px] text-on-surface font-semibold">
+              <span className="min-w-0 truncate text-right font-mono text-[13px] font-semibold text-on-surface">
                 {format(currentToBalance)} <span className="text-on-surface-variant">→</span>{' '}
                 <span className="text-primary font-bold">{format(estimatedToAfter)}</span>
               </span>
