@@ -4,9 +4,9 @@ import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui/segmented-control';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
@@ -21,6 +21,8 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /** Live balance per money place, so an expense cannot overdraft its source. */
+  placeBalances?: Record<MoneyPlace, number>;
 }
 
 export function ExpenseModal({
@@ -32,8 +34,9 @@ export function ExpenseModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
+  placeBalances,
 }: ExpenseModalProps) {
-  const { symbol, currency } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -85,6 +88,10 @@ export function ExpenseModal({
     reader.readAsDataURL(file);
   };
 
+  // Cash the selected source actually has for this charge: editing an expense
+  // that stays in the same place refunds its old amount first.
+  const availableInPlace = availableForCharge(placeBalances, place, initialExpense);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
@@ -105,6 +112,17 @@ export function ExpenseModal({
         if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
       });
       setErrors(fieldErrors);
+      return;
+    }
+
+    // The source place must actually hold the money being spent. Half-a-cent
+    // tolerance absorbs float noise from prior refund/debit arithmetic.
+    if (parsedAmount - availableInPlace > 0.005) {
+      setErrors({
+        amount: `Only ${format(availableInPlace)} available in ${
+          MONEY_PLACE_LABELS[place] ?? place
+        }. Lower the amount or move money into this place first.`,
+      });
       return;
     }
 
@@ -218,9 +236,16 @@ export function ExpenseModal({
         <SegmentedControl
           label="Paid From"
           value={place}
-          onChange={(v) => setPlace(v as MoneyPlace)}
+          onChange={(v) => {
+            setPlace(v as MoneyPlace);
+            setErrors((prev) => ({ ...prev, amount: '' }));
+          }}
           options={MONEY_PLACE_OPTIONS}
         />
+        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+          Available in {MONEY_PLACE_LABELS[place] ?? place}:{' '}
+          <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
+        </p>
 
         {/* ── Household Member — badges ── */}
         {isPro ? (

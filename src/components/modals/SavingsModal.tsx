@@ -1,7 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui/segmented-control';
 import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
@@ -125,6 +125,17 @@ export function SavingsModal({
 
       if (!valRes.success) {
         setErrors({ amount: 'Please enter a valid positive amount' });
+        return;
+      }
+
+      // The deposit can only move money the source place actually holds.
+      // Half-a-cent tolerance absorbs float noise from prior arithmetic.
+      if (parsedAmount - selectedPlaceBalance > 0.005) {
+        setErrors({
+          amount: `Only ${format(selectedPlaceBalance)} available in ${
+            MONEY_PLACE_LABELS[place] ?? place
+          }. Lower the deposit or move money into this place first.`,
+        });
         return;
       }
 
@@ -342,9 +353,22 @@ export function SavingsModal({
             <SegmentedControl
               label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
               value={place}
-              onChange={(v) => setPlace(v as MoneyPlace)}
+              onChange={(v) => {
+                setPlace(v as MoneyPlace);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
               options={MONEY_PLACE_OPTIONS}
             />
+
+            {/* Live balance of the source account — the deposit cap for fund mode */}
+            {mode === 'fund' && (
+              <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+                Available in {MONEY_PLACE_LABELS[place] ?? place}:{' '}
+                <span className="font-mono font-bold text-on-surface">
+                  {format(selectedPlaceBalance)}
+                </span>
+              </p>
+            )}
 
             {/* Goal info card */}
             {goal && (

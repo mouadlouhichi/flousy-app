@@ -656,6 +656,35 @@ export function addFixedExpense(month: MonthBudget, expense: FixedExpense): Mont
   };
 }
 
+/** Cash currently held at a money place for the month. */
+export function getPlaceBalance(
+  month: Pick<MonthBudget, 'bankPart' | 'homePart' | 'walletPart'>,
+  place: MoneyPlace,
+): number {
+  return month[`${place}Part`] || 0;
+}
+
+/**
+ * Cash available in `place` for a NEW or EDITED expense / fixed bill.
+ *
+ * `balances` is the live balance per money place (e.g. the month's
+ * bankPart / homePart / walletPart). Editing first refunds the previous
+ * charge, so when the charge stays in the same place its old amount can be
+ * spent again right away; when it moves to another place the old place is
+ * freed and the new one is charged.
+ */
+export function availableForCharge(
+  balances: Record<MoneyPlace, number | undefined> | null | undefined,
+  place: MoneyPlace,
+  previousCharge?: { place?: MoneyPlace; amount?: number } | null,
+): number {
+  let available = Math.max(0, balances?.[place] ?? 0);
+  if (previousCharge && (previousCharge.place || 'bank') === place) {
+    available += Math.max(0, previousCharge.amount || 0);
+  }
+  return available;
+}
+
 export function editFixedExpense(month: MonthBudget, oldExpense: FixedExpense, newExpense: FixedExpense): MonthBudget {
   const updatedExpenses = (month.fixedExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
 
@@ -1316,6 +1345,9 @@ export function normalizeMonth(
 /**
  * Carries over recurring fixed expenses from a previous month into a new month.
  * Only copies bills with `recurring: true`.
+ *
+ * Each carried bill reduces the money place it is actually paid from
+ * (`bill.place`), not blanket-debited from the bank.
  */
 export function carryOverFixedExpenses(
   newMonth: MonthBudget,
@@ -1326,6 +1358,7 @@ export function carryOverFixedExpenses(
 
   const existingIds = new Set((newMonth.fixedExpenses || []).map((b) => b.id));
   const toCarry = recurringBills.filter((b) => !existingIds.has(b.id));
+  if (toCarry.length === 0) return newMonth;
 
   // Recreate IDs so they don't collide
   const carried = toCarry.map((b) => ({
@@ -1334,13 +1367,22 @@ export function carryOverFixedExpenses(
     date: b.date || '1st',
   }));
 
-  const totalCarried = carried.reduce((acc, b) => acc + b.amount, 0);
-  const totalExistingFixed = (newMonth.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
+  const parts: Record<MoneyPlace, number> = {
+    bank: newMonth.bankPart || 0,
+    home: newMonth.homePart || 0,
+    wallet: newMonth.walletPart || 0,
+  };
+  carried.forEach((b) => {
+    const place: MoneyPlace = b.place || 'bank';
+    parts[place] = Math.max(0, (parts[place] || 0) - b.amount);
+  });
 
   return {
     ...newMonth,
     fixedExpenses: [...(newMonth.fixedExpenses || []), ...carried],
-    bankPart: Math.max(0, (newMonth.bankPart || 0) - totalCarried),
+    bankPart: parts.bank,
+    homePart: parts.home,
+    walletPart: parts.wallet,
     updatedAt: new Date().toISOString(),
   };
 }

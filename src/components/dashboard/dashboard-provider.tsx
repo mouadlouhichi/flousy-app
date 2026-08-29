@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -453,19 +454,27 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [month, profile, updateAndSaveMonth, user, householdId],
   );
 
-  // Automatically carry over recurring bills when entering a fresh month
+  // Automatically carry over recurring bills when entering a fresh month.
+  // A fresh month starts with totalBudget = 0, so this must also fire when the
+  // budget is first set (not only on month navigation / reload). A per-month
+  // guard keeps it running at most once per month: deleting every bill and
+  // expense mid-month must not resurrect the carried copies.
+  const carryOverDoneForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      !loading &&
-      month &&
-      month.totalBudget > 0 &&
-      (month.variableExpenses || []).length === 0 &&
-      (month.fixedExpenses || []).length === 0
-    ) {
+    if (loading || !month) return;
+    if (carryOverDoneForRef.current === currentMonthKey) return;
+    if (!(month.totalBudget > 0)) return;
+
+    const fixedCount = (month.fixedExpenses || []).length;
+    const variableCount = (month.variableExpenses || []).length;
+    // Mark the month as handled either way: only a truly fresh, empty month is
+    // ever auto-populated.
+    carryOverDoneForRef.current = currentMonthKey;
+    if (fixedCount === 0 && variableCount === 0) {
       carryOverRecurring(currentMonthKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMonthKey, loading]);
+  }, [currentMonthKey, loading, month?.totalBudget, month?.fixedExpenses?.length, month?.variableExpenses?.length]);
 
   // Load multi-month data when the Trends screen is active
   const onTrendsScreen = getScreenIdFromPath(pathname) === 'trends';

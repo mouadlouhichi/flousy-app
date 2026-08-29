@@ -18,6 +18,11 @@ export const MONEY_PLACE_OPTIONS: SegmentedOption[] = [
   { value: 'home', label: 'Home Cash', icon: 'home' },
 ];
 
+/** Display label per money place, kept in sync with MONEY_PLACE_OPTIONS. */
+export const MONEY_PLACE_LABELS: Record<string, string> = Object.fromEntries(
+  MONEY_PLACE_OPTIONS.map((o) => [o.value, o.label]),
+);
+
 interface SegmentedControlProps {
   label?: string;
   value: string;
