@@ -100,6 +100,11 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
 /** Resolve the active screen id from the current pathname. */
 export function getScreenIdFromPath(pathname: string | null): DashboardScreenId {
   if (!pathname) return 'overview';
+  // Nested settings pages (/dashboard/profile/preferences, …) must stay on
+  // the profile screen so the main nav does not fall back to Overview.
+  if (pathname === '/dashboard/profile' || pathname.startsWith('/dashboard/profile/')) {
+    return 'profile';
+  }
   const match = DASHBOARD_NAV_ITEMS.find(
     (item) =>
       item.href === pathname ||

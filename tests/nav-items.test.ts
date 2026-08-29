@@ -24,8 +24,13 @@ describe('Dashboard navigation items', () => {
 
   it('still resolves the profile route to its own screen id', () => {
     assert.strictEqual(getScreenIdFromPath('/dashboard/profile'), 'profile');
-    assert.strictEqual(getScreenIdFromPath('/dashboard/profile/preferences'), 'profile');
-    assert.strictEqual(getScreenIdFromPath('/dashboard/profile/money-sources'), 'profile');
+    for (const page of ['preferences', 'money-sources', 'workspace', 'pro', 'data', 'account']) {
+      assert.strictEqual(
+        getScreenIdFromPath(`/dashboard/profile/${page}`),
+        'profile',
+        `${page} must not light up Overview in the main nav`,
+      );
+    }
     assert.strictEqual(getScreenIdFromPath('/dashboard'), 'overview');
     assert.strictEqual(getScreenIdFromPath('/dashboard/trends'), 'trends');
     assert.strictEqual(getProfilePageTitle('/dashboard/profile/preferences'), 'Preferences');
