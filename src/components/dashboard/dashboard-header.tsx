@@ -16,6 +16,16 @@ function formatPeriodLabel(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** "2026-08-25" → { month: 'Aug', day: 25 } for the custom-period navigator. */
+function formatPeriodParts(iso: string): { month: string; day: number } {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return {
+    month: date.toLocaleDateString('en-US', { month: 'short' }),
+    day: date.getDate(),
+  };
+}
+
 /** Main header bar: page title, month selector and action tools. */
 export function DashboardHeader() {
   const pathname = usePathname();
