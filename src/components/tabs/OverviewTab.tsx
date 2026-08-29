@@ -367,11 +367,11 @@ export function OverviewTab({
               </span>
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="flex min-w-0 items-baseline gap-1">
-                  <span className="text-[28px] font-extrabold leading-none tracking-tight text-primary tabular-nums sm:text-[32px]">
+                  <span className="text-xl font-bold font-mono text-on-surface">
                     {canSeeBalances ? cashParts.amount : redacted}
                   </span>
                   {canSeeBalances && (
-                    <span className="shrink-0 text-[13px] font-bold text-on-surface-variant">
+                    <span className="text-xs font-semibold text-on-surface-variant">
                       {cashParts.currency}
                     </span>
                   )}
@@ -496,12 +496,6 @@ export function OverviewTab({
           totalBudget={month.totalBudget}
           customRatios={month.customRatios}
           onSelect={(strategyId, ratios) => onUpdateStrategy(strategyId, ratios)}
-        />
-      )}
-    </>
-  );
-}
-teStrategy(strategyId, ratios)}
         />
       )}
     </>
