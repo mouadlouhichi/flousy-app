@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { ProfileScreen } from '@/components/dashboard/screens/profile-screen';
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ProfilePage() {
-  return <ProfileScreen />;
+  return (
+    <Suspense fallback={null}>
+      <ProfileScreen />
+    </Suspense>
+  );
 }

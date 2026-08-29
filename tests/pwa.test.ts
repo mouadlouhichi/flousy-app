@@ -162,6 +162,10 @@ describe('install prompt wiring', () => {
     assert.ok(layout.includes('InstallBanner'));
     assert.ok(layout.includes('apple-mobile-web-app-capable'));
   });
+
+  it('caps viewport scale so iOS does not zoom when focusing an input', () => {
+    assert.match(layout, /maximumScale:\s*1/);
+  });
 });
 
 describe('beforeinstallprompt capture behaviour', () => {

@@ -1,4 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   MonthBudget,
@@ -7,10 +8,13 @@ import {
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
   calculateMonthlyDepositedSavings,
+  getPlaceBalance,
   resolveMonthStrategy,
+  totalCashOnHand,
   StrategyId,
   SavingsActivityEntry,
 } from '../../lib/store';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { useHousehold } from '@/lib/household-context';
@@ -42,6 +46,7 @@ export function OverviewTab({
   onOpenEditSavings,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const { places } = useMoneyPlaces(month);
   const { workspace, canViewArea, canEditArea } = useHousehold();
   const canSeeBalances = workspace === 'personal' || canViewArea('balances');
   const canEditBalances = workspace === 'personal' || canEditArea('balances');
@@ -61,8 +66,14 @@ export function OverviewTab({
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
 
-  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  const totalCash = totalCashOnHand(month);
+  const placeCardTones = [
+    { wrap: 'hover:border-primary/40', icon: 'bg-primary text-on-primary', action: 'text-primary' },
+    { wrap: 'hover:border-tertiary/40', icon: 'bg-tertiary text-on-tertiary', action: 'text-tertiary' },
+    { wrap: 'hover:border-secondary/40', icon: 'bg-secondary text-on-secondary', action: 'text-secondary' },
+  ];
   const budgetParts = formatParts(month.totalBudget || 0);
+  const cashParts = formatParts(totalCash);
 
   const needsSpentPct = needs > 0 ? Math.min(100, Math.round((spent.needs / needs) * 100)) : 0;
   const wantsSpentPct = wants > 0 ? Math.min(100, Math.round((spent.wants / wants) * 100)) : 0;
@@ -119,7 +130,7 @@ export function OverviewTab({
   }, [isEditingBudget]);
 
   const handleBudgetSave = () => {
-    const parsed = Number.parseFloat(draftBudget.replace(/\s/g, ''));
+    const parsed = Number.parseFloat(draftBudget.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
     const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : (month.totalBudget || 0);
 
     setDraftBudget(String(safe));
@@ -139,94 +150,45 @@ export function OverviewTab({
   return (
     <>
     <div className="flex flex-col gap-6 pb-24">
-      {/* Top 3 Money Places Cards */}
+      {/* Money place cards */}
       <div className="flex flex-col gap-3">
-        {/* Bank */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-primary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-2xs">
-              <AppIcon name="account_balance" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Bank</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.bankPart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.bankPart || 0).currency : ''}
-                </span>
+        {places.map((place, index) => {
+          const tone = placeCardTones[index % placeCardTones.length];
+          const balance = getPlaceBalance(month, place.id);
+          const parts = formatParts(balance);
+          return (
+            <div
+              key={place.id}
+              className={`p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between ${tone.wrap} transition-all`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-10 h-10 rounded-2xl ${tone.icon} flex items-center justify-center shadow-2xs shrink-0`}>
+                  <AppIcon name={place.icon} className="text-[20px]" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-base text-on-surface truncate">{place.name}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-on-surface font-mono">
+                      {canSeeBalances ? parts.amount : redacted}
+                    </span>
+                    <span className="text-xs font-semibold text-on-surface-variant">
+                      {canSeeBalances ? parts.currency : ''}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
+                  className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
+                >
+                  <span>Move</span>
+                  <AppIcon name="swap_horiz" className="text-[14px]" />
+                </button>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-primary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Move</span>
-              <AppIcon name="swap_horiz" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Home Cash */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-tertiary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-tertiary text-on-tertiary flex items-center justify-center shadow-2xs">
-              <AppIcon name="home" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Home Cash</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.homePart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.homePart || 0).currency : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-tertiary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Deposit</span>
-              <AppIcon name="add" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Wallet */}
-        <div className="p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between hover:border-secondary/40 transition-all">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-2xs">
-              <AppIcon name="account_balance_wallet" className="text-[20px]" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-base text-on-surface">Wallet</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-on-surface font-mono">
-                  {canSeeBalances ? formatParts(month.walletPart || 0).amount : redacted}
-                </span>
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {canSeeBalances ? formatParts(month.walletPart || 0).currency : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-              className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
-            >
-              <span>Withdraw</span>
-              <AppIcon name="south" className="text-[14px]" />
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Main 2-Column Responsive Layout */}
@@ -329,58 +291,66 @@ export function OverviewTab({
           </div>
 
           {/* Monthly Income Summary Banner */}
-          <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 shadow-2xs">
-            <div className="min-w-0 flex-1">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant">
+          <div className="grid grid-cols-1 gap-4 bg-surface-container p-5 sm:grid-cols-2 sm:items-end sm:gap-8 sm:p-6 rounded-3xl border border-outline-variant shadow-2xs">
+            <div className="min-w-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
                 Total Monthly Budget
               </span>
-              <div className="mt-1 flex items-center gap-2">
-                <div
-                  onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
-                  className={`flex items-baseline gap-1.5 -ml-2 rounded-2xl px-2 py-0.5 transition-colors ${
-                    isEditingBudget
-                      ? 'bg-surface ring-2 ring-primary/40'
-                      : 'cursor-text hover:bg-surface-variant/60'
-                  }`}
-                  title="Click to edit your monthly budget"
-                >
-                  <input
-                    ref={budgetInputRef}
-                    type="text"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    aria-label="Total monthly budget"
-                    size={Math.max(4, Math.min(14, (isEditingBudget ? draftBudget : budgetParts.amount).length))}
-                    value={canSeeBalances ? (isEditingBudget ? draftBudget : budgetParts.amount) : redacted}
-                    readOnly={!isEditingBudget}
-                    onFocus={() => {
-                      if (!isEditingBudget) setIsEditingBudget(true);
-                    }}
-                    onChange={(e) => setDraftBudget(e.target.value)}
-                    onBlur={() => {
-                      if (editFinishedRef.current) {
-                        editFinishedRef.current = false;
-                        return;
-                      }
-                      if (isEditingBudget) handleBudgetSave();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        editFinishedRef.current = true;
+              <div className="mt-1.5 flex items-center gap-2">
+                {isEditingBudget ? (
+                  <div className="flex min-w-0 items-baseline gap-1 rounded-2xl bg-surface px-2 py-0.5 ring-2 ring-primary/40">
+                    <input
+                      ref={budgetInputRef}
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      aria-label="Total monthly budget"
+                      value={draftBudget}
+                      onChange={(e) => setDraftBudget(e.target.value)}
+                      onBlur={() => {
+                        if (editFinishedRef.current) {
+                          editFinishedRef.current = false;
+                          return;
+                        }
                         handleBudgetSave();
-                        budgetInputRef.current?.blur();
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        editFinishedRef.current = true;
-                        handleBudgetCancel();
-                        budgetInputRef.current?.blur();
-                      }
-                    }}
-                    className="max-w-[160px] bg-transparent text-[28px] leading-tight font-extrabold tracking-tight text-on-surface tabular-nums outline-none sm:max-w-[220px] sm:text-[32px]"
-                  />
-                  <span className="shrink-0 text-sm font-bold text-on-surface-variant">{canSeeBalances ? budgetParts.currency : ''}</span>
-                </div>
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          editFinishedRef.current = true;
+                          handleBudgetSave();
+                          budgetInputRef.current?.blur();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          editFinishedRef.current = true;
+                          handleBudgetCancel();
+                          budgetInputRef.current?.blur();
+                        }
+                      }}
+                      style={{ width: `${Math.max(4, Math.min(12, draftBudget.length + 1))}ch` }}
+                      className="bg-transparent text-xl font-bold font-mono text-on-surface outline-none"
+                    />
+                    <span className="text-xs font-semibold text-on-surface-variant">
+                      {budgetParts.currency}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
+                    title="Click to edit your monthly budget"
+                    className="-ml-2 flex min-w-0 items-baseline gap-1 rounded-2xl px-2 py-0.5 text-left transition-colors hover:bg-surface-variant/60"
+                  >
+                    <span className="text-xl font-bold font-mono text-on-surface">
+                      {canSeeBalances ? budgetParts.amount : redacted}
+                    </span>
+                    {canSeeBalances && (
+                      <span className="text-xs font-semibold text-on-surface-variant">
+                        {budgetParts.currency}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
@@ -391,14 +361,21 @@ export function OverviewTab({
                 </button>
               </div>
             </div>
-            <div className="w-full sm:w-auto border-t border-outline-variant/50 sm:border-t-0 pt-4 sm:pt-0 shrink-0 sm:text-right">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant sm:text-right">
+            <div className="min-w-0 border-t border-outline-variant/50 pt-4 sm:border-t-0 sm:border-l sm:pl-8 sm:pt-0">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
                 Total Cash on Hand
               </span>
-              <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
-                <span className="text-xl font-extrabold tracking-tight text-primary tabular-nums">
-                  {canSeeBalances ? format(totalCash) : redacted}
-                </span>
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex min-w-0 items-baseline gap-1">
+                  <span className="text-xl font-bold font-mono text-on-surface">
+                    {canSeeBalances ? cashParts.amount : redacted}
+                  </span>
+                  {canSeeBalances && (
+                    <span className="text-xs font-semibold text-on-surface-variant">
+                      {cashParts.currency}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={onEditMoneyPlaces}
@@ -462,9 +439,11 @@ export function OverviewTab({
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-bold text-sm font-mono text-on-surface">
-                          -{formatParts(item.amount).amount} {formatParts(item.amount).currency}
-                        </span>
+                        <FormattedAmount
+                          value={item.amount}
+                          prefix="-"
+                          className="font-bold text-sm font-mono text-on-surface"
+                        />
                       </div>
                     </div>
                   ) : (
