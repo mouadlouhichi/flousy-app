@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
@@ -11,11 +11,24 @@ import { useHousehold } from '@/lib/household-context';
 export function ProfileIdentity() {
   const { user, profile, updateProfileData } = useAuth();
   const { isPro, openProModal } = useDashboard();
-  const { workspace } = useHousehold();
+  const { workspace, household, memberRole } = useHousehold();
   const showUpgrade = canShowProUpgrade(isPro, workspace);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
-  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
+
+  useEffect(() => {
+    if (!isEditingName) setDisplayName(profile?.displayName || '');
+  }, [profile?.displayName, isEditingName]);
+
+  const resolvedName =
+    profile?.displayName ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    'Set your name';
+  const userInitial = resolvedName[0]?.toUpperCase() || 'M';
+  const workspaceLabel =
+    workspace === 'household'
+      ? household?.name || 'Household'
+      : 'Personal';
 
   const handleSaveName = async () => {
     if (displayName.trim()) {
@@ -25,61 +38,83 @@ export function ProfileIdentity() {
     setIsEditingName(false);
   };
 
-  return (
-    <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-5 sm:p-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl"
-      />
+  const handleCancelEdit = () => {
+    setIsEditingName(false);
+    setDisplayName(profile?.displayName || '');
+  };
 
-      <div className="relative flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left">
-        <div className="relative shrink-0">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-2xl font-extrabold text-on-primary shadow-md ring-4 ring-surface">
-            {userInitial}
+  return (
+    <section className="overflow-hidden rounded-3xl border border-outline-variant bg-surface-container">
+      {/* Cover — gives the card a header instead of dumping identity in one row. */}
+      <div className="relative h-24 bg-gradient-to-br from-primary via-primary to-primary/70 sm:h-28">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,255,255,0.28),transparent_42%)]"
+        />
+      </div>
+
+      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+        <div className="flex items-end justify-between gap-3">
+          <div className="relative -mt-10 shrink-0 sm:-mt-12">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-3xl font-extrabold text-on-primary shadow-md ring-[5px] ring-surface-container sm:h-24 sm:w-24 sm:text-4xl">
+              {userInitial}
+            </div>
+            {isPro && (
+              <span
+                title="Pro member"
+                className="absolute bottom-0.5 right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
+              >
+                <AppIcon name="workspace_premium" className="text-[14px]" />
+              </span>
+            )}
           </div>
-          {isPro && (
-            <span
-              title="Pro member"
-              className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-2 ring-surface"
+
+          {!isEditingName && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditingName(true);
+                setDisplayName(profile?.displayName || '');
+              }}
+              className="mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
             >
-              <AppIcon name="workspace_premium" className="text-[13px]" />
-            </span>
+              <AppIcon name="edit" className="text-[14px]" />
+              Edit name
+            </button>
           )}
         </div>
 
-        <div className="w-full min-w-0 flex-1">
+        <div className="mt-4 min-w-0">
           {isEditingName ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="profile-display-name" className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+                Display name
+              </label>
               <input
+                id="profile-display-name"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveName();
-                  if (e.key === 'Escape') {
-                    setIsEditingName(false);
-                    setDisplayName(profile?.displayName || '');
-                  }
+                  if (e.key === 'Escape') handleCancelEdit();
                 }}
                 placeholder="Enter your name"
                 autoFocus
-                className="w-full rounded-xl border border-outline-variant bg-surface px-3 py-2 text-sm font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-xl border border-outline-variant bg-surface px-3 py-2.5 text-sm font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={handleSaveName}
-                  className="flex-1 rounded-xl bg-primary py-2 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
+                  className="flex-1 rounded-xl bg-primary py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
                 >
                   Save
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsEditingName(false);
-                    setDisplayName(profile?.displayName || '');
-                  }}
-                  className="flex-1 rounded-xl border border-outline-variant py-2 text-xs font-bold text-on-surface-variant transition-all hover:bg-surface-variant/60"
+                  onClick={handleCancelEdit}
+                  className="flex-1 rounded-xl border border-outline-variant py-2.5 text-xs font-bold text-on-surface-variant transition-all hover:bg-surface-variant/60"
                 >
                   Cancel
                 </button>
@@ -87,62 +122,50 @@ export function ProfileIdentity() {
             </div>
           ) : (
             <>
-              <div className="flex min-w-0 items-center justify-center gap-2 sm:justify-start">
-                <p className="min-w-0 truncate text-xl font-extrabold leading-tight text-on-surface">
-                  {profile?.displayName || 'Set your name'}
+              <h2 className="truncate text-2xl font-extrabold leading-tight tracking-tight text-on-surface">
+                {resolvedName}
+              </h2>
+              {user?.email && (
+                <p title={user.email} className="mt-1 truncate text-sm text-on-surface-variant">
+                  {user.email}
                 </p>
+              )}
 
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${
                     isPro
                       ? 'bg-amber-400/15 text-amber-700 ring-1 ring-inset ring-amber-400/40 dark:text-amber-300'
-                      : 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
+                      : 'bg-surface-variant text-on-surface-variant ring-1 ring-inset ring-outline-variant'
                   }`}
                 >
                   <AppIcon
                     name={isPro ? 'workspace_premium' : 'person'}
                     className="text-[13px]"
                   />
-                  {isPro ? 'Pro Plan' : 'Free Plan'}
+                  {isPro ? 'Pro' : 'Free'}
                 </span>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingName(true);
-                    setDisplayName(profile?.displayName || '');
-                  }}
-                  aria-label="Edit name"
-                  title="Edit name"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary"
-                >
-                  <AppIcon name="edit" className="text-[14px]" />
-                </button>
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface-variant px-2.5 py-1 text-[11px] font-bold leading-none text-on-surface-variant ring-1 ring-inset ring-outline-variant">
+                  <AppIcon name={workspace === 'household' ? 'group' : 'home'} className="text-[13px]" />
+                  {workspaceLabel}
+                  {workspace === 'household' && memberRole ? ` · ${memberRole}` : ''}
+                </span>
               </div>
-
-              <p
-                title={user?.email || undefined}
-                className="mt-0.5 truncate text-sm text-on-surface-variant"
-              >
-                {user?.email}
-              </p>
-
-              {showUpgrade && (
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <button
-                    type="button"
-                    onClick={openProModal}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
-                  >
-                    <AppIcon name="workspace_premium" className="text-[13px]" />
-                    Upgrade
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>
+
+        {showUpgrade && !isEditingName && (
+          <button
+            type="button"
+            onClick={openProModal}
+            className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 sm:w-auto"
+          >
+            <AppIcon name="workspace_premium" className="text-[16px]" />
+            Upgrade to Pro
+          </button>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
