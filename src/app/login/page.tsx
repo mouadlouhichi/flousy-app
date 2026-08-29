@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema } from '../../lib/validation';
+import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
 
 export default function LoginPage() {
@@ -99,7 +100,7 @@ export default function LoginPage() {
         }
         setIsResetting(false);
       } catch (err: any) {
-        setError(err.message || 'Failed to send reset email');
+        setError(authErrorMessage(err) || 'Failed to send reset email');
       } finally {
         setSubmitting(false);
       }
@@ -146,7 +147,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(err.message || 'Authentication failed. Please verify credentials.');
+        setError(authErrorMessage(err));
       }
     } finally {
       setSubmitting(false);
