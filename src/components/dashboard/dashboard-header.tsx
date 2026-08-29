@@ -48,6 +48,8 @@ export function DashboardHeader() {
   const budgetPeriod = profile?.monthStartDate
     ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
     : null;
+  const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate) : null;
+  const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate) : null;
 
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
@@ -92,17 +94,26 @@ export function DashboardHeader() {
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod ? (
             <>
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
-                <AppIcon
-                  name="loop"
-                  className="shrink-0 text-[12px] text-primary sm:text-[14px]"
-                  aria-label="Custom budget month"
-                />
-                <span>{formatPeriodLabel(budgetPeriod.startDate)}</span>
-              </span>
-              <span className="hidden whitespace-nowrap sm:inline">
-                → {formatPeriodLabel(budgetPeriod.endDate)}
-              </span>
+              {(() => {
+                const start = formatPeriodParts(budgetPeriod.startDate);
+                const end = formatPeriodParts(budgetPeriod.endDate);
+                return (
+                  <>
+                    <span className="whitespace-nowrap">{start.month}</span>
+                    <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                      <AppIcon
+                        name="loop"
+                        className="shrink-0 text-[12px] text-primary sm:text-[14px]"
+                        aria-label="Custom budget month"
+                      />
+                      <span>{start.day}</span>
+                    </span>
+                    <span className="hidden whitespace-nowrap sm:inline">
+                      → {end.month} {end.day}
+                    </span>
+                  </>
+                );
+              })()}
             </>
           ) : (
             monthLabel
