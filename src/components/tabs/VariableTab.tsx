@@ -1,4 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
 import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
 import { formatShortDate } from '../../lib/utils';
@@ -88,7 +89,7 @@ export function VariableTab({
             TOTAL VARIABLE SPENT
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalSpent)}
+            <FormattedAmount value={totalSpent} />
           </h2>
         </div>
         <div className="flex gap-sm">
@@ -310,9 +311,11 @@ export function VariableTab({
                 </div>
               </div>
 
-              <span className="shrink-0 font-mono font-extrabold text-headline-sm text-on-surface">
-                -{format(exp.amount)}
-              </span>
+              <FormattedAmount
+                value={exp.amount}
+                prefix="-"
+                className="shrink-0 font-mono font-extrabold text-headline-sm text-on-surface"
+              />
             </div>
           ))}
         </div>

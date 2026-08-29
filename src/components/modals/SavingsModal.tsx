@@ -5,6 +5,7 @@ import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui
 import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 
 interface SavingsModalProps {
@@ -311,7 +312,7 @@ export function SavingsModal({
                 {mode === 'fund' ? 'Deposit Amount' : 'Withdrawal Amount'}
               </label>
               <div className="flex items-center text-primary font-bold">
-                <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+                <AmountSymbol symbol={symbol} />
                 <input
                   type="number"
                   step="any"

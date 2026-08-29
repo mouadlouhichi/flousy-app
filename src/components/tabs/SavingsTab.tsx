@@ -1,4 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React from 'react';
 import {
   SavingGoal,
@@ -56,7 +57,7 @@ export function SavingsTab({
             TOTAL ACCUMULATED SAVINGS
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalSavings)}
+            <FormattedAmount value={totalSavings} />
           </h2>
         </div>
         <button
@@ -118,11 +119,12 @@ export function SavingsTab({
                 {/* Balance & Progress */}
                 <div className="flex flex-col gap-xs">
                   <div className="flex justify-between items-baseline font-mono">
-                    <span className="text-headline-md text-on-surface font-extrabold">
-                      {format(goal.current)}
-                    </span>
+                    <FormattedAmount
+                      value={goal.current}
+                      className="text-headline-md text-on-surface font-extrabold"
+                    />
                     <span className="font-label-md text-label-md text-on-surface-variant">
-                      Target: {format(goal.target)}
+                      Target: <FormattedAmount value={goal.target} />
                     </span>
                   </div>
 
@@ -138,7 +140,7 @@ export function SavingsTab({
                 </div>
 
                 {/* Quick Fund & Withdraw Actions */}
-                <div className="grid grid-cols-2 gap-sm pt-xs border-t border-surface-variant">
+                <div className="grid grid-cols-2 gap-sm pt-xs">
                   <button
                     onClick={() => onOpenFundModal(goal)}
                     className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
@@ -215,14 +217,13 @@ export function SavingsTab({
                   </div>
 
                   <div className="flex items-center gap-xs shrink-0">
-                    <span
+                    <FormattedAmount
+                      value={entry.amount}
+                      prefix={isDeposit ? '+' : '-'}
                       className={`font-mono font-bold ${
                         isDeposit ? 'text-secondary' : 'text-on-surface-variant'
                       }`}
-                    >
-                      {isDeposit ? '+' : '-'}
-                      {format(entry.amount)}
-                    </span>
+                    />
                     {canEdit && onEditDeposit && (
                       <button
                         type="button"

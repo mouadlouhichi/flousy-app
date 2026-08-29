@@ -42,6 +42,11 @@ export function getCurrencySymbol(currencyCode: string = 'MAD'): string {
   return SUPPORTED_CURRENCIES[currencyCode]?.symbol || currencyCode;
 }
 
+/** Letter ISO codes (MAD, AED, CHF…) need a smaller type than € / $ / £. */
+export function isLetterCurrencySymbol(symbol: string): boolean {
+  return symbol.trim().length > 1;
+}
+
 export function formatCurrencyParts(amount: number, currencyCode: string = 'MAD', uiLocale?: string): { amount: string; currency: string } {
   const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
   const config = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.MAD;

@@ -1,4 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   MonthBudget,
@@ -397,7 +398,7 @@ export function OverviewTab({
               </span>
               <div className="mt-1 flex items-center justify-start sm:justify-end gap-2">
                 <span className="text-xl font-extrabold tracking-tight text-primary tabular-nums">
-                  {canSeeBalances ? format(totalCash) : redacted}
+                  {canSeeBalances ? <FormattedAmount value={totalCash} /> : redacted}
                 </span>
                 <button
                   type="button"
@@ -462,9 +463,11 @@ export function OverviewTab({
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-bold text-sm font-mono text-on-surface">
-                          -{formatParts(item.amount).amount} {formatParts(item.amount).currency}
-                        </span>
+                        <FormattedAmount
+                          value={item.amount}
+                          prefix="-"
+                          className="font-bold text-sm font-mono text-on-surface"
+                        />
                       </div>
                     </div>
                   ) : (

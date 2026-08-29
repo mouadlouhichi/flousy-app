@@ -17,6 +17,7 @@ import {
   availableForCharge,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -301,7 +302,7 @@ export function FixedModal({
             </span>
           </div>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"

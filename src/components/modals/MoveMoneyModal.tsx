@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { SegmentedControl } from '../ui/segmented-control';
 import { MoneyPlace, MonthBudget } from '../../lib/store';
 import { moveMoneySchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 
 interface MoveMoneyModalProps {
@@ -148,7 +149,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
             Transfer Amount
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"

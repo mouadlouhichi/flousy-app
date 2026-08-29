@@ -8,6 +8,7 @@ import { SegmentedControl, MONEY_PLACE_OPTIONS, MONEY_PLACE_LABELS } from '../ui
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -201,7 +202,7 @@ export function ExpenseModal({
             </span>
           </div>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
