@@ -968,6 +968,12 @@
           "minimum": 0,
           "maximum": 1000000000,
           "description": "Denormalized sum of lineTotals"
+        },
+        "loggedExpenseId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Id of the variable expense the total was logged as (idempotency link)"
         }
       },
       "required": [

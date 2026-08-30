@@ -56,7 +56,7 @@ Dashboard ── "Courses" (quick action + nav) ──▶ Session screen
                                                · place, date, item count
                                                Actions:
                                                · Save (active → completed)
-                                               · Log to budget (optional toggle)
+                                               · Log to budget (optional, below)
                                                · Share / Copy / Download (txt, csv)
                                                · Discard (only while empty or via confirm)
 ```
@@ -66,8 +66,19 @@ Rules that keep the UX "easy":
 - **Single active session per user.** Opening Courses with a live session
   resumes it (never silently lost). Starting a new one while one is active
   requires Finish or Discard first.
+- **Scanning is a Pro feature.** The camera scanner and the manual code
+  lookup render for Pro plans (and for household members, who inherit Pro
+  inside a shared workspace). Free plans see an upgrade card in the same
+  slot — and always keep the barcode-free fallback: adding an item by
+  name + quantity + price.
 - **Re-scan = add one.** Scanning a code already on the bill increments its
   quantity instead of prompting. New scans open a one-field price step.
+- **Logging to the budget is optional and idempotent.** The bill carries an
+  "Add to budget" card: one variable expense for the whole trip total, under
+  a user-picked category — grocery-like category by default, first active
+  category as fallback, built-in `Groceries` when none exist. The session
+  stores `loggedExpenseId`, so a logged bill shows a confirmation instead of
+  the button and can never be logged twice.
 - **Price step is one field.** Unit price input (decimal keyboard), with:
   - **no prefill, ever** — the price is entered fresh each time because it
     varies from market to market. The catalog *records* the last price (for

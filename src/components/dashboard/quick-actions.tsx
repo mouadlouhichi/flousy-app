@@ -15,8 +15,15 @@ export function QuickActions() {
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const activeScreen = getScreenIdFromPath(pathname);
-  // Screens with no "add" affordance hide the quick actions
-  if (activeScreen === 'trends' || activeScreen === 'debts' || activeScreen === 'profile') {
+  // Screens with no "add" affordance hide the quick actions. Courses hides
+  // them too: the session screen has its own entry forms and a pinned
+  // total/finish bar, and the floating button overlapped both.
+  if (
+    activeScreen === 'trends' ||
+    activeScreen === 'debts' ||
+    activeScreen === 'profile' ||
+    activeScreen === 'courses'
+  ) {
     return null;
   }
 

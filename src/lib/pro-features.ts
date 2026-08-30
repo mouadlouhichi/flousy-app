@@ -16,6 +16,12 @@ export interface ProFeature {
  */
 export const PRO_FEATURES: ProFeature[] = [
   {
+    id: 'course-scan',
+    icon: 'scan_barcode',
+    title: 'Barcode Course Scanning',
+    description: 'Scan groceries as you shop and let SmartJib build the bill automatically.',
+  },
+  {
     id: 'trends',
     icon: 'trending_up',
     title: 'Trends & Analytics',
