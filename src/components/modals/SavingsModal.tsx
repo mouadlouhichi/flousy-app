@@ -6,6 +6,7 @@ import { CustomInput } from '../ui/CustomInput';
 import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
+import { insufficientFundsMessage, MONEY_PLACE_LABELS } from '../../lib/money-places';
 
 interface SavingsModalProps {
   isOpen: boolean;
@@ -126,6 +127,15 @@ export function SavingsModal({
       if (!valRes.success) {
         setErrors({ amount: 'Please enter a valid positive amount' });
         return;
+      }
+
+      // Funding moves real cash: it can never take more than the place holds.
+      if (placeBalances) {
+        const fundsError = insufficientFundsMessage(parsedAmount, selectedPlaceBalance, place, format);
+        if (fundsError) {
+          setErrors({ amount: fundsError });
+          return;
+        }
       }
 
       if (onFund) onFund(goal.id, parsedAmount, place);
@@ -345,6 +355,13 @@ export function SavingsModal({
               onChange={(v) => setPlace(v as MoneyPlace)}
               options={MONEY_PLACE_OPTIONS}
             />
+
+            {/* Funding pulls real cash out of the selected place — show the cap. */}
+            {mode === 'fund' && placeBalances && (
+              <p className="text-[11px] font-medium text-on-surface-variant -mt-3">
+                Available in {MONEY_PLACE_LABELS[place]}: {format(selectedPlaceBalance)}
+              </p>
+            )}
 
             {/* Goal info card */}
             {goal && (

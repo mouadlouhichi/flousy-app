@@ -164,6 +164,11 @@ export function DashboardModals() {
         categories={month.activeCategories || []}
         categoryColors={month.categoryColors}
         categoryIcons={month.categoryIcons}
+        placeBalances={{
+          bank: month.bankPart || 0,
+          home: month.homePart || 0,
+          wallet: month.walletPart || 0,
+        }}
       />
 
       <MoveMoneyModal

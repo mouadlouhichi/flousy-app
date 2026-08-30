@@ -51,7 +51,7 @@ export function SegmentedControl({
       <div
         role="radiogroup"
         aria-label={ariaLabel || label}
-        className="flex w-full items-stretch gap-1 rounded-full border border-outline-variant/70 bg-surface-container-lowest p-1"
+        className="flex w-full items-stretch gap-0.5 rounded-full border border-outline-variant/70 bg-surface-container-lowest p-0.5 sm:gap-1 sm:p-1"
       >
         {options.map(({ value: optionValue, label: optionLabel, icon, sublabel }) => {
           const isActive = value === optionValue;
@@ -62,7 +62,11 @@ export function SegmentedControl({
               role="radio"
               aria-checked={isActive}
               onClick={() => onChange(optionValue)}
-              className={`relative flex-1 rounded-full px-2 py-2.5 transition-colors duration-200 ${
+              // `min-w-0` + `basis-0` let a segment shrink below its content
+              // width instead of pushing text outside the pill row on narrow
+              // phones (three segments with balance sublabels overflowed).
+              title={sublabel ? `${optionLabel} · ${sublabel}` : optionLabel}
+              className={`relative flex min-w-0 flex-1 basis-0 flex-col items-center justify-center rounded-full px-1.5 py-2.5 transition-colors duration-200 sm:px-2 ${
                 isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'
               }`}
             >
@@ -75,18 +79,19 @@ export function SegmentedControl({
                   transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
                 />
               )}
-              <span className="relative z-10 flex items-center justify-center gap-1.5">
+              <span className="relative z-10 flex w-full min-w-0 items-center justify-center gap-1 sm:gap-1.5">
                 {icon && (
                   <AppIcon
                     name={icon}
-                    className={`shrink-0 text-[17px] transition-colors duration-200 ${
+                    // Icons are the first thing to go when space runs out.
+                    className={`hidden shrink-0 text-[15px] transition-colors duration-200 min-[360px]:block sm:text-[17px] ${
                       isActive ? 'text-on-primary' : 'text-outline'
                     }`}
                   />
                 )}
-                <span className="flex min-w-0 flex-col items-center leading-tight">
+                <span className="flex min-w-0 flex-1 flex-col items-center leading-tight">
                   <span
-                    className={`text-[12px] font-semibold transition-colors duration-200 ${
+                    className={`w-full truncate text-center text-[12px] font-semibold transition-colors duration-200 ${
                       isActive ? 'text-on-primary' : 'text-on-surface-variant'
                     }`}
                   >
@@ -94,7 +99,7 @@ export function SegmentedControl({
                   </span>
                   {sublabel && (
                     <span
-                      className={`max-w-full truncate text-[10px] font-medium transition-colors duration-200 ${
+                      className={`w-full truncate text-center text-[10px] font-medium transition-colors duration-200 ${
                         isActive ? 'text-on-primary/80' : 'text-outline'
                       }`}
                     >

@@ -11,6 +11,12 @@ import { expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
+import {
+  getAvailableBalance,
+  insufficientFundsMessage,
+  MONEY_PLACE_LABELS,
+  type PlaceBalances,
+} from '../../lib/money-places';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -21,6 +27,12 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /**
+   * Live cash per money place. When provided, the expense is refused if the
+   * selected "Paid From" place cannot cover it (editing refunds the old
+   * expense first). Omit to keep the modal free of balance checks.
+   */
+  placeBalances?: PlaceBalances;
 }
 
 export function ExpenseModal({
@@ -32,8 +44,9 @@ export function ExpenseModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
+  placeBalances,
 }: ExpenseModalProps) {
-  const { symbol, currency } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -108,6 +121,12 @@ export function ExpenseModal({
       return;
     }
 
+    // Never let an expense take more than the selected place actually holds.
+    if (fundsError) {
+      setErrors({ amount: fundsError });
+      return;
+    }
+
     const newExpense: VariableExpense = {
       id: initialExpense ? initialExpense.id : Math.random().toString(36).substring(2, 9),
       name: name.trim() || type,
@@ -127,6 +146,20 @@ export function ExpenseModal({
 
   const activeCategoryColor = categoryColors[type] || 'var(--primary)';
   const activeCategoryIcon = categoryIcons[type] || 'category';
+
+  // Cash left in the selected place. Editing refunds the old expense first, so
+  // re-saving an unchanged (or smaller) expense is never blocked.
+  const availableInPlace = getAvailableBalance(
+    placeBalances,
+    place,
+    initialExpense ? { place: initialExpense.place, amount: initialExpense.amount } : null,
+  );
+  const enteredAmount = parseFloat(amount);
+  // Live message shown under the "Paid From" control (also checked on submit).
+  const fundsError =
+    availableInPlace === null
+      ? null
+      : insufficientFundsMessage(enteredAmount, availableInPlace, place, format);
 
   return (
     <Modal
@@ -221,6 +254,19 @@ export function ExpenseModal({
           onChange={(v) => setPlace(v as MoneyPlace)}
           options={MONEY_PLACE_OPTIONS}
         />
+
+        {/* ── Available in the selected place (warns before submit) ── */}
+        {availableInPlace !== null && (
+          fundsError ? (
+            <p role="alert" className="text-[12px] font-medium text-error -mt-3">
+              {fundsError}
+            </p>
+          ) : (
+            <p className="text-[11px] font-medium text-on-surface-variant -mt-3">
+              Available in {MONEY_PLACE_LABELS[place]}: {format(availableInPlace)}
+            </p>
+          )
+        )}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (

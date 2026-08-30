@@ -20,7 +20,7 @@ const MONEY_PLACE_ICONS: Record<MoneyPlace, string> = {
 };
 
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
-  const { symbol, format } = useCurrency();
+  const { symbol, format, formatParts } = useCurrency();
   const [from, setFrom] = useState<MoneyPlace>('bank');
   const [to, setTo] = useState<MoneyPlace>('wallet');
   const [amount, setAmount] = useState('');
@@ -77,10 +77,15 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     setErrors((prev) => ({ ...prev, amount: '' }));
   };
 
+  // Balances are shown as bare numbers inside the segments — the currency code
+  // pushed the pill text past the card on phone widths (the full formatted
+  // amount is kept in the `title` tooltip and in the preview below).
+  const compact = (value: number) => formatParts(value).amount;
+
   const placeOptions = [
-    { value: 'bank', label: 'Bank', icon: 'account_balance', sublabel: format(month.bankPart) },
-    { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', sublabel: format(month.walletPart) },
-    { value: 'home', label: 'Home Cash', icon: 'home', sublabel: format(month.homePart) },
+    { value: 'bank', label: 'Bank', icon: 'account_balance', sublabel: compact(month.bankPart) },
+    { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet', sublabel: compact(month.walletPart) },
+    { value: 'home', label: 'Home Cash', icon: 'home', sublabel: compact(month.homePart) },
   ];
 
   return (

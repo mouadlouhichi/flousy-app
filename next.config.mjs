@@ -1,4 +1,11 @@
 /** @type {import('next').NextConfig} */
+// Frame blocking is owned by the CSP `frame-ancestors` directive in
+// src/middleware.ts (applied per request, always fail closed). The legacy
+// X-Frame-Options header is dropped off-production so `next dev` can be shown
+// inside a preview pane / device frame; `next build` and `next start` both set
+// NODE_ENV=production, so deployed builds keep it.
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
@@ -9,7 +16,7 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          ...(isProduction ? [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] : []),
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },

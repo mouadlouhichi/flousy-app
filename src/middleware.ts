@@ -22,7 +22,9 @@ export function middleware(request: NextRequest) {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    // `next dev` can be shown inside a preview pane / device frame; any real
+    // deployment stays sealed (fail closed whenever NODE_ENV is unknown).
+    isDev ? 'frame-ancestors *' : "frame-ancestors 'none'",
     'upgrade-insecure-requests',
   ]
     .join('; ')
