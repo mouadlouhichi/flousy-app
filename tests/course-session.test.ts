@@ -19,6 +19,9 @@ import {
   renderBillText,
   renderBillCsv,
   resolveProduct,
+  resolveCourseCategory,
+  markSessionLogged,
+  COURSE_FALLBACK_CATEGORY,
 } from '../src/lib/course-session';
 import type { Product } from '../src/lib/store';
 
@@ -428,5 +431,37 @@ describe('resolveProduct', () => {
   it('works with no remote configured (offline / demo)', async () => {
     const resolution = await resolveProduct({ barcode: '5555555555555', catalog: [] });
     assert.deepEqual(resolution, { kind: 'not-found', barcode: '5555555555555' });
+  });
+});
+
+describe('budget logging (course → variable expense)', () => {
+  it('prefers a grocery-like category when the user has one', () => {
+    assert.equal(
+      resolveCourseCategory(['Transport', 'Rent', 'Groceries', 'Health']),
+      'Groceries',
+    );
+  });
+
+  it('matches candidates case-insensitively and keeps the user spelling', () => {
+    assert.equal(resolveCourseCategory(['groceries']), 'groceries');
+    assert.equal(resolveCourseCategory(['Épicerie', 'Transport']), 'Épicerie');
+  });
+
+  it('falls back to the first active category when none is grocery-like', () => {
+    assert.equal(resolveCourseCategory(['Rent', 'Transport', 'Health']), 'Rent');
+  });
+
+  it('falls back to the built-in default when there are no categories', () => {
+    assert.equal(resolveCourseCategory([]), COURSE_FALLBACK_CATEGORY);
+    assert.equal(resolveCourseCategory(['  ', '']), COURSE_FALLBACK_CATEGORY);
+  });
+
+  it('links the session to its logged expense without touching the total', () => {
+    const session = createSession({ currency: 'MAD', place: 'wallet' });
+    const withItem = addItemToSession(session, createSessionItem({ name: 'Pain', unitPrice: 6, qty: 2 }));
+    const logged = markSessionLogged(withItem, 'exp_123');
+    assert.equal(logged.loggedExpenseId, 'exp_123');
+    assert.equal(logged.total, withItem.total);
+    assert.equal(logged.status, withItem.status);
   });
 });

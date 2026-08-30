@@ -197,6 +197,42 @@ export function completeSession(session: CourseSession, now: Date = new Date()):
   return withTotal({ ...session, status: 'completed', endedAt: now.toISOString() });
 }
 
+/** Link the session to the variable expense its total was logged as (idempotent). */
+export function markSessionLogged(session: CourseSession, expenseId: string): CourseSession {
+  return { ...session, loggedExpenseId: expenseId };
+}
+
+// --- Budget logging -------------------------------------------------------------
+
+/** Category names a finished course prefers, in priority order (case-insensitive). */
+const COURSE_CATEGORY_CANDIDATES = [
+  'Groceries',
+  'Courses',
+  'Épicerie',
+  'Epicerie',
+  'Supermarché',
+  'Supermarket',
+  'Food',
+];
+
+/** Used when the month has no active categories at all. */
+export const COURSE_FALLBACK_CATEGORY = 'Groceries';
+
+/**
+ * Pick the category a finished course is logged under: the first grocery-like
+ * category the user actually has, else their first active category, else the
+ * built-in default. Never returns an empty string.
+ */
+export function resolveCourseCategory(categories: readonly string[]): string {
+  const list = categories.map((name) => name.trim()).filter(Boolean);
+  const lower = list.map((name) => name.toLowerCase());
+  for (const candidate of COURSE_CATEGORY_CANDIDATES) {
+    const idx = lower.indexOf(candidate.toLowerCase());
+    if (idx !== -1) return list[idx];
+  }
+  return list[0] ?? COURSE_FALLBACK_CATEGORY;
+}
+
 export function sessionUnits(session: CourseSession): number {
   return session.items.reduce((acc, line) => acc + line.qty, 0);
 }

@@ -1608,4 +1608,5 @@ export interface CourseSession {
   place: MoneyPlace; // where it was paid from
   items: SessionItem[]; // capped at 500 lines
   total: number; // denormalized sum of lineTotals
+  loggedExpenseId?: string; // set once the total is logged as a variable expense
 }

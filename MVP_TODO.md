@@ -231,7 +231,7 @@
 | C12 | i18n (EN/FR/AR incl. RTL bill rendering) | ✅ | `messages/*.json` → `courses` section |
 | C13 | Entry point (quick action "Start Course") + screen routing | ✅ | `/dashboard/courses`, hidden from the 5-destination nav |
 | C14 | Unit tests (normalize/reducer/totals/bill/resolve) | ✅ | `tests/course-session.test.ts` (34 cases) |
-| C15 | Log bill to budget (variable expense) | ⬜ | P2 — idempotent `loggedExpenseId` link by design |
+| C15 | Log bill to budget (variable expense) | ✅ | `courses-budget-logger.tsx` — one variable expense for the trip total; grocery-like category by default, first active category as fallback (`resolveCourseCategory`); idempotent via `loggedExpenseId` |
 | C16 | Static MA seed shard (CI-built OFF snapshot, offline 0 ms) | ⬜ | P2 — `/api/catalog/shard/611.json` + IndexedDB |
 | C17 | Opt-in "share product with Open Food Facts" | ⬜ | P2 |
 | C18 | Last-price suggestions / price history | ⬜ | P3 — Open Prices MA if data volume justifies |
@@ -258,7 +258,7 @@
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
-| Course Session | 19 | 14 | 0 | 5 |
+| Course Session | 20 | 16 | 0 | 4 |
 | **Post-MVP / Remaining** | **12** | **7** | **0** | **5** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
 | **Grand Total (core + post-MVP)** | **131** | **121** | **0** | **10** |

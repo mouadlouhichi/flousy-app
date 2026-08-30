@@ -7,10 +7,12 @@ import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented
 import { useCourseSession } from '@/hooks/use-course-session';
 import { isProFeatureUnlocked } from '@/lib/household';
 import { useHousehold } from '@/lib/household-context';
+import { trackEvent } from '@/lib/analytics';
 import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { useLanguage } from '@/lib/i18n-context';
-import type { CourseSession, MoneyPlace } from '@/lib/store';
+import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
+import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
@@ -87,8 +89,8 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 }
 
 export function CoursesScreen() {
-  const { user, profile, isPro, openProModal } = useDashboard();
-  const { t, messages: m } = useLanguage();
+  const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
+  const { t, language, messages: m } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
   const { workspace } = useHousehold();
@@ -234,19 +236,57 @@ export function CoursesScreen() {
     setPending(null);
   };
 
+  // ---- log the finished course into the budget ---------------------------------
+  // One variable expense for the whole trip, under a user-picked category
+  // (grocery-like category by default, first active category as fallback).
+  // `loggedExpenseId` on the session makes it idempotent — the bill shows a
+  // confirmation instead of the button once logged.
+  const logBillToBudget = (category: string) => {
+    if (!billSession || billSession.loggedExpenseId) return;
+    const expense: VariableExpense = {
+      id: Math.random().toString(36).substring(2, 9),
+      name: `${c.title} · ${billSession.date}`,
+      amount: billSession.total,
+      type: category,
+      date: billSession.date,
+      place: billSession.place,
+      note: `${billSession.items.length} ${c.items}`,
+      person: 'Self',
+      createdByUserId: user?.uid,
+    };
+    updateAndSaveMonth(addVariableExpense(month, expense));
+    store.markLogged(billSession.id, expense.id);
+    trackEvent('course_logged_to_budget', { amount: billSession.total, category });
+  };
+
+  const monthLocale = language === 'fr' ? 'fr-FR' : language === 'ar' ? 'ar-MA' : 'en-US';
+  const [monthYear, monthNum] = currentMonthKey.split('-').map(Number);
+  const monthLabel = new Date(monthYear, monthNum - 1, 1).toLocaleDateString(monthLocale, {
+    month: 'long',
+    year: 'numeric',
+  });
+
   const totalLabel = active ? formatCurrency(active.total, active.currency) : formatCurrency(0, currency);
 
   return (
     <div className="space-y-4">
       {billSession ? (
-        <CoursesBill
-          session={billSession}
-          onBack={() => setViewingBill(null)}
-          onNewCourse={() => {
-            setViewingBill(null);
-            store.startSession({ currency, place: 'bank' });
-          }}
-        />
+        <>
+          <CoursesBill
+            session={billSession}
+            onBack={() => setViewingBill(null)}
+            onNewCourse={() => {
+              setViewingBill(null);
+              store.startSession({ currency, place: 'bank' });
+            }}
+          />
+          <CoursesBudgetLogger
+            session={billSession}
+            categories={month.activeCategories || []}
+            monthLabel={monthLabel}
+            onLog={logBillToBudget}
+          />
+        </>
       ) : !active ? (
         <EmptyCourse
           store={store}

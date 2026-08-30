@@ -15,6 +15,7 @@ import {
   completeSession,
   createSession,
   createSessionItem,
+  markSessionLogged,
   normalizeBarcode,
   removeSessionItem,
   resolveProduct,
@@ -188,6 +189,21 @@ export function useCourseSession(uid: string | null | undefined) {
     [],
   );
 
+  /**
+   * Link a finished session to the variable expense its total was logged as
+   * (idempotency guard — the bill shows "added" instead of a second button).
+   */
+  const markLogged = useCallback(
+    (sessionId: string, expenseId: string) => {
+      const target = sessionsRef.current.find((s) => s.id === sessionId);
+      if (!target || target.loggedExpenseId) return;
+      const next = markSessionLogged(target, expenseId);
+      setSessions((prev) => prev.map((s) => (s.id === next.id ? next : s)));
+      persistSession(next);
+    },
+    [persistSession],
+  );
+
   /** Add a line for a resolved product, then remember its price in the catalog. */
   const addScannedLine = useCallback(
     (input: { barcode?: string; name: string; category?: string; unitPrice: number; qty?: number }) => {
@@ -246,6 +262,7 @@ export function useCourseSession(uid: string | null | undefined) {
     removeLine: (key: string) => mutateActive((s) => removeSessionItem(s, key)),
     finishSession,
     discardSession,
+    markLogged,
   };
 }
 
