@@ -87,9 +87,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* No horizontal scrollbar, ever: decorative blobs, marquees, wide tables
+       and sheet content must not be able to drag the page sideways.
+       `clip` (instead of `hidden`) keeps `position: sticky` descendants
+       working; the `hidden` line above it is the fallback for browsers
+       without `overflow: clip`. */
+    overflow-x: hidden;
+    overflow-x: clip;
+    max-width: 100%;
   }
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 
