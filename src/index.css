@@ -5,6 +5,11 @@
 
 @layer base {
   :root {
+    /* Self-hosted variable fonts (see src/app/layout.tsx). --font-instrument
+       is provided by next/font/local; the other two come from @fontsource. */
+    --font-jetbrains: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --font-arabic: 'Cairo Variable', 'Cairo', system-ui, sans-serif;
+
     --background: #f5faf8;
     --on-background: #171d1c;
     --foreground: #171d1c;

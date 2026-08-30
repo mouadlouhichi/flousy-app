@@ -5,11 +5,11 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Moon, Sun, Globe } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
-import { useAuth } from "@/lib/auth-context";
+import { useAuthStatus } from '@/lib/auth-status';
 
 export function Navigation() {
   const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
-  const { user } = useAuth();
+  const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
 

@@ -85,7 +85,7 @@ export function ProPanel() {
           </button>
           <Link
             href="/dashboard/profile/workspace"
-            prefetch={false}
+            prefetch={true}
             className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
           >
             <span className="flex items-center gap-3">
@@ -96,7 +96,7 @@ export function ProPanel() {
           </Link>
           <Link
             href="/dashboard/trends"
-            prefetch={false}
+            prefetch={true}
             className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition-colors hover:bg-surface-container-high"
           >
             <span className="flex items-center gap-3">

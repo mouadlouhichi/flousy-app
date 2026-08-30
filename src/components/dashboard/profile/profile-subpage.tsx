@@ -17,7 +17,7 @@ export function ProfileSubpage({
       <div className="flex items-start gap-3">
         <Link
           href="/dashboard/profile"
-          prefetch={false}
+          prefetch={true}
           aria-label="Back to profile"
           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
         >

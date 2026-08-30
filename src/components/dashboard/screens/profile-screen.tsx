@@ -119,7 +119,7 @@ export function ProfileScreen() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={false}
+                  prefetch={true}
                   className={`group flex items-center justify-between gap-3 p-4 transition-colors hover:bg-surface-container-high ${
                     index > 0 ? 'border-t border-outline-variant/30' : ''
                   }`}
