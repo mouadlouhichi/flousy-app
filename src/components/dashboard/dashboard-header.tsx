@@ -10,16 +10,6 @@ import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
 import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
-/** "2026-08-25" → { month: "Aug", day: "25" } (parsed locally, no UTC offset surprises). */
-function formatPeriodParts(iso: string): { month: string; day: string } {
-  const [y, m, d] = iso.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  return {
-    month: date.toLocaleDateString('en-US', { month: 'short' }),
-    day: date.toLocaleDateString('en-US', { day: 'numeric' }),
-  };
-}
-
 /** "2026-08-25" → { month: 'Aug', day: 25 } for the custom-period navigator. */
 function formatPeriodParts(iso: string): { month: string; day: number } {
   const [y, m, d] = iso.split('-').map(Number);
