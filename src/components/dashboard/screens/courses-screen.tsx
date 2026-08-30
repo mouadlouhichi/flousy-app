@@ -255,7 +255,7 @@ export function CoursesScreen() {
           onOpenBill={setViewingBill}
         />
       ) : (
-        <div className="space-y-4 pb-24 md:pb-4">
+        <div className="space-y-4 pb-44 md:pb-24">
           {/* Session header: date + paid-from */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
@@ -367,10 +367,11 @@ export function CoursesScreen() {
                     <Input
                       value={manualPrice}
                       onChange={(e) => setManualPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                      placeholder={c.price}
+                      placeholder="0.00"
                       inputMode="decimal"
                       aria-label={c.price}
-                      className="w-24 bg-surface text-right font-bold tabular-nums"
+                      dir="ltr"
+                      className="w-24 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
                     />
                   </label>
                   <button
@@ -424,8 +425,8 @@ export function CoursesScreen() {
             </ul>
           )}
 
-          {/* Bottom action bar */}
-          <div className="fixed inset-x-0 bottom-16 md:bottom-4 z-20 mx-auto max-w-3xl px-4">
+          {/* Bottom action bar — sits clear above the floating nav pill. */}
+          <div className="fixed inset-x-0 bottom-24 md:bottom-6 z-20 mx-auto max-w-3xl px-4">
             {confirmDiscard ? (
               <div className="flex items-center gap-3 rounded-2xl border border-error/40 bg-surface-container-high p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                 <p className="flex-1 font-body-md text-body-md text-on-surface">{c.discardConfirm}</p>
@@ -631,10 +632,12 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
             value={price}
             onChange={(e) => onPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-            placeholder={c.unitPrice}
+            placeholder="0.00"
             inputMode="decimal"
             autoFocus={!needsName}
-            className="w-32 bg-surface text-right font-bold"
+            dir="ltr"
+            aria-label={c.unitPrice}
+            className="w-32 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
           />
           <button
             type="button"
