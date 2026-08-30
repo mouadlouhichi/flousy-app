@@ -11,11 +11,16 @@ export const metadata: Metadata = {
   },
 };
 
-// The dashboard renders per-request so the per-request CSP nonce (set by
-// src/middleware.ts) can match the hydration scripts. Private/auth routes
-// are never CDN-cached anyway, so this costs only the authenticated user.
-export const dynamic = 'force-dynamic';
-
+/**
+ * The dashboard shell is prerendered (static) so in-app navigation between
+ * screens is pure client-side: no server round-trip on every click. All user
+ * data is fetched client-side after hydration, and `src/middleware.ts` marks
+ * these paths `private, no-store` so nothing is cached at the CDN.
+ *
+ * (The per-request CSP nonce was removed in favour of an origin-based CSP on
+ * every route — a per-request nonce forces dynamic rendering, which is what
+ * made navigation feel slow.)
+ */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppProviders>

@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Two-tier security & caching policy:
+ * Security & caching policy.
  *
- * 1. PRIVATE routes (/dashboard, /login, /onboarding) — rendered per request
- *    (`force-dynamic` is set in their layouts) so the fresh per-request
- *    nonce can be matched to Next.js's inline hydration scripts. They keep a
- *    strict nonce-based CSP and are marked `private, no-store`.
+ * All pages — public AND private app routes — are now statically generated
+ * (the app shell contains no per-user data; user data is fetched client-side
+ * after hydration). This is what makes in-app navigation instant: clicking a
+ * nav link is a pure client-side route change with a cached RSC payload, no
+ * server round-trip, no loading spinner.
  *
- * 2. PUBLIC routes (home, blog, legal pages…) — statically generated at
- *    build time and CDN-cached. Those HTML documents cannot carry a
- *    per-request nonce, so the CSP intentionally uses `'unsafe-inline'` for
- *    scripts only (all other directives stay strict); the page ships from
- *    the CDN without a server round-trip, which is what PageSpeed measures.
+ * Because the HTML is prerendered, a per-request CSP nonce can never match
+ * (a nonce requires per-request rendering). We therefore use one strict
+ * origin-based CSP for every route: `script-src 'self' 'unsafe-inline'` only
+ * (Google auth/analytics domains allow-listed), everything else locked down.
+ *
+ * Cache policy (explicit so any CDN — Vercel, Cloudflare, Netlify… — honors it):
+ * - private app routes:   private, no-store (never cached by browser or CDN)
+ * - public HTML:          public, s-maxage=300, stale-while-revalidate=86400
+ * - hashed assets:        public, immutable (one year)
+ * - robots/sitemap/manifest/llms: 1 day
+ * - sw.js:                must-revalidate (updates must be picked up)
  */
 const PRIVATE_PREFIXES = ['/dashboard', '/login', '/onboarding'];
 
@@ -31,12 +38,10 @@ const SHORT_LIVED_PUBLIC = new Set([
   '/llms.txt',
 ]);
 
-function buildCsp(nonce: string | null, isDev: boolean, authDomain?: string): string {
-  const scriptSrc = nonce
-    ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
-    : isDev
-      ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
-      : `script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`;
+function buildCsp(isDev: boolean, authDomain?: string): string {
+  const scriptSrc = isDev
+    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
+    : `script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`;
 
   return [
     "default-src 'self'",
@@ -62,21 +67,9 @@ export function middleware(request: NextRequest) {
   const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
   const { pathname } = request.nextUrl;
   const privateRoute = isPrivatePath(pathname);
+  const csp = buildCsp(isDev, authDomain);
 
-  // Per-request nonce only for private routes (see header comment). Public
-  // static pages are served from the CDN and cannot carry a matching nonce.
-  const nonce = privateRoute ? Buffer.from(crypto.randomUUID()).toString('base64') : null;
-  const csp = buildCsp(nonce, isDev, authDomain);
-
-  const requestHeaders = new Headers(request.headers);
-  if (nonce) {
-    requestHeaders.set('x-nonce', nonce);
-    requestHeaders.set('Content-Security-Policy', csp);
-  }
-
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  const response = NextResponse.next();
   response.headers.set('Content-Security-Policy', csp);
 
   // Order matters: robots/sitemap/manifest are NOT content-hashed, so they
@@ -105,8 +98,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on every page request so Next.js's hydration scripts get a
-    // nonce; skip static assets, images, and API routes.
+    // Run on every page request to attach CSP + cache headers; skip static
+    // assets, images, API routes and the favicon (covered by next.config).
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

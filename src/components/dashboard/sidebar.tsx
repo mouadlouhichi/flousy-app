@@ -50,7 +50,7 @@ export function Sidebar() {
             <Link
               key={item.id}
               href={item.href}
-              prefetch={false}
+              prefetch={true}
               className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-colors ${
                 isActive
                   ? 'text-primary font-bold'
@@ -113,7 +113,7 @@ export function Sidebar() {
       <div className="p-4 border-t border-surface-variant/50 bg-surface-container/20">
         <Link
           href="/dashboard/profile"
-          prefetch={false}
+          prefetch={true}
           aria-current={activeScreen === 'profile' ? 'page' : undefined}
           className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 transition-colors ${
             activeScreen === 'profile'

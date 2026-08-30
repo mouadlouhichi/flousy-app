@@ -287,7 +287,7 @@ src/
 │   └── analytics.ts            # Telemetry seam (no-op by default)
 │
 ├── hooks/                      # use-pwa-install, use-mobile, use-toast
-└── middleware.ts               # Per-request nonce-based CSP
+└── middleware.ts               # Origin-based CSP + CDN cache headers (static-friendly)
 
 messages/                       # en.json · fr.json · ar.json
 tests/                          # node:test suites
@@ -450,12 +450,12 @@ into an Admin SDK payment webhook (which bypasses rules).
 
 **Other measures**
 
-- **Nonce-based CSP** generated per request in `src/middleware.ts`
-  (`strict-dynamic` in production) for the **private app routes only**
-  (`/dashboard`, `/login`, `/onboarding`) — those render per request. Public
-  static pages get a strict origin-based CSP (`script-src 'self' 'unsafe-inline'`)
-  so the prerendered HTML can be served straight from the CDN. See
-  `src/middleware.ts` for the two-tier policy.
+- **Origin-based CSP** on every route (`script-src 'self' 'unsafe-inline'`
+  plus the Google auth/analytics allow-list; `object-src 'none'`,
+  `base-uri 'self'`, `frame-ancestors 'none'`, strict connect/frame lists).
+  A per-request nonce was deliberately dropped: it forces per-request
+  rendering, which is what made in-app navigation wait for the server. Every
+  page is now prerendered and navigation is a client-side route change.
 - Hardened response headers in `next.config.mjs`: HSTS, `nosniff`,
   `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and
   `COOP: same-origin-allow-popups` so Google sign-in popups still work.
@@ -569,12 +569,12 @@ vercel
 - [ ] Optionally set `NEXT_PUBLIC_ANALYTICS` and add the provider script
 
 > [!NOTE]
-> **Rendering model (performance):** public pages (home, blog, legal pages) are
-> **statically generated at build time** and served from the CDN with a
-> `s-maxage=300, stale-while-revalidate=86400` cache policy. Only the private
-> routes (`/dashboard`, `/login`, `/onboarding`) render per request — that's
-> where the per-request CSP nonce lives (see `src/middleware.ts`), and those
-> pages are never CDN-cached (`private, no-store`) since they're user-specific.
+> **Rendering model (performance):** every page — including `/dashboard`,
+> `/login` and `/onboarding` — is **statically generated at build time**, so
+> in-app navigation is a pure client-side route change with a cached payload
+> (no server round-trip, no spinner). The private app routes are still marked
+> `private, no-store` in `src/middleware.ts` so the CDN never caches them, and
+> public HTML gets `public, s-maxage=300, stale-while-revalidate=86400`.
 
 ---
 
@@ -584,7 +584,7 @@ This repo is tuned for green PageSpeed Insights / Lighthouse results:
 
 | Area | What's in place |
 | --- | --- |
-| **Static public pages** | Root layout does not read cookies/headers and is not `force-dynamic`; only private app routes render per request |
+| **Static pages everywhere** | Root layout does not read cookies/headers; **all** routes (incl. `/dashboard/*`) are prerendered. App routes stay `no-store`, and navigation is client-side with prefetched screens — instant, like a native app |
 | **CDN caching** | Public HTML `s-maxage=300` + SWR; `/_next/static/*`, fonts and images `immutable` for a year (`src/middleware.ts`, `next.config.mjs`) |
 | **Bundle size** | Firebase SDK + analytics are **not** loaded on public pages (marketing CTAs use a tiny `flousy_authed` cookie hook, `src/lib/auth-status.ts`); analytics is code-split (`firebase/analytics` loads on first event) |
 | **Translations** | Only `en.json` is bundled; `fr`/`ar` are lazy-loaded chunks (`src/lib/messages.ts`) — previously all three (~136 KB) shipped on every page |
@@ -603,9 +603,9 @@ directly (`public, s-maxage=300, stale-while-revalidate=86400` for HTML,
 If you host on **Cloudflare Workers** instead of Vercel/Node, use
 [`@opennextjs/cloudflare`](https://open-next.js.org/cloudflare) to build and
 deploy the Next.js standalone output (`wrangler deploy`), and keep the
-`NEXT_PUBLIC_FIREBASE_*` env vars in the Worker's environment. The
-private-route middleware (per-request CSP nonce) runs as a Cloudflare Worker
-too.
+`NEXT_PUBLIC_FIREBASE_*` env vars in the Worker's environment. The static
+routes plus the middleware cache/CSP headers work as a Cloudflare Worker
+as-is.
 
 ---
 
@@ -645,7 +645,7 @@ git push
 debts & credits · multi-month trends · recurring bills · budget alerts ·
 income sources · CSV export *and* import · household/person tracking ·
 shared household workspaces & RBAC · 12 currencies · en/fr/ar with RTL ·
-light/dark themes · offline shell · nonce CSP · hardened rules ·
+light/dark themes · offline shell · origin CSP · hardened rules ·
 marketing site & blog · CI · 84 tests · mock Pro checkout
 
 **Next**

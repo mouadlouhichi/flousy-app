@@ -60,8 +60,8 @@ before painting anything (local month cache existed, but profile did not).
 
 | # | Change | File(s) |
 | --- | --- | --- |
-| 1 | **Static public pages.** Root layout no longer reads headers/cookies and is no longer `force-dynamic`; language is resolved client-side. Private routes (`/dashboard`, `/login`, `/onboarding`) keep `force-dynamic` | `src/app/layout.tsx`, `src/app/dashboard/layout.tsx`, `src/app/login/layout.tsx`, `src/app/onboarding/layout.tsx` |
-| 2 | **Two-tier CSP + cache headers.** Private routes keep the strict per-request nonce CSP (`strict-dynamic`, `private, no-store`). Public static pages get a strict origin CSP (`script-src 'self' 'unsafe-inline'`, everything else locked down) plus `public, s-maxage=300, stale-while-revalidate=86400`. Hashed assets → 1-year immutable; `sw.js` → revalidate; `robots/sitemap/manifest/llms` → 1 day | `src/middleware.ts`, `next.config.mjs` |
+| 1 | **Static pages everywhere.** Root layout no longer reads headers/cookies and no route is `force-dynamic` — after the instant-navigation follow-up this includes `/dashboard`, `/login`, `/onboarding` (prerendered, `no-store`) | `src/app/layout.tsx`, `src/app/dashboard/layout.tsx`, `src/app/login/layout.tsx`, `src/app/onboarding/layout.tsx` |
+| 2 | **Origin CSP + cache headers (all routes).** One strict origin CSP every route; private app routes stay `private, no-store`, public HTML `public, s-maxage=300, stale-while-revalidate=86400`, hashed assets 1-year immutable, `sw.js` revalidate, `robots/sitemap/manifest/llms` 1 day | `src/middleware.ts`, `next.config.mjs` |
 | 3 | **Firebase scoped to app routes only.** Marketing components now use a tiny cookie-based `useAuthStatus` (no SDK). `AppProviders` (auth/household/currency/i18n/analytics) mounts only on login/onboarding/dashboard | `src/components/app-providers.tsx`, `src/lib/auth-status.ts`, `src/lib/auth-context.tsx` (sets the cookie), `hero/navigation/cta/pricing` sections |
 | 4 | **Translations code-split.** Only `en.json` is bundled; `fr`/`ar` are lazy chunks loaded on demand | `src/lib/i18n-core.ts`, `src/lib/messages.ts`, `src/lib/i18n.ts`, `src/lib/i18n-light.tsx`, `src/lib/i18n-context.tsx` |
 | 5 | **Dashboard modals code-split + mounted only when opened** (12 separate chunks) | `src/components/dashboard/dashboard-modals.tsx` |
@@ -74,6 +74,47 @@ before painting anything (local month cache existed, but profile did not).
 
 ---
 
+## 2.5 Instant navigation (Instagram-style horizontal transition — follow-up)
+
+The original investigation fixed *first load*, but clicking a dashboard nav
+item was still waiting:
+
+1. Every dashboard route was `force-dynamic`, so each click performed a
+   **server round-trip** (RSC fetch) before the transition could start.
+2. All dashboard nav links were `prefetch={false}` — nothing was warmed up.
+3. Navigation fell through to the **global `loading.tsx` full-screen
+   "Loading SmartJib..." spinner** while the fetch ran.
+4. The transition itself was a slow 0.30 s crossfade.
+
+### What changed
+- **All routes (incl. `/dashboard/*`, `/login`, `/onboarding`) are now
+  prerendered** — clicking a nav item is a synchronous client-side route
+  change with a cached RSC payload. Zero server round-trip, zero fetch.
+  Private routes keep `Cache-Control: private, no-store` (middleware).
+- **All dashboard screens + profile subpages are prefetched** after idle
+  (`router.prefetch` in `DashboardShell`, `DASHBOARD_NAV_HREFS`), and every
+  nav `<Link>` now uses `prefetch={true}`.
+- **`src/app/dashboard/loading.tsx` (also login/onboarding) renders `null`** —
+  the old global spinner can never flash over the app shell again.
+- **New Instagram-style push transition** in `DashboardShell`: incoming
+  screen slides in from the travel direction (56px, ease-out, 220ms) on top,
+  outgoing screen quickly scales to 0.975 + fades underneath (140ms) — both
+  start simultaneously on click. `prefers-reduced-motion` still gets an
+  instant swap.
+- The per-request CSP **nonce was removed** (it is what forced dynamic
+  rendering). All routes now share one strict origin-based CSP; security
+  headers (`no-store` on private routes, HSTS, COOP, frame policy, etc.) are
+  unchanged.
+
+### Verified
+- `next build`: `/dashboard`, `/dashboard/trends`, `/dashboard/profile/*`,
+  `/login`, `/onboarding` are now **○ static**.
+- Live: dashboard HTML TTFB ≈ 5–7 ms; RSC prefetch payload ≈ 8 ms (11 kB) —
+  and with prefetch, the router doesn't even perform it on click.
+- `/dashboard` still returns `private, no-store, max-age=0` + CSP.
+
+---
+
 ## 3. Measured results (production build, `next build`)
 
 ### Routing — before → after
@@ -81,7 +122,7 @@ before painting anything (local month cache existed, but profile did not).
 | --- | --- | --- |
 | `/` (home) | ƒ dynamic (SSR per request) | **○ static** (prerendered, CDN-cacheable) |
 | `/blog`, `/about`, `/terms`, … | ƒ dynamic | **○ static** |
-| `/dashboard/*` | ƒ dynamic | ƒ dynamic (intentional — private, `no-store`, per-request nonce CSP) |
+| `/dashboard/*`, `/login`, `/onboarding` | ƒ dynamic (server on every nav click) | **○ static** (client-side nav; `private, no-store`) |
 
 ### Bundle — first-load JavaScript
 | Route | Before (approx.) | After (measured) |
@@ -102,9 +143,8 @@ before painting anything (local month cache existed, but profile did not).
   appear in dashboard chunks).
 - The FR/AR translation chunk (42.6 kB raw) is **not** referenced by the home
   HTML — it loads only when a user actually needs that locale.
-- Local run: `/` TTFB ≈ 5–15 ms, HTML 19 kB gzip; nonce header == inline
-  `nonce=` attributes on `/dashboard`, `/login`, `/onboarding` (single-response
-  check).
+- Local run: `/` TTFB ≈ 5–15 ms, HTML 19 kB gzip; `/dashboard` TTFB ≈ 5–7 ms
+  (prerendered). RSC prefetch payload for `/dashboard/trends`: ≈ 8 ms, 11 kB.
 
 ### Headers now served (verified with curl)
 ```
@@ -135,17 +175,17 @@ static. To move hosting from Vercel to Cloudflare Workers, build with
 [`@opennextjs/cloudflare`](https://open-next.js.org/cloudflare)
 (`npx opennextjs-cloudflare build && wrangler deploy`) and set the
 `NEXT_PUBLIC_FIREBASE_*` vars in the Worker environment. No code changes
-required; the private-route CSP nonce middleware runs as a Worker as-is.
+required; the static routes, CSP and cache headers run as a Worker as-is.
 
 ---
 
 ## 5. Trade-offs (deliberate)
 
-- **Public CSP**: static HTML can't carry a per-request nonce, so public pages
-  use `script-src 'self' 'unsafe-inline'` (all other directives stay strict:
-  `object-src 'none'`, `frame-ancestors 'none'`, strict connect/frame
-  allowlists). Private authenticated routes keep the strongest per-request
-  nonce CSP — that's where user data lives.
+- **CSP**: every page is statically generated, so a per-request nonce CSP is
+  impossible. All routes share one origin-based CSP — `script-src 'self' 'unsafe-inline'`
+  (all other directives stay strict: `object-src 'none'`, `frame-ancestors 'none'`,
+  strict connect/frame allowlists). The strict nonce CSP was the price of
+  per-request rendering; the origin CSP is the price of instant navigation.
 - **Server-rendered language**: public HTML is prerendered in English; the
   language/dir switches client-side on mount (already the behaviour before for
   the message content). Public pages are cacheable for every visitor.

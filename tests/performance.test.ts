@@ -78,4 +78,51 @@ describe('Performance guardrails', () => {
     assert.ok(middleware.includes('s-maxage'), 'public HTML should be CDN-cacheable');
     assert.ok(middleware.includes("'unsafe-inline'"), 'static public CSP must allow Next inline scripts');
   });
+
+  it('keeps dashboard navigation instant (static + prefetched + no spinner)', () => {
+    // Dashboard/login/onboarding must be prerendered so clicking a nav item
+    // is a client-side route change with a cached RSC payload — not a
+    // server round-trip.
+    for (const layout of [
+      'src/app/dashboard/layout.tsx',
+      'src/app/login/layout.tsx',
+      'src/app/onboarding/layout.tsx',
+    ]) {
+      assert.ok(
+        !/export\s+const\s+dynamic\s*=\s*['"]force-dynamic['"]/.test(read(layout)),
+        `${layout} must not be force-dynamic`,
+      );
+    }
+
+    // The shell prefetches every screen once idle.
+    const shell = read('src/components/dashboard/dashboard-shell.tsx');
+    assert.ok(shell.includes('router.prefetch'), 'dashboard shell must prefetch screens');
+    assert.ok(shell.includes('DASHBOARD_NAV_HREFS'), 'dashboard shell must prefetch all routes');
+
+    // No navigation link may opt out of prefetching.
+    for (const file of [
+      'src/components/dashboard/sidebar.tsx',
+      'src/components/dashboard/bottom-nav.tsx',
+      'src/components/dashboard/dashboard-header.tsx',
+      'src/components/dashboard/screens/profile-screen.tsx',
+      'src/components/dashboard/profile/profile-subpage.tsx',
+      'src/components/dashboard/profile/pro-panel.tsx',
+    ]) {
+      assert.ok(!read(file).includes('prefetch={false}'), `${file} must prefetch nav links`);
+    }
+
+    // A full-screen loading spinner must never replace the app shell during
+    // navigation.
+    for (const loading of [
+      'src/app/dashboard/loading.tsx',
+      'src/app/login/loading.tsx',
+      'src/app/onboarding/loading.tsx',
+    ]) {
+      assert.ok(existsSync(new URL(loading, root)), `${loading} must exist`);
+    }
+
+    // The transition must be snappy (<= 0.25s) and still animate on click.
+    assert.ok(shell.includes('0.22'), 'dashboard transition should be short (~220ms)');
+    assert.ok(shell.includes('AnimatePresence'), 'dashboard must keep the horizontal animation');
+  });
 });

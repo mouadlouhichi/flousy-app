@@ -96,9 +96,10 @@ export const viewport: Viewport = {
 
 /**
  * This layout is intentionally static (no headers()/cookies() await, no
- * force-dynamic). Public pages are rendered once at build time and served
- * straight from the CDN, which removes server round-trips from the critical
- * path and lets PageSpeed/Lighthouse see a cached, static document.
+ * force-dynamic). EVERY page — including the authenticated app routes — is
+ * rendered once at build time, so in-app navigation is a pure client-side
+ * route change (prefetched payloads, no server round-trip, no spinner) and
+ * PageSpeed/Lighthouse always sees a cached document.
  *
  * Language/theme are resolved client-side by LightLanguageProvider (and the
  * app providers for authenticated routes), so per-user state never blocks
