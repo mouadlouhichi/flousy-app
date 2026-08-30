@@ -100,7 +100,6 @@ interface DashboardContextType {
 
   // Category handlers
   handleAddCategory: (name: string, color: string, icon: string) => void;
-  handleRemoveCategory: (name: string) => void;
 
   // CSV import handlers
   handleBatchImportVariable: (newExpenses: VariableExpense[]) => void;
@@ -138,10 +137,6 @@ interface DashboardContextType {
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
   isSettingsModalOpen: boolean;
-
-  openManageCategories: () => void;
-  closeManageCategories: () => void;
-  isManageCategoriesOpen: boolean;
 
   openProModal: () => void;
   closeProModal: () => void;
@@ -306,7 +301,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [selectedSavingsEntry, setSelectedSavingsEntry] = useState<SavingsActivityEntry | null>(null);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
@@ -675,18 +669,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [month, updateAndSaveMonth],
   );
 
-  const handleRemoveCategory = useCallback(
-    (name: string) => {
-      const nextCats = (month.activeCategories || []).filter((c) => c !== name);
-      const updated: MonthBudget = {
-        ...month,
-        activeCategories: nextCats,
-      };
-      updateAndSaveMonth(updated);
-    },
-    [month, updateAndSaveMonth],
-  );
-
   // CSV Import Handlers
   const handleBatchImportVariable = useCallback(
     (newExpenses: VariableExpense[]) => {
@@ -785,9 +767,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
-  const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
-  const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
-
   const openProModal = useCallback(() => {
     if (workspace === 'household') return;
     setIsProModalOpen(true);
@@ -839,7 +818,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
-      handleRemoveCategory,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -867,9 +845,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
-      openManageCategories,
-      closeManageCategories,
-      isManageCategoriesOpen,
       openProModal,
       closeProModal,
       isProModalOpen,
@@ -913,7 +888,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
-      handleRemoveCategory,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -941,9 +915,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
-      openManageCategories,
-      closeManageCategories,
-      isManageCategoriesOpen,
       openProModal,
       closeProModal,
       isProModalOpen,

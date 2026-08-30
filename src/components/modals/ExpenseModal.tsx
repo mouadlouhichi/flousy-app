@@ -1,14 +1,16 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
+import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
-import { expenseSchema } from '../../lib/validation';
+import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
@@ -23,8 +25,25 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /** Adds a variable-expense category to the current month from this form. */
+  onAddCategory?: (name: string, color: string, icon: string) => void;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+}
+
+const ADD_CATEGORY_VALUE = '__add_variable_category__';
+const VARIABLE_CATEGORY_COLORS = [
+  '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
+  '#ec4899', '#f97316', '#10b981', '#eab308',
+  '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
+  '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
+];
+
+function pickUnusedCategoryColor(existingColors: Record<string, string>): string {
+  const used = new Set(Object.values(existingColors));
+  const available = VARIABLE_CATEGORY_COLORS.filter((color) => !used.has(color));
+  const pool = available.length > 0 ? available : VARIABLE_CATEGORY_COLORS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export function ExpenseModal({
@@ -36,6 +55,7 @@ export function ExpenseModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
+  onAddCategory,
   placeBalances,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
@@ -52,6 +72,10 @@ export function ExpenseModal({
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
+  const [customCategoryIcon, setCustomCategoryIcon] = useState('shopping_bag');
+  const [categoryError, setCategoryError] = useState('');
 
   useEffect(() => {
     if (initialExpense) {
@@ -76,7 +100,13 @@ export function ExpenseModal({
       setReceiptUrl(undefined);
     }
     setErrors({});
-  }, [initialExpense, isOpen, categories]);
+    setShowCategoryForm(false);
+    setCustomCategoryName('');
+    setCustomCategoryIcon('shopping_bag');
+    setCategoryError('');
+    // `categories` deliberately is not a dependency: creating a category
+    // updates that prop, but must not wipe the expense currently being typed.
+  }, [initialExpense, isOpen]);
 
   const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,6 +119,52 @@ export function ExpenseModal({
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const resetCategoryForm = () => {
+    setShowCategoryForm(false);
+    setCustomCategoryName('');
+    setCustomCategoryIcon('shopping_bag');
+    setCategoryError('');
+  };
+
+  const handleCategoryChipChange = (value: string) => {
+    if (value === ADD_CATEGORY_VALUE) {
+      setShowCategoryForm(true);
+      setCategoryError('');
+      return;
+    }
+    setType(value);
+    if (showCategoryForm) resetCategoryForm();
+  };
+
+  const handleAddCategory = () => {
+    if (!onAddCategory) return;
+
+    const trimmed = customCategoryName.trim();
+    const color = pickUnusedCategoryColor(categoryColors);
+    const validation = customCategorySchema.safeParse({
+      name: trimmed,
+      color,
+      icon: customCategoryIcon,
+    });
+    if (!validation.success) {
+      const firstError =
+        validation.error.issues?.[0]?.message ||
+        (validation.error as any).errors?.[0]?.message ||
+        'Invalid category data';
+      setCategoryError(firstError);
+      return;
+    }
+
+    if (categories.some((category) => category.toLowerCase() === trimmed.toLowerCase())) {
+      setCategoryError('A category with this name already exists');
+      return;
+    }
+
+    onAddCategory(trimmed, color, customCategoryIcon);
+    setType(trimmed);
+    resetCategoryForm();
   };
 
   // Cash the selected source actually has for this charge: editing an expense
@@ -222,18 +298,88 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* ── Category — pill chips (color-coded per design system) ── */}
-        <ChoiceChips
-          label="Category"
-          value={type}
-          onChange={setType}
-          options={categories.map((cat) => ({
-            value: cat,
-            label: cat,
-            icon: categoryIcons[cat] || 'category',
-            color: categoryColors[cat],
-          }))}
-        />
+        {/* ── Category — add a new one inline, like fixed charges ── */}
+        <div className="flex flex-col gap-2">
+          <ChoiceChips
+            label="Category"
+            value={type}
+            onChange={handleCategoryChipChange}
+            options={[
+              ...categories.map((cat) => ({
+                value: cat,
+                label: cat,
+                icon: categoryIcons[cat] || 'category',
+                color: categoryColors[cat],
+              })),
+              ...(onAddCategory
+                ? [{ value: ADD_CATEGORY_VALUE, label: 'New', icon: 'add' }]
+                : []),
+            ]}
+          />
+
+          <AnimatePresence initial={false}>
+            {showCategoryForm && (
+              <motion.div
+                key="variable-category-form"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-outline-variant bg-surface-container p-3">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary">
+                    New expense category
+                  </span>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={customCategoryName}
+                      onChange={(event) => {
+                        setCustomCategoryName(event.target.value);
+                        if (categoryError) setCategoryError('');
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleAddCategory();
+                        }
+                        if (event.key === 'Escape') resetCategoryForm();
+                      }}
+                      placeholder="Category name, e.g. Beauty"
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
+                    />
+                    <div className="flex gap-2 sm:shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleAddCategory}
+                        className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetCategoryForm}
+                        className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+
+                  {categoryError && (
+                    <p role="alert" className="text-[12px] font-medium text-error">
+                      {categoryError}
+                    </p>
+                  )}
+
+                  <CategoryIconPicker value={customCategoryIcon} onChange={setCustomCategoryIcon} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ── Paid From — segmented group with sliding active background ── */}
         <SegmentedControl

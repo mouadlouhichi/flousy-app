@@ -8,6 +8,7 @@ import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { DueDayPicker } from '../ui/day-picker';
+import { CategoryIconPicker } from '../ui/category-icon-picker';
 import {
   FixedExpense,
   MoneyPlace,
@@ -48,14 +49,6 @@ const CUSTOM_CATEGORY_COLORS = [
   '#ec4899', '#f97316', '#10b981', '#eab308',
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
-];
-
-/** Icons offered when creating/updating a custom fixed category. */
-const CUSTOM_CATEGORY_ICONS = [
-  'label', 'home', 'bolt', 'wifi',
-  'subscriptions', 'shield', 'directions_car', 'restaurant',
-  'fitness_center', 'school', 'child_care', 'medical_services',
-  'account_balance', 'savings', 'pets', 'flight',
 ];
 
 function pickUnusedColor(takenColors: string[]): string {
@@ -434,28 +427,7 @@ export function FixedModal({
                 </p>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-                  Pick an Icon
-                </span>
-                <div className="grid grid-cols-8 gap-1">
-                  {CUSTOM_CATEGORY_ICONS.map((ic) => (
-                    <button
-                      key={ic}
-                      type="button"
-                      onClick={() => setCustomIcon(ic)}
-                      className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${
-                        customIcon === ic
-                          ? 'bg-primary text-on-primary'
-                          : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-variant'
-                      }`}
-                      aria-label={`Icon ${ic}`}
-                    >
-                      <AppIcon name={ic} className="text-[18px]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <CategoryIconPicker value={customIcon} onChange={setCustomIcon} />
                 </div>
               </motion.div>
             )}

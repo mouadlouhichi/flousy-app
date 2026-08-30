@@ -3,23 +3,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppIcon } from './app-icon';
 import { CustomInput } from './CustomInput';
+import { formatDayOfMonth } from '@/lib/utils';
 
 const PRESET_DAYS = [1, 15, 30];
 
-/** "1st", "15th", "30th" … matching the app's existing stored format. */
-function ordinal(n: number): string {
-  if (n >= 11 && n <= 13) return `${n}th`;
-  switch (n % 10) {
-    case 1: return `${n}st`;
-    case 2: return `${n}nd`;
-    case 3: return `${n}rd`;
-    default: return `${n}th`;
-  }
-}
-
-/** Reads a leading day number (1–31) out of free-form values like "15th". */
-function parseDay(value: string): number | null {
-  const match = value.trim().match(/^(\d{1,2})\b/);
+/**
+ * Reads a leading day number (1–31) from values such as "15th" or
+ * "20th of month". A word-boundary immediately after a digit does not match
+ * ordinal suffixes (both `1` and `s` are word characters), so the explicit
+ * optional suffix here is what keeps selected preset badges in sync.
+ */
+export function parseDueDay(value: string): number | null {
+  const match = value.trim().match(/^(\d{1,2})(?:st|nd|rd|th)?\b/i);
   if (!match) return null;
   const day = parseInt(match[1], 10);
   return day >= 1 && day <= 31 ? day : null;
@@ -39,9 +34,9 @@ interface DueDayPickerProps {
  */
 export function DueDayPicker({ label = 'Due Day of Month', value, onChange }: DueDayPickerProps) {
   const lastEmittedRef = useRef<string | null>(null);
-  const parsedDay = parseDay(value);
+  const parsedDay = parseDueDay(value);
   const isCustomValue = (v: string) => {
-    const day = parseDay(v);
+    const day = parseDueDay(v);
     return v.trim() !== '' && (day === null || !PRESET_DAYS.includes(day));
   };
   const [customMode, setCustomMode] = useState(() => isCustomValue(value));
@@ -82,11 +77,11 @@ export function DueDayPicker({ label = 'Due Day of Month', value, onChange }: Du
               aria-pressed={isActive}
               onClick={() => {
                 setCustomMode(false);
-                if (customMode || parsedDay !== day) emit(ordinal(day));
+                if (customMode || parsedDay !== day) emit(formatDayOfMonth(day));
               }}
               className={badgeClass(isActive)}
             >
-              {ordinal(day)}
+              {formatDayOfMonth(day)}
             </button>
           );
         })}
@@ -100,6 +95,20 @@ export function DueDayPicker({ label = 'Due Day of Month', value, onChange }: Du
           <span>Custom</span>
         </button>
       </div>
+      <p
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary"
+      >
+        <AppIcon name={customMode ? 'edit' : 'check_circle'} className="text-[13px]" />
+        {customMode
+          ? isCustomValue(value)
+            ? `Custom due schedule: ${value.trim()}`
+            : 'Enter a custom due schedule'
+          : parsedDay
+            ? `${formatDayOfMonth(parsedDay)} selected · repeats every month`
+            : 'Select a due day'}
+      </p>
       {customMode && (
         <CustomInput
           type="text"
