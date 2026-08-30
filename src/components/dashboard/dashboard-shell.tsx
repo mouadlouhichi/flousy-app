@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { AnimatePresence, motion, type Variants } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, getScreenIdFromPath } from './nav-items';
@@ -79,6 +79,7 @@ function EmailVerificationBanner() {
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { loading } = useDashboard();
+  const reduceMotion = useReducedMotion();
 
   // Direction of the horizontal transition, derived from nav order:
   // navigating to a higher-index screen slides in from the right.
@@ -116,10 +117,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               key={pathname}
               custom={direction}
               variants={pageVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+              initial={reduceMotion ? false : 'enter'}
+              animate={reduceMotion ? false : 'center'}
+              exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : 'exit'}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.32, 0.72, 0, 1] }}
             >
               {loading ? <DashboardSkeleton /> : children}
             </motion.div>

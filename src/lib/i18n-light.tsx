@@ -5,13 +5,15 @@ import {
   type Language,
   type Messages,
   LOCALE_NAMES,
-  getMessages,
+  EN_MESSAGES,
+  getIntlLocale,
   isRTL,
   resolveClientLocale,
   setLanguageCookie,
   LANG_STORAGE_KEY,
 } from './i18n';
-import { formatMessage, getIntlLocale } from './translations';
+import { loadMessages } from './messages';
+import { formatMessage } from './i18n-core';
 
 interface LightLanguageContextType {
   language: Language;
@@ -27,10 +29,14 @@ const LightLanguageContext = createContext<LightLanguageContextType | null>(null
 
 export function LightLanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
+  const [messages, setMessages] = useState<Messages>(EN_MESSAGES);
 
   useEffect(() => {
     const resolvedLanguage = resolveClientLocale();
     setLanguageState(resolvedLanguage);
+    // Load the chosen locale chunk (fr/ar are code-split; en resolves
+    // synchronously from the already-bundled dictionary).
+    loadMessages(resolvedLanguage).then(setMessages).catch(() => setMessages(EN_MESSAGES));
 
     const rtl = isRTL(resolvedLanguage);
     document.documentElement.dir = rtl ? 'rtl' : 'ltr';
@@ -41,12 +47,12 @@ export function LightLanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     setLanguageCookie(lang);
     try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
+    loadMessages(lang).then(setMessages).catch(() => setMessages(EN_MESSAGES));
     const rtl = isRTL(lang);
     document.documentElement.dir = rtl ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, []);
 
-  const messages = getMessages(language);
   const t = useCallback(
     (template: string, values?: Record<string, string | number>) => formatMessage(template, values),
     [],

@@ -1,38 +1,31 @@
 import type { Metadata, Viewport } from 'next';
-import { headers, cookies } from 'next/headers';
-import { Instrument_Sans, JetBrains_Mono, Cairo } from 'next/font/google';
+import localFont from 'next/font/local';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { LightLanguageProvider } from '@/lib/i18n-light';
-import { AppProviders } from '@/components/app-providers';
-import FirebaseAnalytics from '@/components/FirebaseAnalytics';
-import { Suspense } from 'react';
 import { SITE_URL } from '@/lib/seo';
-import { LANG_COOKIE, isValidLocale, isRTL } from '@/lib/i18n';
 import '../index.css';
+import '@fontsource-variable/jetbrains-mono/wght.css';
+import '@fontsource-variable/cairo/wght.css';
 
-const instrumentSans = Instrument_Sans({
-  subsets: ['latin'],
+const instrumentSans = localFont({
+  src: [
+    {
+      path: './fonts/instrument-sans-latin-wght-normal.woff2',
+      weight: '400 700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/instrument-sans-latin-ext-wght-normal.woff2',
+      weight: '400 700',
+      style: 'normal',
+    },
+  ],
   variable: '--font-instrument',
+  display: 'swap',
+  preload: true,
 });
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-});
-
-const cairoArabic = Cairo({
-  subsets: ['arabic'],
-  variable: '--font-arabic',
-  weight: ['200', '300', '400', '500', '600', '700', '800', '900'],
-});
-
-// Required for nonce-based CSP (src/middleware.ts): a per-request nonce
-// can only match the rendered HTML if the page is rendered per-request,
-// not statically at build time.
-export const dynamic = 'force-dynamic';
-
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -101,32 +94,31 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  await headers();
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get(LANG_COOKIE)?.value;
-  const locale = isValidLocale(langCookie) ? langCookie : 'en';
-  const dir = isRTL(locale) ? 'rtl' : 'ltr';
-
+/**
+ * This layout is intentionally static (no headers()/cookies() await, no
+ * force-dynamic). Public pages are rendered once at build time and served
+ * straight from the CDN, which removes server round-trips from the critical
+ * path and lets PageSpeed/Lighthouse see a cached, static document.
+ *
+ * Language/theme are resolved client-side by LightLanguageProvider (and the
+ * app providers for authenticated routes), so per-user state never blocks
+ * the initial paint.
+ */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang={locale}
-      dir={dir}
+      lang="en"
+      dir="ltr"
       suppressHydrationWarning
-      className={`${instrumentSans.variable} ${jetbrainsMono.variable} ${cairoArabic.variable}`}
+      className={instrumentSans.variable}
     >
       <head>
         <InstallPromptCapture />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="font-sans antialiased">
-        <Suspense fallback={null}>
-          <FirebaseAnalytics />
-        </Suspense>
         <LightLanguageProvider>
-          <AppProviders>
-            {children}
-          </AppProviders>
+          {children}
         </LightLanguageProvider>
         <InstallBanner />
         <ServiceWorkerRegistrar />

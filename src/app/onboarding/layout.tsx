@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Per-request CSP nonce (see src/middleware.ts) requires dynamic rendering.
+export const dynamic = 'force-dynamic';
+
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AppProviders>{children}</AppProviders>;
 }

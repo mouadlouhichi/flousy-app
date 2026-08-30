@@ -5,13 +5,15 @@ import {
   type Language,
   type Messages,
   LOCALE_NAMES,
-  getMessages,
+  EN_MESSAGES,
+  getIntlLocale,
   isRTL as checkRTL,
   resolveClientLocale,
   setLanguageCookie,
   LANG_STORAGE_KEY,
 } from './i18n';
-import { formatMessage, getIntlLocale } from './translations';
+import { loadMessages } from './messages';
+import { formatMessage } from './i18n-core';
 import { useAuth } from './auth-context';
 import { trackEvent } from './analytics';
 
@@ -36,6 +38,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
     return resolveClientLocale();
   });
+  const [messages, setMessages] = useState<Messages>(EN_MESSAGES);
+
+  useEffect(() => {
+    // fr/ar chunks load on demand; en is already bundled.
+    loadMessages(language).then(setMessages).catch(() => setMessages(EN_MESSAGES));
+  }, [language]);
 
   useEffect(() => {
     if (profile?.language && (profile.language === 'en' || profile.language === 'fr' || profile.language === 'ar')) {
@@ -60,7 +68,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     [updateProfileData],
   );
 
-  const messages = getMessages(language);
   const t = useCallback(
     (template: string, values?: Record<string, string | number>) => formatMessage(template, values),
     [],
