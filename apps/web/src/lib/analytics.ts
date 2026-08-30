@@ -1,18 +1,46 @@
-import { logEvent } from 'firebase/analytics';
-import { analytics } from './firebase';
+import { app } from './firebase';
+import type { Analytics } from 'firebase/analytics';
 
 /**
  * Analytics and Telemetry Seam
  * Opt-in telemetry. By default, it is a clean no-op seam that respects privacy.
+ *
+ * The `firebase/analytics` module is code-split: it is imported the first
+ * time an event is actually tracked instead of being bunded into the
+ * dashboard's initial load.
  */
 
-export function trackEvent(eventName: string, params?: Record<string, any>) {
+let analytics: Analytics | null = null;
+let analyticsPromise: Promise<Analytics | null> | null = null;
+let analyticsLogEvent: ((instance: Analytics, name: string, params?: Record<string, unknown>) => void) | null = null;
+
+async function ensureAnalytics(): Promise<Analytics | null> {
+  if (analytics) return analytics;
+  if (!analyticsPromise) {
+    analyticsPromise = (async () => {
+      try {
+        const { getAnalytics, isSupported, logEvent: log } = await import('firebase/analytics');
+        if (app && (await isSupported())) {
+          analytics = getAnalytics(app);
+        }
+        analyticsLogEvent = log;
+      } catch {
+        analytics = null;
+      }
+      return analytics;
+    })();
+  }
+  return analyticsPromise;
+}
+
+export async function trackEvent(eventName: string, params?: Record<string, any>) {
   if (typeof window === 'undefined') return;
 
-  // Firebase Analytics tracking
-  if (analytics) {
+  // Firebase Analytics tracking (chunk loaded on demand)
+  const instance = await ensureAnalytics();
+  if (instance && analyticsLogEvent) {
     try {
-      logEvent(analytics, eventName, params);
+      analyticsLogEvent(instance, eventName, params);
     } catch (err) {
       // Ignore analytics errors
     }

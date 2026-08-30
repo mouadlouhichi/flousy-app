@@ -1,20 +1,23 @@
 /**
- * Web app translations — re-exports from @flousy/core.
- * This avoids duplicating the message JSON files in the monorepo.
+ * Compatibility re-exports for translation utilities.
+ *
+ * The heavy per-locale JSON imports moved to `./i18n-core` (English only) and
+ * `./messages` (lazy FR/AR) so bundles no longer carry all three languages.
  */
-
 export {
   type Language,
   type Messages,
   LOCALES,
   LOCALE_NAMES,
   RTL_LOCALES,
-  MESSAGES,
-  interpolate,
-  resolvePlural,
+  EN_MESSAGES,
+  isRTL,
   formatMessage,
   getIntlLocale,
-  type CategoryPreset,
+} from './i18n-core';
+
+export {
+  loadMessages,
   getDefaultCategories,
   getDefaultCategoryNames,
-} from '@flousy/core';
+} from './messages';

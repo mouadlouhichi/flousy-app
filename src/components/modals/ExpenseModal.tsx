@@ -4,10 +4,12 @@ import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -21,6 +23,8 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /** Live balance per money place, so an expense cannot overdraft its source. */
+  placeBalances?: Record<MoneyPlace, number>;
 }
 
 export function ExpenseModal({
@@ -32,9 +36,11 @@ export function ExpenseModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
+  placeBalances,
 }: ExpenseModalProps) {
-  const { symbol, currency } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -42,7 +48,8 @@ export function ExpenseModal({
   const [place, setPlace] = useState<MoneyPlace>('bank');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
-  const [person, setPerson] = useState('Self');
+  const [person, setPerson] = useState('Me');
+  const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -51,19 +58,21 @@ export function ExpenseModal({
       setName(initialExpense.name);
       setAmount(String(initialExpense.amount));
       setType(initialExpense.type);
-      setPlace(initialExpense.place || 'bank');
+      setPlace(initialExpense.place || defaultPlace);
       setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
       setNote(initialExpense.note || '');
-      setPerson(initialExpense.person || 'Self');
+      setPerson(initialExpense.person || 'Me');
+      setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
     } else {
       setName('');
       setAmount('');
       setType(categories[0] || 'Groceries');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
-      setPerson('Self');
+      setPerson('Me');
+      setPayerMemberId('self');
       setReceiptUrl(undefined);
     }
     setErrors({});
@@ -81,6 +90,10 @@ export function ExpenseModal({
     };
     reader.readAsDataURL(file);
   };
+
+  // Cash the selected source actually has for this charge: editing an expense
+  // that stays in the same place refunds its old amount first.
+  const availableInPlace = availableForCharge(placeBalances, place, initialExpense);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +118,17 @@ export function ExpenseModal({
       return;
     }
 
+    // The source place must actually hold the money being spent. Half-a-cent
+    // tolerance absorbs float noise from prior refund/debit arithmetic.
+    if (parsedAmount - availableInPlace > 0.005) {
+      setErrors({
+        amount: `Only ${format(availableInPlace)} available in ${
+          placeLabel(place)
+        }. Lower the amount or move money into this place first.`,
+      });
+      return;
+    }
+
     const newExpense: VariableExpense = {
       id: initialExpense ? initialExpense.id : Math.random().toString(36).substring(2, 9),
       name: name.trim() || type,
@@ -114,6 +138,7 @@ export function ExpenseModal({
       place,
       note: note.trim() || undefined,
       person,
+      payerMemberId,
       receiptUrl,
     };
 
@@ -153,7 +178,7 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, name: '' }));
               }}
               placeholder={`e.g. Supermarket, Coffee, ${type}`}
-              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
             />
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
@@ -179,7 +204,7 @@ export function ExpenseModal({
             </span>
           </div>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
@@ -214,13 +239,20 @@ export function ExpenseModal({
         <SegmentedControl
           label="Paid From"
           value={place}
-          onChange={(v) => setPlace(v as MoneyPlace)}
-          options={MONEY_PLACE_OPTIONS}
+          onChange={(v) => {
+            setPlace(v as MoneyPlace);
+            setErrors((prev) => ({ ...prev, amount: '' }));
+          }}
+          options={moneyPlaceOptions}
         />
+        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+          Available in {placeLabel(place)}:{' '}
+          <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
+        </p>
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
-          <MemberBadges value={person} onChange={setPerson} />
+          <MemberBadges value={payerMemberId} onChange={(id, label) => { setPayerMemberId(id); setPerson(label); }} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
             <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>

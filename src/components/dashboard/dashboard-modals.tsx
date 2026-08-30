@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useDashboard } from './dashboard-provider';
 import {
   VariableExpense,
@@ -16,25 +17,72 @@ import {
   moveMoney,
   fundGoal,
   withdrawGoal,
+  saveGoalWithBalance,
   deleteFundedGoal,
   addDebt,
   editDebt,
   deleteDebt,
   renameFixedCategory,
+  placeBalancesOf,
 } from '@/lib/store';
+import { useMoneyPlaces } from '@/lib/use-money-places';
 import { trackEvent } from '@/lib/analytics';
 
-import { ExpenseModal } from '@/components/modals/ExpenseModal';
-import { MoveMoneyModal } from '@/components/modals/MoveMoneyModal';
-import { FixedModal } from '@/components/modals/FixedModal';
-import { SavingsModal } from '@/components/modals/SavingsModal';
-import { SettingsModal } from '@/components/modals/SettingsModal';
-import { ManageCategoriesModal } from '@/components/modals/ManageCategoriesModal';
-import { ProUpgradeModal } from '@/components/modals/ProUpgradeModal';
-import { ImportCsvModal } from '@/components/modals/ImportCsvModal';
-import { IncomeSourcesModal } from '@/components/modals/IncomeSourcesModal';
-import { EditMoneyPlacesModal } from '@/components/modals/EditMoneyPlacesModal';
-import { DebtModal } from '@/components/modals/DebtModal';
+/**
+ * All dashboards modals are code-split AND mounted only while open.
+ * Previously every modal (forms, date pickers, CSV parser, ~hundreds of KB)
+ * was in the initial dashboard chunk, so even the first screen of the app
+ * downloaded and parsed all of them. With this, a user who never opens a
+ * modal never pays for its JavaScript.
+ */
+const ExpenseModal = dynamic(
+  () => import('@/components/modals/ExpenseModal').then((m) => m.ExpenseModal),
+  { ssr: false, loading: () => null },
+);
+const MoveMoneyModal = dynamic(
+  () => import('@/components/modals/MoveMoneyModal').then((m) => m.MoveMoneyModal),
+  { ssr: false, loading: () => null },
+);
+const FixedModal = dynamic(
+  () => import('@/components/modals/FixedModal').then((m) => m.FixedModal),
+  { ssr: false, loading: () => null },
+);
+const SavingsModal = dynamic(
+  () => import('@/components/modals/SavingsModal').then((m) => m.SavingsModal),
+  { ssr: false, loading: () => null },
+);
+const SavingsDepositModal = dynamic(
+  () => import('@/components/modals/SavingsDepositModal').then((m) => m.SavingsDepositModal),
+  { ssr: false, loading: () => null },
+);
+const SettingsModal = dynamic(
+  () => import('@/components/modals/SettingsModal').then((m) => m.SettingsModal),
+  { ssr: false, loading: () => null },
+);
+const ManageCategoriesModal = dynamic(
+  () => import('@/components/modals/ManageCategoriesModal').then((m) => m.ManageCategoriesModal),
+  { ssr: false, loading: () => null },
+);
+const ProUpgradeModal = dynamic(
+  () => import('@/components/modals/ProUpgradeModal').then((m) => m.ProUpgradeModal),
+  { ssr: false, loading: () => null },
+);
+const ImportCsvModal = dynamic(
+  () => import('@/components/modals/ImportCsvModal').then((m) => m.ImportCsvModal),
+  { ssr: false, loading: () => null },
+);
+const IncomeSourcesModal = dynamic(
+  () => import('@/components/modals/IncomeSourcesModal').then((m) => m.IncomeSourcesModal),
+  { ssr: false, loading: () => null },
+);
+const EditMoneyPlacesModal = dynamic(
+  () => import('@/components/modals/EditMoneyPlacesModal').then((m) => m.EditMoneyPlacesModal),
+  { ssr: false, loading: () => null },
+);
+const DebtModal = dynamic(
+  () => import('@/components/modals/DebtModal').then((m) => m.DebtModal),
+  { ssr: false, loading: () => null },
+);
 
 /**
  * All dashboard modals, wired to the shared dashboard state so every screen
@@ -42,6 +90,8 @@ import { DebtModal } from '@/components/modals/DebtModal';
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
+  const { places } = useMoneyPlaces(dashboard.month);
+  const placeBalances = placeBalancesOf(dashboard.month, places);
   const {
     month,
     goals,
@@ -58,12 +108,13 @@ export function DashboardModals() {
 
   // Expense handlers
   const handleSaveVariableExpense = (exp: VariableExpense) => {
+    const audited = { ...exp, createdByUserId: dashboard.selectedExpense?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedExpense) {
-      const updated = editVariableExpense(month, dashboard.selectedExpense, exp);
+      const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
-      const updated = addVariableExpense(month, exp);
+      const updated = addVariableExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
@@ -77,12 +128,13 @@ export function DashboardModals() {
 
   // Fixed bills handlers
   const handleSaveFixedBill = (bill: FixedExpense) => {
+    const audited = { ...bill, createdByUserId: dashboard.selectedFixed?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedFixed) {
-      const updated = editFixedExpense(month, dashboard.selectedFixed, bill);
+      const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
       updateAndSaveMonth(updated);
       trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
-      const updated = addFixedExpense(month, bill);
+      const updated = addFixedExpense(month, audited);
       updateAndSaveMonth(updated);
       trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
@@ -108,15 +160,13 @@ export function DashboardModals() {
   };
 
   // Savings handlers
-  const handleSaveGoal = (goal: SavingGoal) => {
-    const existingIdx = goals.findIndex((g) => g.id === goal.id);
-    let nextGoals: SavingGoal[];
-    if (existingIdx >= 0) {
-      nextGoals = goals.map((g) => (g.id === goal.id ? goal : g));
-    } else {
-      nextGoals = [...goals, goal];
-    }
-    updateAndSaveGoals(nextGoals);
+  const handleSaveGoal = (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => {
+    // Moves the goal's opening/edited balance out of the chosen money place
+    // when the transfer checkbox was checked, and tracks how much of the
+    // balance is real deposited money (vs. bookkeeping "already saved").
+    const res = saveGoalWithBalance(month, goals, goal, deductFromPlace ?? null);
+    if (res.month !== month) updateAndSaveMonth(res.month);
+    updateAndSaveGoals(res.goals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
@@ -153,108 +203,141 @@ export function DashboardModals() {
 
   return (
     <>
-      <ExpenseModal
-        isOpen={dashboard.isExpenseModalOpen}
-        onClose={dashboard.closeExpenseModal}
-        onSave={handleSaveVariableExpense}
-        onDelete={handleDeleteVariableExpense}
-        initialExpense={dashboard.selectedExpense}
-        categories={month.activeCategories || []}
-        categoryColors={month.categoryColors}
-        categoryIcons={month.categoryIcons}
-      />
+      {dashboard.isExpenseModalOpen && (
+        <ExpenseModal
+          isOpen={dashboard.isExpenseModalOpen}
+          onClose={dashboard.closeExpenseModal}
+          onSave={handleSaveVariableExpense}
+          onDelete={handleDeleteVariableExpense}
+          initialExpense={dashboard.selectedExpense}
+          categories={month.activeCategories || []}
+          categoryColors={month.categoryColors}
+          categoryIcons={month.categoryIcons}
+          placeBalances={placeBalances}
+        />
+      )}
 
-      <MoveMoneyModal
-        isOpen={dashboard.isMoveMoneyModalOpen}
-        onClose={dashboard.closeMoveMoneyModal}
-        onMove={handleMoveMoney}
-        month={month}
-      />
+      {dashboard.isMoveMoneyModalOpen && (
+        <MoveMoneyModal
+          isOpen={dashboard.isMoveMoneyModalOpen}
+          onClose={dashboard.closeMoveMoneyModal}
+          onMove={handleMoveMoney}
+          month={month}
+        />
+      )}
 
-      <FixedModal
-        isOpen={dashboard.isFixedModalOpen}
-        onClose={dashboard.closeFixedModal}
-        onSave={handleSaveFixedBill}
-        onDelete={handleDeleteFixedBill}
-        initialBill={dashboard.selectedFixed}
-        categories={month.activeCategories || []}
-        categoryColors={month.categoryColors || {}}
-        categoryIcons={month.categoryIcons || {}}
-        onRenameCategory={handleRenameFixedCategory}
-      />
+      {dashboard.isFixedModalOpen && (
+        <FixedModal
+          isOpen={dashboard.isFixedModalOpen}
+          onClose={dashboard.closeFixedModal}
+          onSave={handleSaveFixedBill}
+          onDelete={handleDeleteFixedBill}
+          initialBill={dashboard.selectedFixed}
+          categories={month.activeCategories || []}
+          categoryColors={month.categoryColors || {}}
+          categoryIcons={month.categoryIcons || {}}
+          placeBalances={placeBalances}
+          onRenameCategory={handleRenameFixedCategory}
+        />
+      )}
 
-      <SavingsModal
-        isOpen={dashboard.isSavingsModalOpen}
-        onClose={dashboard.closeSavingsModal}
-        mode={dashboard.savingsModalMode}
-        goal={dashboard.selectedGoal}
-        onSaveGoal={handleSaveGoal}
-        onFund={handleFundGoal}
-        onWithdraw={handleWithdrawGoal}
-        onDelete={handleDeleteGoal}
-      />
+      {dashboard.isSavingsModalOpen && (
+        <SavingsModal
+          isOpen={dashboard.isSavingsModalOpen}
+          onClose={dashboard.closeSavingsModal}
+          mode={dashboard.savingsModalMode}
+          goal={dashboard.selectedGoal}
+          onSaveGoal={handleSaveGoal}
+          onFund={handleFundGoal}
+          onWithdraw={handleWithdrawGoal}
+          onDelete={handleDeleteGoal}
+          placeBalances={placeBalances}
+        />
+      )}
 
-      <SettingsModal
-        isOpen={dashboard.isSettingsModalOpen}
-        onClose={dashboard.closeSettingsModal}
-        month={month}
-        goals={goals}
-        monthKey={currentMonthKey}
-        onOpenProModal={() => {
-          dashboard.closeSettingsModal();
-          dashboard.openProModal();
-        }}
-      />
+      {dashboard.isSavingsEntryModalOpen && (
+        <SavingsDepositModal
+          isOpen={dashboard.isSavingsEntryModalOpen}
+          onClose={dashboard.closeSavingsEntryModal}
+          entry={dashboard.selectedSavingsEntry}
+          goals={goals}
+          placeBalances={placeBalances}
+          onSave={dashboard.handleSaveSavingsEntry}
+          onDelete={dashboard.handleDeleteSavingsEntry}
+        />
+      )}
 
-      <EditMoneyPlacesModal
-        isOpen={dashboard.isEditMoneyPlacesOpen}
-        onClose={dashboard.closeEditMoneyPlaces}
-        initialValues={{
-          bank: month.bankPart || 0,
-          home: month.homePart || 0,
-          wallet: month.walletPart || 0,
-        }}
-        totalBudget={month.totalBudget || 0}
-        onSave={(values) => {
-          handleEditMoneyPlaces(values);
-          dashboard.closeEditMoneyPlaces();
-        }}
-      />
+      {dashboard.isSettingsModalOpen && (
+        <SettingsModal
+          isOpen={dashboard.isSettingsModalOpen}
+          onClose={dashboard.closeSettingsModal}
+          month={month}
+          goals={goals}
+          monthKey={currentMonthKey}
+          onOpenProModal={() => {
+            dashboard.closeSettingsModal();
+            dashboard.openProModal();
+          }}
+        />
+      )}
 
-      <ManageCategoriesModal
-        isOpen={dashboard.isManageCategoriesOpen}
-        onClose={dashboard.closeManageCategories}
-        categories={month.activeCategories || []}
-        categoryColors={month.categoryColors || {}}
-        categoryIcons={month.categoryIcons || {}}
-        onAddCategory={handleAddCategory}
-        onRemoveCategory={handleRemoveCategory}
-      />
+      {dashboard.isEditMoneyPlacesOpen && (
+        <EditMoneyPlacesModal
+          isOpen={dashboard.isEditMoneyPlacesOpen}
+          onClose={dashboard.closeEditMoneyPlaces}
+          initialValues={placeBalances}
+          totalBudget={month.totalBudget || 0}
+          onSave={(values) => {
+            handleEditMoneyPlaces(values);
+            dashboard.closeEditMoneyPlaces();
+          }}
+        />
+      )}
 
-      <ProUpgradeModal isOpen={dashboard.isProModalOpen} onClose={dashboard.closeProModal} />
+      {dashboard.isManageCategoriesOpen && (
+        <ManageCategoriesModal
+          isOpen={dashboard.isManageCategoriesOpen}
+          onClose={dashboard.closeManageCategories}
+          categories={month.activeCategories || []}
+          categoryColors={month.categoryColors || {}}
+          categoryIcons={month.categoryIcons || {}}
+          onAddCategory={handleAddCategory}
+          onRemoveCategory={handleRemoveCategory}
+        />
+      )}
 
-      <ImportCsvModal
-        isOpen={dashboard.isCsvModalOpen}
-        onClose={dashboard.closeCsvModal}
-        month={month}
-        onImportVariable={handleBatchImportVariable}
-        onImportFixed={handleBatchImportFixed}
-      />
+      {dashboard.isProModalOpen && <ProUpgradeModal isOpen onClose={dashboard.closeProModal} />}
 
-      <IncomeSourcesModal
-        isOpen={dashboard.isIncomeModalOpen}
-        onClose={dashboard.closeIncomeModal}
-        month={month}
-        onSaveIncomeSources={handleSaveIncomeSources}
-      />
+      {dashboard.isCsvModalOpen && (
+        <ImportCsvModal
+          isOpen={dashboard.isCsvModalOpen}
+          onClose={dashboard.closeCsvModal}
+          month={month}
+          onImportVariable={handleBatchImportVariable}
+          onImportFixed={handleBatchImportFixed}
+        />
+      )}
 
-      <DebtModal
-        isOpen={dashboard.isDebtModalOpen}
-        onClose={dashboard.closeDebtModal}
-        onSave={handleSaveDebt}
-        onDelete={handleDeleteDebt}
-        initialDebt={dashboard.selectedDebt}
-      />
+      {dashboard.isIncomeModalOpen && (
+        <IncomeSourcesModal
+          isOpen={dashboard.isIncomeModalOpen}
+          onClose={dashboard.closeIncomeModal}
+          month={month}
+          monthKey={currentMonthKey}
+          defaultPayDay={dashboard.profile?.monthStartDate}
+          onSaveIncomeSources={handleSaveIncomeSources}
+        />
+      )}
+
+      {dashboard.isDebtModalOpen && (
+        <DebtModal
+          isOpen={dashboard.isDebtModalOpen}
+          onClose={dashboard.closeDebtModal}
+          onSave={handleSaveDebt}
+          onDelete={handleDeleteDebt}
+          initialDebt={dashboard.selectedDebt}
+        />
+      )}
     </>
   );
 }

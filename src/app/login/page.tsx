@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema } from '../../lib/validation';
+import { authErrorMessage } from '../../lib/auth-errors';
+import { getCurrentMonthKey } from '../../lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,7 +30,7 @@ export default function LoginPage() {
       localStorage.getItem('flousy_demo_mode') === 'true';
 
     const today = new Date();
-    const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
     const onboardingDoneLocally =
       typeof window !== 'undefined' &&
       (localStorage.getItem('flousy_onboarding_done') === 'true' ||
@@ -98,7 +100,7 @@ export default function LoginPage() {
         }
         setIsResetting(false);
       } catch (err: any) {
-        setError(err.message || 'Failed to send reset email');
+        setError(authErrorMessage(err) || 'Failed to send reset email');
       } finally {
         setSubmitting(false);
       }
@@ -145,7 +147,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(err.message || 'Authentication failed. Please verify credentials.');
+        setError(authErrorMessage(err));
       }
     } finally {
       setSubmitting(false);
@@ -250,7 +252,7 @@ export default function LoginPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your full name"
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>
@@ -266,7 +268,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
-                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
               />
             </div>
           </div>
@@ -293,7 +295,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required={!isResetting}
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>

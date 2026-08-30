@@ -15,16 +15,14 @@ import {
 import { useMobileStore } from '../../lib/store-context';
 import { FixedModal } from '../../components/FixedModal';
 
-const DEFAULT_CURRENCY = 'MAD';
-
 export default function FixedBillsScreen() {
   const { t } = useTranslation();
-  const { month, updateMonth } = useMobileStore();
+  const { month, updateMonth, currency, canEditArea } = useMobileStore();
+  const canEdit = canEditArea('fixedBills');
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingBill, setEditingBill] = useState<FixedExpense | null>(null);
 
-  const currency = DEFAULT_CURRENCY;
   const bills = month?.fixedExpenses || [];
 
   const handleOpenAdd = () => {
@@ -33,6 +31,7 @@ export default function FixedBillsScreen() {
   };
 
   const handleOpenEdit = (bill: FixedExpense) => {
+    if (!canEdit) return;
     setEditingBill(bill);
     setModalVisible(true);
   };
@@ -68,12 +67,14 @@ export default function FixedBillsScreen() {
               Total Fixed: {totalBills} {currency} ({bills.length} bills)
             </Text>
           </View>
-          <Pressable
-            onPress={handleOpenAdd}
-            className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
-          >
-            <Text className="text-white font-bold text-sm">+ Bill</Text>
-          </Pressable>
+          {canEdit ? (
+            <Pressable
+              onPress={handleOpenAdd}
+              className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
+            >
+              <Text className="text-white font-bold text-sm">+ Bill</Text>
+            </Pressable>
+          ) : null}
         </View>
         <Text className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
           Recurring bills carry over automatically when you navigate to a new month.

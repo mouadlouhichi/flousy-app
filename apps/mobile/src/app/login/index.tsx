@@ -13,6 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useMobileAuth } from '../../lib/auth-context';
+import { AppLogo } from '../../components/AppLogo';
+import { authErrorMessage } from '@flousy/core';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -36,7 +38,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       Alert.alert(
         t('common.error', 'Error'),
-        err?.message || t('auth.invalidCredentials')
+        authErrorMessage(err) || err?.message || t('auth.invalidCredentials')
       );
     } finally {
       setLoading(false);
@@ -73,9 +75,7 @@ export default function LoginScreen() {
         className="px-6 py-12"
       >
         <View className="items-center mb-8">
-          <View className="w-16 h-16 bg-primary rounded-2xl items-center justify-center mb-4">
-            <Text className="text-3xl font-bold text-white">F</Text>
-          </View>
+          <AppLogo size={88} style={{ marginBottom: 12 }} />
           <Text className="text-2xl font-bold text-neutral-900 dark:text-white">
             SmartJib
           </Text>

@@ -5,6 +5,7 @@ import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { SegmentedControl } from '../ui/segmented-control';
 import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 
 interface DebtModalProps {
@@ -80,7 +81,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             Amount
           </label>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"

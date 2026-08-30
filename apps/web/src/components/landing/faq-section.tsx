@@ -30,7 +30,7 @@ export function FaqSection() {
     <section
       id="faq"
       aria-labelledby="faq-heading"
-      className="relative border-t border-foreground/10 py-24 lg:py-32"
+      className="relative overflow-x-clip border-t border-foreground/10 py-24 lg:py-32"
     >
       <div className="mx-auto max-w-5xl px-6 lg:px-12">
         <div className="mb-12 max-w-3xl lg:mb-16">

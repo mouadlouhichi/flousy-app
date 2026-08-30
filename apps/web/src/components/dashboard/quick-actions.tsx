@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getMobileQuickActions } from '@/lib/dashboard-quick-actions';
 import { useDashboard } from './dashboard-provider';
@@ -10,12 +10,20 @@ import { getScreenIdFromPath } from './nav-items';
 /** Floating quick-action button + expandable actions (mobile only). */
 export function QuickActions() {
   const pathname = usePathname();
+  const router = useRouter();
   const { openExpenseModal, openFixedModal, openSavingsModal } = useDashboard();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const activeScreen = getScreenIdFromPath(pathname);
-  // Same screens as before hide the quick actions
-  if (activeScreen === 'trends' || activeScreen === 'debts') {
+  // Screens with no "add" affordance hide the quick actions. Courses hides
+  // them too: the session screen has its own entry forms and a pinned
+  // total/finish bar, and the floating button overlapped both.
+  if (
+    activeScreen === 'trends' ||
+    activeScreen === 'debts' ||
+    activeScreen === 'profile' ||
+    activeScreen === 'courses'
+  ) {
     return null;
   }
 
@@ -50,6 +58,8 @@ export function QuickActions() {
                 openFixedModal();
               } else if (action.id === 'savings') {
                 openSavingsModal('create');
+              } else if (action.id === 'courses') {
+                router.push('/dashboard/courses');
               }
             }}
             className="flex items-center gap-2 rounded-full bg-surface/95 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] border border-outline-variant backdrop-blur-xl transition-all duration-300"

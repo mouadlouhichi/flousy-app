@@ -16,7 +16,7 @@ export const expenseSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   type: z.string().min(1, 'Category is required'),
   date: z.string().min(1, 'Date is required'),
-  place: z.enum(['bank', 'home', 'wallet'], { message: 'Money place is required' }),
+  place: z.string().min(1, 'Money place is required'),
   note: z.string().max(250, 'Note is too long').optional(),
 });
 
@@ -25,13 +25,13 @@ export const fixedBillSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   type: z.string().min(1, 'Category is required'),
   date: z.string().optional(),
-  place: z.enum(['bank', 'home', 'wallet']),
+  place: z.string().min(1, 'Money place is required'),
 });
 
 export const moveMoneySchema = z
   .object({
-    from: z.enum(['bank', 'home', 'wallet']),
-    to: z.enum(['bank', 'home', 'wallet']),
+    from: z.string().min(1, 'Source is required'),
+    to: z.string().min(1, 'Destination is required'),
     amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
   })
   .refine((data) => data.from !== data.to, {
@@ -42,8 +42,22 @@ export const moveMoneySchema = z
 export const savingGoalSchema = z.object({
   name: z.string().trim().min(1, 'Goal name is required').max(100, 'Name is too long'),
   target: moneyAmountSchema.refine((val) => val > 0, { message: 'Target amount must be greater than zero' }),
-  source: z.enum(['bank', 'home', 'wallet']),
+  source: z.string().min(1, 'Money place is required'),
+  /** Amount already saved towards the goal before it was tracked here. */
+  current: moneyAmountSchema.optional(),
 });
+
+/** Custom strategy split — whole percents that must add up to exactly 100. */
+export const customStrategySchema = z
+  .object({
+    needs: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+    wants: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+    savings: z.number().finite().min(0, 'Cannot be negative').max(100, 'Cannot exceed 100%'),
+  })
+  .refine((data) => Math.round(data.needs + data.wants + data.savings) === 100, {
+    message: 'Needs, Wants and Savings must add up to 100%',
+    path: ['needs'],
+  });
 
 export const fundGoalSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
@@ -52,12 +66,16 @@ export const fundGoalSchema = z.object({
 
 export const withdrawGoalSchema = z.object({
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
-  targetPlace: z.enum(['bank', 'home', 'wallet']),
+  targetPlace: z.string().min(1, 'Money place is required'),
 });
 
 export const incomeSourceSchema = z.object({
   name: z.string().trim().min(1, 'Source name is required').max(60, 'Name is too long'),
   amount: moneyAmountSchema.refine((val) => val > 0, { message: 'Amount must be greater than zero' }),
+  // Optional salary pay day: 1–31, used as the monthly start date of the source.
+  payDay: z
+    .union([z.number().int().min(1).max(31), z.undefined()])
+    .optional(),
 });
 
 export const authEmailSchema = z.string().email('Invalid email address');

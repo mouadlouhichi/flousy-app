@@ -11,27 +11,55 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import {
-  STRATEGIES,
+  addFixedExpense,
+  addVariableExpense,
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
+  calculateMonthlyDepositedSavings,
+  formatShortDate,
+  getPlaceBalance,
+  moveMoney,
+  resolveMonthStrategy,
+  saveGoalWithBalance,
+  totalCashOnHand,
+  type FixedExpense,
   type MoneyPlace,
+  type SavingGoal,
+  type VariableExpense,
 } from '@flousy/core';
 import { useMobileStore } from '../../lib/store-context';
 import { useMobileAuth } from '../../lib/auth-context';
 import { useBudgetNotifications } from '../../hooks/useBudgetNotifications';
 import { MoveMoneyModal } from '../../components/MoveMoneyModal';
-
-const DEFAULT_CURRENCY = 'MAD';
+import { StrategyModal } from '../../components/StrategyModal';
+import { ExpenseModal } from '../../components/ExpenseModal';
+import { FixedModal } from '../../components/FixedModal';
+import { SavingsGoalModal } from '../../components/SavingsModal';
+import { getMobileQuickActions } from '@flousy/core';
 
 export default function DashboardOverviewScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, demoMode, signOut, sendEmailVerification } = useMobileAuth();
-  const { currentMonthKey, month, loading, error, updateMonth, switchMonth } = useMobileStore();
+  const {
+    currentMonthKey,
+    month,
+    loading,
+    updateMonth,
+    switchMonth,
+    currency,
+    moneyPlaces,
+    workspace,
+    savingsGoals,
+    updateSavingsGoals,
+    canEditArea,
+  } = useMobileStore();
 
   const [moveModalVisible, setMoveModalVisible] = useState(false);
-
-  const currency = DEFAULT_CURRENCY;
+  const [strategyVisible, setStrategyVisible] = useState(false);
+  const [expenseVisible, setExpenseVisible] = useState(false);
+  const [fixedVisible, setFixedVisible] = useState(false);
+  const [savingsVisible, setSavingsVisible] = useState(false);
 
   useBudgetNotifications(month, currency);
 
@@ -59,12 +87,14 @@ export default function DashboardOverviewScreen() {
     );
   }
 
-  const strategy = STRATEGIES[month.strategyId] || STRATEGIES['50-30-20'];
+  const strategy = resolveMonthStrategy(month);
   const { needs: needsCap, wants: wantsCap, savings: savingsCap } =
-    calculateEnvelopeAmounts(month.totalBudget, month.strategyId);
+    calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const spent = calculateEnvelopeSpent(month);
+  const depositedThisMonth = calculateMonthlyDepositedSavings(month);
 
-  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  const totalCash = totalCashOnHand(month);
+  const quickActions = getMobileQuickActions();
 
   const needsSpentPct = needsCap > 0 ? Math.min(100, Math.round((spent.needs / needsCap) * 100)) : 0;
   const wantsSpentPct = wantsCap > 0 ? Math.min(100, Math.round((spent.wants / wantsCap) * 100)) : 0;
@@ -88,20 +118,7 @@ export default function DashboardOverviewScreen() {
   };
 
   const handleMoveMoney = async (from: MoneyPlace, to: MoneyPlace, amount: number) => {
-    const fromVal = month[from === 'bank' ? 'bankPart' : from === 'home' ? 'homePart' : 'walletPart'] || 0;
-    const toVal = month[to === 'bank' ? 'bankPart' : to === 'home' ? 'homePart' : 'walletPart'] || 0;
-
-    const actualAmount = Math.min(amount, fromVal);
-    const nextMonth = {
-      ...month,
-      [from === 'bank' ? 'bankPart' : from === 'home' ? 'homePart' : 'walletPart']: Math.max(
-        0,
-        fromVal - actualAmount
-      ),
-      [to === 'bank' ? 'bankPart' : to === 'home' ? 'homePart' : 'walletPart']:
-        toVal + actualAmount,
-    };
-    await updateMonth(nextMonth);
+    await updateMonth(moveMoney(month, from, to, amount));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -141,6 +158,14 @@ export default function DashboardOverviewScreen() {
               </View>
             )}
             <Pressable
+              onPress={() => router.push('/dashboard/settings')}
+              className="bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700"
+            >
+              <Text className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                Profile
+              </Text>
+            </Pressable>
+            <Pressable
               onPress={async () => {
                 await signOut();
                 router.replace('/login');
@@ -177,8 +202,34 @@ export default function DashboardOverviewScreen() {
           </View>
         )}
 
+        {workspace === 'household' && (
+          <View className="bg-primary/10 px-3 py-2 rounded-xl mb-4">
+            <Text className="text-xs font-bold text-primary">Household workspace</Text>
+          </View>
+        )}
+
+        <View className="flex-row flex-wrap gap-2 mb-4">
+          {quickActions.map((action) => (
+            <Pressable
+              key={action.id}
+              onPress={() => {
+                if (action.id === 'courses') router.push('/dashboard/courses');
+                else if (action.id === 'expense' && canEditArea('expenses')) setExpenseVisible(true);
+                else if (action.id === 'charge' && canEditArea('fixedBills')) setFixedVisible(true);
+                else if (action.id === 'savings' && canEditArea('savings')) setSavingsVisible(true);
+              }}
+              className="bg-white dark:bg-neutral-800 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700"
+            >
+              <Text className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{action.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
         {/* Strategy Summary Card */}
-        <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 mb-6 shadow-sm">
+        <Pressable
+          onPress={() => setStrategyVisible(true)}
+          className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 mb-6 shadow-sm"
+        >
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-sm text-neutral-500 dark:text-neutral-400">
               Strategy: {strategy.name}
@@ -190,7 +241,8 @@ export default function DashboardOverviewScreen() {
           <Text className="text-xs text-neutral-400 dark:text-neutral-500">
             {strategy.description}
           </Text>
-        </View>
+          <Text className="text-xs text-primary font-semibold mt-2">Tap to change · includes custom split</Text>
+        </Pressable>
 
         {/* AXIS 1: Budget Envelopes (What money is FOR) */}
         <View className="mb-6">
@@ -283,40 +335,24 @@ export default function DashboardOverviewScreen() {
             </Pressable>
           </View>
 
-          <View className="flex-row space-x-2">
-            {/* Bank */}
-            <View className="flex-1 bg-white dark:bg-neutral-800 p-3.5 rounded-2xl border border-neutral-200 dark:border-neutral-700">
-              <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
-                Bank Account
-              </Text>
-              <Text className="text-base font-bold text-neutral-900 dark:text-white">
-                {month.bankPart || 0}
-              </Text>
-              <Text className="text-xs text-neutral-400">{currency}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-1">
+            <View className="flex-row gap-2">
+              {moneyPlaces.map((place) => (
+                <View
+                  key={place.id}
+                  className="w-32 bg-white dark:bg-neutral-800 p-3.5 rounded-2xl border border-neutral-200 dark:border-neutral-700"
+                >
+                  <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
+                    {place.name}
+                  </Text>
+                  <Text className="text-base font-bold text-neutral-900 dark:text-white">
+                    {getPlaceBalance(month, place.id)}
+                  </Text>
+                  <Text className="text-xs text-neutral-400">{currency}</Text>
+                </View>
+              ))}
             </View>
-
-            {/* Home */}
-            <View className="flex-1 bg-white dark:bg-neutral-800 p-3.5 rounded-2xl border border-neutral-200 dark:border-neutral-700">
-              <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
-                Home Cash
-              </Text>
-              <Text className="text-base font-bold text-neutral-900 dark:text-white">
-                {month.homePart || 0}
-              </Text>
-              <Text className="text-xs text-neutral-400">{currency}</Text>
-            </View>
-
-            {/* Wallet */}
-            <View className="flex-1 bg-white dark:bg-neutral-800 p-3.5 rounded-2xl border border-neutral-200 dark:border-neutral-700">
-              <Text className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">
-                Wallet
-              </Text>
-              <Text className="text-base font-bold text-neutral-900 dark:text-white">
-                {month.walletPart || 0}
-              </Text>
-              <Text className="text-xs text-neutral-400">{currency}</Text>
-            </View>
-          </View>
+          </ScrollView>
 
           <View className="mt-3 bg-neutral-200/50 dark:bg-neutral-800/50 px-4 py-2.5 rounded-xl flex-row justify-between items-center">
             <Text className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
@@ -327,6 +363,28 @@ export default function DashboardOverviewScreen() {
             </Text>
           </View>
         </View>
+
+        <View className="mb-6">
+          <Text className="text-base font-bold text-neutral-900 dark:text-white mb-2">
+            Savings this month
+          </Text>
+          <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700">
+            <Text className="text-sm text-neutral-500">Deposited (net)</Text>
+            <Text className="text-lg font-bold text-emerald-600">
+              {depositedThisMonth} {currency}
+            </Text>
+            {(month.savingsActivity || []).slice(0, 5).map((evt) => (
+              <View key={evt.id} className="flex-row justify-between mt-2">
+                <Text className="text-xs text-neutral-600 dark:text-neutral-300">
+                  {evt.type === 'deposit' ? '+' : '−'} {evt.goalName}
+                </Text>
+                <Text className="text-xs text-neutral-500">
+                  {evt.amount} · {formatShortDate(evt.date)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
 
       <MoveMoneyModal
@@ -334,7 +392,14 @@ export default function DashboardOverviewScreen() {
         onClose={() => setMoveModalVisible(false)}
         month={month}
         currency={currency}
+        places={moneyPlaces}
         onConfirm={handleMoveMoney}
+      />
+      <StrategyModal
+        visible={strategyVisible}
+        onClose={() => setStrategyVisible(false)}
+        month={month}
+        onUpdateMonth={updateMonth}
       />
     </View>
   );

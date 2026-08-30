@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -13,6 +14,7 @@ import { useAuth } from '../../lib/auth-context';
 import {
   MonthBudget,
   SavingGoal,
+  SavingsActivityEntry,
   VariableExpense,
   FixedExpense,
   DebtItem,
@@ -20,6 +22,8 @@ import {
   UserProfile,
   normalizeMonth,
   calculateEnvelopeAmounts,
+  updateSavingsActivityEntry,
+  deleteSavingsActivityEntry,
   addVariableExpense,
   addFixedExpense,
   updateMoneyPlaces,
@@ -33,10 +37,25 @@ import {
   saveSavingsGoals,
   fetchMonthsForTrends,
   getMonthBudget,
+  subscribeHouseholdMonthBudget,
+  saveHouseholdMonthBudget,
+  subscribeHouseholdSavingsGoals,
+  saveHouseholdSavingsGoals,
+  getHouseholdMonthBudget,
+  fetchHouseholdMonthsForTrends,
 } from '../../lib/db';
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
+import { getCurrentMonthKey } from '../../lib/utils';
+import {
+  readCachedMonth,
+  readStoredMonthKey,
+  writeCachedMonth,
+  writeStoredMonthKey,
+} from '../../lib/month-cache';
 import { getScreenIdFromPath } from './nav-items';
+import { useHousehold } from '../../lib/household-context';
+import { householdStorageKey } from '../../lib/household';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -74,7 +93,7 @@ interface DashboardContextType {
 
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
-  handleEditMoneyPlaces: (values: { bank: number; home: number; wallet: number }) => void;
+  handleEditMoneyPlaces: (values: Record<string, number>) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: any[], total: number) => void;
@@ -107,6 +126,14 @@ interface DashboardContextType {
   isSavingsModalOpen: boolean;
   savingsModalMode: SavingsModalMode;
   selectedGoal: SavingGoal | null;
+
+  // Editor for a logged savings deposit / withdrawal (Recent Activity)
+  openSavingsEntryModal: (entry: SavingsActivityEntry) => void;
+  closeSavingsEntryModal: () => void;
+  isSavingsEntryModalOpen: boolean;
+  selectedSavingsEntry: SavingsActivityEntry | null;
+  handleSaveSavingsEntry: (entryId: string, patch: Partial<SavingsActivityEntry>) => void;
+  handleDeleteSavingsEntry: (entryId: string) => void;
 
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
@@ -152,11 +179,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
+  const { household, canEdit, isContributor, workspace } = useHousehold();
+  const householdId = household?.id;
 
-  // Active Month Key (YYYY-MM)
+  // Contributors never load private household month documents. Their invoice
+  // submissions live in a separate collection with dedicated rules.
+  // Active Month Key (YYYY-MM). When a monthly start date is configured, the
+  // active month is the budget period containing today (so on the 1st the
+  // month does not flip to the new calendar month until the start date).
   const today = new Date();
-  const defaultMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const defaultMonthKey = getCurrentMonthKey(profile?.monthStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const profileReady = Boolean(profile);
+  const hydratedStartRef = useRef(false);
+  const lastStartDateRef = useRef<number | undefined>(undefined);
 
   // Core State
   const [month, setMonth] = useState<MonthBudget>(() =>
@@ -217,6 +255,40 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
   }, []);
 
+  // Honour the last viewed month from storage so tab / month navigation does
+  // not snap back to "today's period" and trigger a loading refetch. Only
+  // jump to the period containing today when the user actually changes the
+  // monthly start date in settings.
+  useEffect(() => {
+    if (authLoading || (user && !profileReady)) return;
+
+    const nextStart = profile?.monthStartDate;
+
+    if (!hydratedStartRef.current) {
+      hydratedStartRef.current = true;
+      lastStartDateRef.current = nextStart;
+      const stored = readStoredMonthKey();
+      if (stored) {
+        setCurrentMonthKey((prev) => (prev === stored ? prev : stored));
+      } else {
+        const resolved = getCurrentMonthKey(nextStart);
+        setCurrentMonthKey((prev) => (prev === resolved ? prev : resolved));
+        writeStoredMonthKey(resolved);
+      }
+      return;
+    }
+
+    if (lastStartDateRef.current === nextStart) return;
+    lastStartDateRef.current = nextStart;
+    const resolved = getCurrentMonthKey(nextStart);
+    setCurrentMonthKey(resolved);
+    writeStoredMonthKey(resolved);
+  }, [authLoading, user, profileReady, profile?.monthStartDate]);
+
+  useEffect(() => {
+    writeStoredMonthKey(currentMonthKey);
+  }, [currentMonthKey]);
+
   // Modal Open States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<VariableExpense | null>(null);
@@ -229,6 +301,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false);
   const [savingsModalMode, setSavingsModalMode] = useState<SavingsModalMode>('create');
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
+
+  const [isSavingsEntryModalOpen, setIsSavingsEntryModalOpen] = useState(false);
+  const [selectedSavingsEntry, setSelectedSavingsEntry] = useState<SavingsActivityEntry | null>(null);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
@@ -248,7 +323,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
+      if (householdId) {
+        const prev = await getHouseholdMonthBudget(householdId, prevKey);
+        return prev || undefined;
+      } else if (user) {
         const prev = await getMonthBudget(user.uid, prevKey);
         return prev || undefined;
       } else {
@@ -263,32 +341,81 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
       return undefined;
     },
-    [user, profile],
+    [user, profile, householdId],
   );
 
-  // 1. Subscribe or load month budget
+  // 1. Subscribe or load month budget.
+  // Hydrate from localStorage first so tab / month navigation can paint the
+  // last known document instantly instead of flashing the dashboard skeleton
+  // while Firestore catches up. Snapshots are written back to the same key.
   useEffect(() => {
-    setLoading(true);
+    // Do not subscribe to the personal workspace while the authenticated
+    // profile (and its selected workspace) is still hydrating. Otherwise the
+    // personal month paints briefly before the household subscription wins.
+    if (authLoading || (user && !profileReady)) {
+      setLoading(true);
+      return;
+    }
 
-    if (user) {
+    const activeProfile = profileRef.current;
+    const storageKey = householdStorageKey(householdId, currentMonthKey);
+    const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
+    if (cached) {
+      setMonth(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    const persist = (data: MonthBudget) => {
+      writeCachedMonth(storageKey, data);
+    };
+
+    if (householdId && !isContributor) {
+      const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
+        if (data) {
+          setMonth(data);
+          persist(data);
+        } else {
+          // A new household starts from the owner's current personal month so
+          // creating collaboration does not make their visible balance vanish.
+          const personal = user && canEdit ? await getMonthBudget(user.uid, currentMonthKey) : null;
+          if (personal && personal.totalBudget > 0) {
+            const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
+            setMonth(initialSharedMonth);
+            persist(initialSharedMonth);
+            saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
+          } else {
+            const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, await getPreviousMonth(currentMonthKey));
+            setMonth(fresh);
+            persist(fresh);
+          }
+        }
+        setLoading(false);
+      });
+      return () => unsub();
+    } else if (householdId && isContributor) {
+      setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile));
+      setLoading(false);
+      return;
+    } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
         if (data) {
           setMonth(data);
+          persist(data);
         } else {
           // Fetch previous month for rollover
           const previousMonth = await getPreviousMonth(currentMonthKey);
 
           // If no month document exists in Firestore, check local storage or initialize clean default
-          const local = localStorage.getItem(`flousy_month_${currentMonthKey}`);
+          const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
           if (local) {
-            try {
-              setMonth(normalizeMonth(JSON.parse(local), currentMonthKey, profile, previousMonth));
-            } catch {
-              setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
-            }
+            setMonth(local);
+            persist(local);
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth);
+            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
             setMonth(clean);
+            persist(clean);
           }
         }
         setLoading(false);
@@ -296,16 +423,26 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return () => unsub();
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
-        setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, profile, previousMonth));
+        const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
+        const next = local ?? normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+        setMonth(next);
+        persist(next);
         setLoading(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentMonthKey, profile]);
+  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profileReady]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
-    if (user) {
+    if (authLoading || (user && !profile)) return;
+    if (householdId && !isContributor) {
+      const unsub = subscribeHouseholdSavingsGoals(householdId, (data) => setGoals(data || []));
+      return () => unsub();
+    } else if (householdId && isContributor) {
+      setGoals([]);
+      return;
+    } else if (user) {
       const unsub = subscribeSavingsGoals(user.uid, (data) => {
         setGoals(data || []);
       });
@@ -313,30 +450,36 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       setGoals([]);
     }
-  }, [user]);
+  }, [user, authLoading, profile, householdId, isContributor]);
 
   // Helper to persist month updates locally + cloud
   const updateAndSaveMonth = useCallback(
     (newMonth: MonthBudget) => {
+      if (householdId && !canEdit) return;
       setMonth(newMonth);
-      localStorage.setItem(`flousy_month_${currentMonthKey}`, JSON.stringify(newMonth));
-      if (user) {
+      localStorage.setItem(householdStorageKey(householdId, currentMonthKey), JSON.stringify(newMonth));
+      if (householdId) {
+        saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
+      } else if (user) {
         saveMonthBudget(user.uid, currentMonthKey, newMonth).catch((e) => console.error(e));
       }
     },
-    [currentMonthKey, user],
+    [currentMonthKey, user, householdId, canEdit],
   );
 
   // Helper to persist goals updates locally + cloud
   const updateAndSaveGoals = useCallback(
     (newGoals: SavingGoal[]) => {
+      if (householdId && !canEdit) return;
       setGoals(newGoals);
-      localStorage.setItem('flousy_savings_goals', JSON.stringify(newGoals));
-      if (user) {
+      localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      if (householdId) {
+        saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
+      } else if (user) {
         saveSavingsGoals(user.uid, newGoals).catch((e) => console.error(e));
       }
     },
-    [user],
+    [user, householdId, canEdit],
   );
 
   // Carry over recurring fixed expenses from previous month
@@ -346,13 +489,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevDate = new Date(y, m - 2, 1);
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      if (user) {
-        const prev = await getMonthBudget(user.uid, prevKey);
+      if (householdId || user) {
+        const prev = householdId ? await getHouseholdMonthBudget(householdId, prevKey) : await getMonthBudget(user!.uid, prevKey);
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
-          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
-            updateAndSaveMonth(withCarry);
-          }
+          if (withCarry.fixedExpenses.length > month.fixedExpenses.length) updateAndSaveMonth(withCarry);
         }
       } else {
         try {
@@ -369,52 +510,78 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [month, profile, updateAndSaveMonth, user],
+    [month, profile, updateAndSaveMonth, user, householdId],
   );
 
-  // Automatically carry over recurring bills when entering a fresh month
+  // Automatically carry over recurring bills when entering a fresh month.
+  // A fresh month starts with totalBudget = 0, so this must also fire when the
+  // budget is first set (not only on month navigation / reload). A per-month
+  // guard keeps it running at most once per month: deleting every bill and
+  // expense mid-month must not resurrect the carried copies.
+  const carryOverDoneForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      !loading &&
-      month &&
-      month.totalBudget > 0 &&
-      (month.variableExpenses || []).length === 0 &&
-      (month.fixedExpenses || []).length === 0
-    ) {
+    if (loading || !month) return;
+    if (carryOverDoneForRef.current === currentMonthKey) return;
+    if (!(month.totalBudget > 0)) return;
+
+    const fixedCount = (month.fixedExpenses || []).length;
+    const variableCount = (month.variableExpenses || []).length;
+    // Mark the month as handled either way: only a truly fresh, empty month is
+    // ever auto-populated.
+    carryOverDoneForRef.current = currentMonthKey;
+    if (fixedCount === 0 && variableCount === 0) {
       carryOverRecurring(currentMonthKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMonthKey, loading]);
+  }, [currentMonthKey, loading, month?.totalBudget, month?.fixedExpenses?.length, month?.variableExpenses?.length]);
 
   // Load multi-month data when the Trends screen is active
   const onTrendsScreen = getScreenIdFromPath(pathname) === 'trends';
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
-      fetchMonthsForTrends(user?.uid, currentMonthKey, 6)
+      (householdId ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6) : fetchMonthsForTrends(user?.uid, currentMonthKey, 6))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onTrendsScreen, currentMonthKey, user?.uid, month.totalBudget]);
+  }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
+
+  // Apply a month key immediately: persist it, paint any cached document so
+  // the skeleton never flashes on a month the user has already opened, then
+  // let the subscribe effect revalidate in the background.
+  const applyMonthKey = useCallback(
+    (nextKey: string) => {
+      writeStoredMonthKey(nextKey);
+      const cached = readCachedMonth(
+        householdStorageKey(householdId, nextKey),
+        nextKey,
+        profileRef.current,
+      );
+      if (cached) {
+        setMonth(cached);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+      setCurrentMonthKey(nextKey);
+    },
+    [householdId],
+  );
 
   // Month navigation
   const handlePrevMonth = useCallback(() => {
-    setCurrentMonthKey((prevKey) => {
-      const [y, m] = prevKey.split('-').map(Number);
-      const prevDate = new Date(y, m - 2, 1);
-      return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-    });
-  }, []);
+    const [y, m] = currentMonthKey.split('-').map(Number);
+    const prevDate = new Date(y, m - 2, 1);
+    applyMonthKey(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`);
+  }, [applyMonthKey, currentMonthKey]);
 
   const handleNextMonth = useCallback(() => {
-    setCurrentMonthKey((prevKey) => {
-      const [y, m] = prevKey.split('-').map(Number);
-      const nextDate = new Date(y, m, 1);
-      return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
-    });
-  }, []);
+    const [y, m] = currentMonthKey.split('-').map(Number);
+    const nextDate = new Date(y, m, 1);
+    applyMonthKey(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`);
+  }, [applyMonthKey, currentMonthKey]);
 
   // Budget handlers
   const handleUpdateTotalBudget = useCallback(
@@ -430,7 +597,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           ...month,
           totalBudget: safeBudget,
           bankPart: Math.max(0, (month.bankPart || 0) + delta),
-          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId).savings,
+          monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId, month.customRatios).savings,
         },
         currentMonthKey,
         profile,
@@ -443,7 +610,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleEditMoneyPlaces = useCallback(
-    (values: { bank: number; home: number; wallet: number }) => {
+    (values: Record<string, number>) => {
       const updated = updateMoneyPlaces(month, values);
       updateAndSaveMonth(updated);
     },
@@ -584,13 +751,47 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setSelectedGoal(null);
   }, []);
 
+  const openSavingsEntryModal = useCallback((entry: SavingsActivityEntry) => {
+    setSelectedSavingsEntry(entry);
+    setIsSavingsEntryModalOpen(true);
+  }, []);
+  const closeSavingsEntryModal = useCallback(() => {
+    setIsSavingsEntryModalOpen(false);
+    setSelectedSavingsEntry(null);
+  }, []);
+
+  // Correcting a logged deposit rewinds the original money movement and
+  // replays the edited one, so the month's savings plan follows along.
+  const handleSaveSavingsEntry = useCallback(
+    (entryId: string, patch: Partial<SavingsActivityEntry>) => {
+      const res = updateSavingsActivityEntry(month, goals, entryId, patch);
+      updateAndSaveMonth(res.month);
+      updateAndSaveGoals(res.goals);
+      trackEvent('edit_savings_entry', { type: patch.type });
+    },
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+  );
+
+  const handleDeleteSavingsEntry = useCallback(
+    (entryId: string) => {
+      const res = deleteSavingsActivityEntry(month, goals, entryId);
+      updateAndSaveMonth(res.month);
+      updateAndSaveGoals(res.goals);
+      trackEvent('delete_savings_entry', {});
+    },
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+  );
+
   const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
   const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
   const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
 
-  const openProModal = useCallback(() => setIsProModalOpen(true), []);
+  const openProModal = useCallback(() => {
+    if (workspace === 'household') return;
+    setIsProModalOpen(true);
+  }, [workspace]);
   const closeProModal = useCallback(() => setIsProModalOpen(false), []);
 
   const openCsvModal = useCallback(() => setIsCsvModalOpen(true), []);
@@ -657,6 +858,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSavingsEntryModal,
+      closeSavingsEntryModal,
+      isSavingsEntryModalOpen,
+      selectedSavingsEntry,
+      handleSaveSavingsEntry,
+      handleDeleteSavingsEntry,
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
@@ -725,6 +932,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isSavingsModalOpen,
       savingsModalMode,
       selectedGoal,
+      openSavingsEntryModal,
+      closeSavingsEntryModal,
+      isSavingsEntryModalOpen,
+      selectedSavingsEntry,
+      handleSaveSavingsEntry,
+      handleDeleteSavingsEntry,
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,

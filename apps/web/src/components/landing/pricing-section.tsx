@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
-import { useAuth } from '@/lib/auth-context';
+import { useAuthStatus } from '@/lib/auth-status';
 
 const plansBase = [
   { price: { monthly: 0, annual: 0 }, popular: false },
@@ -12,14 +12,14 @@ const plansBase = [
 
 export function PricingSection() {
   const { messages: m } = useLightLanguage();
-  const { user } = useAuth();
+  const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
   const pricingData = m.landing.pricing;
   const [isAnnual, setIsAnnual] = useState(true);
 
   return (
-    <section id="pricing" className="relative py-32 lg:py-40 border-t border-foreground/10">
+    <section id="pricing" className="relative py-32 lg:py-40 border-t border-foreground/10 overflow-x-clip">
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         {/* Header */}
         <div className="max-w-3xl mb-20">

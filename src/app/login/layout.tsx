@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   },
 };
 
+// Static (prerendered) so the login → onboarding → dashboard flow is instant
+// client-side navigation. See src/middleware.ts: these paths stay no-store.
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AppProviders>{children}</AppProviders>;
 }

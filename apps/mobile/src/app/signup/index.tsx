@@ -13,6 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useMobileAuth } from '../../lib/auth-context';
+import { AppLogo } from '../../components/AppLogo';
+import { authErrorMessage } from '@flousy/core';
 
 export default function SignupScreen() {
   const { t } = useTranslation();
@@ -57,6 +59,7 @@ export default function SignupScreen() {
         className="px-6 py-12"
       >
         <View className="items-center mb-8">
+          <AppLogo size={72} style={{ marginBottom: 12 }} />
           <Text className="text-2xl font-bold text-neutral-900 dark:text-white">
             {t('auth.createYourAccount')}
           </Text>

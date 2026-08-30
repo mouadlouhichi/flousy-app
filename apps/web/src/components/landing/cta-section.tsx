@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
-import { useAuth } from '@/lib/auth-context';
+import { useAuthStatus } from '@/lib/auth-status';
 import { AnimatedTetrahedron } from "./animated-tetrahedron";
 
 export function CtaSection() {
   const { messages: m } = useLightLanguage();
-  const { user } = useAuth();
+  const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
   const [isVisible, setIsVisible] = useState(false);

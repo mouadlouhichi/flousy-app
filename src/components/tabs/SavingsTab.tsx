@@ -1,6 +1,13 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React from 'react';
-import { SavingGoal, MoneyPlace } from '../../lib/store';
+import {
+  SavingGoal,
+  MonthBudget,
+  SavingsActivityEntry,
+  calculateMonthlyDepositedSavings,
+  moneyPlaceLabel,
+} from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
 interface SavingsTabProps {
@@ -9,7 +16,18 @@ interface SavingsTabProps {
   onOpenFundModal: (goal: SavingGoal) => void;
   onOpenWithdrawModal: (goal: SavingGoal) => void;
   onOpenEditGoal: (goal: SavingGoal) => void;
+  /** Current month — its `savingsActivity` log is the deposit history. */
+  month?: MonthBudget;
+  /** Open the editor for a logged deposit / withdrawal. */
+  onEditDeposit?: (entry: SavingsActivityEntry) => void;
+  canEdit?: boolean;
 }
+
+const formatEntryDate = (value: string): string => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
 
 export function SavingsTab({
   goals,
@@ -17,10 +35,15 @@ export function SavingsTab({
   onOpenFundModal,
   onOpenWithdrawModal,
   onOpenEditGoal,
+  month,
+  onEditDeposit,
+  canEdit = true,
 }: SavingsTabProps) {
   const { format } = useCurrency();
 
   const totalSavings = goals.reduce((acc, g) => acc + g.current, 0);
+  const deposits = (month?.savingsActivity || []).slice();
+  const monthlyNet = month ? calculateMonthlyDepositedSavings(month) : 0;
 
   return (
     <div className="flex flex-col gap-lg pb-24">
@@ -31,7 +54,7 @@ export function SavingsTab({
             TOTAL ACCUMULATED SAVINGS
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalSavings)}
+            <FormattedAmount value={totalSavings} />
           </h2>
         </div>
         <button
@@ -93,11 +116,12 @@ export function SavingsTab({
                 {/* Balance & Progress */}
                 <div className="flex flex-col gap-xs">
                   <div className="flex justify-between items-baseline font-mono">
-                    <span className="text-headline-md text-on-surface font-extrabold">
-                      {format(goal.current)}
-                    </span>
+                    <FormattedAmount
+                      value={goal.current}
+                      className="text-headline-md text-on-surface font-extrabold"
+                    />
                     <span className="font-label-md text-label-md text-on-surface-variant">
-                      Target: {format(goal.target)}
+                      Target: <FormattedAmount value={goal.target} />
                     </span>
                   </div>
 
@@ -113,7 +137,7 @@ export function SavingsTab({
                 </div>
 
                 {/* Quick Fund & Withdraw Actions */}
-                <div className="grid grid-cols-2 gap-sm pt-xs border-t border-surface-variant">
+                <div className="grid grid-cols-2 gap-sm pt-xs">
                   <button
                     onClick={() => onOpenFundModal(goal)}
                     className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
@@ -135,6 +159,85 @@ export function SavingsTab({
           })}
         </div>
       )}
+
+      {/* This month's deposits — every entry is editable / deletable so the
+          savings plan always matches the money that actually moved. */}
+      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md shadow-2xs">
+        <div className="flex items-center justify-between gap-sm">
+          <div className="flex flex-col">
+            <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+              This Month&apos;s Deposits
+            </span>
+            <span className="font-label-sm text-label-sm text-on-surface-variant">
+              {deposits.length} movement{deposits.length !== 1 ? 's' : ''} logged
+              {month ? ` · ${format(monthlyNet)} saved` : ''}
+            </span>
+          </div>
+        </div>
+
+        {deposits.length === 0 ? (
+          <div className="p-lg bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-xs">
+            <AppIcon name="savings" className=" text-outline text-[32px]" />
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              No deposits logged this month.
+            </p>
+            <p className="font-label-sm text-label-sm text-on-surface-variant">
+              Use Deposit on a goal above to move money into savings.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col divide-y divide-outline-variant/60">
+            {deposits.map((entry) => {
+              const isDeposit = entry.type === 'deposit';
+              return (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between gap-sm py-sm"
+                >
+                  <div className="flex items-center gap-sm min-w-0">
+                    <div
+                      className={`p-2.5 rounded-2xl shrink-0 ${
+                        isDeposit ? 'bg-secondary/10 text-secondary' : 'bg-surface-variant text-on-surface-variant'
+                      }`}
+                    >
+                      <AppIcon name={isDeposit ? 'add_circle' : 'remove_circle'} className=" text-[20px]" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-label-md text-label-md font-bold text-on-surface truncate">
+                        {entry.goalName}
+                      </span>
+                      <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
+                        {isDeposit ? 'Deposit' : 'Withdrawal'} · {formatEntryDate(entry.date)}
+                        {entry.place ? ` · ${moneyPlaceLabel(entry.place)}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-xs shrink-0">
+                    <FormattedAmount
+                      value={entry.amount}
+                      prefix={isDeposit ? '+' : '-'}
+                      className={`font-mono font-bold ${
+                        isDeposit ? 'text-secondary' : 'text-on-surface-variant'
+                      }`}
+                    />
+                    {canEdit && onEditDeposit && (
+                      <button
+                        type="button"
+                        onClick={() => onEditDeposit(entry)}
+                        aria-label={`Edit ${isDeposit ? 'deposit' : 'withdrawal'}`}
+                        className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
+                      >
+                        <AppIcon name="edit" className=" text-[18px]" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

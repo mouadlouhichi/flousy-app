@@ -1,7 +1,17 @@
+'use client';
+
 import { AppIcon } from '@/components/ui/app-icon';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../ui/Modal';
-import { STRATEGIES, StrategyId, calculateEnvelopeAmounts } from '../../lib/store';
+import {
+  STRATEGIES,
+  StrategyId,
+  CustomRatios,
+  DEFAULT_CUSTOM_RATIOS,
+  calculateEnvelopeAmounts,
+  normalizeCustomRatios,
+  resolveStrategy,
+} from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
 interface StrategySelectorModalProps {
@@ -9,7 +19,9 @@ interface StrategySelectorModalProps {
   onClose: () => void;
   currentStrategyId: StrategyId;
   totalBudget: number;
-  onSelect: (strategyId: StrategyId) => void;
+  /** Ratios currently saved for the custom strategy (fractions of income). */
+  customRatios?: CustomRatios | null;
+  onSelect: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
 }
 
 const STRATEGY_ICONS: Record<string, string> = {
@@ -19,6 +31,7 @@ const STRATEGY_ICONS: Record<string, string> = {
   'zero-based': 'grid_3x3',
   'envelope': 'mail',
   'pay-first': 'savings',
+  custom: 'tune',
 };
 
 const STRATEGY_TAGS: Record<string, { label: string; color: string }> = {
@@ -28,24 +41,99 @@ const STRATEGY_TAGS: Record<string, { label: string; color: string }> = {
   'zero-based': { label: 'Detailed', color: 'bg-purple-50 text-purple-700' },
   'envelope': { label: 'Visual', color: 'bg-orange-50 text-orange-700' },
   'pay-first': { label: 'Saver', color: 'bg-emerald-50 text-emerald-700' },
+  custom: { label: 'Yours', color: 'bg-primary/10 text-primary' },
 };
+
+type PercentSplit = { needs: number; wants: number; savings: number };
+
+function toPercents(ratios?: Partial<CustomRatios> | null): PercentSplit {
+  const normalized = normalizeCustomRatios(ratios ?? DEFAULT_CUSTOM_RATIOS);
+  return {
+    needs: Math.round(normalized.needs * 100),
+    wants: Math.round(normalized.wants * 100),
+    savings: Math.round(normalized.savings * 100),
+  };
+}
 
 export function StrategySelectorModal({
   isOpen,
   onClose,
   currentStrategyId,
   totalBudget,
+  customRatios,
   onSelect,
 }: StrategySelectorModalProps) {
   const { format } = useCurrency();
   const [hoveredId, setHoveredId] = useState<StrategyId | null>(null);
+  const [isCustomOpen, setIsCustomOpen] = useState(currentStrategyId === 'custom');
+  const [split, setSplit] = useState<PercentSplit>(() => toPercents(customRatios));
+
+  // Re-seed the editor whenever the modal (re)opens with saved ratios.
+  useEffect(() => {
+    if (isOpen) {
+      setSplit(toPercents(customRatios));
+      setIsCustomOpen(currentStrategyId === 'custom');
+      setHoveredId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const strategies = Object.values(STRATEGIES).filter((s) => s.id !== 'custom');
-  const previewId = hoveredId || currentStrategyId;
-  const preview = calculateEnvelopeAmounts(totalBudget, previewId);
+
+  const splitTotal = split.needs + split.wants + split.savings;
+  const isSplitValid = splitTotal === 100;
+
+  const draftCustomRatios = useMemo<CustomRatios>(
+    () =>
+      normalizeCustomRatios({
+        needs: split.needs / 100,
+        wants: split.wants / 100,
+        savings: split.savings / 100,
+      }),
+    [split],
+  );
+
+  // Preview follows the hovered card, or the custom editor while it's open.
+  const previewId: StrategyId = hoveredId || (isCustomOpen ? 'custom' : currentStrategyId);
+  const previewRatios = previewId === 'custom' ? draftCustomRatios : undefined;
+  const previewStrategy = resolveStrategy(previewId, previewRatios);
+  const preview = calculateEnvelopeAmounts(totalBudget, previewId, previewRatios);
 
   const handleSelect = (id: StrategyId) => {
     onSelect(id);
+    onClose();
+  };
+
+  /**
+   * Adjust one envelope and rebalance the others so the split always stays at
+   * 100% — the remainder is taken from (or given back to) the other two
+   * proportionally, which keeps the sliders usable without manual math.
+   */
+  const handleSliderChange = (key: keyof PercentSplit, rawValue: number) => {
+    const value = Math.min(100, Math.max(0, Math.round(rawValue)));
+    const others = (Object.keys(split) as (keyof PercentSplit)[]).filter((k) => k !== key);
+    const remaining = 100 - value;
+    const othersTotal = others.reduce((acc, k) => acc + split[k], 0);
+
+    let first: number;
+    if (othersTotal <= 0) {
+      first = Math.round(remaining / 2);
+    } else {
+      first = Math.round((split[others[0]] / othersTotal) * remaining);
+    }
+    const second = remaining - first;
+
+    setSplit({
+      ...split,
+      [key]: value,
+      [others[0]]: first,
+      [others[1]]: second,
+    } as PercentSplit);
+  };
+
+  const handleSaveCustom = () => {
+    if (!isSplitValid) return;
+    onSelect('custom', draftCustomRatios);
     onClose();
   };
 
@@ -67,15 +155,15 @@ export function StrategySelectorModal({
           <div className="w-full h-3 rounded-full overflow-hidden flex bg-surface-variant/50 mb-3">
             <div
               className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${STRATEGIES[previewId].needsRatio * 100}%` }}
+              style={{ width: `${previewStrategy.needsRatio * 100}%` }}
             />
             <div
               className="h-full bg-amber-500 transition-all duration-300"
-              style={{ width: `${STRATEGIES[previewId].wantsRatio * 100}%` }}
+              style={{ width: `${previewStrategy.wantsRatio * 100}%` }}
             />
             <div
               className="h-full bg-slate-600 transition-all duration-300"
-              style={{ width: `${STRATEGIES[previewId].savingsRatio * 100}%` }}
+              style={{ width: `${previewStrategy.savingsRatio * 100}%` }}
             />
           </div>
 
@@ -206,6 +294,156 @@ export function StrategySelectorModal({
               </button>
             );
           })}
+
+          {/* ── Custom Strategy (definable) ── */}
+          <div
+            className={`w-full rounded-2xl border-2 transition-all ${
+              currentStrategyId === 'custom'
+                ? 'border-primary bg-primary/5 shadow-sm'
+                : isCustomOpen
+                ? 'border-primary/40 bg-surface-container'
+                : 'border-outline-variant/50 bg-surface'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setIsCustomOpen((open) => !open)}
+              aria-expanded={isCustomOpen}
+              className="w-full text-left p-4 cursor-pointer"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    currentStrategyId === 'custom'
+                      ? 'bg-primary text-on-primary'
+                      : 'bg-surface-variant text-primary'
+                  }`}
+                >
+                  <AppIcon name="sliders" className="text-[20px]" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h4 className="font-label-lg text-label-lg font-extrabold text-on-surface">
+                      Custom Strategy
+                    </h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      Yours
+                    </span>
+                  </div>
+                  <p className="text-[12px] font-medium text-on-surface-variant leading-snug mb-2">
+                    Set your own Needs / Wants / Savings split.
+                  </p>
+
+                  <div className="w-full h-2 rounded-full overflow-hidden flex bg-surface-variant/60">
+                    <div className="h-full bg-primary" style={{ width: `${split.needs}%` }} />
+                    <div className="h-full bg-amber-500" style={{ width: `${split.wants}%` }} />
+                    <div className="h-full bg-slate-600" style={{ width: `${split.savings}%` }} />
+                  </div>
+
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] font-bold text-on-surface-variant">{split.needs}% Needs</span>
+                    <span className="text-[10px] font-bold text-on-surface-variant">{split.wants}% Wants</span>
+                    <span className="text-[10px] font-bold text-on-surface-variant">{split.savings}% Savings</span>
+                  </div>
+                </div>
+
+                <div className="shrink-0 mt-1 flex items-center gap-2">
+                  {currentStrategyId === 'custom' && (
+                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                      <AppIcon name="check" className="text-[14px] text-on-primary" />
+                    </div>
+                  )}
+                  <AppIcon
+                    name="expand_more"
+                    className={`text-[18px] text-on-surface-variant transition-transform ${
+                      isCustomOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+            </button>
+
+            {isCustomOpen && (
+              <div className="px-4 pb-4 flex flex-col gap-3 border-t border-outline-variant/50 pt-3">
+                {([
+                  { key: 'needs' as const, label: 'Needs', color: 'accent-[var(--primary)]', dot: 'bg-primary' },
+                  { key: 'wants' as const, label: 'Wants', color: 'accent-amber-500', dot: 'bg-amber-500' },
+                  { key: 'savings' as const, label: 'Savings', color: 'accent-slate-600', dot: 'bg-slate-600' },
+                ]).map(({ key, label, color, dot }) => (
+                  <div key={key} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-[12px] font-bold text-on-surface">
+                        <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+                        {label}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={split[key]}
+                          onChange={(e) => handleSliderChange(key, Number(e.target.value))}
+                          aria-label={`${label} percentage`}
+                          className="w-16 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-right font-mono text-[13px] font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                        <span className="text-[12px] font-bold text-on-surface-variant">%</span>
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={split[key]}
+                      onChange={(e) => handleSliderChange(key, Number(e.target.value))}
+                      aria-label={`${label} slider`}
+                      className={`w-full cursor-pointer ${color}`}
+                    />
+                    <span className="font-mono text-[11px] font-bold text-on-surface-variant">
+                      {format(Math.round((totalBudget * split[key]) / 100))}
+                    </span>
+                  </div>
+                ))}
+
+                <div
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-[12px] font-bold ${
+                    isSplitValid
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-error-container text-on-error-container'
+                  }`}
+                >
+                  <span>Total allocated</span>
+                  <span className="font-mono">{splitTotal}%</span>
+                </div>
+
+                {!isSplitValid && (
+                  <p role="alert" className="text-[11px] font-semibold text-error">
+                    Needs, Wants and Savings must add up to exactly 100%.
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSplit(toPercents(DEFAULT_CUSTOM_RATIOS))}
+                    className="px-3 py-2.5 rounded-xl border border-outline-variant text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant/50 transition-colors cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCustom}
+                    disabled={!isSplitValid}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary text-[13px] font-bold shadow-sm hover:bg-accent-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <AppIcon name="check" className="text-[16px]" />
+                    <span>Apply Custom Split</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Modal>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,9 +12,7 @@ import {
 import { useMobileStore } from '../../lib/store-context';
 import { useMobileAuth } from '../../lib/auth-context';
 import { getDemoMonthData } from '../../lib/storage';
-import { getMonthBudget } from '../../lib/db';
-
-const DEFAULT_CURRENCY = 'MAD';
+import { getMonthBudget, getHouseholdMonthBudget } from '../../lib/db';
 
 interface MonthStat {
   key: string;
@@ -42,13 +41,24 @@ function getLastSixMonthKeys(currentKey: string): string[] {
 
 export default function TrendsScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const { user, demoMode } = useMobileAuth();
-  const { currentMonthKey, month } = useMobileStore();
+  const {
+    currentMonthKey,
+    month,
+    currency,
+    scanUnlocked,
+    workspace,
+    updateProfile,
+    household,
+    profile,
+  } = useMobileStore();
+  const householdId =
+    workspace === 'household' ? household?.id || profile?.activeHouseholdId : undefined;
 
   const [history, setHistory] = useState<MonthStat[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const currency = DEFAULT_CURRENCY;
   const variableExpenses = month?.variableExpenses || [];
   const fixedExpenses = month?.fixedExpenses || [];
 
@@ -74,7 +84,9 @@ export default function TrendsScreen() {
           }
         } else if (user) {
           try {
-            m = await getMonthBudget(user.uid, key);
+            m = householdId
+              ? await getHouseholdMonthBudget(householdId, key)
+              : await getMonthBudget(user.uid, key);
           } catch {
             m = null;
           }
@@ -104,7 +116,7 @@ export default function TrendsScreen() {
     return () => {
       active = false;
     };
-  }, [currentMonthKey, month, user, demoMode]);
+  }, [currentMonthKey, month, user, demoMode, householdId]);
 
   const totalSpent = useMemo(() => {
     const varTotal = variableExpenses.reduce((acc, e) => acc + e.amount, 0);
@@ -149,7 +161,7 @@ export default function TrendsScreen() {
 
   const envelopeSpent = month ? calculateEnvelopeSpent(month) : { needs: 0, wants: 0, savings: 0 };
   const envelopeCap = month
-    ? calculateEnvelopeAmounts(month.totalBudget, month.strategyId)
+    ? calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios)
     : { needs: 0, wants: 0, savings: 0 };
 
   const savingsRate =
@@ -162,9 +174,34 @@ export default function TrendsScreen() {
     return max;
   }, [history]);
 
+  if (!scanUnlocked) {
+    return (
+      <View className="flex-1 bg-neutral-100 dark:bg-neutral-900 items-center justify-center px-6">
+        <Text className="text-xl font-bold text-neutral-900 dark:text-white text-center">
+          Trends is a Pro feature
+        </Text>
+        <Text className="text-sm text-neutral-500 text-center mt-2 mb-5">
+          Unlock analytics, or join a household workspace where Pro is shared.
+        </Text>
+        <Pressable
+          onPress={() => updateProfile({ plan: 'pro' })}
+          className="bg-primary px-6 py-3 rounded-xl"
+        >
+          <Text className="text-white font-bold">Unlock Pro (demo)</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/dashboard/settings')} className="mt-4">
+          <Text className="text-primary font-bold">← Profile</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-neutral-100 dark:bg-neutral-900">
       <View className="p-4 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+        <Pressable onPress={() => router.push('/dashboard/settings')} className="mb-2">
+          <Text className="text-primary font-bold">← Profile</Text>
+        </Pressable>
         <Text className="text-xl font-bold text-neutral-900 dark:text-white">
           Financial Trends & Analytics
         </Text>

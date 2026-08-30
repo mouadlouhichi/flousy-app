@@ -19,13 +19,15 @@ import {
   withdrawGoal,
   deleteFundedGoal,
 } from '@flousy/core';
+import { MoneyPlaceChips } from './MoneyPlaceChips';
+import { useMobileStore } from '../lib/store-context';
 
 interface SavingsGoalModalProps {
   visible: boolean;
   onClose: () => void;
   currency: string;
   goalToEdit?: SavingGoal | null;
-  onSave: (goal: SavingGoal) => Promise<void>;
+  onSave: (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => Promise<void>;
 }
 
 export function SavingsGoalModal({
@@ -35,26 +37,27 @@ export function SavingsGoalModal({
   goalToEdit,
   onSave,
 }: SavingsGoalModalProps) {
+  const { month, moneyPlaces } = useMobileStore();
   const [name, setName] = useState('');
   const [targetStr, setTargetStr] = useState('');
+  const [currentStr, setCurrentStr] = useState('0');
   const [source, setSource] = useState<MoneyPlace>('bank');
+  const [deduct, setDeduct] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const places: { id: MoneyPlace; label: string }[] = [
-    { id: 'bank', label: 'Bank Account' },
-    { id: 'home', label: 'Home Cash' },
-    { id: 'wallet', label: 'Wallet' },
-  ];
 
   useEffect(() => {
     if (goalToEdit) {
       setName(goalToEdit.name);
       setTargetStr(String(goalToEdit.target));
+      setCurrentStr(String(goalToEdit.current || 0));
       setSource(goalToEdit.source || 'bank');
+      setDeduct(false);
     } else {
       setName('');
       setTargetStr('');
+      setCurrentStr('0');
       setSource('bank');
+      setDeduct(false);
     }
   }, [goalToEdit, visible]);
 
@@ -130,33 +133,50 @@ export function SavingsGoalModal({
             </View>
 
             <View>
+              <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Already saved ({currency})
+              </Text>
+              <TextInput
+                className="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-700 font-bold"
+                placeholder="0"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={currentStr}
+                onChangeText={setCurrentStr}
+              />
+            </View>
+
+            <View>
               <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                 Default Source Account
               </Text>
-              <View className="flex-row space-x-2">
-                {places.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setSource(p.id)}
-                    className={`flex-1 p-3 rounded-xl border items-center ${
-                      source === p.id
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
-                    }`}
-                  >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        source === p.id
-                          ? 'text-primary'
-                          : 'text-neutral-800 dark:text-neutral-200'
-                      }`}
-                    >
-                      {p.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              {month ? (
+                <MoneyPlaceChips
+                  month={month}
+                  selected={source}
+                  onSelect={setSource}
+                  currency={currency}
+                  places={moneyPlaces}
+                />
+              ) : null}
             </View>
+
+            <Pressable
+              onPress={() => setDeduct((v) => !v)}
+              className="flex-row items-center justify-between bg-neutral-100 dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
+                  Move this amount from the source
+                </Text>
+                <Text className="text-xs text-neutral-500 mt-0.5">
+                  Same as web: checked transfers cash out of the place; unchecked is bookkeeping only.
+                </Text>
+              </View>
+              <Text className={`font-bold ${deduct ? 'text-primary' : 'text-neutral-400'}`}>
+                {deduct ? 'On' : 'Off'}
+              </Text>
+            </Pressable>
           </ScrollView>
 
           <View className="pt-4 mt-4 border-t border-neutral-200 dark:border-neutral-800">

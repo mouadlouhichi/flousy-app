@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { useHousehold } from '@/lib/household-context';
+import { isProFeatureUnlocked } from '@/lib/household';
 
 /**
  * Desktop left sidebar navigation (hidden on mobile).
@@ -17,10 +19,11 @@ import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
  */
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, profile, isPro, openSettingsModal, openIncomeModal, openCsvModal, openProModal } =
-    useDashboard();
+  const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
+  const { workspace } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(isPro);
+  const items = getVisibleNavItems(proUnlocked);
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
@@ -47,7 +50,7 @@ export function Sidebar() {
             <Link
               key={item.id}
               href={item.href}
-              prefetch={false}
+              prefetch={true}
               className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-colors ${
                 isActive
                   ? 'text-primary font-bold'
@@ -77,7 +80,7 @@ export function Sidebar() {
         {/* Quick Tools */}
         <button
           onClick={() => {
-            if (!isPro) {
+            if (!proUnlocked) {
               openProModal();
               return;
             }
@@ -91,7 +94,7 @@ export function Sidebar() {
 
         <button
           onClick={() => {
-            if (!isPro) {
+            if (!proUnlocked) {
               openProModal();
               return;
             }
@@ -104,32 +107,49 @@ export function Sidebar() {
         </button>
       </nav>
 
-      {/* Bottom Profile Footer */}
-      <div className="p-4 border-t border-surface-variant/50 flex items-center justify-between bg-surface-container/20">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
+      {/* Bottom Profile Footer — whole row opens the profile page. Shares
+          the sidebar's sliding active pill so Profile doesn't leave Overview
+          (or whichever tab you came from) looking selected. */}
+      <div className="p-4 border-t border-surface-variant/50 bg-surface-container/20">
+        <Link
+          href="/dashboard/profile"
+          prefetch={true}
+          aria-current={activeScreen === 'profile' ? 'page' : undefined}
+          className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 transition-colors ${
+            activeScreen === 'profile'
+              ? 'text-primary'
+              : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+          }`}
+        >
+          {activeScreen === 'profile' && (
+            <motion.span
+              layoutId="dashboard-sidebar-active-bg"
+              className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
+              transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+            />
+          )}
+          <div className="relative z-10 w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
             {profile?.displayName
               ? profile.displayName.charAt(0).toUpperCase()
               : user?.email
                 ? user.email.charAt(0).toUpperCase()
                 : 'A'}
           </div>
-          <div className="flex flex-col truncate">
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
             <span className="font-label-lg font-bold text-on-surface truncate">
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}
             </span>
             <span className="font-label-sm text-[10px] text-primary uppercase font-extrabold tracking-wider">
-              {profile?.plan === 'pro' ? 'PRO PLAN' : 'FREE PLAN'}
+              {isPro ? 'PRO PLAN' : 'FREE PLAN'}
             </span>
           </div>
-        </div>
-        <button
-          onClick={openSettingsModal}
-          className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-xl transition-colors shrink-0"
-          title="Settings"
-        >
-          <AppIcon name="settings" className=" text-[20px]" />
-        </button>
+          <AppIcon
+            name="person"
+            className={`relative z-10 shrink-0 text-[20px] ${
+              activeScreen === 'profile' ? 'filled text-primary' : 'text-on-surface-variant'
+            }`}
+          />
+        </Link>
       </div>
     </aside>
   );

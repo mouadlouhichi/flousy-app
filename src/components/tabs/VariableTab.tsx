@@ -1,9 +1,13 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
 import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
+import { formatShortDate } from '../../lib/utils';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { isProUser } from '../../lib/pro-features';
+import { useHousehold } from '../../lib/household-context';
+import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 
 interface VariableTabProps {
   month: MonthBudget;
@@ -27,6 +31,7 @@ export function VariableTab({
   const { format } = useCurrency();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
+  const { workspace } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -66,7 +71,7 @@ export function VariableTab({
   };
 
   const handleStartEdit = (category: string) => {
-    if (!isPro) {
+    if (!isProFeatureUnlocked(isPro, workspace)) {
       onOpenProModal();
       return;
     }
@@ -84,7 +89,7 @@ export function VariableTab({
             TOTAL VARIABLE SPENT
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalSpent)}
+            <FormattedAmount value={totalSpent} />
           </h2>
         </div>
         <div className="flex gap-sm">
@@ -111,7 +116,7 @@ export function VariableTab({
           <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
             Category Budgets
           </h3>
-          {!isPro && (
+          {canShowProUpgrade(isPro, workspace) && (
             <button
               onClick={onOpenProModal}
               className="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
@@ -158,7 +163,7 @@ export function VariableTab({
                           }
                         }}
                         placeholder="0"
-                        className="w-24 px-2 py-1 bg-surface border border-outline-variant rounded-lg font-mono text-sm text-on-surface focus:border-primary outline-none"
+                        className="w-24 px-2 py-1 bg-surface border border-outline-variant rounded-lg font-mono text-base text-on-surface focus:border-primary outline-none"
                         autoFocus
                       />
                       <button
@@ -236,7 +241,7 @@ export function VariableTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search expenses or notes..."
-            className="w-full pl-10 pr-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+            className="w-full pl-10 pr-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
           />
         </div>
 
@@ -269,44 +274,48 @@ export function VariableTab({
             <div
               key={exp.id}
               onClick={() => onEditExpense(exp)}
-              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer shadow-2xs"
+              className="flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant hover:border-primary transition-all cursor-pointer shadow-2xs"
             >
-              <div className="flex items-center gap-md">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">
                   <AppIcon name={month.categoryIcons?.[exp.type] || 'shopping_bag'} className=" text-[22px]" />
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-xs">
-                    <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-semibold">
                       {exp.name}
                     </span>
                     {exp.person && exp.person !== 'Self' && (
-                      <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
+                      <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {exp.person}
                       </span>
                     )}
                     {exp.receiptUrl && (
-                      <AppIcon name="receipt_long" className="text-[16px] text-primary" title="Has receipt" />
+                      <AppIcon name="receipt_long" className="shrink-0 text-[16px] text-primary" title="Has receipt" />
                     )}
                   </div>
-                  <div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">
-                    <span>{exp.type}</span>
-                    <span>•</span>
-                    <span className="capitalize">{exp.place}</span>
-                    <span>•</span>
-                    <span>{exp.date}</span>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
+                    <span className="min-w-0 truncate">{exp.type}</span>
+                    <span className="shrink-0">•</span>
+                    <span className="shrink-0 capitalize">{exp.place}</span>
+                    <span className="shrink-0">•</span>
+                    <time dateTime={exp.date} className="shrink-0 whitespace-nowrap">
+                      {formatShortDate(exp.date)}
+                    </time>
                   </div>
                   {exp.note && (
-                    <span className="font-body-sm text-body-sm text-on-surface-variant italic mt-0.5">
+                    <span className="mt-0.5 truncate font-body-sm text-body-sm text-on-surface-variant italic">
                       "{exp.note}"
                     </span>
                   )}
                 </div>
               </div>
 
-              <span className="font-mono font-extrabold text-headline-sm text-on-surface">
-                -{format(exp.amount)}
-              </span>
+              <FormattedAmount
+                value={exp.amount}
+                prefix="-"
+                className="shrink-0 font-mono font-extrabold text-headline-sm text-on-surface"
+              />
             </div>
           ))}
         </div>

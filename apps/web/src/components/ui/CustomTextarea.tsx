@@ -21,7 +21,7 @@ export const CustomTextarea = forwardRef<HTMLTextAreaElement, CustomTextareaProp
           ref={ref}
           className={cn(
             'w-full min-h-[120px] px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl',
-            'font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/50',
+            'font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50',
             'hover:border-outline hover:bg-surface-container-low',
             'focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
             'transition-all duration-200 resize-y',

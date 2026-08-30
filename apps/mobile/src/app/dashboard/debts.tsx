@@ -10,16 +10,14 @@ import {
 import { useMobileStore } from '../../lib/store-context';
 import { DebtModal } from '../../components/DebtModal';
 
-const DEFAULT_CURRENCY = 'MAD';
-
 export default function DebtsScreen() {
-  const { month, updateMonth } = useMobileStore();
+  const { month, updateMonth, currency, canEditArea } = useMobileStore();
+  const canEdit = canEditArea('debts');
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingDebt, setEditingDebt] = useState<DebtItem | null>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'settled'>('all');
 
-  const currency = DEFAULT_CURRENCY;
   const debts = month?.debts || [];
 
   const filteredDebts = useMemo(() => {
@@ -48,6 +46,7 @@ export default function DebtsScreen() {
   };
 
   const handleOpenEdit = (debt: DebtItem) => {
+    if (!canEdit) return;
     setEditingDebt(debt);
     setModalVisible(true);
   };

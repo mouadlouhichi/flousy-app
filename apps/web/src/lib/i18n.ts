@@ -1,50 +1,54 @@
 /**
- * Lightweight i18n utilities — no Firebase, no React context.
- * Safe to use from server components, client components, and static pages.
+ * Lightweight i18n utilities — no Firebase, no React context, no full
+ * translation bundle. Safe to use from server components, client components,
+ * and static pages.
+ *
+ * NOTE: `fr`/`ar` JSON are intentionally NOT imported here. They are loaded
+ * lazily via `./messages` (see `loadMessages`) so static/public bundles keep
+ * only the English dictionary.
  */
 
 import {
   type Language,
   type Messages,
-  MESSAGES,
+  EN_MESSAGES,
   LOCALES,
   LOCALE_NAMES,
   RTL_LOCALES,
+  isRTL,
   formatMessage,
-} from './translations';
+  getIntlLocale,
+} from './i18n-core';
 
-export { type Language, type Messages, LOCALES, LOCALE_NAMES, RTL_LOCALES, formatMessage };
-export { MESSAGES };
+export {
+  type Language,
+  type Messages,
+  EN_MESSAGES,
+  LOCALES,
+  LOCALE_NAMES,
+  RTL_LOCALES,
+  isRTL,
+  formatMessage,
+  getIntlLocale,
+};
 
 export const LANG_COOKIE = 'flousy_language';
 export const LANG_STORAGE_KEY = 'flousy_language';
-
-export function isValidLocale(v: unknown): v is Language {
-  return typeof v === 'string' && LOCALES.includes(v as Language);
-}
 
 export function detectBrowserLanguage(): Language {
   if (typeof navigator === 'undefined') return 'en';
   const browserLangs = navigator.languages || [navigator.language];
   for (const lang of browserLangs) {
     const code = lang.split('-')[0].toLowerCase();
-    if (isValidLocale(code)) return code;
+    if (LOCALES.includes(code as Language)) return code as Language;
   }
   return 'en';
 }
 
 export function getLocaleFromCookieString(cookieStr: string): Language | null {
   const match = cookieStr.match(new RegExp(`(?:^|;\\s*)${LANG_COOKIE}=([^;]+)`));
-  if (match && isValidLocale(match[1])) return match[1] as Language;
+  if (match && LOCALES.includes(match[1] as Language)) return match[1] as Language;
   return null;
-}
-
-export function getMessages(locale: Language): Messages {
-  return MESSAGES[locale] || MESSAGES.en;
-}
-
-export function isRTL(locale: Language): boolean {
-  return RTL_LOCALES.includes(locale);
 }
 
 export function setLanguageCookie(locale: Language): void {
@@ -59,7 +63,7 @@ export function resolveClientLocale(): Language {
   if (typeof localStorage !== 'undefined') {
     try {
       const stored = localStorage.getItem(LANG_STORAGE_KEY);
-      if (isValidLocale(stored)) return stored;
+      if (LOCALES.includes(stored as Language)) return stored as Language;
     } catch { /* ignore */ }
   }
   return detectBrowserLanguage();

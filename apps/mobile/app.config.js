@@ -38,6 +38,8 @@ const config = {
     infoPlist: {
       NSFaceIDUsageDescription:
         "SmartJib uses Face ID to securely unlock your private budget.",
+      NSCameraUsageDescription:
+        "SmartJib uses the camera to scan product barcodes during a shopping course.",
     },
     googleServicesFile: iosGoogleServicesFile,
   },
@@ -48,6 +50,7 @@ const config = {
     versionCode: 1,
     googleServicesFile: "./google-services.json",
     permissions: [
+      "CAMERA",
       "USE_BIOMETRIC",
       "USE_FINGERPRINT",
       "RECEIVE_BOOT_COMPLETED",
@@ -68,6 +71,13 @@ const config = {
   plugins: [
     "expo-router",
     "expo-localization",
+    [
+      "expo-camera",
+      {
+        cameraPermission:
+          "SmartJib uses the camera to scan product barcodes during a shopping course.",
+      },
+    ],
     "expo-local-authentication",
     "expo-font",
     "expo-splash-screen",

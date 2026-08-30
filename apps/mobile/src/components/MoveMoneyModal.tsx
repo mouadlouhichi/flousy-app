@@ -10,13 +10,14 @@ import {
   Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { type MoneyPlace, type MonthBudget } from '@flousy/core';
+import { type MoneyPlace, type MoneyPlaceConfig, type MonthBudget, getPlaceBalance } from '@flousy/core';
 
 interface MoveMoneyModalProps {
   visible: boolean;
   onClose: () => void;
   month: MonthBudget;
   currency: string;
+  places?: MoneyPlaceConfig[];
   onConfirm: (from: MoneyPlace, to: MoneyPlace, amount: number) => Promise<void>;
 }
 
@@ -25,6 +26,7 @@ export function MoveMoneyModal({
   onClose,
   month,
   currency,
+  places: placeConfigs,
   onConfirm,
 }: MoveMoneyModalProps) {
   const { t } = useTranslation();
@@ -33,11 +35,19 @@ export function MoveMoneyModal({
   const [amountStr, setAmountStr] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const places: { id: MoneyPlace; label: string; balance: number }[] = [
-    { id: 'bank', label: 'Bank Account', balance: month.bankPart || 0 },
-    { id: 'home', label: 'Home Cash', balance: month.homePart || 0 },
-    { id: 'wallet', label: 'Wallet', balance: month.walletPart || 0 },
-  ];
+  const places: { id: MoneyPlace; label: string; balance: number }[] = (
+    placeConfigs && placeConfigs.length > 0
+      ? placeConfigs
+      : [
+          { id: 'bank', name: 'Bank Account', icon: 'account_balance' },
+          { id: 'home', name: 'Home Cash', icon: 'home' },
+          { id: 'wallet', name: 'Wallet', icon: 'account_balance_wallet' },
+        ]
+  ).map((p) => ({
+    id: p.id,
+    label: p.name,
+    balance: getPlaceBalance(month, p.id),
+  }));
 
   const handleTransfer = async () => {
     const amount = parseFloat(amountStr);

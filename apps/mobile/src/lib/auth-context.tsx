@@ -90,6 +90,12 @@ export function MobileAuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (currentUser) {
+      try {
+        const { deleteUserAccountData } = await import('./db');
+        await deleteUserAccountData(currentUser.uid);
+      } catch {
+        // Best-effort wipe; auth deletion still proceeds.
+      }
       await currentUser.delete();
       setUser(null);
     }

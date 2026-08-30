@@ -25,30 +25,40 @@ import { useMobileAuth } from '../../lib/auth-context';
 import { useMobileStore } from '../../lib/store-context';
 import { setAppLanguage } from '../../lib/i18n';
 import { storage } from '../../lib/storage';
-import { setUserProfile } from '../../lib/db';
 import { CurrencyModal } from '../../components/CurrencyModal';
 import { ThemeModal } from '../../components/ThemeModal';
 import { ImportCsvModal } from '../../components/ImportCsvModal';
 import { IncomeSourcesModal } from '../../components/IncomeSourcesModal';
 import { CategoriesModal } from '../../components/CategoriesModal';
+import { HouseholdModal } from '../../components/HouseholdModal';
+import { MoneyPlacesModal } from '../../components/MoneyPlacesModal';
+import { StrategyModal } from '../../components/StrategyModal';
+import { formatDayOfMonth, PRO_FEATURES, canShowProUpgrade } from '@flousy/core';
 
 const BIOMETRIC_LOCK_KEY = 'flousy_biometric_enabled';
-const CURRENCY_STORAGE_KEY = 'flousy_currency';
-const DEFAULT_CURRENCY = 'MAD';
 
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { user, demoMode, deleteAccount } = useMobileAuth();
-  const { currentMonthKey, month, savingsGoals, updateMonth } = useMobileStore();
+  const {
+    currentMonthKey,
+    month,
+    savingsGoals,
+    updateMonth,
+    profile,
+    updateProfile,
+    isPro,
+    scanUnlocked,
+    workspace,
+    currency,
+  } = useMobileStore();
 
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState<boolean>(() =>
     storage.getBoolean(BIOMETRIC_LOCK_KEY) ?? false
   );
-  const [currency, setCurrencyState] = useState<string>(() =>
-    storage.getString(CURRENCY_STORAGE_KEY) || DEFAULT_CURRENCY
-  );
+  const [currencyState, setCurrencyState] = useState<string>(currency);
   const [exporting, setExporting] = useState(false);
 
   // Modals visibility state
@@ -57,6 +67,9 @@ export default function SettingsScreen() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [incomeModalVisible, setIncomeModalVisible] = useState(false);
   const [categoriesModalVisible, setCategoriesModalVisible] = useState(false);
+  const [householdVisible, setHouseholdVisible] = useState(false);
+  const [placesVisible, setPlacesVisible] = useState(false);
+  const [strategyVisible, setStrategyVisible] = useState(false);
 
   useEffect(() => {
     async function checkBiometrics() {
@@ -86,15 +99,8 @@ export default function SettingsScreen() {
   };
 
   const handleCurrencySelect = async (code: string) => {
-    storage.set(CURRENCY_STORAGE_KEY, code);
     setCurrencyState(code);
-    if (user && !demoMode) {
-      try {
-        await setUserProfile(user.uid, { currency: code });
-      } catch {
-        // ignore offline error
-      }
-    }
+    await updateProfile({ currency: code });
   };
 
   const handleImportVariable = async (newExpenses: VariableExpense[]) => {
@@ -176,9 +182,110 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-neutral-100 dark:bg-neutral-900">
       <ScrollView contentContainerStyle={{ padding: 16 }} className="space-y-6">
+        <Pressable onPress={() => router.push('/dashboard')} className="mb-3">
+          <Text className="text-primary font-bold">← Overview</Text>
+        </Pressable>
         <Text className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
-          {t('tabs.settings', 'Settings')}
+          {t('tabs.settings', 'Profile & Settings')}
         </Text>
+        <Text className="text-xs text-neutral-500 mb-4">
+          {isPro ? 'Pro plan' : 'Free plan'} · {workspace} workspace
+        </Text>
+
+        <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 mb-4 space-y-3">
+          <Pressable
+            onPress={() => router.push('/dashboard/trends')}
+            className="flex-row justify-between items-center pb-3 border-b border-neutral-100 dark:border-neutral-700"
+          >
+            <View>
+              <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200">
+                Trends & analytics
+              </Text>
+              <Text className="text-xs text-neutral-500">
+                {scanUnlocked ? '6-month history and envelope health' : 'Pro feature — unlock to view'}
+              </Text>
+            </View>
+            <Text className="text-primary font-bold text-xs">Open</Text>
+          </Pressable>
+          <Pressable onPress={() => setHouseholdVisible(true)} className="flex-row justify-between items-center pt-3">
+            <View>
+              <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200">Household workspace</Text>
+              <Text className="text-xs text-neutral-500">Shared budget, invites, contributor invoices</Text>
+            </View>
+            <Text className="text-primary font-bold text-xs">Open</Text>
+          </Pressable>
+          <Pressable onPress={() => setPlacesVisible(true)} className="flex-row justify-between items-center pt-3 border-t border-neutral-100 dark:border-neutral-700">
+            <View>
+              <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200">Money places</Text>
+              <Text className="text-xs text-neutral-500">Bank, home, wallet, plus custom sources</Text>
+            </View>
+            <Text className="text-primary font-bold text-xs">Manage</Text>
+          </Pressable>
+          {month && (
+            <Pressable onPress={() => setStrategyVisible(true)} className="flex-row justify-between items-center pt-3 border-t border-neutral-100 dark:border-neutral-700">
+              <View>
+                <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200">Budget strategy</Text>
+                <Text className="text-xs text-neutral-500">Including custom needs/wants/savings split</Text>
+              </View>
+              <Text className="text-primary font-bold text-xs">Change</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 mb-4">
+          <Text className="text-sm font-bold text-neutral-800 dark:text-neutral-200 mb-1">
+            Month start date
+          </Text>
+          <Text className="text-xs text-neutral-500 mb-3">
+            Currently the {formatDayOfMonth(profile?.monthStartDate || 1)}. The budget month flips on this payday.
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {[1, 5, 15, 25, 28].map((day) => (
+              <Pressable
+                key={day}
+                onPress={() => updateProfile({ monthStartDate: day })}
+                className={`px-3 py-2 rounded-xl border ${
+                  (profile?.monthStartDate || 1) === day ? 'bg-primary border-primary' : 'border-neutral-200 dark:border-neutral-600'
+                }`}
+              >
+                <Text className={(profile?.monthStartDate || 1) === day ? 'text-white text-xs font-bold' : 'text-neutral-700 dark:text-neutral-200 text-xs'}>
+                  {formatDayOfMonth(day)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {canShowProUpgrade(isPro, workspace) && (
+          <View className="bg-primary/10 p-4 rounded-2xl border border-primary/20 mb-4">
+            <Text className="font-bold text-primary mb-1">Upgrade to Pro</Text>
+            <Text className="text-xs text-neutral-600 dark:text-neutral-300 mb-3">
+              Unlock barcode scanning, trends, CSV and household attribution.
+            </Text>
+            {PRO_FEATURES.map((feature) => (
+              <Text key={feature.id} className="text-xs text-neutral-700 dark:text-neutral-300 mb-1">
+                • {feature.title}
+              </Text>
+            ))}
+            <Pressable
+              onPress={() => updateProfile({ plan: 'pro' })}
+              className="bg-primary py-3 rounded-xl items-center mt-3"
+            >
+              <Text className="text-white font-bold">Unlock Pro (demo)</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {isPro && (
+          <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 mb-4">
+            <Text className="font-bold text-neutral-900 dark:text-white mb-2">Pro features</Text>
+            {PRO_FEATURES.map((feature) => (
+              <Text key={feature.id} className="text-xs text-neutral-600 dark:text-neutral-300 mb-1">
+                ✓ {feature.title}
+              </Text>
+            ))}
+          </View>
+        )}
 
         {/* Currency & Appearance */}
         <View className="bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700 space-y-4">
@@ -392,8 +499,16 @@ export default function SettingsScreen() {
             month={month}
             onUpdateMonth={updateMonth}
           />
+          <StrategyModal
+            visible={strategyVisible}
+            onClose={() => setStrategyVisible(false)}
+            month={month}
+            onUpdateMonth={updateMonth}
+          />
         </>
       )}
+      <HouseholdModal visible={householdVisible} onClose={() => setHouseholdVisible(false)} />
+      <MoneyPlacesModal visible={placesVisible} onClose={() => setPlacesVisible(false)} />
     </View>
   );
 }

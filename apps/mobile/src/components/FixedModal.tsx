@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { type FixedExpense, type MoneyPlace, type MonthBudget } from '@flousy/core';
+import { MoneyPlaceChips } from './MoneyPlaceChips';
+import { useMobileStore } from '../lib/store-context';
 
 interface FixedModalProps {
   visible: boolean;
@@ -34,6 +36,7 @@ export function FixedModal({
   onDelete,
 }: FixedModalProps) {
   const { t } = useTranslation();
+  const { moneyPlaces } = useMobileStore();
   const [name, setName] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [place, setPlace] = useState<MoneyPlace>('bank');
@@ -42,11 +45,7 @@ export function FixedModal({
   const [recurring, setRecurring] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const places: { id: MoneyPlace; label: string; balance: number }[] = [
-    { id: 'bank', label: 'Bank', balance: month.bankPart || 0 },
-    { id: 'home', label: 'Home', balance: month.homePart || 0 },
-    { id: 'wallet', label: 'Wallet', balance: month.walletPart || 0 },
-  ];
+
 
   useEffect(() => {
     if (billToEdit) {
@@ -184,32 +183,13 @@ export function FixedModal({
               <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                 Paid From (Money Place)
               </Text>
-              <View className="flex-row space-x-2">
-                {places.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setPlace(p.id)}
-                    className={`flex-1 p-3 rounded-xl border items-center ${
-                      place === p.id
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
-                    }`}
-                  >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        place === p.id
-                          ? 'text-primary'
-                          : 'text-neutral-800 dark:text-neutral-200'
-                      }`}
-                    >
-                      {p.label}
-                    </Text>
-                    <Text className="text-xs text-neutral-500 mt-0.5">
-                      {p.balance} {currency}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <MoneyPlaceChips
+                month={month}
+                selected={place}
+                onSelect={setPlace}
+                currency={currency}
+                places={moneyPlaces}
+              />
             </View>
 
             <View className="flex-row justify-between items-center bg-neutral-100 dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-200 dark:border-neutral-700">

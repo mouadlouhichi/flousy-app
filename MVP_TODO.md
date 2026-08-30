@@ -4,7 +4,6 @@
 >
 > Legend: ✅ Done · ⬜ Not started · 🔧 Partial / needs polish
 
-
 ---
 
 ## 💰 Core Budgeting
@@ -120,7 +119,7 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, plan pinning |
+| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, Firebase-only plan (validated free↔pro flips) |
 | 66 | Content Security Policy (CSP) middleware | ✅ | Nonce-based, strict-dynamic, per-request nonce |
 | 67 | Zod validation on all forms | ✅ | `validation.ts` — expense, fixed bill, move money, goal, auth, category schemas |
 | 68 | CSV injection neutralisation | ✅ | `escapeCsvCell()` prepends `'` to formula triggers |
@@ -187,7 +186,7 @@
 | P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
 | P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
 | P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
-| P6 | **Shared / household budgets** | ⬜ | Rules are strictly single-user; multi-user would require subcollection redesign |
+| P6 | **Shared / household budgets** | ✅ | Multi-user household workspaces (`/households/{hid}`) with 5-role RBAC (`owner`, `editor`, `contributor`, `viewer`, `custom`), contributor invoice submission/review workflow, member invitation links via Resend, and dual personal/household workspace switching |
 | P7 | **Bank sync (Plaid / Tink)** | ⬜ | Post-MVP; no API integrations exist |
 | P8 | **Receipt OCR / smart scanning** | ⬜ | Receipt upload works (base64 data URL); no OCR processing |
 | P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
@@ -210,6 +209,37 @@
 
 ---
 
+## 🛒 Course Session (shopping-trip capture)
+
+> Design: [`COURSE_SESSION_DESIGN.md`](COURSE_SESSION_DESIGN.md) — barcode
+> product resolution (catalog → Open Food Facts → manual) with Morocco-first
+> coverage.
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| C1 | Barcode normalization (EAN-8/13, UPC-A→13, checksum) | ✅ | `normalizeBarcode()` + `barcodeChecksumValid()` in `course-session.ts` |
+| C2 | Self-learning product catalog (per user) | ✅ | `users/{uid}/products/{barcode}`; demo mode uses `localStorage` |
+| C3 | Product resolution cascade (catalog → OFF → manual) | ✅ | `resolveProduct()`; 4 s timeout degrades to manual entry |
+| C4 | Open Food Facts lookup (direct + server proxy fallback) | ✅ | `product-lookup.ts` + `/api/barcode/lookup` (5 min LRU); MA data ≈ 22.8k products |
+| C5 | Moroccan detection (GS1 prefix 611) + "Made in Morocco" badge | ✅ | `isMoroccanBarcode()` |
+| C6 | Camera scanning (BarcodeDetector → zxing fallback) | ✅ | `use-barcode-scanner.ts`; 1.5 s re-detect debounce |
+| C7 | Hardware scanner (keyboard wedge) + manual code field | ✅ | Digit-burst + Enter; manual field always available |
+| C8 | Active session: re-scan = qty +1, one-field price step (never prefilled — price varies per market) | ✅ | `createSessionItem`/`addItemToSession`; last price recorded in catalog for future price history, not shown |
+| C9 | Bill on finish (receipt text, share/copy/.txt/.csv) | ✅ | `renderBillText()`/`renderBillCsv()` — deterministic 46-col layout |
+| C10 | Session history (completed courses → reopen bill) | ✅ | `users/{uid}/sessions`, 100 latest |
+| C11 | Firestore rules (barcode id pattern, money bounds, 500-line cap) | ✅ | `firestore.rules`; blueprint kept in sync |
+| C12 | i18n (EN/FR/AR incl. RTL bill rendering) | ✅ | `messages/*.json` → `courses` section |
+| C13 | Entry point (quick action "Start Course") + screen routing | ✅ | `/dashboard/courses`, hidden from the 5-destination nav |
+| C14 | Unit tests (normalize/reducer/totals/bill/resolve) | ✅ | `tests/course-session.test.ts` (34 cases) |
+| C15 | Log bill to budget (variable expense) | ✅ | `courses-budget-logger.tsx` — one variable expense for the trip total; grocery-like category by default, first active category as fallback (`resolveCourseCategory`); idempotent via `loggedExpenseId` |
+| C16 | Static MA seed shard (CI-built OFF snapshot, offline 0 ms) | ⬜ | P2 — `/api/catalog/shard/611.json` + IndexedDB |
+| C17 | Opt-in "share product with Open Food Facts" | ⬜ | P2 |
+| C18 | Last-price suggestions / price history | ⬜ | P3 — Open Prices MA if data volume justifies |
+| C19 | Per-category bill splitting, household sessions (Pro) | ⬜ | P3 |
+| C20 | Barcode scan gated to the Pro plan | ✅ | `courses-scan-upsell.tsx` replaces the scanner panel on free plans; unlocked via `isProFeatureUnlocked` (household members included), name + price entry stays free |
+
+---
+
 ## Summary
 
 | Category | Total | ✅ Done | 🔧 Partial | ⬜ Not started |
@@ -228,6 +258,7 @@
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
-| **Post-MVP / Remaining** | **12** | **6** | **0** | **6** |
+| Course Session | 20 | 16 | 0 | 4 |
+| **Post-MVP / Remaining** | **12** | **7** | **0** | **5** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **112** | **106** | **0** | **6** |
+| **Grand Total (core + post-MVP)** | **131** | **121** | **0** | **10** |

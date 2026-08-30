@@ -17,6 +17,7 @@ export function OverviewScreen() {
     openExpenseModal,
     openMoveMoneyModal,
     openEditMoneyPlaces,
+    openSavingsEntryModal,
     handleUpdateTotalBudget,
     handleUpdateStrategy,
   } = useDashboard();
@@ -35,6 +36,7 @@ export function OverviewScreen() {
       onUpdateTotalBudget={handleUpdateTotalBudget}
       onEditMoneyPlaces={openEditMoneyPlaces}
       onUpdateStrategy={handleUpdateStrategy}
+      onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
     />
   );
 }

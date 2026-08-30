@@ -18,18 +18,16 @@ import {
 import { useMobileStore } from '../../lib/store-context';
 import { ExpenseModal } from '../../components/ExpenseModal';
 
-const DEFAULT_CURRENCY = 'MAD';
-
 export default function TransactionsScreen() {
   const { t, i18n } = useTranslation();
-  const { month, updateMonth } = useMobileStore();
+  const { month, updateMonth, currency, canEditArea } = useMobileStore();
+  const canEdit = canEditArea('expenses');
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<VariableExpense | null>(null);
 
-  const currency = DEFAULT_CURRENCY;
   const expenses = month?.variableExpenses || [];
   const categories =
     month?.activeCategories && month.activeCategories.length > 0
@@ -55,6 +53,7 @@ export default function TransactionsScreen() {
   };
 
   const handleOpenEdit = (exp: VariableExpense) => {
+    if (!canEdit) return;
     setEditingExpense(exp);
     setModalVisible(true);
   };
@@ -90,12 +89,14 @@ export default function TransactionsScreen() {
               Total: {totalFiltered} {currency} ({filteredExpenses.length} items)
             </Text>
           </View>
-          <Pressable
-            onPress={handleOpenAdd}
-            className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
-          >
-            <Text className="text-white font-bold text-sm">+ Expense</Text>
-          </Pressable>
+          {canEdit ? (
+            <Pressable
+              onPress={handleOpenAdd}
+              className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
+            >
+              <Text className="text-white font-bold text-sm">+ Expense</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Search Input */}

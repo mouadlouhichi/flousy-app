@@ -7,6 +7,13 @@ export * from './blog';
 export * from './seo';
 export * from './pro-features';
 export * from './dashboard-quick-actions';
+export * from './course-session';
+export * from './household';
+export * from './household-rbac';
+export * from './month-cache';
+export * from './auth-errors';
+export * from './utils';
+export * from './product-lookup';
 
 import en from '../messages/en.json';
 import fr from '../messages/fr.json';

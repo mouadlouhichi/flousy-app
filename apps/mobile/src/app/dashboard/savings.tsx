@@ -1,32 +1,30 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { type SavingGoal, type MonthBudget } from '@flousy/core';
+import { type SavingGoal, type MonthBudget, saveGoalWithBalance } from '@flousy/core';
 import { useMobileStore } from '../../lib/store-context';
 import { SavingsGoalModal, SavingsActionModal } from '../../components/SavingsModal';
 
-const DEFAULT_CURRENCY = 'MAD';
-
 export default function SavingsScreen() {
-  const { month, savingsGoals, updateMonth, updateSavingsGoals } = useMobileStore();
+  const { month, savingsGoals, updateMonth, updateSavingsGoals, currency, canEditArea } =
+    useMobileStore();
+  const canEdit = canEditArea('savings');
 
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
 
-  const currency = DEFAULT_CURRENCY;
-
-  const handleSaveGoal = async (goal: SavingGoal) => {
-    const existingIdx = savingsGoals.findIndex((g) => g.id === goal.id);
-    let newGoals: SavingGoal[];
-    if (existingIdx >= 0) {
-      newGoals = savingsGoals.map((g, i) => (i === existingIdx ? goal : g));
-    } else {
-      newGoals = [...savingsGoals, goal];
+  const handleSaveGoal = async (goal: SavingGoal, deductFromPlace?: string | null) => {
+    if (!month) {
+      await updateSavingsGoals([...savingsGoals.filter((g) => g.id !== goal.id), goal]);
+      return;
     }
-    await updateSavingsGoals(newGoals);
+    const res = saveGoalWithBalance(month, savingsGoals, goal, deductFromPlace ?? null);
+    if (res.month !== month) await updateMonth(res.month);
+    await updateSavingsGoals(res.goals);
   };
 
   const handleOpenAction = (goal: SavingGoal) => {
+    if (!canEdit) return;
     setSelectedGoal(goal);
     setActionModalVisible(true);
   };
@@ -51,12 +49,14 @@ export default function SavingsScreen() {
               Total Saved: {totalSaved} / {totalTarget} {currency}
             </Text>
           </View>
-          <Pressable
-            onPress={() => setCreateModalVisible(true)}
-            className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
-          >
-            <Text className="text-white font-bold text-sm">+ Goal</Text>
-          </Pressable>
+          {canEdit ? (
+            <Pressable
+              onPress={() => setCreateModalVisible(true)}
+              className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
+            >
+              <Text className="text-white font-bold text-sm">+ Goal</Text>
+            </Pressable>
+          ) : null}
         </View>
         <Text className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">
           Goals survive month rollovers. Deleting a funded goal returns cash to its source place.

@@ -7,7 +7,12 @@ export const storage = new MMKV({
 export const DEMO_MODE_KEY = 'flousy_demo_mode';
 export const DEMO_DATA_KEY_PREFIX = 'flousy_demo_month_';
 export const DEMO_SAVINGS_KEY = 'flousy_demo_savings';
+export const DEMO_PROFILE_KEY = 'flousy_demo_profile';
+export const DEMO_PRODUCTS_KEY = 'flousy_demo_products';
+export const DEMO_SESSIONS_KEY = 'flousy_demo_sessions';
 export const LANG_STORAGE_KEY = 'flousy_language';
+export const CURRENCY_STORAGE_KEY = 'flousy_currency';
+export const PRO_PLAN_KEY = 'flousy_pro_plan';
 
 export function isDemoMode(): boolean {
   return storage.getBoolean(DEMO_MODE_KEY) ?? false;
@@ -33,9 +38,27 @@ export function saveDemoSavingsData(json: string): void {
   storage.set(DEMO_SAVINGS_KEY, json);
 }
 
+export function getJson<T>(key: string, fallback: T): T {
+  const raw = storage.getString(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export function setJson(key: string, value: unknown): void {
+  storage.set(key, JSON.stringify(value));
+}
+
 export function clearDemoData(): void {
   storage.delete(DEMO_MODE_KEY);
   storage.delete(DEMO_SAVINGS_KEY);
+  storage.delete(DEMO_PROFILE_KEY);
+  storage.delete(DEMO_PRODUCTS_KEY);
+  storage.delete(DEMO_SESSIONS_KEY);
+  storage.delete(PRO_PLAN_KEY);
   const keys = storage.getAllKeys();
   for (const key of keys) {
     if (key.startsWith(DEMO_DATA_KEY_PREFIX)) {
