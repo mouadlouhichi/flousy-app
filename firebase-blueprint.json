@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts \u2014 run `npm run test` after changing any of them.",
+  "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
   "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
   "definitions": {
     "IncomeSource": {
@@ -369,6 +369,51 @@
         "id",
         "name",
         "icon"
+      ]
+    },
+    "SessionItem": {
+      "title": "SessionItem",
+      "description": "One line of a course session; name/category are snapshots of the product at scan time.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable line id: the barcode when present, else a generated row id"
+        },
+        "barcode": {
+          "type": "string",
+          "pattern": "^[0-9]{8}$|^[0-9]{13}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string"
+        },
+        "qty": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "unitPrice": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "lineTotal": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000,
+          "description": "round2(unitPrice * qty) — stored, never re-derived"
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "qty",
+        "unitPrice",
+        "lineTotal"
       ]
     }
   },
@@ -809,6 +854,132 @@
         "status",
         "createdAt"
       ]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Course catalog entry keyed by normalized barcode; the user's self-learning product database.",
+      "type": "object",
+      "properties": {
+        "barcode": {
+          "type": "string",
+          "pattern": "^[0-9]{8}$|^[0-9]{13}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "lastPrice": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "priceUpdatedAt": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "off",
+            "session"
+          ],
+          "description": "Where the metadata came from"
+        },
+        "origin": {
+          "type": "string",
+          "description": "'MA' for Moroccan products (GS1 prefix 611)"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "barcode",
+        "name",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CourseSession": {
+      "title": "CourseSession",
+      "description": "A course (shopping trip) captured by scanning barcodes. A completed session IS its bill.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "completed"
+          ]
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "endedAt": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "The trip date (YYYY-MM-DD)"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 3
+        },
+        "place": {
+          "type": "string",
+          "enum": [
+            "bank",
+            "home",
+            "wallet"
+          ],
+          "description": "Money place the course was paid from"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SessionItem"
+          },
+          "maxItems": 500
+        },
+        "total": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000,
+          "description": "Denormalized sum of lineTotals"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "startedAt",
+        "date",
+        "currency",
+        "place",
+        "items",
+        "total"
+      ]
     }
   },
   "firestore": {
@@ -825,28 +996,53 @@
       "schema": "SavingsData",
       "description": "Global savings goals document"
     },
-    "/households/{monthKey}": {
+    "/users/{uid}/products/{barcode}": {
+      "schema": "Product",
+      "description": "Course catalog: one document per normalized barcode (8/13 digits)",
+      "idPattern": "^[0-9]{8}$|^[0-9]{13}$"
+    },
+    "/users/{uid}/sessions/{sessionId}": {
+      "schema": "CourseSession",
+      "description": "Course session (shopping trip); a completed session is its bill"
+    },
+    "/households/{householdId}": {
       "schema": "Household",
       "description": "Shared household workspace"
     },
-    "/households/{monthKey}/members/{monthKey}": {
+    "/households/{id}": {
+      "schema": "Household",
+      "description": "Shared household workspace (created via saveHousehold id)"
+    },
+    "/households/{id}/members/{owner.id}": {
+      "schema": "HouseholdMember",
+      "description": "Creator membership written at household creation"
+    },
+    "/households/{householdId}/members/{member.id}": {
       "schema": "HouseholdMember",
       "description": "Household membership and roles"
     },
-    "/householdInvites/{monthKey}": {
+    "/households/{invite.householdId}/members/{userId}": {
+      "schema": "HouseholdMember",
+      "description": "Activated membership written when an invite is accepted"
+    },
+    "/householdInvites/{invite.id}": {
       "schema": "HouseholdInvite",
       "description": "Email-bound household invitation"
     },
-    "/households/{monthKey}/months/{monthKey}": {
+    "/householdInvites/{inviteId}": {
+      "schema": "HouseholdInvite",
+      "description": "Email-bound household invitation (read/accept by recipient)"
+    },
+    "/households/{householdId}/months/{monthKey}": {
       "schema": "MonthBudget",
       "description": "Shared monthly budget",
       "idPattern": "^[0-9]{4}-[0-9]{2}$"
     },
-    "/households/{monthKey}/data/savings": {
+    "/households/{householdId}/data/savings": {
       "schema": "SavingsData",
       "description": "Shared savings goals"
     },
-    "/households/{monthKey}/invoices/{monthKey}": {
+    "/households/{householdId}/invoices/{invoice.id}": {
       "schema": "HouseholdInvoice",
       "description": "Contributor invoice submissions isolated from private budgets"
     }

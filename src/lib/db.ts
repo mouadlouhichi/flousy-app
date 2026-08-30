@@ -8,9 +8,10 @@ import {
   getDocs,
   query,
   where,
+  limit,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
-import { MonthBudget, SavingGoal, UserProfile, normalizeMonth } from './store';
+import { CourseSession, MonthBudget, Product, SavingGoal, UserProfile, normalizeMonth } from './store';
 
 export enum OperationType {
   CREATE = 'create',
@@ -251,6 +252,131 @@ export async function fetchMonthsForTrends(
   return results;
 }
 
+// --- Course session: product catalog & sessions ------------------------------
+
+/** Subscribe to the user's product catalog (barcode-keyed products). */
+export function subscribeProductCatalog(uid: string, onData: (products: Product[]) => void): () => void {
+  if (!isFirebaseConfigured || !db) {
+    onData([]);
+    return () => {};
+  }
+
+  const path = `users/${uid}/products`;
+  const q = query(collection(db, 'users', uid, 'products'), limit(2000));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(snap.docs.map((d) => d.data() as Product));
+    },
+    (err) => {
+      console.error('Error listening to product catalog:', err);
+    },
+  );
+}
+
+export async function saveProduct(uid: string, product: Product): Promise<void> {
+  if (!isFirebaseConfigured || !db || !product.barcode) return;
+  const barcode = product.barcode;
+  const path = `users/${uid}/products/${barcode}`;
+  try {
+    await setDoc(doc(db, 'users', uid, 'products', barcode), cleanUndefined(product), { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteProduct(uid: string, barcode: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const path = `users/${uid}/products/${barcode}`;
+  try {
+    await deleteDoc(doc(db, 'users', uid, 'products', barcode));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+/** Subscribe to the single active course session (null when none). */
+export function subscribeActiveCourseSession(
+  uid: string,
+  onData: (session: CourseSession | null) => void,
+): () => void {
+  if (!isFirebaseConfigured || !db) {
+    onData(null);
+    return () => {};
+  }
+
+  const q = query(collection(db, 'users', uid, 'sessions'), where('status', '==', 'active'), limit(1));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(snap.empty ? null : (snap.docs[0].data() as CourseSession));
+    },
+    (err) => {
+      console.error('Error listening to active course session:', err);
+    },
+  );
+}
+
+/** Subscribe to completed course sessions (history), newest first. */
+export function subscribeCourseSessions(uid: string, onData: (sessions: CourseSession[]) => void): () => void {
+  if (!isFirebaseConfigured || !db) {
+    onData([]);
+    return () => {};
+  }
+
+  const q = query(collection(db, 'users', uid, 'sessions'), where('status', '==', 'completed'), limit(100));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => d.data() as CourseSession);
+      list.sort((a, b) => (b.endedAt ?? b.startedAt).localeCompare(a.endedAt ?? a.startedAt));
+      onData(list);
+    },
+    (err) => {
+      console.error('Error listening to course sessions:', err);
+    },
+  );
+}
+
+export async function saveCourseSession(uid: string, session: CourseSession): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const sessionId = session.id;
+  const path = `users/${uid}/sessions/${sessionId}`;
+  try {
+    await setDoc(doc(db, 'users', uid, 'sessions', sessionId), cleanUndefined(session), { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteCourseSession(uid: string, sessionId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const path = `users/${uid}/sessions/${sessionId}`;
+  try {
+    await deleteDoc(doc(db, 'users', uid, 'sessions', sessionId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+/** Wipe the course catalog + sessions (used by account deletion). */
+async function deleteUserCourseData(uid: string): Promise<void> {
+  try {
+    const productsRef = collection(db, 'users', uid, 'products');
+    const productsSnap = await getDocs(productsRef);
+    for (const d of productsSnap.docs) await deleteDoc(d.ref);
+
+    const sessionsRef = collection(db, 'users', uid, 'sessions');
+    const sessionsSnap = await getDocs(sessionsRef);
+    for (const d of sessionsSnap.docs) await deleteDoc(d.ref);
+  } catch (err) {
+    console.error('Error deleting course data:', err);
+  }
+}
+
 // Delete all user account data from Firestore
 export async function deleteUserAccountData(uid: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
@@ -268,6 +394,9 @@ export async function deleteUserAccountData(uid: string): Promise<void> {
     for (const d of snap.docs) {
       await deleteDoc(d.ref);
     }
+
+    // Delete course catalog + sessions
+    await deleteUserCourseData(uid);
   } catch (err) {
     console.error('Error deleting account data:', err);
   }
@@ -294,6 +423,9 @@ export async function deleteUserBudgetData(uid: string): Promise<void> {
     for (const d of snap.docs) {
       await deleteDoc(d.ref);
     }
+
+    // Delete course catalog + sessions (budget records)
+    await deleteUserCourseData(uid);
   } catch (err) {
     console.error('Error deleting user budget data:', err);
   }

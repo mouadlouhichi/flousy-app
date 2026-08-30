@@ -2,6 +2,7 @@ export type DashboardScreenId =
   | 'overview'
   | 'fixed'
   | 'variable'
+  | 'courses'
   | 'savings'
   | 'trends'
   | 'debts'
@@ -57,6 +58,17 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     href: '/dashboard/variable',
     sidebarIcon: 'receipt_long',
     mobileIcon: 'shopping_cart',
+  },
+  {
+    id: 'courses',
+    label: 'Courses',
+    title: 'Course Session',
+    href: '/dashboard/courses',
+    sidebarIcon: 'scan_barcode',
+    mobileIcon: 'scan_barcode',
+    // Reached from the quick actions ("Start Course") rather than taking a
+    // slot in the five-destination nav bars.
+    hiddenFromNav: true,
   },
   {
     id: 'savings',

@@ -23,6 +23,35 @@ service cloud.firestore {
       allow delete: if owner(uid);
       match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
       match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
+
+      // Course session catalog: one document per normalized barcode (8/13 digits).
+      match /products/{barcode} {
+        allow get, list: if owner(uid);
+        allow create: if owner(uid)
+          && (barcode matches '^[0-9]{8}$' || barcode matches '^[0-9]{13}$')
+          && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+          && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
+        allow update: if owner(uid)
+          && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice))
+          && (!('name' in incoming()) || (incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100));
+        allow delete: if owner(uid);
+      }
+
+      // Course sessions: one active at a time per user (app-enforced); a
+      // completed session is its bill.
+      match /sessions/{sessionId} {
+        allow get, list: if owner(uid);
+        allow create: if owner(uid)
+          && incoming().status == 'active'
+          && incoming().place in ['bank', 'home', 'wallet']
+          && isMoney(incoming().total)
+          && incoming().items.size() <= 500;
+        allow update: if owner(uid)
+          && isMoney(incoming().total)
+          && incoming().items.size() <= 500
+          && (!('status' in incoming()) || incoming().status in ['active', 'completed']);
+        allow delete: if owner(uid);
+      }
     }
 
     match /households/{hid} {

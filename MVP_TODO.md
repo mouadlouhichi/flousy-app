@@ -209,6 +209,36 @@
 
 ---
 
+## 🛒 Course Session (shopping-trip capture)
+
+> Design: [`COURSE_SESSION_DESIGN.md`](COURSE_SESSION_DESIGN.md) — barcode
+> product resolution (catalog → Open Food Facts → manual) with Morocco-first
+> coverage.
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| C1 | Barcode normalization (EAN-8/13, UPC-A→13, checksum) | ✅ | `normalizeBarcode()` + `barcodeChecksumValid()` in `course-session.ts` |
+| C2 | Self-learning product catalog (per user) | ✅ | `users/{uid}/products/{barcode}`; demo mode uses `localStorage` |
+| C3 | Product resolution cascade (catalog → OFF → manual) | ✅ | `resolveProduct()`; 4 s timeout degrades to manual entry |
+| C4 | Open Food Facts lookup (direct + server proxy fallback) | ✅ | `product-lookup.ts` + `/api/barcode/lookup` (5 min LRU); MA data ≈ 22.8k products |
+| C5 | Moroccan detection (GS1 prefix 611) + "Made in Morocco" badge | ✅ | `isMoroccanBarcode()` |
+| C6 | Camera scanning (BarcodeDetector → zxing fallback) | ✅ | `use-barcode-scanner.ts`; 1.5 s re-detect debounce |
+| C7 | Hardware scanner (keyboard wedge) + manual code field | ✅ | Digit-burst + Enter; manual field always available |
+| C8 | Active session: re-scan = qty +1, one-field price step (never prefilled — price varies per market) | ✅ | `createSessionItem`/`addItemToSession`; last price recorded in catalog for future price history, not shown |
+| C9 | Bill on finish (receipt text, share/copy/.txt/.csv) | ✅ | `renderBillText()`/`renderBillCsv()` — deterministic 46-col layout |
+| C10 | Session history (completed courses → reopen bill) | ✅ | `users/{uid}/sessions`, 100 latest |
+| C11 | Firestore rules (barcode id pattern, money bounds, 500-line cap) | ✅ | `firestore.rules`; blueprint kept in sync |
+| C12 | i18n (EN/FR/AR incl. RTL bill rendering) | ✅ | `messages/*.json` → `courses` section |
+| C13 | Entry point (quick action "Start Course") + screen routing | ✅ | `/dashboard/courses`, hidden from the 5-destination nav |
+| C14 | Unit tests (normalize/reducer/totals/bill/resolve) | ✅ | `tests/course-session.test.ts` (34 cases) |
+| C15 | Log bill to budget (variable expense) | ⬜ | P2 — idempotent `loggedExpenseId` link by design |
+| C16 | Static MA seed shard (CI-built OFF snapshot, offline 0 ms) | ⬜ | P2 — `/api/catalog/shard/611.json` + IndexedDB |
+| C17 | Opt-in "share product with Open Food Facts" | ⬜ | P2 |
+| C18 | Last-price suggestions / price history | ⬜ | P3 — Open Prices MA if data volume justifies |
+| C19 | Per-category bill splitting, household sessions (Pro) | ⬜ | P3 |
+
+---
+
 ## Summary
 
 | Category | Total | ✅ Done | 🔧 Partial | ⬜ Not started |
@@ -227,6 +257,7 @@
 | Landing & SEO | 9 | 9 | 0 | 0 |
 | Firestore & Persistence | 7 | 7 | 0 | 0 |
 | Testing | 6 | 6 | 0 | 0 |
+| Course Session | 19 | 14 | 0 | 5 |
 | **Post-MVP / Remaining** | **12** | **7** | **0** | **5** |
 | **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **112** | **107** | **0** | **5** |
+| **Grand Total (core + post-MVP)** | **131** | **121** | **0** | **10** |

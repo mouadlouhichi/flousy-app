@@ -1550,3 +1550,62 @@ export function createNewMonth(
     activeCategories: categories.length > 0 ? categories : undefined,
   }, monthKey);
 }
+
+// --- Course session (shopping trip capture) ----------------------------------
+
+/** Where a product's metadata came from. */
+export type ProductSource = 'manual' | 'off' | 'session';
+
+/** Lifecycle of a course session. */
+export type SessionStatus = 'active' | 'completed';
+
+/**
+ * One known product, keyed by its normalized barcode (8 or 13 digits).
+ * This is the user's self-learning catalog: every resolved product is
+ * stored once and becomes an instant local hit afterwards.
+ */
+export interface Product {
+  barcode: string; // doc id: 8 or 13 digits, checksum-verified
+  name: string;
+  brand?: string;
+  category?: string;
+  imageUrl?: string;
+  lastPrice?: number;
+  priceUpdatedAt?: string;
+  source: ProductSource;
+  /** 'MA' for Moroccan products (GS1 prefix 611). */
+  origin?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One line of a course session. Name/category are snapshots so the bill
+ * renders identically even if the catalog entry changes or is deleted later.
+ */
+export interface SessionItem {
+  key: string; // stable line id (the barcode when present, else generated)
+  barcode?: string;
+  name: string;
+  category?: string;
+  qty: number; // >= 1
+  unitPrice: number; // >= 0
+  lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
+}
+
+/**
+ * A "course" (shopping trip) captured by scanning product barcodes.
+ * A completed session IS its bill — the bill is a deterministic render of
+ * this document, not a separate record.
+ */
+export interface CourseSession {
+  id: string;
+  status: SessionStatus;
+  startedAt: string; // ISO timestamp
+  endedAt?: string; // ISO timestamp, set on completion
+  date: string; // YYYY-MM-DD (the trip)
+  currency: string; // profile currency snapshot
+  place: MoneyPlace; // where it was paid from
+  items: SessionItem[]; // capped at 500 lines
+  total: number; // denormalized sum of lineTotals
+}
