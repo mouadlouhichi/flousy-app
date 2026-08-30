@@ -167,9 +167,9 @@ export function StrategySelectorModal({
             />
           </div>
 
-          {/* Keep every allocation in a column so percentage and currency
-              values always have their own line, at every viewport width. */}
-          <div className="flex flex-col gap-2">
+          {/* Keep the three allocation cards in one row. Each card is a
+              flex column, so its label and amount remain vertically ordered. */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {[
               { label: 'Needs', value: preview.needs, color: 'bg-primary' },
               { label: 'Wants', value: preview.wants, color: 'bg-amber-500' },
@@ -177,13 +177,13 @@ export function StrategySelectorModal({
             ].map(({ label, value, color }) => (
               <div
                 key={label}
-                className="flex min-w-0 flex-col items-start gap-0.5 rounded-lg bg-surface/45 px-3 py-2"
+                className="flex min-w-0 flex-col items-start gap-0.5 rounded-lg bg-surface/45 px-2 py-1.5 sm:px-3 sm:py-2"
               >
-                <div className="flex items-center gap-1">
-                  <span className={`h-2 w-2 rounded-full ${color}`} />
-                  <span className="text-[11px] font-bold text-on-surface-variant">{label}</span>
+                <div className="flex min-w-0 items-center gap-1">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />
+                  <span className="truncate text-[10px] font-bold text-on-surface-variant sm:text-[11px]">{label}</span>
                 </div>
-                <span className="max-w-full whitespace-nowrap font-mono text-[13px] font-extrabold text-on-surface">
+                <span title={format(value)} className="max-w-full truncate font-mono text-[10px] font-extrabold text-on-surface sm:text-[13px]">
                   {format(value)}
                 </span>
               </div>
@@ -259,9 +259,10 @@ export function StrategySelectorModal({
                       />
                     </div>
 
-                    {/* Percentage allocations intentionally use a vertical
-                        flex list, keeping each percentage and amount clear. */}
-                    <div className="mt-1.5 flex flex-col gap-1.5">
+                    {/* All three percentage items stay in one row. Their
+                        contents are flex columns to keep the amount below its
+                        percentage label. */}
+                    <div className="mt-1.5 grid grid-cols-3 gap-1 sm:gap-2">
                       {[
                         { label: 'Needs', percent: strat.needsRatio, value: amounts.needs },
                         { label: 'Wants', percent: strat.wantsRatio, value: amounts.wants },
@@ -269,12 +270,12 @@ export function StrategySelectorModal({
                       ].map(({ label, percent, value }) => (
                         <span
                           key={label}
-                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-3 py-2 text-[10px] font-bold text-on-surface-variant"
+                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-2 py-1.5 text-[9px] font-bold text-on-surface-variant sm:text-[10px]"
                         >
-                          <span>
+                          <span className="max-w-full truncate">
                             {label} · {Math.round(percent * 100)}%
                           </span>
-                          <span className="max-w-full whitespace-nowrap font-mono text-[11px] text-on-surface">
+                          <span title={format(value)} className="max-w-full truncate font-mono text-[9px] text-on-surface sm:text-[10px]">
                             {format(value)}
                           </span>
                         </span>
@@ -343,10 +344,19 @@ export function StrategySelectorModal({
                     <div className="h-full bg-slate-600" style={{ width: `${split.savings}%` }} />
                   </div>
 
-                  <div className="mt-1 flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.needs}% Needs</span>
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.wants}% Wants</span>
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.savings}% Savings</span>
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{split.needs}%</span>
+                      <span className="truncate">Needs</span>
+                    </span>
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{split.wants}%</span>
+                      <span className="truncate">Wants</span>
+                    </span>
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{split.savings}%</span>
+                      <span className="truncate">Savings</span>
+                    </span>
                   </div>
                 </div>
 

@@ -125,12 +125,12 @@ export function PreferencesPanel() {
 
   return (
     <div className="divide-y divide-outline-variant/30 rounded-2xl border border-outline-variant bg-surface-container">
-      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-3 p-4">
         <span className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-variant">
             <AppIcon name="payments" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Currency</span>
+          <span className="truncate text-sm font-medium text-on-surface">Currency</span>
         </span>
         <CustomSelect
           ariaLabel="Currency"
@@ -140,17 +140,17 @@ export function PreferencesPanel() {
             setDraftCurrency(value);
           }}
           options={CURRENCY_OPTIONS}
-          className="w-full shrink-0 sm:w-40"
+          className="w-32 shrink-0"
           triggerClassName="!h-11"
         />
       </div>
 
-      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-3 p-4">
         <span className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-variant">
             <AppIcon name="language" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Language</span>
+          <span className="truncate text-sm font-medium text-on-surface">Language</span>
         </span>
         <CustomSelect
           ariaLabel="Language"
@@ -160,7 +160,7 @@ export function PreferencesPanel() {
             setDraftLanguage(value as typeof language);
           }}
           options={LANGUAGE_OPTIONS}
-          className="w-full shrink-0 sm:w-40"
+          className="w-32 shrink-0"
           triggerClassName="!h-11"
         />
       </div>
