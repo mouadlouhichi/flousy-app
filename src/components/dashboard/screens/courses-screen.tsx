@@ -5,11 +5,14 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented-control';
 import { useCourseSession } from '@/hooks/use-course-session';
+import { isProFeatureUnlocked } from '@/lib/household';
+import { useHousehold } from '@/lib/household-context';
 import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { useLanguage } from '@/lib/i18n-context';
 import type { CourseSession, MoneyPlace } from '@/lib/store';
 import { CoursesBill } from '../courses/courses-bill';
+import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { useDashboard } from '../dashboard-provider';
 
@@ -84,12 +87,20 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 }
 
 export function CoursesScreen() {
-  const { user, profile } = useDashboard();
+  const { user, profile, isPro, openProModal } = useDashboard();
   const { t, messages: m } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
+  const { workspace } = useHousehold();
 
   const currency = profile?.currency ?? 'MAD';
+
+  // Barcode scanning (camera + code lookup) is a Pro feature. Household
+  // contributors get it unlocked with the workspace; everyone else keeps the
+  // always-free fallback: adding items by name. (The upsell card only ever
+  // renders outside a household workspace, so the upgrade CTA is always
+  // allowed there.)
+  const scanUnlocked = isProFeatureUnlocked(isPro, workspace);
 
   // ---- view state -------------------------------------------------------------
   const [viewingBill, setViewingBill] = useState<CourseSession | null>(null);
@@ -119,7 +130,7 @@ export function CoursesScreen() {
   };
 
   const handleCode = async (raw: string) => {
-    if (resolving || !active) return;
+    if (resolving || !active || !scanUnlocked) return;
     clearNotice();
 
     // Re-scan of a line already on the bill: POS behaviour — add one unit
@@ -282,8 +293,12 @@ export function CoursesScreen() {
             </div>
           )}
 
-          {/* Scanner */}
-          <CoursesScannerPanel enabled onCode={handleCode} />
+          {/* Scanner — Pro feature; free plans see the upgrade card instead */}
+          {scanUnlocked ? (
+            <CoursesScannerPanel enabled onCode={handleCode} />
+          ) : (
+            <CoursesScanUpsell onUpgrade={openProModal} />
+          )}
 
           {/* Pending product — the one-field price step */}
           {pending ? (
@@ -305,35 +320,67 @@ export function CoursesScreen() {
               {m.common.loading}
             </div>
           ) : (
-            /* Name-only entry (produce, no barcode) */
+            /* Name-only entry (produce, no barcode) — always free */
             <form
               onSubmit={addManualLine}
               className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5"
             >
-              <p className="mb-2 font-label-md text-label-md text-on-surface-variant">{c.noBarcode}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  value={manualName}
-                  onChange={(e) => setManualName(e.target.value)}
-                  placeholder={c.manualName}
-                  maxLength={100}
-                  className="min-w-[140px] flex-1 bg-surface"
-                />
-                <QtyControl value={manualQty} onChange={setManualQty} />
-                <Input
-                  value={manualPrice}
-                  onChange={(e) => setManualPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-                  placeholder={c.price}
-                  inputMode="decimal"
-                  className="w-24 bg-surface text-right font-bold"
-                />
-                <button
-                  type="submit"
-                  className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
-                >
-                  <AppIcon name="add" className="size-4" />
-                  {c.manualAdd}
-                </button>
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+                  <AppIcon name="label" className="size-5 text-primary" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="font-display font-headline-sm text-headline-sm text-on-surface">
+                    {c.noBarcode}
+                  </h3>
+                  <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">
+                    {c.noBarcodeHint}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2.5 md:flex-row md:items-end">
+                <label className="block min-w-0 flex-1">
+                  <span className="mb-1 block font-label-sm text-label-sm text-on-surface-variant">
+                    {c.manualName}
+                  </span>
+                  <Input
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder={c.manualName}
+                    maxLength={100}
+                    aria-label={c.manualName}
+                    className="w-full bg-surface text-[15px] font-medium"
+                  />
+                </label>
+                <div className="flex flex-wrap items-end gap-2.5">
+                  <div>
+                    <span className="mb-1 block font-label-sm text-label-sm text-on-surface-variant">
+                      {c.quantity}
+                    </span>
+                    <QtyControl value={manualQty} onChange={setManualQty} />
+                  </div>
+                  <label className="block">
+                    <span className="mb-1 block font-label-sm text-label-sm text-on-surface-variant">
+                      {c.price}
+                    </span>
+                    <Input
+                      value={manualPrice}
+                      onChange={(e) => setManualPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      placeholder={c.price}
+                      inputMode="decimal"
+                      aria-label={c.price}
+                      className="w-24 bg-surface text-right font-bold tabular-nums"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+                  >
+                    <AppIcon name="add" className="size-4" />
+                    {c.manualAdd}
+                  </button>
+                </div>
               </div>
             </form>
           )}

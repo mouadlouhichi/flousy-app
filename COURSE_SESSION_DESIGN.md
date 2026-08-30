@@ -66,6 +66,11 @@ Rules that keep the UX "easy":
 - **Single active session per user.** Opening Courses with a live session
   resumes it (never silently lost). Starting a new one while one is active
   requires Finish or Discard first.
+- **Scanning is a Pro feature.** The camera scanner and the manual code
+  lookup render for Pro plans (and for household members, who inherit Pro
+  inside a shared workspace). Free plans see an upgrade card in the same
+  slot — and always keep the barcode-free fallback: adding an item by
+  name + quantity + price.
 - **Re-scan = add one.** Scanning a code already on the bill increments its
   quantity instead of prompting. New scans open a one-field price step.
 - **Price step is one field.** Unit price input (decimal keyboard), with:

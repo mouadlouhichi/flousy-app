@@ -236,6 +236,7 @@
 | C17 | Opt-in "share product with Open Food Facts" | ⬜ | P2 |
 | C18 | Last-price suggestions / price history | ⬜ | P3 — Open Prices MA if data volume justifies |
 | C19 | Per-category bill splitting, household sessions (Pro) | ⬜ | P3 |
+| C20 | Barcode scan gated to the Pro plan | ✅ | `courses-scan-upsell.tsx` replaces the scanner panel on free plans; unlocked via `isProFeatureUnlocked` (household members included), name + price entry stays free |
 
 ---
 

@@ -226,7 +226,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 <p className="mx-auto max-w-xl text-sm sm:text-base leading-6 sm:leading-7 text-on-surface-variant">
                   {isPro
                     ? 'Thank you for supporting SmartJib. All premium features are active.'
-                    : 'Multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
+                    : 'Barcode course scanning, multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
                 </p>
               </div>
             </div>
@@ -312,6 +312,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
             <div className="grid grid-cols-1 gap-md md:grid-cols-2">
               {[
+                { icon: 'scan_barcode', title: 'Barcode Course Scanning', desc: 'Scan groceries as you shop — SmartJib builds the bill for you.' },
                 { icon: 'trending_up', title: 'Multi-Month Trends', desc: 'Compare spending across months and forecast savings.' },
                 { icon: 'upload_file', title: 'CSV Data Import', desc: 'Import transactions from bank statements or CSV files.' },
                 { icon: 'receipt', title: 'Receipt Attachments', desc: 'Attach receipt photos to any expense or bill.' },
