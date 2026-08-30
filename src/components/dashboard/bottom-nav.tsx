@@ -128,7 +128,7 @@ export function BottomNav() {
           <Link
             key={item.id}
             href={item.href}
-            prefetch={false}
+            prefetch={true}
             data-nav-item={item.id}
             aria-label={item.label}
             title={item.label}

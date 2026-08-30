@@ -152,3 +152,12 @@ export function getProfilePageTitle(pathname: string | null): string | null {
   if (pathname.startsWith('/dashboard/profile/')) return 'Profile & Account';
   return null;
 }
+
+/**
+ * Every route the dashboard can navigate to (main screens + profile
+ * subpages). Used for client-side prefetching so clicks are instant.
+ */
+export const DASHBOARD_NAV_HREFS: string[] = [
+  ...DASHBOARD_NAV_ITEMS.map((item) => item.href),
+  ...Object.keys(PROFILE_PAGE_TITLES).filter((href) => href !== '/dashboard/profile'),
+];

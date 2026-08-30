@@ -140,7 +140,7 @@ export function DashboardHeader() {
             bottom nav can keep all 6 destinations without overflowing. */}
         <Link
           href="/dashboard/profile"
-          prefetch={false}
+          prefetch={true}
           aria-label="Open profile and account"
           title="Profile & Account"
           aria-current={isProfileActive ? 'page' : undefined}
