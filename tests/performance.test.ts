@@ -125,4 +125,28 @@ describe('Performance guardrails', () => {
     assert.ok(shell.includes('0.22'), 'dashboard transition should be short (~220ms)');
     assert.ok(shell.includes('AnimatePresence'), 'dashboard must keep the horizontal animation');
   });
+
+  it('prevents the previous-page glitch during the push transition', () => {
+    const shell = read('src/components/dashboard/dashboard-shell.tsx');
+    // The outgoing screen must sit BEHIND the incoming one (z-index), overlay
+    // the content box exactly (inner relative wrapper + inset: 0), not move
+    // back over the new screen, and never swallow clicks.
+    assert.ok(shell.includes('zIndex: 1'), 'incoming screen must stack above the outgoing one');
+    assert.ok(shell.includes('zIndex: 0'), 'outgoing screen must be behind the incoming one');
+    assert.ok(shell.includes("inset: 0"), 'outgoing screen must overlay the content box exactly');
+    assert.ok(shell.includes("pointerEvents: 'none'"), 'outgoing screen must not intercept clicks');
+    assert.ok(
+      shell.includes('className="relative w-full"'),
+      'an inner relative wrapper must scope the exiting screen to the content box',
+    );
+    assert.ok(
+      shell.includes("window.scrollTo({ top: 0"),
+      'navigation must reset scroll so the previous screen offset never glitches',
+    );
+    // The old page fades in place instead of sliding/scaling back on top.
+    const exitVariant = shell.match(/exit:[\s\S]*?\n  \}\),/)?.[0] ?? '';
+    assert.ok(!exitVariant.includes('scale'), 'outgoing screen must not scale');
+    // `\bx:` matches the motion transform key and NOT the tail of "zIndex:".
+    assert.ok(!/\bx:\s/.test(exitVariant), 'outgoing screen must not slide backwards');
+  });
 });

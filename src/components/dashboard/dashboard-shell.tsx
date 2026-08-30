@@ -15,37 +15,44 @@ import { DashboardSkeleton } from './dashboard-skeleton';
 
 /**
  * Instagram-style push transition: the incoming screen slides in from the
- * direction we came from, on top of the outgoing screen, while the outgoing
- * screen stays put and quickly scales/fades underneath. Both run at the same
- * time (AnimatePresence default mode) and the whole thing is short — it
- * starts on click, never waits for a fetch, a spinner or an exit callback.
+ * direction we came from, ON TOP of the outgoing screen; the outgoing screen
+ * stays exactly where it is (no movement) and simply fades underneath.
  *
- * The content is instant because every dashboard route is prerendered and
- * prefetched (see the prefetch effect below), so navigation is a synchronous
- * client-side route change.
+ * Glitch-avoidance notes (previous page flashing on top of the new one):
+ * - The transition lives inside an inner `relative` wrapper so the exiting
+ *   screen is positioned against the CONTENT box (same size as the incoming
+ *   screen) — positioning it against <main>'s padding box made the old page
+ *   wider than the new one, so its edges peeked out beside the content.
+ * - The incoming screen is `position: relative; z-index: 1`; the exiting one
+ *   is `position: absolute; z-index: 0`, so no matter the DOM order
+ *   (AnimatePresence appends exiting elements AFTER the new one) the old page
+ *   can never paint on top of the new page.
+ * - The exiting screen does not move or scale — only fades — so there is no
+ *   "old page slides back over the new one" artifact.
+ * - `pointer-events: none` on the exiting screen so the fading old page never
+ *   swallows a click.
+ *
+ * Both run simultaneously (AnimatePresence default mode) and are short; the
+ * transition starts on click and never waits for a fetch, a spinner or an
+ * exit callback. Content is instant because every dashboard route is
+ * prerendered and prefetched (see the prefetch effect below).
  */
 const pageVariants: Variants = {
+  // New screen slides over the old one, fully opaque (Instagram-style push).
   enter: (direction: number) => ({
-    opacity: 0,
-    x: direction * 56,
-    scale: 0.985,
+    x: direction * 64,
   }),
-  center: { opacity: 1, x: 0, scale: 1 },
-  // Outgoing screen: pinned under the incoming one (absolute), quick scale
-  // down + fade — the `position` change is instant to avoid a layout jump.
-  exit: (direction: number) => ({
-    opacity: 0.4,
-    x: direction * -12,
-    scale: 0.975,
+  center: { x: 0 },
+  // Old screen: pinned exactly behind the incoming one, only fades out.
+  exit: () => ({
+    opacity: 0,
     position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
+    inset: 0,
+    zIndex: 0,
+    pointerEvents: 'none' as const,
     transition: {
       position: { duration: 0 },
-      opacity: { duration: 0.14, ease: 'easeOut' },
-      x: { duration: 0.16, ease: [0.4, 0, 0.2, 1] },
-      scale: { duration: 0.16, ease: [0.4, 0, 0.2, 1] },
+      opacity: { duration: 0.18, ease: 'easeOut' },
     },
   }),
 };
@@ -110,6 +117,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [router]);
 
+  // Snap to the top of the new screen on navigation. Without this the browser
+  // keeps the previous route's scroll offset (and `scroll-behavior: smooth`
+  // can add vertical drift while the height changes), which reads as a
+  // "previous page glitch". Instagram-style tabs start each screen at top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname]);
+
   // Direction of the horizontal transition, derived from nav order:
   // navigating to a higher-index screen slides in from the right.
   const activeScreen = getScreenIdFromPath(pathname);
@@ -131,20 +146,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <DashboardHeader />
 
         <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
-          <AnimatePresence initial={false} custom={direction}>
-            <motion.div
-              key={pathname}
-              custom={direction}
-              variants={pageVariants}
-              initial={reduceMotion ? false : 'enter'}
-              animate={reduceMotion ? false : 'center'}
-              exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : 'exit'}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              style={{ willChange: 'transform, opacity' }}
-            >
-              {loading ? <DashboardSkeleton /> : children}
-            </motion.div>
-          </AnimatePresence>
+          {/* Inner positioning context: the exiting screen is absolutely
+              positioned against the CONTENT box (not the padded <main>), so
+              it overlays the incoming screen exactly — no edge slivers. */}
+          <div className="relative w-full">
+            <AnimatePresence initial={false} custom={direction}>
+              <motion.div
+                key={pathname}
+                custom={direction}
+                variants={pageVariants}
+                initial={reduceMotion ? false : 'enter'}
+                animate={reduceMotion ? false : 'center'}
+                exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : 'exit'}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{ position: 'relative', zIndex: 1, willChange: 'transform, opacity' }}
+              >
+                {loading ? <DashboardSkeleton /> : children}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
 
