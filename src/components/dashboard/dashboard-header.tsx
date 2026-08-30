@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
+import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { useDashboard } from './dashboard-provider';
+import { ProfileAvatar } from './profile-avatar';
 import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
 import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
 
@@ -40,6 +42,7 @@ export function DashboardHeader() {
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
   const isProfileActive = activeScreen === 'profile';
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || '';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
   const monthLabel = (() => {
     const [y, m] = currentMonthKey.split('-').map(Number);
@@ -144,17 +147,23 @@ export function DashboardHeader() {
           aria-label="Open profile and account"
           title="Profile & Account"
           aria-current={isProfileActive ? 'page' : undefined}
-          className={`md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+          className={`group md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
             isProfileActive
               ? 'bg-primary text-on-primary'
               : 'bg-primary/10 text-primary hover:bg-primary/20'
           }`}
         >
-          {userInitial ? (
-            <span>{userInitial}</span>
-          ) : (
-            <AppIcon name="person" className="text-[20px]" />
-          )}
+          <ProfileAvatar
+            src={avatarSrc}
+            initial={userInitial || 'M'}
+            alt=""
+            className="size-full"
+            fallbackClassName={
+              isProfileActive
+                ? 'bg-primary text-on-primary'
+                : 'bg-primary/10 text-primary group-hover:bg-primary/20'
+            }
+          />
         </Link>
       </div>
     </header>

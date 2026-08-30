@@ -166,7 +166,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
             </div>
 
             {/* Body */}
-            <div className="p-4 sm:p-lg overflow-y-auto flex-1">{children}</div>
+            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-lg">{children}</div>
           </motion.div>
         </motion.div>
       )}

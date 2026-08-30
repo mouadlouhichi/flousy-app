@@ -322,6 +322,8 @@ export interface UserProfile {
   currency: string;
   onboardingComplete: boolean;
   displayName?: string;
+  /** Persisted custom avatar (small data URL or HTTPS provider image). */
+  avatarUrl?: string;
   theme?: 'light' | 'dark' | 'system';
   language?: 'en' | 'fr' | 'ar';
   householdMembers?: string[]; // legacy local person labels

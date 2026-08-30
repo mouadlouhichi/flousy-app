@@ -144,11 +144,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           onboardingComplete: false,
           theme: 'system',
           displayName: displayName || u.displayName || undefined,
+          // Store the provider image with the rest of the profile the first
+          // time we see it. That keeps the avatar stable across reloads even
+          // when an identity provider refreshes its photo URL later.
+          avatarUrl: u.photoURL || undefined,
         };
         await setUserProfile(u.uid, p);
-      } else if (displayName && !p.displayName) {
-        p.displayName = displayName;
-        await setUserProfile(u.uid, { displayName });
+      } else {
+        const patch: Partial<UserProfile> = {};
+        if (displayName && !p.displayName) patch.displayName = displayName;
+        // `undefined` means this older profile has never chosen/saved an
+        // avatar. An intentionally blank string is left alone as a user's
+        // explicit choice to fall back to their account photo/initials.
+        if (p.avatarUrl === undefined && u.photoURL) patch.avatarUrl = u.photoURL;
+        if (Object.keys(patch).length > 0) {
+          p = { ...p, ...patch };
+          await setUserProfile(u.uid, patch);
+        }
       }
       result = p;
       setProfile(p);

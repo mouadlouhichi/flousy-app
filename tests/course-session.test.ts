@@ -24,6 +24,7 @@ import {
   COURSE_FALLBACK_CATEGORY,
 } from '../src/lib/course-session';
 import type { Product } from '../src/lib/store';
+import { courseBillImageFilename, renderCourseBillImageSvg } from '../src/lib/course-bill-image';
 
 const MA_PRODUCT: Product = {
   barcode: '6111246721261',
@@ -321,6 +322,45 @@ describe('renderBillText', () => {
     let session = makeSession();
     session = addItemToSession(session, makeItem({ name: 'Milk', unitPrice: 12.5 }));
     assert.equal(renderBillText(session).split('\n')[1], '2026-08-30 · 1 line · 1 item · MAD');
+  });
+});
+
+describe('renderCourseBillImageSvg', () => {
+  it('renders the same course as a self-contained, escaped visual receipt', () => {
+    let session = makeSession();
+    session = addItemToSession(session, makeItem({ name: 'Pain & <jam>', unitPrice: 8, qty: 2 }));
+    session = completeSession(session, NOW);
+
+    const image = renderCourseBillImageSvg(session, {
+      title: 'Course bill',
+      items: 'items',
+      total: 'Total',
+      paidFrom: 'Paid from',
+      place: 'Bank',
+      locale: 'en-US',
+    });
+
+    assert.match(image, /^<svg /);
+    assert.match(image, /width="1080"/);
+    assert.match(image, /Pain &amp; &lt;jam&gt;/);
+    assert.match(image, /Paid from: Bank/);
+    assert.match(image, /TOTAL/);
+    assert.equal(courseBillImageFilename(session), 'smartjib-course-2026-08-30.png');
+  });
+
+  it('mirrors the visual receipt for right-to-left share images', () => {
+    const image = renderCourseBillImageSvg(makeSession(), {
+      title: 'فاتورة التسوق',
+      items: 'عناصر',
+      total: 'المجموع',
+      paidFrom: 'الدفع من',
+      place: 'البنك',
+      direction: 'rtl',
+      locale: 'ar-MA',
+    });
+
+    assert.match(image, /direction="rtl"/);
+    assert.match(image, /فاتورة التسوق/);
   });
 });
 

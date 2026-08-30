@@ -142,11 +142,11 @@ export function StrategySelectorModal({
       <div className="flex flex-col gap-4">
         {/* Live Preview Banner */}
         <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-4 border border-primary/20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="font-label-sm text-label-sm font-bold text-on-surface-variant uppercase tracking-wider">
               Preview Allocation
             </span>
-            <span className="font-label-md text-label-md font-extrabold text-primary font-mono">
+            <span className="ml-auto whitespace-nowrap font-label-md text-label-md font-extrabold text-primary font-mono">
               {format(totalBudget)}
             </span>
           </div>
@@ -167,34 +167,28 @@ export function StrategySelectorModal({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Needs</span>
+          {/* On a narrow sheet each allocation gets its own full row. The
+              former three-column layout squeezed localized currency values
+              together until they looked like one concatenated number. */}
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-2">
+            {[
+              { label: 'Needs', value: preview.needs, color: 'bg-primary' },
+              { label: 'Wants', value: preview.wants, color: 'bg-amber-500' },
+              { label: 'Savings', value: preview.savings, color: 'bg-slate-600' },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-surface/45 px-2 py-1 sm:block sm:bg-transparent sm:p-0 sm:text-center"
+              >
+                <div className="flex shrink-0 items-center gap-1 sm:justify-center sm:mb-0.5">
+                  <span className={`h-2 w-2 rounded-full ${color}`} />
+                  <span className="text-[11px] font-bold text-on-surface-variant">{label}</span>
+                </div>
+                <span className="shrink-0 whitespace-nowrap font-mono text-[13px] font-extrabold text-on-surface">
+                  {format(value)}
+                </span>
               </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.needs)}
-              </span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Wants</span>
-              </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.wants)}
-              </span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-slate-600" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Savings</span>
-              </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.savings)}
-              </span>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -222,7 +216,7 @@ export function StrategySelectorModal({
                     : 'border-outline-variant/50 bg-surface hover:bg-surface-container'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
                   {/* Icon */}
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
@@ -235,7 +229,7 @@ export function StrategySelectorModal({
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 min-w-0">
+                  <div className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <h4 className="font-label-lg text-label-lg font-extrabold text-on-surface">
                         {strat.name}
@@ -266,22 +260,32 @@ export function StrategySelectorModal({
                       />
                     </div>
 
-                    {/* Ratio Labels */}
-                    <div className="flex justify-between mt-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.needsRatio * 100)}% · {format(amounts.needs)}
-                      </span>
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.wantsRatio * 100)}% · {format(amounts.wants)}
-                      </span>
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.savingsRatio * 100)}% · {format(amounts.savings)}
-                      </span>
+                    {/* Allocation values need room for localized currency
+                        strings. On phones they deliberately stack into clear
+                        rows rather than forcing three amounts to collide. */}
+                    <div className="mt-1.5 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-2">
+                      {[
+                        { label: 'Needs', percent: strat.needsRatio, value: amounts.needs },
+                        { label: 'Wants', percent: strat.wantsRatio, value: amounts.wants },
+                        { label: 'Savings', percent: strat.savingsRatio, value: amounts.savings },
+                      ].map(({ label, percent, value }) => (
+                        <span
+                          key={label}
+                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-2 py-1 text-[10px] font-bold text-on-surface-variant sm:block sm:bg-transparent sm:p-0 sm:text-center"
+                        >
+                          <span className="sm:block">
+                            {label} · {Math.round(percent * 100)}%
+                          </span>
+                          <span className="max-w-full whitespace-nowrap font-mono text-[9px] text-on-surface sm:mt-0.5 sm:block sm:text-[10px]">
+                            {format(value)}
+                          </span>
+                        </span>
+                      ))}
                     </div>
                   </div>
 
                   {/* Selected indicator */}
-                  <div className="shrink-0 mt-1">
+                  <div className="ml-auto mt-1 shrink-0 sm:ml-0">
                     {isSelected ? (
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                         <AppIcon name="check" className="text-[14px] text-on-primary" />

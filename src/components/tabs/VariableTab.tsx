@@ -83,28 +83,30 @@ export function VariableTab({
   return (
     <div className="flex flex-col gap-lg pb-24">
       {/* Header & Total */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center">
-        <div>
+      <div className="flex flex-col gap-4 rounded-3xl border border-outline-variant bg-surface-container p-4 sm:flex-row sm:items-center sm:justify-between sm:p-lg">
+        <div className="min-w-0">
           <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-            TOTAL VARIABLE SPENT
+            <span className="sm:hidden">TOTAL SPENT</span>
+            <span className="hidden sm:inline">TOTAL VARIABLE SPENT</span>
           </span>
-          <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
+          <h2 className="mt-0.5 truncate font-headline-md text-headline-md font-extrabold text-on-surface sm:font-headline-lg sm:text-headline-lg">
             <FormattedAmount value={totalSpent} />
           </h2>
         </div>
-        <div className="flex gap-sm">
+        <div className="flex w-full gap-sm sm:w-auto sm:shrink-0">
           <button
             onClick={onManageCategories}
-            className="p-3 bg-surface hover:bg-surface-variant text-on-surface border border-outline-variant rounded-xl font-label-md text-label-md font-semibold flex items-center gap-xs"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-outline-variant bg-surface font-label-md text-label-md font-semibold text-on-surface hover:bg-surface-variant"
             title="Manage Categories"
+            aria-label="Manage Categories"
           >
-            <AppIcon name="label" className=" text-[20px]" />
+            <AppIcon name="label" className="text-[20px]" />
           </button>
           <button
             onClick={onOpenAddModal}
-            className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+            className="flex h-11 min-w-0 flex-1 items-center justify-center gap-xs whitespace-nowrap rounded-xl bg-primary px-4 font-label-md text-label-md font-bold text-on-primary shadow-sm transition-all hover:shadow-md sm:flex-none"
           >
-            <AppIcon name="add" className=" text-[20px]" />
+            <AppIcon name="add" className="shrink-0 text-[20px]" />
             <span>Add Expense</span>
           </button>
         </div>

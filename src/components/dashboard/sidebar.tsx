@@ -8,7 +8,9 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
 import { useHousehold } from '@/lib/household-context';
+import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { ProfileAvatar } from './profile-avatar';
 
 /**
  * Desktop left sidebar navigation (hidden on mobile).
@@ -24,6 +26,8 @@ export function Sidebar() {
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
+  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'A';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
@@ -128,13 +132,13 @@ export function Sidebar() {
               transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
             />
           )}
-          <div className="relative z-10 w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
-            {profile?.displayName
-              ? profile.displayName.charAt(0).toUpperCase()
-              : user?.email
-                ? user.email.charAt(0).toUpperCase()
-                : 'A'}
-          </div>
+          <ProfileAvatar
+            src={avatarSrc}
+            initial={userInitial}
+            alt=""
+            className="relative z-10 h-10 w-10"
+            fallbackClassName="bg-primary/20 text-primary font-bold"
+          />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
             <span className="font-label-lg font-bold text-on-surface truncate">
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}

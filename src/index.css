@@ -153,6 +153,19 @@
     --font-sans: var(--font-arabic), 'Cairo', system-ui, sans-serif;
     --font-display: var(--font-arabic), 'Cairo', system-ui, sans-serif;
   }
+
+  /* Native date inputs have an intrinsic width in Chromium/WebKit that can
+     exceed a narrow bottom sheet. Preserve the platform date picker while
+     allowing the value portion to use the field's available width. */
+  .date-input {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+
+  .date-input::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: start;
+  }
 }
 
 @theme {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
+import { createCourseBillImageFile } from '@/lib/course-bill-image';
 import { renderBillCsv, renderBillText } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import type { CourseSession } from '@/lib/store';
@@ -13,8 +14,7 @@ interface CoursesBillProps {
   onNewCourse: () => void;
 }
 
-function downloadText(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -25,14 +25,19 @@ function downloadText(filename: string, content: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function downloadText(filename: string, content: string, mime: string) {
+  downloadBlob(filename, new Blob([content], { type: `${mime};charset=utf-8` }));
+}
+
 /**
  * The completed session rendered as a bill: a receipt-style card (the same
  * data the text export uses) plus share / copy / download actions.
  */
 export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) {
-  const { messages, isRTL } = useLanguage();
+  const { messages, isRTL, intlLocale } = useLanguage();
   const c = messages.courses;
   const [copied, setCopied] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const billText = renderBillText(session);
   const billFileName = `course-${session.date}.txt`;
@@ -48,14 +53,57 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
   };
 
   const shareBill = async () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ title: c.billTitle, text: billText });
-      } catch {
-        /* user dismissed the share sheet */
+    if (isSharing || typeof navigator === 'undefined') return;
+
+    setIsSharing(true);
+    try {
+      const place = messages.places[session.place as keyof typeof messages.places] || session.place;
+      const image = await createCourseBillImageFile(session, {
+        title: c.billTitle,
+        items: c.items,
+        total: c.total,
+        paidFrom: c.paidFrom,
+        place,
+        locale: intlLocale,
+        direction: isRTL ? 'rtl' : 'ltr',
+      });
+      // No `text` payload here: native share receives the visual PNG only.
+      const shareData: ShareData = { files: [image] };
+
+      let canShareImage = Boolean(navigator.share);
+      if (canShareImage && typeof navigator.canShare === 'function') {
+        try {
+          canShareImage = navigator.canShare(shareData);
+        } catch {
+          // A few browsers throw while inspecting File payloads. Their
+          // reliable image fallback is the download below.
+          canShareImage = false;
+        }
       }
-    } else {
-      copyBill();
+
+      if (canShareImage) {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch (error) {
+          // Closing the native sheet is not an error and must not trigger a
+          // download. Other share failures still preserve the image path.
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            error.name === 'AbortError'
+          ) {
+            return;
+          }
+        }
+      }
+
+      // Desktop browsers and older mobile browsers may not accept shared
+      // files. Download the same PNG instead — never fall back to text.
+      downloadBlob(image.name, image);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -105,9 +153,11 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
           <button
             type="button"
             onClick={shareBill}
-            className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors"
+            disabled={isSharing}
+            aria-busy={isSharing}
+            className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 font-label-md text-label-md text-on-surface transition-colors hover:bg-surface-container-high disabled:cursor-wait disabled:opacity-60"
           >
-            <AppIcon name="share" className="size-4" />
+            <AppIcon name={isSharing ? 'sync' : 'share'} className={`size-4 ${isSharing ? 'animate-spin' : ''}`} />
             {c.billShare}
           </button>
           <button

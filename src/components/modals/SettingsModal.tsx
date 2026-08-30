@@ -14,6 +14,8 @@ import { SegmentedControl } from '../ui/segmented-control';
 import { MonthlyStartDateControl } from '../dashboard/monthly-start-date-control';
 import { trackEvent } from '../../lib/analytics';
 import { useHousehold } from '../../lib/household-context';
+import { resolveProfileAvatarSource } from '../../lib/profile-avatar';
+import { ProfileAvatar } from '../dashboard/profile-avatar';
 import { canShowProUpgrade } from '../../lib/household';
 
 interface SettingsModalProps {
@@ -70,6 +72,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   };
 
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'M';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
   return (
     <>
@@ -78,9 +81,14 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           {/* ── User Profile Card ── */}
           <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-5 border border-primary/20">
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 bg-primary text-on-primary rounded-2xl flex items-center justify-center font-headline-md text-headline-md font-bold shadow-sm shrink-0">
-                {userInitial}
-              </div>
+              <ProfileAvatar
+                src={avatarSrc}
+                initial={userInitial}
+                alt=""
+                shape="rounded"
+                className="h-14 w-14 shadow-sm"
+                fallbackClassName="bg-primary text-on-primary font-headline-md text-headline-md font-bold"
+              />
               <div className="flex-1 min-w-0">
                 {isEditingName ? (
                   <div className="space-y-2">

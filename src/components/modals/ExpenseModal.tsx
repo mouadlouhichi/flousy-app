@@ -155,7 +155,7 @@ export function ExpenseModal({
       onClose={onClose}
       title={initialExpense ? 'Edit Expense' : 'Add Expense'}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-5">
         {/* ── Description / Merchant (with live category icon) ── */}
         <div className="flex flex-col gap-1.5">
           <label

@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { trackEvent } from '@/lib/analytics';
+import { createProfileAvatarDataUrl, resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { useDashboard } from '../dashboard-provider';
+import { ProfileAvatar } from '../profile-avatar';
 import { canShowProUpgrade } from '@/lib/household';
 import { useHousehold } from '@/lib/household-context';
 
@@ -15,6 +17,9 @@ export function ProfileIdentity() {
   const showUpgrade = canShowProUpgrade(isPro, workspace);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isEditingName) setDisplayName(profile?.displayName || '');
@@ -25,6 +30,7 @@ export function ProfileIdentity() {
     (user?.email ? user.email.split('@')[0] : '') ||
     'Set your name';
   const userInitial = resolvedName[0]?.toUpperCase() || 'M';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
   const workspaceLabel =
     workspace === 'household'
       ? household?.name || 'Household'
@@ -43,6 +49,26 @@ export function ProfileIdentity() {
     setDisplayName(profile?.displayName || '');
   };
 
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Reset the field right away so choosing the same photo again still
+    // triggers a change event after an upload error.
+    event.target.value = '';
+    if (!file) return;
+
+    setAvatarError(null);
+    setIsSavingAvatar(true);
+    try {
+      const avatarUrl = await createProfileAvatarDataUrl(file);
+      await updateProfileData({ avatarUrl });
+      trackEvent('update_profile_avatar');
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Unable to save this profile photo.');
+    } finally {
+      setIsSavingAvatar(false);
+    }
+  };
+
   return (
     <section className="overflow-hidden rounded-3xl border border-outline-variant bg-surface-container">
       {/* Cover — gives the card a header instead of dumping identity in one row. */}
@@ -56,9 +82,34 @@ export function ProfileIdentity() {
       <div className="px-5 pb-5 sm:px-6 sm:pb-6">
         <div className="flex items-end justify-between gap-3">
           <div className="relative -mt-10 shrink-0 sm:-mt-12">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-3xl font-extrabold text-on-primary shadow-md ring-[5px] ring-surface-container sm:h-24 sm:w-24 sm:text-4xl">
-              {userInitial}
-            </div>
+            <ProfileAvatar
+              src={avatarSrc}
+              initial={userInitial}
+              alt={`${resolvedName}'s profile photo`}
+              className="h-20 w-20 shadow-md ring-[5px] ring-surface-container sm:h-24 sm:w-24"
+              fallbackClassName="bg-gradient-to-br from-primary to-primary/80 text-3xl font-extrabold text-on-primary sm:text-4xl"
+            />
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleAvatarChange}
+              className="hidden"
+              aria-label="Choose a profile photo"
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={isSavingAvatar}
+              aria-label="Change profile photo"
+              title="Change profile photo"
+              className="absolute -bottom-1 -left-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-primary shadow-md ring-[3px] ring-surface-container transition-colors hover:bg-surface-variant disabled:cursor-wait disabled:opacity-70"
+            >
+              <AppIcon
+                name={isSavingAvatar ? 'sync' : 'add_a_photo'}
+                className={`text-[15px] ${isSavingAvatar ? 'animate-spin' : ''}`}
+              />
+            </button>
             {isPro && (
               <span
                 title="Pro member"
@@ -83,6 +134,12 @@ export function ProfileIdentity() {
             </button>
           )}
         </div>
+
+        {avatarError && (
+          <p role="alert" className="mt-3 text-xs font-semibold text-error">
+            {avatarError}
+          </p>
+        )}
 
         <div className="mt-4 min-w-0">
           {isEditingName ? (

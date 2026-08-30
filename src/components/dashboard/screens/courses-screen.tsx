@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented-control';
@@ -465,8 +466,9 @@ export function CoursesScreen() {
             </ul>
           )}
 
-          {/* Bottom action bar — sits clear above the floating nav pill. */}
-          <div className="fixed inset-x-0 bottom-24 md:bottom-6 z-20 mx-auto max-w-3xl px-4">
+          {/* Bottom action bar — rendered at <body> level so the dashboard's
+              animated page wrapper cannot constrain its fixed positioning. */}
+          <CourseFloatingBar>
             {confirmDiscard ? (
               <div className="flex items-center gap-3 rounded-2xl border border-error/40 bg-surface-container-high p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                 <p className="flex-1 font-body-md text-body-md text-on-surface">{c.discardConfirm}</p>
@@ -509,10 +511,33 @@ export function CoursesScreen() {
                 </button>
               </div>
             )}
-          </div>
+          </CourseFloatingBar>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Keeps the live course controls fixed to the viewport instead of the
+ * animated route container. `left-64` starts at the desktop workspace edge;
+ * the horizontal padding is intentionally outside the card so its shadow has
+ * room while the card itself uses every available pixel.
+ */
+function CourseFloatingBar({ children }: { children: ReactNode }) {
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
+  if (!portalTarget) return null;
+
+  return createPortal(
+    <div className="fixed inset-x-0 bottom-24 z-20 px-4 md:bottom-6 md:left-64 md:px-8">
+      {children}
+    </div>,
+    portalTarget,
   );
 }
 
