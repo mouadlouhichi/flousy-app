@@ -22,18 +22,31 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
   const { messages } = useLanguage();
   const c = messages.courses;
   const [manualCode, setManualCode] = useState('');
+  const [flash, setFlash] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { videoRef, start, stop, running, error } = useBarcodeScanner({
     enabled,
     onCode: (code) => {
       setManualCode('');
+      // Captured feedback: brief frame flash + "Scanned" chip + haptic tick.
+      setFlash(true);
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setFlash(false), 700);
+      try {
+        navigator.vibrate?.(30);
+      } catch {
+        /* haptics unsupported */
+      }
       onCode(code);
     },
   });
 
-  // Stop the camera when the session is gone.
   useEffect(() => {
     if (!enabled) stop();
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
   }, [enabled, stop]);
 
   const submitManual = (event: React.FormEvent) => {
@@ -63,14 +76,31 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
 
       <div className="relative mt-3 overflow-hidden rounded-2xl bg-surface-variant aspect-[4/3] md:aspect-video">
         <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
-        {!running && (
+        {!running ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
             <AppIcon name="qr_code" className="size-10 text-on-surface-variant/50" />
             <p className="font-body-md text-body-md text-on-surface-variant">{c.scanHint}</p>
           </div>
-        )}
-        {running && (
-          <div className="pointer-events-none absolute inset-x-6 top-1/2 h-16 -translate-y-1/2 rounded-xl border-2 border-primary/70" />
+        ) : (
+          <>
+            <div
+              className={`pointer-events-none absolute inset-x-6 top-1/2 h-16 -translate-y-1/2 rounded-xl border-2 transition-colors duration-200 ${
+                flash ? 'border-primary' : 'border-primary/70 animate-pulse'
+              }`}
+            />
+            {flash ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-primary/10">
+                <span className="flex items-center gap-2 rounded-full bg-primary px-3.5 py-1.5 font-label-md text-label-md text-on-primary shadow-[0_6px_18px_rgba(0,104,95,0.4)]">
+                  <AppIcon name="check" className="size-4" />
+                  {c.scanned}
+                </span>
+              </div>
+            ) : (
+              <p className="pointer-events-none absolute inset-x-0 bottom-2 px-4 text-center font-label-sm text-label-sm text-on-surface-variant/90">
+                {c.alignHint}
+              </p>
+            )}
+          </>
         )}
       </div>
 

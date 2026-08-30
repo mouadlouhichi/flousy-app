@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented-control';
 import { useCourseSession } from '@/hooks/use-course-session';
-import { isMoroccanBarcode, round2, sessionUnits } from '@/lib/course-session';
+import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { useLanguage } from '@/lib/i18n-context';
 import type { CourseSession, MoneyPlace } from '@/lib/store';
@@ -85,7 +85,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 
 export function CoursesScreen() {
   const { user, profile } = useDashboard();
-  const { messages: m } = useLanguage();
+  const { t, messages: m } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
 
@@ -100,6 +100,7 @@ export function CoursesScreen() {
   const [notice, setNotice] = useState<{ kind: 'info' | 'warn'; text: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [manualName, setManualName] = useState('');
+  const [manualQty, setManualQty] = useState(1);
   const [manualPrice, setManualPrice] = useState('');
 
   const active = store.active;
@@ -119,8 +120,24 @@ export function CoursesScreen() {
 
   const handleCode = async (raw: string) => {
     if (resolving || !active) return;
-    setResolving(true);
     clearNotice();
+
+    // Re-scan of a line already on the bill: POS behaviour — add one unit
+    // instantly, keep the line's price, no network lookup involved.
+    const { barcode: scannedBarcode } = normalizeBarcode(raw);
+    if (scannedBarcode) {
+      const existing = active.items.find((line) => line.barcode === scannedBarcode);
+      if (existing) {
+        store.setQty(existing.key, existing.qty + 1);
+        setNotice({
+          kind: 'info',
+          text: t(c.scannedAdded, { name: existing.name, qty: existing.qty + 1 }),
+        });
+        return;
+      }
+    }
+
+    setResolving(true);
     try {
       const result = await store.resolveBarcode(raw);
       if (!result.ok) {
@@ -186,8 +203,9 @@ export function CoursesScreen() {
       setNotice({ kind: 'warn', text: !name ? c.nameRequired : c.priceRequired });
       return;
     }
-    store.addScannedLine({ name, unitPrice: price });
+    store.addScannedLine({ name, unitPrice: price, qty: manualQty });
     setManualName('');
+    setManualQty(1);
     setManualPrice('');
     clearNotice();
   };
@@ -293,24 +311,25 @@ export function CoursesScreen() {
               className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5"
             >
               <p className="mb-2 font-label-md text-label-md text-on-surface-variant">{c.noBarcode}</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Input
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   placeholder={c.manualName}
                   maxLength={100}
-                  className="flex-1 min-w-[140px] bg-surface"
+                  className="min-w-[140px] flex-1 bg-surface"
                 />
+                <QtyControl value={manualQty} onChange={setManualQty} />
                 <Input
                   value={manualPrice}
                   onChange={(e) => setManualPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
                   placeholder={c.price}
                   inputMode="decimal"
-                  className="w-28 bg-surface"
+                  className="w-24 bg-surface text-right font-bold"
                 />
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 rounded-xl bg-primary px-4 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+                  className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
                 >
                   <AppIcon name="add" className="size-4" />
                   {c.manualAdd}
