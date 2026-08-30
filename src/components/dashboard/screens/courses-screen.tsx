@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented-control';
@@ -30,6 +30,57 @@ interface PendingProduct {
 function parsePrice(raw: string): number | null {
   const value = Number(raw.replace(',', '.'));
   return Number.isFinite(value) && value >= 0 ? round2(value) : null;
+}
+
+/**
+ * Quantity control: − / + steppers around a directly-editable number field,
+ * so "6" can be typed instead of tapped six times.
+ */
+function QtyControl({ value, onChange }: { value: number; onChange: (qty: number) => void }) {
+  const { messages: m } = useLanguage();
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
+  const commit = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    setText(digits);
+    const n = Number(digits);
+    if (Number.isFinite(n) && n >= 1) onChange(Math.min(9999, Math.floor(n)));
+  };
+
+  return (
+    <div className="flex shrink-0 items-center rounded-full border border-outline-variant bg-surface">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        className="p-2 text-on-surface-variant hover:text-on-surface"
+        aria-label="−1"
+      >
+        <AppIcon name="remove" className="size-3.5" />
+      </button>
+      <input
+        value={text}
+        onChange={(e) => commit(e.target.value)}
+        onBlur={() => setText(String(value))}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        inputMode="numeric"
+        autoComplete="off"
+        aria-label={m.courses.quantity}
+        className="w-8 bg-transparent text-center font-body-md text-body-md font-bold text-on-surface outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(9999, value + 1))}
+        className="p-2 text-on-surface-variant hover:text-on-surface"
+        aria-label="+1"
+      >
+        <AppIcon name="add" className="size-3.5" />
+      </button>
+    </div>
+  );
 }
 
 export function CoursesScreen() {
@@ -204,11 +255,11 @@ export function CoursesScreen() {
               }`}
             >
               <span className="flex items-center gap-2">
-                <AppIcon name={notice.kind === 'warn' ? 'warning' : 'info'} className="text-[16px]" />
+                <AppIcon name={notice.kind === 'warn' ? 'warning' : 'info'} className="size-4" />
                 {notice.text}
               </span>
               <button type="button" onClick={clearNotice} aria-label={m.common.close} className="p-1 hover:opacity-70">
-                <AppIcon name="close" className="text-[14px]" />
+                <AppIcon name="close" className="size-3.5" />
               </button>
             </div>
           )}
@@ -232,7 +283,7 @@ export function CoursesScreen() {
             />
           ) : resolving ? (
             <div className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-low p-5 font-body-md text-body-md text-on-surface-variant">
-              <AppIcon name="search" className="animate-pulse text-[20px] text-primary" />
+              <AppIcon name="search" className="animate-pulse size-5 text-primary" />
               {m.common.loading}
             </div>
           ) : (
@@ -261,7 +312,7 @@ export function CoursesScreen() {
                   type="submit"
                   className="flex items-center gap-1.5 rounded-xl bg-primary px-4 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
                 >
-                  <AppIcon name="add" className="text-[16px]" />
+                  <AppIcon name="add" className="size-4" />
                   {c.manualAdd}
                 </button>
               </div>
@@ -290,25 +341,7 @@ export function CoursesScreen() {
                       {formatCurrency(line.unitPrice, active.currency)} / {c.unit}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 rounded-full border border-outline-variant bg-surface">
-                    <button
-                      type="button"
-                      onClick={() => store.setQty(line.key, line.qty - 1)}
-                      className="p-1.5 text-on-surface-variant hover:text-on-surface"
-                      aria-label="−1"
-                    >
-                      <AppIcon name="remove" className="text-[14px]" />
-                    </button>
-                    <span className="w-6 text-center font-label-md text-label-md text-on-surface">{line.qty}</span>
-                    <button
-                      type="button"
-                      onClick={() => store.setQty(line.key, line.qty + 1)}
-                      className="p-1.5 text-on-surface-variant hover:text-on-surface"
-                      aria-label="+1"
-                    >
-                      <AppIcon name="add" className="text-[14px]" />
-                    </button>
-                  </div>
+                  <QtyControl value={line.qty} onChange={(q) => store.setQty(line.key, q)} />
                   <span className="w-20 text-right font-body-md text-body-md font-bold text-on-surface tabular-nums">
                     {formatCurrency(line.lineTotal, active.currency)}
                   </span>
@@ -318,7 +351,7 @@ export function CoursesScreen() {
                     className="p-1.5 text-on-surface-variant hover:text-error"
                     aria-label={m.common.remove}
                   >
-                    <AppIcon name="close" className="text-[16px]" />
+                    <AppIcon name="close" className="size-4" />
                   </button>
                 </li>
               ))}
@@ -393,7 +426,7 @@ function EmptyCourse({ store, currency, startSession, onOpenBill }: EmptyCourseP
     <div className="space-y-4">
       <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-6 md:p-8 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <AppIcon name="scan_barcode" className="text-[32px] text-primary" />
+          <AppIcon name="scan_barcode" className="size-8 text-primary" />
         </div>
         <h2 className="mt-4 font-headline-md text-headline-md text-on-surface">{c.emptyTitle}</h2>
         <p className="mx-auto mt-2 max-w-md font-body-md text-body-md text-on-surface-variant">{c.emptyHint}</p>
@@ -402,7 +435,7 @@ function EmptyCourse({ store, currency, startSession, onOpenBill }: EmptyCourseP
           onClick={() => startSession({ currency, place: 'bank' })}
           className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
         >
-          <AppIcon name="play_circle" className="text-[18px]" />
+          <AppIcon name="play_circle" className="size-[18px]" />
           {c.start}
         </button>
       </div>
@@ -436,7 +469,7 @@ function HistoryRow({ session, onOpen }: { session: CourseSession; onOpen: (s: C
         className="flex w-full items-center gap-3 p-4 text-start hover:bg-surface-container-high transition-colors"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <AppIcon name="receipt_long" className="text-[18px] text-primary" />
+          <AppIcon name="receipt_long" className="size-[18px] text-primary" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-body-md text-body-md font-semibold text-on-surface">
@@ -451,7 +484,7 @@ function HistoryRow({ session, onOpen }: { session: CourseSession; onOpen: (s: C
         </span>
         <AppIcon
           name="chevron_right"
-          className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`}
+          className={`size-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`}
         />
       </button>
     </li>
@@ -490,7 +523,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
           />
         ) : (
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface">
-            <AppIcon name="inventory_2" className="text-[24px] text-primary" />
+            <AppIcon name="inventory_2" className="size-6 text-primary" />
           </span>
         )}
         <div className="min-w-0 flex-1">
@@ -525,45 +558,25 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-full border border-outline-variant bg-surface">
-          <button
-            type="button"
-            onClick={() => onQty(Math.max(1, qty - 1))}
-            className="p-2 text-on-surface-variant hover:text-on-surface"
-            aria-label="−1"
-          >
-            <AppIcon name="remove" className="text-[14px]" />
-          </button>
-          <span className="w-8 text-center font-body-md text-body-md font-bold text-on-surface">{qty}</span>
-          <button
-            type="button"
-            onClick={() => onQty(qty + 1)}
-            className="p-2 text-on-surface-variant hover:text-on-surface"
-            aria-label="+1"
-          >
-            <AppIcon name="add" className="text-[14px]" />
-          </button>
-        </div>
+        <QtyControl value={qty} onChange={onQty} />
 
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Input
-              value={price}
-              onChange={(e) => onPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
-              onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-              placeholder={c.unitPrice}
-              inputMode="decimal"
-              autoFocus={!needsName}
-              className="w-32 bg-surface text-right font-bold"
-            />
-          </div>
+          <Input
+            value={price}
+            onChange={(e) => onPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+            placeholder={c.unitPrice}
+            inputMode="decimal"
+            autoFocus={!needsName}
+            className="w-32 bg-surface text-right font-bold"
+          />
           <button
             type="button"
             onClick={onConfirm}
             disabled={resolving}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
+            className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
-            <AppIcon name="add" className="text-[16px]" />
+            <AppIcon name="add" className="size-4" />
             {c.add}
           </button>
         </div>

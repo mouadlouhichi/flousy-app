@@ -48,7 +48,7 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
     <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-headline-sm text-headline-sm text-on-surface">
-          <AppIcon name="scan_barcode" className="text-[20px] text-primary" />
+          <AppIcon name="scan_barcode" className="size-5 text-primary" />
           {c.scanTitle}
         </h3>
         <button
@@ -56,7 +56,7 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
           onClick={running ? stop : start}
           className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
         >
-          <AppIcon name={running ? 'visibility_off' : 'video_cam'} className="text-[16px]" />
+          <AppIcon name={running ? 'visibility_off' : 'video_cam'} className="size-4" />
           {running ? c.cameraStop : c.cameraStart}
         </button>
       </div>
@@ -65,7 +65,7 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
         <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
         {!running && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
-            <AppIcon name="qr_code" className="text-[40px] text-on-surface-variant/50" />
+            <AppIcon name="qr_code" className="size-10 text-on-surface-variant/50" />
             <p className="font-body-md text-body-md text-on-surface-variant">{c.scanHint}</p>
           </div>
         )}
@@ -76,7 +76,7 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
 
       {error && (
         <p className="mt-2 flex items-center gap-1.5 font-body-md text-body-md text-tertiary">
-          <AppIcon name="info" className="text-[16px]" />
+          <AppIcon name="info" className="size-4" />
           {c.cameraDenied}
         </p>
       )}
@@ -96,7 +96,7 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
           disabled={!manualCode.trim()}
           className="flex items-center gap-1.5 rounded-xl bg-primary px-4 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
-          <AppIcon name="search" className="text-[16px]" />
+          <AppIcon name="search" className="size-4" />
           {c.lookup}
         </button>
       </form>
