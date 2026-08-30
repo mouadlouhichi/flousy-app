@@ -68,8 +68,10 @@ Rules that keep the UX "easy":
   requires Finish or Discard first.
 - **Re-scan = add one.** Scanning a code already on the bill increments its
   quantity instead of prompting. New scans open a one-field price step.
-- **Price step is one field.** Unit price input (decimal keyboard) with:
-  - prefill from the product's **last recorded price** (catalog),
+- **Price step is one field.** Unit price input (decimal keyboard), with:
+  - **no prefill, ever** — the price is entered fresh each time because it
+    varies from market to market. The catalog *records* the last price (for
+    future price history) but it is neither prefilled nor displayed.
   - big centered input, auto-focus, Enter/✓ confirms,
   - quantity stepper (1, 2, 3…) beside it; line total and grand total
     update live.
@@ -112,8 +114,9 @@ is identical.
 normalized barcode
    │
    ├─ 1. LOCAL CATALOG (user's `users/{uid}/products/{barcode}`)
-   │      hit → product card: name, brand, category, LAST PRICE prefill
+   │      hit → product card: name, brand, category
    │      source: "catalog" — zero latency, works offline.
+   │      (price is always user-entered per market — never prefilled)
    │
    ├─ 2. REMOTE INDEX (first-time products only)
    │      2a. (P2) STATIC MA SEED — cached shard of the Morocco-filtered OFF
@@ -136,7 +139,7 @@ normalized barcode
 
 | Catalog | Seed (P2) | OFF live result | Outcome |
 |---|---|---|---|
-| hit | — | — | instant card, last price prefilled |
+| hit | — | — | instant product-details card (price entered per market) |
 | miss | hit | — | instant card, no price, cached in catalog |
 | miss | miss | `status 1` | remote card, no price, **cached in catalog** |
 | miss | miss | `status 0` / 404 / error / timeout (4 s) | manual card, code attached |
@@ -197,7 +200,7 @@ permission requested on first scan (not at app start).
 onCode(code)
   → debounce: same normalized code seen < 1500 ms ago  → drop (camera re-detect)
   → normalize + checksum (§3.1)
-  → resolve (§3.2) → ProductCard {name, brand?, category?, imageUrl?, lastPrice?}
+  → resolve (§3.2) → ProductCard {name, brand?, category?, imageUrl?}  (no price)
   → if code already a line item            → qty += 1, confirm with toast
   → else                                   → open price step (auto-focused)
   → on confirm:

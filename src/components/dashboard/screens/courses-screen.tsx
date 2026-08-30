@@ -21,7 +21,6 @@ interface PendingProduct {
   brand?: string;
   category?: string;
   imageUrl?: string;
-  lastPrice?: number;
   /** Where the metadata came from (drives the helper label). */
   source: 'catalog' | 'remote' | 'manual';
   /** Moroccan product (badge). */
@@ -58,13 +57,13 @@ export function CoursesScreen() {
   const clearNotice = () => setNotice(null);
 
   // ---- scan / manual code handling ---------------------------------------------
-  const openPending = (
-    product: Omit<PendingProduct, 'lastPrice'> & { lastPrice?: number },
-    priceSeed: string,
-  ) => {
+  const openPending = (product: PendingProduct) => {
     setPending(product);
     setPendingQty(1);
-    setPendingPrice(priceSeed);
+    // Price is ALWAYS entered fresh: it varies from market to market, so we
+    // never prefill or suggest a value (the catalog's last price is recorded
+    // for future price history but intentionally not shown here).
+    setPendingPrice('');
   };
 
   const handleCode = async (raw: string) => {
@@ -75,10 +74,7 @@ export function CoursesScreen() {
       const result = await store.resolveBarcode(raw);
       if (!result.ok) {
         setNotice({ kind: 'warn', text: c.codeInvalid });
-        openPending(
-          { name: '', source: 'manual', ma: false },
-          '',
-        );
+        openPending({ name: '', source: 'manual', ma: false });
         return;
       }
       const { barcode, resolution } = result;
@@ -88,22 +84,18 @@ export function CoursesScreen() {
           kind: 'info',
           text: resolution.source === 'catalog' ? c.fromCatalog : c.fromOff,
         });
-        openPending(
-          {
-            barcode,
-            name: resolution.product.name,
-            brand: resolution.product.brand,
-            category: resolution.product.category,
-            imageUrl: resolution.product.imageUrl,
-            lastPrice: resolution.lastPrice,
-            source: resolution.source,
-            ma,
-          },
-          resolution.lastPrice != null ? String(resolution.lastPrice) : '',
-        );
+        openPending({
+          barcode,
+          name: resolution.product.name,
+          brand: resolution.product.brand,
+          category: resolution.product.category,
+          imageUrl: resolution.product.imageUrl,
+          source: resolution.source,
+          ma,
+        });
       } else {
         setNotice({ kind: 'warn', text: c.notFound });
-        openPending({ barcode, name: '', source: 'manual', ma }, '');
+        openPending({ barcode, name: '', source: 'manual', ma });
       }
     } finally {
       setResolving(false);
@@ -519,11 +511,6 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
             {pending.barcode && <span dir="ltr">{pending.barcode}</span>}
             {pending.ma && (
               <span className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{c.maBadge}</span>
-            )}
-            {pending.lastPrice != null && (
-              <span>
-                {c.lastPrice}: {formatCurrency(pending.lastPrice, currency)}
-              </span>
             )}
           </p>
         </div>

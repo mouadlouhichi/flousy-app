@@ -224,7 +224,7 @@
 | C5 | Moroccan detection (GS1 prefix 611) + "Made in Morocco" badge | ✅ | `isMoroccanBarcode()` |
 | C6 | Camera scanning (BarcodeDetector → zxing fallback) | ✅ | `use-barcode-scanner.ts`; 1.5 s re-detect debounce |
 | C7 | Hardware scanner (keyboard wedge) + manual code field | ✅ | Digit-burst + Enter; manual field always available |
-| C8 | Active session: re-scan = qty +1, one-field price step, last-price prefill | ✅ | `createSessionItem`/`addItemToSession`; price remembered per product |
+| C8 | Active session: re-scan = qty +1, one-field price step (never prefilled — price varies per market) | ✅ | `createSessionItem`/`addItemToSession`; last price recorded in catalog for future price history, not shown |
 | C9 | Bill on finish (receipt text, share/copy/.txt/.csv) | ✅ | `renderBillText()`/`renderBillCsv()` — deterministic 46-col layout |
 | C10 | Session history (completed courses → reopen bill) | ✅ | `users/{uid}/sessions`, 100 latest |
 | C11 | Firestore rules (barcode id pattern, money bounds, 500-line cap) | ✅ | `firestore.rules`; blueprint kept in sync |
