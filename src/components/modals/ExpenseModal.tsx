@@ -4,19 +4,15 @@ import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
 import { expenseSchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
-import {
-  getAvailableBalance,
-  insufficientFundsMessage,
-  MONEY_PLACE_LABELS,
-  type PlaceBalances,
-} from '../../lib/money-places';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -27,12 +23,8 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
-  /**
-   * Live cash per money place. When provided, the expense is refused if the
-   * selected "Paid From" place cannot cover it (editing refunds the old
-   * expense first). Omit to keep the modal free of balance checks.
-   */
-  placeBalances?: PlaceBalances;
+  /** Live balance per money place, so an expense cannot overdraft its source. */
+  placeBalances?: Record<MoneyPlace, number>;
 }
 
 export function ExpenseModal({
@@ -48,6 +40,7 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -65,7 +58,7 @@ export function ExpenseModal({
       setName(initialExpense.name);
       setAmount(String(initialExpense.amount));
       setType(initialExpense.type);
-      setPlace(initialExpense.place || 'bank');
+      setPlace(initialExpense.place || defaultPlace);
       setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
       setNote(initialExpense.note || '');
       setPerson(initialExpense.person || 'Me');
@@ -75,7 +68,7 @@ export function ExpenseModal({
       setName('');
       setAmount('');
       setType(categories[0] || 'Groceries');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
       setPerson('Me');
@@ -97,6 +90,10 @@ export function ExpenseModal({
     };
     reader.readAsDataURL(file);
   };
+
+  // Cash the selected source actually has for this charge: editing an expense
+  // that stays in the same place refunds its old amount first.
+  const availableInPlace = availableForCharge(placeBalances, place, initialExpense);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,9 +118,14 @@ export function ExpenseModal({
       return;
     }
 
-    // Never let an expense take more than the selected place actually holds.
-    if (fundsError) {
-      setErrors({ amount: fundsError });
+    // The source place must actually hold the money being spent. Half-a-cent
+    // tolerance absorbs float noise from prior refund/debit arithmetic.
+    if (parsedAmount - availableInPlace > 0.005) {
+      setErrors({
+        amount: `Only ${format(availableInPlace)} available in ${
+          placeLabel(place)
+        }. Lower the amount or move money into this place first.`,
+      });
       return;
     }
 
@@ -146,20 +148,6 @@ export function ExpenseModal({
 
   const activeCategoryColor = categoryColors[type] || 'var(--primary)';
   const activeCategoryIcon = categoryIcons[type] || 'category';
-
-  // Cash left in the selected place. Editing refunds the old expense first, so
-  // re-saving an unchanged (or smaller) expense is never blocked.
-  const availableInPlace = getAvailableBalance(
-    placeBalances,
-    place,
-    initialExpense ? { place: initialExpense.place, amount: initialExpense.amount } : null,
-  );
-  const enteredAmount = parseFloat(amount);
-  // Live message shown under the "Paid From" control (also checked on submit).
-  const fundsError =
-    availableInPlace === null
-      ? null
-      : insufficientFundsMessage(enteredAmount, availableInPlace, place, format);
 
   return (
     <Modal
@@ -190,7 +178,7 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, name: '' }));
               }}
               placeholder={`e.g. Supermarket, Coffee, ${type}`}
-              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
             />
             <span
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-200"
@@ -216,7 +204,7 @@ export function ExpenseModal({
             </span>
           </div>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
@@ -251,22 +239,16 @@ export function ExpenseModal({
         <SegmentedControl
           label="Paid From"
           value={place}
-          onChange={(v) => setPlace(v as MoneyPlace)}
-          options={MONEY_PLACE_OPTIONS}
+          onChange={(v) => {
+            setPlace(v as MoneyPlace);
+            setErrors((prev) => ({ ...prev, amount: '' }));
+          }}
+          options={moneyPlaceOptions}
         />
-
-        {/* ── Available in the selected place (warns before submit) ── */}
-        {availableInPlace !== null && (
-          fundsError ? (
-            <p role="alert" className="text-[12px] font-medium text-error -mt-3">
-              {fundsError}
-            </p>
-          ) : (
-            <p className="text-[11px] font-medium text-on-surface-variant -mt-3">
-              Available in {MONEY_PLACE_LABELS[place]}: {format(availableInPlace)}
-            </p>
-          )
-        )}
+        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+          Available in {placeLabel(place)}:{' '}
+          <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
+        </p>
 
         {/* ── Household Member — badges ── */}
         {isPro ? (

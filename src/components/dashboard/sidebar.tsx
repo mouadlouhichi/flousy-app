@@ -50,7 +50,7 @@ export function Sidebar() {
             <Link
               key={item.id}
               href={item.href}
-              prefetch={false}
+              prefetch={true}
               className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-colors ${
                 isActive
                   ? 'text-primary font-bold'
@@ -107,24 +107,35 @@ export function Sidebar() {
         </button>
       </nav>
 
-      {/* Bottom Profile Footer — whole row opens the profile page. */}
-      <div className="p-4 border-t border-surface-variant/50 flex items-center justify-between gap-2 bg-surface-container/20">
+      {/* Bottom Profile Footer — whole row opens the profile page. Shares
+          the sidebar's sliding active pill so Profile doesn't leave Overview
+          (or whichever tab you came from) looking selected. */}
+      <div className="p-4 border-t border-surface-variant/50 bg-surface-container/20">
         <Link
           href="/dashboard/profile"
-          prefetch={false}
+          prefetch={true}
           aria-current={activeScreen === 'profile' ? 'page' : undefined}
-          className={`flex flex-1 items-center gap-3 overflow-hidden rounded-2xl p-1.5 -m-1.5 transition-colors ${
-            activeScreen === 'profile' ? 'bg-primary/10' : 'hover:bg-surface-variant/50'
+          className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 transition-colors ${
+            activeScreen === 'profile'
+              ? 'text-primary'
+              : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
           }`}
         >
-          <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
+          {activeScreen === 'profile' && (
+            <motion.span
+              layoutId="dashboard-sidebar-active-bg"
+              className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
+              transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+            />
+          )}
+          <div className="relative z-10 w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
             {profile?.displayName
               ? profile.displayName.charAt(0).toUpperCase()
               : user?.email
                 ? user.email.charAt(0).toUpperCase()
                 : 'A'}
           </div>
-          <div className="flex flex-col truncate">
+          <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
             <span className="font-label-lg font-bold text-on-surface truncate">
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}
             </span>
@@ -132,15 +143,12 @@ export function Sidebar() {
               {isPro ? 'PRO PLAN' : 'FREE PLAN'}
             </span>
           </div>
-        </Link>
-        <Link
-          href="/dashboard/profile"
-          prefetch={false}
-          className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-xl transition-colors shrink-0"
-          title="Profile & Account"
-          aria-label="Profile & Account"
-        >
-          <AppIcon name="person" className=" text-[20px]" />
+          <AppIcon
+            name="person"
+            className={`relative z-10 shrink-0 text-[20px] ${
+              activeScreen === 'profile' ? 'filled text-primary' : 'text-on-surface-variant'
+            }`}
+          />
         </Link>
       </div>
     </aside>

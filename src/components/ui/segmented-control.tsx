@@ -9,6 +9,8 @@ export interface SegmentedOption {
   label: string;
   icon?: string;
   sublabel?: string;
+  /** Native tooltip — defaults to label · sublabel. */
+  title?: string;
 }
 
 /** Money places offered across the app (bank / wallet / home cash). */
@@ -17,6 +19,11 @@ export const MONEY_PLACE_OPTIONS: SegmentedOption[] = [
   { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet' },
   { value: 'home', label: 'Home Cash', icon: 'home' },
 ];
+
+/** Display label per money place, kept in sync with MONEY_PLACE_OPTIONS. */
+export const MONEY_PLACE_LABELS: Record<string, string> = Object.fromEntries(
+  MONEY_PLACE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 interface SegmentedControlProps {
   label?: string;
@@ -30,6 +37,11 @@ interface SegmentedControlProps {
  * Single-select segmented flex group whose active pill background slides
  * horizontally from the current segment to the tapped one (shared
  * `layoutId` spring, same motion language as the dashboard bottom nav).
+ *
+ * Each segment is `min-w-0 overflow-hidden` so long labels (e.g. "Home Cash")
+ * and currency sublabels never spill out of their box. Three-or-more options,
+ * or any option with a sublabel, stack icon / label / amount vertically so
+ * the text can truncate inside the segment instead of overflowing it.
  */
 export function SegmentedControl({
   label,
@@ -40,6 +52,8 @@ export function SegmentedControl({
 }: SegmentedControlProps) {
   // Unique per instance so controls never steal each other's sliding pill.
   const layoutId = useId();
+  const isStacked =
+    options.length >= 3 || options.some((option) => Boolean(option.sublabel));
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -51,55 +65,60 @@ export function SegmentedControl({
       <div
         role="radiogroup"
         aria-label={ariaLabel || label}
-        className="flex w-full items-stretch gap-0.5 rounded-full border border-outline-variant/70 bg-surface-container-lowest p-0.5 sm:gap-1 sm:p-1"
+        className={`flex w-full min-w-0 items-stretch gap-1 border border-outline-variant/70 bg-surface-container-lowest p-1 ${
+          isStacked ? 'rounded-[1.25rem]' : 'rounded-full'
+        }`}
       >
-        {options.map(({ value: optionValue, label: optionLabel, icon, sublabel }) => {
+        {options.map(({ value: optionValue, label: optionLabel, icon, sublabel, title }) => {
           const isActive = value === optionValue;
+          const tooltip = title || (sublabel ? `${optionLabel} · ${sublabel}` : optionLabel);
           return (
             <button
               key={optionValue}
               type="button"
               role="radio"
               aria-checked={isActive}
+              title={tooltip}
               onClick={() => onChange(optionValue)}
-              // `min-w-0` + `basis-0` let a segment shrink below its content
-              // width instead of pushing text outside the pill row on narrow
-              // phones (three segments with balance sublabels overflowed).
-              title={sublabel ? `${optionLabel} · ${sublabel}` : optionLabel}
-              className={`relative flex min-w-0 flex-1 basis-0 flex-col items-center justify-center rounded-full px-1.5 py-2.5 transition-colors duration-200 sm:px-2 ${
-                isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'
-              }`}
+              className={`relative min-w-0 flex-1 overflow-hidden px-1.5 py-2.5 transition-colors duration-200 ${
+                isStacked ? 'rounded-2xl' : 'rounded-full'
+              } ${isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'}`}
             >
               {/* Sliding active background — glides horizontally from the
                   current segment to the tapped one. */}
               {isActive && (
                 <motion.span
                   layoutId={layoutId}
-                  className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                  className={`absolute inset-0 bg-primary shadow-sm ${
+                    isStacked ? 'rounded-2xl' : 'rounded-full'
+                  }`}
                   transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
                 />
               )}
-              <span className="relative z-10 flex w-full min-w-0 items-center justify-center gap-1 sm:gap-1.5">
+              <span
+                className={`relative z-10 flex min-w-0 w-full items-center justify-center ${
+                  isStacked ? 'flex-col gap-0.5' : 'flex-row gap-1.5'
+                }`}
+              >
                 {icon && (
                   <AppIcon
                     name={icon}
-                    // Icons are the first thing to go when space runs out.
-                    className={`hidden shrink-0 text-[15px] transition-colors duration-200 min-[360px]:block sm:text-[17px] ${
-                      isActive ? 'text-on-primary' : 'text-outline'
-                    }`}
+                    className={`shrink-0 transition-colors duration-200 ${
+                      isStacked ? 'text-[16px]' : 'text-[17px]'
+                    } ${isActive ? 'text-on-primary' : 'text-outline'}`}
                   />
                 )}
-                <span className="flex min-w-0 flex-1 flex-col items-center leading-tight">
+                <span className="flex min-w-0 max-w-full flex-col items-center leading-tight">
                   <span
-                    className={`w-full truncate text-center text-[12px] font-semibold transition-colors duration-200 ${
-                      isActive ? 'text-on-primary' : 'text-on-surface-variant'
-                    }`}
+                    className={`max-w-full truncate text-center font-semibold transition-colors duration-200 ${
+                      isStacked ? 'text-[11px]' : 'text-[12px]'
+                    } ${isActive ? 'text-on-primary' : 'text-on-surface-variant'}`}
                   >
                     {optionLabel}
                   </span>
                   {sublabel && (
                     <span
-                      className={`w-full truncate text-center text-[10px] font-medium transition-colors duration-200 ${
+                      className={`max-w-full truncate text-center text-[10px] font-medium tabular-nums transition-colors duration-200 ${
                         isActive ? 'text-on-primary/80' : 'text-outline'
                       }`}
                     >

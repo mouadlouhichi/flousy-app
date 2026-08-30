@@ -9,6 +9,23 @@ export function cn(...inputs: ClassValue[]) {
  * Format a day-of-month as a short label ("1st", "25th"…).
  * Used for salary start dates in Income Sources and settings.
  */
+/**
+ * Format a YYYY-MM-DD (or ISO) date as a short label ("29 Aug").
+ * Parsed locally so a date-only string never shifts by a UTC offset.
+ */
+export function formatShortDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!match) return iso
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  if (!year || !month || !day) return iso
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 export function formatDayOfMonth(day: number): string {
   const safe = Math.min(31, Math.max(1, Math.round(day)))
   const mod10 = safe % 10

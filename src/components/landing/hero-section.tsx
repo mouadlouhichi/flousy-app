@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { useLightLanguage } from "@/lib/i18n-light";
-import { useAuth } from '@/lib/auth-context';
+import { useAuthStatus } from '@/lib/auth-status';
 import { AnimatedSphere } from './animated-sphere';
 
 export function HeroSection() {
   const { messages: m, isRTL } = useLightLanguage();
-  const { user } = useAuth();
+  const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
   const words = m.landing.hero.words;

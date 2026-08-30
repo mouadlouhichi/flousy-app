@@ -1,7 +1,38 @@
 export type Envelope = 'needs' | 'wants' | 'savings';
-export type MoneyPlace = 'bank' | 'home' | 'wallet';
+export type BuiltinMoneyPlace = 'bank' | 'home' | 'wallet';
+/** Built-in or user-defined money source id (bank, wallet, a custom cash jar…). */
+export type MoneyPlace = string;
 export type StrategyId = '50-30-20' | '70-20-10' | '80-20' | 'zero-based' | 'envelope' | 'pay-first' | 'custom';
 export type ExpenseKind = 'variable' | 'fixed';
+
+/** A tracked cash location the user can rename, add or remove from Profile. */
+export interface MoneyPlaceConfig {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export const DEFAULT_MONEY_PLACES: MoneyPlaceConfig[] = [
+  { id: 'bank', name: 'Bank', icon: 'account_balance' },
+  { id: 'home', name: 'Home Cash', icon: 'home' },
+  { id: 'wallet', name: 'Wallet', icon: 'account_balance_wallet' },
+];
+
+/** Icons offered when adding or editing a money source. */
+export const MONEY_PLACE_ICON_CHOICES = [
+  'account_balance',
+  'home',
+  'account_balance_wallet',
+  'payments',
+  'credit_card',
+  'savings',
+  'local_atm',
+  'store',
+  'work',
+  'phone_iphone',
+  'travel_explore',
+  'school',
+] as const;
 
 export interface Strategy {
   id: StrategyId;
@@ -276,6 +307,8 @@ export interface MonthBudget {
   debts?: DebtItem[];
   /** Deposit / withdrawal log feeding the home-screen Recent Activity list. */
   savingsActivity?: SavingsActivityEntry[];
+  /** Balances for user-defined money sources (beyond bank / home / wallet). */
+  placeBalances?: Record<string, number>;
   updatedAt: string;
   updatedByUserId?: string;
 }
@@ -301,6 +334,8 @@ export interface UserProfile {
   /** Global preference for the day of the month a budget month starts.
    * Mirrors the per-source salary start date used by Income Sources. */
   monthStartDate?: number;
+  /** Cash locations (Bank, Home, Wallet, plus any the user added). */
+  moneyPlaces?: MoneyPlaceConfig[];
 }
 
 /**
@@ -596,13 +631,157 @@ export function calculateCategorySpent(
  * Money Conservation operations on MonthBudget and SavingGoals
  */
 
+export function isBuiltinMoneyPlace(place: string): place is BuiltinMoneyPlace {
+  return place === 'bank' || place === 'home' || place === 'wallet';
+}
+
+export function resolveMoneyPlaces(profile?: UserProfile | null): MoneyPlaceConfig[] {
+  const configured = (profile?.moneyPlaces || []).filter(
+    (p) => p && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim(),
+  );
+  if (configured.length === 0) return DEFAULT_MONEY_PLACES.map((p) => ({ ...p }));
+  return configured.map((p) => ({
+    id: p.id,
+    name: p.name.trim(),
+    icon: p.icon || DEFAULT_MONEY_PLACES.find((d) => d.id === p.id)?.icon || 'payments',
+  }));
+}
+
+export function moneyPlaceLabel(place: string, places?: MoneyPlaceConfig[]): string {
+  const list = places && places.length > 0 ? places : DEFAULT_MONEY_PLACES;
+  const match = list.find((p) => p.id === place);
+  if (match) return match.name;
+  if (place === 'home') return 'Home Cash';
+  if (place === 'bank') return 'Bank';
+  if (place === 'wallet') return 'Wallet';
+  return place;
+}
+
+export function moneyPlaceIcon(place: string, places?: MoneyPlaceConfig[]): string {
+  const list = places && places.length > 0 ? places : DEFAULT_MONEY_PLACES;
+  return list.find((p) => p.id === place)?.icon
+    || DEFAULT_MONEY_PLACES.find((p) => p.id === place)?.icon
+    || 'payments';
+}
+
+type PlaceBalanceMonth = Pick<MonthBudget, 'bankPart' | 'homePart' | 'walletPart'> & {
+  placeBalances?: Record<string, number>;
+};
+
+/** Cash currently held at a money place for the month. */
+export function getPlaceBalance(month: PlaceBalanceMonth, place: MoneyPlace): number {
+  if (place === 'bank') return month.bankPart || 0;
+  if (place === 'home') return month.homePart || 0;
+  if (place === 'wallet') return month.walletPart || 0;
+  return month.placeBalances?.[place] || 0;
+}
+
+export function withPlaceBalance(month: MonthBudget, place: MoneyPlace, value: number): MonthBudget {
+  const next = Math.max(0, Number.isFinite(value) ? value : 0);
+  if (place === 'bank') return { ...month, bankPart: next };
+  if (place === 'home') return { ...month, homePart: next };
+  if (place === 'wallet') return { ...month, walletPart: next };
+  return { ...month, placeBalances: { ...(month.placeBalances || {}), [place]: next } };
+}
+
+export function adjustPlaceBalance(month: MonthBudget, place: MoneyPlace, delta: number): MonthBudget {
+  return withPlaceBalance(month, place, getPlaceBalance(month, place) + delta);
+}
+
+export function totalCashOnHand(month: PlaceBalanceMonth): number {
+  const custom = Object.values(month.placeBalances || {}).reduce((acc, value) => acc + (Number(value) || 0), 0);
+  return (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0) + custom;
+}
+
+export function placeBalancesOf(month: PlaceBalanceMonth, places?: MoneyPlaceConfig[]): Record<string, number> {
+  const list = places && places.length > 0 ? places : DEFAULT_MONEY_PLACES;
+  const rec: Record<string, number> = {};
+  for (const p of list) rec[p.id] = getPlaceBalance(month, p.id);
+  return rec;
+}
+
+export function nextMoneyPlaceId(name: string, existingIds: string[]): string {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || 'place';
+  const taken = new Set(existingIds);
+  let id = base;
+  let n = 2;
+  while (taken.has(id)) id = `${base}-${n++}`;
+  return id;
+}
+
+export function addMoneyPlace(profile: UserProfile, item: MoneyPlaceConfig): UserProfile {
+  const existing = resolveMoneyPlaces(profile);
+  const id = item.id.trim();
+  const name = item.name.trim();
+  if (!id || !name) return profile;
+  if (existing.some((p) => p.id === id || p.name.toLowerCase() === name.toLowerCase())) return profile;
+  return { ...profile, moneyPlaces: [...existing, { id, name, icon: item.icon || 'payments' }] };
+}
+
+export function updateMoneyPlace(
+  profile: UserProfile,
+  id: string,
+  patch: Partial<Pick<MoneyPlaceConfig, 'name' | 'icon'>>,
+): UserProfile {
+  const existing = resolveMoneyPlaces(profile);
+  const idx = existing.findIndex((p) => p.id === id);
+  if (idx === -1) return profile;
+  const name = patch.name !== undefined ? patch.name.trim() : existing[idx].name;
+  if (!name) return profile;
+  if (existing.some((p, i) => i !== idx && p.name.toLowerCase() === name.toLowerCase())) return profile;
+  const next = [...existing];
+  next[idx] = { ...existing[idx], name, icon: patch.icon || existing[idx].icon };
+  return { ...profile, moneyPlaces: next };
+}
+
+export function removeMoneyPlace(profile: UserProfile, id: string): UserProfile {
+  const existing = resolveMoneyPlaces(profile);
+  if (existing.length <= 1) return profile;
+  if (!existing.some((p) => p.id === id)) return profile;
+  return { ...profile, moneyPlaces: existing.filter((p) => p.id !== id) };
+}
+
+/** Move a retired place's leftover cash into `fallback` and drop its extra balance key. */
+export function retireMoneyPlace(month: MonthBudget, placeId: string, fallback: MoneyPlace): MonthBudget {
+  if (!placeId || placeId === fallback) return month;
+  const moving = getPlaceBalance(month, placeId);
+  let next = withPlaceBalance(month, fallback, getPlaceBalance(month, fallback) + moving);
+  if (isBuiltinMoneyPlace(placeId)) {
+    next = withPlaceBalance(next, placeId, 0);
+  } else {
+    const rest = { ...(next.placeBalances || {}) };
+    delete rest[placeId];
+    next = { ...next, placeBalances: rest };
+  }
+  return { ...next, updatedAt: new Date().toISOString() };
+}
+
+/** Move leftover cash and retarget expenses / activity after a place is removed. */
+export function reassignMoneyPlace(month: MonthBudget, from: MoneyPlace, to: MoneyPlace): MonthBudget {
+  if (!from || from === to) return month;
+  const next = retireMoneyPlace(month, from, to);
+  return {
+    ...next,
+    variableExpenses: (next.variableExpenses || []).map((e) => (e.place === from ? { ...e, place: to } : e)),
+    fixedExpenses: (next.fixedExpenses || []).map((e) => (e.place === from ? { ...e, place: to } : e)),
+    savingsActivity: (next.savingsActivity || []).map((e) => (e.place === from ? { ...e, place: to } : e)),
+  };
+}
+
+export function reassignGoalSources(goals: SavingGoal[], from: MoneyPlace, to: MoneyPlace): SavingGoal[] {
+  if (!from || from === to) return goals;
+  return goals.map((g) => (g.source === from ? { ...g, source: to } : g));
+}
+
 export function addVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
   const amount = Math.max(0, expense.amount);
-  const updatedPlace = Math.max(0, (month[`${expense.place}Part`] || 0) - amount);
-
   return {
-    ...month,
-    [`${expense.place}Part`]: updatedPlace,
+    ...adjustPlaceBalance(month, expense.place, -amount),
     variableExpenses: [expense, ...(month.variableExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
@@ -610,23 +789,10 @@ export function addVariableExpense(month: MonthBudget, expense: VariableExpense)
 
 export function editVariableExpense(month: MonthBudget, oldExpense: VariableExpense, newExpense: VariableExpense): MonthBudget {
   const updatedExpenses = (month.variableExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-
-  let bank = month.bankPart;
-  let home = month.homePart;
-  let wallet = month.walletPart;
-
-  const places: Record<MoneyPlace, number> = { bank, home, wallet };
-
-  // Refund old
-  places[oldExpense.place] = (places[oldExpense.place] || 0) + oldExpense.amount;
-  // Debit new
-  places[newExpense.place] = Math.max(0, (places[newExpense.place] || 0) - newExpense.amount);
-
+  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
+  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
   return {
-    ...month,
-    bankPart: places.bank,
-    homePart: places.home,
-    walletPart: places.wallet,
+    ...next,
     variableExpenses: updatedExpenses,
     updatedAt: new Date().toISOString(),
   };
@@ -634,11 +800,8 @@ export function editVariableExpense(month: MonthBudget, oldExpense: VariableExpe
 
 export function deleteVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
   const updatedExpenses = (month.variableExpenses || []).filter((exp) => exp.id !== expense.id);
-  const restored = (month[`${expense.place}Part`] || 0) + expense.amount;
-
   return {
-    ...month,
-    [`${expense.place}Part`]: restored,
+    ...adjustPlaceBalance(month, expense.place, expense.amount),
     variableExpenses: updatedExpenses,
     updatedAt: new Date().toISOString(),
   };
@@ -646,28 +809,40 @@ export function deleteVariableExpense(month: MonthBudget, expense: VariableExpen
 
 export function addFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
   const amount = Math.max(0, expense.amount);
-  const updatedPlace = Math.max(0, (month[`${expense.place}Part`] || 0) - amount);
-
   return {
-    ...month,
-    [`${expense.place}Part`]: updatedPlace,
+    ...adjustPlaceBalance(month, expense.place, -amount),
     fixedExpenses: [expense, ...(month.fixedExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
 }
 
+/**
+ * Cash available in `place` for a NEW or EDITED expense / fixed bill.
+ *
+ * `balances` is the live balance per money place (e.g. the month's
+ * bankPart / homePart / walletPart). Editing first refunds the previous
+ * charge, so when the charge stays in the same place its old amount can be
+ * spent again right away; when it moves to another place the old place is
+ * freed and the new one is charged.
+ */
+export function availableForCharge(
+  balances: Record<MoneyPlace, number | undefined> | null | undefined,
+  place: MoneyPlace,
+  previousCharge?: { place?: MoneyPlace; amount?: number } | null,
+): number {
+  let available = Math.max(0, balances?.[place] ?? 0);
+  if (previousCharge && (previousCharge.place || 'bank') === place) {
+    available += Math.max(0, previousCharge.amount || 0);
+  }
+  return available;
+}
+
 export function editFixedExpense(month: MonthBudget, oldExpense: FixedExpense, newExpense: FixedExpense): MonthBudget {
   const updatedExpenses = (month.fixedExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-
-  const places: Record<MoneyPlace, number> = { bank: month.bankPart, home: month.homePart, wallet: month.walletPart };
-  places[oldExpense.place] = (places[oldExpense.place] || 0) + oldExpense.amount;
-  places[newExpense.place] = Math.max(0, (places[newExpense.place] || 0) - newExpense.amount);
-
+  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
+  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
   return {
-    ...month,
-    bankPart: places.bank,
-    homePart: places.home,
-    walletPart: places.wallet,
+    ...next,
     fixedExpenses: updatedExpenses,
     updatedAt: new Date().toISOString(),
   };
@@ -675,11 +850,8 @@ export function editFixedExpense(month: MonthBudget, oldExpense: FixedExpense, n
 
 export function deleteFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
   const updatedExpenses = (month.fixedExpenses || []).filter((exp) => exp.id !== expense.id);
-  const restored = (month[`${expense.place}Part`] || 0) + expense.amount;
-
   return {
-    ...month,
-    [`${expense.place}Part`]: restored,
+    ...adjustPlaceBalance(month, expense.place, expense.amount),
     fixedExpenses: updatedExpenses,
     updatedAt: new Date().toISOString(),
   };
@@ -688,28 +860,23 @@ export function deleteFixedExpense(month: MonthBudget, expense: FixedExpense): M
 export function moveMoney(month: MonthBudget, from: MoneyPlace, to: MoneyPlace, amount: number): MonthBudget {
   if (from === to || amount <= 0) return month;
 
-  const currentFrom = month[`${from}Part`] || 0;
+  const currentFrom = getPlaceBalance(month, from);
   const actualMove = Math.min(currentFrom, amount);
-
-  return {
-    ...month,
-    [`${from}Part`]: currentFrom - actualMove,
-    [`${to}Part`]: (month[`${to}Part`] || 0) + actualMove,
-    updatedAt: new Date().toISOString(),
-  };
+  let next = withPlaceBalance(month, from, currentFrom - actualMove);
+  next = withPlaceBalance(next, to, getPlaceBalance(next, to) + actualMove);
+  return { ...next, updatedAt: new Date().toISOString() };
 }
 
 export function updateMoneyPlaces(
   month: MonthBudget,
   values: Partial<Record<MoneyPlace, number>>
 ): MonthBudget {
-  return {
-    ...month,
-    bankPart: Math.max(0, values.bank ?? month.bankPart ?? 0),
-    homePart: Math.max(0, values.home ?? month.homePart ?? 0),
-    walletPart: Math.max(0, values.wallet ?? month.walletPart ?? 0),
-    updatedAt: new Date().toISOString(),
-  };
+  let next = month;
+  for (const [place, value] of Object.entries(values)) {
+    if (value === undefined) continue;
+    next = withPlaceBalance(next, place, value);
+  }
+  return { ...next, updatedAt: new Date().toISOString() };
 }
 
 /** Cap for the per-month savings activity log (mirrored in firestore.rules). */
@@ -748,7 +915,7 @@ export function fundGoal(
 ): { month: MonthBudget; goals: SavingGoal[] } {
   if (amount <= 0) return { month, goals };
 
-  const currentBalance = month[`${sourcePlace}Part`] || 0;
+  const currentBalance = getPlaceBalance(month, sourcePlace);
   const actualAmount = Math.min(currentBalance, amount);
 
   if (actualAmount <= 0) return { month, goals };
@@ -756,10 +923,7 @@ export function fundGoal(
   const goal = goals.find((g) => g.id === goalId);
 
   const updatedMonth = withSavingsActivity(
-    {
-      ...month,
-      [`${sourcePlace}Part`]: currentBalance - actualAmount,
-    },
+    withPlaceBalance(month, sourcePlace, currentBalance - actualAmount),
     {
       goalId,
       goalName: goal?.name || 'Savings goal',
@@ -800,10 +964,7 @@ export function withdrawGoal(
   if (actualWithdraw <= 0) return { month, goals };
 
   const updatedMonth = withSavingsActivity(
-    {
-      ...month,
-      [`${targetPlace}Part`]: (month[`${targetPlace}Part`] || 0) + actualWithdraw,
-    },
+    withPlaceBalance(month, targetPlace, getPlaceBalance(month, targetPlace) + actualWithdraw),
     {
       goalId,
       goalName: goal.name,
@@ -858,7 +1019,7 @@ export function saveGoalWithBalance(
   let nextMonth = month;
 
   if (deductFromPlace) {
-    const balance = month[`${deductFromPlace}Part`] || 0;
+    const balance = getPlaceBalance(month, deductFromPlace);
     const delta = requested - previousCurrent;
 
     if (delta > 0) {
@@ -866,8 +1027,7 @@ export function saveGoalWithBalance(
       const actual = Math.min(balance, delta);
       nextCurrent = previousCurrent + actual;
       nextMonth = {
-        ...month,
-        [`${deductFromPlace}Part`]: balance - actual,
+        ...withPlaceBalance(month, deductFromPlace, balance - actual),
         updatedAt: new Date().toISOString(),
       };
       // A checked transfer is a real deposit into the goal.
@@ -884,8 +1044,7 @@ export function saveGoalWithBalance(
       }
     } else if (delta < 0) {
       nextMonth = {
-        ...month,
-        [`${deductFromPlace}Part`]: balance + -delta,
+        ...withPlaceBalance(month, deductFromPlace, balance + -delta),
         updatedAt: new Date().toISOString(),
       };
       // Money returned to a tracked place is no longer deposited savings.
@@ -930,8 +1089,7 @@ export function deleteFundedGoal(
 
   const returnPlace = goal.source || 'bank';
   const updatedMonth = {
-    ...month,
-    [`${returnPlace}Part`]: (month[`${returnPlace}Part`] || 0) + goal.current,
+    ...adjustPlaceBalance(month, returnPlace, goal.current),
     // The goal's balance goes back to its source place, so its deposits are no
     // longer part of this month's savings plan — drop them from the log.
     savingsActivity: (month.savingsActivity || []).filter((evt) => evt.goalId !== goalId),
@@ -971,8 +1129,7 @@ function moveSavingsEntryCash(
   if (amount === 0 || !goal) return { month, goals, applied: 0 };
 
   const place: MoneyPlace = entry.place || goal?.source || 'bank';
-  const placeKey = `${place}Part` as const;
-  const placeBalance = month[placeKey] || 0;
+  const placeBalance = getPlaceBalance(month, place);
   const goalBalance = Math.max(0, goal?.current ?? 0);
 
   // Side the cash is taken from: applying a deposit pulls from the money place
@@ -985,10 +1142,7 @@ function moveSavingsEntryCash(
   const placeDelta = entry.type === 'deposit' ? -applied * direction : applied * direction;
   const goalDelta = -placeDelta;
 
-  const nextMonth: MonthBudget = {
-    ...month,
-    [placeKey]: Math.max(0, placeBalance + placeDelta),
-  };
+  const nextMonth: MonthBudget = withPlaceBalance(month, place, placeBalance + placeDelta);
 
   const nextCurrent = Math.max(0, goalBalance + goalDelta);
   const nextGoals = goals.map((g) =>
@@ -1248,6 +1402,13 @@ export function normalizeMonth(
       : Math.max(0, totalBudget - variableSpent - fixedSpent);
   const homePart = typeof raw?.homePart === 'number' ? raw.homePart : 0;
   const walletPart = typeof raw?.walletPart === 'number' ? raw.walletPart : 0;
+  const placeBalances: Record<string, number> | undefined = raw?.placeBalances
+    ? Object.fromEntries(
+        Object.entries(raw.placeBalances).filter(
+          ([id, value]) => id && !isBuiltinMoneyPlace(id) && typeof value === 'number' && Number.isFinite(value),
+        ),
+      )
+    : undefined;
 
   // Copy default category budgets from user profile if month doesn't have any set
   let categoryBudgets = raw?.categoryBudgets && Object.keys(raw.categoryBudgets).length > 0
@@ -1274,6 +1435,7 @@ export function normalizeMonth(
     bankPart,
     homePart,
     walletPart,
+    ...(placeBalances && Object.keys(placeBalances).length > 0 ? { placeBalances } : {}),
     strategyId,
     ...(customRatios ? { customRatios } : {}),
     monthlySavingsTarget: raw?.monthlySavingsTarget ?? defaultEnvelopes.savings,
@@ -1305,9 +1467,7 @@ export function normalizeMonth(
         type: evt.type,
         amount: typeof evt.amount === 'number' && evt.amount >= 0 ? evt.amount : 0,
         date: evt.date || new Date().toISOString(),
-        ...(evt.place === 'bank' || evt.place === 'home' || evt.place === 'wallet'
-          ? { place: evt.place }
-          : {}),
+        ...(evt.place && typeof evt.place === 'string' ? { place: evt.place } : {}),
       })),
     updatedAt: raw?.updatedAt || new Date().toISOString(),
   };
@@ -1316,6 +1476,9 @@ export function normalizeMonth(
 /**
  * Carries over recurring fixed expenses from a previous month into a new month.
  * Only copies bills with `recurring: true`.
+ *
+ * Each carried bill reduces the money place it is actually paid from
+ * (`bill.place`), not blanket-debited from the bank.
  */
 export function carryOverFixedExpenses(
   newMonth: MonthBudget,
@@ -1326,6 +1489,7 @@ export function carryOverFixedExpenses(
 
   const existingIds = new Set((newMonth.fixedExpenses || []).map((b) => b.id));
   const toCarry = recurringBills.filter((b) => !existingIds.has(b.id));
+  if (toCarry.length === 0) return newMonth;
 
   // Recreate IDs so they don't collide
   const carried = toCarry.map((b) => ({
@@ -1334,13 +1498,14 @@ export function carryOverFixedExpenses(
     date: b.date || '1st',
   }));
 
-  const totalCarried = carried.reduce((acc, b) => acc + b.amount, 0);
-  const totalExistingFixed = (newMonth.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
+  let next = newMonth;
+  carried.forEach((b) => {
+    next = adjustPlaceBalance(next, b.place || 'bank', -b.amount);
+  });
 
   return {
-    ...newMonth,
+    ...next,
     fixedExpenses: [...(newMonth.fixedExpenses || []), ...carried],
-    bankPart: Math.max(0, (newMonth.bankPart || 0) - totalCarried),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1384,4 +1549,64 @@ export function createNewMonth(
     variableExpenses: [],
     activeCategories: categories.length > 0 ? categories : undefined,
   }, monthKey);
+}
+
+// --- Course session (shopping trip capture) ----------------------------------
+
+/** Where a product's metadata came from. */
+export type ProductSource = 'manual' | 'off' | 'session';
+
+/** Lifecycle of a course session. */
+export type SessionStatus = 'active' | 'completed';
+
+/**
+ * One known product, keyed by its normalized barcode (8 or 13 digits).
+ * This is the user's self-learning catalog: every resolved product is
+ * stored once and becomes an instant local hit afterwards.
+ */
+export interface Product {
+  barcode: string; // doc id: 8 or 13 digits, checksum-verified
+  name: string;
+  brand?: string;
+  category?: string;
+  imageUrl?: string;
+  lastPrice?: number;
+  priceUpdatedAt?: string;
+  source: ProductSource;
+  /** 'MA' for Moroccan products (GS1 prefix 611). */
+  origin?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One line of a course session. Name/category are snapshots so the bill
+ * renders identically even if the catalog entry changes or is deleted later.
+ */
+export interface SessionItem {
+  key: string; // stable line id (the barcode when present, else generated)
+  barcode?: string;
+  name: string;
+  category?: string;
+  qty: number; // >= 1
+  unitPrice: number; // >= 0
+  lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
+}
+
+/**
+ * A "course" (shopping trip) captured by scanning product barcodes.
+ * A completed session IS its bill — the bill is a deterministic render of
+ * this document, not a separate record.
+ */
+export interface CourseSession {
+  id: string;
+  status: SessionStatus;
+  startedAt: string; // ISO timestamp
+  endedAt?: string; // ISO timestamp, set on completion
+  date: string; // YYYY-MM-DD (the trip)
+  currency: string; // profile currency snapshot
+  place: MoneyPlace; // where it was paid from
+  items: SessionItem[]; // capped at 500 lines
+  total: number; // denormalized sum of lineTotals
+  loggedExpenseId?: string; // set once the total is logged as a variable expense
 }

@@ -34,7 +34,7 @@ interface ParsedField {
 
 const sourceFile = ts.createSourceFile('store.ts', storeSource, ts.ScriptTarget.Latest, true);
 
-/** `type MoneyPlace = 'bank' | 'home' | 'wallet'` -> ['bank', 'home', 'wallet'] */
+/** `type BuiltinMoneyPlace = 'bank' | 'home' | 'wallet'` -> ['bank', 'home', 'wallet'] */
 const stringUnionAliases = new Map<string, string[]>();
 /** Interface name -> declared fields. */
 const interfaces = new Map<string, ParsedField[]>();
@@ -103,6 +103,10 @@ const SCHEMA_TO_INTERFACE: Record<string, string> = {
   'definitions.FixedCategoryItem': 'FixedCategoryItem',
   'definitions.SavingGoal': 'SavingGoal',
   'definitions.DebtItem': 'DebtItem',
+  'definitions.MoneyPlaceConfig': 'MoneyPlaceConfig',
+  'definitions.SessionItem': 'SessionItem',
+  'entities.Product': 'Product',
+  'entities.CourseSession': 'CourseSession',
 };
 
 const schemaAt = (pointer: string) =>
@@ -115,7 +119,7 @@ const sorted = (values: readonly string[]) => [...values].sort();
 describe('firebase-blueprint.json stays in sync with the code', () => {
   it('sanity-checks that store.ts actually parsed', () => {
     assert.ok(interfaces.size >= 7, 'expected to parse the store.ts interfaces');
-    assert.deepStrictEqual(stringUnionAliases.get('MoneyPlace'), ['bank', 'home', 'wallet']);
+    assert.deepStrictEqual(stringUnionAliases.get('BuiltinMoneyPlace'), ['bank', 'home', 'wallet']);
     for (const interfaceName of Object.values(SCHEMA_TO_INTERFACE)) {
       assert.ok(interfaces.has(interfaceName), `store.ts should declare ${interfaceName}`);
     }
@@ -246,7 +250,9 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
         .map((segment) => {
           const literal = segment.match(/^'([^']+)'$/);
           if (literal) return literal[1];
-          return segment === 'uid' ? '{uid}' : '{monthKey}';
+          // Variable segments keep their name ({uid}, {monthKey},
+          // {householdId}, {product.barcode}…) so blueprint paths stay readable.
+          return `{${segment}}`;
         })
         .join('/');
       documentPaths.add(`/${path}`);

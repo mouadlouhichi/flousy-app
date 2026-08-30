@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DASHBOARD_NAV_ITEMS,
+  getProfilePageTitle,
   getScreenIdFromPath,
   getVisibleNavItems,
 } from '../src/components/dashboard/nav-items';
@@ -23,8 +24,17 @@ describe('Dashboard navigation items', () => {
 
   it('still resolves the profile route to its own screen id', () => {
     assert.strictEqual(getScreenIdFromPath('/dashboard/profile'), 'profile');
+    for (const page of ['preferences', 'money-sources', 'workspace', 'pro', 'data', 'account']) {
+      assert.strictEqual(
+        getScreenIdFromPath(`/dashboard/profile/${page}`),
+        'profile',
+        `${page} must not light up Overview in the main nav`,
+      );
+    }
     assert.strictEqual(getScreenIdFromPath('/dashboard'), 'overview');
     assert.strictEqual(getScreenIdFromPath('/dashboard/trends'), 'trends');
+    assert.strictEqual(getProfilePageTitle('/dashboard/profile/preferences'), 'Preferences');
+    assert.strictEqual(getProfilePageTitle('/dashboard/profile/money-sources'), 'Money Sources');
   });
 
   it('gives every destination a unique id and href', () => {
@@ -32,5 +42,15 @@ describe('Dashboard navigation items', () => {
     const hrefs = DASHBOARD_NAV_ITEMS.map((i) => i.href);
     assert.strictEqual(new Set(ids).size, ids.length);
     assert.strictEqual(new Set(hrefs).size, hrefs.length);
+  });
+
+  it('resolves the courses route but keeps it out of the nav bars', () => {
+    assert.strictEqual(getScreenIdFromPath('/dashboard/courses'), 'courses');
+    for (const isPro of [false, true]) {
+      assert.ok(
+        !getVisibleNavItems(isPro).some((item) => item.id === 'courses'),
+        'courses is reached from the quick actions, not the nav',
+      );
+    }
   });
 });

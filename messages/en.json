@@ -378,6 +378,69 @@
       "proLabel": "PRO"
     }
   },
+  "courses": {
+    "title": "Courses",
+    "emptyTitle": "Capture your next course",
+    "emptyHint": "Start a session, scan each product's barcode and add the price. When you finish, SmartJib builds the bill.",
+    "start": "Start course",
+    "paidFrom": "Paid from",
+    "scanTitle": "Scan a barcode",
+    "scanHint": "Point your camera at the product barcode — or type it below.",
+    "cameraStart": "Start camera",
+    "cameraStop": "Stop camera",
+    "cameraDenied": "Camera unavailable or permission denied — type the code below instead.",
+    "manualCode": "Barcode (optional)",
+    "lookup": "Lookup",
+    "scanned": "Scanned",
+    "alignHint": "Hold steady — align the barcode inside the frame",
+    "scannedAdded": "{name} +1 (×{qty})",
+    "scanProTitle": "Barcode scanning is a Pro feature",
+    "scanProHint": "With Pro, point your camera at a product — SmartJib recognizes it, fills in the name and builds your bill as you shop.",
+    "scanProPerk1": "Camera scanner with instant product recognition",
+    "scanProPerk2": "Your product catalog, reused on every trip",
+    "scanProPerk3": "Open Food Facts lookup, prices remembered",
+    "scanProCta": "Upgrade to Pro",
+    "scanFreeNote": "On the free plan? Add items by name below — no barcode needed.",
+    "noBarcode": "No barcode? Add it by name",
+    "noBarcodeHint": "For produce and unpackaged items — type the name, quantity and price.",
+    "manualName": "Product name",
+    "manualAdd": "Add",
+    "price": "Price",
+    "quantity": "Qty",
+    "unitPrice": "Unit price",
+    "unit": "unit",
+    "add": "Add",
+    "skip": "Skip",
+    "finish": "Finish",
+    "discard": "Discard",
+    "discardConfirm": "Discard this course? The scanned items will be removed.",
+    "total": "Total",
+    "items": "items",
+    "billTitle": "Course bill",
+    "billShare": "Share",
+    "billCopy": "Copy",
+    "billCopied": "Bill copied",
+    "billDownload": "Download .txt",
+    "billCsv": "Download .csv",
+    "logTitle": "Add to budget",
+    "logCategory": "Category",
+    "logCta": "Add as expense",
+    "logHint": "Logs {amount} as a variable expense in {month}.",
+    "logDone": "Total added to your budget.",
+    "notFound": "Product not found — add it manually with the code attached.",
+    "codeInvalid": "That code doesn't look like a barcode (8 or 13 digits). You can still add it by name.",
+    "priceRequired": "Enter a price (0 or more).",
+    "nameRequired": "Give the product a name to add it.",
+    "remembered": "Saved to your product catalog",
+    "fromCatalog": "From your product catalog",
+    "fromOff": "From Open Food Facts",
+    "maBadge": "Made in Morocco",
+    "recentTitle": "Recent courses",
+    "noRecent": "No finished courses yet.",
+    "noItems": "Nothing scanned yet — each product will appear here and in the bill.",
+    "newCourse": "New course",
+    "back": "Back"
+  },
   "alerts": {
     "budgetHealth": "Budget Health",
     "needsExceeded": "Needs Envelope Exceeded",
@@ -481,9 +544,9 @@
       "startBudgeting": "Start budgeting"
     },
     "hero": {
-    "eyebrow": "Needs, wants, savings — and every money place.",
-    "titleLine1": "The SmartJib app",
-    "titleLine2Prefix": "to",
+      "eyebrow": "Needs, wants, savings — and every money place.",
+      "titleLine1": "The SmartJib app",
+      "titleLine2Prefix": "to",
       "words": [
         "save",
         "track",
@@ -516,13 +579,13 @@
         }
       ]
     },
-  "whatIsFlousy": {
-    "title": "What is SmartJib? The Free Budgeting App"
-  },
-  "features": {
-    "eyebrow": "Budgeting styles & Capabilities",
-    "titleLine1": "Manage your money.",
-    "titleLine2": "Track it in your bank or wallet.",
+    "whatIsFlousy": {
+      "title": "What is SmartJib? The Free Budgeting App"
+    },
+    "features": {
+      "eyebrow": "Budgeting styles & Capabilities",
+      "titleLine1": "Manage your money.",
+      "titleLine2": "Track it in your bank or wallet.",
       "items": [
         {
           "title": "Know what it's for",
@@ -542,10 +605,10 @@
         }
       ]
     },
-  "howItWorks": {
-    "eyebrow": "Start budgeting",
-    "titleLine1": "Three steps.",
-    "titleLine2": "A clearer month ahead.",
+    "howItWorks": {
+      "eyebrow": "Start budgeting",
+      "titleLine1": "Three steps.",
+      "titleLine2": "A clearer month ahead.",
       "steps": [
         {
           "title": "Tell us about your income",
@@ -650,10 +713,10 @@
         }
       ]
     },
-  "metrics": {
-    "eyebrow": "At a glance",
-    "titleLine1": "Free budgeting made",
-    "titleLine2": "simple with SmartJib.",
+    "metrics": {
+      "eyebrow": "At a glance",
+      "titleLine1": "Free budgeting made",
+      "titleLine2": "simple with SmartJib.",
       "live": "Live",
       "items": [
         {

@@ -2,24 +2,18 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { useCurrency } from '../../lib/currency-context';
+import { useMoneyPlaces } from '../../lib/use-money-places';
+import { MoneyPlaceConfig } from '../../lib/store';
 
 interface EditMoneyPlacesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (values: { bank: number; home: number; wallet: number }) => void;
-  initialValues: { bank: number; home: number; wallet: number };
+  onSave: (values: Record<string, number>) => void;
+  initialValues: Record<string, number>;
   totalBudget?: number;
+  places?: MoneyPlaceConfig[];
 }
 
-type MoneyPlaceKey = 'bank' | 'home' | 'wallet';
-
-const MONEY_PLACES: Array<{ key: MoneyPlaceKey; label: string; icon: string }> = [
-  { key: 'bank', label: 'Bank', icon: 'account_balance' },
-  { key: 'home', label: 'Home Cash', icon: 'home' },
-  { key: 'wallet', label: 'Wallet', icon: 'account_balance_wallet' },
-];
-
-/** Keeps only digits and a single decimal point while typing. */
 function sanitizeAmount(raw: string): string {
   const cleaned = raw.replace(/[^0-9.]/g, '');
   const [intPart, ...rest] = cleaned.split('.');
@@ -33,25 +27,20 @@ function parseAmount(raw: string): number {
 
 export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, totalBudget }: EditMoneyPlacesModalProps) {
   const { format, symbol } = useCurrency();
-  const [drafts, setDrafts] = useState<Record<MoneyPlaceKey, string>>({
-    bank: String(initialValues.bank ?? 0),
-    home: String(initialValues.home ?? 0),
-    wallet: String(initialValues.wallet ?? 0),
-  });
-  const [errors, setErrors] = useState<Partial<Record<MoneyPlaceKey, string>>>({});
+  const { places } = useMoneyPlaces();
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setDrafts({
-        bank: String(initialValues.bank ?? 0),
-        home: String(initialValues.home ?? 0),
-        wallet: String(initialValues.wallet ?? 0),
-      });
+      const next: Record<string, string> = {};
+      for (const p of places) next[p.id] = String(initialValues[p.id] ?? 0);
+      setDrafts(next);
       setErrors({});
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen, initialValues, places]);
 
-  const parsedValues = MONEY_PLACES.map(({ key }) => parseAmount(drafts[key] ?? ''));
+  const parsedValues = places.map(({ id }) => parseAmount(drafts[id] ?? ''));
   const liveTotal = parsedValues.every((v) => Number.isFinite(v))
     ? parsedValues.reduce((acc, v) => acc + v, 0)
     : null;
@@ -59,15 +48,15 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const nextErrors: Partial<Record<MoneyPlaceKey, string>> = {};
-    const values: Record<MoneyPlaceKey, number> = { bank: 0, home: 0, wallet: 0 };
+    const nextErrors: Record<string, string> = {};
+    const values: Record<string, number> = {};
 
-    MONEY_PLACES.forEach(({ key }) => {
-      const parsed = parseAmount(drafts[key] ?? '');
+    places.forEach(({ id }) => {
+      const parsed = parseAmount(drafts[id] ?? '');
       if (!Number.isFinite(parsed)) {
-        nextErrors[key] = 'Enter a valid amount';
+        nextErrors[id] = 'Enter a valid amount';
       } else {
-        values[key] = parsed;
+        values[id] = parsed;
       }
     });
 
@@ -85,41 +74,40 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
           Correct your current cash in each place. This adjusts your cash on hand — your monthly budget stays unchanged.
         </p>
 
-        {MONEY_PLACES.map(({ key, label, icon }) => (
-          <div key={key} className="rounded-2xl border border-outline-variant bg-surface-container p-3">
+        {places.map(({ id, name, icon }) => (
+          <div key={id} className="rounded-2xl border border-outline-variant bg-surface-container p-3">
             <label
-              htmlFor={`money-place-${key}`}
+              htmlFor={`money-place-${id}`}
               className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
             >
               <AppIcon name={icon} className="text-[14px]" />
-              {label}
+              {name}
             </label>
             <div
               className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-colors focus-within:border-primary ${
-                errors[key] ? 'border-error' : 'border-outline-variant'
+                errors[id] ? 'border-error' : 'border-outline-variant'
               }`}
             >
               <span className="text-[18px] font-bold text-primary">{symbol}</span>
               <input
-                id={`money-place-${key}`}
+                id={`money-place-${id}`}
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
                 placeholder="0"
-                value={drafts[key]}
+                value={drafts[id] ?? ''}
                 onFocus={(e) => e.currentTarget.select()}
                 onChange={(e) => {
-                  setDrafts((prev) => ({ ...prev, [key]: sanitizeAmount(e.target.value) }));
-                  if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+                  setDrafts((prev) => ({ ...prev, [id]: sanitizeAmount(e.target.value) }));
+                  if (errors[id]) setErrors((prev) => ({ ...prev, [id]: undefined as unknown as string }));
                 }}
                 className="w-full bg-transparent text-[18px] font-semibold text-on-surface outline-none"
               />
             </div>
-            {errors[key] && <p className="mt-1 text-[11px] font-medium text-error">{errors[key]}</p>}
+            {errors[id] && <p className="mt-1 text-[11px] font-medium text-error">{errors[id]}</p>}
           </div>
         ))}
 
-        {/* Live total summary */}
         <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex flex-col">
             <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">

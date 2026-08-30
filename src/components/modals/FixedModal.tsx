@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { ChoiceChips } from '../ui/choice-chips';
-import { SegmentedControl, MONEY_PLACE_OPTIONS } from '../ui/segmented-control';
+import { SegmentedControl } from '../ui/segmented-control';
+import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { DueDayPicker } from '../ui/day-picker';
 import {
@@ -14,17 +15,13 @@ import {
   FixedCategoryItem,
   addFixedCategory,
   updateFixedCategory,
+  availableForCharge,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
-import {
-  getAvailableBalance,
-  insufficientFundsMessage,
-  MONEY_PLACE_LABELS,
-  type PlaceBalances,
-} from '../../lib/money-places';
 
 interface FixedModalProps {
   isOpen: boolean;
@@ -35,14 +32,10 @@ interface FixedModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /** Live balance per money place, so a bill cannot overdraft its source. */
+  placeBalances?: Record<MoneyPlace, number>;
   /** Called when a custom fixed category is renamed, to retype existing bills. */
   onRenameCategory?: (oldName: string, newName: string) => void;
-  /**
-   * Live cash per money place. When provided, a bill is refused if the
-   * selected "Paid From" place cannot cover it (editing refunds the old bill
-   * first). Omit to keep the modal free of balance checks.
-   */
-  placeBalances?: PlaceBalances;
 }
 
 const FIXED_TYPES = DEFAULT_FIXED_CATEGORIES;
@@ -104,11 +97,12 @@ export function FixedModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
-  onRenameCategory,
   placeBalances,
+  onRenameCategory,
 }: FixedModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
+  const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -220,7 +214,7 @@ export function FixedModal({
       setName(initialBill.name);
       setAmount(String(initialBill.amount));
       setType(initialBill.type || 'Rent');
-      setPlace(initialBill.place || 'bank');
+      setPlace(initialBill.place || defaultPlace);
       setDate(initialBill.date || '1st');
       setPerson(initialBill.person || 'Me');
       setPayerMemberId(initialBill.payerMemberId || initialBill.person || 'self');
@@ -229,7 +223,7 @@ export function FixedModal({
       setName('');
       setAmount('');
       setType('Rent');
-      setPlace('bank');
+      setPlace(defaultPlace);
       setDate('1st');
       setPerson('Me');
       setPayerMemberId('self');
@@ -239,19 +233,9 @@ export function FixedModal({
     resetCategoryForm();
   }, [initialBill, isOpen]);
 
-  // Cash left in the selected place. Editing refunds the old bill first, so
-  // re-saving an unchanged (or smaller) bill is never blocked.
-  const availableInPlace = getAvailableBalance(
-    placeBalances,
-    place,
-    initialBill ? { place: initialBill.place, amount: initialBill.amount } : null,
-  );
-  const enteredAmount = parseFloat(amount);
-  // Live message shown under the "Paid From" control (also checked on submit).
-  const fundsError =
-    availableInPlace === null
-      ? null
-      : insufficientFundsMessage(enteredAmount, availableInPlace, place, format);
+  // Cash the selected source actually has for this charge: editing a bill that
+  // stays in the same place refunds its old amount first.
+  const availableInPlace = availableForCharge(placeBalances, place, initialBill);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,9 +259,14 @@ export function FixedModal({
       return;
     }
 
-    // Never let a bill take more than the selected place actually holds.
-    if (fundsError) {
-      setErrors({ amount: fundsError });
+    // The source place must actually hold the money for the charge. Half-a-cent
+    // tolerance absorbs float noise from prior refund/debit arithmetic.
+    if (parsedAmount - availableInPlace > 0.005) {
+      setErrors({
+        amount: `Only ${format(availableInPlace)} available in ${
+          placeLabel(place)
+        }. Lower the amount or move money into this place first.`,
+      });
       return;
     }
 
@@ -315,7 +304,7 @@ export function FixedModal({
             </span>
           </div>
           <div className="flex items-center text-primary font-bold">
-            <span className="text-[28px] font-extrabold mr-1">{symbol}</span>
+            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
@@ -489,22 +478,16 @@ export function FixedModal({
         <SegmentedControl
           label="Paid From"
           value={place}
-          onChange={(v) => setPlace(v as MoneyPlace)}
-          options={MONEY_PLACE_OPTIONS}
+          onChange={(v) => {
+            setPlace(v as MoneyPlace);
+            setErrors((prev) => ({ ...prev, amount: '' }));
+          }}
+          options={moneyPlaceOptions}
         />
-
-        {/* ── Available in the selected place (warns before submit) ── */}
-        {availableInPlace !== null && (
-          fundsError ? (
-            <p role="alert" className="text-[12px] font-medium text-error -mt-3">
-              {fundsError}
-            </p>
-          ) : (
-            <p className="text-[11px] font-medium text-on-surface-variant -mt-3">
-              Available in {MONEY_PLACE_LABELS[place]}: {format(availableInPlace)}
-            </p>
-          )
-        )}
+        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+          Available in {placeLabel(place)}:{' '}
+          <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
+        </p>
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">

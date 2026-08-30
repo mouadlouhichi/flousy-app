@@ -1,7 +1,9 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAnalytics, Analytics, isSupported } from 'firebase/analytics';
+// Analytics is loaded on demand from ./analytics (type-only import here) so
+// its chunk is not part of the dashboard's initial JavaScript.
+import type { Analytics } from 'firebase/analytics';
 
 // Get config from env safely for Next.js
 const getFirebaseConfig = () => {
@@ -54,15 +56,8 @@ if (firebaseConfig) {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     auth = getAuth(app);
     db = getFirestore(app);
-    
-    // Initialize Analytics only on the client side
-    if (typeof window !== 'undefined') {
-      isSupported().then((supported) => {
-        if (supported && app) {
-          analytics = getAnalytics(app);
-        }
-      });
-    }
+    // Analytics is initialised lazily in ./analytics (client-only, fetched
+    // the first time an event is tracked).
   } catch (err) {
     console.warn('Firebase initialization error:', err);
   }

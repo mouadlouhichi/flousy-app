@@ -16,6 +16,7 @@ import {
   updateProfile as firebaseUpdateProfile,
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
+import { setAuthCookie } from './auth-status';
 import { UserProfile } from './store';
 import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData } from './db';
 import { trackEvent } from './analytics';
@@ -39,6 +40,33 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+/**
+ * Client-side profile cache. Lets the dashboard paint immediately from the
+ * last known profile while Firestore re-validates in the background,
+ * removing one network round-trip from the critical path of the first
+ * authenticated load.
+ */
+const PROFILE_CACHE_PREFIX = 'flousy_profile_';
+
+function readCachedProfile(uid: string): UserProfile | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${PROFILE_CACHE_PREFIX}${uid}`);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(uid: string, profile: UserProfile) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`${PROFILE_CACHE_PREFIX}${uid}`, JSON.stringify(profile));
+  } catch {
+    /* ignore quota errors */
+  }
+}
 
 /** Wipe every device-local `flousy_*` cache key (budget months, goals, pro
  * flags, onboarding state) plus session storage. Used on sign-out and when
@@ -80,7 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      // Keep the public-site CTA cookie in sync without any network call.
+      setAuthCookie(Boolean(u));
       if (u) {
+        // Paint instantly from the local profile cache, then re-validate
+        // against Firestore in the background.
+        const cached = readCachedProfile(u.uid);
+        if (cached) {
+          setProfile(cached);
+          setLoading(false);
+        }
         await syncUserProfile(u);
       } else {
         setProfile(null);
@@ -115,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       result = p;
       setProfile(p);
+      writeCachedProfile(u.uid, p);
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
     }
@@ -198,7 +236,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateProfileData = async (data: Partial<UserProfile>) => {
     if (user) {
       await setUserProfile(user.uid, data);
-      setProfile((prev: UserProfile | null) => (prev ? { ...prev, ...data } : null));
+      const next = (prev: UserProfile | null) => (prev ? { ...prev, ...data } : null);
+      setProfile(next);
+      const current = next(profile);
+      if (current) writeCachedProfile(user.uid, current);
     }
   };
 

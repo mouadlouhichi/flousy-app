@@ -9,5 +9,6 @@ test('dashboard quick actions expose the expected mobile menu items', () => {
     'Add Expense',
     'Add Charge',
     'New Savings Goal',
+    'Start Course',
   ]);
 });

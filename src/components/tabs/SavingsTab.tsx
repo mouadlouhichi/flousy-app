@@ -1,11 +1,12 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React from 'react';
 import {
   SavingGoal,
-  MoneyPlace,
   MonthBudget,
   SavingsActivityEntry,
   calculateMonthlyDepositedSavings,
+  moneyPlaceLabel,
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 
@@ -19,8 +20,6 @@ interface SavingsTabProps {
   month?: MonthBudget;
   /** Open the editor for a logged deposit / withdrawal. */
   onEditDeposit?: (entry: SavingsActivityEntry) => void;
-  /** Remove a logged deposit / withdrawal (after confirmation). */
-  onDeleteDeposit?: (entry: SavingsActivityEntry) => void;
   canEdit?: boolean;
 }
 
@@ -38,7 +37,6 @@ export function SavingsTab({
   onOpenEditGoal,
   month,
   onEditDeposit,
-  onDeleteDeposit,
   canEdit = true,
 }: SavingsTabProps) {
   const { format } = useCurrency();
@@ -56,7 +54,7 @@ export function SavingsTab({
             TOTAL ACCUMULATED SAVINGS
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalSavings)}
+            <FormattedAmount value={totalSavings} />
           </h2>
         </div>
         <button
@@ -118,11 +116,12 @@ export function SavingsTab({
                 {/* Balance & Progress */}
                 <div className="flex flex-col gap-xs">
                   <div className="flex justify-between items-baseline font-mono">
-                    <span className="text-headline-md text-on-surface font-extrabold">
-                      {format(goal.current)}
-                    </span>
+                    <FormattedAmount
+                      value={goal.current}
+                      className="text-headline-md text-on-surface font-extrabold"
+                    />
                     <span className="font-label-md text-label-md text-on-surface-variant">
-                      Target: {format(goal.target)}
+                      Target: <FormattedAmount value={goal.target} />
                     </span>
                   </div>
 
@@ -138,7 +137,7 @@ export function SavingsTab({
                 </div>
 
                 {/* Quick Fund & Withdraw Actions */}
-                <div className="grid grid-cols-2 gap-sm pt-xs border-t border-surface-variant">
+                <div className="grid grid-cols-2 gap-sm pt-xs">
                   <button
                     onClick={() => onOpenFundModal(goal)}
                     className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
@@ -209,20 +208,19 @@ export function SavingsTab({
                       </span>
                       <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
                         {isDeposit ? 'Deposit' : 'Withdrawal'} · {formatEntryDate(entry.date)}
-                        {entry.place ? ` · ${entry.place === 'home' ? 'Home Cash' : entry.place === 'wallet' ? 'Wallet' : 'Bank'}` : ''}
+                        {entry.place ? ` · ${moneyPlaceLabel(entry.place)}` : ''}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-xs shrink-0">
-                    <span
+                    <FormattedAmount
+                      value={entry.amount}
+                      prefix={isDeposit ? '+' : '-'}
                       className={`font-mono font-bold ${
                         isDeposit ? 'text-secondary' : 'text-on-surface-variant'
                       }`}
-                    >
-                      {isDeposit ? '+' : '-'}
-                      {format(entry.amount)}
-                    </span>
+                    />
                     {canEdit && onEditDeposit && (
                       <button
                         type="button"
@@ -231,16 +229,6 @@ export function SavingsTab({
                         className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
                       >
                         <AppIcon name="edit" className=" text-[18px]" />
-                      </button>
-                    )}
-                    {canEdit && onDeleteDeposit && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDeposit(entry)}
-                        aria-label={`Delete ${isDeposit ? 'deposit' : 'withdrawal'}`}
-                        className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                      >
-                        <AppIcon name="delete" className=" text-[18px]" />
                       </button>
                     )}
                   </div>

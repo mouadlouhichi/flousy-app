@@ -287,7 +287,7 @@ src/
 │   └── analytics.ts            # Telemetry seam (no-op by default)
 │
 ├── hooks/                      # use-pwa-install, use-mobile, use-toast
-└── middleware.ts               # Per-request nonce-based CSP
+└── middleware.ts               # Origin-based CSP + CDN cache headers (static-friendly)
 
 messages/                       # en.json · fr.json · ar.json
 tests/                          # node:test suites
@@ -450,9 +450,12 @@ into an Admin SDK payment webhook (which bypasses rules).
 
 **Other measures**
 
-- **Nonce-based CSP** generated per request in `src/middleware.ts`
-  (`strict-dynamic` in production), which is why the root layout is
-  `force-dynamic`.
+- **Origin-based CSP** on every route (`script-src 'self' 'unsafe-inline'`
+  plus the Google auth/analytics allow-list; `object-src 'none'`,
+  `base-uri 'self'`, `frame-ancestors 'none'`, strict connect/frame lists).
+  A per-request nonce was deliberately dropped: it forces per-request
+  rendering, which is what made in-app navigation wait for the server. Every
+  page is now prerendered and navigation is a client-side route change.
 - Hardened response headers in `next.config.mjs`: HSTS, `nosniff`,
   `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and
   `COOP: same-origin-allow-popups` so Google sign-in popups still work.
@@ -566,8 +569,43 @@ vercel
 - [ ] Optionally set `NEXT_PUBLIC_ANALYTICS` and add the provider script
 
 > [!NOTE]
-> The root layout is `force-dynamic` (required by the per-request CSP nonce), so
-> pages are rendered on demand rather than statically exported.
+> **Rendering model (performance):** every page — including `/dashboard`,
+> `/login` and `/onboarding` — is **statically generated at build time**, so
+> in-app navigation is a pure client-side route change with a cached payload
+> (no server round-trip, no spinner). The private app routes are still marked
+> `private, no-store` in `src/middleware.ts` so the CDN never caches them, and
+> public HTML gets `public, s-maxage=300, stale-while-revalidate=86400`.
+
+---
+
+## ⚡ Performance
+
+This repo is tuned for green PageSpeed Insights / Lighthouse results:
+
+| Area | What's in place |
+| --- | --- |
+| **Static pages everywhere** | Root layout does not read cookies/headers; **all** routes (incl. `/dashboard/*`) are prerendered. App routes stay `no-store`, and navigation is client-side with prefetched screens — instant, like a native app |
+| **CDN caching** | Public HTML `s-maxage=300` + SWR; `/_next/static/*`, fonts and images `immutable` for a year (`src/middleware.ts`, `next.config.mjs`) |
+| **Bundle size** | Firebase SDK + analytics are **not** loaded on public pages (marketing CTAs use a tiny `flousy_authed` cookie hook, `src/lib/auth-status.ts`); analytics is code-split (`firebase/analytics` loads on first event) |
+| **Translations** | Only `en.json` is bundled; `fr`/`ar` are lazy-loaded chunks (`src/lib/messages.ts`) — previously all three (~136 KB) shipped on every page |
+| **Dashboard** | All 12 modals are code-split and mount only when opened (`src/components/dashboard/dashboard-modals.tsx`); month data hydrates from local cache; profile loads from a local cache while Firestore revalidates |
+| **Fonts** | Self-hosted variable fonts (`next/font/local` + `@fontsource-variable/*`) — no Google Fonts request, no build-time font fetch, `font-display: swap` |
+| **Animations** | All canvas hero effects pause off-screen, cap device-pixel-ratio and render a single static frame for `prefers-reduced-motion` users |
+
+### Cloudflare (or any CDN in front)
+
+The app is already Cloudflare-friendly — no code change is needed:
+statically generated pages are cacheable at the edge, and `src/middleware.ts`
+emits explicit `Cache-Control` headers that Cloudflare's cache rules can honor
+directly (`public, s-maxage=300, stale-while-revalidate=86400` for HTML,
+`immutable` for `/_next/static/*` and hashed assets).
+
+If you host on **Cloudflare Workers** instead of Vercel/Node, use
+[`@opennextjs/cloudflare`](https://open-next.js.org/cloudflare) to build and
+deploy the Next.js standalone output (`wrangler deploy`), and keep the
+`NEXT_PUBLIC_FIREBASE_*` env vars in the Worker's environment. The static
+routes plus the middleware cache/CSP headers work as a Cloudflare Worker
+as-is.
 
 ---
 
@@ -607,7 +645,7 @@ git push
 debts & credits · multi-month trends · recurring bills · budget alerts ·
 income sources · CSV export *and* import · household/person tracking ·
 shared household workspaces & RBAC · 12 currencies · en/fr/ar with RTL ·
-light/dark themes · offline shell · nonce CSP · hardened rules ·
+light/dark themes · offline shell · origin CSP · hardened rules ·
 marketing site & blog · CI · 84 tests · mock Pro checkout
 
 **Next**
@@ -681,10 +719,10 @@ back in, and retry.
 <details>
 <summary><strong>Build fails fetching fonts</strong></summary>
 
-`src/app/layout.tsx` loads Instrument Sans and JetBrains Mono via
-`next/font/google`, which downloads them **at build time**. On a network that
-blocks `fonts.googleapis.com` the build fails with `ECONNRESET`. Build with
-network access, or swap the fonts for local files / a runtime `<link>`.
+Fonts are self-hosted now: Instrument Sans via `next/font/local`
+(`src/app/fonts/`) and JetBrains Mono / Cairo via `@fontsource-variable/*`.
+No Google Fonts request happens at build **or** runtime, so builds work on
+air-gapped networks and no third-party font domain appears in the CSP.
 </details>
 
 <details>
