@@ -2,7 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
-import { CustomInput } from '../ui/CustomInput';
+import { DatePicker } from '../ui/date-picker';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
 import { CategoryIconPicker } from '../ui/category-icon-picker';
@@ -15,6 +15,7 @@ import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { intlLocale } = useLanguage();
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -405,12 +407,16 @@ export function ExpenseModal({
           </div>
         )}
 
-        {/* ── Date ── */}
-        <CustomInput
+        {/* ── Date — responsive calendar popover (no native input overflow) ── */}
+        <DatePicker
           label="Date"
-          type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(nextDate) => {
+            setDate(nextDate);
+            setErrors((previous) => ({ ...previous, date: '' }));
+          }}
+          locale={intlLocale}
+          error={errors.date}
         />
 
         {/* ── Note ── */}

@@ -167,10 +167,9 @@ export function StrategySelectorModal({
             />
           </div>
 
-          {/* On a narrow sheet each allocation gets its own full row. The
-              former three-column layout squeezed localized currency values
-              together until they looked like one concatenated number. */}
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-2">
+          {/* Keep every allocation in a column so percentage and currency
+              values always have their own line, at every viewport width. */}
+          <div className="flex flex-col gap-2">
             {[
               { label: 'Needs', value: preview.needs, color: 'bg-primary' },
               { label: 'Wants', value: preview.wants, color: 'bg-amber-500' },
@@ -178,13 +177,13 @@ export function StrategySelectorModal({
             ].map(({ label, value, color }) => (
               <div
                 key={label}
-                className="flex min-w-0 items-center justify-between gap-3 rounded-lg bg-surface/45 px-2 py-1 sm:block sm:bg-transparent sm:p-0 sm:text-center"
+                className="flex min-w-0 flex-col items-start gap-0.5 rounded-lg bg-surface/45 px-3 py-2"
               >
-                <div className="flex shrink-0 items-center gap-1 sm:justify-center sm:mb-0.5">
+                <div className="flex items-center gap-1">
                   <span className={`h-2 w-2 rounded-full ${color}`} />
                   <span className="text-[11px] font-bold text-on-surface-variant">{label}</span>
                 </div>
-                <span className="shrink-0 whitespace-nowrap font-mono text-[13px] font-extrabold text-on-surface">
+                <span className="max-w-full whitespace-nowrap font-mono text-[13px] font-extrabold text-on-surface">
                   {format(value)}
                 </span>
               </div>
@@ -260,10 +259,9 @@ export function StrategySelectorModal({
                       />
                     </div>
 
-                    {/* Allocation values need room for localized currency
-                        strings. On phones they deliberately stack into clear
-                        rows rather than forcing three amounts to collide. */}
-                    <div className="mt-1.5 grid grid-cols-1 gap-1 sm:grid-cols-3 sm:gap-2">
+                    {/* Percentage allocations intentionally use a vertical
+                        flex list, keeping each percentage and amount clear. */}
+                    <div className="mt-1.5 flex flex-col gap-1.5">
                       {[
                         { label: 'Needs', percent: strat.needsRatio, value: amounts.needs },
                         { label: 'Wants', percent: strat.wantsRatio, value: amounts.wants },
@@ -271,12 +269,12 @@ export function StrategySelectorModal({
                       ].map(({ label, percent, value }) => (
                         <span
                           key={label}
-                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-2 py-1 text-[10px] font-bold text-on-surface-variant sm:block sm:bg-transparent sm:p-0 sm:text-center"
+                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-3 py-2 text-[10px] font-bold text-on-surface-variant"
                         >
-                          <span className="sm:block">
+                          <span>
                             {label} · {Math.round(percent * 100)}%
                           </span>
-                          <span className="max-w-full whitespace-nowrap font-mono text-[9px] text-on-surface sm:mt-0.5 sm:block sm:text-[10px]">
+                          <span className="max-w-full whitespace-nowrap font-mono text-[11px] text-on-surface">
                             {format(value)}
                           </span>
                         </span>
@@ -345,7 +343,7 @@ export function StrategySelectorModal({
                     <div className="h-full bg-slate-600" style={{ width: `${split.savings}%` }} />
                   </div>
 
-                  <div className="flex justify-between mt-1">
+                  <div className="mt-1 flex flex-col gap-1">
                     <span className="text-[10px] font-bold text-on-surface-variant">{split.needs}% Needs</span>
                     <span className="text-[10px] font-bold text-on-surface-variant">{split.wants}% Wants</span>
                     <span className="text-[10px] font-bold text-on-surface-variant">{split.savings}% Savings</span>
