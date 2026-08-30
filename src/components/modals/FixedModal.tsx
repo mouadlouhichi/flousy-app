@@ -19,6 +19,12 @@ import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
+import {
+  getAvailableBalance,
+  insufficientFundsMessage,
+  MONEY_PLACE_LABELS,
+  type PlaceBalances,
+} from '../../lib/money-places';
 
 interface FixedModalProps {
   isOpen: boolean;
@@ -31,6 +37,12 @@ interface FixedModalProps {
   categoryIcons?: Record<string, string>;
   /** Called when a custom fixed category is renamed, to retype existing bills. */
   onRenameCategory?: (oldName: string, newName: string) => void;
+  /**
+   * Live cash per money place. When provided, a bill is refused if the
+   * selected "Paid From" place cannot cover it (editing refunds the old bill
+   * first). Omit to keep the modal free of balance checks.
+   */
+  placeBalances?: PlaceBalances;
 }
 
 const FIXED_TYPES = DEFAULT_FIXED_CATEGORIES;
@@ -93,8 +105,9 @@ export function FixedModal({
   categoryColors = {},
   categoryIcons = {},
   onRenameCategory,
+  placeBalances,
 }: FixedModalProps) {
-  const { symbol, currency } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -226,6 +239,20 @@ export function FixedModal({
     resetCategoryForm();
   }, [initialBill, isOpen]);
 
+  // Cash left in the selected place. Editing refunds the old bill first, so
+  // re-saving an unchanged (or smaller) bill is never blocked.
+  const availableInPlace = getAvailableBalance(
+    placeBalances,
+    place,
+    initialBill ? { place: initialBill.place, amount: initialBill.amount } : null,
+  );
+  const enteredAmount = parseFloat(amount);
+  // Live message shown under the "Paid From" control (also checked on submit).
+  const fundsError =
+    availableInPlace === null
+      ? null
+      : insufficientFundsMessage(enteredAmount, availableInPlace, place, format);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
@@ -245,6 +272,12 @@ export function FixedModal({
         if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
       });
       setErrors(fieldErrors);
+      return;
+    }
+
+    // Never let a bill take more than the selected place actually holds.
+    if (fundsError) {
+      setErrors({ amount: fundsError });
       return;
     }
 
@@ -459,6 +492,19 @@ export function FixedModal({
           onChange={(v) => setPlace(v as MoneyPlace)}
           options={MONEY_PLACE_OPTIONS}
         />
+
+        {/* ── Available in the selected place (warns before submit) ── */}
+        {availableInPlace !== null && (
+          fundsError ? (
+            <p role="alert" className="text-[12px] font-medium text-error -mt-3">
+              {fundsError}
+            </p>
+          ) : (
+            <p className="text-[11px] font-medium text-on-surface-variant -mt-3">
+              Available in {MONEY_PLACE_LABELS[place]}: {format(availableInPlace)}
+            </p>
+          )
+        )}
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">

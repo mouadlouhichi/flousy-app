@@ -5,7 +5,13 @@ import {
   insufficientFundsMessage,
   MONEY_PLACE_LABELS,
 } from '../src/lib/money-places';
-import { MonthBudget, addVariableExpense, createNewMonth, fundGoal } from '../src/lib/store';
+import {
+  MonthBudget,
+  addVariableExpense,
+  addFixedExpense,
+  createNewMonth,
+  fundGoal,
+} from '../src/lib/store';
 
 const format = (value: number) => `${value.toFixed(2)} MAD`;
 
@@ -97,6 +103,21 @@ describe('Money place balances (expense / savings source checks)', () => {
       // exactly the inconsistency the modal now refuses up front.
       assert.equal(overdrawn.bankPart, 0);
       assert.equal(overdrawn.variableExpenses[0].amount, 500);
+    });
+
+    it('clamping an overdrawn fixed bill would lose money silently', () => {
+      const month = { ...newMonth(), bankPart: 100 };
+      const overdrawn = addFixedExpense(month, {
+        id: 'b1',
+        name: 'Rent',
+        amount: 900,
+        type: 'Housing',
+        date: '1st',
+        place: 'bank',
+      });
+
+      assert.equal(overdrawn.bankPart, 0);
+      assert.equal(overdrawn.fixedExpenses[0].amount, 900);
     });
 
     it('funding a goal above the source balance only moves what exists', () => {
