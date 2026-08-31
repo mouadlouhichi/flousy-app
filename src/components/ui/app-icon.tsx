@@ -43,6 +43,8 @@ import {
   ExternalLink,
   FileSearch,
   FileText,
+  Flashlight,
+  FlashlightOff,
   Fuel,
   Gamepad2,
   Gift,
@@ -117,6 +119,8 @@ import {
   Table,
   Video,
   VideoOff,
+  ZoomIn,
+  ZoomOut,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
@@ -176,6 +180,8 @@ const icons: Record<string, LucideIcon> = {
   family_restroom: Users,
   favorite: Heart,
   find_in_page: FileSearch,
+  flashlight: Flashlight,
+  flashlight_off: FlashlightOff,
   fitness_center: Dumbbell,
   flight: Plane,
   fuel: Fuel,
@@ -264,6 +270,8 @@ const icons: Record<string, LucideIcon> = {
   wrench: Wrench,
   x: X,
   package: Package,
+  zoom_in: ZoomIn,
+  zoom_out: ZoomOut,
 };
 
 
