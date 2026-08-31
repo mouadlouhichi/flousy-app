@@ -32,12 +32,23 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => subscribeHouseholdMembers(trackedHouseholdId, setMembers), [trackedHouseholdId]);
   useEffect(() => subscribePendingHouseholdInvites(user?.email, setPendingInvites), [user?.email]);
   const myMember = members.find((m) => m.userId === user?.uid);
-  const isOwner = myMember?.role === 'owner' || household?.ownerId === user?.uid;
+  const isOwner =
+    household?.ownerId === user?.uid ||
+    household?.planOwnerId === user?.uid ||
+    myMember?.role === 'owner';
   const canEdit = isOwner || myMember?.role === 'editor';
-  const canViewArea = useCallback((area: HouseholdArea) => workspace === 'personal' || canView(myMember?.role, area, myMember?.permissions), [workspace, myMember]);
-  const canEditArea = useCallback((area: HouseholdArea, own = false) => workspace === 'personal' || canEditAreaRule(myMember?.role, area, myMember?.permissions, own), [workspace, myMember]);
-  const memberRole = myMember?.role;
-  const isContributor = memberRole === 'contributor';
+  const canViewArea = useCallback(
+    (area: HouseholdArea) =>
+      workspace === 'personal' || isOwner || canView(myMember?.role, area, myMember?.permissions),
+    [workspace, isOwner, myMember],
+  );
+  const canEditArea = useCallback(
+    (area: HouseholdArea, own = false) =>
+      workspace === 'personal' || isOwner || canEditAreaRule(myMember?.role, area, myMember?.permissions, own),
+    [workspace, isOwner, myMember],
+  );
+  const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
+  const isContributor = !isOwner && memberRole === 'contributor';
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) return [{ id: 'self', label: m.household.me }, { id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
     const legacy = profile?.householdMembers || [];

@@ -123,20 +123,6 @@ export function ProfileIdentity() {
               </span>
             )}
           </div>
-
-          {!isEditingName && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditingName(true);
-                setDisplayName(profile?.displayName || '');
-              }}
-              className="mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
-            >
-              <AppIcon name="edit" className="text-[14px]" />
-              {p.editName}
-            </button>
-          )}
         </div>
 
         {avatarError && (
@@ -207,11 +193,22 @@ export function ProfileIdentity() {
                   {isPro ? p.links.pro : p.free}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-surface-variant px-2.5 py-1 text-[11px] font-bold leading-none text-on-surface-variant ring-1 ring-inset ring-outline-variant">
-                  <AppIcon name={workspace === 'household' ? 'group' : 'home'} className="text-[13px]" />
+                  <AppIcon name={workspace === 'household' ? 'family_restroom' : 'person'} className="text-[13px]" />
                   {workspaceLabel}
                   {workspace === 'household' && memberRole ? ` · ${localizeHouseholdRole(memberRole, m)}` : ''}
                 </span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingName(true);
+                  setDisplayName(profile?.displayName || '');
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
+              >
+                <AppIcon name="edit" className="text-[14px]" />
+                {p.editName}
+              </button>
             </>
           )}
         </div>

@@ -58,7 +58,6 @@ export function WorkspacePanel() {
   };
 
   const handleRemoveHousehold = async () => {
-    if (!window.confirm(p.removeHouseholdConfirm)) return;
     setBusy(true);
     setNotice('');
     try {
@@ -67,6 +66,7 @@ export function WorkspacePanel() {
       setNotice(m.household.genericError);
     } finally {
       setBusy(false);
+      setConfirmRemove(false);
     }
   };
 
@@ -122,7 +122,7 @@ export function WorkspacePanel() {
         <button
           type="button"
           disabled={busy}
-          onClick={handleRemoveHousehold}
+          onClick={() => setConfirmRemove(true)}
           className="flex items-center justify-between rounded-2xl border border-error/30 bg-surface-container p-4 text-start transition-colors hover:bg-error/5 disabled:opacity-50"
         >
           <span className="flex items-center gap-3">
@@ -161,6 +161,18 @@ export function WorkspacePanel() {
         onOpenPro={openProModal}
         month={month}
         initialInviteCode={inviteCode}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        onConfirm={() => {
+          void handleRemoveHousehold();
+        }}
+        title={isOwner ? p.removeHousehold : p.leaveHousehold}
+        message={p.removeHouseholdConfirm}
+        confirmLabel={isOwner ? p.removeHousehold : p.leaveHousehold}
+        isDestructive
       />
     </div>
   );
