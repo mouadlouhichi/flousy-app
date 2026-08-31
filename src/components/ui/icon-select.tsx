@@ -35,7 +35,7 @@ export function IconSelect({
       <SelectTrigger
         aria-label={ariaLabel}
         size="default"
-        className={`!h-12 !w-12 shrink-0 justify-center gap-0 rounded-xl border px-0 py-0 shadow-none [&_svg]:hidden ${
+        className={`!h-12 !w-12 shrink-0 justify-center gap-0 rounded-xl border px-0 py-0 shadow-none [&>svg:last-child]:hidden ${
           isActive
             ? 'border-primary bg-primary text-on-primary'
             : 'border-outline-variant bg-surface-container text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'

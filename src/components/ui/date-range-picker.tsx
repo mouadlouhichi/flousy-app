@@ -66,13 +66,18 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
       >
         <Calendar
           mode="range"
+          required
           selected={selected}
           defaultMonth={selected?.from || selected?.to}
           onSelect={(range) => {
-            onChange(
-              range?.from ? dateToInputValue(range.from) : '',
-              range?.to ? dateToInputValue(range.to) : '',
-            );
+            if (!range?.from) {
+              onChange('', '');
+              return;
+            }
+            const start = dateToInputValue(range.from);
+            const end = range.to ? dateToInputValue(range.to) : '';
+            onChange(start, end);
+            if (range.to) setOpen(false);
           }}
           locale={calendarLocale}
           dir={isRTL ? 'rtl' : 'ltr'}
