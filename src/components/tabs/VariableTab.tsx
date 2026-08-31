@@ -383,12 +383,12 @@ export function VariableTab({
                       <AppIcon name="receipt_long" className="shrink-0 text-[16px] text-primary" title={m.tabs.variable.hasReceipt} />
                     )}
                   </div>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 font-label-sm text-label-sm text-on-surface-variant">
                     <span className="min-w-0 truncate">{localizeCategoryName(exp.type, m)}</span>
                     <span className="shrink-0">•</span>
-                    <span className="shrink-0">{localizePlaceName(exp.place, exp.place, m)}</span>
+                    <span className="min-w-0 truncate">{localizePlaceName(exp.place, exp.place, m)}</span>
                     <span className="shrink-0">•</span>
-                    <time dateTime={exp.date} className="shrink-0 whitespace-nowrap">
+                    <time dateTime={exp.date} className="min-w-0 truncate">
                       {formatShortDate(exp.date, intlLocale)}
                     </time>
                   </div>
