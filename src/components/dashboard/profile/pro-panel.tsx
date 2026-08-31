@@ -97,17 +97,7 @@ export function ProPanel() {
             </span>
             <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
           </Link>
-          <Link
-            href="/dashboard/trends"
-            prefetch={true}
-            className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-          >
-            <span className="flex items-center gap-3">
-              <AppIcon name="trending_up" className="text-[20px] text-primary" />
-              <span className="text-sm font-bold text-on-surface">{p.analyticsInsights}</span>
-            </span>
-            <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-          </Link>
+
         </div>
       ) : showUpgrade ? (
         <button
