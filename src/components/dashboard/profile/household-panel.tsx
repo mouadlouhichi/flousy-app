@@ -286,14 +286,28 @@ export function HouseholdPanel({
                             },
                             body: JSON.stringify({ inviteId, locale: language }),
                           });
-                          setNotice(
-                            response.ok
-                              ? t(h.invitationSent, { email })
-                              // The invitation itself exists either way, and the
-                              // code below still works — say what happened rather
-                              // than pretending an email went out.
-                              : h.inviteCodeReady,
-                          );
+                          if (response.ok) {
+                            setNotice(t(h.invitationSent, { email }));
+                          } else {
+                            // The invitation exists and its code works either way,
+                            // so this must not read as a failed invite — but it also
+                            // must not look like an email went out. The endpoint
+                            // answers with a stable `code`, so the reason (missing
+                            // RESEND_API_KEY on this environment, sandbox sender,
+                            // expired session, rate limit) is visible where it can
+                            // be acted on instead of being swallowed here.
+                            const detail = await response
+                              .json()
+                              .catch(() => null) as { code?: string; hint?: string } | null;
+                            if (detail?.code) {
+                              console.warn('[household-invitations] email not sent', {
+                                status: response.status,
+                                code: detail.code,
+                                hint: detail.hint,
+                              });
+                            }
+                            setNotice(t(h.invitationUnavailable, { status: response.status }));
+                          }
                         } else {
                           setNotice(h.inviteCodeReady);
                         }

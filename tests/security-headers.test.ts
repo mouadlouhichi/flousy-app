@@ -68,9 +68,45 @@ describe('server endpoint abuse limits', () => {
     assert.doesNotMatch(invitations, /const \{ email, householdName, role \} = await request\.json/);
   });
 
-  it('refuses the Resend sandbox sender in production', () => {
-    assert.match(invitations, /NODE_ENV === 'production'/);
+  it('refuses the Resend sandbox sender in production only, using the platform environment', () => {
+    // `NODE_ENV` is production on Vercel previews as well, which made a preview
+    // refuse the sandbox sender it legitimately needs to test with.
+    assert.match(invitations, /process\.env\.VERCEL_ENV/);
+    assert.doesNotMatch(invitations, /production && from\.includes[\s\S]{0,80}NODE_ENV === 'production'/);
     assert.match(invitations, /@resend\.dev/);
+    // A probe so a deployment's configuration can be checked without sending.
+    assert.match(invitations, /export async function GET/);
+    assert.match(invitations, /emailConfigured/);
+  });
+
+  it('builds the accept link from platform config, never from the Host header', () => {
+    // The link grants household access and is mailed to a third party, so a
+    // caller-controlled origin would be an open redirect delivered by us.
+    assert.doesNotMatch(invitations, /request\.nextUrl\.origin/);
+    assert.match(invitations, /resolveAppBaseUrl\(\)/);
+  });
+
+  it('answers every failure with a stable code the UI can explain', () => {
+    // A swallowed 503 previously looked like "mail sent, maybe"; the panel must
+    // distinguish "provider unconfigured" from "your session expired".
+    for (const code of [
+      'email_not_configured',
+      'sandbox_sender',
+      'unauthorized',
+      'session_expired',
+      'rate_limited',
+      'delivery_failed',
+    ]) {
+      assert.ok(invitations.includes(`'${code}'`), `missing failure code: ${code}`);
+    }
+    const panel = read('src/components/dashboard/profile/household-panel.tsx');
+    assert.match(panel, /invitationUnavailable/);
+    assert.match(panel, /console\.warn\('\[household-invitations\] email not sent'/);
+    // The invitation is created (and its code kept on screen) before the email is
+    // attempted, so a mail failure never reads as the invite itself failing.
+    const codeStoredBeforeMail = panel.search(/setLastInviteCode\(inviteId\)/);
+    const mailAttempt = panel.search(/fetch\('\/api\/household-invitations'/);
+    assert.ok(codeStoredBeforeMail > -1 && mailAttempt > codeStoredBeforeMail);
   });
 
   it('rate limits sends per user', () => {
