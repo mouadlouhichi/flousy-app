@@ -31,6 +31,7 @@ const ICONS: Record<string, typeof Home> = {
 };
 
 const SPRING = { damping: 22, stiffness: 280, mass: 0.85 };
+const TEAL = '#026462';
 
 export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -39,7 +40,7 @@ export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
   const activeName = state.routes[state.index]?.name;
   const activeIndex = routes.findIndex((r) => r.name === activeName);
   const pillIndex = activeIndex >= 0 ? activeIndex : 0;
-  const [barWidth, setBarWidth] = useState(Math.min(screenW - 24, 448));
+  const [barWidth, setBarWidth] = useState(Math.min(screenW - 28, 420));
   const innerW = Math.max(0, barWidth - 12);
   const itemW = routes.length ? innerW / routes.length : 0;
   const pillX = useSharedValue(pillIndex * itemW);
@@ -50,7 +51,7 @@ export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pillX.value }],
-    width: itemW,
+    width: Math.max(itemW, 0),
   }));
 
   return (
@@ -60,20 +61,20 @@ export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: Math.max(insets.bottom, 10) + 6,
+        bottom: Math.max(insets.bottom, 8) + 8,
         alignItems: 'center',
       }}
     >
       <View
         onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
-        className="flex-row items-center rounded-full border border-neutral-200/70 bg-white/90 px-1.5 py-1.5"
+        className="flex-row items-center rounded-full border border-neutral-200/80 bg-white px-1.5 py-1"
         style={{
-          width: Math.min(screenW - 24, 448),
+          width: Math.min(screenW - 28, 420),
           shadowColor: '#000',
-          shadowOpacity: 0.12,
-          shadowRadius: 16,
+          shadowOpacity: 0.14,
+          shadowRadius: 18,
           shadowOffset: { width: 0, height: 8 },
-          elevation: 12,
+          elevation: 14,
         }}
       >
         {activeIndex >= 0 ? (
@@ -82,11 +83,11 @@ export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
             style={[
               {
                 position: 'absolute',
-                top: 6,
-                bottom: 6,
+                top: 4,
+                bottom: 4,
                 left: 6,
                 borderRadius: 999,
-                backgroundColor: '#026462',
+                backgroundColor: TEAL,
               },
               pillStyle,
             ]}

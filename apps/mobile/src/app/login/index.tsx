@@ -238,7 +238,7 @@ export default function LoginScreen() {
               <Pressable
                 onPress={handleGoogleSignIn}
                 disabled={submitting}
-                className="flex-row items-center justify-center gap-3 rounded-xl border border-neutral-200 bg-white py-3.5"
+                className="flex-row items-center justify-center gap-3 rounded-2xl border border-neutral-200 bg-white py-3.5"
               >
                 <GoogleMark size={20} />
                 <Text className="text-[15px] font-bold text-neutral-700">
