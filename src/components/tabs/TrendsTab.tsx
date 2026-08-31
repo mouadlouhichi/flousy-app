@@ -109,7 +109,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Header ── */}
       <div className="flex items-start gap-3">
         <Link
-          href="/dashboard/profile/workspace"
+          href="/dashboard/profile"
           prefetch={true}
           aria-label={m.profile.subpages.backToProfile}
           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"

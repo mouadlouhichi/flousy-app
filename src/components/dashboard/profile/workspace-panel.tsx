@@ -13,7 +13,6 @@ import { HouseholdInvoiceReview } from '../household-invoice-review';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
-import { isProFeatureUnlocked } from '@/lib/household';
 
 export function WorkspacePanel() {
   const router = useRouter();
@@ -23,7 +22,6 @@ export function WorkspacePanel() {
   const { messages: m, t, isRTL } = useLanguage();
   const p = m.profile.workspace;
   const isPro = isProUser(profile);
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const [householdName, setHouseholdName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -136,20 +134,6 @@ export function WorkspacePanel() {
 
       <ContributorInvoiceForm />
       <HouseholdInvoiceReview />
-
-      {proUnlocked && (
-        <Link
-          href="/dashboard/trends"
-          prefetch={true}
-          className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-        >
-          <span className="flex items-center gap-3">
-            <AppIcon name="trending_up" className="text-[20px] text-primary" />
-            <span className="text-sm font-bold text-on-surface">{m.profile.pro.analyticsInsights}</span>
-          </span>
-          <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-        </Link>
-      )}
 
       <Link
         href="/dashboard/profile/household"
