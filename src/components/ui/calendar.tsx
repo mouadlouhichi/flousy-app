@@ -81,12 +81,9 @@ function Calendar({
           defaultClassNames.caption_label,
         ),
         table: 'w-full border-collapse',
-        weekdays: cn('flex', defaultClassNames.weekdays),
-        weekday: cn(
-          'text-muted-foreground rounded-md flex-1 min-w-0 overflow-hidden text-center font-normal text-[0.7rem] select-none',
-          defaultClassNames.weekday,
-        ),
-        week: cn('flex w-full mt-1 min-w-0', defaultClassNames.week),
+        weekdays: 'grid w-full grid-cols-7',
+        weekday: 'flex h-8 items-center justify-center text-center text-[0.7rem] font-medium text-muted-foreground select-none',
+        week: 'grid w-full grid-cols-7',
         week_number_header: cn(
           'select-none w-(--cell-size)',
           defaultClassNames.week_number_header,
@@ -95,20 +92,14 @@ function Calendar({
           'text-[0.8rem] select-none text-muted-foreground',
           defaultClassNames.week_number,
         ),
-        day: cn(
-          'relative w-full min-w-0 h-full p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none',
-          defaultClassNames.day,
-        ),
+        day: 'group/day relative aspect-square p-0.5 text-center select-none',
         range_start: cn(
           'rounded-l-md bg-primary/20',
           defaultClassNames.range_start,
         ),
         range_middle: cn('rounded-none bg-primary/20', defaultClassNames.range_middle),
         range_end: cn('rounded-r-md bg-primary/20', defaultClassNames.range_end),
-        today: cn(
-          'bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none',
-          defaultClassNames.today,
-        ),
+        today: 'text-primary',
         outside: cn(
           'text-muted-foreground aria-selected:text-muted-foreground',
           defaultClassNames.outside,
@@ -174,18 +165,15 @@ function CalendarDayButton({
   modifiers,
   ...props
 }: React.ComponentProps<typeof DayButton>) {
-  const defaultClassNames = getDefaultClassNames()
-
   const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
   return (
-    <Button
+    <button
       ref={ref}
-      variant="ghost"
-      size="icon"
+      type="button"
       data-day={day.date.toLocaleDateString()}
       data-selected-single={
         modifiers.selected &&
@@ -197,8 +185,12 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        'data-[selected-single=true]:bg-primary data-[selected-single=true]:text-on-primary data-[range-middle=true]:bg-primary/20 data-[range-middle=true]:text-on-surface data-[range-start=true]:bg-primary data-[range-start=true]:text-on-primary data-[range-end=true]:bg-primary data-[range-end=true]:text-on-primary group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square !size-auto h-full w-full min-w-0 max-w-full flex-col gap-0 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70',
-        defaultClassNames.day,
+        'flex size-full items-center justify-center rounded-lg text-sm font-medium leading-none',
+        'hover:bg-accent hover:text-accent-foreground',
+        'data-[selected-single=true]:bg-primary data-[selected-single=true]:text-on-primary',
+        'data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/20 data-[range-middle=true]:text-on-surface',
+        'data-[range-start=true]:rounded-l-lg data-[range-start=true]:rounded-r-none data-[range-start=true]:bg-primary data-[range-start=true]:text-on-primary',
+        'data-[range-end=true]:rounded-r-lg data-[range-end=true]:rounded-l-none data-[range-end=true]:bg-primary data-[range-end=true]:text-on-primary',
         className,
       )}
       {...props}
