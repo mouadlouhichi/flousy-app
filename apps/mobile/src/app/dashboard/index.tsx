@@ -321,21 +321,16 @@ export default function DashboardOverviewScreen() {
         </View>
       </ScrollView>
 
-      <QuickAddFab
-        onAction={(id) => {
-          if (id === 'courses') router.push('/dashboard/courses');
-          else if (id === 'expense' && canEditArea('expenses')) setExpenseVisible(true);
-          else if (id === 'charge' && canEditArea('fixedBills')) setFixedVisible(true);
-          else if (id === 'savings' && canEditArea('savings')) setSavingsVisible(true);
-        }}
-      />
-
       <MoveMoneyModal
         visible={moveModalVisible}
-        onClose={() => setMoveModalVisible(false)}
+        onClose={() => {
+          setMoveModalVisible(false);
+          setMoveFrom(undefined);
+        }}
         month={month}
         currency={currency}
         places={moneyPlaces}
+        initialFrom={moveFrom}
         onConfirm={handleMoveMoney}
       />
       <StrategyModal
