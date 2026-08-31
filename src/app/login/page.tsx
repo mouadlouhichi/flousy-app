@@ -145,8 +145,6 @@ export default function LoginPage() {
       if (!isConfigured || err.message?.includes('not configured')) {
         enableDemoMode(email);
         navigateTo('/dashboard');
-      } else if (auth?.currentUser) {
-        navigateTo('/dashboard');
       } else {
         setError(authErrorMessage(err, m.auth));
       }
