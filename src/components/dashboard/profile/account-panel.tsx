@@ -1,20 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAuth } from '@/lib/auth-context';
+import { isDemoMode } from '@/lib/demo-mode';
 import { useLanguage } from '@/lib/i18n-context';
 
 export function AccountPanel() {
   const { user, signOut, deleteAccount } = useAuth();
   const { messages: m } = useLanguage();
+  const router = useRouter();
   const p = m.profile;
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // In the no-Firebase preview, `user` is null but a demo session exists —
+  // it still needs a visible sign-out so the real login form is reachable.
+  const demoMode = !user && isDemoMode();
 
   return (
     <section className="flex flex-col gap-2 pt-1">
-      {user ? (
+      {user || demoMode ? (
         <>
           <button
             type="button"
@@ -23,13 +29,15 @@ export function AccountPanel() {
           >
             {m.auth.signOut}
           </button>
-          <button
-            type="button"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full rounded-2xl py-3.5 text-sm font-medium text-error transition-all hover:bg-error/5"
-          >
-            {m.auth.deleteAccount}
-          </button>
+          {user && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full rounded-2xl py-3.5 text-sm font-medium text-error transition-all hover:bg-error/5"
+            >
+              {m.auth.deleteAccount}
+            </button>
+          )}
         </>
       ) : (
         <a
@@ -55,6 +63,7 @@ export function AccountPanel() {
         onClose={() => setShowSignOutConfirm(false)}
         onConfirm={async () => {
           await signOut();
+          router.replace('/login');
         }}
         title={m.auth.signOutConfirmTitle}
         message={m.auth.signOutConfirmMessage}

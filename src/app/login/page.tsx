@@ -10,6 +10,7 @@ import { loginSchema } from '../../lib/validation';
 import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
+import { enableDemoMode, exitDemoMode, isDemoMode, isOnboardingDoneLocally } from '@/lib/demo-mode';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,16 +28,9 @@ export default function LoginPage() {
   React.useEffect(() => {
     if (loading) return;
 
-    const isDemo =
-      typeof window !== 'undefined' &&
-      localStorage.getItem('flousy_demo_mode') === 'true';
-
     const today = new Date();
     const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
-    const onboardingDoneLocally =
-      typeof window !== 'undefined' &&
-      (localStorage.getItem('flousy_onboarding_done') === 'true' ||
-        !!localStorage.getItem(`flousy_month_${monthKey}`));
+    const onboardingDoneLocally = isOnboardingDoneLocally(monthKey);
 
     // Onboarding is always the first screen after signup (or whenever the
     // profile still has onboardingComplete === false).
@@ -46,8 +40,6 @@ export default function LoginPage() {
     let destination: string | null = null;
     if (user) {
       destination = needsOnboarding ? '/onboarding' : '/dashboard';
-    } else if (isDemo) {
-      destination = onboardingDoneLocally ? '/dashboard' : '/onboarding';
     }
 
     if (destination) {
@@ -59,15 +51,15 @@ export default function LoginPage() {
     }
   }, [user, profile, loading, router]);
 
-  const isDemoMode = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
-
-  if (loading || user || isDemoMode) {
+  if (loading || user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
+
+  const demoActive = isDemoMode();
 
   const navigateTo = (path: string) => {
     try {
@@ -78,8 +70,17 @@ export default function LoginPage() {
   };
 
   const handleDemoAccess = () => {
-    localStorage.setItem('flousy_demo_mode', 'true');
-    navigateTo('/onboarding');
+    enableDemoMode();
+    // Respect prior progress: a returning demo session goes straight to the
+    // dashboard instead of being forced through onboarding again.
+    navigateTo(isOnboardingDoneLocally() ? '/dashboard' : '/onboarding');
+  };
+
+  /** Leave the demo session so the real sign-in form is usable again. */
+  const handleExitDemo = () => {
+    exitDemoMode();
+    setError('');
+    setMessage('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,8 +122,7 @@ export default function LoginPage() {
       setSubmitting(true);
       if (!isConfigured) {
         // Fallback for demo mode
-        localStorage.setItem('flousy_demo_email', email);
-        localStorage.setItem('flousy_demo_mode', 'true');
+        enableDemoMode(email);
         navigateTo('/dashboard');
         return;
       }
@@ -133,7 +133,7 @@ export default function LoginPage() {
       } else {
         const syncedProfile = await signInEmail(email, password);
         // Onboarding is always the first screen when it hasn't been completed
-        const localDone = localStorage.getItem('flousy_onboarding_done') === 'true';
+        const localDone = isOnboardingDoneLocally();
         navigateTo(
           syncedProfile && syncedProfile.onboardingComplete === false && !localDone
             ? '/onboarding'
@@ -143,8 +143,7 @@ export default function LoginPage() {
     } catch (err: any) {
       // If authentication failed because Firebase isn't configured, fallback gracefully to Demo Mode
       if (!isConfigured || err.message?.includes('not configured')) {
-        localStorage.setItem('flousy_demo_email', email);
-        localStorage.setItem('flousy_demo_mode', 'true');
+        enableDemoMode(email);
         navigateTo('/dashboard');
       } else {
         setError(authErrorMessage(err, m.auth));
@@ -159,7 +158,7 @@ export default function LoginPage() {
     try {
       setSubmitting(true);
       if (!isConfigured) {
-        localStorage.setItem('flousy_demo_mode', 'true');
+        enableDemoMode();
         navigateTo('/dashboard');
         return;
       }
@@ -167,7 +166,7 @@ export default function LoginPage() {
       navigateTo(isNewUser ? '/onboarding' : '/dashboard');
     } catch (err: any) {
       if (!isConfigured || err.message?.includes('not configured')) {
-        localStorage.setItem('flousy_demo_mode', 'true');
+        enableDemoMode();
         navigateTo('/dashboard');
       } else {
         setError(authErrorMessage(err, m.auth) || m.auth.googleSignInFailed);
@@ -204,8 +203,37 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Demo session already active — offer continue / exit instead of bouncing */}
+        {demoActive && (
+          <div className="p-4 bg-primary-container border border-primary/20 rounded-2xl flex flex-col gap-2.5 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-[14px]">
+              <AppIcon name="info" className=" text-[18px]" />
+              <span>{m.auth.demoActiveTitle}</span>
+            </div>
+            <p className="text-[13px] text-on-surface-variant leading-snug">
+              {m.auth.demoActiveHint}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDemoAccess}
+                className="flex-1 py-2.5 bg-primary hover:bg-primary text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
+              >
+                {m.auth.demoContinue}
+              </button>
+              <button
+                type="button"
+                onClick={handleExitDemo}
+                className="px-3 py-2.5 border border-outline-variant text-on-surface-variant text-[13px] font-bold rounded-xl hover:bg-surface transition-all cursor-pointer"
+              >
+                {m.auth.demoExit}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Demo Mode Banner if Firebase is not connected */}
-        {!isConfigured && (
+        {!isConfigured && !demoActive && (
           <div className="p-4 bg-primary-container border border-primary/20 rounded-2xl flex flex-col gap-2.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-[14px]">
               <AppIcon name="info" className=" text-[18px]" />

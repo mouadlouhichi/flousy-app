@@ -174,6 +174,18 @@ export function useCourseSession(uid: string | null | undefined) {
     return next;
   }, [persistSession]);
 
+  /** Move the paid-from place onto any session (active or completed). */
+  const setSessionPlace = useCallback(
+    (sessionId: string, place: MoneyPlace) => {
+      const target = sessionsRef.current.find((s) => s.id === sessionId);
+      if (!target) return;
+      const next = { ...target, place };
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? next : s)));
+      persistSession(next);
+    },
+    [persistSession],
+  );
+
   const discardSession = useCallback(
     (id: string) => {
       setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -261,6 +273,7 @@ export function useCourseSession(uid: string | null | undefined) {
     setPrice: (key: string, price: number) => mutateActive((s) => setItemPrice(s, key, price)),
     setName: (key: string, name: string) => mutateActive((s) => setItemName(s, key, name)),
     setPlace: (place: MoneyPlace) => mutateActive((s) => ({ ...s, place })),
+    setSessionPlace,
     removeLine: (key: string) => mutateActive((s) => removeSessionItem(s, key)),
     finishSession,
     discardSession,

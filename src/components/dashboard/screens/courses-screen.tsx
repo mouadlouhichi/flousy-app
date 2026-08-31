@@ -1,10 +1,8 @@
 'use client';
 
 import { type ReactNode, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
-import { getMoneyPlaceOptions, SegmentedControl } from '@/components/ui/segmented-control';
 import { useCourseSession } from '@/hooks/use-course-session';
 import { isProFeatureUnlocked } from '@/lib/household';
 import { useHousehold } from '@/lib/household-context';
@@ -247,11 +245,11 @@ export function CoursesScreen() {
   };
 
   // ---- log the finished course into the budget ---------------------------------
-  // One variable expense for the whole trip, under a user-picked category
-  // (grocery-like category by default, first active category as fallback).
-  // `loggedExpenseId` on the session makes it idempotent — the bill shows a
-  // confirmation instead of the button once logged.
-  const logBillToBudget = (category: string) => {
+  // One variable expense for the whole trip, under a user-picked category and
+  // paid-from place (both chosen in the "Add to budget" card). `loggedExpenseId`
+  // on the session makes it idempotent — the bill shows a confirmation instead
+  // of the button once logged.
+  const logBillToBudget = (category: string, place: MoneyPlace) => {
     if (!billSession || billSession.loggedExpenseId) return;
     const expense: VariableExpense = {
       id: Math.random().toString(36).substring(2, 9),
@@ -259,14 +257,22 @@ export function CoursesScreen() {
       amount: billSession.total,
       type: category,
       date: billSession.date,
-      place: billSession.place,
+      place,
       note: `${billSession.items.length} ${c.items}`,
       person: 'Self',
       createdByUserId: user?.uid,
     };
     updateAndSaveMonth(addVariableExpense(month, expense));
     store.markLogged(billSession.id, expense.id);
-    trackEvent('course_logged_to_budget', { amount: billSession.total, category });
+    trackEvent('course_logged_to_budget', { amount: billSession.total, category, place });
+  };
+
+  /** Persist the paid-from selection on the completed bill and keep the
+   *  receipt in sync with it. */
+  const handleBillPlaceChange = (place: MoneyPlace) => {
+    if (!billSession) return;
+    store.setSessionPlace(billSession.id, place);
+    setViewingBill({ ...billSession, place });
   };
 
   const [monthYear, monthNum] = currentMonthKey.split('-').map(Number);
@@ -295,6 +301,8 @@ export function CoursesScreen() {
             session={billSession}
             categories={month.activeCategories || []}
             monthLabel={monthLabel}
+            place={billSession.place}
+            onPlaceChange={handleBillPlaceChange}
             onLog={logBillToBudget}
           />
         </>
@@ -306,22 +314,14 @@ export function CoursesScreen() {
           onOpenBill={setViewingBill}
         />
       ) : (
-        <div className="space-y-4 pb-44 md:pb-24">
-          {/* Session header: date + paid-from */}
+        <div className="space-y-4">
+          {/* Session header: date + item count */}
           <div className="flex flex-wrap items-center gap-3">
             <div>
               <h2 className="font-headline-sm text-headline-sm text-on-surface">{c.title}</h2>
               <p className="font-body-md text-body-md text-on-surface-variant">
                 {formatShortDate(active.date, intlLocale)} · {new Intl.NumberFormat(intlLocale).format(sessionUnits(active))} {c.items}
               </p>
-            </div>
-            <div className="ms-auto w-full sm:w-auto">
-              <SegmentedControl
-                label={c.paidFrom}
-                value={active.place}
-                onChange={(value) => store.setPlace(value as MoneyPlace)}
-                options={getMoneyPlaceOptions(m)}
-              />
             </div>
           </div>
 
@@ -476,8 +476,7 @@ export function CoursesScreen() {
             </ul>
           )}
 
-          {/* Bottom action bar — rendered at <body> level so the dashboard's
-              animated page wrapper cannot constrain its fixed positioning. */}
+          {/* Bottom action bar — sits at the bottom of the course screen. */}
           <CourseFloatingBar>
             {confirmDiscard ? (
               <div className="flex items-center gap-3 rounded-2xl border border-error/40 bg-surface-container-high p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
@@ -529,26 +528,11 @@ export function CoursesScreen() {
 }
 
 /**
- * Keeps the live course controls fixed to the viewport instead of the
- * animated route container. `left-64` starts at the desktop workspace edge;
- * the horizontal padding is intentionally outside the card so its shadow has
- * room while the card itself uses every available pixel.
+ * Bottom action bar rendered in the normal document flow (relative) at the
+ * end of the course screen, instead of floating fixed over the content.
  */
 function CourseFloatingBar({ children }: { children: ReactNode }) {
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
-
-  if (!portalTarget) return null;
-
-  return createPortal(
-    <div className="fixed inset-x-0 bottom-24 z-20 px-4 md:bottom-6 md:start-64 md:px-8">
-      {children}
-    </div>,
-    portalTarget,
-  );
+  return <div className="relative">{children}</div>;
 }
 
 // --- Empty state + history ---------------------------------------------------------

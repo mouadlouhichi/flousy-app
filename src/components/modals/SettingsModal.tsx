@@ -1,11 +1,13 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal } from '../ui/Modal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { InstallButton } from '../pwa/install-button';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
+import { isDemoMode } from '../../lib/demo-mode';
 import { useLanguage } from '../../lib/i18n-context';
 import { exportMonthToCsv, downloadCsv } from '../../lib/export';
 import { MonthBudget, SavingGoal } from '../../lib/store';
@@ -28,9 +30,12 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
+  const router = useRouter();
   const { currency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
   const { workspace } = useHousehold();
+  // Demo (no-Firebase) sessions have no `user` but still need a sign-out path.
+  const demoMode = !user && isDemoMode();
   const { language, setLanguage, messages: m, localeNames, t } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
@@ -295,18 +300,20 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
 
           {/* ── Account Actions ── */}
           <div className="space-y-2 pt-2">
-            {user ? (
+            {user || demoMode ? (
               <>
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
                   className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
                 >{m.auth.signOut}</button>
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full py-3 text-error hover:bg-error/5 rounded-xl font-label-lg text-label-lg font-medium transition-all cursor-pointer"
-                >{m.auth.deleteAccount}</button>
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full py-3 text-error hover:bg-error/5 rounded-xl font-label-lg text-label-lg font-medium transition-all cursor-pointer"
+                  >{m.auth.deleteAccount}</button>
+                )}
               </>
             ) : (
               <a
@@ -331,6 +338,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
         onConfirm={async () => {
           await signOut();
           onClose();
+          router.replace('/login');
         }}
         title={m.auth.signOutConfirmTitle}
         message={m.auth.signOutConfirmMessage}

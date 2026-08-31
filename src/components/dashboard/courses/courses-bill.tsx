@@ -57,8 +57,6 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
       date: formatShortDate(session.date, intlLocale),
     },
   });
-  const billFileName = `course-${session.date}.txt`;
-
   const copyBill = async () => {
     try {
       await navigator.clipboard.writeText(billText);
@@ -201,18 +199,10 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
           </button>
           <button
             type="button"
-            onClick={() => downloadText(billFileName, billText, 'text/plain')}
-            className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors"
-          >
-            <AppIcon name="download" className="size-4" />
-            {c.billDownload}
-          </button>
-          <button
-            type="button"
             onClick={() => downloadText(`course-${session.date}.csv`, renderBillCsv(session), 'text/csv')}
             className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container-high transition-colors"
           >
-            <AppIcon name="table_rows" className="size-4" />
+            <AppIcon name="download" className="size-4" />
             {c.billCsv}
           </button>
         </div>
