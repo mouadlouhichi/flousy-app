@@ -233,10 +233,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (workspace === 'household' && householdId) {
       if (householdLoading) return;
+      if (!household) {
+        updateProfileData({ activeWorkspace: 'personal' }).catch(() => {});
+        return;
+      }
       const householdOnboardedLocally =
         typeof window !== 'undefined' &&
         localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
-      if (household && household.onboardingComplete === false && !householdOnboardedLocally) {
+      if (household.onboardingComplete === false && !householdOnboardedLocally) {
         router.replace('/onboarding?scope=household');
         return;
       }

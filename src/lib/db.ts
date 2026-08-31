@@ -68,7 +68,12 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   if (!isFirebaseConfigured || !db) return null;
   const path = `users/${uid}`;
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
+    const snap = await Promise.race([
+      getDoc(doc(db, 'users', uid)),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile read timed out')), 5000);
+      }),
+    ]);
     if (snap.exists()) {
       return snap.data() as UserProfile;
     }

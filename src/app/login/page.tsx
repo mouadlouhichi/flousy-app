@@ -62,11 +62,7 @@ export default function LoginPage() {
   const demoActive = isDemoMode();
 
   const navigateTo = (path: string) => {
-    try {
-      router.push(path);
-    } catch {
-      window.location.href = path;
-    }
+    window.location.assign(path);
   };
 
   const handleDemoAccess = () => {

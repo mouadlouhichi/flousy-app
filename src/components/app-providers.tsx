@@ -17,16 +17,34 @@ import FirebaseAnalytics from '@/components/FirebaseAnalytics';
  * legal pages) download, parse and hydrate the Firebase SDK even though the
  * marketing site never needs it.
  */
-export function AppProviders({ children }: { children: ReactNode }) {
+/** Auth + i18n + currency only — used on login so household listeners cannot block sign-in. */
+export function LoginProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <HouseholdProvider><CurrencyProvider>
+        <CurrencyProvider>
           <Suspense fallback={null}>
             <FirebaseAnalytics />
           </Suspense>
           {children}
-        </CurrencyProvider></HouseholdProvider>
+        </CurrencyProvider>
+      </LanguageProvider>
+    </AuthProvider>
+  );
+}
+
+export function AppProviders({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <LanguageProvider>
+        <HouseholdProvider>
+          <CurrencyProvider>
+            <Suspense fallback={null}>
+              <FirebaseAnalytics />
+            </Suspense>
+            {children}
+          </CurrencyProvider>
+        </HouseholdProvider>
       </LanguageProvider>
     </AuthProvider>
   );

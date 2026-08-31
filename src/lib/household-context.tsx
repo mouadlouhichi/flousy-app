@@ -28,7 +28,24 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { setLoading(!!trackedHouseholdId); return subscribeHousehold(trackedHouseholdId, (h) => { setHousehold(h); setLoading(false); }); }, [trackedHouseholdId]);
+  useEffect(() => {
+    if (!trackedHouseholdId) {
+      setHousehold(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const timeout = window.setTimeout(() => setLoading(false), 5000);
+    const unsub = subscribeHousehold(trackedHouseholdId, (h) => {
+      setHousehold(h);
+      setLoading(false);
+      window.clearTimeout(timeout);
+    });
+    return () => {
+      window.clearTimeout(timeout);
+      unsub();
+    };
+  }, [trackedHouseholdId]);
   useEffect(() => subscribeHouseholdMembers(trackedHouseholdId, setMembers), [trackedHouseholdId]);
   useEffect(() => subscribePendingHouseholdInvites(user?.email, setPendingInvites), [user?.email]);
   const myMember = members.find((m) => m.userId === user?.uid);

@@ -19,7 +19,10 @@ service cloud.firestore {
       // 'free' and 'pro' after checkout. With a real payment provider, re-pin
       // it (incoming().plan == existing().plan) and write it from an Admin SDK
       // payment webhook instead.
-      allow update: if owner(uid) && incoming().plan in ['free', 'pro'] && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
+      allow update: if owner(uid)
+        && (!('plan' in incoming()) || incoming().plan in ['free', 'pro'])
+        && (!('currency' in incoming()) || incoming().currency is string)
+        && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool);
       allow delete: if owner(uid);
       match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
       match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }

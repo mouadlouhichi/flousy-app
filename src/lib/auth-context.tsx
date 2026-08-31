@@ -106,6 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err) => console.error('Redirect sign in error:', err));
 
+    const loadingTimeout = window.setTimeout(() => setLoading(false), 8000);
+
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       // Keep the public-site CTA cookie in sync without any network call.
@@ -125,7 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.clearTimeout(loadingTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const syncUserProfile = async (
