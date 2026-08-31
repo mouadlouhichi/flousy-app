@@ -31,7 +31,7 @@ service cloud.firestore {
       match /products/{barcode} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && (barcode matches '^[0-9]{8}$' || barcode matches '^[0-9]{13}$')
+          && (barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
           && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
         allow update: if owner(uid)
