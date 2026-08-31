@@ -360,6 +360,29 @@ describe('renderCourseBillImageSvg', () => {
     assert.equal(courseBillImageFilename(session), 'smartjib-course-2026-08-30.png');
   });
 
+  it('renders as a paper receipt (torn edge + faux barcode)', () => {
+    let session = makeSession();
+    session = addItemToSession(session, makeItem({ name: 'Sidi Ali 2L', unitPrice: 6, qty: 2 }));
+    session = completeSession(session, NOW);
+
+    const image = renderCourseBillImageSvg(session, {
+      title: 'Course bill',
+      items: 'items',
+      total: 'Total',
+      paidFrom: 'Paid from',
+      place: 'Bank',
+      locale: 'en-US',
+      thanks: 'Thank you for your visit!',
+    });
+
+    assert.match(image, /<path d="M 114 56/); // paper with rounded top corners
+    assert.match(image, /No\. \d{12}/); // receipt number under the barcode
+    assert.match(image, /feDropShadow/); // paper shadow
+    assert.match(image, /Thank you for your visit!/);
+    // torn bottom edge: backdrop-coloured notches cut into the paper
+    assert.match(image, /fill="#efece4"/);
+  });
+
   it('mirrors the visual receipt for right-to-left share images', () => {
     const image = renderCourseBillImageSvg(makeSession(), {
       title: 'فاتورة التسوق',

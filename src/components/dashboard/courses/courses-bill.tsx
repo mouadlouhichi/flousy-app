@@ -85,6 +85,7 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
         unnamedItem: c.unnamedItem,
         locale: intlLocale,
         direction: isRTL ? 'rtl' : 'ltr',
+        thanks: c.billThanks,
       });
       // No `text` payload here: native share receives the visual PNG only.
       const shareData: ShareData = { files: [image] };

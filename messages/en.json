@@ -707,6 +707,7 @@
     "total": "Total",
     "items": "items",
     "billTitle": "Course bill",
+    "billThanks": "Thank you for your visit!",
     "billShare": "Share image",
     "shareFailed": "Couldn't create the bill image. Please try again.",
     "billCopy": "Copy",

@@ -707,6 +707,7 @@
     "total": "Total",
     "items": "articles",
     "billTitle": "Ticket de courses",
+    "billThanks": "Merci de votre visite !",
     "billShare": "Partager l’image",
     "shareFailed": "Impossible de créer l’image du ticket. Réessayez.",
     "billCopy": "Copier",
