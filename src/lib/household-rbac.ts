@@ -4,12 +4,12 @@ export type HouseholdArea = 'dashboard' | 'balances' | 'income' | 'expenses' | '
 export type AccessLevel = 'none' | 'view' | 'editOwn' | 'editAll';
 export type HouseholdPermissions = Partial<Record<HouseholdArea, AccessLevel>>;
 
-export const HOUSEHOLD_AREAS: Array<{ id: HouseholdArea; label: string; editable?: boolean }> = [
-  { id: 'dashboard', label: 'Dashboard summary' }, { id: 'balances', label: 'Balances' },
-  { id: 'income', label: 'Income', editable: true }, { id: 'expenses', label: 'Variable expenses', editable: true },
-  { id: 'fixedBills', label: 'Fixed bills', editable: true }, { id: 'savings', label: 'Savings', editable: true },
-  { id: 'debts', label: 'Debts', editable: true }, { id: 'analytics', label: 'Analytics' },
-  { id: 'invoices', label: 'Invoices', editable: true }, { id: 'members', label: 'Members', editable: true }, { id: 'settings', label: 'Household settings', editable: true },
+export const HOUSEHOLD_AREAS: Array<{ id: HouseholdArea; editable?: boolean }> = [
+  { id: 'dashboard' }, { id: 'balances' },
+  { id: 'income', editable: true }, { id: 'expenses', editable: true },
+  { id: 'fixedBills', editable: true }, { id: 'savings', editable: true },
+  { id: 'debts', editable: true }, { id: 'analytics' },
+  { id: 'invoices', editable: true }, { id: 'members', editable: true }, { id: 'settings', editable: true },
 ];
 const all = (level: AccessLevel): HouseholdPermissions => Object.fromEntries(HOUSEHOLD_AREAS.map(a => [a.id, level]));
 export function permissionsFor(role: HouseholdRole, custom?: HouseholdPermissions): HouseholdPermissions {

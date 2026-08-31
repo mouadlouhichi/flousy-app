@@ -5,6 +5,7 @@ import { isProUser } from './pro-features';
 import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
 import { canEdit as canEditAreaRule, canView, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
+import { useLanguage } from './i18n-context';
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
 type HouseholdContextValue = {
@@ -17,6 +18,7 @@ const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, updateProfileData } = useAuth();
+  const { messages: m } = useLanguage();
   const workspace = profile?.activeWorkspace === 'household' && profile.activeHouseholdId ? 'household' : 'personal';
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
   const [household, setHousehold] = useState<Household | null>(null);
@@ -34,39 +36,39 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const memberRole = myMember?.role;
   const isContributor = memberRole === 'contributor';
   const payers = useMemo<HouseholdPayer[]>(() => {
-    if (household) return [{ id: 'household', label: 'Household funds' }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
+    if (household) return [{ id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
     const legacy = profile?.householdMembers || [];
-    return [{ id: 'self', label: 'Me' }, ...legacy.map((label, i) => ({ id: `legacy-${i}`, label, color: COLORS[i % COLORS.length] }))];
-  }, [household, members, profile?.householdMembers]);
+    return [{ id: 'self', label: m.household.me }, ...legacy.map((label, i) => ({ id: `legacy-${i}`, label, color: COLORS[i % COLORS.length] }))];
+  }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
   const create = useCallback(async (name: string) => {
-    if (!user || !profile || !isProUser(profile)) throw new Error('Households are available with Pro.');
+    if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
     const now = new Date().toISOString(), memberId = user.uid;
-    const id = await createHousehold(user.uid, { name: name.trim() || 'My household', ownerId: user.uid, planOwnerId: user.uid, createdAt: now, updatedAt: now }, { id: memberId, displayName: profile.displayName || user.email?.split('@')[0] || 'Me', email: user.email || undefined, userId: user.uid, role: 'owner', status: 'active', avatarColor: COLORS[0], joinedAt: now });
+    const id = await createHousehold(user.uid, { name: name.trim() || m.profile.household, ownerId: user.uid, planOwnerId: user.uid, createdAt: now, updatedAt: now }, { id: memberId, displayName: profile.displayName || user.email?.split('@')[0] || m.household.me, email: user.email || undefined, userId: user.uid, role: 'owner', status: 'active', avatarColor: COLORS[0], joinedAt: now });
     await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: id, householdIds: [...new Set([...(profile.householdIds || []), id])] });
-  }, [user, profile, updateProfileData]);
+  }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
   const addProfile = useCallback(async (name: string) => {
-    if (!householdId) throw new Error('Create a household first.');
+    if (!householdId) throw new Error(m.household.genericError);
     await saveHouseholdMember(householdId, { id: crypto.randomUUID(), displayName: name.trim(), role: 'profile', status: 'active', avatarColor: COLORS[members.length % COLORS.length] });
-  }, [householdId, members.length]);
+  }, [householdId, members.length, m.household.genericError]);
   const invite = useCallback(async (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => {
-    if (!householdId || !user) throw new Error('Create a household first.');
+    if (!householdId || !user) throw new Error(m.household.genericError);
     const memberId = crypto.randomUUID(), id = crypto.randomUUID(), now = new Date().toISOString();
     await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, permissions, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
     await createHouseholdInvite({ id, householdId, memberId, email: email.trim().toLowerCase(), role, permissions, createdBy: user.uid, createdAt: now, expiresAt: new Date(Date.now() + 14 * 864e5).toISOString(), status: 'pending' });
     return id;
-  }, [householdId, user, members.length]);
+  }, [householdId, user, members.length, m.household.genericError]);
   const acceptInvite = useCallback(async (code: string) => {
-    if (!user || !profile) throw new Error('Sign in before accepting an invitation.');
+    if (!user || !profile) throw new Error(m.household.genericError);
     const invite = await getHouseholdInvite(code.trim());
-    if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) throw new Error('This invitation is invalid, expired, or belongs to a different email.');
-    await acceptHouseholdInvite(invite, user.uid, profile.displayName || user.email?.split('@')[0] || 'Member');
+    if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) throw new Error(m.household.genericError);
+    await acceptHouseholdInvite(invite, user.uid, profile.displayName || user.email?.split('@')[0] || m.household.member);
     setPendingInvites(current => current.filter(item => item.id !== invite.id));
     await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
-  }, [user, profile, updateProfileData]);
+  }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
-    if (next === 'household' && !profile?.activeHouseholdId) throw new Error('Join or create a household first.');
+    if (next === 'household' && !profile?.activeHouseholdId) throw new Error(m.household.genericError);
     await updateProfileData({ activeWorkspace: next });
-  }, [profile?.activeHouseholdId, updateProfileData]);
+  }, [profile?.activeHouseholdId, updateProfileData, m.household.genericError]);
   const updateMember = useCallback(async (member: HouseholdMember) => { if (!householdId) return; await saveHouseholdMember(householdId, member); }, [householdId]);
   return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
 }

@@ -10,72 +10,7 @@ import { useDashboard } from '../dashboard-provider';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useAuth } from '@/lib/auth-context';
-import { formatDayOfMonth } from '@/lib/utils';
-
-const GROUPS: Array<{
-  label: string;
-  items: Array<{
-    href: string;
-    icon: string;
-    title: string;
-    hint: (ctx: { currency: string; language: string; theme: string; start?: number; places: number }) => string;
-  }>;
-}> = [
-  {
-    label: 'Settings',
-    items: [
-      {
-        href: '/dashboard/profile/preferences',
-        icon: 'tune',
-        title: 'Preferences',
-        hint: ({ currency, language, theme, start }) =>
-          [currency, language.toUpperCase(), theme, start ? `starts ${formatDayOfMonth(start)}` : null]
-            .filter(Boolean)
-            .join(' · '),
-      },
-      {
-        href: '/dashboard/profile/money-sources',
-        icon: 'account_balance_wallet',
-        title: 'Money sources',
-        hint: ({ places }) => `${places} location${places === 1 ? '' : 's'}`,
-      },
-    ],
-  },
-  {
-    label: 'Workspace',
-    items: [
-      {
-        href: '/dashboard/profile/workspace',
-        icon: 'group',
-        title: 'Workspace',
-        hint: () => 'Personal dashboard & household',
-      },
-      {
-        href: '/dashboard/profile/pro',
-        icon: 'workspace_premium',
-        title: 'Pro',
-        hint: () => 'Plan, income sources & insights',
-      },
-    ],
-  },
-  {
-    label: 'Privacy & account',
-    items: [
-      {
-        href: '/dashboard/profile/data',
-        icon: 'database',
-        title: 'Data',
-        hint: () => 'Export, import, delete',
-      },
-      {
-        href: '/dashboard/profile/account',
-        icon: 'manage_accounts',
-        title: 'Account',
-        hint: () => 'Sign out & delete account',
-      },
-    ],
-  },
-];
+import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
 
 /**
  * Profile hub — Facebook-style. Identity on top, then grouped settings
@@ -93,23 +28,64 @@ export function ProfileScreen() {
 
   const { profile } = useAuth();
   const { currency } = useCurrency();
-  const { language } = useLanguage();
+  const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
+  const p = m.profile;
   const { month } = useDashboard();
   const { places } = useMoneyPlaces(month);
-  const ctx = {
+  const theme = profile?.theme || 'system';
+  const themeLabel = m.settings[theme];
+  const preferenceHint = [
     currency,
-    language,
-    theme: profile?.theme || 'system',
-    start: profile?.monthStartDate,
-    places: places.length,
-  };
+    localeNames[language],
+    themeLabel,
+    profile?.monthStartDate
+      ? t(p.hints.budgetStarts, {
+          day: formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale),
+        })
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const groups = [
+    {
+      label: p.groups.settings,
+      items: [
+        { href: '/dashboard/profile/preferences', icon: 'tune', title: p.links.preferences, hint: preferenceHint },
+        {
+          href: '/dashboard/profile/money-sources',
+          icon: 'account_balance_wallet',
+          title: p.links.moneySources,
+          hint: t(p.hints.locations, { count: places.length }),
+        },
+      ],
+    },
+    {
+      label: p.groups.workspace,
+      items: [
+        {
+          href: '/dashboard/profile/workspace',
+          icon: 'group',
+          title: p.links.workspace,
+          hint: p.hints.personalAndHousehold,
+        },
+        { href: '/dashboard/profile/pro', icon: 'workspace_premium', title: p.links.pro, hint: p.hints.planIncomeInsights },
+      ],
+    },
+    {
+      label: p.groups.privacyAccount,
+      items: [
+        { href: '/dashboard/profile/data', icon: 'database', title: p.links.data, hint: p.hints.exportImportDelete },
+        { href: '/dashboard/profile/account', icon: 'manage_accounts', title: p.links.account, hint: p.hints.signOutDelete },
+      ],
+    },
+  ];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pb-24">
       <ProfileIdentity />
 
       <div className="flex flex-col gap-6">
-        {GROUPS.map((group) => (
+        {groups.map((group) => (
           <section key={group.label} className="flex flex-col gap-2">
             <h3 className="px-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant">
               {group.label}
@@ -130,12 +106,12 @@ export function ProfileScreen() {
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-bold text-on-surface">{item.title}</span>
-                      <span className="block truncate text-xs text-on-surface-variant">{item.hint(ctx)}</span>
+                      <span className="block truncate text-xs text-on-surface-variant">{item.hint}</span>
                     </span>
                   </span>
                   <AppIcon
                     name="chevron_right"
-                    className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+                    className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
                   />
                 </Link>
               ))}

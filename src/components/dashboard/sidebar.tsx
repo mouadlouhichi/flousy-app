@@ -6,9 +6,12 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
-import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { getLocalizedNavLabel, getScreenIdFromPath, getVisibleNavItems } from './nav-items';
 import { useHousehold } from '@/lib/household-context';
+import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { ProfileAvatar } from './profile-avatar';
+import { useLanguage } from '@/lib/i18n-context';
 
 /**
  * Desktop left sidebar navigation (hidden on mobile).
@@ -19,19 +22,22 @@ import { isProFeatureUnlocked } from '@/lib/household';
  */
 export function Sidebar() {
   const pathname = usePathname();
+  const { messages: m } = useLanguage();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
   const { workspace } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
+  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'A';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
   return (
-    <aside className="hidden md:flex flex-col w-64 border-r border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 left-0 z-30">
+    <aside className="hidden md:flex flex-col w-64 border-e border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 start-0 z-30">
       {/* Brand Logo */}
       <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
         <Image
           src="/logo.png"
-          alt="SmartJib logo"
+          alt={m.common.appName}
           width={40}
           height={40}
           className="object-contain"
@@ -70,7 +76,7 @@ export function Sidebar() {
                 name={item.sidebarIcon}
                 className={`relative z-10 text-[22px] ${isActive ? 'filled' : ''}`}
               />
-              <span className="relative z-10">{item.label}</span>
+              <span className="relative z-10">{getLocalizedNavLabel(item, m)}</span>
             </Link>
           );
         })}
@@ -89,7 +95,7 @@ export function Sidebar() {
           className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
         >
           <AppIcon name="payments" className=" text-[20px]" />
-          <span>Income Sources</span>
+          <span>{m.navigation.incomeSources}</span>
         </button>
 
         <button
@@ -103,7 +109,7 @@ export function Sidebar() {
           className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
         >
           <AppIcon name="upload_file" className=" text-[20px]" />
-          <span>Import / Export CSV</span>
+          <span>{m.navigation.importExportCsv}</span>
         </button>
       </nav>
 
@@ -128,13 +134,13 @@ export function Sidebar() {
               transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
             />
           )}
-          <div className="relative z-10 w-10 h-10 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center shrink-0">
-            {profile?.displayName
-              ? profile.displayName.charAt(0).toUpperCase()
-              : user?.email
-                ? user.email.charAt(0).toUpperCase()
-                : 'A'}
-          </div>
+          <ProfileAvatar
+            src={avatarSrc}
+            initial={userInitial}
+            alt=""
+            className="relative z-10 h-10 w-10"
+            fallbackClassName="bg-primary/20 text-primary font-bold"
+          />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
             <span className="font-label-lg font-bold text-on-surface truncate">
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}

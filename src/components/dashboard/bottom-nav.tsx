@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
-import { getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import { getLocalizedNavLabel, getScreenIdFromPath, getVisibleNavItems } from './nav-items';
 import { useHousehold } from '@/lib/household-context';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { useLanguage } from '@/lib/i18n-context';
 
 interface PillRect {
   x: number;
@@ -33,6 +34,7 @@ interface PillRect {
  */
 export function BottomNav() {
   const pathname = usePathname();
+  const { messages: m } = useLanguage();
   const { isPro } = useDashboard();
   const { workspace } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
@@ -130,8 +132,8 @@ export function BottomNav() {
             href={item.href}
             prefetch={true}
             data-nav-item={item.id}
-            aria-label={item.label}
-            title={item.label}
+            aria-label={getLocalizedNavLabel(item, m)}
+            title={getLocalizedNavLabel(item, m)}
             // `flex-1` + `min-w-0` lets the bar share its width evenly, so the
             // 6th item PRO users get never pushes the pill off screen on
             // narrow phones (fixed horizontal padding used to overflow).

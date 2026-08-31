@@ -70,6 +70,31 @@ export function formatMessage(template: string, values: Record<string, string | 
   return interpolate(withPlurals, values);
 }
 
+/**
+ * Resolve a dot-separated message path (for example `tabs.fixed.addCharge`).
+ * Keeping this here lets feature components use a readable key without
+ * importing every locale file or falling back to hard-coded English copy.
+ */
+export function getMessage(messages: Messages, path: string): string {
+  const value = path.split('.').reduce<unknown>((current, segment) => {
+    if (current && typeof current === 'object') {
+      return (current as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, messages);
+
+  return typeof value === 'string' ? value : path;
+}
+
+/** Resolve and format one translated message by path. */
+export function translateMessage(
+  messages: Messages,
+  path: string,
+  values: Record<string, string | number> = {},
+): string {
+  return formatMessage(getMessage(messages, path), values);
+}
+
 /** Locale-aware number locale string for Intl APIs. */
 export function getIntlLocale(language: Language): string {
   switch (language) {

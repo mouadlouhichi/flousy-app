@@ -3,6 +3,7 @@
 import React, { useId } from 'react';
 import { motion } from 'motion/react';
 import { AppIcon } from './app-icon';
+import type { Messages } from '@/lib/i18n-core';
 
 export interface SegmentedOption {
   value: string;
@@ -13,17 +14,15 @@ export interface SegmentedOption {
   title?: string;
 }
 
-/** Money places offered across the app (bank / wallet / home cash). */
-export const MONEY_PLACE_OPTIONS: SegmentedOption[] = [
-  { value: 'bank', label: 'Bank', icon: 'account_balance' },
-  { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet' },
-  { value: 'home', label: 'Home Cash', icon: 'home' },
-];
+/** Money-place labels supplied by the active locale; values remain persistent IDs. */
+export function getMoneyPlaceOptions(messages: Messages): SegmentedOption[] {
+  return [
+    { value: 'bank', label: messages.places.bank, icon: 'account_balance' },
+    { value: 'wallet', label: messages.places.wallet, icon: 'account_balance_wallet' },
+    { value: 'home', label: messages.places.home, icon: 'home' },
+  ];
+}
 
-/** Display label per money place, kept in sync with MONEY_PLACE_OPTIONS. */
-export const MONEY_PLACE_LABELS: Record<string, string> = Object.fromEntries(
-  MONEY_PLACE_OPTIONS.map((o) => [o.value, o.label]),
-);
 
 interface SegmentedControlProps {
   label?: string;

@@ -6,9 +6,10 @@ import {
   MonthBudget,
   SavingsActivityEntry,
   calculateMonthlyDepositedSavings,
-  moneyPlaceLabel,
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '@/lib/i18n-context';
+import { localizePlaceName } from '@/lib/localized-labels';
 
 interface SavingsTabProps {
   goals: SavingGoal[];
@@ -23,10 +24,10 @@ interface SavingsTabProps {
   canEdit?: boolean;
 }
 
-const formatEntryDate = (value: string): string => {
+const formatEntryDate = (value: string, intlLocale: string): string => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
-  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return parsed.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
 };
 
 export function SavingsTab({
@@ -40,6 +41,7 @@ export function SavingsTab({
   canEdit = true,
 }: SavingsTabProps) {
   const { format } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
 
   const totalSavings = goals.reduce((acc, g) => acc + g.current, 0);
   const deposits = (month?.savingsActivity || []).slice();
@@ -51,7 +53,7 @@ export function SavingsTab({
       <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center">
         <div>
           <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-            TOTAL ACCUMULATED SAVINGS
+            {m.tabs.savings.totalAccumulated}
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
             <FormattedAmount value={totalSavings} />
@@ -62,7 +64,7 @@ export function SavingsTab({
           className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
         >
           <AppIcon name="add" className=" text-[20px]" />
-          <span>New Goal</span>
+          <span>{m.tabs.savings.newGoal}</span>
         </button>
       </div>
 
@@ -70,12 +72,12 @@ export function SavingsTab({
       {goals.length === 0 ? (
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
           <AppIcon name="savings" className=" text-outline text-[44px]" />
-          <p className="font-body-md text-body-md text-on-surface-variant">No active savings goals defined.</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.savings.noActiveGoals}</p>
           <button
             onClick={onOpenCreateGoal}
             className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
           >
-            Create Emergency Fund or Goal
+            {m.tabs.savings.createEmergencyFund}
           </button>
         </div>
       ) : (
@@ -99,7 +101,7 @@ export function SavingsTab({
                         {goal.name}
                       </h3>
                       <span className="font-label-sm text-label-sm text-on-surface-variant capitalize">
-                        Source: {goal.source || 'bank'}
+                        {t(m.tabs.savings.source, { place: localizePlaceName(goal.source || 'bank', goal.source || 'bank', m) })}
                       </span>
                     </div>
                   </div>
@@ -107,7 +109,7 @@ export function SavingsTab({
                   <button
                     onClick={() => onOpenEditGoal(goal)}
                     className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
-                    aria-label="Edit goal"
+                    aria-label={m.tabs.savings.editGoal}
                   >
                     <AppIcon name="more_vert" className=" text-[20px]" />
                   </button>
@@ -121,7 +123,7 @@ export function SavingsTab({
                       className="text-headline-md text-on-surface font-extrabold"
                     />
                     <span className="font-label-md text-label-md text-on-surface-variant">
-                      Target: <FormattedAmount value={goal.target} />
+                      {t(m.tabs.savings.target, { amount: format(goal.target) })}
                     </span>
                   </div>
 
@@ -132,7 +134,7 @@ export function SavingsTab({
                     />
                   </div>
                   <div className="flex justify-end font-label-sm text-label-sm font-bold text-secondary">
-                    {pct}% Reached
+                    {t(m.tabs.savings.percentReached, { percent: new Intl.NumberFormat(intlLocale).format(pct) })}
                   </div>
                 </div>
 
@@ -143,7 +145,7 @@ export function SavingsTab({
                     className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
                   >
                     <AppIcon name="add_circle" className=" text-[18px]" />
-                    <span>Deposit</span>
+                    <span>{m.dashboard.deposit}</span>
                   </button>
 
                   <button
@@ -151,7 +153,7 @@ export function SavingsTab({
                     className="py-2.5 bg-surface-container hover:bg-surface-variant text-on-surface-variant rounded-xl font-label-md text-label-md font-bold flex items-center justify-center gap-xs transition-colors"
                   >
                     <AppIcon name="remove_circle" className=" text-[18px]" />
-                    <span>Withdraw</span>
+                    <span>{m.dashboard.withdraw}</span>
                   </button>
                 </div>
               </div>
@@ -166,11 +168,11 @@ export function SavingsTab({
         <div className="flex items-center justify-between gap-sm">
           <div className="flex flex-col">
             <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-              This Month&apos;s Deposits
+              {m.tabs.savings.thisMonthsDeposits}
             </span>
             <span className="font-label-sm text-label-sm text-on-surface-variant">
-              {deposits.length} movement{deposits.length !== 1 ? 's' : ''} logged
-              {month ? ` · ${format(monthlyNet)} saved` : ''}
+              {t(m.tabs.savings.movementsLogged, { count: deposits.length })}
+              {month ? ` · ${t(m.tabs.savings.saved, { amount: format(monthlyNet) })}` : ''}
             </span>
           </div>
         </div>
@@ -179,10 +181,10 @@ export function SavingsTab({
           <div className="p-lg bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-xs">
             <AppIcon name="savings" className=" text-outline text-[32px]" />
             <p className="font-body-md text-body-md text-on-surface-variant">
-              No deposits logged this month.
+              {m.tabs.savings.noDeposits}
             </p>
             <p className="font-label-sm text-label-sm text-on-surface-variant">
-              Use Deposit on a goal above to move money into savings.
+              {m.tabs.savings.useDeposit}
             </p>
           </div>
         ) : (
@@ -207,8 +209,8 @@ export function SavingsTab({
                         {entry.goalName}
                       </span>
                       <span className="font-label-sm text-label-sm text-on-surface-variant truncate">
-                        {isDeposit ? 'Deposit' : 'Withdrawal'} · {formatEntryDate(entry.date)}
-                        {entry.place ? ` · ${moneyPlaceLabel(entry.place)}` : ''}
+                        {isDeposit ? m.dashboard.deposit : m.dashboard.withdrawal} · {formatEntryDate(entry.date, intlLocale)}
+                        {entry.place ? ` · ${localizePlaceName(entry.place, entry.place, m)}` : ''}
                       </span>
                     </div>
                   </div>
@@ -225,7 +227,7 @@ export function SavingsTab({
                       <button
                         type="button"
                         onClick={() => onEditDeposit(entry)}
-                        aria-label={`Edit ${isDeposit ? 'deposit' : 'withdrawal'}`}
+                        aria-label={isDeposit ? m.tabs.savings.editDeposit : m.tabs.savings.editWithdrawal}
                         className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-full transition-colors"
                       >
                         <AppIcon name="edit" className=" text-[18px]" />

@@ -18,6 +18,14 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { useHousehold } from '@/lib/household-context';
+import { useLanguage } from '@/lib/i18n-context';
+import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
+
+function formatActivityDate(value: string, intlLocale: string): string {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, (month || 1) - 1, day || 1);
+  return date.toLocaleDateString(intlLocale, { month: 'short', day: 'numeric' });
+}
 
 interface OverviewTabProps {
   month: MonthBudget;
@@ -46,6 +54,7 @@ export function OverviewTab({
   onOpenEditSavings,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
   const { places } = useMoneyPlaces(month);
   const { workspace, canViewArea, canEditArea } = useHousehold();
   const canSeeBalances = workspace === 'personal' || canViewArea('balances');
@@ -65,6 +74,7 @@ export function OverviewTab({
   );
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
+  const strategyCopy = localizeStrategy(strategy.id, m);
 
   const totalCash = totalCashOnHand(month);
   const placeCardTones = [
@@ -96,7 +106,7 @@ export function OverviewTab({
       kind: 'expense' as const,
       id: exp.id,
       name: exp.name,
-      subtitle: `${exp.date} • ${exp.type}`,
+      subtitle: `${formatActivityDate(exp.date, intlLocale)} • ${localizeCategoryName(exp.type, m)}`,
       amount: exp.amount,
       icon: month.categoryIcons?.[exp.type] || 'shopping_bag',
       date: new Date(exp.date),
@@ -105,7 +115,7 @@ export function OverviewTab({
       kind: 'savings' as const,
       id: evt.id,
       name: evt.goalName,
-      subtitle: `${evt.type === 'deposit' ? 'Deposit' : 'Withdrawal'} • Savings`,
+      subtitle: `${evt.type === 'deposit' ? m.dashboard.deposit : m.dashboard.withdrawal} • ${m.dashboard.savingsActivity}`,
       amount: evt.amount,
       isDeposit: evt.type === 'deposit',
       date: new Date(evt.date),
@@ -166,7 +176,7 @@ export function OverviewTab({
                   <AppIcon name={place.icon} className="text-[20px]" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-base text-on-surface truncate">{place.name}</span>
+                  <span className="font-bold text-base text-on-surface truncate">{localizePlaceName(place.id, place.name, m)}</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-bold text-on-surface font-mono">
                       {canSeeBalances ? parts.amount : redacted}
@@ -182,7 +192,7 @@ export function OverviewTab({
                   onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
                   className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
                 >
-                  <span>Move</span>
+                  <span>{m.dashboard.move}</span>
                   <AppIcon name="swap_horiz" className="text-[14px]" />
                 </button>
               </div>
@@ -199,24 +209,24 @@ export function OverviewTab({
           <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-4 shadow-2xs">
             <div className="flex justify-between items-center gap-3">
               <h3 className="font-bold text-base text-on-surface">
-                Budget Plan
+                {m.dashboard.budgetPlan}
               </h3>
               {onUpdateStrategy ? (
                 <button
                   type="button"
                   onClick={() => setIsStrategyModalOpen(true)}
                   className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
-                  aria-label="Change budget strategy"
+                  aria-label={m.strategySelector.changeStrategy}
                 >
                   <AppIcon name="package" className="text-[12px] text-primary " />
                   <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface">
-                    {strategy.name}
+                    {strategyCopy.name}
                   </span>
                   <AppIcon name="chevron_right" className="text-[12px] text-on-surface-variant rotate-90" />
                 </button>
               ) : (
                 <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant">
-                  {strategy.name}
+                  {strategyCopy.name}
                 </span>
               )}
             </div>
@@ -226,9 +236,9 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                  <span className="font-bold text-on-surface">Needs ({Math.round(strategy.needsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.needsLabel, { percent: Math.round(strategy.needsRatio * 100) })}</span>
                 </div>
-                <span className="text-[11px] font-semibold text-on-surface-variant">{needsSpentPct}% Used</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: needsSpentPct })}</span>
               </div>
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
@@ -247,9 +257,9 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.wantsLabel, { percent: Math.round(strategy.wantsRatio * 100) })}</span>
                 </div>
-                <span className="text-[11px] font-semibold text-on-surface-variant">{wantsSpentPct}% Used</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: wantsSpentPct })}</span>
               </div>
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
@@ -271,10 +281,10 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
-                  <span className="font-bold text-on-surface">Savings ({Math.round(strategy.savingsRatio * 100)}%)</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.savingsLabel, { percent: Math.round(strategy.savingsRatio * 100) })}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-primary">
-                  {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
+                  {t(m.dashboard.activeGoals, { count: goals.length })}
                 </span>
               </div>
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
@@ -284,7 +294,7 @@ export function OverviewTab({
                 />
               </div>
               <div className="flex justify-between text-[11px] font-medium font-mono text-on-surface-variant">
-                <span title="Deposited into goals this month">{format(depositedSavings)}</span>
+                <span title={m.dashboard.depositedThisMonth}>{format(depositedSavings)}</span>
                 <span>{format(savings)}</span>
               </div>
             </div>
@@ -294,7 +304,7 @@ export function OverviewTab({
           <div className="grid grid-cols-1 gap-4 bg-surface-container p-5 sm:grid-cols-2 sm:items-end sm:gap-8 sm:p-6 rounded-3xl border border-outline-variant shadow-2xs">
             <div className="min-w-0">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-                Total Monthly Budget
+                {m.dashboard.totalMonthlyBudget}
               </span>
               <div className="mt-1.5 flex items-center gap-2">
                 {isEditingBudget ? (
@@ -304,7 +314,7 @@ export function OverviewTab({
                       type="text"
                       inputMode="decimal"
                       autoComplete="off"
-                      aria-label="Total monthly budget"
+                      aria-label={m.dashboard.totalMonthlyBudget}
                       value={draftBudget}
                       onChange={(e) => setDraftBudget(e.target.value)}
                       onBlur={() => {
@@ -338,8 +348,8 @@ export function OverviewTab({
                   <button
                     type="button"
                     onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
-                    title="Click to edit your monthly budget"
-                    className="-ml-2 flex min-w-0 items-baseline gap-1 rounded-2xl px-2 py-0.5 text-left transition-colors hover:bg-surface-variant/60"
+                    title={m.dashboard.editBudgetTooltip}
+                    className="-ms-2 flex min-w-0 items-baseline gap-1 rounded-2xl px-2 py-0.5 text-start transition-colors hover:bg-surface-variant/60"
                   >
                     <span className="text-xl font-bold font-mono text-on-surface">
                       {canSeeBalances ? budgetParts.amount : redacted}
@@ -354,16 +364,16 @@ export function OverviewTab({
                 <button
                   type="button"
                   onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
-                  aria-label="Edit total monthly budget"
+                  aria-label={m.dashboard.editTotalBudget}
                   className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
                 >
                   <AppIcon name="edit" className="text-[14px]" />
                 </button>
               </div>
             </div>
-            <div className="min-w-0 border-t border-outline-variant/50 pt-4 sm:border-t-0 sm:border-l sm:pl-8 sm:pt-0">
+            <div className="min-w-0 border-t border-outline-variant/50 pt-4 sm:border-t-0 sm:border-s sm:ps-8 sm:pt-0">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
-                Total Cash on Hand
+                {m.dashboard.totalCashOnHand}
               </span>
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="flex min-w-0 items-baseline gap-1">
@@ -379,8 +389,8 @@ export function OverviewTab({
                 <button
                   type="button"
                   onClick={onEditMoneyPlaces}
-                  aria-label="Adjust cash balances"
-                  title="Adjust cash balances"
+                  aria-label={m.dashboard.adjustCashBalances}
+                  title={m.dashboard.adjustCashBalances}
                   className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
                 >
                   <AppIcon name="tune" className="text-[14px]" />
@@ -395,25 +405,25 @@ export function OverviewTab({
           <div className="flex flex-col gap-4 h-full">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-base text-on-surface">
-                Recent Activity
+                {m.dashboard.recentActivity}
               </h3>
               <button
                 onClick={() => onSelectTab('variable')}
                 className="text-xs font-bold text-primary hover:underline"
               >
-                View All
+                {m.common.viewAll}
               </button>
             </div>
 
             {recentItems.length === 0 ? (
               <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3  shadow-2xs">
                 <AppIcon name="receipt_long" className="text-outline text-[40px]" />
-                <p className="text-xs text-on-surface-variant">No expenses or savings deposits yet this month.</p>
+                <p className="text-xs text-on-surface-variant">{m.dashboard.noActivityYet}</p>
                 <button
                   onClick={onOpenExpenseModal}
                   className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full shadow-2xs hover:bg-primary/90 transition-all"
                 >
-                  Add First Expense
+                  {m.dashboard.addFirstExpense}
                 </button>
               </div>
             ) : (
@@ -438,7 +448,7 @@ export function OverviewTab({
                           </span>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         <FormattedAmount
                           value={item.amount}
                           prefix="-"
@@ -470,7 +480,7 @@ export function OverviewTab({
                           </span>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-end shrink-0">
                         <span
                           className={`font-bold text-sm font-mono ${item.isDeposit ? 'text-secondary' : 'text-on-surface-variant'}`}
                         >

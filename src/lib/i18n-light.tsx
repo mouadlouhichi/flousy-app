@@ -13,13 +13,14 @@ import {
   LANG_STORAGE_KEY,
 } from './i18n';
 import { loadMessages } from './messages';
-import { formatMessage } from './i18n-core';
+import { formatMessage, translateMessage } from './i18n-core';
 
 interface LightLanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   messages: Messages;
   t: (template: string, values?: Record<string, string | number>) => string;
+  translate: (path: string, values?: Record<string, string | number>) => string;
   isRTL: boolean;
   intlLocale: string;
   localeNames: Record<Language, string>;
@@ -57,10 +58,14 @@ export function LightLanguageProvider({ children }: { children: ReactNode }) {
     (template: string, values?: Record<string, string | number>) => formatMessage(template, values),
     [],
   );
+  const translate = useCallback(
+    (path: string, values?: Record<string, string | number>) => translateMessage(messages, path, values),
+    [messages],
+  );
 
   return (
     <LightLanguageContext.Provider
-      value={{ language, setLanguage, messages, t, isRTL: isRTL(language), intlLocale: getIntlLocale(language), localeNames: LOCALE_NAMES }}
+      value={{ language, setLanguage, messages, t, translate, isRTL: isRTL(language), intlLocale: getIntlLocale(language), localeNames: LOCALE_NAMES }}
     >
       {children}
     </LightLanguageContext.Provider>

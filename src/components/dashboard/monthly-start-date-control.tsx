@@ -11,8 +11,6 @@ interface MonthlyStartDateControlProps {
   compact?: boolean;
 }
 
-const QUICK_DAYS = [1, 5, 10, 15, 20, 25, 30];
-
 /**
  * Config control for the default "monthly start date" (the day of the month a
  * salary/budget month begins). Used in the profile screen and the settings
@@ -45,22 +43,6 @@ export function MonthlyStartDateControl({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 flex-wrap pl-12">
-        {QUICK_DAYS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => onChange(d)}
-            className={`px-2.5 py-1 rounded-lg text-[12px] font-bold transition-all ${
-              value === d
-                ? 'bg-primary text-on-primary'
-                : 'bg-surface border border-outline-variant text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary'
-            }`}
-          >
-            {formatDayOfMonth(d)}
-          </button>
-        ))}
-      </div>
     </div>
   );
 

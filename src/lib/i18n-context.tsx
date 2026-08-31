@@ -13,7 +13,7 @@ import {
   LANG_STORAGE_KEY,
 } from './i18n';
 import { loadMessages } from './messages';
-import { formatMessage } from './i18n-core';
+import { formatMessage, translateMessage } from './i18n-core';
 import { useAuth } from './auth-context';
 import { trackEvent } from './analytics';
 
@@ -22,6 +22,7 @@ interface LanguageContextType {
   setLanguage: (lang: Language) => void;
   messages: Messages;
   t: (template: string, values?: Record<string, string | number>) => string;
+  translate: (path: string, values?: Record<string, string | number>) => string;
   isRTL: boolean;
   intlLocale: string;
   localeNames: Record<Language, string>;
@@ -72,10 +73,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     (template: string, values?: Record<string, string | number>) => formatMessage(template, values),
     [],
   );
+  const translate = useCallback(
+    (path: string, values?: Record<string, string | number>) => translateMessage(messages, path, values),
+    [messages],
+  );
 
   return (
     <LanguageContext.Provider
-      value={{ language, setLanguage, messages, t, isRTL: checkRTL(language), intlLocale: getIntlLocale(language), localeNames: LOCALE_NAMES }}
+      value={{ language, setLanguage, messages, t, translate, isRTL: checkRTL(language), intlLocale: getIntlLocale(language), localeNames: LOCALE_NAMES }}
     >
       {children}
     </LanguageContext.Provider>

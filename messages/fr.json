@@ -19,7 +19,58 @@
     "open": "Ouvert",
     "settled": "Réglé",
     "step": "ÉTAPE {current} SUR {total}",
-    "percentComplete": "{percent}%"
+    "percentComplete": "{percent}%",
+    "yes": "Oui",
+    "no": "Non",
+    "done": "Terminé",
+    "create": "Créer",
+    "update": "Mettre à jour",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "optional": "Facultatif",
+    "required": "Obligatoire",
+    "amount": "Montant",
+    "date": "Date",
+    "category": "Catégorie",
+    "note": "Note",
+    "description": "Description",
+    "name": "Nom",
+    "from": "De",
+    "to": "À",
+    "total": "Total",
+    "remaining": "Restant",
+    "none": "Aucun",
+    "select": "Sélectionner",
+    "choose": "Choisir",
+    "viewAll": "Voir tout",
+    "viewDetails": "Voir les détails",
+    "viewMore": "Voir plus",
+    "learnMore": "En savoir plus",
+    "tryAgain": "Réessayer",
+    "dismiss": "Fermer",
+    "month": "Mois",
+    "year": "Année",
+    "day": "Jour",
+    "days": "jours",
+    "perMonth": "par mois",
+    "custom": "Personnalisé",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "notSet": "Non défini",
+    "notAvailable": "Non disponible",
+    "copy": "Copier",
+    "share": "Partager",
+    "download": "Télécharger",
+    "upload": "Importer",
+    "chooseFile": "Choisir un fichier",
+    "clear": "Effacer",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "menu": "Menu",
+    "actions": "Actions",
+    "manage": "Gérer",
+    "addNew": "Ajouter",
+    "user": "Utilisateur"
   },
   "auth": {
     "signIn": "Connexion",
@@ -102,7 +153,34 @@
     "spendTheRest": "Dépenser le reste",
     "housingCategory": "Logement",
     "rent": "Loyer",
-    "electricity": "Électricité"
+    "electricity": "Électricité",
+    "monthlyStartDate": "Date de début mensuelle",
+    "salaryDay": "Jour de paie",
+    "monthlyStartHint": "Votre mois budgétaire commence le {day} de chaque mois.",
+    "skipForNow": "Passer pour l’instant",
+    "categoryNamePlaceholder": "Nom de catégorie (ex. Salle de sport)",
+    "billNamePlaceholder": "ex. Loyer, Netflix, Électricité",
+    "addedBills": "Factures ajoutées",
+    "billCategoryOptions": {
+      "housing": "Logement / loyer",
+      "utilities": "Services publics",
+      "internetPhone": "Internet et téléphone",
+      "subscriptions": "Abonnements",
+      "insurance": "Assurance",
+      "transport": "Transport / carburant",
+      "foodGroceries": "Alimentation et courses",
+      "health": "Santé / médical",
+      "education": "Éducation",
+      "childcare": "Garde d’enfants",
+      "entertainment": "Divertissement",
+      "loans": "Prêts / dettes",
+      "savings": "Épargne / investissement",
+      "other": "Autre"
+    },
+    "customSplitInvalid": "Les besoins, les envies et l’épargne doivent totaliser exactement 100 % (actuellement {percent} %).",
+    "customSplitSummary": "{percent} % {label}",
+    "removeBill": "Retirer {name}",
+    "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors."
   },
   "dashboard": {
     "overview": "Aperçu",
@@ -137,7 +215,16 @@
     "sendVerification": "Envoyer un E-mail de Vérification",
     "verificationSent": "E-mail de vérification envoyé !",
     "trendsAndAnalytics": "Tendances & Analyses",
-    "debtsAndCredits": "Dettes & Crédits"
+    "debtsAndCredits": "Dettes & Crédits",
+    "move": "Déplacer",
+    "noActivityYet": "Aucune dépense ni aucun dépôt d’épargne enregistré ce mois-ci.",
+    "depositedThisMonth": "Déposé dans les objectifs ce mois-ci",
+    "editBudgetTooltip": "Cliquez pour modifier votre budget mensuel",
+    "editTotalBudget": "Modifier le budget mensuel total",
+    "adjustCashBalances": "Ajuster les soldes de trésorerie",
+    "deposit": "Dépôt",
+    "withdrawal": "Retrait",
+    "savingsActivity": "Épargne"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -171,7 +258,18 @@
       "receiptOptional": "REÇU / PIÈCE JOINTE (FACULTATIF)",
       "receiptAttached": "Reçu Joint",
       "uploadReceipt": "Télécharger Photo du Reçu",
-      "saveChanges": "Enregistrer les Modifications"
+      "saveChanges": "Enregistrer les Modifications",
+      "new": "Nouveau",
+      "newExpenseCategory": "Nouvelle catégorie de dépense",
+      "customCategoryPlaceholder": "Nom de catégorie, ex. Beauté",
+      "invalidCategoryData": "Saisissez des détails de catégorie valides.",
+      "duplicateCategory": "Une catégorie portant ce nom existe déjà.",
+      "availableIn": "Disponible dans {place} : {amount}",
+      "insufficientFunds": "Seuls {amount} sont disponibles dans {place}. Réduisez le montant ou déplacez de l’argent vers cet emplacement.",
+      "householdPro": "Le suivi des membres du foyer est disponible avec Pro.",
+      "receiptPro": "Les pièces jointes de reçu sont disponibles avec Pro.",
+      "receiptPreview": "Aperçu du reçu",
+      "removeReceipt": "Retirer le reçu"
     },
     "fixed": {
       "addTitle": "Ajouter Charge Fixe",
@@ -184,7 +282,20 @@
       "dueDate": "Date d'Échéance (Facultatif)",
       "repeatEveryMonth": "Répéter Chaque Mois",
       "autoCarries": "Reporte automatiquement aux mois suivants",
-      "saveChanges": "Enregistrer les Modifications"
+      "saveChanges": "Enregistrer les Modifications",
+      "monthlyCharge": "Charge mensuelle",
+      "billSubscriptionName": "Nom de la facture / de l’abonnement",
+      "billSubscriptionPlaceholder": "ex. loyer, électricité, Netflix",
+      "editCategory": "Modifier la catégorie",
+      "new": "Nouveau",
+      "newFixedCategory": "Nouvelle catégorie fixe",
+      "updateCategory": "Modifier « {name} »",
+      "customCategoryPlaceholder": "Nom de catégorie (ex. garderie)",
+      "invalidCategoryData": "Saisissez des détails de catégorie valides.",
+      "duplicateCategory": "Une catégorie portant ce nom existe déjà.",
+      "availableIn": "Disponible dans {place} : {amount}",
+      "insufficientFunds": "Seuls {amount} sont disponibles dans {place}. Réduisez le montant ou déplacez de l’argent vers cet emplacement.",
+      "householdPro": "Le suivi des membres du foyer est disponible avec Pro."
     },
     "savings": {
       "createTitle": "Créer un Objectif d'Épargne",
@@ -201,7 +312,38 @@
       "createGoal": "Créer l'Objectif",
       "fundGoal": "Financer l'Objectif",
       "withdrawGoal": "Retirer",
-      "progressLabel": "{current} sur {target} ({percent}%)"
+      "progressLabel": "{current} sur {target} ({percent}%)",
+      "alreadySaved": "Déjà épargné ({currency})",
+      "suggestions": "Suggestions :",
+      "openingBalanceHint": "Vous commencez avec un objectif existant ? Saisissez ce que vous avez déjà mis de côté pour que la progression parte de ce montant, et non de zéro.",
+      "deductOpening": "Déduire ce montant de mon solde {place} suivi",
+      "deductOpeningHint": "Laissez décoché si cet argent est déjà conservé séparément et ne fait pas partie de vos totaux banque, maison ou portefeuille. Disponible : {amount}.",
+      "primarySource": "Emplacement source principal",
+      "deductFrom": "Déduire du compte",
+      "depositInto": "Déposer sur le compte",
+      "availableIn": "Disponible dans {place} : {amount}",
+      "currentTarget": "Actuel : {current} · Objectif : {target}",
+      "savedAvailable": "{saved} épargné · {available} disponible une fois cette entrée réappliquée.",
+      "currentExceedsTarget": "Le montant déjà épargné ne peut pas dépasser le montant cible.",
+      "openingInsufficient": "Seuls {amount} sont disponibles dans {place}. Décochez l’option de transfert pour simplement enregistrer le solde.",
+      "fundInsufficient": "Seuls {amount} sont disponibles dans {place}. Réduisez le dépôt ou déplacez de l’argent vers cet emplacement.",
+      "withdrawTooMuch": "Impossible de retirer plus que le solde de l’objectif ({amount}).",
+      "validPositiveAmount": "Veuillez saisir un montant positif valide.",
+      "progressOfTarget": "{percent} % de {target}",
+      "editDeposit": "Modifier le dépôt",
+      "editWithdrawal": "Modifier le retrait",
+      "movementType": "Type de mouvement",
+      "deposit": "Dépôt",
+      "withdrawal": "Retrait",
+      "savingsGoal": "Objectif d’épargne",
+      "selectGoal": "Sélectionnez un objectif",
+      "missingGoal": "Cet objectif n’existe plus : supprimez cette entrée pour corriger votre plan.",
+      "takenFrom": "Prélevé du compte",
+      "returnedTo": "Retourné vers le compte",
+      "goalReapply": "{name} : {saved} épargné · {available} disponible une fois cette entrée réappliquée.",
+      "selectGoalError": "Veuillez choisir un objectif d’épargne.",
+      "deleteActivityTitle": "Supprimer cette activité d’épargne ?",
+      "deleteActivityMessage": "Cette action annule le mouvement d’argent enregistré et met à jour le solde de l’objectif."
     },
     "moveMoney": {
       "title": "Déplacer Argent",
@@ -213,7 +355,10 @@
       "insufficientFunds": "Fonds insuffisants dans {place}. Maximum disponible : {amount}",
       "bankLabel": "Banque ({balance})",
       "homeCashLabel": "Espèces Maison ({balance})",
-      "walletLabel": "Portefeuille ({balance})"
+      "walletLabel": "Portefeuille ({balance})",
+      "betweenAccounts": "Transfert entre comptes",
+      "previewAfter": "Aperçu après le transfert",
+      "samePlaces": "Choisissez deux emplacements d’argent différents"
     },
     "debt": {
       "addTitle": "Ajouter Dette",
@@ -227,7 +372,8 @@
       "dateLabel": "Date",
       "noteOptional": "Note (Facultatif)",
       "notePlaceholder": "Cette dette est pour quoi ?",
-      "saveChanges": "Enregistrer les Modifications"
+      "saveChanges": "Enregistrer les Modifications",
+      "addCredit": "Ajouter une créance"
     },
     "categories": {
       "title": "Gérer les Catégories",
@@ -246,11 +392,16 @@
       "supportedColumns": "Colonnes supportées : Nom, Montant, Date, Catégorie, Emplacement, Note, Personne",
       "preview": "Aperçu ({count} transactions)",
       "total": "Total : {amount}",
-      "importButton": "Importer {count} Éléments"
+      "importButton": "Importer {count} Éléments",
+      "invalidRows": "Le CSV doit contenir une ligne d’en-tête et au moins une ligne de données.",
+      "noNumericAmounts": "Aucun montant numérique valide n’a été trouvé dans les lignes CSV.",
+      "parseFailed": "Le fichier CSV n’a pas pu être lu.",
+      "importedExpense": "Dépense importée",
+      "selectFile": "Sélectionnez un fichier CSV pour prévisualiser vos transactions avant l’importation."
     },
     "incomeSources": {
       "title": "Sources de Revenus",
-      "description": "Spécifiez tous les flux de revenus contribuant au budget de ce mois.",
+      "description": "Indiquez toutes les sources de revenus qui contribuent au budget de ce mois. Pour un salaire mensuel, définissez sa date de début (jour de paie) pour suivre la période qu’il couvre.",
       "combinedTotal": "Revenu Total Combiné",
       "addIncomeSource": "Ajouter Source de Revenus",
       "sourceNamePlaceholder": "Nom de la source (ex. Freelance, Location)",
@@ -258,7 +409,25 @@
       "addIncomeStream": "Ajouter Flux de Revenus",
       "saveIncomeSources": "Enregistrer les Sources ({total})",
       "perSourceAnalytics": "Analyse par source",
-      "shareOfTotal": "{pct}% du revenu total"
+      "shareOfTotal": "{pct}% du revenu total",
+      "primaryIncome": "Revenu principal",
+      "nameRequired": "Le nom est requis.",
+      "validAmount": "Saisissez un montant valide.",
+      "amountExceedsLimit": "Le montant dépasse la limite.",
+      "required": "Requis.",
+      "dayRange": "Le jour doit être compris entre 1 et 31.",
+      "incomeStreams": "Sources de revenus ({count})",
+      "noSources": "Aucune source de revenus pour le moment. Ajoutez-en une ci-dessous.",
+      "sourceName": "Nom de la source",
+      "editSource": "Modifier {name}",
+      "removeSource": "Supprimer {name}",
+      "addIncomeStreamLabel": "Ajouter une source de revenus",
+      "quick": "Rapide :",
+      "monthlyStartDate": "Date de début mensuelle",
+      "startsOn": "Commence le {day}",
+      "period": "Période du {start} au {end}",
+      "payDayHint": "Le salaire arrive chaque mois le {day} : la période budgétaire de cette source commence alors.",
+      "payDayOptional": "Facultatif : choisissez le jour du mois où ce revenu arrive."
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -285,6 +454,13 @@
       "switchToFree": "Revenir au Plan Gratuit",
       "goToPremium": "Passer au Premium",
       "proMembership": "Adhésion Pro"
+    },
+    "moneyPlaces": {
+      "title": "Modifier les soldes",
+      "description": "Corrigez vos espèces actuelles dans chaque emplacement. Cela ajuste votre trésorerie disponible ; votre budget mensuel reste inchangé.",
+      "totalCash": "Total des espèces disponibles",
+      "monthlyBudget": "Budget mensuel : {amount}",
+      "saveBalances": "Enregistrer les soldes"
     }
   },
   "settings": {
@@ -307,7 +483,15 @@
       "addExpense": "Ajouter Dépense",
       "searchPlaceholder": "Rechercher dépenses ou notes...",
       "noResults": "Aucune dépense variable correspondante trouvée.",
-      "hasReceipt": "A un reçu"
+      "hasReceipt": "A un reçu",
+      "categoryBudgets": "Budgets par catégorie",
+      "pro": "PRO",
+      "percentUsed": "{percent} % utilisé",
+      "overBy": "Dépassement de {amount}",
+      "left": "Il reste {amount}",
+      "editBudget": "Modifier le budget de {category}",
+      "saveBudget": "Enregistrer le budget de {category}",
+      "cancelBudgetEdit": "Annuler la modification du budget"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",
@@ -317,7 +501,10 @@
       "recurring": "Récurrent",
       "oneTime": "Ponctuel",
       "recurringLabel": "Récurrent",
-      "carryOverNote": "Les factures récurrentes sont automatiquement reportées du mois précédent."
+      "carryOverNote": "Les factures récurrentes sont automatiquement reportées du mois précédent.",
+      "recurringMonthly": "Récurrent chaque mois",
+      "due": "Échéance : {date}",
+      "monthly": "Mensuel"
     },
     "savings": {
       "totalSaved": "TOTAL ÉPARGNÉ",
@@ -328,7 +515,22 @@
       "progress": "{percent}%",
       "fund": "Financer",
       "withdrawButton": "Retirer",
-      "deleteGoal": "Supprimer l'Objectif"
+      "deleteGoal": "Supprimer l'Objectif",
+      "totalAccumulated": "TOTAL DE L’ÉPARGNE ACCUMULÉE",
+      "newGoal": "Nouvel objectif",
+      "noActiveGoals": "Aucun objectif d’épargne actif défini.",
+      "createEmergencyFund": "Créer un fonds d’urgence ou un objectif",
+      "source": "Source : {place}",
+      "editGoal": "Modifier l’objectif",
+      "target": "Objectif : {amount}",
+      "percentReached": "{percent} % atteint",
+      "thisMonthsDeposits": "DÉPÔTS DE CE MOIS",
+      "movementsLogged": "{count, plural, one {# mouvement enregistré} other {# mouvements enregistrés}}",
+      "saved": "{amount} épargné",
+      "noDeposits": "Aucun dépôt enregistré ce mois-ci.",
+      "useDeposit": "Utilisez Dépôt sur un objectif ci-dessus pour placer de l’argent dans l’épargne.",
+      "editDeposit": "Modifier le dépôt",
+      "editWithdrawal": "Modifier le retrait"
     },
     "debts": {
       "debtsIOwe": "Dettes (je dois)",
@@ -375,7 +577,14 @@
       "vsLabel": "sur",
       "ofLabel": "de",
       "loadingTrends": "Chargement des tendances...",
-      "proLabel": "PRO"
+      "proLabel": "PRO",
+      "percentVsLastMonth": "{percent} % par rapport au mois dernier",
+      "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
+      "strategySavings": "{strategy} · {percent} % épargne",
+      "incomeSourcesPro": "Les analyses des sources de revenus sont disponibles avec Pro.",
+      "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
+      "variableAmount": "Variable : {amount}",
+      "fixedAmount": "Fixe : {amount}"
     }
   },
   "courses": {
@@ -417,7 +626,7 @@
     "total": "Total",
     "items": "articles",
     "billTitle": "Ticket de courses",
-    "billShare": "Partager",
+    "billShare": "Partager l’image",
     "billCopy": "Copier",
     "billCopied": "Ticket copié",
     "billDownload": "Télécharger .txt",
@@ -439,19 +648,31 @@
     "noRecent": "Aucune course terminée pour l'instant.",
     "noItems": "Rien de scanné pour l'instant — chaque produit apparaîtra ici et sur le ticket.",
     "newCourse": "Nouvelle course",
-    "back": "Retour"
+    "back": "Retour",
+    "billTextCourse": "COURSES",
+    "billTextLine": "ligne",
+    "billTextLines": "lignes",
+    "billTextItem": "article",
+    "billTextItems": "articles",
+    "billTextTotal": "TOTAL",
+    "unnamedItem": "Article sans nom"
   },
   "alerts": {
-    "budgetHealth": "Santé du Budget",
-    "needsExceeded": "Enveloppe Besoins Dépassée",
-    "needsAlert": "Alerte Enveloppe Besoins",
-    "wantsExceeded": "Enveloppe Envies Dépassée",
-    "wantsAlert": "Alerte Enveloppe Envies",
-    "spentVsBudget": "Dépensé {spent} vs budget de {budget} ({percent}%).",
-    "spentOfBudget": "Dépensé {spent} sur {budget} de budget ({percent}%).",
-    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté.",
-    "categoryAlertTitle": "Alerte {cat}",
-    "categoryAlertMessage": "{cat} représente {pct}% des dépenses variables ({amount}). Envisagez de revoir cette catégorie."
+    "needsExceeded": "Enveloppe des besoins dépassée",
+    "needsAlert": "Alerte sur l’enveloppe des besoins",
+    "wantsExceeded": "Enveloppe des envies dépassée",
+    "wantsAlert": "Alerte sur l’enveloppe des envies",
+    "categoryExceeded": "Budget « {category} » dépassé",
+    "categoryAlert": "Alerte sur le budget « {category} »",
+    "spentVsBudget": "{spent} dépensé sur un budget de {budget} ({percent} %).",
+    "spentOfBudget": "{spent} dépensé sur un budget de {budget} ({percent} %).",
+    "viewNotifications": "Voir les notifications ({count})",
+    "title": "Notifications",
+    "householdInvitations": "Invitations du foyer",
+    "householdInvitation": "Invitation du foyer",
+    "openToJoinAs": "Vous pouvez rejoindre en tant que {role}.",
+    "budgetHealth": "État du budget",
+    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté."
   },
   "legal": {
     "eyebrow": "Juridique",
@@ -506,7 +727,11 @@
     "notFoundDescription": "La page que vous recherchez n'existe pas ou a été déplacée.",
     "goHome": "Accueil",
     "validationNameRequired": "Veuillez saisir un nom ou une personne",
-    "validationAmountInvalid": "Veuillez saisir un montant valide"
+    "validationAmountInvalid": "Veuillez saisir un montant valide",
+    "unexpected": "Une erreur inattendue est survenue.",
+    "tryAgain": "Réessayer",
+    "loadingApp": "Chargement de SmartJib…",
+    "returnDashboard": "Retour au tableau de bord"
   },
   "categories": {
     "food": "Alimentation",
@@ -531,7 +756,29 @@
     "installApp": "Installer l'App",
     "installBanner": "Installez SmartJib pour la meilleure expérience",
     "install": "Installer",
-    "dismiss": "Ignorer"
+    "dismiss": "Ignorer",
+    "installRegion": "Installer SmartJib",
+    "installTitle": "Installer SmartJib",
+    "offlineHint": "Accès plus rapide, fonctionne hors ligne.",
+    "dismissPrompt": "Fermer l’invite d’installation",
+    "installAppLabel": "Installer l’application SmartJib",
+    "iosTitle": "Installer SmartJib",
+    "iosDescription": "Ajoutez SmartJib à votre écran d’accueil pour une expérience en plein écran, comme une application.",
+    "iosStepShare": "Touchez le bouton Partager dans la barre d’outils Safari",
+    "iosStepAddHome": "Choisissez « Ajouter à l’écran d’accueil »",
+    "iosStepFinish": "Touchez « Ajouter » pour terminer",
+    "gotIt": "Compris",
+    "generic": "Un problème est survenu",
+    "networkError": "Erreur réseau. Vérifiez votre connexion.",
+    "notFound": "Page introuvable",
+    "notFoundDescription": "La page que vous recherchez n’existe pas ou a été déplacée.",
+    "goHome": "Accueil",
+    "validationNameRequired": "Veuillez saisir un nom ou une personne",
+    "validationAmountInvalid": "Veuillez saisir un montant valide",
+    "unexpected": "Une erreur inattendue s’est produite lors du traitement de votre demande de budget.",
+    "tryAgain": "Réessayer",
+    "returnDashboard": "Retourner au tableau de bord",
+    "loadingApp": "Chargement de SmartJib..."
   },
   "landing": {
     "nav": {
@@ -541,7 +788,15 @@
       "pricing": "Tarifs",
       "faq": "FAQ",
       "signIn": "Connexion",
-      "startBudgeting": "Commencer"
+      "startBudgeting": "Commencer",
+      "goToDashboard": "Aller au tableau de bord",
+      "changeLanguage": "Changer de langue",
+      "switchToLight": "Passer au mode clair",
+      "switchToDark": "Passer au mode sombre",
+      "lightMode": "Mode clair",
+      "darkMode": "Mode sombre",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu"
     },
     "hero": {
       "eyebrow": "Besoins, envies, épargne — et chaque emplacement d'argent.",
@@ -1006,5 +1261,399 @@
         }
       ]
     }
+  },
+  "strategies": {
+    "50-30-20": {
+      "name": "Règle 50/30/20",
+      "description": "Une répartition équilibrée : 50 % pour les besoins, 30 % pour les envies et 20 % pour l’épargne."
+    },
+    "70-20-10": {
+      "name": "Règle 70/20/10",
+      "description": "Une répartition axée sur les besoins, idéale pour établir un premier budget."
+    },
+    "80-20": {
+      "name": "Règle 80/20",
+      "description": "Une répartition simple et flexible entre dépenses et épargne."
+    },
+    "zero-based": {
+      "name": "Budget à zéro",
+      "description": "Attribuez un rôle à chaque unité de revenu avant de la dépenser."
+    },
+    "envelope": {
+      "name": "Système des enveloppes",
+      "description": "Réservez des montants par catégorie avant le début du mois."
+    },
+    "pay-first": {
+      "name": "Payez-vous d’abord",
+      "description": "Donnez la priorité à votre objectif d’épargne avant le reste des dépenses."
+    },
+    "custom": {
+      "name": "Stratégie personnalisée",
+      "description": "Créez votre propre répartition entre besoins, envies et épargne."
+    }
+  },
+  "navigation": {
+    "overview": "Vue d’ensemble",
+    "dashboardOverview": "Vue d’ensemble du tableau de bord",
+    "fixedBills": "Factures fixes",
+    "variableExpenses": "Dépenses variables",
+    "courses": "Courses",
+    "courseSession": "Session de courses",
+    "savings": "Épargne",
+    "savingsGoals": "Objectifs d’épargne",
+    "trends": "Tendances",
+    "trendsAnalytics": "Tendances et analyses",
+    "debts": "Dettes",
+    "debtsCredits": "Dettes et créances",
+    "profile": "Profil",
+    "profileAccount": "Profil et compte",
+    "preferences": "Préférences",
+    "moneySources": "Sources d’argent",
+    "workspace": "Espace de travail",
+    "pro": "Pro",
+    "data": "Données",
+    "account": "Compte",
+    "incomeSources": "Sources de revenus",
+    "importExportCsv": "Importer / exporter CSV",
+    "newTransaction": "Nouvelle transaction",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant",
+    "customBudgetMonth": "Mois budgétaire personnalisé",
+    "openProfileAccount": "Ouvrir le profil et le compte",
+    "freePlan": "Forfait gratuit",
+    "proPlan": "Forfait Pro"
+  },
+  "notifications": {
+    "emailVerificationPrompt": "Veuillez vérifier votre adresse e-mail pour sécuriser votre compte.",
+    "verificationSent": "E-mail de vérification envoyé !",
+    "resendEmail": "Renvoyer l’e-mail",
+    "dismissBanner": "Fermer la bannière"
+  },
+  "quickActions": {
+    "close": "Fermer les actions rapides",
+    "open": "Ouvrir les actions rapides"
+  },
+  "householdRoles": {
+    "owner": "Propriétaire",
+    "editor": "Éditeur",
+    "viewer": "Lecteur",
+    "contributor": "Contributeur",
+    "custom": "Personnalisé",
+    "profile": "Profil"
+  },
+  "strategySelector": {
+    "title": "Choisir une stratégie budgétaire",
+    "changeStrategy": "Modifier la stratégie budgétaire",
+    "previewAllocation": "Aperçu de la répartition",
+    "needs": "Besoins",
+    "wants": "Envies",
+    "savings": "Épargne",
+    "tags": {
+      "popular": "Populaire",
+      "beginner": "Débutant",
+      "simple": "Simple",
+      "detailed": "Détaillé",
+      "visual": "Visuel",
+      "saver": "Épargnant",
+      "yours": "La vôtre"
+    },
+    "customStrategy": "Stratégie personnalisée",
+    "customDescription": "Définissez votre propre répartition besoins / envies / épargne.",
+    "percentage": "Pourcentage de {label}",
+    "slider": "Curseur de {label}",
+    "totalAllocated": "Total alloué",
+    "mustEqual": "Les besoins, les envies et l’épargne doivent totaliser exactement 100 %.",
+    "applyCustomSplit": "Appliquer la répartition personnalisée"
+  },
+  "datePicker": {
+    "chooseDate": "Choisir une date",
+    "openDatePicker": "Choisir la date : {date}"
+  },
+  "monthDayPicker": {
+    "monthlyStartDate": "Date de début mensuelle",
+    "clearMonthlyStartDate": "Effacer la date de début mensuelle"
+  },
+  "dueDayPicker": {
+    "dueDayOfMonth": "Jour d’échéance du mois",
+    "custom": "Personnalisé",
+    "customSchedule": "Échéance personnalisée : {value}",
+    "enterCustom": "Saisissez une échéance personnalisée",
+    "selectedRepeats": "{day} sélectionné · se répète chaque mois",
+    "selectDueDay": "Sélectionner un jour d’échéance",
+    "customField": "{label} (personnalisé)",
+    "customPlaceholder": "ex. le 20 du mois, dernier vendredi"
+  },
+  "iconPicker": {
+    "pickIcon": "Choisir une icône",
+    "findIcon": "Trouver une icône",
+    "noMatches": "Aucune icône ne correspond à « {query} ». Essayez shopping, voiture, santé ou maison.",
+    "choices": {
+      "label": "Autre",
+      "shopping_bag": "Shopping",
+      "shopping_cart": "Courses",
+      "restaurant": "Restaurant",
+      "local_cafe": "Café",
+      "home": "Maison",
+      "house": "Logement",
+      "bolt": "Services publics",
+      "wifi": "Internet",
+      "phone": "Téléphone",
+      "subscriptions": "Abonnements",
+      "payments": "Espèces",
+      "credit_card": "Carte",
+      "account_balance": "Banque",
+      "savings": "Épargne",
+      "directions_car": "Voiture",
+      "fuel": "Carburant",
+      "directions_bike": "Vélo",
+      "directions_bus": "Bus",
+      "directions_train": "Train",
+      "flight": "Voyage",
+      "hotel": "Hébergement",
+      "school": "Éducation",
+      "work": "Travail",
+      "child_care": "Garde d’enfants",
+      "medical_services": "Santé",
+      "medication": "Pharmacie",
+      "fitness_center": "Fitness",
+      "pets": "Animaux",
+      "movie": "Films",
+      "music_note": "Musique",
+      "sports_esports": "Jeux vidéo",
+      "card_giftcard": "Cadeaux",
+      "favorite": "Personnel",
+      "store": "Magasin",
+      "inventory_2": "Biens",
+      "build": "Réparations",
+      "shirt": "Vêtements",
+      "content_cut": "Beauté",
+      "menu_book": "Livres",
+      "local_parking": "Stationnement",
+      "local_activity": "Billets",
+      "receipt_long": "Factures",
+      "event_repeat": "Récurrent",
+      "category": "Catégorie",
+      "palette": "Art",
+      "sports_tennis": "Tennis",
+      "account_balance_wallet": "Portefeuille",
+      "local_atm": "Distributeur",
+      "phone_iphone": "Téléphone",
+      "travel_explore": "Voyage"
+    }
+  },
+  "modal": {
+    "close": "Fermer la fenêtre"
+  },
+  "profile": {
+    "setYourName": "Ajoutez votre nom",
+    "personal": "Personnel",
+    "household": "Foyer",
+    "profilePhotoAlt": "Photo de profil de {name}",
+    "chooseProfilePhoto": "Choisir une photo de profil",
+    "changeProfilePhoto": "Modifier la photo de profil",
+    "proMember": "Membre Pro",
+    "editName": "Modifier le nom",
+    "displayName": "Nom affiché",
+    "enterYourName": "Saisissez votre nom",
+    "preferencesSaved": "Préférences enregistrées.",
+    "preferencesSaveHint": "Enregistrez vos modifications lorsque vous êtes prêt.",
+    "preferencesSaveError": "Vos préférences n’ont pas pu être enregistrées. Veuillez réessayer.",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "saveChanges": "Enregistrer les modifications",
+    "theme": "Thème",
+    "groups": {
+      "settings": "Paramètres",
+      "workspace": "Espace de travail",
+      "privacyAccount": "Confidentialité et compte"
+    },
+    "links": {
+      "preferences": "Préférences",
+      "moneySources": "Sources d’argent",
+      "workspace": "Espace de travail",
+      "pro": "Pro",
+      "data": "Données",
+      "account": "Compte"
+    },
+    "hints": {
+      "budgetStarts": "commence le {day}",
+      "locations": "{count, plural, one {# emplacement} other {# emplacements}}",
+      "personalAndHousehold": "Tableau de bord personnel et foyer",
+      "planIncomeInsights": "Forfait, sources de revenus et analyses",
+      "exportImportDelete": "Exporter, importer, supprimer",
+      "signOutDelete": "Se déconnecter et supprimer le compte"
+    },
+    "subpages": {
+      "accountTitle": "Compte",
+      "accountDescription": "Déconnectez-vous ou supprimez définitivement votre compte SmartJib.",
+      "dataTitle": "Données",
+      "dataDescription": "Exportez une copie, importez un CSV ou effacez vos données budgétaires.",
+      "moneySourcesTitle": "Sources d’argent",
+      "moneySourcesDescription": "Ajoutez, renommez ou supprimez Banque, Maison, Portefeuille et tout emplacement d’argent que vous suivez.",
+      "preferencesTitle": "Préférences",
+      "preferencesDescription": "Devise, langue, thème et jour de début de votre mois budgétaire.",
+      "proTitle": "Pro",
+      "proDescription": "Fonctionnalités du forfait, sources de revenus et analyses.",
+      "workspaceTitle": "Espace de travail",
+      "workspaceDescription": "Basculez entre votre tableau personnel et votre foyer.",
+      "backToProfile": "Retour au profil"
+    },
+    "account": {
+      "privacy": "Confidentialité",
+      "terms": "Conditions"
+    },
+    "data": {
+      "exportThisMonth": "Exporter ce mois en CSV",
+      "importCsv": "Importer un CSV",
+      "deleteAllData": "Supprimer toutes les données",
+      "deleteAllDataMessage": "Cette action supprime définitivement tous les mois de données budgétaires, dépenses et objectifs d’épargne de votre compte. Votre compte et vos paramètres seront conservés. Cette action est irréversible : téléchargez vos données d’abord si vous souhaitez en garder une copie."
+    },
+    "moneySources": {
+      "description": "Ce sont les emplacements d’argent depuis lesquels vous dépensez : Banque, Maison, Portefeuille ou toute réserve que vous ajoutez. En en supprimant un, le solde restant est déplacé vers la première source restante.",
+      "nameRequired": "Donnez un nom à cette source d’argent.",
+      "duplicateName": "Ce nom est déjà utilisé.",
+      "uniqueName": "Saisissez un nom unique.",
+      "exampleName": "ex. PayPal, Coffre, Revolut",
+      "addSource": "Ajouter une source",
+      "addMoneySource": "Ajouter une source d’argent",
+      "editSource": "Modifier {name}",
+      "removeSource": "Supprimer {name}",
+      "removeSourceTitle": "Supprimer {name} ?",
+      "thisSource": "cette source",
+      "moveBalanceMessage": "{amount} actuellement dans {source} sera déplacé vers {destination}. Les dépenses payées depuis cette source suivront.",
+      "removeSourceMessage": "Vous pourrez toujours l’ajouter de nouveau plus tard. Vous devez conserver au moins une source d’argent.",
+      "chooseIcon": "Choisir une icône"
+    },
+    "workspace": {
+      "mySmartJib": "Mon SmartJib",
+      "personalDashboard": "Tableau de bord personnel privé",
+      "householdDashboard": "Tableau de bord du foyer",
+      "memberAccess": "accès {role}",
+      "manageHousehold": "Gérer le foyer"
+    },
+    "pro": {
+      "yourFeatures": "Vos fonctionnalités Pro",
+      "unlockWithPro": "Débloquer avec Pro",
+      "allActive": "Tout est actif",
+      "manageIncomeSources": "Gérer les sources de revenus",
+      "importExportCsv": "Importer / exporter un CSV",
+      "manageHousehold": "Gérer le foyer",
+      "analyticsInsights": "Analyses et aperçus",
+      "privateWorkspaceHint": "Les mises à niveau Pro s’appliquent à votre espace privé. Basculez vers {workspace} pour gérer ou mettre à niveau votre forfait personnel.",
+      "features": {
+        "courseScan": {
+          "title": "Scan de courses par code-barres",
+          "description": "Scannez vos courses pendant vos achats et laissez SmartJib créer le reçu automatiquement."
+        },
+        "trends": {
+          "title": "Tendances et analyses",
+          "description": "Graphiques sur plusieurs mois comparant revenus, enveloppes et dépenses."
+        },
+        "incomeSources": {
+          "title": "Sources de revenus multiples",
+          "description": "Suivez séparément salaire, missions et revenus complémentaires dans un même budget."
+        },
+        "csv": {
+          "title": "Import et export CSV",
+          "description": "Importez des relevés en lot et exportez tout votre historique à tout moment."
+        },
+        "categoryBudgets": {
+          "title": "Budgets par catégorie",
+          "description": "Fixez un plafond prévu pour chaque catégorie et recevez des alertes avant de dépasser."
+        },
+        "rollover": {
+          "title": "Report de budget",
+          "description": "Reportez automatiquement le budget de catégorie non utilisé au mois suivant."
+        },
+        "household": {
+          "title": "Membres du foyer",
+          "description": "Associez les dépenses aux membres du foyer et voyez qui dépense quoi."
+        }
+      },
+      "privateWorkspaceLead": "Les mises à niveau Pro s’appliquent à votre espace privé. Basculez vers",
+      "privateWorkspaceTail": "pour gérer ou mettre à niveau votre forfait personnel."
+    },
+    "free": "Gratuit",
+    "avatarSaveError": "Impossible d’enregistrer cette photo de profil.",
+    "upgradeToPro": "Passer à Pro"
+  },
+  "household": {
+    "title": "Collaboration du foyer",
+    "createDescription": "Créez un foyer partagé pour suivre qui a payé, collaborer en direct et voir les soldes de contribution.",
+    "unlockWithPro": "Débloquer avec Pro",
+    "householdNamePlaceholder": "Nom du foyer (ex. la famille Silva)",
+    "createHousehold": "Créer le foyer",
+    "householdCreated": "Foyer créé. Votre budget personnel reste privé ; les nouvelles activités partagées sont enregistrées dans cet espace de travail.",
+    "invitationCode": "Vous avez un code d’invitation ?",
+    "invitationCodePlaceholder": "Collez le code d’invitation",
+    "join": "Rejoindre",
+    "joined": "Vous avez rejoint le foyer.",
+    "activeMembers": "{count, plural, one {# membre actif} other {# membres actifs}}",
+    "sharedBudgetLive": "le budget partagé est actif",
+    "restore": "Restaurer",
+    "remove": "Supprimer",
+    "monthlyContributions": "Contributions de ce mois",
+    "contributionGuide": "Le solde compare les dépenses réglées par chaque collaborateur actif avec une part égale. Utilisez-le comme guide de régularisation ; aucun argent n’est déplacé par SmartJib.",
+    "inviteMember": "Inviter un membre du foyer",
+    "inviteDescription": "Choisissez son accès au lieu de lui attribuer un rôle familial fixe.",
+    "fullName": "Nom complet",
+    "emailAddress": "Adresse e-mail",
+    "customAccess": "Accès personnalisé",
+    "fullAccess": "Accès complet",
+    "viewOnly": "Lecture seule",
+    "send": "Envoyer",
+    "noAccess": "Aucun accès",
+    "view": "Afficher",
+    "editOwn": "Modifier les siens",
+    "editAll": "Tout modifier",
+    "invitationSent": "E-mail d’invitation envoyé à {email}.",
+    "invitationUnavailable": "Invitation créée, mais le service d’e-mail est indisponible ({status}).",
+    "genericError": "Un problème est survenu. Veuillez réessayer.",
+    "funds": "Fonds du foyer",
+    "me": "Moi",
+    "member": "Membre",
+    "submitted": "Soumise",
+    "approved": "Approuvée",
+    "rejected": "Refusée",
+    "areas": {
+      "dashboard": "Résumé du tableau de bord",
+      "balances": "Soldes",
+      "income": "Revenus",
+      "expenses": "Dépenses variables",
+      "fixedBills": "Factures fixes",
+      "savings": "Épargne",
+      "debts": "Dettes",
+      "analytics": "Analyses",
+      "invoices": "Factures",
+      "members": "Membres",
+      "settings": "Paramètres du foyer"
+    },
+    "invoice": {
+      "title": "Soumettre une facture",
+      "description": "Votre soumission est partagée pour examen. Les soldes, dettes, épargne et analyses du foyer restent privés.",
+      "namePlaceholder": "Commerçant ou nom de facture",
+      "amount": "Montant",
+      "category": "Catégorie",
+      "submit": "Soumettre la facture",
+      "submitting": "Envoi…",
+      "invalid": "Saisissez un nom de facture et un montant valide.",
+      "submitted": "Facture soumise pour examen du foyer.",
+      "submitFailed": "Impossible de soumettre la facture. Veuillez réessayer.",
+      "reviewTitle": "Examen des factures",
+      "reviewDescription": "Examinez les soumissions des contributeurs avant de les enregistrer dans le budget privé du foyer.",
+      "nonePending": "Aucune soumission de facture en attente.",
+      "approve": "Approuver",
+      "reject": "Refuser"
+    },
+    "invited": "Invité",
+    "invitationCount": "{count, plural, one {# invitation au foyer} other {# invitations au foyer}}",
+    "invitations": "Invitations au foyer",
+    "invitedAs": "Vous êtes invité en tant que {role}",
+    "reviewAndJoin": "Ouvrez pour examiner et rejoindre ce foyer.",
+    "emailSubject": "Vous êtes invité à rejoindre {household}",
+    "emailGreeting": "Bonjour,",
+    "emailBody": "Vous êtes invité à rejoindre {household} en tant que {role}.",
+    "emailAccept": "Accepter l’invitation",
+    "emailExpires": "Cette invitation expire dans 14 jours."
   }
 }

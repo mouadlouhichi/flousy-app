@@ -4,6 +4,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion, type Transition } from 'motion/react';
+import { useLanguage } from '@/lib/i18n-context';
 
 interface ModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, triggerRef, className = '' }: ModalProps) {
+  const { messages: m } = useLanguage();
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
@@ -158,7 +160,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
               <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md text-on-surface">{title}</h2>
               <button
                 onClick={onClose}
-                aria-label="Close modal"
+                aria-label={m.modal.close}
                 className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
               >
                 <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
@@ -166,7 +168,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
             </div>
 
             {/* Body */}
-            <div className="p-4 sm:p-lg overflow-y-auto flex-1">{children}</div>
+            <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-lg">{children}</div>
           </motion.div>
         </motion.div>
       )}

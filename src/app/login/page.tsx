@@ -9,9 +9,11 @@ import { useAuth } from '../../lib/auth-context';
 import { loginSchema } from '../../lib/validation';
 import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
+import { useLanguage } from '@/lib/i18n-context';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { messages: m, t } = useLanguage();
   const { user, profile, loading, signInEmail, signUpEmail, signInGoogle, sendResetEmail, isConfigured } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -87,20 +89,20 @@ export default function LoginPage() {
 
     if (isResetting) {
       if (!email) {
-        setError('Please enter your email address to reset password.');
+        setError(m.auth.enterEmailToReset);
         return;
       }
       try {
         setSubmitting(true);
         if (isConfigured) {
           await sendResetEmail(email);
-          setMessage('Password reset email sent! Please check your inbox.');
+          setMessage(m.auth.passwordResetSent);
         } else {
-          setMessage('Demo Mode: Password reset requested for ' + email);
+          setMessage(t(m.auth.demoResetRequested, { email }));
         }
         setIsResetting(false);
       } catch (err: any) {
-        setError(authErrorMessage(err) || 'Failed to send reset email');
+        setError(authErrorMessage(err) || m.auth.failedResetEmail);
       } finally {
         setSubmitting(false);
       }
@@ -109,11 +111,9 @@ export default function LoginPage() {
 
     const valRes = loginSchema.safeParse({ email, password });
     if (!valRes.success) {
-      const firstErr =
-        valRes.error.issues?.[0]?.message ||
-        (valRes.error as any).errors?.[0]?.message ||
-        'Invalid email or password';
-      setError(firstErr);
+      // Validation schema messages are English-only; present the localized,
+      // actionable account error instead of exposing its implementation text.
+      setError(m.auth.invalidCredentials);
       return;
     }
 
@@ -170,7 +170,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(err.message || 'Google sign-in failed');
+        setError(err.message || m.auth.googleSignInFailed);
       }
     } finally {
       setSubmitting(false);
@@ -185,7 +185,7 @@ export default function LoginPage() {
           <a href="/" className="flex flex-col items-center gap-1.5 group">
             <Image
               src="/logo.png"
-              alt="SmartJib logo"
+              alt={m.common.appName}
               width={64}
               height={64}
               className="object-contain"
@@ -197,10 +197,10 @@ export default function LoginPage() {
           </a>
           <p className="text-[15px] font-medium text-on-surface-variant mt-0.5">
             {isResetting
-              ? 'Reset Your Password'
+              ? m.auth.resetPassword
               : isSignUp
-              ? 'Create your account'
-              : 'Welcome back to your financial center'}
+              ? m.auth.createYourAccount
+              : m.auth.welcomeBack}
           </p>
         </div>
 
@@ -209,17 +209,17 @@ export default function LoginPage() {
           <div className="p-4 bg-primary-container border border-primary/20 rounded-2xl flex flex-col gap-2.5 text-center">
             <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-[14px]">
               <AppIcon name="info" className=" text-[18px]" />
-              <span>Demo Mode Available</span>
+              <span>{m.auth.demoMode}</span>
             </div>
             <p className="text-[13px] text-on-surface-variant leading-snug">
-              Experience SmartJib instantly with sample data in local preview mode.
+              {m.auth.demoModeDescription}
             </p>
             <button
               type="button"
               onClick={handleDemoAccess}
               className="w-full py-2.5 bg-primary hover:bg-primary text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
             >
-              Continue in Demo Mode
+              {m.auth.continueDemo}
             </button>
           </div>
         )}
@@ -243,32 +243,32 @@ export default function LoginPage() {
           {/* Display Name (Sign Up Only) */}
           {isSignUp && !isResetting && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-bold text-on-surface-variant">Full Name</label>
+              <label className="text-[13px] font-bold text-on-surface-variant">{m.auth.fullName}</label>
               <div className="relative flex items-center">
-                <AppIcon name="person" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
+                <AppIcon name="person" className=" absolute start-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your full name"
+                  placeholder={m.auth.namePlaceholder}
                   required
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>
           )}
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-bold text-on-surface-variant">Email</label>
+            <label className="text-[13px] font-bold text-on-surface-variant">{m.auth.email}</label>
             <div className="relative flex items-center">
-              <AppIcon name="mail" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
+              <AppIcon name="mail" className=" absolute start-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
+                placeholder={m.auth.emailPlaceholder}
                 required
-                className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
               />
             </div>
           </div>
@@ -276,26 +276,26 @@ export default function LoginPage() {
           {!isResetting && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-[13px] font-bold text-on-surface-variant">Password</label>
+                <label className="text-[13px] font-bold text-on-surface-variant">{m.auth.password}</label>
                 {!isSignUp && (
                   <button
                     type="button"
                     onClick={() => setIsResetting(true)}
                     className="text-[13px] font-bold text-primary hover:underline cursor-pointer"
                   >
-                    Forgot password?
+                    {m.auth.forgotPassword}
                   </button>
                 )}
               </div>
               <div className="relative flex items-center">
-                <AppIcon name="lock" className=" absolute left-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
+                <AppIcon name="lock" className=" absolute start-3.5 text-on-surface-variant/60 text-[20px] pointer-events-none" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={m.auth.passwordPlaceholder}
                   required={!isResetting}
-                  className="w-full pl-10 pr-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
                 />
               </div>
             </div>
@@ -307,12 +307,12 @@ export default function LoginPage() {
             className="w-full bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold text-[16px] py-3.5 rounded-xl transition-all shadow-xs mt-1 disabled:opacity-50 cursor-pointer"
           >
             {submitting
-              ? 'Processing...'
+              ? m.common.processing
               : isResetting
-              ? 'Send Reset Link'
+              ? m.auth.sendResetLink
               : isSignUp
-              ? 'Create account'
-              : 'Log in'}
+              ? m.auth.signUp
+              : m.auth.signIn}
           </button>
         </form>
 
@@ -322,7 +322,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-3 my-1">
               <div className="flex-1 h-px bg-surface-variant" />
               <span className="text-[12px] font-bold text-on-surface-variant/60 uppercase tracking-wider">
-                OR
+                {m.common.or}
               </span>
               <div className="flex-1 h-px bg-surface-variant" />
             </div>
@@ -352,7 +352,7 @@ export default function LoginPage() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{m.auth.continueWithGoogle}</span>
             </button>
           </>
         )}
@@ -364,26 +364,26 @@ export default function LoginPage() {
               onClick={() => setIsResetting(false)}
               className="text-primary font-bold hover:underline cursor-pointer"
             >
-              Back to log in
+              {m.auth.backToLogin}
             </button>
           ) : isSignUp ? (
             <>
-              <span>Already have an account?</span>
+              <span>{m.auth.hasAccount}</span>
               <button
                 onClick={() => setIsSignUp(false)}
                 className="text-primary font-bold hover:underline cursor-pointer"
               >
-                Log in
+                {m.auth.signIn}
               </button>
             </>
           ) : (
             <>
-              <span>Don't have an account?</span>
+              <span>{m.auth.noAccount}</span>
               <button
                 onClick={() => setIsSignUp(true)}
                 className="text-primary font-bold hover:underline cursor-pointer"
               >
-                Create account
+                {m.auth.signUp}
               </button>
             </>
           )}

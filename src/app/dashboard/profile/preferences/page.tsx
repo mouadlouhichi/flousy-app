@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PreferencesPage() {
   return (
-    <ProfileSubpage title="Preferences" description="Currency, language, theme and the day your budget month starts.">
+    <ProfileSubpage titleKey="preferencesTitle" descriptionKey="preferencesDescription">
       <PreferencesPanel />
     </ProfileSubpage>
   );

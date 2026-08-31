@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function AccountPage() {
   return (
-    <ProfileSubpage title="Account" description="Sign out or permanently delete your SmartJib account.">
+    <ProfileSubpage titleKey="accountTitle" descriptionKey="accountDescription">
       <AccountPanel />
     </ProfileSubpage>
   );

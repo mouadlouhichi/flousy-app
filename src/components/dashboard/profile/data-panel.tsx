@@ -7,10 +7,13 @@ import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { trackEvent } from '@/lib/analytics';
+import { useLanguage } from '@/lib/i18n-context';
 import { useDashboard } from '../dashboard-provider';
 
 export function DataPanel() {
   const { deleteAllData } = useAuth();
+  const { messages: m, isRTL } = useLanguage();
+  const p = m.profile.data;
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
@@ -34,11 +37,11 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
             <AppIcon name="download" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Export this month as CSV</span>
+          <span className="text-sm font-medium text-on-surface">{p.exportThisMonth}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
       <button
@@ -50,11 +53,11 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
             <AppIcon name="upload_file" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Import CSV</span>
+          <span className="text-sm font-medium text-on-surface">{p.importCsv}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
       <button
@@ -66,11 +69,11 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-error/10 transition-colors group-hover:bg-error/20">
             <AppIcon name="delete_forever" className="text-[20px] text-error" />
           </span>
-          <span className="text-sm font-medium text-error">Delete All Data</span>
+          <span className="text-sm font-medium text-error">{p.deleteAllData}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-error/70 transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-error/70 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
 
@@ -80,9 +83,9 @@ export function DataPanel() {
         onConfirm={async () => {
           await deleteAllData();
         }}
-        title="Delete All Data"
-        message="This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
-        confirmLabel="Delete All Data"
+        title={p.deleteAllData}
+        message={p.deleteAllDataMessage}
+        confirmLabel={p.deleteAllData}
         isDestructive
       />
     </section>

@@ -19,9 +19,17 @@ import {
   resolveStrategy,
 } from '../../lib/store';
 import { saveMonthBudget } from '../../lib/db';
-import { formatDayOfMonth, getCurrentMonthKey } from '../../lib/utils';
+import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
+import { useLanguage } from '@/lib/i18n-context';
+import {
+  formatLocalizedDayOfMonth,
+  localizeBillCategory,
+  localizeCategoryName,
+  localizeDefaultBillName,
+  localizeStrategy,
+} from '@/lib/localized-labels';
 
 interface CategoryItem {
   name: string;
@@ -42,8 +50,10 @@ const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { messages: m, t, translate, language, intlLocale, isRTL } = useLanguage();
   const { user, profile, updateProfileData } = useAuth();
   const { currency, setCurrency, symbol, format } = useCurrency();
+  const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
 
   const [step, setStep] = useState<number>(1);
   const [income, setIncome] = useState<string>('15000');
@@ -108,6 +118,7 @@ export default function OnboardingPage() {
   const customSplitTotal = customSplit.needs + customSplit.wants + customSplit.savings;
   const isCustomSplitValid = customSplitTotal === 100;
   const activeStrategy = resolveStrategy(selectedStrategy, customRatios);
+  const activeStrategyCopy = localizeStrategy(activeStrategy.id, m);
   const envelopes = calculateEnvelopeAmounts(
     parsedIncome,
     selectedStrategy,
@@ -137,7 +148,7 @@ export default function OnboardingPage() {
   const handleStep1Continue = () => {
     setIncomeError('');
     if (parsedIncome <= 0) {
-      setIncomeError('Please enter a valid monthly income greater than 0.');
+      setIncomeError(m.onboarding.incomeError);
       return;
     }
     setStep(2);
@@ -269,15 +280,15 @@ export default function OnboardingPage() {
             type="button"
             onClick={handleBack}
             className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-all active:scale-95 cursor-pointer"
-            aria-label="Back"
+            aria-label={m.common.back}
           >
-            <AppIcon name="arrow_back" className=" text-[22px]" />
+            <AppIcon name={isRTL ? 'arrow_forward' : 'arrow_back'} className=" text-[22px]" />
           </button>
 
           <span className="flex items-center gap-2">
             <Image
               src="/logo.png"
-              alt="SmartJib logo"
+              alt={m.common.appName}
               width={30}
               height={30}
               className="object-contain"
@@ -286,24 +297,16 @@ export default function OnboardingPage() {
             <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">SmartJib</span>
           </span>
 
-          <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-right">
-            {step === 1
-              ? '1/5'
-              : step === 2
-              ? '2/5'
-              : step === 3
-              ? '3/5'
-              : step === 4
-              ? '4/5'
-              : '5/5'}
+          <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-end">
+            {new Intl.NumberFormat(intlLocale).format(step)}/{new Intl.NumberFormat(intlLocale).format(5)}
           </span>
         </div>
 
         {/* Step Progress Bar */}
         <div className="flex flex-col gap-1 mb-6">
           <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
-            <span>STEP {step} OF 5</span>
-            <span>{step * 20}%</span>
+            <span>{t(m.common.step, { current: new Intl.NumberFormat(intlLocale).format(step), total: new Intl.NumberFormat(intlLocale).format(5) })}</span>
+            <span>{new Intl.NumberFormat(intlLocale).format(step * 20)}%</span>
           </div>
           <div className="w-full h-2 bg-surface-variant/80 rounded-full overflow-hidden">
             <div
@@ -324,15 +327,15 @@ export default function OnboardingPage() {
           >
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
-                What is your monthly income?
+                {m.onboarding.step1Title}
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                We use this to set up your baseline budget and recommend saving goals.
+                {m.onboarding.step1Subtitle}
               </p>
             </div>
 
             <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
-              <label className="text-[13px] font-bold text-on-surface-variant">Average Monthly Income</label>
+              <label className="text-[13px] font-bold text-on-surface-variant">{m.onboarding.averageMonthlyIncome}</label>
 
               <div className="flex items-center justify-between p-3.5 bg-surface border border-outline-variant/90 rounded-2xl gap-3">
                 {/* Currency Dropdown */}
@@ -357,7 +360,7 @@ export default function OnboardingPage() {
                     if (incomeError) setIncomeError('');
                   }}
                   placeholder="0.00"
-                  className="text-[32px] sm:text-[36px] font-extrabold text-on-surface text-right bg-transparent outline-none w-full ml-2"
+                  className="text-[32px] sm:text-[36px] font-extrabold text-on-surface text-end bg-transparent outline-none w-full ms-2"
                 />
               </div>
 
@@ -383,7 +386,7 @@ export default function OnboardingPage() {
                         : 'border-outline-variant text-on-surface-variant hover:border-slate-300'
                     }`}
                   >
-                    {Number(amt).toLocaleString()}
+                    {Number(amt).toLocaleString(intlLocale)}
                   </button>
                 ))}
               </div>
@@ -393,19 +396,19 @@ export default function OnboardingPage() {
             <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-bold text-on-surface-variant">
-                  Monthly start date <span className="font-medium">(optional)</span>
+                  {m.onboarding.monthlyStartDate} <span className="font-medium">({m.common.optional})</span>
                 </label>
                 <p className="text-[12px] font-medium text-on-surface-variant">
-                  Pick the day your salary arrives each month — your budget month will start then.
+                  {m.onboarding.monthlyStartDescription}
                 </p>
               </div>
               <MonthDayPicker
                 value={monthStartDate}
                 onChange={setMonthStartDate}
-                label="Salary day"
+                label={m.onboarding.salaryDay}
                 hint={
                   monthStartDate
-                    ? `Your budget month starts on the ${formatDayOfMonth(monthStartDate)} of each month.`
+                    ? t(m.onboarding.monthlyStartHint, { day: localizedDay(monthStartDate) })
                     : undefined
                 }
               />
@@ -415,8 +418,8 @@ export default function OnboardingPage() {
               type="submit"
               className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
             >
-              <span>Continue</span>
-              <AppIcon name="arrow_forward" className=" text-[20px]" />
+              <span>{m.common.continue}</span>
+              <AppIcon name={isRTL ? 'arrow_back' : 'arrow_forward'} className=" text-[20px]" />
             </button>
           </form>
         )}
@@ -426,22 +429,25 @@ export default function OnboardingPage() {
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
-                Select your budget categories
+                {m.onboarding.step2Title}
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                Choose the main areas where you spend your money to tailor your dashboard.
+                {m.onboarding.step2Subtitle}
               </p>
             </div>
 
             {/* Grid of Categories */}
-            <div className="grid grid-cols-2 gap-3 max-h-[340px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3 max-h-[340px] overflow-y-auto pe-1">
               {allCategories.map((cat) => {
                 const selected = selectedCategoryNames.includes(cat.name);
                 return (
-                  <div
+                  <button
                     key={cat.name}
+                    type="button"
+                    aria-pressed={selected}
+                    aria-label={localizeCategoryName(cat.name, m)}
                     onClick={() => toggleCategory(cat.name)}
-                    className={`p-3.5 rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
+                    className={`p-3.5 text-start rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                       selected
                         ? 'bg-primary-container border-2 border-primary shadow-2xs'
                         : 'bg-surface border-outline-variant hover:bg-surface-container-low'
@@ -454,14 +460,14 @@ export default function OnboardingPage() {
                       />
                       <AppIcon name={cat.icon} className=" text-[20px] text-on-surface-variant shrink-0" />
                       <span className="text-[15px] font-bold text-on-surface truncate">
-                        {cat.name}
+                        {localizeCategoryName(cat.name, m)}
                       </span>
                     </div>
 
                     {selected && (
-                      <AppIcon name="check_circle" className=" text-primary text-[20px] shrink-0 ml-1" />
+                      <AppIcon name="check_circle" className=" text-primary text-[20px] shrink-0 ms-1" />
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -480,7 +486,7 @@ export default function OnboardingPage() {
                     type="text"
                     value={customCatName}
                     onChange={(e) => setCustomCatName(e.target.value)}
-                    placeholder="Category Name (e.g. Gym)"
+                    placeholder={m.onboarding.categoryNamePlaceholder}
                     className="flex-1 px-3 py-2 text-[14px] font-bold text-on-surface bg-surface-container-low border border-outline-variant rounded-xl outline-none focus:border-primary"
                     autoFocus
                   />
@@ -488,17 +494,19 @@ export default function OnboardingPage() {
                     type="submit"
                     className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-[13px] hover:bg-primary cursor-pointer shrink-0"
                   >
-                    Add
+                    {m.common.add}
                   </button>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">Pick an Icon</span>
+                  <span className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">{m.onboarding.chooseIcon}</span>
                   <div className="grid grid-cols-8 gap-1">
                     {CUSTOM_ICONS.map((ic) => (
                       <button
                         key={ic}
                         type="button"
                         onClick={() => setCustomCatIcon(ic)}
+                        aria-label={translate(`iconPicker.choices.${ic}`)}
+                        title={translate(`iconPicker.choices.${ic}`)}
                         className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${
                           customCatIcon === ic
                             ? 'bg-primary text-white'
@@ -518,7 +526,7 @@ export default function OnboardingPage() {
                 className="text-primary font-bold text-[15px] hover:underline flex items-center justify-center gap-1 my-1 cursor-pointer"
               >
                 <AppIcon name="add" className=" text-[18px]" />
-                <span>Add Custom Category</span>
+                <span>{m.onboarding.addCustomCategory}</span>
               </button>
             )}
 
@@ -528,14 +536,14 @@ export default function OnboardingPage() {
                 onClick={() => setStep(3)}
                 className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
               >
-                Continue
+                {m.common.continue}
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
                 className="text-on-surface-variant font-semibold text-[14px] hover:text-on-surface transition-all text-center py-1 cursor-pointer"
               >
-                Skip for now
+                {m.onboarding.skipForNow}
               </button>
             </div>
           </div>
@@ -546,10 +554,10 @@ export default function OnboardingPage() {
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
-                Add your monthly bills
+                {m.onboarding.step3Title}
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                Enter recurring expenses like rent, utilities, and subscriptions.
+                {m.onboarding.step3Subtitle}
               </p>
             </div>
 
@@ -562,19 +570,19 @@ export default function OnboardingPage() {
               className="bg-background p-4 sm:p-5 rounded-[24px] border border-outline-variant flex flex-col gap-3"
             >
               <div className="flex flex-col gap-1">
-                <label className="text-[13px] font-bold text-on-surface-variant">Bill Name</label>
+                <label className="text-[13px] font-bold text-on-surface-variant">{m.onboarding.billName}</label>
                 <input
                   type="text"
                   value={newBillName}
                   onChange={(e) => setNewBillName(e.target.value)}
-                  placeholder="e.g. Rent, Netflix, Electricity"
+                  placeholder={m.onboarding.billNamePlaceholder}
                   className="p-3 bg-surface border border-outline-variant rounded-xl text-[14px] font-medium text-on-surface outline-none focus:border-primary"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-bold text-on-surface-variant">Amount</label>
+                  <label className="text-[13px] font-bold text-on-surface-variant">{m.onboarding.billAmount}</label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -586,24 +594,24 @@ export default function OnboardingPage() {
                 </div>
 
                 <CustomSelect
-                  label="Category"
+                  label={m.onboarding.billCategory}
                   value={newBillCategory}
                   onChange={setNewBillCategory}
                   options={[
-                    { value: 'Housing', label: 'Housing / Rent' },
-                    { value: 'Utilities', label: 'Utilities' },
-                    { value: 'Internet & Phone', label: 'Internet & Phone' },
-                    { value: 'Subscriptions', label: 'Subscriptions' },
-                    { value: 'Insurance', label: 'Insurance' },
-                    { value: 'Transport', label: 'Transport / Fuel' },
-                    { value: 'Food & Groceries', label: 'Food & Groceries' },
-                    { value: 'Health', label: 'Health / Medical' },
-                    { value: 'Education', label: 'Education' },
-                    { value: 'Childcare', label: 'Childcare' },
-                    { value: 'Entertainment', label: 'Entertainment' },
-                    { value: 'Loans', label: 'Loans / Debt' },
-                    { value: 'Savings', label: 'Savings / Investment' },
-                    { value: 'Other', label: 'Other' },
+                    { value: 'Housing', label: m.onboarding.billCategoryOptions.housing },
+                    { value: 'Utilities', label: m.onboarding.billCategoryOptions.utilities },
+                    { value: 'Internet & Phone', label: m.onboarding.billCategoryOptions.internetPhone },
+                    { value: 'Subscriptions', label: m.onboarding.billCategoryOptions.subscriptions },
+                    { value: 'Insurance', label: m.onboarding.billCategoryOptions.insurance },
+                    { value: 'Transport', label: m.onboarding.billCategoryOptions.transport },
+                    { value: 'Food & Groceries', label: m.onboarding.billCategoryOptions.foodGroceries },
+                    { value: 'Health', label: m.onboarding.billCategoryOptions.health },
+                    { value: 'Education', label: m.onboarding.billCategoryOptions.education },
+                    { value: 'Childcare', label: m.onboarding.billCategoryOptions.childcare },
+                    { value: 'Entertainment', label: m.onboarding.billCategoryOptions.entertainment },
+                    { value: 'Loans', label: m.onboarding.billCategoryOptions.loans },
+                    { value: 'Savings', label: m.onboarding.billCategoryOptions.savings },
+                    { value: 'Other', label: m.onboarding.billCategoryOptions.other },
                   ]}
                 />
               </div>
@@ -613,14 +621,14 @@ export default function OnboardingPage() {
                 className="w-full py-3 bg-primary-container hover:bg-primary-container text-primary font-bold rounded-xl text-[14px] flex items-center justify-center gap-1 transition-all mt-1 cursor-pointer"
               >
                 <AppIcon name="add" className=" text-[18px]" />
-                <span>Add Bill</span>
+                <span>{m.onboarding.addBill}</span>
               </button>
             </form>
 
             {/* Added Bills List */}
             {bills.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h3 className="text-[17px] font-extrabold text-on-surface">Added Bills</h3>
+                <h3 className="text-[17px] font-extrabold text-on-surface">{m.onboarding.addedBills}</h3>
                 <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto">
                   {bills.map((b, idx) => (
                     <div
@@ -645,17 +653,17 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
   'Savings':            { icon: 'savings',           bg: 'bg-[#0f766e]/10', text: 'text-[#0f766e]' }, // shares Housing's hue — both "asset-building"
   'Other':              { icon: 'category',          bg: 'bg-[#3d4947]/10', text: 'text-[#3d4947]' }, // app --on-surface-variant
 };
-                          const m = billIconMap[b.category] || billIconMap['Other'];
+                          const tone = billIconMap[b.category] || billIconMap['Other'];
                           return (
-                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${m.bg} ${m.text}`}>
-                              <AppIcon name={m.icon} className=" text-[20px]" />
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${tone.bg} ${tone.text}`}>
+                              <AppIcon name={tone.icon} className=" text-[20px]" />
                             </div>
                           );
                         })()}
                         <div className="flex flex-col">
-                          <span className="text-[15px] font-bold text-on-surface">{b.name}</span>
+                          <span className="text-[15px] font-bold text-on-surface">{localizeDefaultBillName(b.name, m)}</span>
                           <span className="text-[12px] font-medium text-on-surface-variant">
-                            • {b.category}
+                            • {localizeBillCategory(b.category, m)}
                           </span>
                         </div>
                       </div>
@@ -667,6 +675,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         <button
                           type="button"
                           onClick={() => handleRemoveBill(idx)}
+                          aria-label={t(m.onboarding.removeBill, { name: localizeDefaultBillName(b.name, m) })}
                           className="text-on-surface-variant/60 hover:text-red-500 p-1 cursor-pointer"
                         >
                           <AppIcon name="close" className=" text-[18px]" />
@@ -678,7 +687,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                 {/* Total Fixed Bills summary card */}
                 <div className="p-4 bg-background border border-outline-variant rounded-2xl flex justify-between items-center mt-1">
-                  <span className="text-[15px] font-bold text-on-surface-variant">Total Fixed Bills</span>
+                  <span className="text-[15px] font-bold text-on-surface-variant">{m.onboarding.totalBills}</span>
                   <span className="text-[18px] font-extrabold text-on-surface font-mono">
                     {format(totalBills)}
                   </span>
@@ -692,14 +701,14 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 onClick={() => setStep(4)}
                 className="text-on-surface-variant font-semibold text-[14px] hover:text-on-surface transition-all px-4 py-3 cursor-pointer"
               >
-                Skip for now
+                {m.onboarding.skipForNow}
               </button>
               <button
                 type="button"
                 onClick={handleStep3Continue}
                 className="flex-1 py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
               >
-                Continue
+                {m.common.continue}
               </button>
             </div>
           </div>
@@ -710,16 +719,17 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
-                Choose your strategy
+                {m.onboarding.step4Title}
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                Select a foundation for your financial goals. You can always adjust this later.
+                {t(m.onboarding.step4Subtitle, { income: format(parsedIncome) })}
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 max-h-[380px] overflow-y-auto pr-1">
+            <div className="flex flex-col gap-3 max-h-[380px] overflow-y-auto pe-1">
               {Object.values(STRATEGIES).map((strat) => {
                 const selected = selectedStrategy === strat.id;
+                const strategyCopy = localizeStrategy(strat.id, m);
 
                 return (
                   <div
@@ -733,9 +743,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-[17px] font-extrabold text-on-surface">{strat.name}</h3>
+                        <h3 className="text-[17px] font-extrabold text-on-surface">{strategyCopy.name}</h3>
                         <p className="text-[13px] font-medium text-on-surface-variant mt-0.5 leading-snug">
-                          {strat.description}
+                          {strategyCopy.description}
                         </p>
                       </div>
 
@@ -758,9 +768,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                           <div className="h-full bg-surface-variant" style={{ width: '20%' }} />
                         </div>
                         <div className="flex justify-between text-[11px] font-extrabold uppercase text-on-surface-variant">
-                          <span>Needs</span>
-                          <span>Wants</span>
-                          <span>Save</span>
+                          <span>{m.onboarding.needs}</span>
+                          <span>{m.onboarding.wants}</span>
+                          <span>{m.onboarding.savings}</span>
                         </div>
                       </div>
                     )}
@@ -774,7 +784,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                           <div className="h-full flex-1 bg-primary rounded-sm" />
                         </div>
                         <span className="text-[12px] font-bold text-on-surface-variant text-center">
-                          Every dollar allocated ({format(0)} left)
+                          {t(m.onboarding.everyDollarAllocated, { amount: format(0) })}
                         </span>
                       </div>
                     )}
@@ -782,13 +792,13 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     {strat.id === 'envelope' && (
                       <div className="flex gap-2 pt-1">
                         <div className="flex-1 py-1 bg-primary-container rounded-lg border border-primary/20 text-center text-[11px] font-bold text-primary">
-                          Needs
+                          {m.onboarding.needs}
                         </div>
                         <div className="flex-1 py-1 bg-amber-50 rounded-lg border border-amber-200 text-center text-[11px] font-bold text-amber-800">
-                          Wants
+                          {m.onboarding.wants}
                         </div>
                         <div className="flex-1 py-1 bg-surface-container rounded-lg border border-outline-variant text-center text-[11px] font-bold text-on-surface-variant">
-                          Savings
+                          {m.onboarding.savings}
                         </div>
                       </div>
                     )}
@@ -800,8 +810,8 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                           <div className="h-full bg-surface-variant" style={{ width: '70%' }} />
                         </div>
                         <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
-                          <span className="text-primary">Save First</span>
-                          <span>Spend the rest</span>
+                          <span className="text-primary">{m.onboarding.saveFirst}</span>
+                          <span>{m.onboarding.spendTheRest}</span>
                         </div>
                       </div>
                     )}
@@ -821,9 +831,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         {selected ? (
                           <>
                             {([
-                              { key: 'needs' as const, label: 'Needs', dot: 'bg-primary' },
-                              { key: 'wants' as const, label: 'Wants', dot: 'bg-tertiary' },
-                              { key: 'savings' as const, label: 'Savings', dot: 'bg-surface-variant' },
+                              { key: 'needs' as const, label: m.onboarding.needs, dot: 'bg-primary' },
+                              { key: 'wants' as const, label: m.onboarding.wants, dot: 'bg-tertiary' },
+                              { key: 'savings' as const, label: m.onboarding.savings, dot: 'bg-surface-variant' },
                             ]).map(({ key, label, dot }) => (
                               <div key={key} className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between">
@@ -838,8 +848,8 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                                       max={100}
                                       value={customSplit[key]}
                                       onChange={(e) => handleCustomSplitChange(key, Number(e.target.value))}
-                                      aria-label={`${label} percentage`}
-                                      className="w-16 rounded-lg border border-outline-variant bg-surface px-2 py-1 text-right text-[13px] font-bold text-on-surface tabular-nums outline-none focus:border-primary"
+                                      aria-label={t(m.strategySelector.percentage, { label })}
+                                      className="w-16 rounded-lg border border-outline-variant bg-surface px-2 py-1 text-end text-[13px] font-bold text-on-surface tabular-nums outline-none focus:border-primary"
                                     />
                                     <span className="text-[12px] font-bold text-on-surface-variant">%</span>
                                   </span>
@@ -851,7 +861,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                                   step={1}
                                   value={customSplit[key]}
                                   onChange={(e) => handleCustomSplitChange(key, Number(e.target.value))}
-                                  aria-label={`${label} slider`}
+                                  aria-label={t(m.strategySelector.slider, { label })}
                                   className="w-full cursor-pointer"
                                 />
                                 <span className="text-[11px] font-bold text-on-surface-variant tabular-nums">
@@ -862,15 +872,15 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                             {!isCustomSplitValid && (
                               <p role="alert" className="text-[11px] font-bold text-error">
-                                Needs, Wants and Savings must add up to exactly 100% (currently {customSplitTotal}%).
+                                {t(m.onboarding.customSplitInvalid, { percent: new Intl.NumberFormat(intlLocale).format(customSplitTotal) })}
                               </p>
                             )}
                           </>
                         ) : (
                           <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
-                            <span>{customSplit.needs}% Needs</span>
-                            <span>{customSplit.wants}% Wants</span>
-                            <span>{customSplit.savings}% Savings</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.needs), label: m.onboarding.needs })}</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.wants), label: m.onboarding.wants })}</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.savings), label: m.onboarding.savings })}</span>
                           </div>
                         )}
                       </div>
@@ -896,10 +906,10 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
-                Your Budget Overview
+                {m.onboarding.step5Title}
               </h2>
               <p className="text-[15px] font-medium text-on-surface-variant mt-1.5 max-w-sm mx-auto">
-                Here is your calculated monthly plan based on the {activeStrategy.name}.
+                {t(m.onboarding.step5Subtitle, { strategy: activeStrategyCopy.name })}
               </p>
             </div>
 
@@ -964,7 +974,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                 <div className="absolute flex flex-col items-center text-center px-2">
                   <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">
-                    MONTHLY
+                    {m.onboarding.monthly}
                   </span>
                   <span className="text-[16px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">
                     {format(parsedIncome)}
@@ -978,9 +988,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                   <div className="flex items-center gap-2.5">
                     <span className="w-3 h-3 rounded-full bg-primary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-on-surface">Fixed Needs</span>
+                      <span className="text-[14px] font-bold text-on-surface">{m.onboarding.fixedNeeds}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(activeStrategy.needsRatio * 100)}% of income
+                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.needsRatio * 100)) })}
                       </span>
                     </div>
                   </div>
@@ -993,9 +1003,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                   <div className="flex items-center gap-2.5">
                     <span className="w-3 h-3 rounded-full bg-tertiary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-on-surface">Variable Wants</span>
+                      <span className="text-[14px] font-bold text-on-surface">{m.onboarding.variableWants}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(activeStrategy.wantsRatio * 100)}% of income
+                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.wantsRatio * 100)) })}
                       </span>
                     </div>
                   </div>
@@ -1008,9 +1018,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                   <div className="flex items-center gap-2.5">
                     <span className="w-3 h-3 rounded-full bg-secondary" />
                     <div className="flex flex-col">
-                      <span className="text-[14px] font-bold text-on-surface">Future Savings</span>
+                      <span className="text-[14px] font-bold text-on-surface">{m.onboarding.futureSavings}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {Math.round(activeStrategy.savingsRatio * 100)}% of income
+                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.savingsRatio * 100)) })}
                       </span>
                     </div>
                   </div>
@@ -1028,7 +1038,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 disabled={isCompleting}
                 className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
               >
-                <span>{isCompleting ? 'Finishing setup...' : 'Confirm & Finish'}</span>
+                <span>{isCompleting ? m.onboarding.finishingSetup : m.onboarding.confirmAndFinish}</span>
                 {!isCompleting && (
                   <AppIcon name="check_circle" className=" text-[20px]" />
                 )}
@@ -1039,7 +1049,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 disabled={isCompleting}
                 className="text-primary font-bold text-[14px] hover:underline text-center py-1 cursor-pointer"
               >
-                Edit Allocation
+                {m.onboarding.editAllocation}
               </button>
             </div>
           </div>

@@ -252,20 +252,48 @@ function padStart(value: string, width: number): string {
  * Raw number formatting (toFixed(2)) on purpose — identical in every
  * locale, which matters for shared/copied bills.
  */
-export function renderBillText(session: CourseSession, opts?: { appName?: string }): string {
+export interface CourseBillTextLabels {
+  course?: string;
+  line?: string;
+  lines?: string;
+  item?: string;
+  items?: string;
+  total?: string;
+  paidFrom?: string;
+  place?: string;
+  locale?: string;
+  date?: string;
+}
+
+/**
+ * Deterministic plain-text bill for the Copy action. The default remains
+ * English for callers outside the interface; the UI supplies localized labels.
+ */
+export function renderBillText(
+  session: CourseSession,
+  opts?: { appName?: string; labels?: CourseBillTextLabels },
+): string {
   const appName = (opts?.appName ?? 'SMARTJIB').toUpperCase();
+  const labels = opts?.labels;
+  const unitCount = sessionUnits(session);
+  const lineLabel = session.items.length === 1 ? (labels?.line ?? 'line') : (labels?.lines ?? 'lines');
+  const itemLabel = unitCount === 1 ? (labels?.item ?? 'item') : (labels?.items ?? 'items');
+  const totalLabel = labels?.total ?? 'TOTAL';
+  const paidFrom = labels?.paidFrom ?? 'Paid from';
+  const place = labels?.place ?? session.place;
+  const number = new Intl.NumberFormat(labels?.locale);
   const lines = [
-    padStart(`${appName} — COURSE`, 46),
-    `${session.date} · ${session.items.length} line${session.items.length === 1 ? '' : 's'} · ${sessionUnits(session)} item${sessionUnits(session) === 1 ? '' : 's'} · ${session.currency}`,
+    padStart(`${appName} — ${labels?.course ?? 'COURSE'}`, 46),
+    `${labels?.date ?? session.date} · ${number.format(session.items.length)} ${lineLabel} · ${number.format(unitCount)} ${itemLabel} · ${session.currency}`,
     '-'.repeat(46),
     ...session.items.map((line) =>
       padEnd(line.name, 24) +
-      padStart(`${line.qty} × ${line.unitPrice.toFixed(2)}`, 14) +
+      padStart(`${number.format(line.qty)} × ${line.unitPrice.toFixed(2)}`, 14) +
       padStart(line.lineTotal.toFixed(2), 8),
     ),
     '-'.repeat(46),
-    padStart(`TOTAL (${sessionUnits(session)} items)`, 36) + padStart(session.total.toFixed(2), 10),
-    `Paid from: ${session.place}`,
+    padStart(`${totalLabel} (${number.format(unitCount)} ${itemLabel})`, 36) + padStart(session.total.toFixed(2), 10),
+    `${paidFrom}: ${place}`,
   ];
   return lines.join('\n');
 }

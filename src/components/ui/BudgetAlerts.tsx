@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useHousehold } from '@/lib/household-context';
 import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '@/lib/i18n-context';
+import { localizeCategoryName, localizeHouseholdRole } from '@/lib/localized-labels';
 
 interface BudgetAlertsProps {
   month: MonthBudget;
@@ -14,6 +16,7 @@ interface BudgetAlertsProps {
 
 export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
+  const { messages: m, t } = useLanguage();
   const { pendingInvites } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
   const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
@@ -28,28 +31,28 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
 
   if (needsRatio >= 100) {
     alerts.push({
-      title: 'Needs Envelope Exceeded',
-      message: `Spent ${format(needsSpent)} vs ${format(needsCap)} budget (${Math.round(needsRatio)}%).`,
+      title: m.alerts.needsExceeded,
+      message: t(m.alerts.spentVsBudget, { spent: format(needsSpent), budget: format(needsCap), percent: Math.round(needsRatio) }),
       severity: 'error',
     });
   } else if (needsRatio >= 80) {
     alerts.push({
-      title: 'Needs Envelope Alert',
-      message: `Spent ${format(needsSpent)} of ${format(needsCap)} budget (${Math.round(needsRatio)}%).`,
+      title: m.alerts.needsAlert,
+      message: t(m.alerts.spentOfBudget, { spent: format(needsSpent), budget: format(needsCap), percent: Math.round(needsRatio) }),
       severity: 'warning',
     });
   }
 
   if (wantsRatio >= 100) {
     alerts.push({
-      title: 'Wants Envelope Exceeded',
-      message: `Spent ${format(wantsSpent)} vs ${format(wantsCap)} budget (${Math.round(wantsRatio)}%).`,
+      title: m.alerts.wantsExceeded,
+      message: t(m.alerts.spentVsBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: Math.round(wantsRatio) }),
       severity: 'error',
     });
   } else if (wantsRatio >= 80) {
     alerts.push({
-      title: 'Wants Envelope Alert',
-      message: `Spent ${format(wantsSpent)} of ${format(wantsCap)} budget (${Math.round(wantsRatio)}%).`,
+      title: m.alerts.wantsAlert,
+      message: t(m.alerts.spentOfBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: Math.round(wantsRatio) }),
       severity: 'warning',
     });
   }
@@ -68,14 +71,14 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
 
     if (pct >= 100) {
       alerts.push({
-        title: `"${cat}" Budget Exceeded`,
-        message: `Spent ${format(spent)} vs ${format(budget)} budget (${Math.round(pct)}%).`,
+        title: t(m.alerts.categoryExceeded, { category: localizeCategoryName(cat, m) }),
+        message: t(m.alerts.spentVsBudget, { spent: format(spent), budget: format(budget), percent: Math.round(pct) }),
         severity: 'error',
       });
     } else if (pct >= 80) {
       alerts.push({
-        title: `"${cat}" Budget Alert`,
-        message: `Spent ${format(spent)} of ${format(budget)} budget (${Math.round(pct)}%).`,
+        title: t(m.alerts.categoryAlert, { category: localizeCategoryName(cat, m) }),
+        message: t(m.alerts.spentOfBudget, { spent: format(spent), budget: format(budget), percent: Math.round(pct) }),
         severity: 'warning',
       });
     }
@@ -100,32 +103,33 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
         type="button"
         onClick={openNotifications}
         className="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors"
-        aria-label={`View notifications (${alerts.length + pendingInvites.length})`}
+        aria-label={t(m.alerts.viewNotifications, { count: alerts.length + pendingInvites.length })}
       >
         <AppIcon name="notifications" className=" text-[24px]" />
         {hasUnreadNotifications && (
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error rounded-full animate-pulse" />
+          <span className="absolute top-1 end-1 w-2.5 h-2.5 bg-error rounded-full animate-pulse" />
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 w-80 bg-surface-container-high border border-outline-variant shadow-xl rounded-2xl p-md z-50 space-y-sm">
+        <div className="absolute end-0 top-12 w-80 bg-surface-container-high border border-outline-variant shadow-xl rounded-2xl p-md z-50 space-y-sm">
           <div className="flex justify-between items-center border-b border-outline-variant pb-2">
             <div className="flex items-center gap-xs">
               <AppIcon name="notifications" className=" text-primary text-[20px]" />
-              <h4 className="font-label-lg text-label-lg font-bold text-on-surface">Notifications</h4>
+              <h4 className="font-label-lg text-label-lg font-bold text-on-surface">{m.alerts.title}</h4>
             </div>
             <button
               onClick={() => setIsOpen(false)}
               className="text-on-surface-variant hover:text-on-surface text-[18px]"
+              aria-label={m.common.close}
             >
               ✕
             </button>
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Household invitations</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">Household invitation</span><span className="block text-xs text-on-surface-variant">Open to join as {invite.role}.</span></Link>)}</div>}
-            <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">Budget health</p>
+          <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
+            {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.householdInvitations}</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">{m.alerts.householdInvitation}</span><span className="block text-xs text-on-surface-variant">{t(m.alerts.openToJoinAs, { role: localizeHouseholdRole(invite.role, m) })}</span></Link>)}</div>}
+            <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.budgetHealth}</p>
             {alerts.length > 0 ? (
               alerts.map((a, idx) => (
                 <div
@@ -145,7 +149,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
               ))
             ) : (
               <p className="font-body-sm text-body-sm text-on-surface-variant p-2 text-center">
-                All budget envelopes are healthy! No overspending detected.
+                {m.alerts.allHealthy}
               </p>
             )}
           </div>

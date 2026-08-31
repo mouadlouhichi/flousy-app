@@ -120,8 +120,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <LightLanguageProvider>
           {children}
+          <InstallBanner />
         </LightLanguageProvider>
-        <InstallBanner />
         <ServiceWorkerRegistrar />
       </body>
     </html>
