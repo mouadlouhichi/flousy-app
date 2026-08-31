@@ -1,3 +1,5 @@
+const plugin = require("tailwindcss/plugin");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
@@ -6,6 +8,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["InstrumentSans-400"],
+        display: ["InstrumentSerif-400"],
         medium: ["InstrumentSans-500"],
         semibold: ["InstrumentSans-600"],
         bold: ["InstrumentSans-700"],
@@ -18,5 +21,18 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Android needs a dedicated TTF per weight — fontWeight alone stays on Regular.
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        ".font-normal": { fontFamily: "InstrumentSans-400", fontWeight: "400" },
+        ".font-medium": { fontFamily: "InstrumentSans-500", fontWeight: "400" },
+        ".font-semibold": { fontFamily: "InstrumentSans-600", fontWeight: "400" },
+        ".font-bold": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
+        ".font-extrabold": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
+        ".font-black": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
+        ".font-display": { fontFamily: "InstrumentSerif-400", fontWeight: "400" },
+      });
+    }),
+  ],
 };

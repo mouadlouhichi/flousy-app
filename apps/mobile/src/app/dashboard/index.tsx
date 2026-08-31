@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -45,8 +45,8 @@ import { ExpenseModal } from '../../components/ExpenseModal';
 import { FixedModal } from '../../components/FixedModal';
 import { SavingsGoalModal } from '../../components/SavingsModal';
 import { EditBalancesModal } from '../../components/EditBalancesModal';
-import { QuickAddFab } from '../../components/QuickAddFab';
 import { formatMoney } from '../../lib/format-money';
+import { useQuickActionHandler } from '../../lib/quick-actions';
 
 const TEAL = '#026462';
 const PLACE_STYLE: Record<string, { bg: string; accent: string; Icon: typeof Landmark }> = {
@@ -80,6 +80,17 @@ export default function DashboardOverviewScreen() {
   const [moveFrom, setMoveFrom] = useState<MoneyPlace | undefined>();
 
   useBudgetNotifications(month, currency);
+
+  const onQuickAction = useCallback(
+    (id: 'expense' | 'charge' | 'savings' | 'courses') => {
+      if (id === 'courses') router.push('/dashboard/courses');
+      else if (id === 'expense' && canEditArea('expenses')) setExpenseVisible(true);
+      else if (id === 'charge' && canEditArea('fixedBills')) setFixedVisible(true);
+      else if (id === 'savings' && canEditArea('savings')) setSavingsVisible(true);
+    },
+    [router, canEditArea],
+  );
+  useQuickActionHandler(onQuickAction);
 
   const activity = useMemo(() => {
     if (!month) return [];
@@ -145,7 +156,7 @@ export default function DashboardOverviewScreen() {
 
   return (
     <View className="flex-1 bg-[#F5FAF8]">
-      <ScrollView contentContainerStyle={{ paddingBottom: 28 }} className="px-4 pt-2">
+      <ScrollView contentContainerStyle={{ paddingBottom: 48 }} className="px-4 pt-2">
         {user && !user.emailVerified && !demoMode ? (
           <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-amber-300 bg-amber-50 p-3.5">
             <View className="mr-2 flex-1">
@@ -252,25 +263,23 @@ export default function DashboardOverviewScreen() {
           <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
             Total monthly budget
           </Text>
-          <View className="mb-3 flex-row items-center">
-            <Text className="text-[28px] font-extrabold text-neutral-900">
-              {formatMoney(month.totalBudget)}
-            </Text>
-            <Text className="ml-1 text-sm font-bold text-neutral-400">{currency}</Text>
-          </View>
-          <View className="flex-row items-end justify-between">
-            <View>
+          <Text className="mt-1 text-[28px] leading-9 font-extrabold text-neutral-900">
+            {formatMoney(month.totalBudget)}
+            <Text className="text-sm font-bold text-neutral-400"> {currency}</Text>
+          </Text>
+          <View className="mt-4 flex-row items-center">
+            <View className="min-w-0 flex-1 pr-3">
               <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
                 Total cash on hand
               </Text>
-              <Text className="text-[22px] font-extrabold text-neutral-900">
-                {formatMoney(totalCash)}{' '}
-                <Text className="text-sm font-bold text-neutral-400">{currency}</Text>
+              <Text className="mt-1 text-[22px] leading-8 font-extrabold text-neutral-900" numberOfLines={1}>
+                {formatMoney(totalCash)}
+                <Text className="text-sm font-bold text-neutral-400"> {currency}</Text>
               </Text>
             </View>
             <Pressable
               onPress={() => setBalancesVisible(true)}
-              className="h-9 w-9 items-center justify-center rounded-full bg-[#E7F3F1]"
+              className="h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E7F3F1]"
             >
               <Pencil size={16} color={TEAL} />
             </Pressable>

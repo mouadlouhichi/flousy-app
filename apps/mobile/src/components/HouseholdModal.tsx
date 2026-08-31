@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Sheet } from './Sheet';
 import {
   type HouseholdMember,
   type HouseholdInvoice,
@@ -167,8 +168,7 @@ export function HouseholdModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/50">
+    <Sheet visible={visible} onClose={onClose}>
         <View className="bg-white dark:bg-neutral-900 rounded-t-3xl p-6 max-h-[90%]">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-xl font-bold text-neutral-900 dark:text-white">Household</Text>
@@ -299,7 +299,6 @@ export function HouseholdModal({
             )}
           </ScrollView>
         </View>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }

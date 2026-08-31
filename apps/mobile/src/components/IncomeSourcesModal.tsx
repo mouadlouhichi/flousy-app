@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { Sheet } from './Sheet';
 import { type IncomeSource, type MonthBudget } from '@flousy/core';
 
 interface IncomeSourcesModalProps {
@@ -104,11 +105,7 @@ export function IncomeSourcesModal({
   const totalIncome = sources.reduce((acc, s) => acc + s.amount, 0);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 justify-end bg-black/50"
-      >
+    <Sheet visible={visible} onClose={onClose}>
         <View className="bg-white dark:bg-neutral-900 rounded-t-3xl p-6 max-h-[85%]">
           <View className="flex-row justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4">
             <View>
@@ -178,7 +175,6 @@ export function IncomeSourcesModal({
             ))}
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </Sheet>
   );
 }

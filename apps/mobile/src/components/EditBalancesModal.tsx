@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Sheet } from './Sheet';
 import { X } from 'lucide-react-native';
 import { type MoneyPlaceConfig, type MonthBudget, getPlaceBalance } from '@flousy/core';
 import { formatMoney } from '../lib/format-money';
@@ -46,11 +47,7 @@ export function EditBalancesModal({
   }, 0);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 justify-end bg-black/40"
-      >
+    <Sheet visible={visible} onClose={onClose}>
         <View className="max-h-[92%] rounded-t-[28px] bg-[#F5FAF8] px-5 pb-8 pt-3">
           <View className="mb-4 h-1 w-10 self-center rounded-full bg-neutral-300" />
           <View className="mb-4 flex-row items-center justify-between">
@@ -125,7 +122,6 @@ export function EditBalancesModal({
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </Sheet>
   );
 }

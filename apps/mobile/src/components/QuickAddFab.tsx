@@ -1,45 +1,40 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, X, Wallet, Receipt, PiggyBank, ScanLine } from 'lucide-react-native';
+import { PlusCircle, X, Wallet, Receipt, PiggyBank, ScanLine } from 'lucide-react-native';
+import { emitQuickAction, type QuickActionId } from '../lib/quick-actions';
 
 const TEAL = '#026462';
 
-const ACTIONS = [
+const ACTIONS: { id: QuickActionId; label: string; Icon: typeof Wallet }[] = [
   { id: 'expense', label: 'Add Expense', Icon: Wallet },
   { id: 'charge', label: 'Add Fixed Charge', Icon: Receipt },
   { id: 'savings', label: 'Create Saving Goal', Icon: PiggyBank },
   { id: 'courses', label: 'Start course', Icon: ScanLine },
-] as const;
+];
 
-export function QuickAddFab({ onAction }: { onAction: (id: (typeof ACTIONS)[number]['id']) => void }) {
+/** Web: `fixed bottom-22 end-5` (88px from bottom, 20px from end). */
+export function QuickAddFab() {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
-  // Sit just above the floating pill (bar ~56px + 8px offset + safe area).
-  const bottom = Math.max(insets.bottom, 8) + 62;
+  const bottom = Math.max(insets.bottom, 12) + 56;
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={{ position: 'absolute', right: 18, bottom, alignItems: 'flex-end' }}
-    >
+    <View pointerEvents="box-none" style={{ position: 'absolute', right: 20, bottom, alignItems: 'flex-end', zIndex: 50 }}>
       {open
         ? ACTIONS.map((a) => (
             <Pressable
               key={a.id}
               onPress={() => {
                 setOpen(false);
-                onAction(a.id);
+                emitQuickAction(a.id);
               }}
               className="mb-2 flex-row items-center"
             >
-              <View className="mr-2 rounded-full border border-neutral-200 bg-white px-3 py-2.5">
+              <View className="mr-2 rounded-full border border-neutral-200 bg-white/95 px-3 py-2">
                 <Text className="text-sm font-semibold text-neutral-800">{a.label}</Text>
               </View>
-              <View
-                className="h-11 w-11 items-center justify-center rounded-full"
-                style={{ backgroundColor: TEAL }}
-              >
+              <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: TEAL }}>
                 <a.Icon size={18} color="#fff" />
               </View>
             </Pressable>
@@ -47,17 +42,18 @@ export function QuickAddFab({ onAction }: { onAction: (id: (typeof ACTIONS)[numb
         : null}
       <Pressable
         onPress={() => setOpen((v) => !v)}
+        accessibilityLabel="Open quick actions"
         className="h-14 w-14 items-center justify-center rounded-2xl"
         style={{
           backgroundColor: TEAL,
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 8,
+          shadowColor: '#00685f',
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 10,
         }}
       >
-        {open ? <X size={26} color="#fff" /> : <Plus size={28} color="#fff" />}
+        {open ? <X size={28} color="#fff" /> : <PlusCircle size={30} color="#fff" strokeWidth={2} />}
       </Pressable>
     </View>
   );

@@ -137,7 +137,7 @@ export default function LoginScreen() {
         >
           <View className="items-center mb-5">
             <AppLogo size={64} style={{ marginBottom: 8 }} />
-            <Text className="text-[32px] font-extrabold tracking-tight" style={{ color: TEAL }}>
+            <Text className="text-[32px] tracking-tight" style={{ color: TEAL, fontFamily: FONT.display }}>
               SmartJib
             </Text>
             <Text className="mt-1 text-center text-[15px] font-medium text-neutral-500">{subtitle}</Text>

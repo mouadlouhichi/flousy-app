@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { Landmark, Home, Wallet, ArrowUpDown, X } from 'lucide-react-native';
 import {
   type MoneyPlace,
@@ -140,7 +140,6 @@ export function MoveMoneyModal({
 
   return (
     <Sheet visible={visible} onClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="max-h-[92%] rounded-t-[28px] bg-[#F5FAF8] px-5 pb-8 pt-3">
           <View className="mb-3 h-1 w-10 self-center rounded-full bg-neutral-300" />
           <View className="mb-4 flex-row items-center justify-between">
@@ -212,35 +211,34 @@ export function MoveMoneyModal({
                 ))}
               </View>
             </View>
-
-            <View className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
-              <Text className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>
-                Preview after transfer
-              </Text>
-              <View className="mt-2 flex-row items-center justify-between">
-                <Text className="text-[13px] text-neutral-500">
-                  {places.find((p) => p.id === fromPlace)?.label}:
-                </Text>
-                <Text className="text-[13px] font-semibold text-neutral-800">
-                  {currency} {formatMoney(fromBal)} →{' '}
-                  <Text className="text-amber-800">
-                    {currency} {formatMoney(fromBal - actual)}
-                  </Text>
-                </Text>
-              </View>
-              <View className="mt-1 flex-row items-center justify-between">
-                <Text className="text-[13px] text-neutral-500">
-                  {places.find((p) => p.id === toPlace)?.label}:
-                </Text>
-                <Text className="text-[13px] font-semibold text-neutral-800">
-                  {currency} {formatMoney(toBal)} →{' '}
-                  <Text style={{ color: TEAL }}>
-                    {currency} {formatMoney(toBal + actual)}
-                  </Text>
-                </Text>
-              </View>
-            </View>
           </ScrollView>
+          <View className="mb-3 mt-2 rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+            <Text className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>
+              Preview after transfer
+            </Text>
+            <View className="mt-2 flex-row items-center justify-between">
+              <Text className="text-[13px] text-neutral-500">
+                {places.find((p) => p.id === fromPlace)?.label}:
+              </Text>
+              <Text className="text-[13px] font-semibold text-neutral-800">
+                {currency} {formatMoney(fromBal)} →{' '}
+                <Text className="text-amber-800">
+                  {currency} {formatMoney(fromBal - actual)}
+                </Text>
+              </Text>
+            </View>
+            <View className="mt-1 flex-row items-center justify-between">
+              <Text className="text-[13px] text-neutral-500">
+                {places.find((p) => p.id === toPlace)?.label}:
+              </Text>
+              <Text className="text-[13px] font-semibold text-neutral-800">
+                {currency} {formatMoney(toBal)} →{' '}
+                <Text style={{ color: TEAL }}>
+                  {currency} {formatMoney(toBal + actual)}
+                </Text>
+              </Text>
+            </View>
+          </View>
           <Pressable
             onPress={handleTransfer}
             disabled={loading}
@@ -253,7 +251,6 @@ export function MoveMoneyModal({
             </Text>
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
     </Sheet>
   );
 }

@@ -5,6 +5,7 @@ import {
   Text,
   Pressable,
 } from 'react-native';
+import { Sheet } from './Sheet';
 import { useColorScheme } from 'nativewind';
 import { storage } from '../lib/storage';
 
@@ -27,8 +28,7 @@ export function ThemeModal({ visible, onClose }: ThemeModalProps) {
   const currentScheme = colorScheme || 'system';
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/50">
+    <Sheet visible={visible} onClose={onClose}>
         <View className="bg-white dark:bg-neutral-900 rounded-t-3xl p-6">
           <View className="flex-row justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4 mb-4">
             <Text className="text-xl font-bold text-neutral-900 dark:text-white">
@@ -81,7 +81,6 @@ export function ThemeModal({ visible, onClose }: ThemeModalProps) {
             })}
           </View>
         </View>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }

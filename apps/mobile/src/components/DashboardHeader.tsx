@@ -5,6 +5,7 @@ import { Bell, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react-nati
 import { useMobileAuth } from '../lib/auth-context';
 import { useMobileStore } from '../lib/store-context';
 import { AppLogo } from './AppLogo';
+import { FONT } from '../lib/fonts';
 
 const TEAL = '#026462';
 
@@ -37,7 +38,7 @@ export function DashboardHeader() {
     <View className="flex-row items-center justify-between bg-[#F5FAF8] px-4 py-3">
       <View className="w-[108px] flex-row items-center gap-1.5">
         <AppLogo size={22} />
-        <Text className="text-[15px] font-extrabold tracking-tight" style={{ color: TEAL }}>
+        <Text className="text-[15px] tracking-tight" style={{ color: TEAL, fontFamily: FONT.display }}>
           SmartJib
         </Text>
       </View>
