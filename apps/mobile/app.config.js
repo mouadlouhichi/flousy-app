@@ -28,7 +28,7 @@ const config = {
   splash: {
     image: "./assets/splash.png",
     resizeMode: "contain",
-    backgroundColor: "#2ea44f",
+    backgroundColor: "#F5FAF8",
   },
 
   // ─── iOS ─────────────────────────────────────────────────────────
@@ -45,6 +45,11 @@ const config = {
   },
 
   // ─── Android ─────────────────────────────────────────────────────
+  androidStatusBar: {
+    backgroundColor: "#F5FAF8",
+    barStyle: "dark-content",
+  },
+
   android: {
     package: "com.luigiagentz.smartjib",
     versionCode: 1,
@@ -58,7 +63,7 @@ const config = {
     ],
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#2ea44f",
+      backgroundColor: "#F5FAF8",
     },
   },
 
@@ -80,7 +85,14 @@ const config = {
     ],
     "expo-local-authentication",
     "expo-font",
-    "expo-splash-screen",
+    [
+      "expo-splash-screen",
+      {
+        backgroundColor: "#F5FAF8",
+        image: "./assets/splash.png",
+        imageWidth: 180,
+      },
+    ],
     "expo-updates",
     [
       "@react-native-firebase/app",
