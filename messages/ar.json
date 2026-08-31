@@ -211,7 +211,8 @@
     "removeBill": "إزالة {name}",
     "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده.",
     "importPersonalTitle": "استيراد ميزانيتي الشخصية",
-    "importPersonalHint": "انسخ الأشهر والمصروفات وأهداف الادخار من مساحتك الخاصة إلى هذا المنزل."
+    "importPersonalHint": "انسخ الأشهر والمصروفات وأهداف الادخار من مساحتك الخاصة إلى هذا المنزل.",
+    "importPersonalLoading": "جارٍ نسخ ميزانيتك الشخصية…"
   },
   "dashboard": {
     "overview": "نظرة عامة",

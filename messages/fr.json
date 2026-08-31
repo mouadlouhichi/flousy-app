@@ -211,7 +211,8 @@
     "removeBill": "Retirer {name}",
     "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors.",
     "importPersonalTitle": "Importer mon budget personnel",
-    "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer."
+    "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer.",
+    "importPersonalLoading": "Copie de votre budget personnel…"
   },
   "dashboard": {
     "overview": "Aperçu",

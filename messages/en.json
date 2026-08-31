@@ -211,7 +211,8 @@
     "removeBill": "Remove {name}",
     "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then.",
     "importPersonalTitle": "Import my personal budget",
-    "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household."
+    "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household.",
+    "importPersonalLoading": "Copying your personal budget…"
   },
   "dashboard": {
     "overview": "Overview",

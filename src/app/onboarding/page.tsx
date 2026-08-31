@@ -19,7 +19,7 @@ import {
   normalizeCustomRatios,
   resolveStrategy,
 } from '../../lib/store';
-import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold, getMonthBudget } from '../../lib/db';
+import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -244,28 +244,34 @@ function OnboardingFlow() {
     try {
       if (householdId) {
         localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
-        const personalRaw = localStorage.getItem(`flousy_month_${monthKey}`);
-        if (personalRaw) {
-          localStorage.setItem(`flousy_household_${householdId}_month_${monthKey}`, personalRaw);
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const storageKey = localStorage.key(i);
+          if (!storageKey?.startsWith('flousy_month_')) continue;
+          const mk = storageKey.slice('flousy_month_'.length);
+          const raw = localStorage.getItem(storageKey);
+          if (raw) localStorage.setItem(`flousy_household_${householdId}_month_${mk}`, raw);
         }
       }
     } catch { /* ignore */ }
 
     if (user && householdId) {
       try {
-        await importPersonalBudgetIntoHousehold(user.uid, householdId);
-        const personal = await getMonthBudget(user.uid, monthKey);
-        if (!personal) {
-          try {
-            const local = localStorage.getItem(`flousy_month_${monthKey}`);
-            if (local) {
-              await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
-            }
-          } catch { /* ignore */ }
-        }
-        await markHouseholdOnboarded();
+        await Promise.race([
+          (async () => {
+            await importPersonalBudgetIntoHousehold(user.uid, householdId);
+            try {
+              const local = localStorage.getItem(`flousy_month_${monthKey}`);
+              if (local) {
+                await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
+              }
+            } catch { /* ignore */ }
+            await markHouseholdOnboarded();
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 6000)),
+        ]);
       } catch (e) {
         console.warn('Personal import skipped or failed:', e);
+        try { await markHouseholdOnboarded(); } catch { /* ignore */ }
       }
     }
     goDashboard();
@@ -363,11 +369,12 @@ function OnboardingFlow() {
           </span>
 
           <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-end">
-            {new Intl.NumberFormat(intlLocale).format(step)}/{new Intl.NumberFormat(intlLocale).format(5)}
+            {isImporting ? '' : `${new Intl.NumberFormat(intlLocale).format(step)}/${new Intl.NumberFormat(intlLocale).format(5)}`}
           </span>
         </div>
 
         {/* Step Progress Bar */}
+        {!isImporting && (
         <div className="flex flex-col gap-1 mb-6">
           <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
             <span>{t(m.common.step, { current: new Intl.NumberFormat(intlLocale).format(step), total: new Intl.NumberFormat(intlLocale).format(5) })}</span>
@@ -380,9 +387,21 @@ function OnboardingFlow() {
             />
           </div>
         </div>
+        )}
 
-        {/* STEP 1: Monthly Income */}
-        {step === 1 && (
+        {isImporting && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <AppIcon name="sync" className="animate-spin text-[28px] text-primary" />
+            </span>
+            <h2 className="text-[22px] font-extrabold text-on-surface">{m.onboarding.importPersonalLoading}</h2>
+            <p className="max-w-sm text-[14px] font-medium text-on-surface-variant">
+              {m.onboarding.importPersonalHint}
+            </p>
+          </div>
+        )}
+
+        {step === 1 && !isImporting && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -390,6 +409,22 @@ function OnboardingFlow() {
             }}
             className="flex flex-col gap-5"
           >
+            {isHouseholdScope && (
+              <button
+                type="button"
+                onClick={() => void handleImportPersonal()}
+                className="flex items-start gap-3 bg-primary/8 p-4 rounded-[20px] border-2 border-primary text-start"
+              >
+                <AppIcon name="file_copy" className="mt-0.5 text-[22px] text-primary shrink-0" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px] font-extrabold text-on-surface">
+                    {m.onboarding.importPersonalTitle}
+                  </span>
+                  <span className="text-[12px] font-medium text-on-surface-variant">{m.onboarding.importPersonalHint}</span>
+                </span>
+              </button>
+            )}
+
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 {m.onboarding.step1Title}
@@ -479,26 +514,10 @@ function OnboardingFlow() {
               />
             </div>
 
-            {isHouseholdScope && (
-              <button
-                type="button"
-                disabled={isImporting}
-                onClick={() => void handleImportPersonal()}
-                className="flex items-start gap-3 bg-background p-4 rounded-[20px] border border-outline-variant text-start disabled:opacity-50"
-              >
-                <AppIcon name="file_copy" className="mt-0.5 text-[20px] text-primary shrink-0" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-[14px] font-bold text-on-surface">
-                    {isImporting ? m.onboarding.finishingSetup : m.onboarding.importPersonalTitle}
-                  </span>
-                  <span className="text-[12px] font-medium text-on-surface-variant">{m.onboarding.importPersonalHint}</span>
-                </span>
-              </button>
-            )}
-
             <button
               type="submit"
-              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
+              disabled={isImporting}
+              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>{m.common.continue}</span>
               <AppIcon name={isRTL ? 'arrow_back' : 'arrow_forward'} className=" text-[20px]" />
@@ -507,7 +526,7 @@ function OnboardingFlow() {
         )}
 
         {/* STEP 2: Select Budget Categories */}
-        {step === 2 && (
+        {step === 2 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -632,7 +651,7 @@ function OnboardingFlow() {
         )}
 
         {/* STEP 3: Fixed Bills */}
-        {step === 3 && (
+        {step === 3 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -797,7 +816,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
         )}
 
         {/* STEP 4: Choose Strategy */}
-        {step === 4 && (
+        {step === 4 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -984,7 +1003,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
         )}
 
         {/* STEP 5: Budget Overview */}
-        {step === 5 && (
+        {step === 5 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">

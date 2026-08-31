@@ -186,13 +186,20 @@ export async function getSavingsGoals(uid: string): Promise<SavingGoal[]> {
 
 /** Copy every personal month and savings goals into a household workspace. */
 export async function importPersonalBudgetIntoHousehold(uid: string, householdId: string): Promise<void> {
-  const keys = await listMonths(uid);
-  for (const key of keys) {
-    const month = await getMonthBudget(uid, key);
-    if (month) await saveHouseholdMonthBudget(householdId, key, month);
+  if (!isFirebaseConfigured || !db) return;
+  const monthsSnap = await getDocs(collection(db, 'users', uid, 'months'));
+  const writes: Promise<unknown>[] = [];
+  for (const item of monthsSnap.docs) {
+    if (!/^\d{4}-\d{2}$/.test(item.id)) continue;
+    const month = normalizeMonth(item.data() as MonthBudget, item.id);
+    writes.push(saveHouseholdMonthBudget(householdId, item.id, month));
   }
-  const goals = await getSavingsGoals(uid);
-  if (goals.length > 0) await saveHouseholdSavingsGoals(householdId, goals);
+  writes.push(
+    getSavingsGoals(uid).then((goals) => {
+      if (goals.length > 0) return saveHouseholdSavingsGoals(householdId, goals);
+    }),
+  );
+  await Promise.all(writes);
 }
 
 export async function getMonthBudget(uid: string, monthKey: string): Promise<MonthBudget | null> {
