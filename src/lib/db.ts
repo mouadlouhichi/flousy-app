@@ -174,6 +174,27 @@ export async function saveSavingsGoals(uid: string, goals: SavingGoal[]): Promis
 /**
  * Fetch a single month budget once (non-subscription).
  */
+export async function getSavingsGoals(uid: string): Promise<SavingGoal[]> {
+  if (!isFirebaseConfigured || !db) return [];
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'data', 'savings'));
+    return snap.exists() ? (snap.data().goals || []) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Copy every personal month and savings goals into a household workspace. */
+export async function importPersonalBudgetIntoHousehold(uid: string, householdId: string): Promise<void> {
+  const keys = await listMonths(uid);
+  for (const key of keys) {
+    const month = await getMonthBudget(uid, key);
+    if (month) await saveHouseholdMonthBudget(householdId, key, month);
+  }
+  const goals = await getSavingsGoals(uid);
+  if (goals.length > 0) await saveHouseholdSavingsGoals(householdId, goals);
+}
+
 export async function getMonthBudget(uid: string, monthKey: string): Promise<MonthBudget | null> {
   if (!isFirebaseConfigured || !db) return null;
   try {

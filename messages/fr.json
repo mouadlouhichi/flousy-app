@@ -209,7 +209,9 @@
     "customSplitInvalid": "Les besoins, les envies et l’épargne doivent totaliser exactement {required} (actuellement {percent}).",
     "customSplitSummary": "{percent} {label}",
     "removeBill": "Retirer {name}",
-    "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors."
+    "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors.",
+    "importPersonalTitle": "Importer mon budget personnel",
+    "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer."
   },
   "dashboard": {
     "overview": "Aperçu",
@@ -1807,6 +1809,10 @@
     "savingsPrivateTitle": "L’épargne est privée",
     "savingsPrivateDescription": "Votre accès au foyer ne comprend pas les objectifs ni les soldes d’épargne.",
     "debtsPrivateTitle": "Les dettes sont privées",
-    "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits."
+    "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits.",
+    "copyCode": "Copier",
+    "copied": "Copié",
+    "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
+    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre."
   }
 }

@@ -209,7 +209,9 @@
     "customSplitInvalid": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {required} بالضبط (حالياً {percent}).",
     "customSplitSummary": "{percent} {label}",
     "removeBill": "إزالة {name}",
-    "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده."
+    "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده.",
+    "importPersonalTitle": "استيراد ميزانيتي الشخصية",
+    "importPersonalHint": "انسخ الأشهر والمصروفات وأهداف الادخار من مساحتك الخاصة إلى هذا المنزل."
   },
   "dashboard": {
     "overview": "نظرة عامة",
@@ -1807,6 +1809,10 @@
     "savingsPrivateTitle": "الادخار خاص",
     "savingsPrivateDescription": "لا يشمل وصولك إلى الأسرة أهداف الادخار أو الأرصدة.",
     "debtsPrivateTitle": "الديون خاصة",
-    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات."
+    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات.",
+    "copyCode": "نسخ",
+    "copied": "تم النسخ",
+    "inviteCodeReady": "تم إنشاء الدعوة. شارك الرمز أدناه إذا تعذر إرسال البريد.",
+    "inviteCodeHint": "يمكن لأي شخص لديه هذا الرمز الانضمام من المنزل ← انضمام."
   }
 }

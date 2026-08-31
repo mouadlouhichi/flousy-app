@@ -19,7 +19,7 @@ import {
   normalizeCustomRatios,
   resolveStrategy,
 } from '../../lib/store';
-import { saveMonthBudget, saveHouseholdMonthBudget } from '../../lib/db';
+import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold, getMonthBudget } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -122,6 +122,7 @@ function OnboardingFlow() {
 
   const [isCompleting, setIsCompleting] = useState(false);
   const [incomeError, setIncomeError] = useState('');
+  const [importPersonal, setImportPersonal] = useState(false);
 
   // Clean numeric string parsing for income (handles comma/formatting)
   const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
@@ -244,10 +245,18 @@ function OnboardingFlow() {
       selectedStrategy === 'custom' ? customRatios : undefined,
     );
 
+    const shouldImport = isHouseholdScope && importPersonal && !!user && !!householdId;
+
     // Save in localStorage immediately
     try {
       if (isHouseholdScope && householdId) {
         localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        if (shouldImport) {
+          const personalRaw = localStorage.getItem(`flousy_month_${monthKey}`);
+          if (personalRaw) {
+            localStorage.setItem(`flousy_household_${householdId}_month_${monthKey}`, personalRaw);
+          }
+        }
       } else {
         localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
         localStorage.setItem('flousy_onboarding_done', 'true');
@@ -257,17 +266,30 @@ function OnboardingFlow() {
       console.warn('LocalStorage save warning:', e);
     }
 
-    // Try saving to Firebase with a strict 2s timeout so navigation never hangs
     if (user) {
       try {
+        const timeoutMs = shouldImport ? 8000 : 2000;
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Firebase timeout')), 2000)
+          setTimeout(() => reject(new Error('Firebase timeout')), timeoutMs)
         );
         const dbPromise = isHouseholdScope && householdId
-          ? Promise.all([
-              saveHouseholdMonthBudget(householdId, monthKey, newMonth),
-              markHouseholdOnboarded(),
-            ])
+          ? (async () => {
+              if (shouldImport) {
+                await importPersonalBudgetIntoHousehold(user.uid, householdId);
+                const personal = await getMonthBudget(user.uid, monthKey);
+                if (!personal) {
+                  try {
+                    const local = localStorage.getItem(`flousy_month_${monthKey}`);
+                    if (local) {
+                      await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
+                    }
+                  } catch { /* ignore */ }
+                }
+              } else {
+                await saveHouseholdMonthBudget(householdId, monthKey, newMonth);
+              }
+              await markHouseholdOnboarded();
+            })()
           : Promise.all([
               saveMonthBudget(user.uid, monthKey, newMonth),
               updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
@@ -436,6 +458,21 @@ function OnboardingFlow() {
                 }
               />
             </div>
+
+            {isHouseholdScope && (
+              <label className="flex items-start gap-3 bg-background p-4 rounded-[20px] border border-outline-variant cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-primary"
+                  checked={importPersonal}
+                  onChange={(e) => setImportPersonal(e.target.checked)}
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-bold text-on-surface">{m.onboarding.importPersonalTitle}</span>
+                  <span className="text-[12px] font-medium text-on-surface-variant">{m.onboarding.importPersonalHint}</span>
+                </span>
+              </label>
+            )}
 
             <button
               type="submit"
@@ -1060,6 +1097,28 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 onClick={handleCompleteOnboarding}
                 disabled={isCompleting}
                 className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <span>{isCompleting ? m.onboarding.finishingSetup : m.onboarding.confirmAndFinish}</span>
+                {!isCompleting && (
+                  <AppIcon name="check_circle" className=" text-[20px]" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                disabled={isCompleting}
+                className="text-primary font-bold text-[14px] hover:underline text-center py-1 cursor-pointer"
+              >
+                {m.onboarding.editAllocation}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+g-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span>{isCompleting ? m.onboarding.finishingSetup : m.onboarding.confirmAndFinish}</span>
                 {!isCompleting && (
