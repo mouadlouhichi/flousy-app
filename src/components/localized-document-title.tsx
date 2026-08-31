@@ -11,10 +11,17 @@ import { useLightLanguage } from '@/lib/i18n-light';
  */
 export function LocalizedDocumentTitle() {
   const pathname = usePathname();
-  const { messages: m } = useLightLanguage();
+  const { messages: m, language } = useLightLanguage();
 
   useEffect(() => {
     if (!pathname || pathname.startsWith('/blog/')) return;
+
+    // Public/marketing pages are prerendered with a keyword-bearing <title>
+    // supplied by route metadata (landing keeps its own). Overwriting it with a
+    // localized label on hydration would drop those keywords for crawlers, so
+    // English sessions — for which the prerendered title is already correct —
+    // are left alone, and other locales get the same keyword-first shape.
+    if (pathname === '/' && language === 'en') return;
 
     const dashboardTitles: Record<string, string> = {
       '/dashboard': m.navigation.dashboardOverview,
@@ -36,7 +43,7 @@ export function LocalizedDocumentTitle() {
     const title =
       dashboardTitles[pathname] ??
       ({
-        '/': m.common.appName,
+        '/': m.seo.titles.landing ?? m.common.appName,
         '/about': m.static.about.eyebrow,
         '/help': m.static.help.eyebrow,
         '/careers': m.static.careers.eyebrow,
@@ -50,7 +57,7 @@ export function LocalizedDocumentTitle() {
       }[pathname] ?? m.common.appName);
 
     document.title = pathname === '/' ? title : `${title} · ${m.common.appName}`;
-  }, [m, pathname]);
+  }, [m, language, pathname]);
 
   return null;
 }

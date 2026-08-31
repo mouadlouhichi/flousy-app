@@ -67,11 +67,16 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
       }
     });
 
+    // Captured now rather than read in the cleanup: by the time this effect is
+    // disposed React may already have moved the node `triggerRef` points at, so
+    // reading `.current` there restores focus to the wrong element (or none).
+    const effectTrigger = triggerRef?.current;
+
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       // Restore focus to previously focused element on close
-      const restoreTarget = triggerRef?.current || previouslyFocusedRef.current;
+      const restoreTarget = effectTrigger || previouslyFocusedRef.current;
       if (restoreTarget && typeof restoreTarget.focus === 'function') {
         restoreTarget.focus();
       }

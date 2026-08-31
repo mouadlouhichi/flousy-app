@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -13,6 +13,9 @@ import { QuickActions } from './quick-actions';
 import { DashboardModals } from './dashboard-modals';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { useLanguage } from '@/lib/i18n-context';
+import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
+import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
+import { useAuth } from '@/lib/auth-context';
 
 /**
  * Instagram-style push transition: the incoming screen slides in from the
@@ -95,6 +98,125 @@ function EmailVerificationBanner() {
 }
 
 /**
+ * Demo mode used to be announced only on /login: once a visitor tapped through
+ * to the dashboard they browsed invented expenses with no reminder that nothing
+ * they typed belonged to an account — and no way out except the login page.
+ *
+ * `isDemoMode()` reads localStorage, so the value is unknown during prerender;
+ * showing it from the first client render would hydrate a banner the server
+ * never emitted. It is therefore applied after mount.
+ */
+function DemoModeBanner() {
+  const { messages: m } = useLanguage();
+  const router = useRouter();
+  const [demo, setDemo] = useState(false);
+
+  useEffect(() => {
+    setDemo(isDemoMode());
+  }, []);
+
+  if (!demo) return null;
+
+  return (
+    <div className="bg-surface-container-highest text-on-surface px-margin-mobile py-2.5 flex items-center justify-between gap-3 font-label-md text-label-md">
+      <div className="flex min-w-0 items-center gap-xs">
+        <AppIcon name="science" className="text-[20px] shrink-0" />
+        <span className="truncate">{m.auth.demoActiveHint}</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          exitDemoMode();
+          router.replace('/login');
+        }}
+        className="font-bold underline ms-xs shrink-0 hover:opacity-80"
+      >
+        {m.auth.demoExit}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Firebase Analytics used to initialise on the first tracked event, i.e. before
+ * anyone had been asked — while /cookies promises analytics are "off unless
+ * you've agreed to them". The choice is now collected here, remembered on the
+ * device, and `trackEvent` refuses to load or send anything until it says
+ * "granted". Unanswered means unanswered: nothing is measured.
+ */
+function AnalyticsConsentPrompt() {
+  const { messages: m } = useLanguage();
+  const [answered, setAnswered] = useState(true);
+
+  useEffect(() => {
+    setAnswered(hasAnsweredAnalyticsConsent());
+  }, []);
+
+  if (answered) return null;
+
+  const choose = (granted: boolean) => {
+    setAnalyticsConsent(granted);
+    setAnswered(true);
+  };
+
+  return (
+    <div
+      role="region"
+      aria-label={m.consent.title}
+      className="bg-surface-container-high text-on-surface px-margin-mobile py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="min-w-0">
+        <p className="font-label-md text-label-md font-bold">{m.consent.title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-on-surface-variant">{m.consent.body}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={() => choose(false)}
+          className="rounded-full border border-outline-variant px-3 py-1.5 text-xs font-bold hover:bg-surface-variant"
+        >
+          {m.consent.decline}
+        </button>
+        <button
+          type="button"
+          onClick={() => choose(true)}
+          className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-on-primary hover:bg-primary/90"
+        >
+          {m.consent.accept}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A profile read that fails (offline, permission, quota) used to leave the app
+ * on a fabricated "already onboarded, free plan" profile with no indication
+ * anything went wrong. `auth-context` now reports the failure instead, and this
+ * is where the user gets to retry it rather than silently running on defaults.
+ */
+function ProfileSyncBanner() {
+  const { profileUnavailable, retryProfileSync } = useAuth();
+  const { messages: m } = useLanguage();
+  if (!profileUnavailable) return null;
+  return (
+    <div
+      role="alert"
+      className="bg-error-container text-on-error-container px-margin-mobile py-2.5 flex items-center justify-between gap-3 font-label-md text-label-md"
+    >
+      <span className="min-w-0 truncate">{m.auth.networkError}</span>
+      <button
+        type="button"
+        onClick={() => void retryProfileSync()}
+        className="font-bold underline shrink-0 hover:opacity-80"
+      >
+        {m.common.retry}
+      </button>
+    </div>
+  );
+}
+
+/**
  * Persistent dashboard chrome (sidebar, header, bottom nav, quick actions,
  * modals) wrapping the routed page content. Keeping this mounted across
  * routes is what allows the active-background pill to slide between nav
@@ -146,6 +268,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 md:ms-64">
+        <DemoModeBanner />
+        <ProfileSyncBanner />
+        <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
         <DashboardHeader />
 

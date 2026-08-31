@@ -224,6 +224,9 @@ export function FixedModal({
     }
     setErrors({});
     resetCategoryForm();
+    // Read when the modal opens to seed the form; depending on it would wipe a
+    // half-typed entry whenever the place list is re-derived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBill, isOpen]);
 
   // Cash the selected source actually has for this charge: editing a bill that

@@ -79,6 +79,10 @@ export function IncomeSourcesModal({
       setNewPayDay(defaultPayDay ?? '');
       setFieldErrors({});
     }
+    // `copy.primaryIncome` only seeds a newly opened form; depending on the
+    // message catalog would clear an edit in progress the moment the UI language
+    // changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, month.totalBudget, month.incomeSources, defaultPayDay]);
 
   const totalCalculated = sources.reduce((acc, s) => acc + (s.amount || 0), 0);

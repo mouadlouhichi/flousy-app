@@ -34,12 +34,13 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
+    // Self-referential canonical only. There is a single URL per page — the UI
+    // language is a client preference, not a locale path — so declaring
+    // `/en`, `/fr` and `/ar` alternates promised crawlers three localized
+    // versions that return 404. hreflang entries for missing URLs cost crawl
+    // budget and can get the whole cluster ignored; the localized titles are
+    // applied after hydration by <LocalizedDocumentTitle/>.
     canonical: '/',
-    languages: {
-      'en': '/en',
-      'fr': '/fr',
-      'ar': '/ar',
-    },
   },
   openGraph: {
     title,

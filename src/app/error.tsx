@@ -11,9 +11,9 @@ export default function ErrorPage({ reset }: { error?: Error; reset?: () => void
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-xl text-center gap-md">
       <AppIcon name="warning" className="text-error text-[56px]" />
-      <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold">
+      <h1 className="font-headline-lg text-headline-lg text-on-surface font-extrabold">
         {m.errors.generic}
-      </h2>
+      </h1>
       <p className="font-body-md text-body-md text-on-surface-variant max-w-md">
         {m.errors.unexpected}
       </p>

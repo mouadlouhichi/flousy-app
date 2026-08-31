@@ -86,7 +86,8 @@
       "nextSlide": "Next slide",
       "carousel": "Carousel",
       "slide": "Slide"
-    }
+    },
+    "retry": "Try again"
   },
   "auth": {
     "signIn": "Log in",
@@ -139,7 +140,12 @@
     "signOutConfirmMessage": "Are you sure you want to sign out of your SmartJib account?",
     "deleteConfirmTitle": "Delete Account Permanently",
     "deleteConfirmMessage": "This action is irreversible. All your budget data, expenses, and savings goals will be permanently deleted from Firestore.",
-    "firebaseNotConfigured": "Firebase isn't configured"
+    "firebaseNotConfigured": "Firebase isn't configured",
+    "confirmPasswordTitle": "Confirm your password",
+    "confirmPasswordHint": "For your security, deleting an account needs a sign-in from the last few minutes. Enter your password to continue.",
+    "confirmPasswordAction": "Confirm and delete",
+    "deletePartialFailure": "Some data could not be deleted yet ({items}). Your account is still active so nothing is lost — try again, or contact support.",
+    "deleteDemoUnsupported": "Account deletion is not available in demo mode, because nothing is stored in an account."
   },
   "onboarding": {
     "tagline": "Private, mobile-first budget tracker that separates what money is for from where it is.",
@@ -1166,7 +1172,8 @@
           "metric": "From spreadsheet to app in 2 days"
         }
       ],
-      "showTestimonial": "Show testimonial {number}"
+      "showTestimonial": "Show testimonial {number}",
+      "illustrative": "Illustrative examples of how people use SmartJib — not customer reviews."
     },
     "pricing": {
       "eyebrow": "Pricing",
@@ -1826,5 +1833,48 @@
     "copied": "Copied",
     "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
     "inviteCodeHint": "Anyone with this code can join from Household → Join."
+  },
+  "consent": {
+    "title": "Privacy controls",
+    "body": "SmartJib can send anonymous usage events (which features are opened) to help improve the app. Nothing about your money — amounts, categories or notes — is ever sent. You can change this any time in Settings.",
+    "accept": "Allow usage analytics",
+    "decline": "Keep it off",
+    "enabled": "Usage analytics are on",
+    "disabled": "Usage analytics are off",
+    "changeInSettings": "Change in Settings",
+    "settingsLabel": "Usage analytics",
+    "settingsHint": "Anonymous counts of which features are used. Financial values are never included."
+  },
+  "receipt": {
+    "tooLarge": "That image is too large to save with this expense. Pick a smaller photo.",
+    "processing": "Compressing image…"
+  },
+  "import": {
+    "truncated": "Only the first {limit} rows were imported — a single month cannot hold more."
+  },
+  "pro": {
+    "betaTitle": "Pro is included during the beta",
+    "betaBody": "Billing is not connected yet, so Pro is unlocked for your account at no cost. Nothing is charged and no card details are needed.",
+    "betaAction": "Unlock Pro for free",
+    "cardFieldsRemoved": "No payment form — SmartJib does not collect card details.",
+    "trialClaimed": "Pro unlocked on this account.",
+    "alreadyIncluded": "Pro is already active on your account during the beta."
+  },
+  "seo": {
+    "titles": {
+      "home": "SmartJib — Free Private Budget Tracker",
+      "about": "About SmartJib",
+      "help": "Help center",
+      "careers": "Careers",
+      "contact": "Contact",
+      "cookies": "Cookie Policy",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "blog": "Budgeting Guides",
+      "login": "Sign in",
+      "onboarding": "Set up your budget",
+      "notFound": "Page not found",
+      "landing": "SmartJib — Track your money, offline-first, no ads"
+    }
   }
 }

@@ -8,15 +8,17 @@ import { useCurrency } from '@/lib/currency-context';
 import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { trackEvent } from '@/lib/analytics';
 import { useLanguage } from '@/lib/i18n-context';
+import { AccountDeletionIncompleteError } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 
 export function DataPanel() {
   const { deleteAllData } = useAuth();
-  const { messages: m, isRTL } = useLanguage();
+  const { messages: m, isRTL, t } = useLanguage();
   const p = m.profile.data;
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleExportCsv = () => {
     downloadCsv(
@@ -77,11 +79,31 @@ export function DataPanel() {
         />
       </button>
 
+      {deleteError && (
+        <p role="alert" className="px-1 text-xs font-bold text-error">
+          {deleteError}
+        </p>
+      )}
+
       <ConfirmDialog
         isOpen={showDeleteDataConfirm}
         onClose={() => setShowDeleteDataConfirm(false)}
         onConfirm={async () => {
-          await deleteAllData();
+          // A Firestore write batch can fail part-way (offline, a rule
+          // rejection). The local cache is already cleared at that point, so the
+          // cloud copies are the only remaining record — reporting success would
+          // send the user away from a screen whose data still exists remotely and
+          // would come straight back on the next device.
+          try {
+            await deleteAllData();
+            setDeleteError('');
+          } catch (error) {
+            setDeleteError(
+              error instanceof AccountDeletionIncompleteError
+                ? t(m.auth.deletePartialFailure, { items: error.report.failed.join(', ') })
+                : m.auth.networkError,
+            );
+          }
         }}
         title={p.deleteAllData}
         message={p.deleteAllDataMessage}

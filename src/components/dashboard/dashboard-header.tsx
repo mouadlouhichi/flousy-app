@@ -41,6 +41,7 @@ export function DashboardHeader() {
     handlePrevMonth,
     handleNextMonth,
     openExpenseModal,
+    isMounted,
   } = useDashboard();
 
   const { workspace, canEditArea } = useHousehold();
@@ -52,15 +53,22 @@ export function DashboardHeader() {
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || '';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
-  const monthLabel = (() => {
-    const [y, m] = currentMonthKey.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return d.toLocaleDateString(intlLocale, { month: 'short' });
-  })();
+  // The whole dashboard is prerendered at build time, so any date-derived
+  // label computed during the first render is the BUILD date on the server and
+  // today on the client — a hydration mismatch that shows the wrong month for
+  // a frame (and, at a month boundary, permanently until the next click).
+  // `isMounted` keeps the server and first client render identical.
+  const monthLabel = !isMounted
+    ? ''
+    : (() => {
+        const [y, m] = currentMonthKey.split('-').map(Number);
+        const d = new Date(y, m - 1, 1);
+        return d.toLocaleDateString(intlLocale, { month: 'short' });
+      })();
 
   // When a monthly start date is configured, the navigator shows the budget
   // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
-  const budgetPeriod = profile?.monthStartDate
+  const budgetPeriod = isMounted && profile?.monthStartDate
     ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
     : null;
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;

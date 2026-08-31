@@ -25,7 +25,7 @@ export function HouseholdPanel({
   month,
   initialInviteCode,
 }: HouseholdPanelProps) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { format } = useCurrency();
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
@@ -273,20 +273,25 @@ export function HouseholdPanel({
                         setLastInviteCode(inviteId);
                         setCopied(false);
                         if (email) {
+                          // The endpoint mails from our own domain, so it only
+                          // accepts a request that proves who is asking: without
+                          // the ID token there is no sender identity to check the
+                          // invitation against, and the request is refused.
+                          const idToken = await user?.getIdToken().catch(() => null);
                           const response = await fetch('/api/household-invitations', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              inviteId,
-                              email,
-                              householdName: household.name,
-                              role,
-                              locale: language,
-                            }),
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+                            },
+                            body: JSON.stringify({ inviteId, locale: language }),
                           });
                           setNotice(
                             response.ok
                               ? t(h.invitationSent, { email })
+                              // The invitation itself exists either way, and the
+                              // code below still works — say what happened rather
+                              // than pretending an email went out.
                               : h.inviteCodeReady,
                           );
                         } else {

@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { useLightLanguage } from "@/lib/i18n-light";
 import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
+import { isDemoMode } from '@/lib/demo-mode';
 import { AnimatedSphere } from './animated-sphere';
 
 export function HeroSection() {
@@ -17,7 +18,14 @@ export function HeroSection() {
     return value;
   };
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  // `isDemoMode()` reads localStorage, which does not exist while the page is
+  // prerendered — resolving it during render made `isLoggedIn` (and the CTA text
+  // derived from it) differ between the served HTML and the first client render,
+  // i.e. a hydration mismatch on the landing page. It is applied after mount.
+  const [isDemo, setIsDemo] = useState(false);
+  useEffect(() => {
+    setIsDemo(isDemoMode());
+  }, []);
   const isLoggedIn = Boolean(user || isDemo);
   const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
@@ -28,7 +36,9 @@ export function HeroSection() {
     }, 2500);
 
     return () => window.clearInterval(interval);
-  }, []);
+    // The interval only needs the rotation length, but a locale with fewer hero
+    // words must reset it, or the index wraps past the end of the list.
+  }, [words.length]);
 
   return (
     <section className="relative flex min-h-screen flex-col justify-center overflow-hidden">

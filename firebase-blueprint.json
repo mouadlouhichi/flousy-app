@@ -429,7 +429,7 @@
             "free",
             "pro"
           ],
-          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'; while payments are mocked the signed-in owner may flip it to 'pro' after checkout (validated by firestore.rules)."
+          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'. No payment provider is wired up, so firestore.rules allows exactly one other transition: free -> pro, once per account, carrying proTrialClaimedAt (the beta claim). When real billing lands, the webhook writes plan with the Admin SDK instead."
         },
         "planBillingCycle": {
           "type": "string",
@@ -1035,6 +1035,10 @@
     "/households/{invite.householdId}/members/{userId}": {
       "schema": "HouseholdMember",
       "description": "Activated membership written when an invite is accepted"
+    },
+    "/households/{invite.householdId}/members/{invite.memberId}": {
+      "schema": "HouseholdMember",
+      "description": "Retires the owner's email-bound pending membership row once the invitation has been accepted, so the member list shows one active entry per person instead of a leftover invite."
     },
     "/householdInvites/{invite.id}": {
       "schema": "HouseholdInvite",

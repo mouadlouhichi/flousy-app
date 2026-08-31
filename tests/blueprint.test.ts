@@ -302,12 +302,31 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
   it('keeps plan Firebase-only in both the rules and the blueprint note', () => {
     // New profiles always start on the free plan…
     assert.match(rulesSource, /request\.resource\.data\.plan == 'free'/);
-    // …and updates may only flip the field between 'free' and 'pro' — the
-    // profile `plan` stays the single source of truth for Pro access.
-    assert.match(rulesSource, /incoming\(\)\.plan in \['free', 'pro'\]/);
+    // …and an update may not hand out Pro on its own: the only permitted
+    // free -> pro transition is the single, stamped beta claim. A plain
+    // `plan in ['free','pro']` whitelist is what let any account self-grant.
+    assert.match(rulesSource, /incoming\(\)\.plan == 'pro'/);
+    assert.match(rulesSource, /existing\(\)\.plan == 'free'/);
+    assert.match(rulesSource, /!\('proTrialClaimedAt' in existing\(\)\)/);
+    assert.match(rulesSource, /incoming\(\)\.proTrialClaimedAt is string/);
+    // The client side of that claim must exist too, or the rules describe a
+    // transition nothing can perform.
+    const dbSource = readRepoFile('src/lib/db.ts');
+    assert.match(dbSource, /export async function claimProTrial/);
+    assert.match(dbSource, /proTrialClaimedAt: new Date\(\)\.toISOString\(\)/);
+    // The mock checkout must not pretend to charge anyone: no card field may be
+    // reachable for a real signed-in account.
+    const upgradeModal = readRepoFile('src/components/modals/ProUpgradeModal.tsx');
+    assert.match(upgradeModal, /const realAccount = Boolean\(user\) && !isDemoMode\(\)/);
+    assert.match(upgradeModal, /m\.pro\.betaTitle/);
+    assert.doesNotMatch(upgradeModal, /trackEvent\(\s*'purchase'/);
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,
       /single source of truth/i,
+    );
+    assert.match(
+      blueprint.entities.UserProfile.properties.plan.description,
+      /proTrialClaimedAt/,
     );
   });
 });

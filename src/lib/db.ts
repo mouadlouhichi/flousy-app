@@ -66,7 +66,6 @@ function cleanUndefined<T>(obj: T): T {
 // User Profile
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   if (!isFirebaseConfigured || !db) return null;
-  const path = `users/${uid}`;
   try {
     const snap = await Promise.race([
       getDoc(doc(db, 'users', uid)),
@@ -105,7 +104,6 @@ export function subscribeMonthBudget(
     return () => {};
   }
 
-  const path = `users/${uid}/months/${monthKey}`;
   const docRef = doc(db, 'users', uid, 'months', monthKey);
 
   return onSnapshot(
@@ -146,7 +144,6 @@ export function subscribeSavingsGoals(
     return () => {};
   }
 
-  const path = `users/${uid}/data/savings`;
   const docRef = doc(db, 'users', uid, 'data', 'savings');
 
   return onSnapshot(
@@ -259,28 +256,22 @@ export async function fetchMonthsForTrends(
     monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
-  for (const mk of monthKeys) {
-    let monthData: MonthBudget | null = null;
-
-    // Try Firestore
-    if (uid) {
-      monthData = await getMonthBudget(uid, mk);
-    }
-
-    // Fallback to localStorage
-    if (!monthData) {
+  // One parallel batch instead of N sequential round-trips: the trends screen
+  // used to await every month document one after another (6 RTTs on the
+  // critical path) and each failure fell back to the local cache in turn.
+  const fetched = await Promise.all(
+    monthKeys.map(async (mk) => {
+      const remote = uid ? await getMonthBudget(uid, mk) : null;
+      if (remote) return { monthKey: mk, month: remote };
       try {
         const local = localStorage.getItem(`flousy_month_${mk}`);
-        if (local) {
-          monthData = normalizeMonth(JSON.parse(local), mk);
-        }
+        if (local) return { monthKey: mk, month: normalizeMonth(JSON.parse(local), mk) };
       } catch { /* ignore */ }
-    }
+      return null;
+    }),
+  );
 
-    if (monthData) {
-      results.push({ monthKey: mk, month: monthData });
-    }
-  }
+  results.push(...(fetched.filter(Boolean) as { monthKey: string; month: MonthBudget }[]));
 
   return results;
 }
@@ -294,7 +285,6 @@ export function subscribeProductCatalog(uid: string, onData: (products: Product[
     return () => {};
   }
 
-  const path = `users/${uid}/products`;
   const q = query(collection(db, 'users', uid, 'products'), limit(2000));
 
   return onSnapshot(
@@ -397,42 +387,107 @@ export async function deleteCourseSession(uid: string, sessionId: string): Promi
 
 /** Wipe the course catalog + sessions (used by account deletion). */
 async function deleteUserCourseData(uid: string): Promise<void> {
-  try {
-    const productsRef = collection(db, 'users', uid, 'products');
-    const productsSnap = await getDocs(productsRef);
-    for (const d of productsSnap.docs) await deleteDoc(d.ref);
-
-    const sessionsRef = collection(db, 'users', uid, 'sessions');
-    const sessionsSnap = await getDocs(sessionsRef);
-    for (const d of sessionsSnap.docs) await deleteDoc(d.ref);
-  } catch (err) {
-    console.error('Error deleting course data:', err);
-  }
+  await deleteCollection('users', uid, 'products');
+  await deleteCollection('users', uid, 'sessions');
 }
 
-// Delete all user account data from Firestore
-export async function deleteUserAccountData(uid: string): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+/** Per-collection outcome of an erasure so the UI can be truthful about it. */
+/**
+ * Claim the single free Pro beta unlock for this account.
+ *
+ * There is no payment provider wired up, and Firestore rules refuse a
+ * self-assigned `plan: 'pro'` for exactly that reason: an account that can grant
+ * itself Pro is an account that never pays. The rules allow one exception — the
+ * free -> pro transition stamped with `proTrialClaimedAt`, non-repeatable
+ * because a profile that already carries the field cannot claim it again. This is
+ * the only client-side write that matches that shape; the billing fields
+ * `upgradeUserPlan` used to send are rejected by design.
+ */
+export async function claimProTrial(uid: string): Promise<boolean> {
+  if (!db) return false;
+  const ref = doc(db, 'users', uid);
+  const snapshot = await getDoc(ref);
+  const plan = snapshot.exists() ? (snapshot.data() as { plan?: string }).plan : undefined;
+  if (plan === 'pro') return true;
+  if (snapshot.exists() && plan !== 'free') return false;
+  await setDoc(ref, {
+    plan: 'pro',
+    proTrialClaimedAt: new Date().toISOString(),
+  } as never, { merge: true });
+  return true;
+}
 
-  try {
-    // Delete root user doc
-    await deleteDoc(doc(db, 'users', uid));
+export interface DeletionReport {
+  removed: string[];
+  failed: string[];
+}
 
-    // Delete savings data
-    await deleteDoc(doc(db, 'users', uid, 'data', 'savings'));
-
-    // Delete months collection items
-    const monthsRef = collection(db, 'users', uid, 'months');
-    const snap = await getDocs(monthsRef);
-    for (const d of snap.docs) {
-      await deleteDoc(d.ref);
+function deletionTracker(): {
+  report: DeletionReport;
+  run: (label: string, task: () => Promise<void>) => Promise<void>;
+} {
+  const report: DeletionReport = { removed: [], failed: [] };
+  const run = async (label: string, task: () => Promise<void>) => {
+    try {
+      await task();
+      report.removed.push(label);
+    } catch (err) {
+      // Logged, but never swallowed: a leftover document that belongs to a
+      // deleted account can no longer be erased by anyone, so the caller has
+      // to be able to tell the user something survived.
+      console.error(`Deletion step failed (${label}):`, err);
+      report.failed.push(label);
     }
+  };
+  return { report, run };
+}
 
-    // Delete course catalog + sessions
-    await deleteUserCourseData(uid);
-  } catch (err) {
-    console.error('Error deleting account data:', err);
+/** Delete every document in a collection (used for erasure and budget wipes). */
+async function deleteCollection(path: string, ...segments: string[]): Promise<void> {
+  if (!db) return;
+  const snap = await getDocs(collection(db, path, ...segments));
+  for (const item of snap.docs) await deleteDoc(item.ref);
+}
+
+/**
+ * Delete everything the account owns, and report what could not be deleted.
+ *
+ * Order matters: shared workspaces are torn down while this account can still
+ * authorise it (and before the user document the rules read for `plan`), so a
+ * household is never orphaned behind a deleted owner. Firestore deletes are
+ * idempotent, so a retry after a partial failure finishes the job.
+ */
+export async function deleteUserAccountData(
+  uid: string,
+  options: { householdIds?: string[]; email?: string | null } = {},
+): Promise<DeletionReport> {
+  const { report, run } = deletionTracker();
+  if (!isFirebaseConfigured || !db) return report;
+
+  for (const householdId of options.householdIds ?? []) {
+    await run('household', () => deleteHouseholdWorkspace(householdId));
+    await run('household invitations', async () => {
+      if (!db) return;
+      const invites = await getDocs(
+        query(collection(db, 'householdInvites'), where('createdBy', '==', uid)),
+      );
+      for (const item of invites.docs) await deleteDoc(item.ref);
+    });
   }
+
+  await run('budget months', () => deleteCollection('users', uid, 'months'));
+  await run('savings goals', async () => {
+    if (!db) return;
+    await deleteDoc(doc(db, 'users', uid, 'data', 'savings'));
+  });
+  await run('products and sessions', () => deleteUserCourseData(uid));
+  // The profile is last: it is what makes the workspace reachable at all.
+  await run('profile', async () => {
+    if (!db) return;
+    await deleteDoc(doc(db, 'users', uid));
+  });
+
+  return report;
 }
 
 /**
@@ -443,25 +498,18 @@ export async function deleteUserAccountData(uid: string): Promise<void> {
  * wipe their budget after downloading it without losing their account,
  * currency, theme or plan.
  */
-export async function deleteUserBudgetData(uid: string): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+export async function deleteUserBudgetData(uid: string): Promise<DeletionReport> {
+  const { report, run } = deletionTracker();
+  if (!isFirebaseConfigured || !db) return report;
 
-  try {
-    // Delete savings data
+  await run('savings goals', async () => {
+    if (!db) return;
     await deleteDoc(doc(db, 'users', uid, 'data', 'savings'));
+  });
+  await run('budget months', () => deleteCollection('users', uid, 'months'));
+  await run('products and sessions', () => deleteUserCourseData(uid));
 
-    // Delete all months
-    const monthsRef = collection(db, 'users', uid, 'months');
-    const snap = await getDocs(monthsRef);
-    for (const d of snap.docs) {
-      await deleteDoc(d.ref);
-    }
-
-    // Delete course catalog + sessions (budget records)
-    await deleteUserCourseData(uid);
-  } catch (err) {
-    console.error('Error deleting user budget data:', err);
-  }
+  return report;
 }
 
 // Shared Household workspace -------------------------------------------------
@@ -469,14 +517,31 @@ export async function deleteUserBudgetData(uid: string): Promise<void> {
 // This lets rules grant access by membership without exposing a user's profile.
 import type { Household, HouseholdInvite, HouseholdMember } from './household';
 
-export function subscribeHousehold(householdId: string | undefined, onData: (household: Household | null) => void) {
+export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
+
+/**
+ * Subscribe to a household document.
+ *
+ * `onAccess` distinguishes the two failure modes that look identical from the
+ * outside: `permission-denied` means membership is genuinely gone (the owner
+ * removed this account, or the household was deleted) while a network error
+ * only means "not right now". Callers must only tear the workspace down for
+ * the first one — otherwise a slow connection logs people out of their shared
+ * budget.
+ */
+export function subscribeHousehold(
+  householdId: string | undefined,
+  onData: (household: Household | null) => void,
+  onAccess: (access: HouseholdAccess) => void = () => {},
+) {
   if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
   return onSnapshot(
     doc(db, 'households', householdId),
-    (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null),
+    (snap) => { onAccess('ok'); onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null); },
     (err) => {
+      const code = (err as { code?: string })?.code;
       console.error('Error listening to household:', err);
-      onData(null);
+      onAccess(code === 'permission-denied' || code === 'not-found' ? 'denied' : 'unavailable');
     },
   );
 }
@@ -504,9 +569,9 @@ export async function createHousehold(ownerId: string, household: Household, own
 /** Owner teardown: drop members/months/savings/invoices then the household doc. */
 export async function deleteHouseholdWorkspace(householdId: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
-  const hid = householdId;
   const wipe = async (col: string) => {
-    const snap = await getDocs(collection(db, 'households', hid, col));
+    if (!db) return;
+    const snap = await getDocs(collection(db, 'households', householdId, col));
     for (const item of snap.docs) await deleteDoc(item.ref);
   };
   try {
@@ -515,14 +580,14 @@ export async function deleteHouseholdWorkspace(householdId: string): Promise<voi
     await wipe('months');
     await wipe('invoices');
     try {
-      await deleteDoc(doc(db, 'households', hid, 'data', 'savings'));
+      await deleteDoc(doc(db, 'households', householdId, 'data', 'savings'));
     } catch {
       /* savings doc may not exist */
     }
     await wipe('members');
-    await deleteDoc(doc(db, 'households', hid));
+    await deleteDoc(doc(db, 'households', householdId));
   } catch (err) {
-    handleFirestoreError(err, OperationType.DELETE, `households/${hid}`);
+    handleFirestoreError(err, OperationType.DELETE, `households/${householdId}`);
   }
 }
 
@@ -550,22 +615,43 @@ export async function getHouseholdInvite(inviteId: string): Promise<HouseholdInv
 export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: string, displayName: string) {
   if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
   // Create the recipient's UID-indexed membership directly from the
-  // email-bound invite. This avoids making acceptance depend on a write to
-  // the owner's pending-member record.
+  // email-bound invite. Firestore rules only accept this write when it points
+  // at a pending invitation addressed to the caller's own account, so the
+  // inviteId has to travel with the document (see firestore.rules).
   const member: HouseholdMember = {
     id: userId,
     displayName: displayName || invite.email.split('@')[0] || 'Member',
     email: invite.email,
     userId,
     role: invite.role,
+    // A `custom` role means nothing without the matrix it refers to — copying
+    // it used to drop the permissions and leave the member with no access.
+    ...(invite.permissions ? { permissions: invite.permissions } : {}),
     status: 'active',
     avatarColor: '#00685f',
+    inviteId: invite.id,
     joinedAt: new Date().toISOString(),
   };
   await setDoc(doc(db, 'households', invite.householdId, 'members', userId), cleanUndefined(member), { merge: true });
-  // The active membership is the source of truth. Marking the invitation
-  // accepted is non-critical and must never block a recipient from joining.
-  setDoc(doc(db, 'householdInvites', invite.id), { status: 'accepted' }, { merge: true }).catch(() => {});
+
+  // Bookkeeping that must never block someone from joining: the invitation is
+  // marked accepted and the owner's email-bound pending row is retired. Either
+  // can legitimately fail (revoked invitation, owner deleted it), so failures
+  // are swallowed here — the active membership above is the source of truth.
+  await Promise.all([
+    setDoc(
+      doc(db, 'householdInvites', invite.id),
+      { status: 'accepted', acceptedAt: new Date().toISOString() },
+      { merge: true },
+    ).catch(() => {}),
+    invite.memberId && invite.memberId !== userId
+      ? setDoc(
+          doc(db, 'households', invite.householdId, 'members', invite.memberId),
+          cleanUndefined({ status: 'inactive', userId, retiredAt: new Date().toISOString() }),
+          { merge: true },
+        ).catch(() => {})
+      : Promise.resolve(),
+  ]);
 }
 
 export function subscribeHouseholdMonthBudget(householdId: string, monthKey: string, onData: (month: MonthBudget | null) => void) {
@@ -602,12 +688,16 @@ export async function saveHouseholdSavingsGoals(householdId: string, goals: Savi
 export async function fetchHouseholdMonthsForTrends(householdId: string, currentKey: string, count = 6): Promise<{ monthKey: string; month: MonthBudget }[]> {
   const results: { monthKey: string; month: MonthBudget }[] = [];
   const [year, calendarMonth] = currentKey.split('-').map(Number);
+  const keys: string[] = [];
   for (let offset = 0; offset < count; offset++) {
     const date = new Date(year, calendarMonth - 1 - offset, 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const month = await getHouseholdMonthBudget(householdId, key);
-    if (month) results.push({ monthKey: key, month });
+    keys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
   }
+  // Parallel batch — see fetchMonthsForTrends.
+  const months = await Promise.all(keys.map((key) => getHouseholdMonthBudget(householdId, key)));
+  months.forEach((month, index) => {
+    if (month) results.push({ monthKey: keys[index], month });
+  });
   return results;
 }
 

@@ -38,12 +38,21 @@ export const PRO_FEATURES: ProFeature[] = [
  */
 export function isProUser(
   profile: ProUserLike,
-  storage: Pick<Storage, 'getItem'> = typeof window !== 'undefined' ? window.localStorage : undefined as never,
+  storage: Pick<Storage, 'getItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
 ): boolean {
   if (!profile) {
-    // No Firebase profile (demo mode / signed out): honor the local demo flag
-    // so the mock checkout still unlocks features without a Firebase session.
-    return storage?.getItem?.('flousy_pro_plan') === 'true';
+    // A Firebase user whose profile has not resolved yet is NOT a demo user, so
+    // it must not be granted anything from local storage — that window (sign-in
+    // → profile load) is exactly when a stale `flousy_pro_plan` flag from an
+    // earlier demo session used to unlock Pro for a paying-tier feature set.
+    // Only an explicitly active demo session may consult the flag.
+    let demo = false;
+    try {
+      demo = storage?.getItem('flousy_demo_mode') === 'true';
+    } catch {
+      demo = false;
+    }
+    return demo && storage?.getItem('flousy_pro_plan') === 'true';
   }
   return profile.plan === 'pro';
 }

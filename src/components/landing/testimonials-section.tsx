@@ -41,6 +41,16 @@ export function TestimonialsSection() {
           </span>
         </div>
 
+        {/*
+          These quotes are written for the landing page, not collected from
+          users. Presented as customer testimony without a label that is a
+          deceptive commercial practice (UGC/FTC guidance, and the equivalent
+          rules in the EU and France), so the section says what it is.
+        */}
+        <p className="-mt-12 mb-12 text-xs text-muted-foreground">
+          {m.landing.testimonials.illustrative}
+        </p>
+
         {/* Main Quote */}
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-20">
           <div className="lg:col-span-8">

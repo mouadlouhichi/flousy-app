@@ -2,16 +2,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth-context';
 import { isProUser } from './pro-features';
-import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold } from './db';
+import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold, type HouseholdAccess } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
 import { canEdit as canEditAreaRule, canView, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
 import { useLanguage } from './i18n-context';
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
+/** Roles a household may be invited with. `custom` carries a permission matrix. */
+export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor' | 'custom'>;
 type HouseholdContextValue = {
   household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean; workspace: 'personal' | 'household'; selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>; canViewArea: (area: HouseholdArea) => boolean; canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
+  /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
+  householdAccess: HouseholdAccess;
   payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => Promise<string>;
+  invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
   markHouseholdOnboarded: () => Promise<void>;
   removeHouseholdWorkspace: () => Promise<void>;
@@ -28,21 +32,28 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
+  // 'denied' is the only state that may unlink a workspace; 'unavailable'
+  // (offline, slow network, Firestore timeout) must never do that. A fixed
+  // timeout used to declare the household missing after 5s and silently drop
+  // people out of their shared budget on a slow connection.
+  const [access, setAccess] = useState<HouseholdAccess>('ok');
   useEffect(() => {
     if (!trackedHouseholdId) {
       setHousehold(null);
+      setAccess('ok');
       setLoading(false);
       return;
     }
     setLoading(true);
-    const timeout = window.setTimeout(() => setLoading(false), 5000);
-    const unsub = subscribeHousehold(trackedHouseholdId, (h) => {
-      setHousehold(h);
-      setLoading(false);
-      window.clearTimeout(timeout);
-    });
+    const unsub = subscribeHousehold(
+      trackedHouseholdId,
+      (h) => {
+        setHousehold(h);
+        setLoading(false);
+      },
+      setAccess,
+    );
     return () => {
-      window.clearTimeout(timeout);
       unsub();
     };
   }, [trackedHouseholdId]);
@@ -81,7 +92,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     if (!householdId) throw new Error(m.household.genericError);
     await saveHouseholdMember(householdId, { id: crypto.randomUUID(), displayName: name.trim(), role: 'profile', status: 'active', avatarColor: COLORS[members.length % COLORS.length] });
   }, [householdId, members.length, m.household.genericError]);
-  const invite = useCallback(async (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => {
+  const invite = useCallback(async (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => {
     if (!householdId || !user) throw new Error(m.household.genericError);
     const memberId = crypto.randomUUID(), id = crypto.randomUUID(), now = new Date().toISOString();
     await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, permissions, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
@@ -91,11 +102,13 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const acceptInvite = useCallback(async (code: string) => {
     if (!user || !profile) throw new Error(m.household.genericError);
     const invite = await getHouseholdInvite(code.trim());
-    if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) throw new Error(m.household.genericError);
+    if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) {
+      throw new Error(m.household.genericError);
+    }
     await acceptHouseholdInvite(invite, user.uid, profile.displayName || user.email?.split('@')[0] || m.household.member);
     setPendingInvites(current => current.filter(item => item.id !== invite.id));
     await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
-  }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
+  }, [user, profile, updateProfileData, m.household.genericError, m.household.member]);
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
     const householdTarget = profile?.activeHouseholdId || profile?.householdIds?.[0];
     if (next === 'household' && !householdTarget) throw new Error(m.household.genericError);
@@ -131,6 +144,6 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setHousehold(null);
     setMembers([]);
   }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

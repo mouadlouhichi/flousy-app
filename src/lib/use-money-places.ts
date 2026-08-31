@@ -32,6 +32,9 @@ export function useMoneyPlaces(month?: PlaceMonth | null) {
   const localizedLabel = (id: string, fallbackName: string) => localizePlaceName(id, fallbackName, messages);
   const options = useMemo(
     () => moneyPlaceSegmentOptions(places, localizedLabel),
+    // `localizedLabel` is a per-render closure over `messages`; depending on it
+    // would rebuild the options on every render for the same labels.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [places, messages],
   );
   const defaultPlace = places[0]?.id || 'bank';

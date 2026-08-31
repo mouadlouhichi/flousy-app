@@ -226,9 +226,11 @@ omit them and the app runs in Demo Mode.
 | --- | --- |
 | `NEXT_PUBLIC_ANALYTICS` | `plausible` or `ga` activates the telemetry seam in `src/lib/analytics.ts`. Unset = nothing is ever sent. |
 
-The committed `.env.example` also lists `GEMINI_API_KEY` and `APP_URL`, which
-are injected by the AI Studio host environment. Neither is read by the app
-today.
+`APP_URL` is read by the household-invitation email route as the base of the
+accept link, falling back to `NEXT_PUBLIC_SITE_URL`. The `GEMINI_API_KEY` entry
+and the `MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API` marker in `metadata.json` were
+removed: no code in this repository calls an AI API, and advertising a capability
+the app does not have is how "the AI feature is broken" tickets get filed.
 
 ---
 

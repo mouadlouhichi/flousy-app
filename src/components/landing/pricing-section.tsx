@@ -1,10 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
+import { isDemoMode } from '@/lib/demo-mode';
+
+/*
+ * The numbers a visitor is quoted and the numbers the app would charge have to
+ * come from the same place, and they did not: this section hard-coded 29/19
+ * through a `USD` formatter while the in-app checkout used 4.99/39.99 from
+ * `PRO_PRICING`. No payment provider is configured in this deployment, so any
+ * price shown here would be unbuyable and every "Save 34%" toggle would be a
+ * control that changes nothing. Pro is therefore presented as included for free
+ * during the beta, and `BILLING_LIVE` becomes the single switch to flip when a
+ * real provider exists — at which point these figures must be deleted in favour
+ * of the provider's prices.
+ */
+const BILLING_LIVE = false;
 
 const plansBase = [
   { price: { monthly: 0, annual: 0 }, popular: false },
@@ -24,7 +38,13 @@ export function PricingSection() {
   const formatPlanNumber = (value: number) =>
     new Intl.NumberFormat(intlLocale, { minimumIntegerDigits: 2, useGrouping: false }).format(value);
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  // Read after mount: `localStorage` does not exist during prerender, so
+  // resolving it here in render made the CTA differ between the served HTML and
+  // the first client render (a hydration mismatch on a public page).
+  const [isDemo, setIsDemo] = useState(false);
+  useEffect(() => {
+    setIsDemo(isDemoMode());
+  }, []);
   const isLoggedIn = Boolean(user || isDemo);
   const pricingData = m.landing.pricing;
   const [isAnnual, setIsAnnual] = useState(true);
@@ -48,7 +68,7 @@ export function PricingSection() {
         </div>
 
         {/* Billing Toggle */}
-        <div className="flex items-center gap-4 mb-16">
+        <div className={`flex items-center gap-4 ${BILLING_LIVE ? 'mb-16' : 'mb-16 hidden'}`}>
           <span
             className={`text-sm transition-colors ${
               !isAnnual ? "text-foreground" : "text-muted-foreground"
@@ -114,7 +134,9 @@ export function PricingSection() {
               <div className="mb-8 pb-8 border-b border-foreground/10">
                 <div className="flex items-baseline gap-2">
                   <span className="font-display text-5xl lg:text-6xl text-foreground">
-                    {formatPrice(isAnnual ? priceInfo.price.annual : priceInfo.price.monthly, intlLocale)}
+                    {BILLING_LIVE
+                      ? formatPrice(isAnnual ? priceInfo.price.annual : priceInfo.price.monthly, intlLocale)
+                      : formatPrice(0, intlLocale)}
                   </span>
                   <span className="text-muted-foreground">{pricingData.perMonth}</span>
                 </div>
@@ -152,6 +174,11 @@ export function PricingSection() {
         <p className="mt-12 text-center text-sm text-muted-foreground">
           {pricingData.bottomNote}
         </p>
+        {!BILLING_LIVE && (
+          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
+            {m.pro.betaTitle} — {m.pro.betaBody}
+          </p>
+        )}
       </div>
     </section>
   );
