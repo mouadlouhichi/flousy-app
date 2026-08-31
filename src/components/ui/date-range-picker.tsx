@@ -72,7 +72,7 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
         align="end"
         sideOffset={8}
         collisionPadding={16}
-        className="w-[min(20.5rem,calc(100vw-2rem))] rounded-xl border-outline-variant p-3"
+        className="w-[min(20.5rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border-outline-variant p-2"
       >
         {(draftFrom || draftTo) && (
           <button
@@ -95,7 +95,7 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
           }}
           locale={calendarLocale}
           dir={isRTL ? 'rtl' : 'ltr'}
-          className="!w-full bg-surface !p-1 [--cell-size:--spacing(8)]"
+          className="!w-full max-w-full overflow-hidden bg-surface !p-1 [--cell-size:1.85rem]"
         />
       </PopoverContent>
     </Popover>
