@@ -74,7 +74,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     }
     return null;
   } catch (err) {
-    handleFirestoreError(err, OperationType.GET, path);
+    console.error('Error fetching user profile:', err);
+    return null;
   }
 }
 

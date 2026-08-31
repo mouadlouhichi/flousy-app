@@ -149,7 +149,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // when an identity provider refreshes its photo URL later.
           avatarUrl: u.photoURL || undefined,
         };
-        await setUserProfile(u.uid, p);
+        try {
+          await setUserProfile(u.uid, p);
+        } catch (writeErr) {
+          console.error('Error creating profile:', writeErr);
+        }
       } else {
         const patch: Partial<UserProfile> = {};
         if (displayName && !p.displayName) patch.displayName = displayName;
@@ -159,7 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (p.avatarUrl === undefined && u.photoURL) patch.avatarUrl = u.photoURL;
         if (Object.keys(patch).length > 0) {
           p = { ...p, ...patch };
-          await setUserProfile(u.uid, patch);
+          try {
+            await setUserProfile(u.uid, patch);
+          } catch (writeErr) {
+            console.error('Error updating profile:', writeErr);
+          }
         }
       }
       result = p;
@@ -167,6 +175,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       writeCachedProfile(u.uid, p);
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
+      if (!result) {
+        result = {
+          plan: 'free',
+          currency: 'MAD',
+          onboardingComplete: true,
+          theme: 'system',
+          displayName: displayName || u.displayName || undefined,
+          avatarUrl: u.photoURL || undefined,
+        };
+        setProfile(result);
+      }
     }
     return { profile: result, isNewUser };
   };
