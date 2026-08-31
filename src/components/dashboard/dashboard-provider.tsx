@@ -275,13 +275,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       hydratedStartRef.current = true;
       lastStartDateRef.current = nextStart;
       const stored = readStoredMonthKey();
-      if (stored) {
-        setCurrentMonthKey((prev) => (prev === stored ? prev : stored));
-      } else {
-        const resolved = getCurrentMonthKey(nextStart);
-        setCurrentMonthKey((prev) => (prev === resolved ? prev : resolved));
-        writeStoredMonthKey(resolved);
-      }
+      const resolved = getCurrentMonthKey(nextStart);
+      // A stored calendar-month key can be stale when the app is reopened
+      // before payday (for example, Sep 1 with a Sep 27 salary day). Prefer
+      // the active salary period in that case so the previous month's data is
+      // shown instead of an empty new calendar-month document.
+      const [resolvedYear, resolvedMonth] = resolved.split('-').map(Number);
+      const [storedYear, storedMonth] = stored?.split('-').map(Number) || [];
+      const todayCalendarKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const storedIsPrematureCalendarMonth =
+        Boolean(stored) &&
+        stored === todayCalendarKey &&
+        (storedYear !== resolvedYear || storedMonth !== resolvedMonth);
+      const initialKey = stored && !storedIsPrematureCalendarMonth ? stored : resolved;
+      setCurrentMonthKey((prev) => (prev === initialKey ? prev : initialKey));
+      writeStoredMonthKey(initialKey);
       return;
     }
 
