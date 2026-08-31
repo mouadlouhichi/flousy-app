@@ -127,14 +127,8 @@ export default function LoginPage() {
         await signUpEmail(email, password, displayName.trim() || undefined);
         navigateTo('/onboarding');
       } else {
-        const syncedProfile = await signInEmail(email, password);
-        // Onboarding is always the first screen when it hasn't been completed
-        const localDone = isOnboardingDoneLocally();
-        navigateTo(
-          syncedProfile && syncedProfile.onboardingComplete === false && !localDone
-            ? '/onboarding'
-            : '/dashboard',
-        );
+        await signInEmail(email, password);
+        navigateTo('/dashboard');
       }
     } catch (err: any) {
       // If authentication failed because Firebase isn't configured, fallback gracefully to Demo Mode

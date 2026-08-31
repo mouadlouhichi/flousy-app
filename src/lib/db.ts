@@ -86,11 +86,10 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 
 export async function setUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
-  const path = `users/${uid}`;
   try {
     await setDoc(doc(db, 'users', uid), cleanUndefined(profile), { merge: true });
   } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, path);
+    console.error('Error writing user profile:', err);
   }
 }
 
@@ -591,7 +590,10 @@ export async function getHouseholdMonthBudget(householdId: string, monthKey: str
 }
 export function subscribeHouseholdSavingsGoals(householdId: string, onData: (goals: SavingGoal[]) => void) {
   if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId, 'data', 'savings'), (snap) => onData(snap.exists() ? (snap.data().goals || []) : []));
+  return onSnapshot(doc(db, 'households', householdId, 'data', 'savings'), (snap) => onData(snap.exists() ? (snap.data().goals || []) : []), (err) => {
+    console.error('Error listening to household savings:', err);
+    onData([]);
+  });
 }
 export async function saveHouseholdSavingsGoals(householdId: string, goals: SavingGoal[]) {
   if (!isFirebaseConfigured || !db) return;
