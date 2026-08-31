@@ -19,7 +19,7 @@
     "open": "مفتوح",
     "settled": "مسدد",
     "step": "الخطوة {current} من {total}",
-    "percentComplete": "{percent}%",
+    "percentComplete": "{percent}",
     "yes": "نعم",
     "no": "لا",
     "done": "تم",
@@ -70,7 +70,23 @@
     "actions": "الإجراءات",
     "manage": "إدارة",
     "addNew": "إضافة جديد",
-    "user": "مستخدم"
+    "user": "مستخدم",
+    "accessibility": {
+      "loading": "جارٍ التحميل",
+      "pagination": "ترقيم الصفحات",
+      "previousPage": "انتقل إلى الصفحة السابقة",
+      "nextPage": "انتقل إلى الصفحة التالية",
+      "morePages": "المزيد من الصفحات",
+      "breadcrumb": "مسار التنقل",
+      "more": "المزيد",
+      "sidebarTitle": "الشريط الجانبي",
+      "sidebarDescription": "يعرض الشريط الجانبي على الهاتف.",
+      "toggleSidebar": "تبديل الشريط الجانبي",
+      "previousSlide": "الشريحة السابقة",
+      "nextSlide": "الشريحة التالية",
+      "carousel": "عارض شرائح",
+      "slide": "شريحة"
+    }
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -96,6 +112,15 @@
     "failedResetEmail": "فشل إرسال بريد إعادة التعيين",
     "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صالحة",
     "authFailed": "فشل المصادقة. يرجى التحقق من بياناتك.",
+    "unauthorizedDomain": "هذا النطاق غير مسموح له بتسجيل الدخول. أضِفه ضمن Firebase ← Authentication ← Authorized domains، أو استخدم الموقع المنشور.",
+    "tooManyAttempts": "محاولات كثيرة جدًا. انتظر بضع دقائق ثم أعد المحاولة.",
+    "popupBlocked": "تم حظر نافذة تسجيل الدخول. اسمح بالنوافذ المنبثقة لهذا الموقع، أو استخدم تسجيل الدخول بالبريد الإلكتروني.",
+    "signInCancelled": "تم إلغاء تسجيل الدخول.",
+    "networkError": "خطأ في الشبكة. تحقق من اتصالك ثم أعد المحاولة.",
+    "signInMethodDisabled": "طريقة تسجيل الدخول هذه معطلة في Firebase.",
+    "emailAlreadyInUse": "هناك حساب يستخدم هذا البريد الإلكتروني بالفعل. سجّل الدخول بدلاً من ذلك.",
+    "weakPassword": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    "apiKeyReferrerBlocked": "حظر Firebase نطاق المعاينة هذا. أضِفه إلى مراجع HTTP لمفتاح API، أو استخدم الموقع المنشور.",
     "googleSignInFailed": "فشل تسجيل الدخول بـ Google",
     "demoMode": "الوضع التجريبي متاح",
     "demoModeDescription": "جرّب سمارت جيب فوراً مع بيانات نموذجية في وضع المعاينة المحلية.",
@@ -140,7 +165,7 @@
     "fixedNeeds": "الاحتياجات الثابتة",
     "variableWants": "الرغبات المتغيرة",
     "futureSavings": "الادخار المستقبلي",
-    "ofIncome": "{percent}% من الدخل",
+    "ofIncome": "{percent} من الدخل",
     "confirmAndFinish": "تأكيد والانتهاء",
     "finishingSetup": "جارٍ الانتهاء...",
     "editAllocation": "تعديل التوزيع",
@@ -177,8 +202,8 @@
       "savings": "الادخار / الاستثمار",
       "other": "أخرى"
     },
-    "customSplitInvalid": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار 100٪ بالضبط (حالياً {percent}٪).",
-    "customSplitSummary": "{percent}٪ {label}",
+    "customSplitInvalid": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {required} بالضبط (حالياً {percent}).",
+    "customSplitSummary": "{percent} {label}",
     "removeBill": "إزالة {name}",
     "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده."
   },
@@ -196,10 +221,10 @@
     "addFunds": "إضافة أموال",
     "withdraw": "سحب",
     "budgetPlan": "خطة الميزانية",
-    "needsLabel": "الاحتياجات ({percent}%)",
-    "wantsLabel": "الرغبات ({percent}%)",
-    "savingsLabel": "الادخار ({percent}%)",
-    "used": "{percent}% مستخدم",
+    "needsLabel": "الاحتياجات ({percent})",
+    "wantsLabel": "الرغبات ({percent})",
+    "savingsLabel": "الادخار ({percent})",
+    "used": "تم استخدام {percent}",
     "activeGoals": "{count, plural, =0 {لا أهداف نشطة} one {هدف نشط واحد} two {هدفان نشطان} few {# أهداف نشطة} many {# هدفاً نشطاً} other {# هدف نشط}}",
     "totalMonthlyBudget": "إجمالي الميزانية الشهرية",
     "totalCashOnHand": "إجمالي النقد المتاح",
@@ -312,7 +337,7 @@
       "createGoal": "إنشاء الهدف",
       "fundGoal": "تمويل الهدف",
       "withdrawGoal": "سحب",
-      "progressLabel": "{current} من {target} ({percent}%)",
+      "progressLabel": "{current} من {target} ({percent})",
       "alreadySaved": "المدخر بالفعل ({currency})",
       "suggestions": "اقتراحات:",
       "openingBalanceHint": "هل تبدأ بهدف قائم؟ أدخل ما ادخرته له حتى الآن، لتبدأ نسبة التقدم من هذا المبلغ بدل الصفر.",
@@ -329,7 +354,7 @@
       "fundInsufficient": "المتاح في {place} هو {amount} فقط. خفّض الإيداع أو انقل أموالًا إلى هذا الموقع أولًا.",
       "withdrawTooMuch": "لا يمكن سحب أكثر من رصيد الهدف ({amount}).",
       "validPositiveAmount": "يرجى إدخال مبلغ موجب صالح.",
-      "progressOfTarget": "{percent}% من {target}",
+      "progressOfTarget": "{percent} من {target}",
       "editDeposit": "تعديل الإيداع",
       "editWithdrawal": "تعديل السحب",
       "movementType": "نوع الحركة",
@@ -409,7 +434,7 @@
       "addIncomeStream": "إضافة مصدر دخل",
       "saveIncomeSources": "حفظ مصادر الدخل ({total})",
       "perSourceAnalytics": "تحليل حسب المصدر",
-      "shareOfTotal": "{pct}% من إجمالي الدخل",
+      "shareOfTotal": "{pct} من إجمالي الدخل",
       "primaryIncome": "الدخل الأساسي",
       "nameRequired": "الاسم مطلوب.",
       "validAmount": "أدخل مبلغًا صالحًا.",
@@ -453,7 +478,59 @@
       "proStatusActive": "حالة برو نشطة على هذا الحساب.",
       "switchToFree": "العودة للخطة المجانية",
       "goToPremium": "الترقية للمتقدمة",
-      "proMembership": "عضوية برو"
+      "proMembership": "عضوية برو",
+      "planActive": "اشتراك برو نشط",
+      "nextBilling": "موعد الفوترة التالي: {date}",
+      "allPremiumUnlocked": "كل الميزات المميزة متاحة الآن.",
+      "backToDashboard": "العودة إلى لوحة التحكم",
+      "perPeriod": "لكل {period}",
+      "annualValue": "{price} شهريًا — وفّر {savings}",
+      "monthlyValue": "تتم الفوترة شهريًا. يمكنك التحويل إلى الخطة السنوية في أي وقت لتوفير {percent}.",
+      "courseScanning": "مسح المشتريات بالرمز الشريطي",
+      "courseScanningDesc": "امسح مشتريات البقالة أثناء التسوق، وسينشئ سمارت جيب الفاتورة لك.",
+      "advancedReports": "تقارير متقدمة",
+      "advancedReportsDesc": "تفصيل حسب الفئات ورؤى عن إنفاق كل شخص.",
+      "prioritySync": "مزامنة ذات أولوية",
+      "prioritySyncDesc": "مزامنة أسرع مع فايرستور ودعم بأولوية.",
+      "continueCheckout": "المتابعة إلى الدفع",
+      "secureCheckout": "دفع آمن",
+      "cancelAnytime": "يمكنك الإلغاء في أي وقت",
+      "annualPlan": "خطة برو السنوية",
+      "monthlyPlan": "خطة برو الشهرية",
+      "annualDiscount": "خصم {percent}",
+      "flexible": "مرنة",
+      "fillDemoTestCard": "تعبئة بطاقة الاختبار التجريبية",
+      "cardNumber": "رقم البطاقة",
+      "cardNumberPlaceholder": "4242 4242 4242 4242",
+      "expiry": "تاريخ الانتهاء",
+      "expiryPlaceholder": "شهر/سنة",
+      "cvc": "رمز CVC",
+      "cardholderName": "الاسم على البطاقة",
+      "cardholderPlaceholder": "محمد العلوي",
+      "receiptEmail": "بريد إيصال الدفع",
+      "emailPlaceholder": "you@example.com",
+      "validCardNumber": "أدخل رقم بطاقة صالحًا.",
+      "validExpiry": "أدخل تاريخ انتهاء صالحًا.",
+      "validCvc": "أدخل رمز CVC صالحًا.",
+      "validCardholder": "أدخل الاسم الظاهر على البطاقة.",
+      "validReceiptEmail": "أدخل بريدًا إلكترونيًا لإيصال الدفع.",
+      "creatingCheckout": "جارٍ إنشاء جلسة دفع آمنة…",
+      "validatingCard": "جارٍ التحقق من البطاقة لدى البنك المُصدر…",
+      "processingPayment": "جارٍ معالجة الدفع…",
+      "activatingFeatures": "جارٍ تفعيل ميزات برو…",
+      "processingTitle": "جارٍ معالجة الدفع",
+      "pay": "ادفع {price}",
+      "encryptedTestPayment": "دفع تجريبي مشفر · لن تُخصم أموال حقيقية",
+      "paymentSuccessful": "تم الدفع بنجاح!",
+      "proNowActive": "أصبح سمارت جيب برو نشطًا الآن في حسابك.",
+      "receipt": "إيصال",
+      "plan": "الخطة",
+      "paymentMethod": "طريقة الدفع",
+      "nextBillingLabel": "الفوترة التالية",
+      "totalPaid": "إجمالي المدفوع",
+      "startUsingPro": "ابدأ استخدام برو",
+      "paymentFailed": "فشل الدفع",
+      "paymentFailedDescription": "تعذر إتمام دفعتك. يرجى التحقق من بيانات بطاقتك."
     },
     "moneyPlaces": {
       "title": "تعديل أرصدة الأموال",
@@ -486,7 +563,7 @@
       "hasReceipt": "يوجد إيصال",
       "categoryBudgets": "ميزانيات الفئات",
       "pro": "برو",
-      "percentUsed": "تم استخدام {percent}٪",
+      "percentUsed": "تم استخدام {percent}",
       "overBy": "تم التجاوز بمقدار {amount}",
       "left": "المتبقي {amount}",
       "editBudget": "تعديل ميزانية {category}",
@@ -512,7 +589,7 @@
       "noGoals": "لم تنشئ أي أهداف ادخار بعد.",
       "createGoal": "أنشئ هدفك الأول",
       "reached": "تم الوصول!",
-      "progress": "{percent}%",
+      "progress": "{percent}",
       "fund": "تمويل",
       "withdrawButton": "سحب",
       "deleteGoal": "حذف الهدف",
@@ -523,7 +600,7 @@
       "source": "المصدر: {place}",
       "editGoal": "تعديل الهدف",
       "target": "الهدف: {amount}",
-      "percentReached": "تم بلوغ {percent}٪",
+      "percentReached": "تم بلوغ {percent}",
       "thisMonthsDeposits": "إيداعات هذا الشهر",
       "movementsLogged": "{count, plural, zero {لا حركات مسجلة} one {حركة واحدة مسجلة} two {حركتان مسجلتان} few {# حركات مسجلة} many {# حركة مسجلة} other {# حركة مسجلة}}",
       "saved": "تم ادخار {amount}",
@@ -572,15 +649,15 @@
       "variable": "متغير",
       "fixed": "ثابت",
       "budgetHealth": "صحة الميزانية",
-      "needsLabel": "الاحتياجات ({ratio}%)",
-      "wantsLabel": "الرغبات ({ratio}%)",
+      "needsLabel": "الاحتياجات ({percent})",
+      "wantsLabel": "الرغبات ({percent})",
       "vsLabel": "مقابل",
       "ofLabel": "من",
       "loadingTrends": "جاري تحميل الاتجاهات...",
       "proLabel": "برو",
-      "percentVsLastMonth": "{percent}٪ مقارنة بالشهر الماضي",
+      "percentVsLastMonth": "{percent} مقارنة بالشهر الماضي",
       "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
-      "strategySavings": "{strategy} · {percent}٪ للادخار",
+      "strategySavings": "{strategy} · {percent} للادخار",
       "incomeSourcesPro": "تحليلات مصادر الدخل متاحة في برو.",
       "advancedAnalytics": "التحليلات المتقدمة مثل اتجاهات عدة أشهر، وتوزيع مصادر الدخل، وإنفاق أفراد الأسرة متاحة في برو.",
       "variableAmount": "متغير: {amount}",
@@ -664,8 +741,8 @@
     "wantsAlert": "تنبيه مخصصات الرغبات",
     "categoryExceeded": "تم تجاوز ميزانية «{category}»",
     "categoryAlert": "تنبيه ميزانية «{category}»",
-    "spentVsBudget": "تم إنفاق {spent} مقابل ميزانية {budget} ({percent}٪).",
-    "spentOfBudget": "تم إنفاق {spent} من ميزانية {budget} ({percent}٪).",
+    "spentVsBudget": "تم إنفاق {spent} مقابل ميزانية {budget} ({percent}).",
+    "spentOfBudget": "تم إنفاق {spent} من ميزانية {budget} ({percent}).",
     "viewNotifications": "عرض الإشعارات ({count})",
     "title": "الإشعارات",
     "householdInvitations": "دعوات الأسرة",
@@ -835,7 +912,8 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "ما هو سمارت جيب؟"
+      "title": "ما هو سمارت جيب؟",
+      "description": "سمارت جيب أداة خاصة لتتبع الميزانية تفصل بين الغرض من المال — الاحتياجات والرغبات والادخار — وبين مكان حفظه — البنك أو المنزل أو المحفظة. يدعم 12 عملة وأربعة أساليب للميزانية: 50/30/20، والميزانية الصفرية، ونظام المظاريف، وادفع لنفسك أولًا. لا يتصل سمارت جيب بحسابك البنكي؛ بل تدخل المعاملات يدويًا. تُخزَّن بيانات الحساب مؤقتًا محليًا وتُزامن مع Firebase عند تسجيل الدخول."
     },
     "features": {
       "eyebrow": "القدرات",
@@ -922,7 +1000,8 @@
             }
           ]
         }
-      ]
+      ],
+      "synced": "تمت المزامنة"
     },
     "infrastructure": {
       "eyebrow": "مجاني، مع مساحة للنمو",
@@ -1047,7 +1126,7 @@
           "author": "يوسف ب.",
           "role": "مصمم مستقل",
           "company": "الدار البيضاء",
-          "metric": "وفّر 20% أكثر في 3 أشهر"
+          "metric": "وفّر {percent} أكثر في 3 أشهر"
         },
         {
           "quote": "فصل المحفظة عن البنك عبقري. كنت أفقد تتبع النقد تماماً.",
@@ -1063,7 +1142,8 @@
           "company": "مراكش",
           "metric": "من الجدول للتطبيق في يومين"
         }
-      ]
+      ],
+      "showTestimonial": "عرض الشهادة {number}"
     },
     "pricing": {
       "eyebrow": "الأسعار",
@@ -1072,7 +1152,7 @@
       "description": "ضع ميزانيتك بثقة مجاناً. ترقّ في أي وقت لفهم أعمق لعاداتك.",
       "monthly": "شهري",
       "annual": "سنوي",
-      "save34": "وفّر 34%",
+      "save34": "وفّر {percent}",
       "perMonth": "/شهر",
       "mostPopular": "الأكثر شعبية",
       "bottomNote": "ميزانيتك تبقى خاصة دائماً. لا حاجة لبطاقة ائتمان.",
@@ -1103,11 +1183,46 @@
           ],
           "cta": "ترقية إلى برو"
         }
-      ]
+      ],
+      "useAnnualBilling": "استخدام الفوترة السنوية"
     },
     "faq": {
       "eyebrow": "حقائق سمارت جيب",
-      "title": "أسئلة شائعة"
+      "title": "أسئلة شائعة",
+      "items": [
+        {
+          "question": "هل استخدام سمارت جيب مجاني؟",
+          "answer": "يوفر سمارت جيب خطة مجانية لإدارة الميزانية الأساسية. سمارت جيب برو ترقية مدفوعة اختيارية."
+        },
+        {
+          "question": "هل يتصل سمارت جيب بحسابي البنكي؟",
+          "answer": "لا، لا يتصل سمارت جيب بحسابك البنكي. تدخل معاملاتك يدويًا للحفاظ على الخصوصية والتحكم."
+        },
+        {
+          "question": "ما العملات التي يدعمها سمارت جيب؟",
+          "answer": "يدعم سمارت جيب 12 عملة: MAD وEUR وUSD وGBP وCAD وCHF وAED وSAR وEGP وTND وDZD وXOF."
+        },
+        {
+          "question": "هل بياناتي خاصة؟",
+          "answer": "نعم. تُخزَّن بيانات الحساب مؤقتًا محليًا وتُزامن مع Firebase عند تسجيل الدخول. لا نستخدم بياناتك المالية لإنشاء ملفات إعلانية أو بيعها لأطراف ثالثة. راجع سياسة الخصوصية لمزيد من التفاصيل.",
+          "link": {
+            "label": "سياسة الخصوصية",
+            "href": "/privacy"
+          }
+        },
+        {
+          "question": "ما أساليب الميزانية التي يدعمها سمارت جيب؟",
+          "answer": "يدعم سمارت جيب أربعة أساليب للميزانية: 50/30/20، والميزانية الصفرية، ونظام المظاريف، وادفع لنفسك أولًا."
+        },
+        {
+          "question": "هل يمكنني تصدير بياناتي؟",
+          "answer": "نعم. يمكنك تصدير بيانات ميزانيتك كملف CSV من الإعدادات."
+        },
+        {
+          "question": "كيف أحذف حسابي؟",
+          "answer": "يمكنك حذف حسابك وبيانات الميزانية المرتبطة به نهائيًا من الإعدادات."
+        }
+      ]
     },
     "cta": {
       "titleLine1": "مستعد لمعرفة",
@@ -1260,12 +1375,30 @@
           "body": "يمكنك التحكم في الكوكيز أو مسحها عبر إعدادات المتصفح في أي وقت. لاحظ أن حظر الكوكيز الأساسية قد يمنع سمارت جيب من العمل بشكل صحيح."
         }
       ]
+    },
+    "blog": {
+      "eyebrow": "المدونة",
+      "title": "ملاحظات عن المال والعادات.",
+      "subtitle": "مقالات قصيرة وعملية عن إدارة الميزانية بذكاء — من فريق بناء سمارت جيب.",
+      "readArticle": "اقرأ المقال",
+      "readArticleAria": "اقرأ {title}",
+      "moreOnWayPrefix": "المزيد في الطريق. هل لديك موضوع تود أن نغطيه؟",
+      "letUsKnow": "أخبرنا به",
+      "home": "الرئيسية",
+      "allArticles": "كل المقالات",
+      "byAuthor": "من فريق سمارت جيب",
+      "readingTime": "قراءة {minutes} دقائق",
+      "continueReading": "تابع القراءة",
+      "relatedArticles": "مقالات ذات صلة",
+      "articleCtaDescription": "يفصل سمارت جيب بين مظاريف الميزانية وأرصدة البنك والمنزل والمحفظة.",
+      "startBudgeting": "ابدأ الميزانية مجاناً",
+      "breadcrumb": "مسار التنقل"
     }
   },
   "strategies": {
     "50-30-20": {
       "name": "قاعدة 50/30/20",
-      "description": "توزيع متوازن: 50٪ للاحتياجات، و30٪ للرغبات، و20٪ للادخار."
+      "description": "توزيع متوازن: {needs} للاحتياجات، و{wants} للرغبات، و{savings} للادخار."
     },
     "70-20-10": {
       "name": "قاعدة 70/20/10",
@@ -1362,7 +1495,7 @@
     "percentage": "النسبة المئوية لـ {label}",
     "slider": "شريط تمرير {label}",
     "totalAllocated": "إجمالي المخصص",
-    "mustEqual": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار 100٪ بالضبط.",
+    "mustEqual": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {total} بالضبط.",
     "applyCustomSplit": "تطبيق التوزيع المخصص"
   },
   "datePicker": {
@@ -1654,6 +1787,10 @@
     "emailGreeting": "مرحبًا،",
     "emailBody": "تمت دعوتك للانضمام إلى {household} بصفتك {role}.",
     "emailAccept": "قبول الدعوة",
-    "emailExpires": "تنتهي صلاحية هذه الدعوة خلال 14 يومًا."
+    "emailExpires": "تنتهي صلاحية هذه الدعوة خلال 14 يومًا.",
+    "savingsPrivateTitle": "الادخار خاص",
+    "savingsPrivateDescription": "لا يشمل وصولك إلى الأسرة أهداف الادخار أو الأرصدة.",
+    "debtsPrivateTitle": "الديون خاصة",
+    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات."
   }
 }

@@ -22,13 +22,13 @@ import { useLanguage } from '@/lib/i18n-context';
  */
 export function Sidebar() {
   const pathname = usePathname();
-  const { messages: m } = useLanguage();
+  const { messages: m, t } = useLanguage();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
   const { workspace } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
-  const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || 'A';
+  const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
   return (
@@ -143,10 +143,10 @@ export function Sidebar() {
           />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
             <span className="font-label-lg font-bold text-on-surface truncate">
-              {profile?.displayName || (user?.email ? user.email.split('@')[0] : 'Amine Bennani')}
+              {profile?.displayName || (user?.email ? user.email.split('@')[0] : m.auth.anonymousUser)}
             </span>
             <span className="font-label-sm text-[10px] text-primary uppercase font-extrabold tracking-wider">
-              {isPro ? 'PRO PLAN' : 'FREE PLAN'}
+              {t(m.auth.planLabel, { plan: isPro ? m.profile.links.pro : m.profile.free })}
             </span>
           </div>
           <AppIcon

@@ -9,6 +9,7 @@ import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
 
 interface VariableTabProps {
@@ -211,7 +212,7 @@ export function VariableTab({
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className={`font-bold ${isOverBudget ? 'text-error' : 'text-on-surface-variant'}`}>
-                        {t(m.tabs.variable.percentUsed, { percent: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(progress) })}
+                        {t(m.tabs.variable.percentUsed, { percent: formatLocalizedPercent(progress, intlLocale) })}
                       </span>
                       <span className="font-mono text-on-surface-variant">
                         {isOverBudget 

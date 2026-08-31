@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   type Language,
   type Messages,
@@ -11,6 +11,7 @@ import {
   resolveClientLocale,
   setLanguageCookie,
   LANG_STORAGE_KEY,
+  notifyLanguageChange,
 } from './i18n';
 import { loadMessages } from './messages';
 import { formatMessage, translateMessage } from './i18n-core';
@@ -19,7 +20,8 @@ import { trackEvent } from './analytics';
 
 interface LanguageContextType {
   language: Language;
-  setLanguage: (lang: Language) => void;
+  /** Change the mounted locale; pass false after an already-persisted profile save. */
+  setLanguage: (lang: Language, persist?: boolean) => void;
   messages: Messages;
   t: (template: string, values?: Record<string, string | number>) => string;
   translate: (path: string, values?: Record<string, string | number>) => string;
@@ -40,15 +42,27 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return resolveClientLocale();
   });
   const [messages, setMessages] = useState<Messages>(EN_MESSAGES);
+  const messageRequest = useRef(0);
 
   useEffect(() => {
-    // fr/ar chunks load on demand; en is already bundled.
-    loadMessages(language).then(setMessages).catch(() => setMessages(EN_MESSAGES));
+    // Ignore stale dynamic imports when language changes in quick succession.
+    const request = ++messageRequest.current;
+    loadMessages(language)
+      .then((nextMessages) => {
+        if (request === messageRequest.current) setMessages(nextMessages);
+      })
+      .catch(() => {
+        if (request === messageRequest.current) setMessages(EN_MESSAGES);
+      });
   }, [language]);
 
   useEffect(() => {
     if (profile?.language && (profile.language === 'en' || profile.language === 'fr' || profile.language === 'ar')) {
-      setLanguageState(profile.language as Language);
+      const nextLanguage = profile.language as Language;
+      setLanguageState(nextLanguage);
+      setLanguageCookie(nextLanguage);
+      try { localStorage.setItem(LANG_STORAGE_KEY, nextLanguage); } catch { /* ignore */ }
+      notifyLanguageChange(nextLanguage);
     }
   }, [profile?.language]);
 
@@ -59,23 +73,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [language]);
 
   const setLanguage = useCallback(
-    (lang: Language) => {
+    (lang: Language, persist = true) => {
       setLanguageState(lang);
       setLanguageCookie(lang);
+      notifyLanguageChange(lang);
       try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
-      updateProfileData({ language: lang }).catch((e) => console.error(e));
-      trackEvent('change_language', { language: lang });
+      if (persist) {
+        updateProfileData({ language: lang }).catch((e) => console.error(e));
+        trackEvent('change_language', { language: lang });
+      }
     },
     [updateProfileData],
   );
 
   const t = useCallback(
-    (template: string, values?: Record<string, string | number>) => formatMessage(template, values),
-    [],
+    (template: string, values?: Record<string, string | number>) => formatMessage(template, values, getIntlLocale(language)),
+    [language],
   );
   const translate = useCallback(
-    (path: string, values?: Record<string, string | number>) => translateMessage(messages, path, values),
-    [messages],
+    (path: string, values?: Record<string, string | number>) => translateMessage(messages, path, values, getIntlLocale(language)),
+    [language, messages],
   );
 
   return (

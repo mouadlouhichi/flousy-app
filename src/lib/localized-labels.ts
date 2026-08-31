@@ -1,4 +1,4 @@
-import type { Messages } from './i18n-core';
+import { formatLocalizedPercent, formatMessage, type Messages } from './i18n-core';
 import type { StrategyId } from './store';
 
 const CATEGORY_KEYS: Record<string, keyof Messages['categories']> = {
@@ -96,8 +96,22 @@ export function localizeBillCategory(name: string, messages: Messages): string {
   return key ? options[key] : localizeCategoryName(name, messages);
 }
 
-export function localizeStrategy(strategyId: StrategyId, messages: Messages) {
-  return messages.strategies[strategyId];
+export function localizeStrategy(
+  strategyId: StrategyId,
+  messages: Messages,
+  intlLocale = 'en-US',
+) {
+  const strategy = messages.strategies[strategyId];
+  if (strategyId !== '50-30-20') return strategy;
+
+  return {
+    ...strategy,
+    description: formatMessage(strategy.description, {
+      needs: formatLocalizedPercent(50, intlLocale),
+      wants: formatLocalizedPercent(30, intlLocale),
+      savings: formatLocalizedPercent(20, intlLocale),
+    }),
+  };
 }
 
 /**

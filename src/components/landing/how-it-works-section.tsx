@@ -2,51 +2,49 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { formatLocalizedPercent } from "@/lib/i18n";
 
-const steps = [
-  {
-    number: "I",
-    title: "Tell us about your income",
-    description: "Add what you earn and a few regular bills. It takes about two minutes, and you can always change it later.",
-    snapshot: {
-      label: "Monthly income",
-      lines: [
-        { text: "Salary", value: "12,000 MAD" },
-        { text: "Side income", value: "800 MAD" },
-        { text: "Total", value: "12,800 MAD" },
-      ],
-    },
-  },
-  {
-    number: "II",
-    title: "Pick a budgeting style",
-    description: "SmartJib splits your income into needs, wants and savings for you. Prefer a different balance? Switch styles anytime.",
-    snapshot: {
-      label: "Your monthly plan",
-      lines: [
-        { text: "Needs", value: "50%" },
-        { text: "Wants", value: "30%" },
-        { text: "Savings", value: "20%" },
-      ],
-    },
-  },
-  {
-    number: "III",
-    title: "Log spending as it happens",
-    description: "Add an expense in seconds and choose whether it came from your bank, your wallet, or cash at home. Your plan updates instantly.",
-    snapshot: {
-      label: "Today",
-      lines: [
-        { text: "Groceries · Wallet", value: "-85 MAD" },
-        { text: "Coffee · Wallet", value: "-18 MAD" },
-        { text: "Remaining this month", value: "3,240 MAD" },
-      ],
-    },
-  },
-];
+const STEP_NUMBERS = ['I', 'II', 'III'] as const;
+
+type Step = {
+  number: string;
+  title: string;
+  description: string;
+  snapshot: {
+    label: string;
+    lines: { text: string; value: string }[];
+  };
+};
 
 export function HowItWorksSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, isRTL, intlLocale } = useLightLanguage();
+  const formatSnapshotValue = (value: string) => {
+    const percent = /^(\d+(?:\.\d+)?)%$/.exec(value);
+    if (percent) return formatLocalizedPercent(Number(percent[1]), intlLocale);
+
+    const amount = /^(-?[\d, ]+)\s+(MAD)$/.exec(value);
+    if (amount) {
+      const numericAmount = Number(amount[1].replace(/[ ,]/g, ''));
+      return new Intl.NumberFormat(intlLocale, {
+        style: 'currency',
+        currency: amount[2],
+        maximumFractionDigits: 0,
+      }).format(numericAmount);
+    }
+
+    return value;
+  };
+  const steps: Step[] = m.landing.howItWorks.steps.map((step, index) => ({
+    number: isRTL
+      ? new Intl.NumberFormat(intlLocale).format(index + 1)
+      : STEP_NUMBERS[index] || String(index + 1),
+    title: step.title,
+    description: step.description,
+    snapshot: {
+      label: step.snapshotLabel,
+      lines: step.lines,
+    },
+  }));
   const [activeStep, setActiveStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -68,7 +66,7 @@ export function HowItWorksSection() {
       setActiveStep((prev) => (prev + 1) % steps.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [steps.length]);
 
   return (
     <section
@@ -101,9 +99,9 @@ export function HowItWorksSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Three steps.
+            {m.landing.howItWorks.titleLine1}
             <br />
-            <span className="text-background/50">A clearer month ahead.</span>
+            <span className="text-background/50">{m.landing.howItWorks.titleLine2}</span>
           </h2>
         </div>
 
@@ -116,7 +114,7 @@ export function HowItWorksSection() {
                 key={step.number}
                 type="button"
                 onClick={() => setActiveStep(index)}
-                className={`w-full text-left py-8 border-b border-background/10 transition-all duration-500 group ${
+                className={`w-full text-start py-8 border-b border-background/10 transition-all duration-500 group ${
                   activeStep === index ? "opacity-100" : "opacity-40 hover:opacity-70"
                 }`}
               >
@@ -169,7 +167,7 @@ export function HowItWorksSection() {
                     style={{ animationDelay: `${lineIndex * 120}ms` }}
                   >
                     <span className="text-background/60 text-lg">{line.text}</span>
-                    <span className="font-display text-2xl lg:text-3xl">{line.value}</span>
+                    <span className="font-display text-2xl lg:text-3xl">{formatSnapshotValue(line.value)}</span>
                   </div>
                 ))}
               </div>
@@ -177,7 +175,7 @@ export function HowItWorksSection() {
               {/* Status */}
               <div className="px-6 py-4 border-t border-background/10 flex items-center gap-3">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs font-mono text-background/40">Synced</span>
+                <span className="text-xs font-mono text-background/40">{m.landing.howItWorks.synced}</span>
               </div>
             </div>
           </div>

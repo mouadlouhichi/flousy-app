@@ -1,4 +1,4 @@
-import type { Messages } from '@/lib/i18n-core';
+import { EN_MESSAGES, type Messages } from '@/lib/i18n-core';
 
 export type DashboardScreenId =
   | 'overview'
@@ -12,10 +12,6 @@ export type DashboardScreenId =
 
 export interface DashboardNavItem {
   id: DashboardScreenId;
-  /** English fallback used outside the localized dashboard shell. */
-  label: string;
-  /** English fallback used outside the localized dashboard shell. */
-  title: string;
   /** Route path for this screen */
   href: string;
   /** Icon used in the desktop sidebar */
@@ -39,32 +35,24 @@ export interface DashboardNavItem {
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   {
     id: 'overview',
-    label: 'Overview',
-    title: 'Dashboard Overview',
     href: '/dashboard',
     sidebarIcon: 'house',
     mobileIcon: 'house',
   },
   {
     id: 'fixed',
-    label: 'Fixed Bills',
-    title: 'Fixed Bills',
     href: '/dashboard/fixed',
     sidebarIcon: 'event_repeat',
     mobileIcon: 'receipt',
   },
   {
     id: 'variable',
-    label: 'Variable Expenses',
-    title: 'Variable Expenses',
     href: '/dashboard/variable',
     sidebarIcon: 'receipt_long',
     mobileIcon: 'shopping_cart',
   },
   {
     id: 'courses',
-    label: 'Courses',
-    title: 'Course Session',
     href: '/dashboard/courses',
     sidebarIcon: 'scan_barcode',
     mobileIcon: 'scan_barcode',
@@ -74,16 +62,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   },
   {
     id: 'savings',
-    label: 'Savings',
-    title: 'Savings Goals',
     href: '/dashboard/savings',
     sidebarIcon: 'savings',
     mobileIcon: 'savings',
   },
   {
     id: 'trends',
-    label: 'Trends',
-    title: 'Trends & Analytics',
     href: '/dashboard/trends',
     sidebarIcon: 'trending_up',
     mobileIcon: 'trending_up',
@@ -92,16 +76,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   },
   {
     id: 'debts',
-    label: 'Debts',
-    title: 'Debts & Credits',
     href: '/dashboard/debts',
     sidebarIcon: 'description',
     mobileIcon: 'account_balance',
   },
   {
     id: 'profile',
-    label: 'Profile',
-    title: 'Profile & Account',
     href: '/dashboard/profile',
     sidebarIcon: 'person',
     mobileIcon: 'person',
@@ -167,16 +147,6 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
   );
 }
 
-const PROFILE_PAGE_TITLES: Record<string, string> = {
-  '/dashboard/profile': 'Profile & Account',
-  '/dashboard/profile/preferences': 'Preferences',
-  '/dashboard/profile/money-sources': 'Money Sources',
-  '/dashboard/profile/workspace': 'Workspace',
-  '/dashboard/profile/pro': 'Pro',
-  '/dashboard/profile/data': 'Data',
-  '/dashboard/profile/account': 'Account',
-};
-
 const PROFILE_PAGE_TITLE_KEYS: Record<string, keyof Messages['navigation']> = {
   '/dashboard/profile': 'profileAccount',
   '/dashboard/profile/preferences': 'preferences',
@@ -187,14 +157,6 @@ const PROFILE_PAGE_TITLE_KEYS: Record<string, keyof Messages['navigation']> = {
   '/dashboard/profile/account': 'account',
 };
 
-/** Desktop header title for the profile hub and its nested settings pages. */
-export function getProfilePageTitle(pathname: string | null): string | null {
-  if (!pathname) return null;
-  if (pathname in PROFILE_PAGE_TITLES) return PROFILE_PAGE_TITLES[pathname];
-  if (pathname.startsWith('/dashboard/profile/')) return 'Profile & Account';
-  return null;
-}
-
 export function getLocalizedProfilePageTitle(pathname: string | null, messages: Messages): string | null {
   if (!pathname) return null;
   const key = PROFILE_PAGE_TITLE_KEYS[pathname];
@@ -204,10 +166,19 @@ export function getLocalizedProfilePageTitle(pathname: string | null, messages: 
 }
 
 /**
+ * Legacy compatibility helper. Dashboard UI always calls the localized helper
+ * above with the active dictionary; this preserves the prior API for callers
+ * that explicitly need the canonical English title.
+ */
+export function getProfilePageTitle(pathname: string | null): string | null {
+  return getLocalizedProfilePageTitle(pathname, EN_MESSAGES);
+}
+
+/**
  * Every route the dashboard can navigate to (main screens + profile
  * subpages). Used for client-side prefetching so clicks are instant.
  */
 export const DASHBOARD_NAV_HREFS: string[] = [
   ...DASHBOARD_NAV_ITEMS.map((item) => item.href),
-  ...Object.keys(PROFILE_PAGE_TITLES).filter((href) => href !== '/dashboard/profile'),
+  ...Object.keys(PROFILE_PAGE_TITLE_KEYS).filter((href) => href !== '/dashboard/profile'),
 ];

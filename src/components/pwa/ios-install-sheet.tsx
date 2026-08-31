@@ -15,7 +15,7 @@ interface IosInstallSheetProps {
  * explained rather than triggered.
  */
 export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, intlLocale } = useLightLanguage();
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
           ].map((step, index) => (
             <li key={step.icon} className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-label-md font-bold text-primary">
-                {index + 1}
+                {new Intl.NumberFormat(intlLocale).format(index + 1)}
               </span>
               <AppIcon name={step.icon} className=" text-[22px] text-primary" />
               <span className="text-body-md text-on-surface">{step.text}</span>

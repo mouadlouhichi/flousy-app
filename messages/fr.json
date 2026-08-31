@@ -19,7 +19,7 @@
     "open": "Ouvert",
     "settled": "Réglé",
     "step": "ÉTAPE {current} SUR {total}",
-    "percentComplete": "{percent}%",
+    "percentComplete": "{percent}",
     "yes": "Oui",
     "no": "Non",
     "done": "Terminé",
@@ -70,7 +70,23 @@
     "actions": "Actions",
     "manage": "Gérer",
     "addNew": "Ajouter",
-    "user": "Utilisateur"
+    "user": "Utilisateur",
+    "accessibility": {
+      "loading": "Chargement",
+      "pagination": "Pagination",
+      "previousPage": "Aller à la page précédente",
+      "nextPage": "Aller à la page suivante",
+      "morePages": "Plus de pages",
+      "breadcrumb": "Fil d’Ariane",
+      "more": "Plus",
+      "sidebarTitle": "Barre latérale",
+      "sidebarDescription": "Affiche la barre latérale sur mobile.",
+      "toggleSidebar": "Afficher ou masquer la barre latérale",
+      "previousSlide": "Diapositive précédente",
+      "nextSlide": "Diapositive suivante",
+      "carousel": "Carrousel",
+      "slide": "Diapositive"
+    }
   },
   "auth": {
     "signIn": "Connexion",
@@ -96,6 +112,15 @@
     "failedResetEmail": "Échec de l'envoi de l'e-mail de réinitialisation",
     "invalidCredentials": "E-mail ou mot de passe invalide",
     "authFailed": "Échec de l'authentification. Veuillez vérifier vos identifiants.",
+    "unauthorizedDomain": "Ce domaine n’est pas autorisé à se connecter. Ajoutez-le dans Firebase → Authentication → Authorized domains, ou utilisez le site publié.",
+    "tooManyAttempts": "Trop de tentatives. Attendez quelques minutes avant de réessayer.",
+    "popupBlocked": "La fenêtre de connexion a été bloquée. Autorisez les fenêtres contextuelles pour ce site, ou utilisez la connexion par e-mail.",
+    "signInCancelled": "La connexion a été annulée.",
+    "networkError": "Erreur réseau. Vérifiez votre connexion et réessayez.",
+    "signInMethodDisabled": "Cette méthode de connexion est désactivée dans Firebase.",
+    "emailAlreadyInUse": "Un compte utilise déjà cette adresse e-mail. Connectez-vous plutôt.",
+    "weakPassword": "Le mot de passe doit contenir au moins 6 caractères.",
+    "apiKeyReferrerBlocked": "Firebase a bloqué ce domaine de prévisualisation. Ajoutez-le aux référents HTTP de la clé API, ou utilisez le site publié.",
     "googleSignInFailed": "Échec de la connexion Google",
     "demoMode": "Mode Démo Disponible",
     "demoModeDescription": "Découvrez SmartJib instantanément avec des données d'exemple en mode aperçu local.",
@@ -140,7 +165,7 @@
     "fixedNeeds": "Besoins Fixes",
     "variableWants": "Envies Variables",
     "futureSavings": "Épargne Future",
-    "ofIncome": "{percent}% du revenu",
+    "ofIncome": "{percent} du revenu",
     "confirmAndFinish": "Confirmer et Terminer",
     "finishingSetup": "Finalisation...",
     "editAllocation": "Modifier la Répartition",
@@ -177,8 +202,8 @@
       "savings": "Épargne / investissement",
       "other": "Autre"
     },
-    "customSplitInvalid": "Les besoins, les envies et l’épargne doivent totaliser exactement 100 % (actuellement {percent} %).",
-    "customSplitSummary": "{percent} % {label}",
+    "customSplitInvalid": "Les besoins, les envies et l’épargne doivent totaliser exactement {required} (actuellement {percent}).",
+    "customSplitSummary": "{percent} {label}",
     "removeBill": "Retirer {name}",
     "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors."
   },
@@ -196,10 +221,10 @@
     "addFunds": "Ajouter Fonds",
     "withdraw": "Retirer",
     "budgetPlan": "Plan Budgétaire",
-    "needsLabel": "Besoins ({percent}%)",
-    "wantsLabel": "Envies ({percent}%)",
-    "savingsLabel": "Épargne ({percent}%)",
-    "used": "{percent}% Utilisé",
+    "needsLabel": "Besoins ({percent})",
+    "wantsLabel": "Envies ({percent})",
+    "savingsLabel": "Épargne ({percent})",
+    "used": "{percent} utilisé",
     "activeGoals": "{count, plural, =0 {Aucun Objectif Actif} one {# Objectif Actif} other {# Objectifs Actifs}}",
     "totalMonthlyBudget": "BUDGET MENSUEL TOTAL",
     "totalCashOnHand": "ESPÈCES DISPONIBLES",
@@ -312,7 +337,7 @@
       "createGoal": "Créer l'Objectif",
       "fundGoal": "Financer l'Objectif",
       "withdrawGoal": "Retirer",
-      "progressLabel": "{current} sur {target} ({percent}%)",
+      "progressLabel": "{current} sur {target} ({percent})",
       "alreadySaved": "Déjà épargné ({currency})",
       "suggestions": "Suggestions :",
       "openingBalanceHint": "Vous commencez avec un objectif existant ? Saisissez ce que vous avez déjà mis de côté pour que la progression parte de ce montant, et non de zéro.",
@@ -329,7 +354,7 @@
       "fundInsufficient": "Seuls {amount} sont disponibles dans {place}. Réduisez le dépôt ou déplacez de l’argent vers cet emplacement.",
       "withdrawTooMuch": "Impossible de retirer plus que le solde de l’objectif ({amount}).",
       "validPositiveAmount": "Veuillez saisir un montant positif valide.",
-      "progressOfTarget": "{percent} % de {target}",
+      "progressOfTarget": "{percent} de {target}",
       "editDeposit": "Modifier le dépôt",
       "editWithdrawal": "Modifier le retrait",
       "movementType": "Type de mouvement",
@@ -409,7 +434,7 @@
       "addIncomeStream": "Ajouter Flux de Revenus",
       "saveIncomeSources": "Enregistrer les Sources ({total})",
       "perSourceAnalytics": "Analyse par source",
-      "shareOfTotal": "{pct}% du revenu total",
+      "shareOfTotal": "{pct} du revenu total",
       "primaryIncome": "Revenu principal",
       "nameRequired": "Le nom est requis.",
       "validAmount": "Saisissez un montant valide.",
@@ -453,7 +478,59 @@
       "proStatusActive": "Votre statut Pro est actif sur ce compte.",
       "switchToFree": "Revenir au Plan Gratuit",
       "goToPremium": "Passer au Premium",
-      "proMembership": "Adhésion Pro"
+      "proMembership": "Adhésion Pro",
+      "planActive": "Votre forfait Pro est actif",
+      "nextBilling": "Prochaine facturation : {date}",
+      "allPremiumUnlocked": "Toutes les fonctionnalités premium sont déverrouillées.",
+      "backToDashboard": "Retour au tableau de bord",
+      "perPeriod": "/{period}",
+      "annualValue": "{price} par mois — économisez {savings}",
+      "monthlyValue": "Facturé chaque mois. Passez à l’offre annuelle à tout moment pour économiser {percent}.",
+      "courseScanning": "Scan des courses par code-barres",
+      "courseScanningDesc": "Scannez vos courses pendant vos achats : SmartJib prépare la facture pour vous.",
+      "advancedReports": "Rapports avancés",
+      "advancedReportsDesc": "Répartitions par catégorie et aperçu des dépenses par personne.",
+      "prioritySync": "Synchronisation prioritaire",
+      "prioritySyncDesc": "Synchronisation Firestore plus rapide et assistance prioritaire.",
+      "continueCheckout": "Continuer vers le paiement",
+      "secureCheckout": "Paiement sécurisé",
+      "cancelAnytime": "Annulez à tout moment",
+      "annualPlan": "Forfait Pro annuel",
+      "monthlyPlan": "Forfait Pro mensuel",
+      "annualDiscount": "{percent} de réduction",
+      "flexible": "Flexible",
+      "fillDemoTestCard": "Remplir la carte de test",
+      "cardNumber": "Numéro de carte",
+      "cardNumberPlaceholder": "4242 4242 4242 4242",
+      "expiry": "Expiration",
+      "expiryPlaceholder": "MM/AA",
+      "cvc": "CVC",
+      "cardholderName": "Nom sur la carte",
+      "cardholderPlaceholder": "Jean Dupont",
+      "receiptEmail": "E-mail du reçu",
+      "emailPlaceholder": "vous@exemple.com",
+      "validCardNumber": "Saisissez un numéro de carte valide.",
+      "validExpiry": "Saisissez une date d’expiration valide (MM/AA).",
+      "validCvc": "Saisissez un CVC valide.",
+      "validCardholder": "Saisissez le nom figurant sur la carte.",
+      "validReceiptEmail": "Saisissez une adresse e-mail pour le reçu.",
+      "creatingCheckout": "Création de la session de paiement sécurisée…",
+      "validatingCard": "Validation de la carte auprès de votre banque…",
+      "processingPayment": "Traitement du paiement…",
+      "activatingFeatures": "Activation des fonctionnalités Pro…",
+      "processingTitle": "Traitement du paiement",
+      "pay": "Payer {price}",
+      "encryptedTestPayment": "Paiement test chiffré · aucun fonds réel débité",
+      "paymentSuccessful": "Paiement réussi !",
+      "proNowActive": "SmartJib Pro est maintenant actif sur votre compte.",
+      "receipt": "Reçu",
+      "plan": "Forfait",
+      "paymentMethod": "Mode de paiement",
+      "nextBillingLabel": "Prochaine facturation",
+      "totalPaid": "Total payé",
+      "startUsingPro": "Commencer à utiliser Pro",
+      "paymentFailed": "Échec du paiement",
+      "paymentFailedDescription": "Votre paiement n’a pas pu être effectué. Vérifiez les informations de votre carte."
     },
     "moneyPlaces": {
       "title": "Modifier les soldes",
@@ -486,7 +563,7 @@
       "hasReceipt": "A un reçu",
       "categoryBudgets": "Budgets par catégorie",
       "pro": "PRO",
-      "percentUsed": "{percent} % utilisé",
+      "percentUsed": "{percent} utilisé",
       "overBy": "Dépassement de {amount}",
       "left": "Il reste {amount}",
       "editBudget": "Modifier le budget de {category}",
@@ -512,7 +589,7 @@
       "noGoals": "Vous n'avez pas encore créé d'objectif d'épargne.",
       "createGoal": "Créer Votre Premier Objectif",
       "reached": "Atteint !",
-      "progress": "{percent}%",
+      "progress": "{percent}",
       "fund": "Financer",
       "withdrawButton": "Retirer",
       "deleteGoal": "Supprimer l'Objectif",
@@ -523,7 +600,7 @@
       "source": "Source : {place}",
       "editGoal": "Modifier l’objectif",
       "target": "Objectif : {amount}",
-      "percentReached": "{percent} % atteint",
+      "percentReached": "{percent} atteint",
       "thisMonthsDeposits": "DÉPÔTS DE CE MOIS",
       "movementsLogged": "{count, plural, one {# mouvement enregistré} other {# mouvements enregistrés}}",
       "saved": "{amount} épargné",
@@ -572,15 +649,15 @@
       "variable": "Variable",
       "fixed": "Fixe",
       "budgetHealth": "Santé budgétaire",
-      "needsLabel": "Essentiel ({ratio}%)",
-      "wantsLabel": "Loisirs ({ratio}%)",
+      "needsLabel": "Essentiel ({percent})",
+      "wantsLabel": "Loisirs ({percent})",
       "vsLabel": "sur",
       "ofLabel": "de",
       "loadingTrends": "Chargement des tendances...",
       "proLabel": "PRO",
-      "percentVsLastMonth": "{percent} % par rapport au mois dernier",
+      "percentVsLastMonth": "{percent} par rapport au mois dernier",
       "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
-      "strategySavings": "{strategy} · {percent} % épargne",
+      "strategySavings": "{strategy} · {percent} épargne",
       "incomeSourcesPro": "Les analyses des sources de revenus sont disponibles avec Pro.",
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
@@ -664,8 +741,8 @@
     "wantsAlert": "Alerte sur l’enveloppe des envies",
     "categoryExceeded": "Budget « {category} » dépassé",
     "categoryAlert": "Alerte sur le budget « {category} »",
-    "spentVsBudget": "{spent} dépensé sur un budget de {budget} ({percent} %).",
-    "spentOfBudget": "{spent} dépensé sur un budget de {budget} ({percent} %).",
+    "spentVsBudget": "{spent} dépensé sur un budget de {budget} ({percent}).",
+    "spentOfBudget": "{spent} dépensé sur un budget de {budget} ({percent}).",
     "viewNotifications": "Voir les notifications ({count})",
     "title": "Notifications",
     "householdInvitations": "Invitations du foyer",
@@ -835,7 +912,8 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "Qu'est-ce que SmartJib ?"
+      "title": "Qu'est-ce que SmartJib ?",
+      "description": "SmartJib est un outil privé de suivi de budget qui sépare ce à quoi sert votre argent — besoins, envies et épargne — de l’endroit où il est conservé — banque, maison ou portefeuille. Il prend en charge 12 devises et 4 stratégies de budget : 50/30/20, budget base zéro, budget par enveloppes et payez-vous d’abord. SmartJib ne se connecte pas à votre banque ; vous saisissez les transactions manuellement. Les données du compte sont mises en cache localement et synchronisées avec Firebase lorsque vous vous connectez."
     },
     "features": {
       "eyebrow": "Fonctionnalités",
@@ -922,7 +1000,8 @@
             }
           ]
         }
-      ]
+      ],
+      "synced": "Synchronisé"
     },
     "infrastructure": {
       "eyebrow": "Gratuit, avec de la marge",
@@ -1047,7 +1126,7 @@
           "author": "Youssef B.",
           "role": "Designer freelance",
           "company": "Casablanca",
-          "metric": "20% d'épargne en plus en 3 mois"
+          "metric": "{percent} d'épargne en plus en 3 mois"
         },
         {
           "quote": "La séparation portefeuille/banque est géniale. Avant, je perdais complètement la trace de mes espèces.",
@@ -1063,7 +1142,8 @@
           "company": "Marrakech",
           "metric": "Du tableur à l'app en 2 jours"
         }
-      ]
+      ],
+      "showTestimonial": "Afficher le témoignage {number}"
     },
     "pricing": {
       "eyebrow": "Tarifs",
@@ -1072,7 +1152,7 @@
       "description": "Budgétisez en confiance sans frais. Passez au Pro à tout moment pour mieux comprendre vos habitudes.",
       "monthly": "Mensuel",
       "annual": "Annuel",
-      "save34": "Économisez 34%",
+      "save34": "Économisez {percent}",
       "perMonth": "/mois",
       "mostPopular": "Le plus populaire",
       "bottomNote": "Votre budget reste privé, toujours. Aucune carte de crédit requise.",
@@ -1103,11 +1183,46 @@
           ],
           "cta": "Passer au Pro"
         }
-      ]
+      ],
+      "useAnnualBilling": "Utiliser la facturation annuelle"
     },
     "faq": {
       "eyebrow": "Les faits SmartJib",
-      "title": "Questions fréquentes"
+      "title": "Questions fréquentes",
+      "items": [
+        {
+          "question": "SmartJib est-il gratuit ?",
+          "answer": "SmartJib propose un forfait gratuit pour la gestion de budget essentielle. SmartJib Pro est une mise à niveau payante facultative."
+        },
+        {
+          "question": "SmartJib se connecte-t-il à ma banque ?",
+          "answer": "Non, SmartJib ne se connecte pas à votre banque. Vous saisissez vos transactions manuellement pour préserver votre confidentialité et votre contrôle."
+        },
+        {
+          "question": "Quelles devises SmartJib prend-il en charge ?",
+          "answer": "SmartJib prend en charge 12 devises : MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD et XOF."
+        },
+        {
+          "question": "Mes données sont-elles privées ?",
+          "answer": "Oui. Les données du compte sont mises en cache localement et synchronisées avec Firebase lorsque vous vous connectez. Nous n’utilisons pas vos données financières pour créer des profils publicitaires ni les vendre à des tiers. Consultez notre politique de confidentialité pour plus de détails.",
+          "link": {
+            "label": "Politique de confidentialité",
+            "href": "/privacy"
+          }
+        },
+        {
+          "question": "Quelles méthodes de budget SmartJib prend-il en charge ?",
+          "answer": "SmartJib prend en charge 4 stratégies de budget : 50/30/20, budget base zéro, budget par enveloppes et payez-vous d’abord."
+        },
+        {
+          "question": "Puis-je exporter mes données ?",
+          "answer": "Oui. Vous pouvez exporter vos données budgétaires dans un fichier CSV depuis les paramètres."
+        },
+        {
+          "question": "Comment supprimer mon compte ?",
+          "answer": "Vous pouvez supprimer définitivement votre compte et les données budgétaires associées depuis les paramètres."
+        }
+      ]
     },
     "cta": {
       "titleLine1": "Prêt à savoir",
@@ -1260,12 +1375,30 @@
           "body": "Vous pouvez contrôler ou effacer les cookies via les paramètres de votre navigateur à tout moment. Notez que bloquer les cookies essentiels peut empêcher SmartJib de fonctionner correctement."
         }
       ]
+    },
+    "blog": {
+      "eyebrow": "Blog",
+      "title": "Notes sur l'argent et les habitudes.",
+      "subtitle": "Des articles courts et pratiques pour mieux gérer son budget — par l'équipe qui crée SmartJib.",
+      "readArticle": "Lire l'article",
+      "readArticleAria": "Lire {title}",
+      "moreOnWayPrefix": "D’autres articles arrivent. Un sujet que vous aimeriez voir traité ?",
+      "letUsKnow": "Dites-le-nous",
+      "home": "Accueil",
+      "allArticles": "Tous les articles",
+      "byAuthor": "Par l'équipe SmartJib",
+      "readingTime": "{minutes} min de lecture",
+      "continueReading": "Continuer la lecture",
+      "relatedArticles": "Articles associés",
+      "articleCtaDescription": "SmartJib garde les enveloppes budgétaires distinctes des soldes de votre banque, de votre maison et de votre portefeuille.",
+      "startBudgeting": "Commencer gratuitement",
+      "breadcrumb": "Fil d’Ariane"
     }
   },
   "strategies": {
     "50-30-20": {
       "name": "Règle 50/30/20",
-      "description": "Une répartition équilibrée : 50 % pour les besoins, 30 % pour les envies et 20 % pour l’épargne."
+      "description": "Une répartition équilibrée : {needs} pour les besoins, {wants} pour les envies et {savings} pour l’épargne."
     },
     "70-20-10": {
       "name": "Règle 70/20/10",
@@ -1362,7 +1495,7 @@
     "percentage": "Pourcentage de {label}",
     "slider": "Curseur de {label}",
     "totalAllocated": "Total alloué",
-    "mustEqual": "Les besoins, les envies et l’épargne doivent totaliser exactement 100 %.",
+    "mustEqual": "Les besoins, les envies et l’épargne doivent totaliser exactement {total}.",
     "applyCustomSplit": "Appliquer la répartition personnalisée"
   },
   "datePicker": {
@@ -1654,6 +1787,10 @@
     "emailGreeting": "Bonjour,",
     "emailBody": "Vous êtes invité à rejoindre {household} en tant que {role}.",
     "emailAccept": "Accepter l’invitation",
-    "emailExpires": "Cette invitation expire dans 14 jours."
+    "emailExpires": "Cette invitation expire dans 14 jours.",
+    "savingsPrivateTitle": "L’épargne est privée",
+    "savingsPrivateDescription": "Votre accès au foyer ne comprend pas les objectifs ni les soldes d’épargne.",
+    "debtsPrivateTitle": "Les dettes sont privées",
+    "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits."
   }
 }

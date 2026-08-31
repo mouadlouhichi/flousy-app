@@ -8,6 +8,7 @@ import { useHousehold } from '@/lib/household-context';
 import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeHouseholdRole } from '@/lib/localized-labels';
 
 interface BudgetAlertsProps {
@@ -16,7 +17,8 @@ interface BudgetAlertsProps {
 
 export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
-  const { messages: m, t } = useLanguage();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const percent = (value: number) => formatLocalizedPercent(value, intlLocale);
   const { pendingInvites } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
   const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
@@ -32,13 +34,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   if (needsRatio >= 100) {
     alerts.push({
       title: m.alerts.needsExceeded,
-      message: t(m.alerts.spentVsBudget, { spent: format(needsSpent), budget: format(needsCap), percent: Math.round(needsRatio) }),
+      message: t(m.alerts.spentVsBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
       severity: 'error',
     });
   } else if (needsRatio >= 80) {
     alerts.push({
       title: m.alerts.needsAlert,
-      message: t(m.alerts.spentOfBudget, { spent: format(needsSpent), budget: format(needsCap), percent: Math.round(needsRatio) }),
+      message: t(m.alerts.spentOfBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
       severity: 'warning',
     });
   }
@@ -46,13 +48,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   if (wantsRatio >= 100) {
     alerts.push({
       title: m.alerts.wantsExceeded,
-      message: t(m.alerts.spentVsBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: Math.round(wantsRatio) }),
+      message: t(m.alerts.spentVsBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
       severity: 'error',
     });
   } else if (wantsRatio >= 80) {
     alerts.push({
       title: m.alerts.wantsAlert,
-      message: t(m.alerts.spentOfBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: Math.round(wantsRatio) }),
+      message: t(m.alerts.spentOfBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
       severity: 'warning',
     });
   }
@@ -72,13 +74,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     if (pct >= 100) {
       alerts.push({
         title: t(m.alerts.categoryExceeded, { category: localizeCategoryName(cat, m) }),
-        message: t(m.alerts.spentVsBudget, { spent: format(spent), budget: format(budget), percent: Math.round(pct) }),
+        message: t(m.alerts.spentVsBudget, { spent: format(spent), budget: format(budget), percent: percent(Math.round(pct)) }),
         severity: 'error',
       });
     } else if (pct >= 80) {
       alerts.push({
         title: t(m.alerts.categoryAlert, { category: localizeCategoryName(cat, m) }),
-        message: t(m.alerts.spentOfBudget, { spent: format(spent), budget: format(budget), percent: Math.round(pct) }),
+        message: t(m.alerts.spentOfBudget, { spent: format(spent), budget: format(budget), percent: percent(Math.round(pct)) }),
         severity: 'warning',
       });
     }

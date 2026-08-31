@@ -1,7 +1,6 @@
 "use client";
 
 import { useLightLanguage } from "@/lib/i18n-light";
-import { FLOUSY_FACTUAL_DESCRIPTION } from "@/lib/seo";
 
 export function WhatIsFlousySectionClient() {
   const { messages: m } = useLightLanguage();
@@ -19,7 +18,7 @@ export function WhatIsFlousySectionClient() {
           {m.landing.whatIsFlousy.title}
         </h2>
         <p className="max-w-4xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
-          {FLOUSY_FACTUAL_DESCRIPTION}
+          {m.landing.whatIsFlousy.description}
         </p>
       </div>
     </section>

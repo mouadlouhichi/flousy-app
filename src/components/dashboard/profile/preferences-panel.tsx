@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
-import { LANG_STORAGE_KEY, setLanguageCookie } from '@/lib/i18n';
 import { trackEvent } from '@/lib/analytics';
 import { MonthlyStartDateControl } from '../monthly-start-date-control';
 
@@ -20,11 +19,7 @@ const CURRENCY_OPTIONS = Object.values(SUPPORTED_CURRENCIES).map((currency) => (
   label: currency.code,
 }));
 
-const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'fr', label: 'Français' },
-  { value: 'ar', label: 'العربية' },
-];
+
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
@@ -38,7 +33,12 @@ function applyTheme(theme: Theme) {
 export function PreferencesPanel() {
   const { profile, updateProfileData } = useAuth();
   const { currency } = useCurrency();
-  const { language, messages: m } = useLanguage();
+  const { language, messages: m, localeNames, setLanguage } = useLanguage();
+  const languageOptions = [
+    { value: 'en', label: localeNames.en },
+    { value: 'fr', label: localeNames.fr },
+    { value: 'ar', label: localeNames.ar },
+  ];
   const p = m.profile;
   const savedTheme = profile?.theme || 'system';
   const savedMonthStartDate = profile?.monthStartDate;
@@ -104,14 +104,10 @@ export function PreferencesPanel() {
       }
       if (currencyChanged) trackEvent('change_currency', { currency: draftCurrency });
       if (languageChanged) {
-        // Keep the next initial paint in the chosen language as well as
-        // persisting it on the authenticated profile.
-        setLanguageCookie(draftLanguage);
-        try {
-          localStorage.setItem(LANG_STORAGE_KEY, draftLanguage);
-        } catch {
-          // Preference persistence still succeeds when storage is unavailable.
-        }
+        // The profile update above persists the choice. Apply it locally as
+        // well so both authenticated and demo sessions update immediately,
+        // rather than waiting for a profile listener to propagate it.
+        setLanguage(draftLanguage, false);
         trackEvent('change_language', { language: draftLanguage });
       }
 
@@ -160,7 +156,7 @@ export function PreferencesPanel() {
             beginEditing();
             setDraftLanguage(value as typeof language);
           }}
-          options={LANGUAGE_OPTIONS}
+          options={languageOptions}
           className="w-32 shrink-0"
           triggerClassName="!h-11"
         />

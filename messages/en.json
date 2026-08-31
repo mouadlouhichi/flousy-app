@@ -19,7 +19,7 @@
     "open": "Open",
     "settled": "Settled",
     "step": "STEP {current} OF {total}",
-    "percentComplete": "{percent}%",
+    "percentComplete": "{percent}",
     "yes": "Yes",
     "no": "No",
     "done": "Done",
@@ -70,7 +70,23 @@
     "actions": "Actions",
     "manage": "Manage",
     "addNew": "Add new",
-    "user": "User"
+    "user": "User",
+    "accessibility": {
+      "loading": "Loading",
+      "pagination": "Pagination",
+      "previousPage": "Go to previous page",
+      "nextPage": "Go to next page",
+      "morePages": "More pages",
+      "breadcrumb": "Breadcrumb",
+      "more": "More",
+      "sidebarTitle": "Sidebar",
+      "sidebarDescription": "Displays the mobile sidebar.",
+      "toggleSidebar": "Toggle sidebar",
+      "previousSlide": "Previous slide",
+      "nextSlide": "Next slide",
+      "carousel": "Carousel",
+      "slide": "Slide"
+    }
   },
   "auth": {
     "signIn": "Log in",
@@ -96,6 +112,15 @@
     "failedResetEmail": "Failed to send reset email",
     "invalidCredentials": "Invalid email or password",
     "authFailed": "Authentication failed. Please verify credentials.",
+    "unauthorizedDomain": "This domain is not allowed to sign in. Add it under Firebase → Authentication → Authorized domains, or use the production site.",
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "popupBlocked": "The sign-in popup was blocked. Allow popups for this site, or use email login.",
+    "signInCancelled": "Sign-in was cancelled.",
+    "networkError": "Network error. Check your connection and try again.",
+    "signInMethodDisabled": "This sign-in method is disabled in Firebase.",
+    "emailAlreadyInUse": "An account with this email already exists. Log in instead.",
+    "weakPassword": "Password must be at least 6 characters.",
+    "apiKeyReferrerBlocked": "Firebase blocked this preview domain. Add it to the API key HTTP referrers, or use the production site.",
     "googleSignInFailed": "Google sign-in failed",
     "demoMode": "Demo Mode Available",
     "demoModeDescription": "Experience SmartJib instantly with sample data in local preview mode.",
@@ -140,7 +165,7 @@
     "fixedNeeds": "Fixed Needs",
     "variableWants": "Variable Wants",
     "futureSavings": "Future Savings",
-    "ofIncome": "{percent}% of income",
+    "ofIncome": "{percent} of income",
     "confirmAndFinish": "Confirm & Finish",
     "finishingSetup": "Finishing setup...",
     "editAllocation": "Edit Allocation",
@@ -177,8 +202,8 @@
       "savings": "Savings / Investment",
       "other": "Other"
     },
-    "customSplitInvalid": "Needs, Wants and Savings must add up to exactly 100% (currently {percent}%).",
-    "customSplitSummary": "{percent}% {label}",
+    "customSplitInvalid": "Needs, Wants and Savings must add up to exactly {required} (currently {percent}).",
+    "customSplitSummary": "{percent} {label}",
     "removeBill": "Remove {name}",
     "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then."
   },
@@ -196,10 +221,10 @@
     "addFunds": "Add Funds",
     "withdraw": "Withdraw",
     "budgetPlan": "Budget Plan",
-    "needsLabel": "Needs ({percent}%)",
-    "wantsLabel": "Wants ({percent}%)",
-    "savingsLabel": "Savings ({percent}%)",
-    "used": "{percent}% Used",
+    "needsLabel": "Needs ({percent})",
+    "wantsLabel": "Wants ({percent})",
+    "savingsLabel": "Savings ({percent})",
+    "used": "{percent} Used",
     "activeGoals": "{count, plural, =0 {No Active Goals} one {# Active Goal} other {# Active Goals}}",
     "totalMonthlyBudget": "TOTAL MONTHLY BUDGET",
     "totalCashOnHand": "TOTAL CASH ON HAND",
@@ -312,7 +337,7 @@
       "createGoal": "Create Goal",
       "fundGoal": "Fund Goal",
       "withdrawGoal": "Withdraw",
-      "progressLabel": "{current} of {target} ({percent}%)",
+      "progressLabel": "{current} of {target} ({percent})",
       "alreadySaved": "Already Saved ({currency})",
       "suggestions": "Suggestions:",
       "openingBalanceHint": "Starting an existing goal? Enter what you have put aside for it so far — progress starts from there instead of zero.",
@@ -329,7 +354,7 @@
       "fundInsufficient": "Only {amount} is available in {place}. Lower the deposit or move money into this place first.",
       "withdrawTooMuch": "Cannot withdraw more than the goal balance ({amount}).",
       "validPositiveAmount": "Please enter a valid positive amount.",
-      "progressOfTarget": "{percent}% of {target}",
+      "progressOfTarget": "{percent} of {target}",
       "editDeposit": "Edit Deposit",
       "editWithdrawal": "Edit Withdrawal",
       "movementType": "Movement type",
@@ -409,7 +434,7 @@
       "addIncomeStream": "Add Income Stream",
       "saveIncomeSources": "Save Income Sources ({total})",
       "perSourceAnalytics": "Per-Source Analytics",
-      "shareOfTotal": "{pct}% of total income",
+      "shareOfTotal": "{pct} of total income",
       "primaryIncome": "Primary Income",
       "nameRequired": "Name is required.",
       "validAmount": "Enter a valid amount.",
@@ -453,7 +478,59 @@
       "proStatusActive": "Your Pro status is active on this account.",
       "switchToFree": "Switch back to Free Plan",
       "goToPremium": "Go to Premium",
-      "proMembership": "Pro Membership"
+      "proMembership": "Pro Membership",
+      "planActive": "Pro plan is active",
+      "nextBilling": "Next billing: {date}",
+      "allPremiumUnlocked": "All premium features unlocked.",
+      "backToDashboard": "Back to dashboard",
+      "perPeriod": "/{period}",
+      "annualValue": "{price} per month — save {savings}",
+      "monthlyValue": "Billed monthly. Switch to annual anytime to save {percent}.",
+      "courseScanning": "Barcode Course Scanning",
+      "courseScanningDesc": "Scan groceries as you shop — SmartJib builds the bill for you.",
+      "advancedReports": "Advanced Reports",
+      "advancedReportsDesc": "Category-level breakdowns and per-person spending insights.",
+      "prioritySync": "Priority Sync",
+      "prioritySyncDesc": "Faster Firestore sync and priority support.",
+      "continueCheckout": "Continue to checkout",
+      "secureCheckout": "Secure checkout",
+      "cancelAnytime": "Cancel anytime",
+      "annualPlan": "Annual Pro Plan",
+      "monthlyPlan": "Monthly Pro Plan",
+      "annualDiscount": "{percent} OFF",
+      "flexible": "Flexible",
+      "fillDemoTestCard": "Fill demo test card",
+      "cardNumber": "Card number",
+      "cardNumberPlaceholder": "4242 4242 4242 4242",
+      "expiry": "Expiry",
+      "expiryPlaceholder": "MM/YY",
+      "cvc": "CVC",
+      "cardholderName": "Name on card",
+      "cardholderPlaceholder": "Jane Doe",
+      "receiptEmail": "Receipt email",
+      "emailPlaceholder": "you@example.com",
+      "validCardNumber": "Enter a valid card number.",
+      "validExpiry": "Enter a valid expiry date (MM/YY).",
+      "validCvc": "Enter a valid CVC.",
+      "validCardholder": "Enter the name on the card.",
+      "validReceiptEmail": "Enter a receipt email.",
+      "creatingCheckout": "Creating secure checkout session…",
+      "validatingCard": "Validating card with issuing bank…",
+      "processingPayment": "Processing payment…",
+      "activatingFeatures": "Activating Pro features…",
+      "processingTitle": "Processing payment",
+      "pay": "Pay {price}",
+      "encryptedTestPayment": "Encrypted test payment · No real funds charged",
+      "paymentSuccessful": "Payment successful!",
+      "proNowActive": "SmartJib Pro is now active on your account.",
+      "receipt": "Receipt",
+      "plan": "Plan",
+      "paymentMethod": "Payment method",
+      "nextBillingLabel": "Next billing",
+      "totalPaid": "Total paid",
+      "startUsingPro": "Start using Pro",
+      "paymentFailed": "Payment failed",
+      "paymentFailedDescription": "Your payment could not be completed. Please check your card details."
     },
     "moneyPlaces": {
       "title": "Edit Money Balances",
@@ -486,7 +563,7 @@
       "hasReceipt": "Has receipt",
       "categoryBudgets": "Category Budgets",
       "pro": "PRO",
-      "percentUsed": "{percent}% used",
+      "percentUsed": "{percent} used",
       "overBy": "Over by {amount}",
       "left": "{amount} left",
       "editBudget": "Edit {category} budget",
@@ -512,7 +589,7 @@
       "noGoals": "You haven't created any saving goals yet.",
       "createGoal": "Create Your First Goal",
       "reached": "Reached!",
-      "progress": "{percent}%",
+      "progress": "{percent}",
       "fund": "Fund",
       "withdrawButton": "Withdraw",
       "deleteGoal": "Delete Goal",
@@ -523,7 +600,7 @@
       "source": "Source: {place}",
       "editGoal": "Edit goal",
       "target": "Target: {amount}",
-      "percentReached": "{percent}% reached",
+      "percentReached": "{percent} reached",
       "thisMonthsDeposits": "THIS MONTH'S DEPOSITS",
       "movementsLogged": "{count, plural, one {# movement logged} other {# movements logged}}",
       "saved": "{amount} saved",
@@ -572,15 +649,15 @@
       "variable": "Variable",
       "fixed": "Fixed",
       "budgetHealth": "Budget Health",
-      "needsLabel": "Needs ({ratio}%)",
-      "wantsLabel": "Wants ({ratio}%)",
+      "needsLabel": "Needs ({percent})",
+      "wantsLabel": "Wants ({percent})",
       "vsLabel": "vs",
       "ofLabel": "of",
       "loadingTrends": "Loading trends...",
       "proLabel": "PRO",
-      "percentVsLastMonth": "{percent}% vs last month",
+      "percentVsLastMonth": "{percent} vs last month",
       "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
-      "strategySavings": "{strategy} · {percent}% savings",
+      "strategySavings": "{strategy} · {percent} savings",
       "incomeSourcesPro": "Income source analytics are available in Pro.",
       "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
       "variableAmount": "Variable: {amount}",
@@ -664,8 +741,8 @@
     "wantsAlert": "Wants envelope alert",
     "categoryExceeded": "\"{category}\" budget exceeded",
     "categoryAlert": "\"{category}\" budget alert",
-    "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}%).",
-    "spentOfBudget": "Spent {spent} of {budget} budget ({percent}%).",
+    "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}).",
+    "spentOfBudget": "Spent {spent} of {budget} budget ({percent}).",
     "viewNotifications": "View notifications ({count})",
     "title": "Notifications",
     "householdInvitations": "Household invitations",
@@ -835,7 +912,8 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "What is SmartJib? The Free Budgeting App"
+      "title": "What is SmartJib? The Free Budgeting App",
+      "description": "SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in."
     },
     "features": {
       "eyebrow": "Budgeting styles & Capabilities",
@@ -922,7 +1000,8 @@
             }
           ]
         }
-      ]
+      ],
+      "synced": "Synced"
     },
     "infrastructure": {
       "eyebrow": "Free, with room to grow",
@@ -1047,7 +1126,7 @@
           "author": "Youssef B.",
           "role": "Freelance designer",
           "company": "Casablanca",
-          "metric": "Saved 20% more in 3 months"
+          "metric": "Saved {percent} more in 3 months"
         },
         {
           "quote": "The wallet vs bank split is genius. I used to lose track of cash completely.",
@@ -1063,7 +1142,8 @@
           "company": "Marrakech",
           "metric": "From spreadsheet to app in 2 days"
         }
-      ]
+      ],
+      "showTestimonial": "Show testimonial {number}"
     },
     "pricing": {
       "eyebrow": "Pricing",
@@ -1072,7 +1152,7 @@
       "description": "Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.",
       "monthly": "Monthly",
       "annual": "Annual",
-      "save34": "Save 34%",
+      "save34": "Save {percent}",
       "perMonth": "/month",
       "mostPopular": "Most popular",
       "bottomNote": "Your budget stays private, always. No credit card required to start.",
@@ -1103,11 +1183,46 @@
           ],
           "cta": "Upgrade to Pro"
         }
-      ]
+      ],
+      "useAnnualBilling": "Use annual billing"
     },
     "faq": {
       "eyebrow": "SmartJib facts",
-      "title": "Frequently asked questions"
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "Is SmartJib free?",
+          "answer": "SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade."
+        },
+        {
+          "question": "Does SmartJib connect to my bank?",
+          "answer": "No, SmartJib does not connect to your bank. You manually enter transactions for privacy and control."
+        },
+        {
+          "question": "What currencies does SmartJib support?",
+          "answer": "SmartJib supports 12 currencies: MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD, and XOF."
+        },
+        {
+          "question": "Is my data private?",
+          "answer": "Yes. Account data is cached locally and synced to Firebase when you sign in. We do not use your financial data to build advertising profiles or sell it to third parties. See our Privacy Policy for details.",
+          "link": {
+            "label": "Privacy Policy",
+            "href": "/privacy"
+          }
+        },
+        {
+          "question": "What budgeting methods does SmartJib support?",
+          "answer": "SmartJib supports 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first."
+        },
+        {
+          "question": "Can I export my data?",
+          "answer": "Yes. You can export your budgeting data as a CSV file from Settings."
+        },
+        {
+          "question": "How do I delete my account?",
+          "answer": "You can permanently delete your account and its associated budgeting data from Settings."
+        }
+      ]
     },
     "cta": {
       "titleLine1": "Ready to know",
@@ -1260,12 +1375,30 @@
           "body": "You can control or clear cookies through your browser settings at any time. Note that blocking essential cookies may prevent SmartJib from working properly."
         }
       ]
+    },
+    "blog": {
+      "eyebrow": "Blog",
+      "title": "Notes on money and habits.",
+      "subtitle": "Short, practical writing about budgeting well — from the team building SmartJib.",
+      "readArticle": "Read article",
+      "readArticleAria": "Read {title}",
+      "moreOnWayPrefix": "More on the way. Have a topic you'd like us to cover?",
+      "letUsKnow": "Let us know",
+      "home": "Home",
+      "allArticles": "All articles",
+      "byAuthor": "By SmartJib Team",
+      "readingTime": "{minutes} min read",
+      "continueReading": "Continue reading",
+      "relatedArticles": "Related articles",
+      "articleCtaDescription": "SmartJib keeps budget envelopes separate from bank, home, and wallet balances.",
+      "startBudgeting": "Start budgeting free",
+      "breadcrumb": "Breadcrumb"
     }
   },
   "strategies": {
     "50-30-20": {
       "name": "50/30/20 Rule",
-      "description": "Balanced approach: 50% for needs, 30% for wants, and 20% for savings."
+      "description": "Balanced approach: {needs} for needs, {wants} for wants, and {savings} for savings."
     },
     "70-20-10": {
       "name": "70/20/10 Rule",
@@ -1362,7 +1495,7 @@
     "percentage": "{label} percentage",
     "slider": "{label} slider",
     "totalAllocated": "Total allocated",
-    "mustEqual": "Needs, Wants and Savings must add up to exactly 100%.",
+    "mustEqual": "Needs, Wants and Savings must add up to exactly {total}.",
     "applyCustomSplit": "Apply Custom Split"
   },
   "datePicker": {
@@ -1654,6 +1787,10 @@
     "emailGreeting": "Hello,",
     "emailBody": "You were invited to join {household} as {role}.",
     "emailAccept": "Accept invitation",
-    "emailExpires": "This invitation expires in 14 days."
+    "emailExpires": "This invitation expires in 14 days.",
+    "savingsPrivateTitle": "Savings are private",
+    "savingsPrivateDescription": "Your household access does not include savings goals or balances.",
+    "debtsPrivateTitle": "Debts are private",
+    "debtsPrivateDescription": "Your household access does not include debts or credits."
   }
 }

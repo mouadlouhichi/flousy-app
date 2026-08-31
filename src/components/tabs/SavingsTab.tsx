@@ -9,6 +9,7 @@ import {
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizePlaceName } from '@/lib/localized-labels';
 
 interface SavingsTabProps {
@@ -134,7 +135,7 @@ export function SavingsTab({
                     />
                   </div>
                   <div className="flex justify-end font-label-sm text-label-sm font-bold text-secondary">
-                    {t(m.tabs.savings.percentReached, { percent: new Intl.NumberFormat(intlLocale).format(pct) })}
+                    {t(m.tabs.savings.percentReached, { percent: formatLocalizedPercent(pct, intlLocale) })}
                   </div>
                 </div>
 

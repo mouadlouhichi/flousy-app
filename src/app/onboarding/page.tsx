@@ -23,6 +23,7 @@ import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent, getLocalizedPercentSign } from '@/lib/i18n';
 import {
   formatLocalizedDayOfMonth,
   localizeBillCategory,
@@ -54,6 +55,8 @@ export default function OnboardingPage() {
   const { user, profile, updateProfileData } = useAuth();
   const { currency, setCurrency, symbol, format } = useCurrency();
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
+  const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
+  const percentSign = getLocalizedPercentSign(intlLocale);
 
   const [step, setStep] = useState<number>(1);
   const [income, setIncome] = useState<string>('15000');
@@ -118,7 +121,7 @@ export default function OnboardingPage() {
   const customSplitTotal = customSplit.needs + customSplit.wants + customSplit.savings;
   const isCustomSplitValid = customSplitTotal === 100;
   const activeStrategy = resolveStrategy(selectedStrategy, customRatios);
-  const activeStrategyCopy = localizeStrategy(activeStrategy.id, m);
+  const activeStrategyCopy = localizeStrategy(activeStrategy.id, m, intlLocale);
   const envelopes = calculateEnvelopeAmounts(
     parsedIncome,
     selectedStrategy,
@@ -306,7 +309,7 @@ export default function OnboardingPage() {
         <div className="flex flex-col gap-1 mb-6">
           <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
             <span>{t(m.common.step, { current: new Intl.NumberFormat(intlLocale).format(step), total: new Intl.NumberFormat(intlLocale).format(5) })}</span>
-            <span>{new Intl.NumberFormat(intlLocale).format(step * 20)}%</span>
+            <span>{formatPercent(step * 20)}</span>
           </div>
           <div className="w-full h-2 bg-surface-variant/80 rounded-full overflow-hidden">
             <div
@@ -729,7 +732,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
             <div className="flex flex-col gap-3 max-h-[380px] overflow-y-auto pe-1">
               {Object.values(STRATEGIES).map((strat) => {
                 const selected = selectedStrategy === strat.id;
-                const strategyCopy = localizeStrategy(strat.id, m);
+                const strategyCopy = localizeStrategy(strat.id, m, intlLocale);
 
                 return (
                   <div
@@ -851,7 +854,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                                       aria-label={t(m.strategySelector.percentage, { label })}
                                       className="w-16 rounded-lg border border-outline-variant bg-surface px-2 py-1 text-end text-[13px] font-bold text-on-surface tabular-nums outline-none focus:border-primary"
                                     />
-                                    <span className="text-[12px] font-bold text-on-surface-variant">%</span>
+                                    <span className="text-[12px] font-bold text-on-surface-variant">{percentSign}</span>
                                   </span>
                                 </div>
                                 <input
@@ -872,15 +875,15 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                             {!isCustomSplitValid && (
                               <p role="alert" className="text-[11px] font-bold text-error">
-                                {t(m.onboarding.customSplitInvalid, { percent: new Intl.NumberFormat(intlLocale).format(customSplitTotal) })}
+                                {t(m.onboarding.customSplitInvalid, { required: formatPercent(100), percent: formatPercent(customSplitTotal) })}
                               </p>
                             )}
                           </>
                         ) : (
                           <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
-                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.needs), label: m.onboarding.needs })}</span>
-                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.wants), label: m.onboarding.wants })}</span>
-                            <span>{t(m.onboarding.customSplitSummary, { percent: new Intl.NumberFormat(intlLocale).format(customSplit.savings), label: m.onboarding.savings })}</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: formatPercent(customSplit.needs), label: m.onboarding.needs })}</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: formatPercent(customSplit.wants), label: m.onboarding.wants })}</span>
+                            <span>{t(m.onboarding.customSplitSummary, { percent: formatPercent(customSplit.savings), label: m.onboarding.savings })}</span>
                           </div>
                         )}
                       </div>
@@ -896,7 +899,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
               disabled={selectedStrategy === 'custom' && !isCustomSplitValid}
               className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Continue
+              {m.common.continue}
             </button>
           </div>
         )}
@@ -990,7 +993,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">{m.onboarding.fixedNeeds}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.needsRatio * 100)) })}
+                        {t(m.onboarding.ofIncome, { percent: formatPercent(Math.round(activeStrategy.needsRatio * 100)) })}
                       </span>
                     </div>
                   </div>
@@ -1005,7 +1008,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">{m.onboarding.variableWants}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.wantsRatio * 100)) })}
+                        {t(m.onboarding.ofIncome, { percent: formatPercent(Math.round(activeStrategy.wantsRatio * 100)) })}
                       </span>
                     </div>
                   </div>
@@ -1020,7 +1023,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-on-surface">{m.onboarding.futureSavings}</span>
                       <span className="text-[12px] font-medium text-on-surface-variant">
-                        {t(m.onboarding.ofIncome, { percent: new Intl.NumberFormat(intlLocale).format(Math.round(activeStrategy.savingsRatio * 100)) })}
+                        {t(m.onboarding.ofIncome, { percent: formatPercent(Math.round(activeStrategy.savingsRatio * 100)) })}
                       </span>
                     </div>
                   </div>

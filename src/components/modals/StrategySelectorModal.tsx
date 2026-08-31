@@ -14,6 +14,7 @@ import {
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent, getLocalizedPercentSign } from '@/lib/i18n';
 import { localizeStrategy } from '@/lib/localized-labels';
 import type { Messages } from '@/lib/i18n-core';
 
@@ -67,7 +68,9 @@ export function StrategySelectorModal({
   onSelect,
 }: StrategySelectorModalProps) {
   const { format } = useCurrency();
-  const { messages: m, t } = useLanguage();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
+  const percentSign = getLocalizedPercentSign(intlLocale);
   const [hoveredId, setHoveredId] = useState<StrategyId | null>(null);
   const [isCustomOpen, setIsCustomOpen] = useState(currentStrategyId === 'custom');
   const [split, setSplit] = useState<PercentSplit>(() => toPercents(customRatios));
@@ -203,7 +206,7 @@ export function StrategySelectorModal({
             const tag = STRATEGY_TAGS[strat.id];
             const icon = STRATEGY_ICONS[strat.id] || 'tune';
             const amounts = calculateEnvelopeAmounts(totalBudget, strat.id);
-            const strategyCopy = localizeStrategy(strat.id, m);
+            const strategyCopy = localizeStrategy(strat.id, m, intlLocale);
 
             return (
               <button
@@ -278,7 +281,7 @@ export function StrategySelectorModal({
                           className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-2 py-1.5 text-[9px] font-bold text-on-surface-variant sm:text-[10px]"
                         >
                           <span className="max-w-full truncate">
-                            {label} · {Math.round(percent * 100)}%
+                            {label} · {formatPercent(Math.round(percent * 100))}
                           </span>
                           <span title={format(value)} className="max-w-full truncate font-mono text-[9px] text-on-surface sm:text-[10px]">
                             {format(value)}
@@ -351,15 +354,15 @@ export function StrategySelectorModal({
 
                   <div className="mt-1 grid grid-cols-3 gap-1">
                     <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
-                      <span>{split.needs}%</span>
+                      <span>{formatPercent(split.needs)}</span>
                       <span className="truncate">{m.strategySelector.needs}</span>
                     </span>
                     <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
-                      <span>{split.wants}%</span>
+                      <span>{formatPercent(split.wants)}</span>
                       <span className="truncate">{m.strategySelector.wants}</span>
                     </span>
                     <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
-                      <span>{split.savings}%</span>
+                      <span>{formatPercent(split.savings)}</span>
                       <span className="truncate">{m.strategySelector.savings}</span>
                     </span>
                   </div>
@@ -404,7 +407,7 @@ export function StrategySelectorModal({
                           aria-label={t(m.strategySelector.percentage, { label })}
                           className="w-16 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-end font-mono text-[13px] font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
-                        <span className="text-[12px] font-bold text-on-surface-variant">%</span>
+                        <span className="text-[12px] font-bold text-on-surface-variant">{percentSign}</span>
                       </span>
                     </div>
                     <input
@@ -431,12 +434,12 @@ export function StrategySelectorModal({
                   }`}
                 >
                   <span>{m.strategySelector.totalAllocated}</span>
-                  <span className="font-mono">{splitTotal}%</span>
+                  <span className="font-mono">{formatPercent(splitTotal)}</span>
                 </div>
 
                 {!isSplitValid && (
                   <p role="alert" className="text-[11px] font-semibold text-error">
-                    {m.strategySelector.mustEqual}
+                    {t(m.strategySelector.mustEqual, { total: formatPercent(100) })}
                   </p>
                 )}
 

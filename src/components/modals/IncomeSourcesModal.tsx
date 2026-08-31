@@ -9,6 +9,7 @@ import { MonthBudget, IncomeSource } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { getSourcePeriod } from '../../lib/utils';
 import { useLanguage } from '../../lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { formatLocalizedDayOfMonth } from '../../lib/localized-labels';
 
 interface IncomeSourcesModalProps {
@@ -333,7 +334,7 @@ export function IncomeSourcesModal({
                           <span className="font-mono font-extrabold text-[15px] text-on-surface">
                             {format(src.amount || 0)}
                           </span>
-                          <span className="text-[11px] font-bold text-on-surface-variant">{t(copy.shareOfTotal, { pct: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(pct) })}</span>
+                          <span className="text-[11px] font-bold text-on-surface-variant">{t(copy.shareOfTotal, { pct: formatLocalizedPercent(pct, intlLocale) })}</span>
                         </div>
                         {src.payDay &&
                           (() => {

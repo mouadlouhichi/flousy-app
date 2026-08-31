@@ -19,6 +19,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { useHousehold } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
 
 function formatActivityDate(value: string, intlLocale: string): string {
@@ -74,7 +75,7 @@ export function OverviewTab({
   );
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
-  const strategyCopy = localizeStrategy(strategy.id, m);
+  const strategyCopy = localizeStrategy(strategy.id, m, intlLocale);
 
   const totalCash = totalCashOnHand(month);
   const placeCardTones = [
@@ -236,9 +237,9 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                  <span className="font-bold text-on-surface">{t(m.dashboard.needsLabel, { percent: Math.round(strategy.needsRatio * 100) })}</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.needsLabel, { percent: formatLocalizedPercent(strategy.needsRatio * 100, intlLocale) })}</span>
                 </div>
-                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: needsSpentPct })}</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: formatLocalizedPercent(needsSpentPct, intlLocale) })}</span>
               </div>
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
@@ -257,9 +258,9 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="font-bold text-on-surface">{t(m.dashboard.wantsLabel, { percent: Math.round(strategy.wantsRatio * 100) })}</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.wantsLabel, { percent: formatLocalizedPercent(strategy.wantsRatio * 100, intlLocale) })}</span>
                 </div>
-                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: wantsSpentPct })}</span>
+                <span className="text-[11px] font-semibold text-on-surface-variant">{t(m.dashboard.used, { percent: formatLocalizedPercent(wantsSpentPct, intlLocale) })}</span>
               </div>
               <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                 <div
@@ -281,7 +282,7 @@ export function OverviewTab({
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
-                  <span className="font-bold text-on-surface">{t(m.dashboard.savingsLabel, { percent: Math.round(strategy.savingsRatio * 100) })}</span>
+                  <span className="font-bold text-on-surface">{t(m.dashboard.savingsLabel, { percent: formatLocalizedPercent(strategy.savingsRatio * 100, intlLocale) })}</span>
                 </div>
                 <span className="text-[11px] font-semibold text-primary">
                   {t(m.dashboard.activeGoals, { count: goals.length })}

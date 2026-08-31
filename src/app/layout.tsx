@@ -4,6 +4,7 @@ import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { LightLanguageProvider } from '@/lib/i18n-light';
+import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
@@ -119,6 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>
+          <LocalizedDocumentTitle />
           {children}
           <InstallBanner />
         </LightLanguageProvider>

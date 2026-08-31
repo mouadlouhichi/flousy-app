@@ -2,7 +2,8 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 import { MonthDayPicker } from '@/components/ui/month-day-picker';
-import { formatDayOfMonth } from '@/lib/utils';
+import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
 
 interface MonthlyStartDateControlProps {
   value: number | undefined;
@@ -22,6 +23,8 @@ export function MonthlyStartDateControl({
   onChange,
   compact = false,
 }: MonthlyStartDateControlProps) {
+  const { messages: m, t, language, intlLocale } = useLanguage();
+  const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const inner = (
     <div className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
@@ -29,15 +32,15 @@ export function MonthlyStartDateControl({
           <AppIcon name="calendar_clock" className="text-[20px] text-primary" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-sm font-medium text-on-surface">Monthly start date</p>
+          <p className="mb-1 text-sm font-medium text-on-surface">{m.onboarding.monthlyStartDate}</p>
           <MonthDayPicker
             value={value}
             onChange={onChange}
             label={null}
             hint={
               value
-                ? `Your budget month starts on the ${formatDayOfMonth(value)} (e.g. salary paid on the ${formatDayOfMonth(value)}).`
-                : 'Set the day your salary arrives to start your budget month then.'
+                ? t(m.onboarding.monthlyStartHint, { day: localizedDay(value) })
+                : m.onboarding.monthlyStartDescription
             }
           />
         </div>

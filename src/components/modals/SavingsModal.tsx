@@ -9,6 +9,7 @@ import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 
 interface SavingsModalProps {
   isOpen: boolean;
@@ -283,8 +284,9 @@ export function SavingsModal({
                         <span>
                           {t(s.progressOfTarget, {
                             target: format(parsedTargetPreview),
-                            percent: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(
+                            percent: formatLocalizedPercent(
                               Math.min(100, Math.round((parsedCurrentPreview / parsedTargetPreview) * 100)),
+                              intlLocale,
                             ),
                           })}
                         </span>
@@ -395,8 +397,9 @@ export function SavingsModal({
                   {goal.target > 0 && (
                     <span className="text-[13px] font-bold text-primary">
                       {t(m.common.percentComplete, {
-                        percent: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(
+                        percent: formatLocalizedPercent(
                           Math.round((goal.current / goal.target) * 100),
+                          intlLocale,
                         ),
                       })}
                     </span>

@@ -9,6 +9,7 @@ import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 
 interface TrendsTabProps {
@@ -39,7 +40,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   // ── Current month calculations ──
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
-  const strategyCopy = localizeStrategy(strategy.id, m);
+  const strategyCopy = localizeStrategy(strategy.id, m, intlLocale);
   const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
 
   // ── Income sources analytics ──
@@ -126,7 +127,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(spent.totalSpent)}</p>
           {prevMonth && (
             <span className={`text-[12px] font-bold ${spendChange > 0 ? 'text-error' : 'text-primary'}`}>
-              {spendChange > 0 ? '↑' : '↓'} {t(m.tabs.trends.percentVsLastMonth, { percent: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 1 }).format(Math.abs(spendChange)) })}
+              {spendChange > 0 ? '↑' : '↓'} {t(m.tabs.trends.percentVsLastMonth, { percent: formatLocalizedPercent(Math.abs(spendChange), intlLocale, 1) })}
             </span>
           )}
         </div>
@@ -164,7 +165,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           <span className="text-[12px] font-bold text-on-surface-variant">
             {t(m.tabs.trends.strategySavings, {
               strategy: strategyCopy.name,
-              percent: new Intl.NumberFormat(intlLocale).format(Math.round(strategy.savingsRatio * 100)),
+              percent: formatLocalizedPercent(Math.round(strategy.savingsRatio * 100), intlLocale),
             })}
           </span>
         </div>
@@ -424,7 +425,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                <span className="font-bold text-on-surface">{t(m.tabs.trends.needsLabel, { ratio: new Intl.NumberFormat(intlLocale).format(Math.round(strategy.needsRatio * 100)) })}</span>
+                <span className="font-bold text-on-surface">{t(m.tabs.trends.needsLabel, { percent: formatLocalizedPercent(Math.round(strategy.needsRatio * 100), intlLocale) })}</span>
               </div>
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.needs)} / {format(spent.needs + spent.wants + spent.savings > 0 ? (spent.needs / (spent.needs + spent.wants + spent.savings)) * 100 : 0).replace(/[0-9.,]/g, '').trim() || format(month.totalBudget)}</span>
             </div>
@@ -447,7 +448,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
-                <span className="font-bold text-on-surface">{t(m.tabs.trends.wantsLabel, { ratio: new Intl.NumberFormat(intlLocale).format(Math.round(strategy.wantsRatio * 100)) })}</span>
+                <span className="font-bold text-on-surface">{t(m.tabs.trends.wantsLabel, { percent: formatLocalizedPercent(Math.round(strategy.wantsRatio * 100), intlLocale) })}</span>
               </div>
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.wants)}</span>
             </div>

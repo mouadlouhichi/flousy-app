@@ -102,7 +102,7 @@ export default function LoginPage() {
         }
         setIsResetting(false);
       } catch (err: any) {
-        setError(authErrorMessage(err) || m.auth.failedResetEmail);
+        setError(authErrorMessage(err, m.auth) || m.auth.failedResetEmail);
       } finally {
         setSubmitting(false);
       }
@@ -147,7 +147,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(authErrorMessage(err));
+        setError(authErrorMessage(err, m.auth));
       }
     } finally {
       setSubmitting(false);
@@ -170,7 +170,7 @@ export default function LoginPage() {
         localStorage.setItem('flousy_demo_mode', 'true');
         navigateTo('/dashboard');
       } else {
-        setError(err.message || m.auth.googleSignInFailed);
+        setError(authErrorMessage(err, m.auth) || m.auth.googleSignInFailed);
       }
     } finally {
       setSubmitting(false);

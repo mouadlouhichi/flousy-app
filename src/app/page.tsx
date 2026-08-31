@@ -96,29 +96,11 @@ const faqSchema = {
   })),
 };
 
-const localBusinessSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'LocalBusiness',
-  name: SITE_NAME,
-  image: `${SITE_URL}/web-app-manifest-512x512.png`,
-  url: SITE_URL,
-  telephone: '+1-555-123-4567',
-  address: {
-    '@type': 'PostalAddress',
-    streetAddress: '123 Budget St',
-    addressLocality: 'Finance City',
-    addressRegion: 'FC',
-    postalCode: '12345',
-    addressCountry: 'US'
-  }
-};
-
 export default function Home() {
   return (
     <>
       <JsonLd id="software-application-json-ld" data={softwareApplicationSchema} />
       <JsonLd id="organization-json-ld" data={organizationSchema} />
-      <JsonLd id="local-business-json-ld" data={localBusinessSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
       <main className="noise-overlay relative min-h-screen overflow-x-hidden">
