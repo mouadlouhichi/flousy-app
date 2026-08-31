@@ -409,7 +409,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setMonth(local);
             persist(local);
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+            const clean = normalizeMonth(
+              previousMonth
+                ? {
+                    totalBudget: previousMonth.totalBudget,
+                    incomeSources: previousMonth.incomeSources,
+                  }
+                : { totalBudget: 0 },
+              currentMonthKey,
+              activeProfile,
+              previousMonth,
+            );
             setMonth(clean);
             persist(clean);
           }
@@ -420,7 +430,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
-        const next = local ?? normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+        const next = local ?? normalizeMonth(
+          previousMonth
+            ? {
+                totalBudget: previousMonth.totalBudget,
+                incomeSources: previousMonth.incomeSources,
+              }
+            : { totalBudget: 0 },
+          currentMonthKey,
+          activeProfile,
+          previousMonth,
+        );
         setMonth(next);
         persist(next);
         setLoading(false);
