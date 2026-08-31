@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ar, enUS, fr } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
 import { AppIcon } from './app-icon';
 import { Calendar } from './calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
@@ -15,30 +16,25 @@ interface DateRangePickerProps {
   ariaLabel?: string;
 }
 
-function formatDay(value: string, locale: string, empty: string): string {
-  const date = dateFromInputValue(value);
-  if (!date) return empty;
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date);
-}
-
 export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePickerProps) {
-  const { messages: m, language, intlLocale, isRTL } = useLanguage();
+  const { messages: m, language, isRTL } = useLanguage();
   const [open, setOpen] = useState(false);
-  const [picking, setPicking] = useState<'from' | 'to'>('from');
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
   const calendarLocale = language === 'ar' ? ar : language === 'fr' ? fr : enUS;
   const isActive = Boolean(from || to);
-  const selected = useMemo(
-    () => dateFromInputValue(picking === 'from' ? draftFrom : draftTo),
-    [picking, draftFrom, draftTo],
-  );
+
+  const selected = useMemo<DateRange | undefined>(() => {
+    const start = dateFromInputValue(draftFrom);
+    const end = dateFromInputValue(draftTo);
+    if (!start && !end) return undefined;
+    return { from: start ?? end, to: end && start ? end : undefined };
+  }, [draftFrom, draftTo]);
 
   const openPicker = (next: boolean) => {
     if (next) {
       setDraftFrom(from);
       setDraftTo(to);
-      setPicking('from');
     }
     setOpen(next);
   };
@@ -78,66 +74,29 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
         collisionPadding={16}
         className="w-[min(20.5rem,calc(100vw-2rem))] rounded-xl border-outline-variant p-3"
       >
-        <div className="mb-3 grid grid-cols-2 gap-2">
+        {(draftFrom || draftTo) && (
           <button
             type="button"
-            onClick={() => setPicking('from')}
-            className={`rounded-xl border px-3 py-2 text-start ${
-              picking === 'from' ? 'border-primary bg-primary/10' : 'border-outline-variant bg-surface'
-            }`}
+            onClick={() => commit('', '')}
+            className="mb-2 w-full rounded-lg px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10"
           >
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">
-              {m.tabs.variable.dateFrom}
-            </span>
-            <span className="block truncate text-sm font-bold text-on-surface">
-              {formatDay(draftFrom, intlLocale, '—')}
-            </span>
+            {m.tabs.variable.clearDates}
           </button>
-          <button
-            type="button"
-            onClick={() => setPicking('to')}
-            className={`rounded-xl border px-3 py-2 text-start ${
-              picking === 'to' ? 'border-primary bg-primary/10' : 'border-outline-variant bg-surface'
-            }`}
-          >
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">
-              {m.tabs.variable.dateTo}
-            </span>
-            <span className="block truncate text-sm font-bold text-on-surface">
-              {formatDay(draftTo, intlLocale, '—')}
-            </span>
-          </button>
-        </div>
+        )}
         <Calendar
-          mode="single"
+          mode="range"
           selected={selected}
-          defaultMonth={selected}
-          onSelect={(date) => {
-            if (!date) return;
-            const value = dateToInputValue(date);
-            if (picking === 'from') {
-              commit(value, draftTo);
-              setPicking('to');
-            } else {
-              commit(draftFrom, value);
-            }
+          defaultMonth={selected?.from}
+          numberOfMonths={1}
+          onSelect={(range) => {
+            const nextFrom = range?.from ? dateToInputValue(range.from) : '';
+            const nextTo = range?.to ? dateToInputValue(range.to) : '';
+            commit(nextFrom, nextTo);
           }}
           locale={calendarLocale}
           dir={isRTL ? 'rtl' : 'ltr'}
           className="!w-full bg-surface !p-1 [--cell-size:--spacing(8)]"
         />
-        {(draftFrom || draftTo) && (
-          <button
-            type="button"
-            onClick={() => {
-              commit('', '');
-              setPicking('from');
-            }}
-            className="mt-2 w-full rounded-lg px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10"
-          >
-            {m.tabs.variable.clearDates}
-          </button>
-        )}
       </PopoverContent>
     </Popover>
   );
