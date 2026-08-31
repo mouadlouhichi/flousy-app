@@ -275,7 +275,8 @@ export function FixedModal({
       date,
       place,
       person,
-      payerMemberId,
+      person: person.trim() || 'Self',
+      payerMemberId: payerMemberId.trim() || 'self',
       recurring,
     };
 

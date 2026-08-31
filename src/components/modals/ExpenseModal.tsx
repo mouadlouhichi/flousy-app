@@ -218,8 +218,8 @@ export function ExpenseModal({
       date,
       place,
       note: note.trim() || undefined,
-      person,
-      payerMemberId,
+      person: person.trim() || 'Self',
+      payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
     };
 

@@ -477,10 +477,16 @@ export async function deleteHouseholdWorkspace(householdId: string): Promise<voi
     for (const item of snap.docs) await deleteDoc(item.ref);
   };
   try {
-    await wipe('members');
+    // Delete nested data while the owner membership still exists, then members,
+    // then the household doc. Firestore delete rules cannot inspect incoming().
     await wipe('months');
     await wipe('invoices');
-    await deleteDoc(doc(db, 'households', hid, 'data', 'savings'));
+    try {
+      await deleteDoc(doc(db, 'households', hid, 'data', 'savings'));
+    } catch {
+      /* savings doc may not exist */
+    }
+    await wipe('members');
     await deleteDoc(doc(db, 'households', hid));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, `households/${hid}`);

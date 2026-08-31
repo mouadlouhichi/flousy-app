@@ -39,7 +39,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const memberRole = myMember?.role;
   const isContributor = memberRole === 'contributor';
   const payers = useMemo<HouseholdPayer[]>(() => {
-    if (household) return [{ id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
+    if (household) return [{ id: 'self', label: m.household.me }, { id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
     const legacy = profile?.householdMembers || [];
     return [{ id: 'self', label: m.household.me }, ...legacy.map((label, i) => ({ id: `legacy-${i}`, label, color: COLORS[i % COLORS.length] }))];
   }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
@@ -81,19 +81,23 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     if (!trackedHouseholdId) return;
     await saveHousehold(trackedHouseholdId, { onboardingComplete: true });
     setHousehold((current) => (current ? { ...current, onboardingComplete: true } : current));
-  }, [householdId]);
+  }, [trackedHouseholdId]);
   const removeHouseholdWorkspace = useCallback(async () => {
     const targetId = householdId || profile?.activeHouseholdId;
     if (!user || !profile || !targetId) throw new Error(m.household.genericError);
     if (isOwner || household?.ownerId === user.uid) {
-      await deleteHouseholdWorkspace(targetId);
+      try {
+        await deleteHouseholdWorkspace(targetId);
+      } catch {
+        /* Still unlink the workspace from this profile so the user is not stuck. */
+      }
     } else if (myMember) {
       await saveHouseholdMember(targetId, { ...myMember, status: 'inactive' });
     }
     const remaining = (profile.householdIds || []).filter((id) => id !== targetId);
     await updateProfileData({
       activeWorkspace: 'personal',
-      activeHouseholdId: remaining[0],
+      activeHouseholdId: remaining[0] || '',
       householdIds: remaining,
     });
     setHousehold(null);
