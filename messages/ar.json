@@ -708,6 +708,7 @@
     "items": "عناصر",
     "billTitle": "فاتورة التسوق",
     "billShare": "مشاركة صورة",
+    "shareFailed": "تعذّر إنشاء صورة الفاتورة. حاول مرة أخرى.",
     "billCopy": "نسخ",
     "billCopied": "تم نسخ الفاتورة",
     "billDownload": "تحميل .txt",

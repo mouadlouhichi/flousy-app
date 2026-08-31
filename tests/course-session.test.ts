@@ -24,7 +24,11 @@ import {
   COURSE_FALLBACK_CATEGORY,
 } from '../src/lib/course-session';
 import type { Product } from '../src/lib/store';
-import { courseBillImageFilename, renderCourseBillImageSvg } from '../src/lib/course-bill-image';
+import {
+  courseBillImageFilename,
+  renderCourseBillImageSvg,
+  svgToImageDataUrl,
+} from '../src/lib/course-bill-image';
 
 const MA_PRODUCT: Product = {
   barcode: '6111246721261',
@@ -326,6 +330,14 @@ describe('renderBillText', () => {
 });
 
 describe('renderCourseBillImageSvg', () => {
+  it('encodes the SVG as a data: URL (CSP img-src allows data:, not blob:)', () => {
+    const url = svgToImageDataUrl('<svg><text>Pain & <lait> "spécial"</text></svg>');
+    assert.ok(url.startsWith('data:image/svg+xml;charset=utf-8,'));
+    assert.ok(!url.includes('<'));
+    assert.ok(!url.includes('#'));
+    assert.ok(!url.startsWith('blob:'));
+  });
+
   it('renders the same course as a self-contained, escaped visual receipt', () => {
     let session = makeSession();
     session = addItemToSession(session, makeItem({ name: 'Pain & <jam>', unitPrice: 8, qty: 2 }));

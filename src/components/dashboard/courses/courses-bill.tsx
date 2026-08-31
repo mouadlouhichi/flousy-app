@@ -39,6 +39,7 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
   const c = messages.courses;
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [shareError, setShareError] = useState(false);
 
   const place = messages.places[session.place as keyof typeof messages.places] || session.place;
   const billText = renderBillText(session, {
@@ -72,6 +73,7 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
     if (isSharing || typeof navigator === 'undefined') return;
 
     setIsSharing(true);
+    setShareError(false);
     try {
       const image = await createCourseBillImageFile(session, {
         title: c.billTitle,
@@ -119,6 +121,10 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
       // Desktop browsers and older mobile browsers may not accept shared
       // files. Download the same PNG instead — never fall back to text.
       downloadBlob(image.name, image);
+    } catch {
+      // Image generation (canvas/PNG) failed — tell the user instead of
+      // silently doing nothing.
+      setShareError(true);
     } finally {
       setIsSharing(false);
     }
@@ -157,7 +163,14 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
       </div>
 
       {/* Summary + actions */}
-      <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5 flex flex-wrap items-center gap-3">
+      <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5">
+        {shareError && (
+          <p className="mb-3 flex items-center gap-2 rounded-2xl bg-tertiary-container px-4 py-2.5 font-body-md text-body-md text-on-tertiary-container">
+            <AppIcon name="warning" className="size-4 shrink-0" />
+            {c.shareFailed}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0">
           <p className="font-label-sm text-label-sm text-on-surface-variant">
             {formatShortDate(session.date, intlLocale)} · {new Intl.NumberFormat(intlLocale).format(session.items.length)} {c.items} · {formatCurrency(session.total, session.currency, intlLocale)}
@@ -201,6 +214,7 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
             <AppIcon name="table_rows" className="size-4" />
             {c.billCsv}
           </button>
+        </div>
         </div>
       </div>
     </div>

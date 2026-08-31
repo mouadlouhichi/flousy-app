@@ -708,6 +708,7 @@
     "items": "articles",
     "billTitle": "Ticket de courses",
     "billShare": "Partager l’image",
+    "shareFailed": "Impossible de créer l’image du ticket. Réessayez.",
     "billCopy": "Copier",
     "billCopied": "Ticket copié",
     "billDownload": "Télécharger .txt",

@@ -708,6 +708,7 @@
     "items": "items",
     "billTitle": "Course bill",
     "billShare": "Share image",
+    "shareFailed": "Couldn't create the bill image. Please try again.",
     "billCopy": "Copy",
     "billCopied": "Bill copied",
     "billDownload": "Download .txt",

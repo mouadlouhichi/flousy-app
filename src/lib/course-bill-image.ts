@@ -104,6 +104,17 @@ export function renderCourseBillImageSvg(
 </svg>`;
 }
 
+/**
+ * Encode an SVG string as a data URL for `<img>`.
+ *
+ * A data URL is required here, not a blob URL: the app's CSP
+ * (`img-src 'self' data: https:`) does not allow `blob:`, so a blob URL
+ * image is silently blocked and the share path fails. `data:` is allowed.
+ */
+export function svgToImageDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 function loadSvgImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -136,18 +147,20 @@ export async function createCourseBillImageFile(
   }
 
   const svg = renderCourseBillImageSvg(session, labels);
-  const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  const image = await loadSvgImage(svgToImageDataUrl(svg));
   try {
-    const image = await loadSvgImage(svgUrl);
-    const canvas = document.createElement('canvas');
-    canvas.width = IMAGE_WIDTH;
-    canvas.height = image.naturalHeight || HEADER_HEIGHT + session.items.length * ROW_HEIGHT + FOOTER_HEIGHT;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Your browser could not prepare this bill image.');
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const png = await canvasToPng(canvas);
-    return new File([png], courseBillImageFilename(session), { type: 'image/png' });
-  } finally {
-    URL.revokeObjectURL(svgUrl);
+    // Force full rasterization before drawing — drawing straight after
+    // `onload` can yield a blank canvas in some browsers (Safari).
+    await image.decode();
+  } catch {
+    /* decode() unsupported — onload already resolved; drawImage still runs */
   }
+  const canvas = document.createElement('canvas');
+  canvas.width = IMAGE_WIDTH;
+  canvas.height = image.naturalHeight || HEADER_HEIGHT + session.items.length * ROW_HEIGHT + FOOTER_HEIGHT;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Your browser could not prepare this bill image.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const png = await canvasToPng(canvas);
+  return new File([png], courseBillImageFilename(session), { type: 'image/png' });
 }
