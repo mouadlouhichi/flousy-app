@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Modal } from '../ui/Modal';
-import { AppIcon } from '../ui/app-icon';
-import { CustomSelect } from '../ui/CustomSelect';
+import { useEffect, useState } from 'react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { isProUser } from '@/lib/pro-features';
@@ -15,22 +13,18 @@ import { HOUSEHOLD_AREAS, type AccessLevel, type HouseholdPermissions } from '@/
 
 type InviteRole = 'editor' | 'viewer' | 'custom';
 
-interface HouseholdModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface HouseholdPanelProps {
   onOpenPro?: () => void;
   month?: MonthBudget;
   initialInviteCode?: string;
 }
 
-/** Controls household setup, invitations, access and shared contribution visibility. */
-export function HouseholdModal({
-  isOpen,
-  onClose,
+/** Household setup, invitations, access and shared contribution visibility. */
+export function HouseholdPanel({
   onOpenPro,
   month,
   initialInviteCode,
-}: HouseholdModalProps) {
+}: HouseholdPanelProps) {
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { messages: m, t, language } = useLanguage();
@@ -48,6 +42,12 @@ export function HouseholdModal({
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lastInviteCode, setLastInviteCode] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (initialInviteCode) setCode(initialInviteCode);
+  }, [initialInviteCode]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -96,7 +96,6 @@ export function HouseholdModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={h.title} className="max-w-lg">
       <div className="space-y-5">
         {!household ? (
           <>
@@ -262,7 +261,7 @@ export function HouseholdModal({
                   />
                   <button
                     type="button"
-                    disabled={!email || !memberName || busy}
+                    disabled={!memberName || busy}
                     onClick={() =>
                       run(async () => {
                         const inviteId = await invite(
@@ -271,19 +270,28 @@ export function HouseholdModal({
                           role,
                           role === 'custom' ? permissions : undefined,
                         );
-                        const response = await fetch('/api/household-invitations', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            inviteId,
-                            email,
-                            householdName: household.name,
-                            role,
-                            locale: language,
-                          }),
-                        });
-                        if (!response.ok) throw new Error('invitation delivery failed');
-                        setNotice(t(h.invitationSent, { email }));
+                        setLastInviteCode(inviteId);
+                        setCopied(false);
+                        if (email) {
+                          const response = await fetch('/api/household-invitations', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              inviteId,
+                              email,
+                              householdName: household.name,
+                              role,
+                              locale: language,
+                            }),
+                          });
+                          setNotice(
+                            response.ok
+                              ? t(h.invitationSent, { email })
+                              : h.inviteCodeReady,
+                          );
+                        } else {
+                          setNotice(h.inviteCodeReady);
+                        }
                         setEmail('');
                         setMemberName('');
                       })
@@ -293,6 +301,34 @@ export function HouseholdModal({
                     {h.send}
                   </button>
                 </div>
+
+                {lastInviteCode && (
+                  <div className="rounded-xl border border-outline-variant bg-surface-container p-3 space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+                      {h.invitationCode}
+                    </p>
+                    <div className="flex gap-2">
+                      <code className="min-w-0 flex-1 truncate rounded-lg bg-surface px-3 py-2 text-sm font-semibold">
+                        {lastInviteCode}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(lastInviteCode);
+                            setCopied(true);
+                          } catch {
+                            setCopied(false);
+                          }
+                        }}
+                        className="rounded-xl bg-primary px-3 py-2 text-sm font-bold text-on-primary"
+                      >
+                        {copied ? h.copied : h.copyCode}
+                      </button>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{h.inviteCodeHint}</p>
+                  </div>
+                )}
 
                 {role === 'custom' && (
                   <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
@@ -330,6 +366,5 @@ export function HouseholdModal({
           </p>
         )}
       </div>
-    </Modal>
   );
 }

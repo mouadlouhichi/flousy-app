@@ -101,28 +101,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getRedirectResult(auth)
       .then((res) => {
         if (res?.user) {
-          syncUserProfile(res.user);
+          void syncUserProfile(res.user);
         }
       })
       .catch((err) => console.error('Redirect sign in error:', err));
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      // Keep the public-site CTA cookie in sync without any network call.
       setAuthCookie(Boolean(u));
       if (u) {
-        // Paint instantly from the local profile cache, then re-validate
-        // against Firestore in the background.
         const cached = readCachedProfile(u.uid);
-        if (cached) {
-          setProfile(cached);
-          setLoading(false);
-        }
+        if (cached) setProfile(cached);
+        setLoading(false);
         await syncUserProfile(u);
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -149,7 +144,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // when an identity provider refreshes its photo URL later.
           avatarUrl: u.photoURL || undefined,
         };
-        await setUserProfile(u.uid, p);
+        try {
+          await setUserProfile(u.uid, p);
+        } catch (writeErr) {
+          console.error('Error creating profile:', writeErr);
+        }
       } else {
         const patch: Partial<UserProfile> = {};
         if (displayName && !p.displayName) patch.displayName = displayName;
@@ -159,7 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (p.avatarUrl === undefined && u.photoURL) patch.avatarUrl = u.photoURL;
         if (Object.keys(patch).length > 0) {
           p = { ...p, ...patch };
-          await setUserProfile(u.uid, patch);
+          try {
+            await setUserProfile(u.uid, patch);
+          } catch (writeErr) {
+            console.error('Error updating profile:', writeErr);
+          }
         }
       }
       result = p;
@@ -167,6 +170,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       writeCachedProfile(u.uid, p);
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
+      if (!result) {
+        result = {
+          plan: 'free',
+          currency: 'MAD',
+          onboardingComplete: true,
+          theme: 'system',
+          displayName: displayName || u.displayName || undefined,
+          avatarUrl: u.photoURL || undefined,
+        };
+        setProfile(result);
+      }
     }
     return { profile: result, isNewUser };
   };
@@ -174,14 +188,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInEmail = async (e: string, p: string): Promise<UserProfile | null> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     const res = await signInWithEmailAndPassword(auth, e, p);
-    const { profile: synced } = await syncUserProfile(res.user);
+    setUser(res.user);
+    setLoading(false);
     trackEvent('login', { method: 'email' });
-    return synced;
+    try {
+      const { profile: synced } = await syncUserProfile(res.user);
+      return synced;
+    } catch (err) {
+      console.error('Profile sync after login failed:', err);
+      return null;
+    }
   };
 
   const signUpEmail = async (e: string, p: string, displayName?: string): Promise<UserProfile | null> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     const res = await createUserWithEmailAndPassword(auth, e, p);
+    setUser(res.user);
+    setLoading(false);
     if (displayName && res.user) {
       try {
         await firebaseUpdateProfile(res.user, { displayName });
@@ -189,7 +212,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // non-blocking
       }
     }
-    const { profile: synced } = await syncUserProfile(res.user, displayName);
     trackEvent('sign_up', { method: 'email' });
     if (res.user && !res.user.emailVerified) {
       try {
@@ -198,16 +220,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // non-blocking
       }
     }
-    return synced;
+    try {
+      const { profile: synced } = await syncUserProfile(res.user, displayName);
+      return synced;
+    } catch (err) {
+      console.error('Profile sync after signup failed:', err);
+      return null;
+    }
   };
 
   const signInGoogle = async (): Promise<boolean> => {
     if (!auth) throw new Error('Firebase Auth is not configured');
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      const { isNewUser: isNew } = await syncUserProfile(res.user);
-      trackEvent(isNew ? 'sign_up' : 'login', { method: 'google' });
-      return isNew;
+      setUser(res.user);
+      setLoading(false);
+      trackEvent('login', { method: 'google' });
+      try {
+        const { isNewUser: isNew } = await syncUserProfile(res.user);
+        if (isNew) trackEvent('sign_up', { method: 'google' });
+        return isNew;
+      } catch (err) {
+        console.error('Profile sync after Google login failed:', err);
+        return false;
+      }
     } catch (err: any) {
       // In-app browsers or popup blocked fallback
       if (

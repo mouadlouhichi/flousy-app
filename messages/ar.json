@@ -209,7 +209,10 @@
     "customSplitInvalid": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {required} بالضبط (حالياً {percent}).",
     "customSplitSummary": "{percent} {label}",
     "removeBill": "إزالة {name}",
-    "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده."
+    "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده.",
+    "importPersonalTitle": "استيراد ميزانيتي الشخصية",
+    "importPersonalHint": "انسخ الأشهر والمصروفات وأهداف الادخار من مساحتك الخاصة إلى هذا المنزل.",
+    "importPersonalLoading": "جارٍ نسخ ميزانيتك الشخصية…"
   },
   "dashboard": {
     "overview": "نظرة عامة",
@@ -572,7 +575,16 @@
       "left": "المتبقي {amount}",
       "editBudget": "تعديل ميزانية {category}",
       "saveBudget": "حفظ ميزانية {category}",
-      "cancelBudgetEdit": "إلغاء تعديل الميزانية"
+      "cancelBudgetEdit": "إلغاء تعديل الميزانية",
+      "dateFrom": "من",
+      "dateTo": "إلى",
+      "sortLabel": "ترتيب",
+      "sortNewest": "الأحدث أولاً",
+      "sortOldest": "الأقدم أولاً",
+      "sortAmountHigh": "المبلغ: من الأعلى",
+      "sortAmountLow": "المبلغ: من الأدنى",
+      "sortName": "الاسم أ–ي",
+      "clearDates": "مسح التواريخ"
     },
     "fixed": {
       "totalCommitments": "الالتزامات الثابتة الشهرية",
@@ -1640,7 +1652,9 @@
       "proDescription": "ميزات الخطة ومصادر الدخل والتحليلات.",
       "workspaceTitle": "مساحة العمل",
       "workspaceDescription": "بدّل بين لوحتك الشخصية ولوحة الأسرة.",
-      "backToProfile": "العودة إلى الملف الشخصي"
+      "backToProfile": "العودة إلى الملف الشخصي",
+      "householdTitle": "إدارة المنزل",
+      "householdDescription": "الأعضاء والدعوات والوصول المشترك."
     },
     "account": {
       "privacy": "الخصوصية",
@@ -1673,7 +1687,12 @@
       "personalDashboard": "لوحة تحكم شخصية خاصة",
       "householdDashboard": "لوحة تحكم الأسرة",
       "memberAccess": "صلاحية {role}",
-      "manageHousehold": "إدارة الأسرة"
+      "manageHousehold": "إدارة الأسرة",
+      "convertToHousehold": "تحويل هذه المساحة إلى أسرة",
+      "convertToHouseholdHint": "حوّل مساحتك الخاصة إلى أسرة مشتركة. ستُعد ميزانية الأسرة بعد ذلك.",
+      "removeHousehold": "إزالة مساحة الأسرة",
+      "leaveHousehold": "مغادرة مساحة الأسرة",
+      "removeHouseholdConfirm": "هل تريد إزالة مساحة الأسرة؟ تبقى ميزانيتك الشخصية. لن تكون بيانات الأسرة المشتركة متاحة هنا."
     },
     "pro": {
       "yourFeatures": "ميزات برو الخاصة بك",
@@ -1802,6 +1821,10 @@
     "savingsPrivateTitle": "الادخار خاص",
     "savingsPrivateDescription": "لا يشمل وصولك إلى الأسرة أهداف الادخار أو الأرصدة.",
     "debtsPrivateTitle": "الديون خاصة",
-    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات."
+    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات.",
+    "copyCode": "نسخ",
+    "copied": "تم النسخ",
+    "inviteCodeReady": "تم إنشاء الدعوة. شارك الرمز أدناه إذا تعذر إرسال البريد.",
+    "inviteCodeHint": "يمكن لأي شخص لديه هذا الرمز الانضمام من المنزل ← انضمام."
   }
 }

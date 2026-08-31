@@ -68,23 +68,28 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   if (!isFirebaseConfigured || !db) return null;
   const path = `users/${uid}`;
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
+    const snap = await Promise.race([
+      getDoc(doc(db, 'users', uid)),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile read timed out')), 5000);
+      }),
+    ]);
     if (snap.exists()) {
       return snap.data() as UserProfile;
     }
     return null;
   } catch (err) {
-    handleFirestoreError(err, OperationType.GET, path);
+    console.error('Error fetching user profile:', err);
+    return null;
   }
 }
 
 export async function setUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
-  const path = `users/${uid}`;
   try {
     await setDoc(doc(db, 'users', uid), cleanUndefined(profile), { merge: true });
   } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, path);
+    console.error('Error writing user profile:', err);
   }
 }
 
@@ -174,6 +179,34 @@ export async function saveSavingsGoals(uid: string, goals: SavingGoal[]): Promis
 /**
  * Fetch a single month budget once (non-subscription).
  */
+export async function getSavingsGoals(uid: string): Promise<SavingGoal[]> {
+  if (!isFirebaseConfigured || !db) return [];
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'data', 'savings'));
+    return snap.exists() ? (snap.data().goals || []) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Copy every personal month and savings goals into a household workspace. */
+export async function importPersonalBudgetIntoHousehold(uid: string, householdId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const monthsSnap = await getDocs(collection(db, 'users', uid, 'months'));
+  const writes: Promise<unknown>[] = [];
+  for (const item of monthsSnap.docs) {
+    if (!/^\d{4}-\d{2}$/.test(item.id)) continue;
+    const month = normalizeMonth(item.data() as MonthBudget, item.id);
+    writes.push(saveHouseholdMonthBudget(householdId, item.id, month));
+  }
+  writes.push(
+    getSavingsGoals(uid).then((goals) => {
+      if (goals.length > 0) return saveHouseholdSavingsGoals(householdId, goals);
+    }),
+  );
+  await Promise.all(writes);
+}
+
 export async function getMonthBudget(uid: string, monthKey: string): Promise<MonthBudget | null> {
   if (!isFirebaseConfigured || !db) return null;
   try {
@@ -438,22 +471,59 @@ import type { Household, HouseholdInvite, HouseholdMember } from './household';
 
 export function subscribeHousehold(householdId: string | undefined, onData: (household: Household | null) => void) {
   if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId), (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null));
+  return onSnapshot(
+    doc(db, 'households', householdId),
+    (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null),
+    (err) => {
+      console.error('Error listening to household:', err);
+      onData(null);
+    },
+  );
 }
 
 export function subscribeHouseholdMembers(householdId: string | undefined, onData: (members: HouseholdMember[]) => void) {
   if (!householdId || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
-  return onSnapshot(collection(db, 'households', householdId, 'members'), (snap) =>
-    onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember)))
+  return onSnapshot(
+    collection(db, 'households', householdId, 'members'),
+    (snap) => onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember))),
+    (err) => {
+      console.error('Error listening to household members:', err);
+      onData([]);
+    },
   );
 }
 
 export async function createHousehold(ownerId: string, household: Household, owner: HouseholdMember) {
   if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
   const id = crypto.randomUUID();
-  await setDoc(doc(db, 'households', id), cleanUndefined(household));
+  await setDoc(doc(db, 'households', id), cleanUndefined({ ...household, onboardingComplete: false }));
   await setDoc(doc(db, 'households', id, 'members', owner.id), cleanUndefined(owner));
   return id;
+}
+
+/** Owner teardown: drop members/months/savings/invoices then the household doc. */
+export async function deleteHouseholdWorkspace(householdId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const hid = householdId;
+  const wipe = async (col: string) => {
+    const snap = await getDocs(collection(db, 'households', hid, col));
+    for (const item of snap.docs) await deleteDoc(item.ref);
+  };
+  try {
+    // Delete nested data while the owner membership still exists, then members,
+    // then the household doc. Firestore delete rules cannot inspect incoming().
+    await wipe('months');
+    await wipe('invoices');
+    try {
+      await deleteDoc(doc(db, 'households', hid, 'data', 'savings'));
+    } catch {
+      /* savings doc may not exist */
+    }
+    await wipe('members');
+    await deleteDoc(doc(db, 'households', hid));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `households/${hid}`);
+  }
 }
 
 export async function saveHouseholdMember(householdId: string, member: HouseholdMember) {
@@ -500,7 +570,14 @@ export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: str
 
 export function subscribeHouseholdMonthBudget(householdId: string, monthKey: string, onData: (month: MonthBudget | null) => void) {
   if (!isFirebaseConfigured || !db) { onData(null); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId, 'months', monthKey), (snap) => onData(snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null));
+  return onSnapshot(
+    doc(db, 'households', householdId, 'months', monthKey),
+    (snap) => onData(snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null),
+    (err) => {
+      console.error('Error listening to household month:', err);
+      onData(null);
+    },
+  );
 }
 export async function saveHouseholdMonthBudget(householdId: string, monthKey: string, month: MonthBudget) {
   if (!isFirebaseConfigured || !db) return;
@@ -513,7 +590,10 @@ export async function getHouseholdMonthBudget(householdId: string, monthKey: str
 }
 export function subscribeHouseholdSavingsGoals(householdId: string, onData: (goals: SavingGoal[]) => void) {
   if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId, 'data', 'savings'), (snap) => onData(snap.exists() ? (snap.data().goals || []) : []));
+  return onSnapshot(doc(db, 'households', householdId, 'data', 'savings'), (snap) => onData(snap.exists() ? (snap.data().goals || []) : []), (err) => {
+    console.error('Error listening to household savings:', err);
+    onData([]);
+  });
 }
 export async function saveHouseholdSavingsGoals(householdId: string, goals: SavingGoal[]) {
   if (!isFirebaseConfigured || !db) return;
@@ -546,5 +626,12 @@ export async function saveHouseholdInvoice(householdId: string, invoice: Househo
 export function subscribePendingHouseholdInvites(email: string | null | undefined, onData: (invites: HouseholdInvite[]) => void) {
   if (!email || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
   const invites = query(collection(db, 'householdInvites'), where('email', '==', email.toLowerCase()), where('status', '==', 'pending'));
-  return onSnapshot(invites, (snap) => onData(snap.docs.map(item => ({ id: item.id, ...item.data() } as HouseholdInvite))));
+  return onSnapshot(
+    invites,
+    (snap) => onData(snap.docs.map(item => ({ id: item.id, ...item.data() } as HouseholdInvite))),
+    (err) => {
+      console.error('Error listening to household invites:', err);
+      onData([]);
+    },
+  );
 }

@@ -6,6 +6,49 @@ import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/i18n-context';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 
+let scanAudioCtx: AudioContext | null = null;
+
+function getScanAudioCtx(): AudioContext | null {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!scanAudioCtx || scanAudioCtx.state === 'closed') {
+      scanAudioCtx = new AudioCtx();
+    }
+    if (scanAudioCtx.state === 'suspended') {
+      void scanAudioCtx.resume();
+    }
+    return scanAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+/** Unlock Web Audio on a user gesture so later scans (including unknown codes) can beep. */
+function unlockScanAudio() {
+  getScanAudioCtx();
+}
+
+/** Short POS-style beep — Web Audio so there is no extra asset to fetch. */
+function playScanBeep() {
+  try {
+    const ctx = getScanAudioCtx();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1800;
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.stop(ctx.currentTime + 0.09);
+  } catch {
+    /* audio blocked until a user gesture — ignore */
+  }
+}
+
 interface CoursesScannerPanelProps {
   /** Session is active — attach the hardware-wedge listener. */
   enabled: boolean;
@@ -45,7 +88,9 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
     enabled,
     onCode: (code) => {
       setManualCode('');
-      // Captured feedback: brief frame flash + "Scanned" chip + haptic tick.
+      // Captured feedback: beep + frame flash + "Scanned" chip + haptic, even
+      // when the barcode is unknown and the lookup later fails.
+      playScanBeep();
       setFlash(true);
       if (flashTimer.current) clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setFlash(false), 700);
@@ -82,7 +127,11 @@ export function CoursesScannerPanel({ enabled, onCode }: CoursesScannerPanelProp
         </h3>
         <button
           type="button"
-          onClick={running ? stop : start}
+          onClick={() => {
+            unlockScanAudio();
+            if (running) stop();
+            else void start();
+          }}
           className="flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
         >
           <AppIcon name={running ? 'visibility_off' : 'video_cam'} className="size-4" />

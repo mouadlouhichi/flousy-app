@@ -174,7 +174,9 @@ export function PreferencesPanel() {
           value={draftTheme}
           onChange={(value) => {
             beginEditing();
-            setDraftTheme(value as Theme);
+            const next = value as Theme;
+            setDraftTheme(next);
+            applyTheme(next);
           }}
           options={[
             { value: 'light', label: m.settings.light, icon: 'light_mode' },

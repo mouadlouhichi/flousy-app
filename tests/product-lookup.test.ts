@@ -71,6 +71,17 @@ describe('Moroccan seed catalog', () => {
     assert.equal(lookupMaSeed(''), null);
   });
 
+  it('resolves Magix / Maxi\'s Mutandis detergents (and ITF-14 cartons)', () => {
+    assert.deepEqual(lookupMaSeed('6111242926974'), {
+      name: 'Magix Pâte',
+      brand: 'Magix',
+      category: 'Entretien',
+    });
+    assert.equal(lookupMaSeed('6111242925540')?.name, 'Magix Lessive liquide Fraîcheur Printemps 500 ml');
+    assert.equal(lookupMaSeed('16111242925540')?.brand, 'Magix');
+    assert.equal(lookupMaSeed('6111242922129')?.brand, "Maxi's");
+  });
+
   it('every seed barcode has a valid EAN-8 / EAN-13 checksum (typo guard)', () => {
     // The seed map is a private constant, so we enumerate its keys by reading
     // the source file (same technique as the message-catalog parity test).

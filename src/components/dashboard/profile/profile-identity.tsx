@@ -66,8 +66,8 @@ export function ProfileIdentity() {
       const avatarUrl = await createProfileAvatarDataUrl(file);
       await updateProfileData({ avatarUrl });
       trackEvent('update_profile_avatar');
-    } catch {
-      setAvatarError(p.avatarSaveError);
+    } catch (error) {
+      setAvatarError(error instanceof Error && error.message ? error.message : p.avatarSaveError);
     } finally {
       setIsSavingAvatar(false);
     }
@@ -96,7 +96,7 @@ export function ProfileIdentity() {
             <input
               ref={avatarInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/*"
               onChange={handleAvatarChange}
               className="hidden"
               aria-label={p.chooseProfilePhoto}
@@ -107,7 +107,7 @@ export function ProfileIdentity() {
               disabled={isSavingAvatar}
               aria-label={p.changeProfilePhoto}
               title={p.changeProfilePhoto}
-              className="absolute -bottom-1 -start-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-primary shadow-md ring-[3px] ring-surface-container transition-colors hover:bg-surface-variant disabled:cursor-wait disabled:opacity-70"
+              className="absolute -bottom-1 -start-1 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-primary shadow-md ring-[3px] ring-surface-container transition-colors hover:bg-surface-variant disabled:cursor-wait disabled:opacity-70"
             >
               <AppIcon
                 name={isSavingAvatar ? 'sync' : 'add_a_photo'}
@@ -117,26 +117,12 @@ export function ProfileIdentity() {
             {isPro && (
               <span
                 title={p.proMember}
-                className="absolute bottom-0.5 end-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
+                className="absolute -bottom-1 -end-1 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
               >
                 <AppIcon name="workspace_premium" className="text-[14px]" />
               </span>
             )}
           </div>
-
-          {!isEditingName && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditingName(true);
-                setDisplayName(profile?.displayName || '');
-              }}
-              className="mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
-            >
-              <AppIcon name="edit" className="text-[14px]" />
-              {p.editName}
-            </button>
-          )}
         </div>
 
         {avatarError && (
@@ -183,9 +169,22 @@ export function ProfileIdentity() {
             </div>
           ) : (
             <>
-              <h2 className="truncate text-2xl font-extrabold leading-tight tracking-tight text-on-surface">
-                {resolvedName}
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="min-w-0 truncate text-2xl font-extrabold leading-tight tracking-tight text-on-surface">
+                  {resolvedName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingName(true);
+                    setDisplayName(profile?.displayName || '');
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
+                >
+                  <AppIcon name="edit" className="text-[14px]" />
+                  {p.editName}
+                </button>
+              </div>
               {user?.email && (
                 <p title={user.email} className="mt-1 truncate text-sm text-on-surface-variant">
                   {user.email}
@@ -207,7 +206,7 @@ export function ProfileIdentity() {
                   {isPro ? p.links.pro : p.free}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-surface-variant px-2.5 py-1 text-[11px] font-bold leading-none text-on-surface-variant ring-1 ring-inset ring-outline-variant">
-                  <AppIcon name={workspace === 'household' ? 'group' : 'home'} className="text-[13px]" />
+                  <AppIcon name={workspace === 'household' ? 'family_restroom' : 'person'} className="text-[13px]" />
                   {workspaceLabel}
                   {workspace === 'household' && memberRole ? ` · ${localizeHouseholdRole(memberRole, m)}` : ''}
                 </span>

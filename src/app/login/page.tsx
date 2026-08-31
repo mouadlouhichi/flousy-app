@@ -51,7 +51,7 @@ export default function LoginPage() {
     }
   }, [user, profile, loading, router]);
 
-  if (loading || user) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
@@ -62,11 +62,7 @@ export default function LoginPage() {
   const demoActive = isDemoMode();
 
   const navigateTo = (path: string) => {
-    try {
-      router.push(path);
-    } catch {
-      window.location.href = path;
-    }
+    window.location.assign(path);
   };
 
   const handleDemoAccess = () => {
@@ -131,14 +127,8 @@ export default function LoginPage() {
         await signUpEmail(email, password, displayName.trim() || undefined);
         navigateTo('/onboarding');
       } else {
-        const syncedProfile = await signInEmail(email, password);
-        // Onboarding is always the first screen when it hasn't been completed
-        const localDone = isOnboardingDoneLocally();
-        navigateTo(
-          syncedProfile && syncedProfile.onboardingComplete === false && !localDone
-            ? '/onboarding'
-            : '/dashboard',
-        );
+        await signInEmail(email, password);
+        navigateTo('/dashboard');
       }
     } catch (err: any) {
       // If authentication failed because Firebase isn't configured, fallback gracefully to Demo Mode

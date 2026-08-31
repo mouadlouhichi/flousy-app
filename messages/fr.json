@@ -209,7 +209,10 @@
     "customSplitInvalid": "Les besoins, les envies et l’épargne doivent totaliser exactement {required} (actuellement {percent}).",
     "customSplitSummary": "{percent} {label}",
     "removeBill": "Retirer {name}",
-    "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors."
+    "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors.",
+    "importPersonalTitle": "Importer mon budget personnel",
+    "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer.",
+    "importPersonalLoading": "Copie de votre budget personnel…"
   },
   "dashboard": {
     "overview": "Aperçu",
@@ -572,7 +575,16 @@
       "left": "Il reste {amount}",
       "editBudget": "Modifier le budget de {category}",
       "saveBudget": "Enregistrer le budget de {category}",
-      "cancelBudgetEdit": "Annuler la modification du budget"
+      "cancelBudgetEdit": "Annuler la modification du budget",
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "sortLabel": "Trier",
+      "sortNewest": "Plus récent",
+      "sortOldest": "Plus ancien",
+      "sortAmountHigh": "Montant : décroissant",
+      "sortAmountLow": "Montant : croissant",
+      "sortName": "Nom A–Z",
+      "clearDates": "Effacer les dates"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",
@@ -1640,7 +1652,9 @@
       "proDescription": "Fonctionnalités du forfait, sources de revenus et analyses.",
       "workspaceTitle": "Espace de travail",
       "workspaceDescription": "Basculez entre votre tableau personnel et votre foyer.",
-      "backToProfile": "Retour au profil"
+      "backToProfile": "Retour au profil",
+      "householdTitle": "Gérer le foyer",
+      "householdDescription": "Membres, invitations et accès partagé."
     },
     "account": {
       "privacy": "Confidentialité",
@@ -1673,7 +1687,12 @@
       "personalDashboard": "Tableau de bord personnel privé",
       "householdDashboard": "Tableau de bord du foyer",
       "memberAccess": "accès {role}",
-      "manageHousehold": "Gérer le foyer"
+      "manageHousehold": "Gérer le foyer",
+      "convertToHousehold": "Transformer en foyer",
+      "convertToHouseholdHint": "Transformez votre espace privé en foyer partagé. Vous configurerez ensuite le budget du foyer.",
+      "removeHousehold": "Supprimer l’espace foyer",
+      "leaveHousehold": "Quitter l’espace foyer",
+      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici."
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",
@@ -1802,6 +1821,10 @@
     "savingsPrivateTitle": "L’épargne est privée",
     "savingsPrivateDescription": "Votre accès au foyer ne comprend pas les objectifs ni les soldes d’épargne.",
     "debtsPrivateTitle": "Les dettes sont privées",
-    "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits."
+    "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits.",
+    "copyCode": "Copier",
+    "copied": "Copié",
+    "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
+    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre."
   }
 }

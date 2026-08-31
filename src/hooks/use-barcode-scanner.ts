@@ -43,12 +43,12 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
 const ZOOM_STEP = 0.5;
 /** Roughly how often the native decoder samples the feed (ms). */
-const DECODE_INTERVAL_MS = 120;
+const DECODE_INTERVAL_MS = 40;
 
 export function useBarcodeScanner({
   enabled,
   onCode,
-  debounceMs = 1500,
+  debounceMs = 700,
   autoStart = true,
   initialZoom = 2,
 }: UseBarcodeScannerOptions) {
@@ -119,20 +119,24 @@ export function useBarcodeScanner({
     setTorchAvailable(capabilities.torch === true);
   }, [getVideoTrack]);
 
-  const toggleTorch = useCallback(async () => {
+  const setTorch = useCallback(async (on: boolean) => {
     const track = getVideoTrack();
-    if (!track) return;
-    const next = !torchOnRef.current;
+    if (!track) return false;
     try {
       await track.applyConstraints({
-        advanced: [{ torch: next } as unknown as MediaTrackConstraintSet],
+        advanced: [{ torch: on } as unknown as MediaTrackConstraintSet],
       });
-      torchOnRef.current = next;
-      setTorchOn(next);
+      torchOnRef.current = on;
+      setTorchOn(on);
+      return true;
     } catch {
-      /* torch unsupported on this device — ignore */
+      return false;
     }
   }, [getVideoTrack]);
+
+  const toggleTorch = useCallback(async () => {
+    await setTorch(!torchOnRef.current);
+  }, [setTorch]);
 
   const setZoom = useCallback((next: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 10) / 10));
@@ -152,7 +156,7 @@ export function useBarcodeScanner({
     try {
       const { BrowserMultiFormatReader, BarcodeFormat } = await import('@zxing/browser');
       const reader = new BrowserMultiFormatReader(undefined, {
-        delayBetweenScanAttempts: 200,
+        delayBetweenScanAttempts: 50,
       });
       // Restrict to the grocery codes the native detector also targets — this
       // trims false positives and makes the JS decoder measurably snappier.
@@ -238,7 +242,7 @@ export function useBarcodeScanner({
         video: {
           facingMode: { ideal: 'environment' },
           ...(useNative
-            ? { width: { ideal: 1920 }, height: { ideal: 1080 } }
+            ? { width: { ideal: 1280 }, height: { ideal: 720 } }
             : { width: { ideal: 1280 }, height: { ideal: 720 } }),
         },
         audio: false,

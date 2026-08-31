@@ -2,10 +2,11 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
+import { useHousehold } from '../../lib/household-context';
 import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import {
@@ -18,7 +19,7 @@ import {
   normalizeCustomRatios,
   resolveStrategy,
 } from '../../lib/store';
-import { saveMonthBudget } from '../../lib/db';
+import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -50,9 +51,21 @@ const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
 ];
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingFlow />
+    </Suspense>
+  );
+}
+
+function OnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { messages: m, t, translate, language, intlLocale, isRTL } = useLanguage();
   const { user, profile, updateProfileData } = useAuth();
+  const { workspace, household, markHouseholdOnboarded } = useHousehold();
+  const isHouseholdScope = searchParams.get('scope') === 'household' || workspace === 'household';
+  const householdId = household?.id || profile?.activeHouseholdId;
   const { currency, setCurrency, symbol, format } = useCurrency();
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
@@ -109,6 +122,7 @@ export default function OnboardingPage() {
 
   const [isCompleting, setIsCompleting] = useState(false);
   const [incomeError, setIncomeError] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
 
   // Clean numeric string parsing for income (handles comma/formatting)
   const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
@@ -214,6 +228,55 @@ export default function OnboardingPage() {
     setShowAddCustom(false);
   };
 
+  const goDashboard = () => {
+    try {
+      router.push('/dashboard');
+    } catch {
+      window.location.href = '/dashboard';
+    }
+  };
+
+  const handleImportPersonal = async () => {
+    if (isImporting || isCompleting || !isHouseholdScope) return;
+    setIsImporting(true);
+    const today = new Date();
+    const monthKey = getCurrentMonthKey(monthStartDate, today);
+    try {
+      if (householdId) {
+        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const storageKey = localStorage.key(i);
+          if (!storageKey?.startsWith('flousy_month_')) continue;
+          const mk = storageKey.slice('flousy_month_'.length);
+          const raw = localStorage.getItem(storageKey);
+          if (raw) localStorage.setItem(`flousy_household_${householdId}_month_${mk}`, raw);
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (user && householdId) {
+      try {
+        await Promise.race([
+          (async () => {
+            await importPersonalBudgetIntoHousehold(user.uid, householdId);
+            try {
+              const local = localStorage.getItem(`flousy_month_${monthKey}`);
+              if (local) {
+                await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
+              }
+            } catch { /* ignore */ }
+            await markHouseholdOnboarded();
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 6000)),
+        ]);
+      } catch (e) {
+        console.warn('Personal import skipped or failed:', e);
+        try { await markHouseholdOnboarded(); } catch { /* ignore */ }
+      }
+    }
+    goDashboard();
+  };
+
   const handleCompleteOnboarding = async () => {
     if (isCompleting) return;
     setIsCompleting(true);
@@ -231,27 +294,32 @@ export default function OnboardingPage() {
       selectedStrategy === 'custom' ? customRatios : undefined,
     );
 
-    // Save in localStorage immediately
     try {
-      localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
-      localStorage.setItem('flousy_onboarding_done', 'true');
+      if (isHouseholdScope && householdId) {
+        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+      } else {
+        localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
+        localStorage.setItem('flousy_onboarding_done', 'true');
+      }
       localStorage.setItem('flousy_currency', currency);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
 
-    // Try saving to Firebase with a strict 2s timeout so navigation never hangs
     if (user) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Firebase timeout')), 2000)
         );
-        // updateProfileData also flips the in-context profile so route guards
-        // immediately treat onboarding as complete.
-        const dbPromise = Promise.all([
-          saveMonthBudget(user.uid, monthKey, newMonth),
-          updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
-        ]);
+        const dbPromise = isHouseholdScope && householdId
+          ? Promise.all([
+              saveHouseholdMonthBudget(householdId, monthKey, newMonth),
+              markHouseholdOnboarded(),
+            ])
+          : Promise.all([
+              saveMonthBudget(user.uid, monthKey, newMonth),
+              updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
+            ]);
         await Promise.race([dbPromise, timeoutPromise]);
       } catch (e) {
         console.warn('Firebase save skipped or timed out:', e);
@@ -301,11 +369,12 @@ export default function OnboardingPage() {
           </span>
 
           <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-end">
-            {new Intl.NumberFormat(intlLocale).format(step)}/{new Intl.NumberFormat(intlLocale).format(5)}
+            {isImporting ? '' : `${new Intl.NumberFormat(intlLocale).format(step)}/${new Intl.NumberFormat(intlLocale).format(5)}`}
           </span>
         </div>
 
         {/* Step Progress Bar */}
+        {!isImporting && (
         <div className="flex flex-col gap-1 mb-6">
           <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
             <span>{t(m.common.step, { current: new Intl.NumberFormat(intlLocale).format(step), total: new Intl.NumberFormat(intlLocale).format(5) })}</span>
@@ -318,9 +387,21 @@ export default function OnboardingPage() {
             />
           </div>
         </div>
+        )}
 
-        {/* STEP 1: Monthly Income */}
-        {step === 1 && (
+        {isImporting && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <AppIcon name="sync" className="animate-spin text-[28px] text-primary" />
+            </span>
+            <h2 className="text-[22px] font-extrabold text-on-surface">{m.onboarding.importPersonalLoading}</h2>
+            <p className="max-w-sm text-[14px] font-medium text-on-surface-variant">
+              {m.onboarding.importPersonalHint}
+            </p>
+          </div>
+        )}
+
+        {step === 1 && !isImporting && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -328,6 +409,22 @@ export default function OnboardingPage() {
             }}
             className="flex flex-col gap-5"
           >
+            {isHouseholdScope && (
+              <button
+                type="button"
+                onClick={() => void handleImportPersonal()}
+                className="flex items-start gap-3 bg-primary/8 p-4 rounded-[20px] border-2 border-primary text-start"
+              >
+                <AppIcon name="file_copy" className="mt-0.5 text-[22px] text-primary shrink-0" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px] font-extrabold text-on-surface">
+                    {m.onboarding.importPersonalTitle}
+                  </span>
+                  <span className="text-[12px] font-medium text-on-surface-variant">{m.onboarding.importPersonalHint}</span>
+                </span>
+              </button>
+            )}
+
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
                 {m.onboarding.step1Title}
@@ -419,7 +516,8 @@ export default function OnboardingPage() {
 
             <button
               type="submit"
-              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer"
+              disabled={isImporting}
+              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>{m.common.continue}</span>
               <AppIcon name={isRTL ? 'arrow_back' : 'arrow_forward'} className=" text-[20px]" />
@@ -428,7 +526,7 @@ export default function OnboardingPage() {
         )}
 
         {/* STEP 2: Select Budget Categories */}
-        {step === 2 && (
+        {step === 2 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -553,7 +651,7 @@ export default function OnboardingPage() {
         )}
 
         {/* STEP 3: Fixed Bills */}
-        {step === 3 && (
+        {step === 3 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -718,7 +816,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
         )}
 
         {/* STEP 4: Choose Strategy */}
-        {step === 4 && (
+        {step === 4 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">
@@ -905,7 +1003,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
         )}
 
         {/* STEP 5: Budget Overview */}
-        {step === 5 && (
+        {step === 5 && !isImporting && (
           <div className="flex flex-col gap-5">
             <div className="text-center">
               <h2 className="text-[26px] font-extrabold text-on-surface leading-tight">

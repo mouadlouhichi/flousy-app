@@ -19,9 +19,11 @@ export function permissionsFor(role: HouseholdRole, custom?: HouseholdPermission
   return custom || {};
 }
 export function canView(role: HouseholdRole | undefined, area: HouseholdArea, custom?: HouseholdPermissions) {
+  if (role === 'owner') return true;
   const access = role ? permissionsFor(role, custom)[area] || 'none' : 'none'; return access !== 'none';
 }
 export function canEdit(role: HouseholdRole | undefined, area: HouseholdArea, custom?: HouseholdPermissions, own = false) {
+  if (role === 'owner') return true;
   const access = role ? permissionsFor(role, custom)[area] || 'none' : 'none'; return access === 'editAll' || (own && access === 'editOwn');
 }
 

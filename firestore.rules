@@ -19,7 +19,10 @@ service cloud.firestore {
       // 'free' and 'pro' after checkout. With a real payment provider, re-pin
       // it (incoming().plan == existing().plan) and write it from an Admin SDK
       // payment webhook instead.
-      allow update: if owner(uid) && incoming().plan in ['free', 'pro'] && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
+      allow update: if owner(uid)
+        && (!('plan' in incoming()) || incoming().plan in ['free', 'pro'])
+        && (!('currency' in incoming()) || incoming().currency is string)
+        && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool);
       allow delete: if owner(uid);
       match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
       match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
@@ -28,7 +31,7 @@ service cloud.firestore {
       match /products/{barcode} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && (barcode matches '^[0-9]{8}$' || barcode matches '^[0-9]{13}$')
+          && (barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
           && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
         allow update: if owner(uid)
@@ -57,7 +60,8 @@ service cloud.firestore {
     match /households/{hid} {
       allow get: if householdMember(hid) || householdOwner(hid);
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
-      allow update, delete: if householdOwner(hid) && request.resource.data.ownerId == resource.data.ownerId;
+      allow update: if householdOwner(hid) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if householdOwner(hid);
       match /members/{memberId} {
         allow get: if householdMember(hid) || householdOwner(hid) || (signedIn() && resource.data.email == request.auth.token.email);
         allow list: if householdMember(hid) || householdOwner(hid);
@@ -84,8 +88,16 @@ service cloud.firestore {
         allow delete: if householdOwner(hid);
       }
 
-      match /months/{key} { allow read: if householdMember(hid); allow write: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
-      match /data/savings { allow read: if householdMember(hid); allow write: if householdEditor(hid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
+      match /months/{key} {
+        allow read: if householdMember(hid) || householdOwner(hid);
+        allow create, update: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200);
+        allow delete: if householdOwner(hid) || householdEditor(hid);
+      }
+      match /data/savings {
+        allow read: if householdMember(hid) || householdOwner(hid);
+        allow create, update: if householdEditor(hid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200);
+        allow delete: if householdOwner(hid) || householdEditor(hid);
+      }
     }
     match /householdInvites/{inviteId} {
       allow get: if signedIn() && (resource.data.email == request.auth.token.email || householdOwner(resource.data.householdId));

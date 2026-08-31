@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { PRO_FEATURES } from '@/lib/pro-features';
 import { useDashboard } from '../dashboard-provider';
@@ -9,9 +8,9 @@ import { canShowProUpgrade, isProFeatureUnlocked } from '@/lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 
 export function ProPanel() {
-  const { isPro, openProModal, openCsvModal, openIncomeModal } = useDashboard();
+  const { isPro, openProModal } = useDashboard();
   const { workspace, selectWorkspace } = useHousehold();
-  const { messages: m, isRTL } = useLanguage();
+  const { messages: m } = useLanguage();
   const p = m.profile.pro;
   const showUpgrade = canShowProUpgrade(isPro, workspace);
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
@@ -62,54 +61,7 @@ export function ProPanel() {
         ))}
       </div>
 
-      {proUnlocked ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={openIncomeModal}
-            className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-          >
-            <span className="flex items-center gap-3">
-              <AppIcon name="payments" className="text-[20px] text-primary" />
-              <span className="text-sm font-bold text-on-surface">{p.manageIncomeSources}</span>
-            </span>
-            <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-          </button>
-          <button
-            type="button"
-            onClick={openCsvModal}
-            className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-          >
-            <span className="flex items-center gap-3">
-              <AppIcon name="upload_file" className="text-[20px] text-primary" />
-              <span className="text-sm font-bold text-on-surface">{p.importExportCsv}</span>
-            </span>
-            <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-          </button>
-          <Link
-            href="/dashboard/profile/workspace"
-            prefetch={true}
-            className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-          >
-            <span className="flex items-center gap-3">
-              <AppIcon name="family_restroom" className="text-[20px] text-primary" />
-              <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
-            </span>
-            <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-          </Link>
-          <Link
-            href="/dashboard/trends"
-            prefetch={true}
-            className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-          >
-            <span className="flex items-center gap-3">
-              <AppIcon name="trending_up" className="text-[20px] text-primary" />
-              <span className="text-sm font-bold text-on-surface">{p.analyticsInsights}</span>
-            </span>
-            <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-          </Link>
-        </div>
-      ) : showUpgrade ? (
+      {proUnlocked ? null : showUpgrade ? (
         <button
           type="button"
           onClick={openProModal}

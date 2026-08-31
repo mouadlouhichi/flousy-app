@@ -357,6 +357,9 @@ describe('renderCourseBillImageSvg', () => {
     assert.match(image, /Pain &amp; &lt;jam&gt;/);
     assert.match(image, /Paid from: Bank/);
     assert.match(image, /TOTAL/);
+    assert.match(image, /SmartJib/);
+    assert.match(image, /href="\/logo.png"/);
+    assert.doesNotMatch(image, /M520 156h40/);
     assert.equal(courseBillImageFilename(session), 'smartjib-course-2026-08-30.png');
   });
 

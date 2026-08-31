@@ -209,7 +209,10 @@
     "customSplitInvalid": "Needs, Wants and Savings must add up to exactly {required} (currently {percent}).",
     "customSplitSummary": "{percent} {label}",
     "removeBill": "Remove {name}",
-    "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then."
+    "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then.",
+    "importPersonalTitle": "Import my personal budget",
+    "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household.",
+    "importPersonalLoading": "Copying your personal budget…"
   },
   "dashboard": {
     "overview": "Overview",
@@ -572,7 +575,16 @@
       "left": "{amount} left",
       "editBudget": "Edit {category} budget",
       "saveBudget": "Save {category} budget",
-      "cancelBudgetEdit": "Cancel budget edit"
+      "cancelBudgetEdit": "Cancel budget edit",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "sortAmountHigh": "Amount: high to low",
+      "sortAmountLow": "Amount: low to high",
+      "sortName": "Name A–Z",
+      "clearDates": "Clear dates"
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
@@ -1640,7 +1652,9 @@
       "proDescription": "Plan features, income sources and analytics.",
       "workspaceTitle": "Workspace",
       "workspaceDescription": "Switch between your personal dashboard and household.",
-      "backToProfile": "Back to profile"
+      "backToProfile": "Back to profile",
+      "householdTitle": "Manage household",
+      "householdDescription": "Members, invitations, and shared access."
     },
     "account": {
       "privacy": "Privacy",
@@ -1673,7 +1687,12 @@
       "personalDashboard": "Private personal dashboard",
       "householdDashboard": "Household Dashboard",
       "memberAccess": "{role} access",
-      "manageHousehold": "Manage Household"
+      "manageHousehold": "Manage Household",
+      "convertToHousehold": "Make this a household",
+      "convertToHouseholdHint": "Turn your private workspace into a shared household. You'll set up the household budget next.",
+      "removeHousehold": "Remove household workspace",
+      "leaveHousehold": "Leave household workspace",
+      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here."
     },
     "pro": {
       "yourFeatures": "Your Pro Features",
@@ -1802,6 +1821,10 @@
     "savingsPrivateTitle": "Savings are private",
     "savingsPrivateDescription": "Your household access does not include savings goals or balances.",
     "debtsPrivateTitle": "Debts are private",
-    "debtsPrivateDescription": "Your household access does not include debts or credits."
+    "debtsPrivateDescription": "Your household access does not include debts or credits.",
+    "copyCode": "Copy",
+    "copied": "Copied",
+    "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
+    "inviteCodeHint": "Anyone with this code can join from Household → Join."
   }
 }

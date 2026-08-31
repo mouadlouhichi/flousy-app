@@ -11,8 +11,13 @@
  */
 import type { RemoteProductInfo } from './course-session';
 
-const OFF_BASE = 'https://world.openfoodfacts.org/api/v2/product/';
-const OFF_MA_BASE = 'https://ma-fr.openfoodfacts.org/api/v2/product/';
+const OFF_HOSTS = [
+  'https://world.openfoodfacts.org/api/v2/product/',
+  'https://ma-fr.openfoodfacts.org/api/v2/product/',
+  'https://ma.openfoodfacts.org/api/v2/product/',
+  'https://world.openbeautyfacts.org/api/v2/product/',
+  'https://world.openproductsfacts.org/api/v2/product/',
+];
 const FIELDS =
   'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
 
@@ -37,7 +42,13 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
   };
 
-  const name = pick('product_name') ?? pick('product_name_fr') ?? pick('product_name_en') ?? pick('generic_name');
+  const name =
+    pick('product_name') ??
+    pick('product_name_fr') ??
+    pick('product_name_en') ??
+    pick('product_name_ar') ??
+    pick('generic_name') ??
+    pick('abbreviated_product_name');
   if (!name) return null;
 
   const brands = pick('brands')?.split(',')[0]?.trim();
@@ -81,7 +92,7 @@ export async function lookupOffProduct(
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
 
   // 1) direct from the browser — world, then the MA instance
-  for (const base of [OFF_BASE, OFF_MA_BASE]) {
+  for (const base of OFF_HOSTS) {
     const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
     const mapped = direct ? mapOffProduct(direct) : null;
     if (mapped) return mapped;
