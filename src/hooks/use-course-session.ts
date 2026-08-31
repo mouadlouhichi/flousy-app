@@ -25,6 +25,7 @@ import {
   type ProductResolution,
 } from '@/lib/course-session';
 import { lookupOffProduct } from '@/lib/product-lookup';
+import { lookupMaSeed } from '@/lib/ma-product-seed';
 import type { CourseSession, MoneyPlace, Product } from '@/lib/store';
 
 const CATALOG_KEY = 'flousy_course_catalog';
@@ -239,6 +240,7 @@ export function useCourseSession(uid: string | null | undefined) {
       const resolution = await resolveProduct({
         barcode,
         catalog,
+        lookupSeed: lookupMaSeed,
         lookupRemote: lookupOffProduct,
       });
       return { ok: true, barcode, resolution };

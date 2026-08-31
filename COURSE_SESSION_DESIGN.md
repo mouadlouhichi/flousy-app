@@ -254,7 +254,11 @@ equivalent of France's open GMS barcode file. So the solution is a
 
 1. **Local catalog** (always first) — the real coverage engine.
 2. **Static MA seed** (P2) — every OFF-known Moroccan product resolvable in
-   0 ms, even offline, from the user's very first scan.
+   0 ms, even offline, from the user's very first scan. A first slice is
+   already shipped inline (`src/lib/ma-product-seed.ts`): ~44 well-known MA
+   products (Sidi Ali / Aïn Atlas / Sidi Harazem / Aïn Ifrane waters,
+   Jaouda + Centrale Danone dairy) checked between the local catalog and the
+   OFF network call.
 3. **OFF live lookup** (P1) — catches products added to OFF after the last
    seed build (the seed is a snapshot; OFF keeps growing between builds).
 4. **Manual + remember** (P1) — the long tail; converges fast thanks to

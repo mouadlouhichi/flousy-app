@@ -29,7 +29,7 @@ interface PendingProduct {
   category?: string;
   imageUrl?: string;
   /** Where the metadata came from (drives the helper label). */
-  source: 'catalog' | 'remote' | 'manual';
+  source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
   ma: boolean;
 }
@@ -165,7 +165,12 @@ export function CoursesScreen() {
       if (resolution.kind === 'found') {
         setNotice({
           kind: 'info',
-          text: resolution.source === 'catalog' ? c.fromCatalog : c.fromOff,
+          text:
+            resolution.source === 'catalog'
+              ? c.fromCatalog
+              : resolution.source === 'seed'
+                ? c.fromSeed
+                : c.fromOff,
         });
         openPending({
           barcode,
@@ -177,7 +182,10 @@ export function CoursesScreen() {
           ma,
         });
       } else {
-        setNotice({ kind: 'warn', text: c.notFound });
+        setNotice({
+          kind: 'warn',
+          text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
+        });
         openPending({ barcode, name: '', source: 'manual', ma });
       }
     } finally {

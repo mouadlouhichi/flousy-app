@@ -419,16 +419,35 @@ describe('resolveProduct', () => {
     });
   });
 
-  it('reports not-found when the remote misses', async () => {
+  it('resolves from the bundled seed before the network', async () => {
+    let remoteCalls = 0;
+    const resolution = await resolveProduct({
+      barcode: '6111035002175',
+      catalog: [],
+      lookupSeed: (code) => (code === '6111035002175' ? { name: 'Sidi Ali', brand: 'Sidi Ali' } : null),
+      lookupRemote: async () => {
+        remoteCalls++;
+        return { name: 'WRONG' };
+      },
+    });
+    assert.equal(remoteCalls, 0);
+    assert.deepEqual(resolution, {
+      kind: 'found',
+      product: { name: 'Sidi Ali', brand: 'Sidi Ali', category: undefined, imageUrl: undefined },
+      source: 'seed',
+    });
+  });
+
+  it('reports not-found (clean miss) when the remote misses', async () => {
     const resolution = await resolveProduct({
       barcode: '1111111111111',
       catalog: [],
       lookupRemote: async () => null,
     });
-    assert.deepEqual(resolution, { kind: 'not-found', barcode: '1111111111111' });
+    assert.deepEqual(resolution, { kind: 'not-found', barcode: '1111111111111', reason: 'not-found' });
   });
 
-  it('degrades to not-found when the remote throws or times out', async () => {
+  it('reports lookup-failed when the remote throws or times out', async () => {
     const failing = await resolveProduct({
       barcode: '2222222222222',
       catalog: [],
@@ -436,7 +455,7 @@ describe('resolveProduct', () => {
         throw new Error('network down');
       },
     });
-    assert.deepEqual(failing, { kind: 'not-found', barcode: '2222222222222' });
+    assert.deepEqual(failing, { kind: 'not-found', barcode: '2222222222222', reason: 'lookup-failed' });
 
     const slow = await resolveProduct({
       barcode: '3333333333333',
@@ -445,7 +464,7 @@ describe('resolveProduct', () => {
         new Promise((resolve) => setTimeout(() => resolve({ name: 'Too late' }), 200)),
       remoteTimeoutMs: 30,
     });
-    assert.deepEqual(slow, { kind: 'not-found', barcode: '3333333333333' });
+    assert.deepEqual(slow, { kind: 'not-found', barcode: '3333333333333', reason: 'lookup-failed' });
   });
 
   it('ignores catalog entries without a name and uses the remote', async () => {
@@ -470,7 +489,11 @@ describe('resolveProduct', () => {
 
   it('works with no remote configured (offline / demo)', async () => {
     const resolution = await resolveProduct({ barcode: '5555555555555', catalog: [] });
-    assert.deepEqual(resolution, { kind: 'not-found', barcode: '5555555555555' });
+    assert.deepEqual(resolution, {
+      kind: 'not-found',
+      barcode: '5555555555555',
+      reason: 'not-found',
+    });
   });
 });
 
