@@ -29,6 +29,8 @@ i18n.use(initReactI18next).init({
   resources,
   lng: initialLang,
   fallbackLng: 'en',
+  // React Native Hermes does not ship Intl.PluralRules; v3 skips that API.
+  compatibilityJSON: 'v3',
   interpolation: {
     escapeValue: false,
   },

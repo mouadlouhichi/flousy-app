@@ -40,19 +40,18 @@ import { getMobileQuickActions } from '@flousy/core';
 export default function DashboardOverviewScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, demoMode, signOut, sendEmailVerification } = useMobileAuth();
+  const { user, demoMode, sendEmailVerification } = useMobileAuth();
   const {
     currentMonthKey,
     month,
     loading,
     updateMonth,
-    switchMonth,
     currency,
     moneyPlaces,
     workspace,
+    canEditArea,
     savingsGoals,
     updateSavingsGoals,
-    canEditArea,
   } = useMobileStore();
 
   const [moveModalVisible, setMoveModalVisible] = useState(false);
@@ -66,7 +65,7 @@ export default function DashboardOverviewScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-white dark:bg-neutral-900">
-        <ActivityIndicator size="large" color="#2ea44f" />
+        <ActivityIndicator size="large" color="#026462" />
       </View>
     );
   }
@@ -101,84 +100,14 @@ export default function DashboardOverviewScreen() {
   const savingsSpentPct =
     savingsCap > 0 ? Math.min(100, Math.round((spent.savings / savingsCap) * 100)) : 0;
 
-  const handlePrevMonth = () => {
-    const [y, m] = currentMonthKey.split('-').map(Number);
-    const d = new Date(y, m - 2, 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    switchMonth(`${yyyy}-${mm}`);
-  };
-
-  const handleNextMonth = () => {
-    const [y, m] = currentMonthKey.split('-').map(Number);
-    const d = new Date(y, m, 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    switchMonth(`${yyyy}-${mm}`);
-  };
-
   const handleMoveMoney = async (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     await updateMonth(moveMoney(month, from, to, amount));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   return (
-    <View className="flex-1 bg-neutral-100 dark:bg-neutral-900">
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} className="px-4 pt-4">
-        {/* Header Bar */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center space-x-2">
-            <Pressable
-              onPress={handlePrevMonth}
-              className="p-2 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700"
-            >
-              <Text className="text-sm font-bold text-neutral-700 dark:text-neutral-300">
-                ←
-              </Text>
-            </Pressable>
-            <Text className="text-lg font-bold text-neutral-900 dark:text-white">
-              {currentMonthKey}
-            </Text>
-            <Pressable
-              onPress={handleNextMonth}
-              className="p-2 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700"
-            >
-              <Text className="text-sm font-bold text-neutral-700 dark:text-neutral-300">
-                →
-              </Text>
-            </Pressable>
-          </View>
-
-          <View className="flex-row items-center space-x-2">
-            {demoMode && (
-              <View className="bg-amber-100 dark:bg-amber-900/50 px-2.5 py-1 rounded-full border border-amber-300">
-                <Text className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                  Demo
-                </Text>
-              </View>
-            )}
-            <Pressable
-              onPress={() => router.push('/dashboard/settings')}
-              className="bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700"
-            >
-              <Text className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-                Profile
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={async () => {
-                await signOut();
-                router.replace('/login');
-              }}
-              className="bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700"
-            >
-              <Text className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
-                Exit
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
+    <View className="flex-1 bg-[#F5FAF8] dark:bg-neutral-900">
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }} className="px-4 pt-4">
         {/* Email Unverified Banner */}
         {user && !user.emailVerified && !demoMode && (
           <View className="bg-amber-50 dark:bg-amber-950/40 p-3.5 rounded-2xl border border-amber-300 dark:border-amber-700 mb-6 flex-row items-center justify-between">
@@ -400,6 +329,34 @@ export default function DashboardOverviewScreen() {
         onClose={() => setStrategyVisible(false)}
         month={month}
         onUpdateMonth={updateMonth}
+      />
+      <ExpenseModal
+        visible={expenseVisible}
+        onClose={() => setExpenseVisible(false)}
+        month={month}
+        currency={currency}
+        onSave={async (expense: VariableExpense) => {
+          await updateMonth(addVariableExpense(month, expense));
+        }}
+      />
+      <FixedModal
+        visible={fixedVisible}
+        onClose={() => setFixedVisible(false)}
+        month={month}
+        currency={currency}
+        onSave={async (expense: FixedExpense) => {
+          await updateMonth(addFixedExpense(month, expense));
+        }}
+      />
+      <SavingsGoalModal
+        visible={savingsVisible}
+        onClose={() => setSavingsVisible(false)}
+        currency={currency}
+        onSave={async (goal: SavingGoal, deductFromPlace) => {
+          const res = saveGoalWithBalance(month, savingsGoals, goal, deductFromPlace ?? null);
+          await updateMonth(res.month);
+          await updateSavingsGoals(res.goals);
+        }}
       />
     </View>
   );

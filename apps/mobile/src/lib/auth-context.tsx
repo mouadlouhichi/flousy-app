@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, typ
 import auth, { type FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { isDemoMode, setDemoMode as saveDemoMode, clearDemoData } from './storage';
+import { configureGoogleSignIn } from './firebase';
 
 export interface MobileAuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -9,7 +10,7 @@ export interface MobileAuthContextType {
   demoMode: boolean;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<void>;
   sendEmailVerification: () => Promise<void>;
   enableDemoMode: () => void;
@@ -45,14 +46,31 @@ export function MobileAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    configureGoogleSignIn();
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const signInResult = await GoogleSignin.signIn();
-    const idToken = signInResult.data?.idToken;
-    if (!idToken) {
-      throw new Error('No ID token returned from Google Sign-In');
+    try {
+      const signInResult = (await GoogleSignin.signIn()) as {
+        type?: string;
+        data?: { idToken?: string | null };
+        idToken?: string | null;
+        code?: string;
+      };
+      if (signInResult?.type === 'cancelled' || signInResult?.type === 'cancel') {
+        return false;
+      }
+      const idToken = signInResult?.data?.idToken ?? signInResult?.idToken ?? null;
+      if (!idToken) {
+        throw new Error('No ID token returned from Google Sign-In. Check the Web client ID.');
+      }
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      await auth().signInWithCredential(googleCredential);
+      return true;
+    } catch (err: any) {
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.code === '12501' || err?.code === '-5') {
+        return false;
+      }
+      throw err;
     }
-    const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-    await auth().signInWithCredential(googleCredential);
   }, []);
 
   const sendPasswordReset = useCallback(async (email: string) => {

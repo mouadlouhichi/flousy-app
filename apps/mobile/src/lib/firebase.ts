@@ -13,16 +13,25 @@ import Constants from 'expo-constants';
  *   2. EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID env var (set at build time)
  *   3. app.config.ts → extra.googleWebClientId (set via EAS env vars)
  */
-export function configureGoogleSignIn(webClientId?: string) {
-  const resolvedClientId =
+const FALLBACK_WEB_CLIENT_ID =
+  '636070498350-g7pjc8019fm4cggpepdvk2es3532k1b8.apps.googleusercontent.com';
+
+export function resolveGoogleWebClientId(webClientId?: string): string {
+  return (
     webClientId ||
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-    (Constants.expoConfig?.extra as any)?.googleWebClientId ||
-    '';
+    (Constants.expoConfig?.extra as { googleWebClientId?: string } | undefined)?.googleWebClientId ||
+    FALLBACK_WEB_CLIENT_ID
+  );
+}
 
+export function configureGoogleSignIn(webClientId?: string) {
+  const resolvedClientId = resolveGoogleWebClientId(webClientId);
+  // idToken for Firebase Auth only — offlineAccess requires a server auth code
+  // and often yields "No ID token" on Android if misconfigured.
   GoogleSignin.configure({
     webClientId: resolvedClientId,
-    offlineAccess: true,
+    offlineAccess: false,
   });
 }
 

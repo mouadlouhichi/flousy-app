@@ -8,15 +8,10 @@ import { configureGoogleSignIn } from '../lib/firebase';
 import '../lib/i18n';
 import '../global.css';
 
-// Configure Google Sign-In with the Web Client ID from app config
-// The webClientId is required for obtaining ID tokens from Google Sign-In on Android
 try {
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
-  if (webClientId) {
-    configureGoogleSignIn(webClientId);
-  }
+  configureGoogleSignIn();
 } catch {
-  // Ignore — Google Sign-In will be unavailable until configured
+  // Google Sign-In will retry configure on tap
 }
 
 export default function RootLayout() {
