@@ -327,9 +327,14 @@ export type ProductResolution =
       product: { name: string; brand?: string; category?: string; imageUrl?: string };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
-      source: 'catalog' | 'remote';
+      source: 'catalog' | 'seed' | 'remote';
     }
-  | { kind: 'not-found'; barcode: string };
+  | {
+      kind: 'not-found';
+      barcode: string;
+      /** `lookup-failed` = network/timeout (retry-able); `not-found` = no source knew it. */
+      reason: 'not-found' | 'lookup-failed';
+    };
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -350,15 +355,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /**
  * Resolve a barcode to a product:
  *   1. local catalog (instant, offline)
- *   2. remote lookup (Open Food Facts) — only for first-time products
- *   3. not-found → the UI offers manual entry with the code attached
+ *   2. bundled Moroccan seed (instant, offline — common MA products)
+ *   3. remote lookup (Open Food Facts) — only for first-time products
+ *   4. not-found → the UI offers manual entry with the code attached
  *
- * `lookupRemote` is injected so tests can stub the network; any failure
- * (timeout, network, bad payload) degrades to `not-found`, never to an error.
+ * `lookupSeed` and `lookupRemote` are injected so tests can stub them; any
+ * remote failure (timeout, network, bad payload) degrades to `not-found`
+ * with `reason: 'lookup-failed'`, never to a thrown error.
  */
 export async function resolveProduct(opts: {
   barcode: string;
   catalog: Product[];
+  lookupSeed?: (barcode: string) => RemoteProductInfo | null;
   lookupRemote?: (barcode: string) => Promise<RemoteProductInfo | null>;
   remoteTimeoutMs?: number;
 }): Promise<ProductResolution> {
@@ -369,6 +377,20 @@ export async function resolveProduct(opts: {
       product: { name: hit.name, brand: hit.brand, category: hit.category, imageUrl: hit.imageUrl },
       lastPrice: hit.lastPrice,
       source: 'catalog',
+    };
+  }
+
+  const seedHit = opts.lookupSeed?.(opts.barcode);
+  if (seedHit && seedHit.name) {
+    return {
+      kind: 'found',
+      product: {
+        name: seedHit.name,
+        brand: seedHit.brand,
+        category: seedHit.category,
+        imageUrl: seedHit.imageUrl,
+      },
+      source: 'seed',
     };
   }
 
@@ -388,9 +410,10 @@ export async function resolveProduct(opts: {
         };
       }
     } catch {
-      // timeout / network error → manual entry
+      // timeout / network error → surface as a retry-able miss
+      return { kind: 'not-found', barcode: opts.barcode, reason: 'lookup-failed' };
     }
   }
 
-  return { kind: 'not-found', barcode: opts.barcode };
+  return { kind: 'not-found', barcode: opts.barcode, reason: 'not-found' };
 }

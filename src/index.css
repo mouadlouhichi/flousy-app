@@ -507,6 +507,22 @@
   animation: bounce-subtle 0.4s ease-in-out;
 }
 
+@keyframes scan-line {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: calc(100% - 2px);
+  }
+  100% {
+    top: 0;
+  }
+}
+
+.animate-scan-line {
+  animation: scan-line 2.4s ease-in-out infinite;
+}
+
 .skeleton-loader {
   background: linear-gradient(90deg, var(--surface-variant) 0%, var(--surface-container) 50%, var(--surface-variant) 100%);
   background-size: 1000px 100%;

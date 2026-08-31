@@ -1,23 +1,35 @@
 /**
  * Open Food Facts barcode lookup (client side).
  *
- * Tries the public OFF API directly from the browser; if that fails
- * (offline, CORS, timeout) it falls back to the app's own
- * `/api/barcode/lookup` proxy, which fetches server-side. Both paths return
- * the same OFF-shaped payload so there is a single mapper.
+ * Tries the OFF API directly from the browser — the world instance first,
+ * then the Morocco instance (`ma-fr.openfoodfacts.org`, which carries local
+ * MA data); if both fail (offline, CORS, timeout) it falls back to the app's
+ * own `/api/barcode/lookup` proxy, which fetches server-side. All paths
+ * return the same OFF-shaped payload so there is a single mapper.
  *
  * Privacy: only the barcode digits leave the device — never user data.
  */
 import type { RemoteProductInfo } from './course-session';
 
 const OFF_BASE = 'https://world.openfoodfacts.org/api/v2/product/';
+const OFF_MA_BASE = 'https://ma-fr.openfoodfacts.org/api/v2/product/';
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
 
-/** Map an OFF v2 product payload ({ status, product }) to our fields. */
+/**
+ * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
+ * shape (`{ status: 1, product }`) and the app-proxy shape
+ * (`{ found: true, product }`) — historically the proxy only returned
+ * `found`, which made every proxied lookup read as "not found".
+ */
 export function mapOffProduct(data: unknown): RemoteProductInfo | null {
-  const root = data as { status?: number; product?: Record<string, unknown> } | null | undefined;
-  if (!root || root.status !== 1 || !root.product) return null;
+  const root = data as
+    | { status?: number; found?: boolean; product?: Record<string, unknown> }
+    | null
+    | undefined;
+  if (!root || !root.product) return null;
+  const ok = root.status === 1 || root.found === true;
+  if (!ok) return null;
   const p = root.product;
 
   const pick = (key: string): string | undefined => {
@@ -57,8 +69,9 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null
 }
 
 /**
- * Look up a barcode on Open Food Facts. Returns null when the product is
- * not found (or every path failed — the caller then offers manual entry).
+ * Look up a barcode on Open Food Facts (world → Morocco instance), then via
+ * the app proxy. Returns null when the product is not found (or every path
+ * failed — the caller then offers manual entry).
  */
 export async function lookupOffProduct(
   barcode: string,
@@ -67,9 +80,12 @@ export async function lookupOffProduct(
   const timeoutMs = opts?.timeoutMs ?? 4000;
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
 
-  // 1) direct from the browser
-  const direct = await fetchJson(`${OFF_BASE}${barcode}.json?fields=${FIELDS}`, timeoutMs);
-  if (direct) return mapOffProduct(direct);
+  // 1) direct from the browser — world, then the MA instance
+  for (const base of [OFF_BASE, OFF_MA_BASE]) {
+    const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
+    const mapped = direct ? mapOffProduct(direct) : null;
+    if (mapped) return mapped;
+  }
 
   // 2) through the app proxy (server-side fetch — also the CORS fallback)
   const proxied = await fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs);

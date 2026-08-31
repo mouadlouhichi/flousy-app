@@ -56,6 +56,7 @@ import {
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
+import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -209,8 +210,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
 
-    const isDemo =
-      typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+    const isDemo = isDemoMode();
 
     if (!user && !isDemo) {
       router.push('/login');
@@ -222,10 +222,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Local fallbacks: the flag written by the onboarding page and any
     // previously saved budget data (covers the Firebase-save timeout path
     // and pre-existing demo data).
-    const onboardingDoneLocally =
-      typeof window !== 'undefined' &&
-      (localStorage.getItem('flousy_onboarding_done') === 'true' ||
-        !!localStorage.getItem(`flousy_month_${defaultMonthKey}`));
+    const onboardingDoneLocally = isOnboardingDoneLocally(defaultMonthKey);
 
     if (isDemo) {
       if (!onboardingDoneLocally) {

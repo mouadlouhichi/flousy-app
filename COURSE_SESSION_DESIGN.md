@@ -188,10 +188,18 @@ behind one `useBarcodeScanner()` hook:
 
 | # | Source | How | Coverage |
 |---|---|---|---|
-| 1 | **Camera — native** | `getUserMedia` + `BarcodeDetector` (formats: `ean_13`, `ean_8`, `upc_a`) | Chrome/Android, Samsung Internet. Fastest, no extra code. |
+| 1 | **Camera — native** | `getUserMedia` + `BarcodeDetector` (formats: `ean_13`, `ean_8`, `upc_a`, `upc_e`, `code_128`), sampled ~120 ms | Chrome/Android, Samsung Internet. Fastest, no extra code. |
 | 2 | **Camera — JS fallback** | `getUserMedia` + `@zxing/browser` `BrowserMultiFormatReader` (lazy `import()` only when source 1 is absent) | Any browser with camera, incl. **iOS Safari** (no `BarcodeDetector`). |
 | 3 | **Hardware scanner (keyboard wedge)** | Global keydown listener while session active: digit bursts (≤ 60 ms between keys, 8–13 digits, terminated by Enter) are treated as scans | USB/Bluetooth laser scanners on desktop — the most reliable source when present. |
 | 4 | **Manual entry** | Always-visible numeric field on the scan view; explicit "Add" | Every device, always. Also the only path for non-barcode items (produce, etc. — user just types a name, no code). |
+
+Camera UX (sources 1–2): the feed **auto-starts** when the session becomes
+active and defaults to a **2× digital zoom** so distant barcodes fill the
+frame (adjustable 1–8× from the on-frame zoom pill). A **torch toggle**
+appears when the device exposes one. The native path asks for a 1080p feed
+(GPU decode); the JS fallback asks for 720p and reuses the already-acquired
+stream (no second `getUserMedia`) with `delayBetweenScanAttempts: 200` and
+formats restricted to grocery codes for snappier detection.
 
 Detection order at session start:
 
@@ -246,7 +254,11 @@ equivalent of France's open GMS barcode file. So the solution is a
 
 1. **Local catalog** (always first) — the real coverage engine.
 2. **Static MA seed** (P2) — every OFF-known Moroccan product resolvable in
-   0 ms, even offline, from the user's very first scan.
+   0 ms, even offline, from the user's very first scan. A first slice is
+   already shipped inline (`src/lib/ma-product-seed.ts`): ~44 well-known MA
+   products (Sidi Ali / Aïn Atlas / Sidi Harazem / Aïn Ifrane waters,
+   Jaouda + Centrale Danone dairy) checked between the local catalog and the
+   OFF network call.
 3. **OFF live lookup** (P1) — catches products added to OFF after the last
    seed build (the seed is a snapshot; OFF keeps growing between builds).
 4. **Manual + remember** (P1) — the long tail; converges fast thanks to
