@@ -88,30 +88,6 @@ export function VariableTab({
   return (
     <div className="flex flex-col gap-lg pb-24">
       {/* Header & Total */}
-<<<<<<< HEAD
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md">
-        <div className="flex justify-between items-center gap-3">
-          <div className="min-w-0">
-            <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-              {m.tabs.variable.totalSpent}
-            </span>
-            <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-              <FormattedAmount value={totalSpent} />
-            </h2>
-          </div>
-          <button
-            onClick={onOpenAddModal}
-            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
-          >
-            <AppIcon name="add" className=" text-[20px]" />
-            <span>{m.tabs.variable.addExpense}</span>
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push('/dashboard/courses')}
-          className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant bg-surface px-3.5 py-3 text-start hover:border-primary hover:bg-surface-container-high transition-all"
-=======
       <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center gap-3">
         <div className="min-w-0">
           <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
@@ -124,20 +100,9 @@ export function VariableTab({
         <button
           onClick={onOpenAddModal}
           className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
->>>>>>> 1e66234 (Household workspaces, Magix scan seed, and Variable tab course CTA)
         >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <AppIcon name="scan_barcode" className="text-[22px]" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
-              {m.courses.start}
-            </span>
-            <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
-              {m.courses.emptyHint}
-            </span>
-          </span>
-          <AppIcon name="chevron_right" className="size-5 shrink-0 text-on-surface-variant rtl:rotate-180" />
+          <AppIcon name="add" className=" text-[20px]" />
+          <span>{m.tabs.variable.addExpense}</span>
         </button>
       </div>
 
