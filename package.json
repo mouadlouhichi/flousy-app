@@ -12,10 +12,10 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
-    "turbo": "^2.4.0",
-    "typescript": "^5.8.0",
+    "next": "^15.5.2",
     "tsx": "^4.19.3",
-    "next": "^15.5.2"
+    "turbo": "^2.4.0",
+    "typescript": "^5.8.0"
   },
   "pnpm": {
     "overrides": {
@@ -23,5 +23,8 @@
       "@types/react-dom@>=19": "19.1.7"
     }
   },
-  "packageManager": "pnpm@10.34.5"
+  "packageManager": "pnpm@10.34.5",
+  "dependencies": {
+    "pnpm": "^11.24.0"
+  }
 }

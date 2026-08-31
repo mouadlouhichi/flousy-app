@@ -27,5 +27,6 @@
     "app.config.js",
     "app.json",
     "nativewind-env.d.ts"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }
