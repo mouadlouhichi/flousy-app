@@ -95,7 +95,8 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
           }}
           locale={calendarLocale}
           dir={isRTL ? 'rtl' : 'ltr'}
-          className="!w-full max-w-full overflow-hidden bg-surface !p-1 [--cell-size:1.85rem]"
+          showOutsideDays={false}
+          className="!w-full max-w-full bg-surface !p-0 [--cell-size:2.25rem]"
         />
       </PopoverContent>
     </Popover>
