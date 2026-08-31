@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth-context';
 import { isProUser } from './pro-features';
-import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers } from './db';
+import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
 import { canEdit as canEditAreaRule, canView, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
 import { useLanguage } from './i18n-context';
@@ -13,6 +13,8 @@ type HouseholdContextValue = {
   payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
   invite: (name: string, email: string, role: 'editor' | 'viewer' | 'custom', permissions?: HouseholdPermissions) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
+  markHouseholdOnboarded: () => Promise<void>;
+  removeHouseholdWorkspace: () => Promise<void>;
 };
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 
@@ -20,13 +22,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, updateProfileData } = useAuth();
   const { messages: m } = useLanguage();
   const workspace = profile?.activeWorkspace === 'household' && profile.activeHouseholdId ? 'household' : 'personal';
-  const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
+  const trackedHouseholdId = profile?.activeHouseholdId;
+  const householdId = workspace === 'household' ? trackedHouseholdId : undefined;
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { setLoading(!!householdId); return subscribeHousehold(householdId, (h) => { setHousehold(h); setLoading(false); }); }, [householdId]);
-  useEffect(() => subscribeHouseholdMembers(householdId, setMembers), [householdId]);
+  useEffect(() => { setLoading(!!trackedHouseholdId); return subscribeHousehold(trackedHouseholdId, (h) => { setHousehold(h); setLoading(false); }); }, [trackedHouseholdId]);
+  useEffect(() => subscribeHouseholdMembers(trackedHouseholdId, setMembers), [trackedHouseholdId]);
   useEffect(() => subscribePendingHouseholdInvites(user?.email, setPendingInvites), [user?.email]);
   const myMember = members.find((m) => m.userId === user?.uid);
   const isOwner = myMember?.role === 'owner' || household?.ownerId === user?.uid;
@@ -66,10 +69,36 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
   }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
-    if (next === 'household' && !profile?.activeHouseholdId) throw new Error(m.household.genericError);
-    await updateProfileData({ activeWorkspace: next });
-  }, [profile?.activeHouseholdId, updateProfileData, m.household.genericError]);
-  const updateMember = useCallback(async (member: HouseholdMember) => { if (!householdId) return; await saveHouseholdMember(householdId, member); }, [householdId]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember }}>{children}</HouseholdContext.Provider>;
+    const householdTarget = profile?.activeHouseholdId || profile?.householdIds?.[0];
+    if (next === 'household' && !householdTarget) throw new Error(m.household.genericError);
+    await updateProfileData({
+      activeWorkspace: next,
+      ...(next === 'household' ? { activeHouseholdId: householdTarget } : {}),
+    });
+  }, [profile?.activeHouseholdId, profile?.householdIds, updateProfileData, m.household.genericError]);
+  const updateMember = useCallback(async (member: HouseholdMember) => { if (!trackedHouseholdId) return; await saveHouseholdMember(trackedHouseholdId, member); }, [trackedHouseholdId]);
+  const markHouseholdOnboarded = useCallback(async () => {
+    if (!trackedHouseholdId) return;
+    await saveHousehold(trackedHouseholdId, { onboardingComplete: true });
+    setHousehold((current) => (current ? { ...current, onboardingComplete: true } : current));
+  }, [householdId]);
+  const removeHouseholdWorkspace = useCallback(async () => {
+    const targetId = householdId || profile?.activeHouseholdId;
+    if (!user || !profile || !targetId) throw new Error(m.household.genericError);
+    if (isOwner || household?.ownerId === user.uid) {
+      await deleteHouseholdWorkspace(targetId);
+    } else if (myMember) {
+      await saveHouseholdMember(targetId, { ...myMember, status: 'inactive' });
+    }
+    const remaining = (profile.householdIds || []).filter((id) => id !== targetId);
+    await updateProfileData({
+      activeWorkspace: 'personal',
+      activeHouseholdId: remaining[0],
+      householdIds: remaining,
+    });
+    setHousehold(null);
+    setMembers([]);
+  }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

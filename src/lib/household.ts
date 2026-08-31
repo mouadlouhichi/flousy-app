@@ -11,6 +11,8 @@ export interface Household {
   planOwnerId: string;
   createdAt: string;
   updatedAt: string;
+  /** False until the household owner finishes household onboarding. */
+  onboardingComplete?: boolean;
 }
 
 export interface HouseholdMember {

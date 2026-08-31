@@ -1673,7 +1673,12 @@
       "personalDashboard": "لوحة تحكم شخصية خاصة",
       "householdDashboard": "لوحة تحكم الأسرة",
       "memberAccess": "صلاحية {role}",
-      "manageHousehold": "إدارة الأسرة"
+      "manageHousehold": "إدارة الأسرة",
+      "convertToHousehold": "تحويل هذه المساحة إلى أسرة",
+      "convertToHouseholdHint": "حوّل مساحتك الخاصة إلى أسرة مشتركة. ستُعد ميزانية الأسرة بعد ذلك.",
+      "removeHousehold": "إزالة مساحة الأسرة",
+      "leaveHousehold": "مغادرة مساحة الأسرة",
+      "removeHouseholdConfirm": "هل تريد إزالة مساحة الأسرة؟ تبقى ميزانيتك الشخصية. لن تكون بيانات الأسرة المشتركة متاحة هنا."
     },
     "pro": {
       "yourFeatures": "ميزات برو الخاصة بك",

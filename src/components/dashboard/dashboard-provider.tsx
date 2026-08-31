@@ -175,8 +175,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace } = useHousehold();
-  const householdId = household?.id;
+  const { household, canEdit, isContributor, workspace, loading: householdLoading } = useHousehold();
+  const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
@@ -231,7 +231,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (user && profile && profile.onboardingComplete === false) {
+    if (workspace === 'household' && householdId) {
+      if (householdLoading) return;
+      const householdOnboardedLocally =
+        typeof window !== 'undefined' &&
+        localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
+      if (household && household.onboardingComplete === false && !householdOnboardedLocally) {
+        router.replace('/onboarding?scope=household');
+        return;
+      }
+    }
+
+    if (user && profile && profile.onboardingComplete === false && workspace !== 'household') {
       if (!onboardingDoneLocally) {
         router.replace('/onboarding');
       } else {
@@ -241,7 +252,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData]);
+  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading]);
 
   useEffect(() => {
     setIsMounted(true);

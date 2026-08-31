@@ -1673,7 +1673,12 @@
       "personalDashboard": "Private personal dashboard",
       "householdDashboard": "Household Dashboard",
       "memberAccess": "{role} access",
-      "manageHousehold": "Manage Household"
+      "manageHousehold": "Manage Household",
+      "convertToHousehold": "Make this a household",
+      "convertToHouseholdHint": "Turn your private workspace into a shared household. You'll set up the household budget next.",
+      "removeHousehold": "Remove household workspace",
+      "leaveHousehold": "Leave household workspace",
+      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here."
     },
     "pro": {
       "yourFeatures": "Your Pro Features",

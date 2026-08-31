@@ -66,8 +66,8 @@ export function ProfileIdentity() {
       const avatarUrl = await createProfileAvatarDataUrl(file);
       await updateProfileData({ avatarUrl });
       trackEvent('update_profile_avatar');
-    } catch {
-      setAvatarError(p.avatarSaveError);
+    } catch (error) {
+      setAvatarError(error instanceof Error && error.message ? error.message : p.avatarSaveError);
     } finally {
       setIsSavingAvatar(false);
     }
@@ -96,7 +96,7 @@ export function ProfileIdentity() {
             <input
               ref={avatarInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/*"
               onChange={handleAvatarChange}
               className="hidden"
               aria-label={p.chooseProfilePhoto}
@@ -107,7 +107,7 @@ export function ProfileIdentity() {
               disabled={isSavingAvatar}
               aria-label={p.changeProfilePhoto}
               title={p.changeProfilePhoto}
-              className="absolute -bottom-1 -start-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-primary shadow-md ring-[3px] ring-surface-container transition-colors hover:bg-surface-variant disabled:cursor-wait disabled:opacity-70"
+              className="absolute -bottom-1 -start-1 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-surface text-primary shadow-md ring-[3px] ring-surface-container transition-colors hover:bg-surface-variant disabled:cursor-wait disabled:opacity-70"
             >
               <AppIcon
                 name={isSavingAvatar ? 'sync' : 'add_a_photo'}
@@ -117,7 +117,7 @@ export function ProfileIdentity() {
             {isPro && (
               <span
                 title={p.proMember}
-                className="absolute bottom-0.5 end-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
+                className="absolute -bottom-1 -end-1 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
               >
                 <AppIcon name="workspace_premium" className="text-[14px]" />
               </span>

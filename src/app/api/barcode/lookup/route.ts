@@ -19,6 +19,9 @@ import { NextResponse } from 'next/server';
 const OFF_HOSTS = [
   'https://world.openfoodfacts.org/api/v2/product/',
   'https://ma-fr.openfoodfacts.org/api/v2/product/',
+  'https://ma.openfoodfacts.org/api/v2/product/',
+  'https://world.openbeautyfacts.org/api/v2/product/',
+  'https://world.openproductsfacts.org/api/v2/product/',
 ];
 const FIELDS =
   'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';

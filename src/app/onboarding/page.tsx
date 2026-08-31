@@ -2,10 +2,11 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
+import { useHousehold } from '../../lib/household-context';
 import { useCurrency } from '../../lib/currency-context';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import {
@@ -18,7 +19,7 @@ import {
   normalizeCustomRatios,
   resolveStrategy,
 } from '../../lib/store';
-import { saveMonthBudget } from '../../lib/db';
+import { saveMonthBudget, saveHouseholdMonthBudget } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -50,9 +51,21 @@ const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
 ];
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingFlow />
+    </Suspense>
+  );
+}
+
+function OnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { messages: m, t, translate, language, intlLocale, isRTL } = useLanguage();
   const { user, profile, updateProfileData } = useAuth();
+  const { workspace, household, markHouseholdOnboarded } = useHousehold();
+  const isHouseholdScope = searchParams.get('scope') === 'household' || workspace === 'household';
+  const householdId = household?.id || profile?.activeHouseholdId;
   const { currency, setCurrency, symbol, format } = useCurrency();
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);

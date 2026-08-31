@@ -71,13 +71,39 @@ const SEED: Record<string, MaSeedEntry> = {
   '6111032000372': { name: 'Lait frais pasteurisé', brand: 'Centrale Danone', category: 'Produits laitiers' },
   '6111032006442': { name: 'Lait frais pasteurisé', brand: 'Centrale Danone', category: 'Produits laitiers' },
   '6111032009382': { name: 'Danette flan vanille', brand: 'Centrale Danone', category: 'Desserts' },
+
+  // --- Entretien (Mutandis: Magix / Maxi's) — household detergents, not in OFF ---
+  '6111242926974': { name: 'Magix Pâte', brand: 'Magix', category: 'Entretien' },
+  '6111242927506': { name: 'Magix Lessive 500 ml', brand: 'Magix', category: 'Entretien' },
+  '6111242925540': { name: 'Magix Lessive liquide Fraîcheur Printemps 500 ml', brand: 'Magix', category: 'Entretien' },
+  '6111242925502': { name: 'Magix Lessive liquide Savon de Marseille 500 ml', brand: 'Magix', category: 'Entretien' },
+  '6111242925670': { name: 'Magix Matic 800 g', brand: 'Magix', category: 'Entretien' },
+  '6111242922129': { name: "Maxi's Eau de javel Lavande 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922105': { name: "Maxi's Eau de javel Citron 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922082': { name: "Maxi's Eau de javel Neutre 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922396': { name: "Maxi's Liquide vaisselle Aloe 750 ml", brand: "Maxi's", category: 'Entretien' },
+  '6111242924048': { name: "Maxi's Liquide vaisselle Amande 750 ml", brand: "Maxi's", category: 'Entretien' },
+  '6111242922372': { name: "Maxi's Liquide vaisselle Citrons 750 ml", brand: "Maxi's", category: 'Entretien' },
+  '6111242923188': { name: "Maxi's Liquide vaisselle Lavande 750 ml", brand: "Maxi's", category: 'Entretien' },
+  '6111242921559': { name: "Maxi's Liquide vaisselle Citrons 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922228': { name: "Maxi's Nettoyant Aoud 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922181': { name: "Maxi's Nettoyant Atlas 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922204': { name: "Maxi's Nettoyant Brise Essaouira 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242921542': { name: "Maxi's Nettoyant Lavande 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242921504': { name: "Maxi's Nettoyant Orange 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242922143': { name: "Maxi's Nettoyant Rose M'gouna 1 L", brand: "Maxi's", category: 'Entretien' },
+  '6111242923355': { name: "Maxi's Matic 750 g", brand: "Maxi's", category: 'Entretien' },
+  '6111242926448': { name: 'Vitaïa Shampoing lissant', brand: 'Mutandis', category: 'Hygiène' },
 };
 
 export const MA_SEED_COUNT = Object.keys(SEED).length;
 
 /** Resolve a barcode against the bundled Moroccan seed (offline, 0 ms). */
 export function lookupMaSeed(barcode: string): RemoteProductInfo | null {
-  const entry = SEED[barcode];
+  const digits = barcode.replace(/\D/g, '');
+  const entry =
+    SEED[digits] ??
+    (digits.length === 14 && digits.startsWith('1') ? SEED[digits.slice(1)] : undefined);
   if (!entry) return null;
   return {
     name: entry.name,

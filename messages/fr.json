@@ -1673,7 +1673,12 @@
       "personalDashboard": "Tableau de bord personnel privé",
       "householdDashboard": "Tableau de bord du foyer",
       "memberAccess": "accès {role}",
-      "manageHousehold": "Gérer le foyer"
+      "manageHousehold": "Gérer le foyer",
+      "convertToHousehold": "Transformer en foyer",
+      "convertToHouseholdHint": "Transformez votre espace privé en foyer partagé. Vous configurerez ensuite le budget du foyer.",
+      "removeHousehold": "Supprimer l’espace foyer",
+      "leaveHousehold": "Quitter l’espace foyer",
+      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici."
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",

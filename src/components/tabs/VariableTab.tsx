@@ -88,6 +88,7 @@ export function VariableTab({
   return (
     <div className="flex flex-col gap-lg pb-24">
       {/* Header & Total */}
+<<<<<<< HEAD
       <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md">
         <div className="flex justify-between items-center gap-3">
           <div className="min-w-0">
@@ -110,6 +111,20 @@ export function VariableTab({
           type="button"
           onClick={() => router.push('/dashboard/courses')}
           className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant bg-surface px-3.5 py-3 text-start hover:border-primary hover:bg-surface-container-high transition-all"
+=======
+      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center gap-3">
+        <div className="min-w-0">
+          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+            {m.tabs.variable.totalSpent}
+          </span>
+          <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
+            <FormattedAmount value={totalSpent} />
+          </h2>
+        </div>
+        <button
+          onClick={onOpenAddModal}
+          className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+>>>>>>> 1e66234 (Household workspaces, Magix scan seed, and Variable tab course CTA)
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <AppIcon name="scan_barcode" className="text-[22px]" />
@@ -126,32 +141,61 @@ export function VariableTab({
         </button>
       </div>
 
+      <button
+        type="button"
+        onClick={() => router.push('/dashboard/courses')}
+        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <AppIcon name="scan_barcode" className="text-[22px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
+            {m.courses.newCourse}
+          </span>
+          <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+            {m.courses.emptyHint}
+          </span>
+        </span>
+        <AppIcon name="chevron_right" className="size-5 shrink-0 text-on-surface-variant rtl:rotate-180" />
+      </button>
+
       {/* Category Budgets (Pro Feature) */}
       <div className="bg-surface-container rounded-3xl border border-outline-variant p-lg shadow-2xs">
-        <div className="flex justify-between items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setBudgetsOpen((open) => !open)}
-            aria-expanded={budgetsOpen}
-            className="flex min-w-0 flex-1 items-center gap-2 text-start"
-          >
-            <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
-              {m.tabs.variable.categoryBudgets}
-            </h3>
-            <AppIcon
-              name="expand_more"
-              className={`size-5 shrink-0 text-on-surface-variant transition-transform ${budgetsOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
+        <button
+          type="button"
+          onClick={() => setBudgetsOpen((open) => !open)}
+          aria-expanded={budgetsOpen}
+          className="flex w-full items-center gap-2 text-start"
+        >
+          <h3 className="min-w-0 flex-1 font-headline-md text-headline-md text-on-surface font-extrabold">
+            {m.tabs.variable.categoryBudgets}
+          </h3>
           {canShowProUpgrade(isPro, workspace) && (
-            <button
-              onClick={onOpenProModal}
-              className="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenProModal();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onOpenProModal();
+                }
+              }}
+              className="shrink-0 px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
             >
               {m.tabs.variable.pro}
-            </button>
+            </span>
           )}
-        </div>
+          <AppIcon
+            name="expand_more"
+            className={`ms-1 size-7 shrink-0 text-on-surface-variant transition-transform ${budgetsOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
         
         {budgetsOpen && <div className="mt-md flex flex-col gap-md">
           {(month.activeCategories || []).map((category) => {

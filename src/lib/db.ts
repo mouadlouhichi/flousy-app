@@ -451,9 +451,28 @@ export function subscribeHouseholdMembers(householdId: string | undefined, onDat
 export async function createHousehold(ownerId: string, household: Household, owner: HouseholdMember) {
   if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
   const id = crypto.randomUUID();
-  await setDoc(doc(db, 'households', id), cleanUndefined(household));
+  await setDoc(doc(db, 'households', id), cleanUndefined({ ...household, onboardingComplete: false }));
   await setDoc(doc(db, 'households', id, 'members', owner.id), cleanUndefined(owner));
   return id;
+}
+
+/** Owner teardown: drop members/months/savings/invoices then the household doc. */
+export async function deleteHouseholdWorkspace(householdId: string): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  const hid = householdId;
+  const wipe = async (col: string) => {
+    const snap = await getDocs(collection(db, 'households', hid, col));
+    for (const item of snap.docs) await deleteDoc(item.ref);
+  };
+  try {
+    await wipe('members');
+    await wipe('months');
+    await wipe('invoices');
+    await deleteDoc(doc(db, 'households', hid, 'data', 'savings'));
+    await deleteDoc(doc(db, 'households', hid));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `households/${hid}`);
+  }
 }
 
 export async function saveHouseholdMember(householdId: string, member: HouseholdMember) {
