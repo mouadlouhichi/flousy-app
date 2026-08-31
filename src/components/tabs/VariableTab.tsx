@@ -1,6 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
 import { formatShortDate } from '../../lib/utils';
 import { useCurrency } from '../../lib/currency-context';
@@ -31,6 +32,7 @@ export function VariableTab({
 }: VariableTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
+  const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const { workspace } = useHousehold();
@@ -39,6 +41,7 @@ export function VariableTab({
   const [search, setSearch] = useState<string>('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState<string>('');
+  const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
@@ -85,30 +88,61 @@ export function VariableTab({
   return (
     <div className="flex flex-col gap-lg pb-24">
       {/* Header & Total */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center">
-        <div>
-          <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-            {m.tabs.variable.totalSpent}
-          </span>
-          <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            <FormattedAmount value={totalSpent} />
-          </h2>
+      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md">
+        <div className="flex justify-between items-center gap-3">
+          <div className="min-w-0">
+            <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+              {m.tabs.variable.totalSpent}
+            </span>
+            <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
+              <FormattedAmount value={totalSpent} />
+            </h2>
+          </div>
+          <button
+            onClick={onOpenAddModal}
+            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          >
+            <AppIcon name="add" className=" text-[20px]" />
+            <span>{m.tabs.variable.addExpense}</span>
+          </button>
         </div>
         <button
-          onClick={onOpenAddModal}
-          className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          type="button"
+          onClick={() => router.push('/dashboard/courses')}
+          className="flex w-full items-center gap-3 rounded-2xl border border-outline-variant bg-surface px-3.5 py-3 text-start hover:border-primary hover:bg-surface-container-high transition-all"
         >
-          <AppIcon name="add" className=" text-[20px]" />
-          <span>{m.tabs.variable.addExpense}</span>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <AppIcon name="scan_barcode" className="text-[22px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
+              {m.courses.start}
+            </span>
+            <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+              {m.courses.emptyHint}
+            </span>
+          </span>
+          <AppIcon name="chevron_right" className="size-5 shrink-0 text-on-surface-variant rtl:rotate-180" />
         </button>
       </div>
 
       {/* Category Budgets (Pro Feature) */}
       <div className="bg-surface-container rounded-3xl border border-outline-variant p-lg shadow-2xs">
-        <div className="flex justify-between items-center mb-md">
-          <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
-            {m.tabs.variable.categoryBudgets}
-          </h3>
+        <div className="flex justify-between items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setBudgetsOpen((open) => !open)}
+            aria-expanded={budgetsOpen}
+            className="flex min-w-0 flex-1 items-center gap-2 text-start"
+          >
+            <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
+              {m.tabs.variable.categoryBudgets}
+            </h3>
+            <AppIcon
+              name="expand_more"
+              className={`size-5 shrink-0 text-on-surface-variant transition-transform ${budgetsOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
           {canShowProUpgrade(isPro, workspace) && (
             <button
               onClick={onOpenProModal}
@@ -119,7 +153,7 @@ export function VariableTab({
           )}
         </div>
         
-        <div className="flex flex-col gap-md">
+        {budgetsOpen && <div className="mt-md flex flex-col gap-md">
           {(month.activeCategories || []).map((category) => {
             const budget = month.categoryBudgets?.[category] || 0;
             const spent = calculateCategorySpent(month, category);
@@ -226,7 +260,7 @@ export function VariableTab({
               </div>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Search & Category Chips */}

@@ -43,12 +43,12 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
 const ZOOM_STEP = 0.5;
 /** Roughly how often the native decoder samples the feed (ms). */
-const DECODE_INTERVAL_MS = 120;
+const DECODE_INTERVAL_MS = 40;
 
 export function useBarcodeScanner({
   enabled,
   onCode,
-  debounceMs = 1500,
+  debounceMs = 700,
   autoStart = true,
   initialZoom = 2,
 }: UseBarcodeScannerOptions) {
@@ -152,7 +152,7 @@ export function useBarcodeScanner({
     try {
       const { BrowserMultiFormatReader, BarcodeFormat } = await import('@zxing/browser');
       const reader = new BrowserMultiFormatReader(undefined, {
-        delayBetweenScanAttempts: 200,
+        delayBetweenScanAttempts: 50,
       });
       // Restrict to the grocery codes the native detector also targets — this
       // trims false positives and makes the JS decoder measurably snappier.
@@ -238,7 +238,7 @@ export function useBarcodeScanner({
         video: {
           facingMode: { ideal: 'environment' },
           ...(useNative
-            ? { width: { ideal: 1920 }, height: { ideal: 1080 } }
+            ? { width: { ideal: 1280 }, height: { ideal: 720 } }
             : { width: { ideal: 1280 }, height: { ideal: 720 } }),
         },
         audio: false,

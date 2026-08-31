@@ -6,6 +6,30 @@ import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/i18n-context';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 
+/** Short POS-style beep — Web Audio so there is no extra asset to fetch. */
+function playScanBeep() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1800;
+    gain.gain.value = 0.08;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.stop(ctx.currentTime + 0.09);
+    osc.onended = () => {
+      void ctx.close();
+    };
+  } catch {
+    /* audio blocked until a user gesture — ignore */
+  }
+}
+
 interface CoursesScannerPanelProps {
   /** Session is active — attach the hardware-wedge listener. */
   enabled: boolean;

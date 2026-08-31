@@ -63,15 +63,15 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
             <div
               key={bill.id}
               onClick={() => onEditBill(bill)}
-              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex justify-between items-center hover:border-primary transition-all cursor-pointer shadow-2xs"
+              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 hover:border-primary transition-all cursor-pointer shadow-2xs"
             >
-              <div className="flex items-center gap-md">
-                <div className="p-3 bg-primary/10 text-primary rounded-xl">
+              <div className="flex min-w-0 flex-1 items-center gap-md">
+                <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0">
                   <AppIcon name="receipt_long" className=" text-[24px]" />
                 </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-xs">
-                    <h4 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 items-center gap-xs">
+                    <h4 className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-bold" title={bill.name}>
                       {bill.name}
                     </h4>
                     {bill.person && bill.person !== 'Self' && (

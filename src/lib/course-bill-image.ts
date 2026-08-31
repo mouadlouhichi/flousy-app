@@ -17,6 +17,8 @@ export interface CourseBillImageLabels {
   locale?: string;
   direction?: 'ltr' | 'rtl';
   appName?: string;
+  /** Data URL for the app mark (same as the dashboard header logo). */ 
+  logoHref?: string;
   /** Footer line under the receipt (e.g. "Thank you for your visit"). */
   thanks?: string;
 }
@@ -106,7 +108,8 @@ export function renderCourseBillImageSvg(
   const ruleTo = PAPER_X1 - INNER;
 
   const totalItems = sessionUnits(session);
-  const appName = (labels.appName || 'SMARTJIB').toUpperCase();
+  const brand = labels.appName || 'SmartJib';
+  const logoHref = labels.logoHref || '/logo.png';
   const meta = `${labels.date ?? session.date}  •  ${new Intl.NumberFormat(locale).format(totalItems)} ${labels.items}  •  ${session.currency}`;
 
   // Vertical layout, derived from the item count so the paper always fits.
@@ -122,11 +125,10 @@ export function renderCourseBillImageSvg(
     `<line x1="${ruleFrom}" y1="${y}" x2="${ruleTo}" y2="${y}" stroke="${RULE}" stroke-width="2" stroke-dasharray="3 7" stroke-linecap="round" />`;
 
   const header = `
-  <circle cx="${IMAGE_WIDTH / 2}" cy="156" r="40" fill="${ACCENT}" />
-  <path d="M520 156h40M520 156l14-14M520 156l14 14" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-  <text x="${IMAGE_WIDTH / 2}" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="6" fill="${INK}">${escapeSvgText(appName)}</text>
-  <text x="${IMAGE_WIDTH / 2}" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="600" fill="${MUTED}">${escapeSvgText(labels.title)}</text>
-  <text x="${IMAGE_WIDTH / 2}" y="322" text-anchor="middle" font-family="${MONO}" font-size="20" font-weight="500" fill="${MUTED}">${escapeSvgText(meta)}</text>`;
+  <image href="${escapeSvgText(logoHref)}" x="${IMAGE_WIDTH / 2 - 92}" y="108" width="52" height="56" preserveAspectRatio="xMidYMid meet" />
+  <text x="${IMAGE_WIDTH / 2 + 28}" y="148" text-anchor="start" font-family="Arial, sans-serif" font-size="36" font-weight="800" fill="${ACCENT}">${escapeSvgText(brand)}</text>
+  <text x="${IMAGE_WIDTH / 2}" y="206" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="600" fill="${MUTED}">${escapeSvgText(labels.title)}</text>
+  <text x="${IMAGE_WIDTH / 2}" y="242" text-anchor="middle" font-family="${MONO}" font-size="20" font-weight="500" fill="${MUTED}">${escapeSvgText(meta)}</text>`;
 
   // Dotted leaders run from just past the (truncated) name to just before
   // the amount column, echoing a real till receipt.
@@ -252,7 +254,23 @@ export async function createCourseBillImageFile(
     throw new Error('Course bill images can only be created in a browser.');
   }
 
-  const svg = renderCourseBillImageSvg(session, labels);
+  let logoHref = labels.logoHref;
+  try {
+    const response = await fetch('/logo.png');
+    if (response.ok) {
+      const blob = await response.blob();
+      logoHref = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('logo'));
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch {
+    /* keep relative /logo.png */
+  }
+
+  const svg = renderCourseBillImageSvg(session, { ...labels, logoHref, appName: labels.appName || 'SmartJib' });
   const image = await loadSvgImage(svgToImageDataUrl(svg));
   try {
     // Force full rasterization before drawing — drawing straight after
