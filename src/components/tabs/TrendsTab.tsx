@@ -147,16 +147,17 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(totalCash)}</p>
-          <span className="block break-words text-[12px] font-bold leading-snug text-on-surface-variant">
-            {t(m.tabs.trends.cashBreakdown, {
-              bank: m.places.bank,
-              bankAmount: format(month.bankPart || 0),
-              wallet: m.places.wallet,
-              walletAmount: format(month.walletPart || 0),
-              home: m.places.home,
-              homeAmount: format(month.homePart || 0),
-            })}
-          </span>
+          <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
+            <span className="truncate text-primary">
+              {m.places.bank} {format(month.bankPart || 0)}
+            </span>
+            <span className="truncate text-blue-500">
+              {m.places.wallet} {format(month.walletPart || 0)}
+            </span>
+            <span className="truncate text-amber-600">
+              {m.places.home} {format(month.homePart || 0)}
+            </span>
+          </div>
         </div>
 
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">

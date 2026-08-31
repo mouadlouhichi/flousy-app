@@ -12,7 +12,8 @@ import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
-import { CustomSelect } from '@/components/ui/CustomSelect';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { IconSelect } from '@/components/ui/icon-select';
 
 type ExpenseSort = 'newest' | 'oldest' | 'amountHigh' | 'amountLow' | 'name';
 
@@ -295,47 +296,33 @@ export function VariableTab({
 
       {/* Search & Category Chips */}
       <div className="flex flex-col gap-md">
-        <div className="relative">
-          <AppIcon name="search" className=" absolute start-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={m.tabs.variable.searchPlaceholder}
-            aria-label={m.tabs.variable.searchPlaceholder}
-            className="w-full ps-10 pe-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <AppIcon name="search" className=" absolute start-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={m.tabs.variable.searchPlaceholder}
+              aria-label={m.tabs.variable.searchPlaceholder}
+              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+            />
+          </div>
+          <DateRangePicker
+            from={dateFrom}
+            to={dateTo}
+            onChange={(nextFrom, nextTo) => {
+              setDateFrom(nextFrom);
+              setDateTo(nextTo);
+            }}
+            ariaLabel={m.tabs.variable.dateFrom}
           />
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_minmax(10rem,auto)]">
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
-              {m.tabs.variable.dateFrom}
-            </span>
-            <input
-              type="date"
-              value={dateFrom}
-              max={dateTo || undefined}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
-              {m.tabs.variable.dateTo}
-            </span>
-            <input
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary"
-            />
-          </label>
-          <CustomSelect
-            label={m.tabs.variable.sortLabel}
+          <IconSelect
             value={sortBy}
             onChange={(value) => setSortBy(value as ExpenseSort)}
+            ariaLabel={m.tabs.variable.sortLabel}
+            icon="sort"
+            isActive={sortBy !== 'newest'}
             options={[
               { value: 'newest', label: m.tabs.variable.sortNewest },
               { value: 'oldest', label: m.tabs.variable.sortOldest },
@@ -345,18 +332,6 @@ export function VariableTab({
             ]}
           />
         </div>
-        {(dateFrom || dateTo) && (
-          <button
-            type="button"
-            onClick={() => {
-              setDateFrom('');
-              setDateTo('');
-            }}
-            className="self-start text-xs font-bold text-primary hover:underline"
-          >
-            {m.tabs.variable.clearDates}
-          </button>
-        )}
 
         <div className="flex items-center gap-xs overflow-x-auto pb-xs no-scrollbar">
           {categories.map((cat) => (
