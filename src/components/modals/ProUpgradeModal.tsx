@@ -14,12 +14,16 @@ import {
   upgradeUserPlan,
 } from '../../lib/payments';
 import { trackEvent } from '../../lib/analytics';
+import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
+import { formatShortDate } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type CheckoutStep = 'plan' | 'card' | 'processing' | 'receipt' | 'error';
+type ProcessingStep = 'creatingCheckout' | 'validatingCard' | 'processingPayment' | 'activatingFeatures' | '';
 
 interface ProUpgradeModalProps {
   isOpen: boolean;
@@ -36,9 +40,13 @@ function maskCard(num: string): string {
   return `•••• •••• •••• ${digits.slice(-4) || '4242'}`;
 }
 
-/** Format cents to a currency string */
-function fmtPrice(cents: number): string {
-  return `$${cents.toFixed(2)}`;
+function formatPrice(amount: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 }
 
 // ---------------------------------------------------------------------------
@@ -47,6 +55,8 @@ function fmtPrice(cents: number): string {
 
 export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   const { user, profile, updateProfileData } = useAuth();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const p = m.modals.pro;
   // Pro state always comes from the `plan` field on the Firebase profile.
   const isPro = isProUser(profile);
 
@@ -60,7 +70,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
   // -- Processing state --
-  const [progressText, setProgressText] = useState('');
+  const [processingStep, setProcessingStep] = useState<ProcessingStep>('');
   const [sessionId, setSessionId] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [nextBilling, setNextBilling] = useState('');
@@ -79,11 +89,11 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       setCardCvc('');
       setCardName('');
       setCardErrors({});
-      setProgressText('');
+      setProcessingStep('');
       setSessionId('');
       setTransactionId('');
       setNextBilling('');
-      setReceiptEmail(user?.email || 'user@example.com');
+      setReceiptEmail(user?.email || '');
     }
   }, [isOpen, isPro, user?.email]);
 
@@ -94,8 +104,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     setCardNumber('4242 4242 4242 4242');
     setCardExpiry('12/28');
     setCardCvc('123');
-    setCardName(user?.displayName || 'Jane Doe');
-    if (!receiptEmail) setReceiptEmail(user?.email || 'jane.doe@example.com');
+    setCardName(user?.displayName || p.cardholderPlaceholder);
+    if (!receiptEmail) setReceiptEmail(user?.email || 'demo@example.com');
     setCardErrors({});
   };
 
@@ -129,19 +139,19 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
     const cleanCard = cardNumber.replace(/\s/g, '');
     if (cleanCard.length < 13 || cleanCard.length > 16) {
-      errors.cardNumber = 'Enter a valid card number';
+      errors.cardNumber = p.validCardNumber;
     }
     if (!cardExpiry.match(/^\d{2}\/\d{2}$/)) {
-      errors.cardExpiry = 'Enter a valid expiry (MM/YY)';
+      errors.cardExpiry = p.validExpiry;
     }
     if (cardCvc.length < 3) {
-      errors.cardCvc = 'Enter a valid CVC';
+      errors.cardCvc = p.validCvc;
     }
     if (!cardName.trim()) {
-      errors.cardName = 'Enter the name on card';
+      errors.cardName = p.validCardholder;
     }
     if (!receiptEmail.trim()) {
-      errors.receiptEmail = 'Enter a receipt email';
+      errors.receiptEmail = p.validReceiptEmail;
     }
 
     if (Object.keys(errors).length > 0) {
@@ -151,17 +161,17 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
     // 1) Create checkout session
     setStep('processing');
-    setProgressText('Creating secure checkout session…');
+    setProcessingStep('creatingCheckout');
 
     const session = await createCheckoutSession(billingCycle, user?.uid);
     setSessionId(session.id);
 
     // 2) Simulate card validation (3DS / bank auth)
-    setProgressText('Validating card with issuing bank…');
+    setProcessingStep('validatingCard');
     await new Promise((r) => setTimeout(r, 1000));
 
     // 3) Process payment
-    setProgressText('Processing payment…');
+    setProcessingStep('processingPayment');
     const { receipt } = await processPayment(session);
 
     setTransactionId(receipt.transactionId);
@@ -170,7 +180,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     // 4) Upgrade the user's plan — always persisted on the Firebase profile
     // (`users/{uid}.plan`) for signed-in users. Demo mode (no Firebase
     // session) keeps its local demo state via the callback below.
-    setProgressText('Activating Pro features…');
+    setProcessingStep('activatingFeatures');
 
     const setDemoPlan = ({ billingCycle: cycle, nextBillingDate }: { billingCycle: BillingCycle; nextBillingDate: string }) => {
       localStorage.setItem('flousy_pro_plan', 'true');
@@ -195,21 +205,45 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     });
     await new Promise((r) => setTimeout(r, 500));
     setStep('receipt');
-  }, [cardNumber, cardExpiry, cardCvc, cardName, receiptEmail, billingCycle, user?.uid, updateProfileData]);
+  }, [cardNumber, cardExpiry, cardCvc, cardName, receiptEmail, billingCycle, user?.uid, updateProfileData, p]);
 
   // -----------------------------------------------------------------------
   // Price helpers
   // -----------------------------------------------------------------------
   const price = billingCycle === 'annual' ? PRO_PRICING.annual : PRO_PRICING.monthly;
   const monthlyEquivalent = billingCycle === 'annual'
-    ? (PRO_PRICING.annual / 12).toFixed(2)
-    : PRO_PRICING.monthly.toFixed(2);
+    ? PRO_PRICING.annual / 12
+    : PRO_PRICING.monthly;
+  const processingSteps: { id: Exclude<ProcessingStep, ''>; label: string }[] = [
+    { id: 'creatingCheckout', label: p.creatingCheckout },
+    { id: 'validatingCard', label: p.validatingCard },
+    { id: 'processingPayment', label: p.processingPayment },
+    { id: 'activatingFeatures', label: p.activatingFeatures },
+  ];
+  const activeProcessingIndex = processingSteps.findIndex(({ id }) => id === processingStep);
+  const activeProcessingLabel = activeProcessingIndex >= 0 ? processingSteps[activeProcessingIndex].label : '';
+  const billingCycleLabel = billingCycle === 'annual' ? p.annualPlan : p.monthlyPlan;
+  const formattedPrice = formatPrice(price, intlLocale);
+  const formattedMonthlyEquivalent = formatPrice(monthlyEquivalent, intlLocale);
+  const formattedAnnualSavings = formatPrice((PRO_PRICING.monthly * 12) - PRO_PRICING.annual, intlLocale);
+  const formattedNextBilling = nextBilling || profile?.planNextBillingDate
+    ? formatShortDate(nextBilling || profile?.planNextBillingDate || '', intlLocale)
+    : m.common.notAvailable;
+  const proFeatures = [
+    { icon: 'scan_barcode', title: p.courseScanning, desc: p.courseScanningDesc },
+    { icon: 'trending_up', title: p.multiMonthTrends, desc: p.multiMonthDesc },
+    { icon: 'upload_file', title: p.csvImport, desc: p.csvImportDesc },
+    { icon: 'receipt', title: p.receiptAttachments, desc: p.receiptAttachmentsDesc },
+    { icon: 'family_restroom', title: p.householdBudgeting, desc: p.householdBudgetingDesc },
+    { icon: 'bar_chart', title: p.advancedReports, desc: p.advancedReportsDesc },
+    { icon: 'cloud_sync', title: p.prioritySync, desc: p.prioritySyncDesc },
+  ];
 
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isPro ? 'SmartJib Pro' : 'Upgrade to SmartJib Pro'} className="max-w-2xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={isPro ? p.memberTitle : p.title} className="max-w-2xl">
       <div className="flex flex-col gap-xl">
         {/* ─────────────────────── HERO CARD ─────────────────────── */}
         <div className="rounded-[24px] border border-surface-container-highest bg-surface-container shadow-sm overflow-hidden">
@@ -221,12 +255,10 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               </div>
               <div className="space-y-2 sm:space-y-3 max-w-3xl">
                 <h3 className="font-headline-lg text-headline-lg font-extrabold tracking-tight text-on-surface">
-                  {isPro ? 'You are a Pro Member!' : 'Unlock Full Budgeting Power'}
+                  {isPro ? p.youArePro : p.unlockPower}
                 </h3>
                 <p className="mx-auto max-w-xl text-sm sm:text-base leading-6 sm:leading-7 text-on-surface-variant">
-                  {isPro
-                    ? 'Thank you for supporting SmartJib. All premium features are active.'
-                    : 'Barcode course scanning, multi-month trends, CSV imports, receipt attachments, and household budgeting.'}
+                  {isPro ? p.proActiveDescription : p.upgradeDescription}
                 </p>
               </div>
             </div>
@@ -242,11 +274,11 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                   <AppIcon name="check_circle" className="text-[26px]" />
                 </div>
                 <div>
-                  <p className="font-headline-md text-body-lg font-semibold text-on-surface">Pro plan is active</p>
+                  <p className="font-headline-md text-body-lg font-semibold text-on-surface">{p.planActive}</p>
                   <p className="font-body-md text-on-surface-variant mt-1">
                     {profile?.planNextBillingDate
-                      ? `Next billing: ${profile.planNextBillingDate}`
-                      : 'All premium features unlocked.'}
+                      ? t(p.nextBilling, { date: formatShortDate(profile.planNextBillingDate, intlLocale) })
+                      : p.allPremiumUnlocked}
                   </p>
                 </div>
               </div>
@@ -256,7 +288,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               onClick={onClose}
               className="w-full rounded-xl bg-primary py-3.5 text-on-primary font-semibold text-body-lg shadow-sm hover:bg-primary-container transition-colors"
             >
-              Back to Dashboard
+              {p.backToDashboard}
             </button>
           </div>
         )}
@@ -275,9 +307,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                           ? 'bg-primary text-on-primary shadow-sm'
                           : 'text-on-surface-variant hover:text-on-surface'
                       }`}
-                    >
-                      Monthly
-                    </button>
+                    >{p.monthlyPlan}</button>
                     <button
                       type="button"
                       onClick={() => setBillingCycle('annual')}
@@ -286,40 +316,25 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                           ? 'bg-primary text-on-primary shadow-sm'
                           : 'text-on-surface-variant hover:text-on-surface'
                       }`}
-                    >
-                      Annual
-                    </button>
+                    >{p.annualPlan}</button>
                   </div>
                 </div>
 
                 <div className="text-center">
                   <div className="flex items-baseline justify-center gap-xs">
-                    <span className="font-headline-lg text-headline-lg text-on-surface">{fmtPrice(price)}</span>
-                    <span className="font-body-lg text-body-lg text-on-surface-variant">/{billingCycle === 'annual' ? 'year' : 'month'}</span>
+                    <span className="font-headline-lg text-headline-lg text-on-surface">{formattedPrice}</span>
+                    <span className="font-body-lg text-body-lg text-on-surface-variant">{t(p.perPeriod, { period: billingCycle === 'annual' ? m.common.year : m.common.month })}</span>
                   </div>
                   <p className="font-body-md text-on-surface-variant mt-sm max-w-lg mx-auto">
-                    {billingCycle === 'annual' ? (
-                      <>
-                        That's <span className="text-primary font-semibold">${monthlyEquivalent}/month</span> —{' '}
-                        <span className="text-tertiary font-semibold">save $19.89</span>
-                      </>
-                    ) : (
-                      <>Billed monthly. Switch to annual anytime to save 33%.</>
-                    )}
+                    {billingCycle === 'annual'
+                      ? t(p.annualValue, { price: formattedMonthlyEquivalent, savings: formattedAnnualSavings })
+                      : t(p.monthlyValue, { percent: formatLocalizedPercent(PRO_PRICING.annualSavingsPercent, intlLocale) })}
                   </p>
                 </div>
               </div>
 
             <div className="grid grid-cols-1 gap-md md:grid-cols-2">
-              {[
-                { icon: 'scan_barcode', title: 'Barcode Course Scanning', desc: 'Scan groceries as you shop — SmartJib builds the bill for you.' },
-                { icon: 'trending_up', title: 'Multi-Month Trends', desc: 'Compare spending across months and forecast savings.' },
-                { icon: 'upload_file', title: 'CSV Data Import', desc: 'Import transactions from bank statements or CSV files.' },
-                { icon: 'receipt', title: 'Receipt Attachments', desc: 'Attach receipt photos to any expense or bill.' },
-                { icon: 'family_restroom', title: 'Household Budgeting', desc: 'Assign expenses to household members (Self, Partner, Family).' },
-                { icon: 'bar_chart', title: 'Advanced Reports', desc: 'Category-level breakdowns and per-person spending insights.' },
-                { icon: 'cloud_sync', title: 'Priority Sync', desc: 'Faster Firestore sync and priority support.' },
-              ].map((feature) => (
+              {proFeatures.map((feature) => (
                 <div key={feature.icon} className="rounded-[24px] border border-surface-container-highest bg-surface-container-lowest p-5 flex gap-2 md:gap-3 shadow-sm">
                   <div className="flex p-3 h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <AppIcon name={feature.icon} className="text-[22px]" />
@@ -338,12 +353,12 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 onClick={handleStartCheckout}
                 className="w-full rounded-xl bg-primary py-4 text-on-primary font-semibold text-body-lg shadow-sm hover:bg-primary-container transition-colors flex items-center justify-center gap-2"
               >
-                <span>Continue to Checkout</span>
-                <AppIcon name="arrow_forward" className="text-[20px]" />
+                <span>{p.continueCheckout}</span>
+                <AppIcon name="arrow_forward" className="text-[20px] rtl:rotate-180" />
               </button>
               <div className="mt-4 text-center font-label-md text-on-surface-variant flex flex-col gap-1">
-                <p>Secure checkout • Cancel anytime</p>
-                <p>Instant activation. Cancel or downgrade anytime in Settings.</p>
+                <p>{p.secureCheckout} • {p.cancelAnytime}</p>
+                <p>{p.instantActivation}</p>
               </div>
             </div>
           </div>
@@ -359,13 +374,13 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             <div className="p-3.5 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between text-[14px]">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-on-surface">
-                  {billingCycle === 'annual' ? 'Annual Pro Plan' : 'Monthly Pro Plan'}
+                  {billingCycleLabel}
                 </span>
                 <span className="text-[12px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
-                  {billingCycle === 'annual' ? '33% OFF' : 'Flexible'}
+                  {billingCycle === 'annual' ? t(p.annualDiscount, { percent: formatLocalizedPercent(PRO_PRICING.annualSavingsPercent, intlLocale) }) : p.flexible}
                 </span>
               </div>
-              <span className="font-extrabold text-primary font-mono text-[16px]">{fmtPrice(price)}</span>
+              <span className="font-extrabold text-primary font-mono text-[16px]">{formattedPrice}</span>
             </div>
 
             {/* Test Card Quick Fill Button */}
@@ -375,23 +390,25 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               className="py-2 px-3 bg-secondary-container/50 border border-secondary-container hover:bg-secondary-container text-on-secondary-container rounded-lg text-[13px] font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <AppIcon name="sparkles" className="text-[16px]" />
-              <span>Fill Demo Test Card</span>
+              <span>{p.fillDemoTestCard}</span>
             </button>
 
             {/* Card Number */}
             <div className="flex flex-col gap-1">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">Card Number</label>
+              <label htmlFor="pro-card-number" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">{p.cardNumber}</label>
               <div className="relative">
                 <input
+                  id="pro-card-number"
                   type="text"
                   inputMode="numeric"
-                  placeholder="4242 4242 4242 4242"
+                  dir="ltr"
+                  placeholder={p.cardNumberPlaceholder}
                   value={cardNumber}
                   onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
                   className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                   autoFocus
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                <span className="absolute end-3.5 top-1/2 -translate-y-1/2">
                   <svg className="w-8 h-5" viewBox="0 0 40 24" fill="none">
                     <rect width="40" height="24" rx="3" fill="#00685f"/>
                     <ellipse cx="20" cy="12" rx="5" ry="4.5" fill="white" opacity="0.85"/>
@@ -406,11 +423,13 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             {/* Expiry + CVC */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">Expiry</label>
+                <label htmlFor="pro-card-expiry" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">{p.expiry}</label>
                 <input
+                  id="pro-card-expiry"
                   type="text"
                   inputMode="numeric"
-                  placeholder="MM/YY"
+                  dir="ltr"
+                  placeholder={p.expiryPlaceholder}
                   value={cardExpiry}
                   onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
                   className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] font-mono text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
@@ -420,10 +439,12 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">CVC</label>
+                <label htmlFor="pro-card-cvc" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">{p.cvc}</label>
                 <input
+                  id="pro-card-cvc"
                   type="text"
                   inputMode="numeric"
+                  dir="ltr"
                   placeholder="123"
                   value={cardCvc}
                   onChange={(e) => setCardCvc(formatCvc(e.target.value))}
@@ -437,10 +458,11 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
             {/* Name on Card */}
             <div className="flex flex-col gap-1">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">Name on Card</label>
+              <label htmlFor="pro-cardholder-name" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">{p.cardholderName}</label>
               <input
+                id="pro-cardholder-name"
                 type="text"
-                placeholder="Jane Doe"
+                placeholder={p.cardholderPlaceholder}
                 value={cardName}
                 onChange={(e) => setCardName(e.target.value)}
                 className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
@@ -452,10 +474,12 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
             {/* Receipt Email */}
             <div className="flex flex-col gap-1">
-              <label className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">Receipt Email</label>
+              <label htmlFor="pro-receipt-email" className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-bold">{p.receiptEmail}</label>
               <input
+                id="pro-receipt-email"
                 type="email"
-                placeholder="you@example.com"
+                dir="ltr"
+                placeholder={p.emailPlaceholder}
                 value={receiptEmail}
                 onChange={(e) => setReceiptEmail(e.target.value)}
                 className="w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl text-[15px] text-on-surface placeholder:text-outline-variant focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
@@ -468,7 +492,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             {/* Secure badge */}
             <div className="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm mt-1">
               <AppIcon name="lock" className="text-[16px] text-primary shrink-0" />
-              <span>Encrypted test payment · No real funds charged</span>
+              <span>{p.encryptedTestPayment}</span>
             </div>
 
             {/* Actions */}
@@ -477,15 +501,13 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 type="button"
                 onClick={() => setStep('plan')}
                 className="px-4 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-bold text-[14px] hover:bg-surface-variant transition-all cursor-pointer"
-              >
-                Back
-              </button>
+              >{m.common.back}</button>
               <button
                 type="submit"
                 className="flex-1 py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-sm hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <AppIcon name="lock" className="text-[18px]" />
-                <span>Pay {fmtPrice(price)}</span>
+                <span>{t(p.pay, { price: formattedPrice })}</span>
               </button>
             </div>
           </form>
@@ -507,25 +529,18 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
             <div className="text-center">
               <p className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
-                Processing Payment
+                {p.processingTitle}
               </p>
               <p className="font-body-md text-body-md text-on-surface-variant mt-1 animate-pulse">
-                {progressText}
+                {activeProcessingLabel}
               </p>
             </div>
 
             {/* Progress steps */}
             <div className="w-full max-w-xs flex flex-col gap-2.5 bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-              {[
-                'Creating secure checkout session',
-                'Validating card with issuing bank',
-                'Processing payment',
-                'Activating Pro features',
-              ].map((label, i) => {
-                const states = ['Creating secure checkout session…', 'Validating card with issuing bank…', 'Processing payment…', 'Activating Pro features…'];
-                const idx = states.indexOf(progressText);
-                const done = i < idx || idx === -1;
-                const active = i === idx;
+              {processingSteps.map(({ id, label }, i) => {
+                const done = i < activeProcessingIndex;
+                const active = id === processingStep;
                 return (
                   <div key={label} className="flex items-center gap-2.5 text-[13px]">
                     {done ? (
@@ -551,10 +566,10 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
                 <AppIcon name="check_circle" className="text-[36px] text-primary" />
               </div>
               <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">
-                Payment Successful!
+                {p.paymentSuccessful}
               </h3>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                SmartJib Pro is now active on your account.
+                {p.proNowActive}
               </p>
             </div>
 
@@ -562,7 +577,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             <div className="border border-outline-variant rounded-xl bg-surface-container-low overflow-hidden">
               <div className="p-3.5 bg-primary/5 border-b border-outline-variant flex justify-between items-center">
                 <div>
-                  <span className="font-label-sm text-label-sm text-primary uppercase tracking-wider font-extrabold">Receipt</span>
+                  <span className="font-label-sm text-label-sm text-primary uppercase tracking-wider font-extrabold">{p.receipt}</span>
                   <p className="font-label-sm text-label-sm text-on-surface-variant font-mono text-[11px] mt-0.5">
                     {transactionId || 'pi_mock_12345'}
                   </p>
@@ -572,29 +587,29 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
 
               <div className="p-4 flex flex-col gap-2.5 text-[14px]">
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Plan</span>
-                  <span className="font-bold text-on-surface capitalize">{billingCycle} Pro</span>
+                  <span className="text-on-surface-variant">{p.plan}</span>
+                  <span className="font-bold text-on-surface">{billingCycleLabel}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Amount</span>
-                  <span className="font-extrabold text-on-surface font-mono">{fmtPrice(price)}</span>
+                  <span className="text-on-surface-variant">{m.common.amount}</span>
+                  <span className="font-extrabold text-on-surface font-mono">{formattedPrice}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Payment method</span>
+                  <span className="text-on-surface-variant">{p.paymentMethod}</span>
                   <span className="font-bold text-on-surface">{maskCard(cardNumber || '4242')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Receipt email</span>
-                  <span className="font-bold text-on-surface">{receiptEmail || 'user@example.com'}</span>
+                  <span className="text-on-surface-variant">{p.receiptEmail}</span>
+                  <span className="font-bold text-on-surface">{receiptEmail || m.common.notAvailable}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Next billing</span>
-                  <span className="font-bold text-on-surface">{nextBilling || '1 Year from today'}</span>
+                  <span className="text-on-surface-variant">{p.nextBillingLabel}</span>
+                  <span className="font-bold text-on-surface">{formattedNextBilling}</span>
                 </div>
 
                 <div className="border-t border-outline-variant pt-2.5 mt-1 flex justify-between items-center">
-                  <span className="font-bold text-on-surface">Total paid</span>
-                  <span className="font-extrabold text-primary font-mono text-[18px]">{fmtPrice(price)}</span>
+                  <span className="font-bold text-on-surface">{p.totalPaid}</span>
+                  <span className="font-extrabold text-primary font-mono text-[18px]">{formattedPrice}</span>
                 </div>
               </div>
             </div>
@@ -605,7 +620,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               className="w-full py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[16px] shadow-sm hover:bg-accent-foreground transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <AppIcon name="celebration" className="text-[20px]" />
-              <span>Start Using Pro</span>
+              <span>{p.startUsingPro}</span>
             </button>
           </div>
         )}
@@ -617,25 +632,23 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
               <AppIcon name="error_outline" className="text-[36px] text-error" />
             </div>
             <div>
-              <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Payment Failed</h3>
+              <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{p.paymentFailed}</h3>
               <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-                Your payment could not be completed. Please check your card details.
+                {p.paymentFailedDescription}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setStep('card')}
               className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold shadow-sm hover:bg-accent-foreground transition-all"
-            >
-              Try Again
-            </button>
+            >{m.common.tryAgain}</button>
           </div>
         )}
 
         {/* ─────────────────────── FOOTER (Policy Note for Card Step) ─────────────────────── */}
         {!isPro && step === 'card' && (
           <p className="text-center font-body-sm text-body-sm text-on-surface-variant/80 border-t border-outline-variant/50 pt-3 text-[12px]">
-            Instant activation. Cancel or downgrade anytime in Settings.
+            {p.instantActivation}
           </p>
         )}
       </div>

@@ -8,7 +8,7 @@ import { useAuthStatus } from '@/lib/auth-status';
 import { AnimatedTetrahedron } from "./animated-tetrahedron";
 
 export function CtaSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, isRTL } = useLightLanguage();
   const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
@@ -74,8 +74,8 @@ export function CtaSection() {
                     className="bg-primary hover:bg-accent-foreground text-white px-8 h-14 text-base rounded-full group"
                   >
                     <a href={isLoggedIn ? "/dashboard" : "/login"}>
-                      {isLoggedIn ? "Go to Dashboard" : "Start budgeting free"}
-                      <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1" />
+                      {isLoggedIn ? m.landing.nav.goToDashboard : m.landing.cta.ctaPrimary}
+                      <ArrowRight className={`h-4 w-4 ms-2 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
                     </a>
                   </Button>
                   <Button
@@ -94,15 +94,15 @@ export function CtaSection() {
               </div>
 
               {/* Right animation */}
-              <div className="hidden lg:flex items-center justify-center w-[500px] h-[500px] -mr-16">
+              <div className="hidden lg:flex items-center justify-center w-[500px] h-[500px] -me-16">
                 <AnimatedTetrahedron />
               </div>
             </div>
           </div>
 
           {/* Decorative corner */}
-          <div className="absolute top-0 right-0 w-32 h-32 border-b border-l border-foreground/10" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 border-t border-r border-foreground/10" />
+          <div className="absolute end-0 top-0 h-32 w-32 border-b border-s border-foreground/10" />
+          <div className="absolute bottom-0 start-0 h-32 w-32 border-e border-t border-foreground/10" />
         </div>
       </div>
     </section>

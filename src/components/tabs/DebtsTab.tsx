@@ -3,8 +3,11 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
-import { MonthBudget, DebtItem, DebtType } from '../../lib/store';
+import { MonthBudget } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '@/lib/i18n-context';
+import { localizeDebtStatus } from '@/lib/localized-labels';
+import { formatShortDate } from '@/lib/utils';
 
 interface DebtsTabProps {
   month: MonthBudget;
@@ -14,7 +17,8 @@ interface DebtsTabProps {
 type TabKey = 'debts' | 'credits';
 
 export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
-  const { format } = useCurrency();
+  const { format, formatParts } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabKey>('debts');
 
   const debts = month.debts || [];
@@ -23,13 +27,11 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
   const openCount = filtered.filter((d) => d.status === 'open').length;
   const settledCount = filtered.filter((d) => d.status === 'settled').length;
   const totalAmount = filtered.reduce((acc, d) => acc + d.amount, 0);
+  const totalParts = formatParts(totalAmount);
 
-  const label = activeTab === 'debts' ? 'TOTAL YOU OWE' : 'TOTAL OWED TO YOU';
-  const emptyTitle = activeTab === 'debts' ? 'No debts yet' : 'No credits yet';
-  const emptyDesc =
-    activeTab === 'debts'
-      ? 'Keep your finances clear and balanced. Add any personal loans or money you owe to stay on top of your budget.'
-      : 'Track money others owe you. Add credits to keep a clear record and stay on top of repayments.';
+  const label = activeTab === 'debts' ? m.tabs.debts.totalYouOwe : m.tabs.debts.totalOwedToYou;
+  const emptyTitle = activeTab === 'debts' ? m.tabs.debts.noDebtsTitle : m.tabs.debts.noCreditsTitle;
+  const emptyDesc = activeTab === 'debts' ? m.tabs.debts.noDebtsDesc : m.tabs.debts.noCreditsDesc;
 
   return (
     <div className="space-y-6 pb-24">
@@ -44,7 +46,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
               : 'text-on-surface-variant hover:text-on-surface'
           }`}
         >
-          Debts (I owe)
+          {m.tabs.debts.debtsIOwe}
         </button>
         <button
           type="button"
@@ -55,7 +57,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
               : 'text-on-surface-variant hover:text-on-surface'
           }`}
         >
-          Credits (owed to me)
+          {m.tabs.debts.creditsOwedToMe}
         </button>
       </div>
 
@@ -67,14 +69,14 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
           </span>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-[44px] font-extrabold text-on-surface leading-none">
-              {filtered.length > 0 ? format(totalAmount).replace(/[^0-9.,]/g, '').trim() : '0'}
+              {totalParts.amount}
             </span>
             <span className="text-[20px] font-extrabold text-on-surface-variant/60 leading-none">
-              {format(totalAmount).replace(/^[\d.,\s]+/, '').trim()}
+              {totalParts.currency}
             </span>
           </div>
           <span className="text-[13px] text-on-surface-variant mt-1.5 block">
-            {openCount} open · {settledCount} settled
+            {t(m.tabs.debts.openSettled, { open: new Intl.NumberFormat(intlLocale).format(openCount), settled: new Intl.NumberFormat(intlLocale).format(settledCount) })}
           </span>
         </div>
         <button
@@ -83,7 +85,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
           className="w-full sm:w-auto sm:self-start px-5 py-2.5 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center justify-center sm:justify-start gap-1.5 hover:bg-accent-foreground transition-all shadow-sm"
         >
           <AppIcon name="add" className=" text-[18px]" />
-          Add
+          {m.common.add}
         </button>
       </div>
 
@@ -107,7 +109,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="font-bold text-on-surface text-[15px] truncate">{d.name}</span>
-                  <span className="text-[12px] text-on-surface-variant">{d.date}</span>
+                  <span className="text-[12px] text-on-surface-variant">{formatShortDate(d.date, intlLocale)}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
@@ -125,7 +127,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
                       : 'bg-amber-50 text-amber-700'
                   }`}
                 >
-                  {d.status}
+                  {localizeDebtStatus(d.status, m)}
                 </span>
               </div>
             </div>
@@ -146,7 +148,7 @@ export function DebtsTab({ month, onOpenDebtModal }: DebtsTabProps) {
             className="mt-6 px-6 py-3 bg-primary text-on-primary rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-accent-foreground transition-all shadow-sm"
           >
             <AppIcon name="add" className="text-[18px]" />
-            {activeTab === 'debts' ? 'Add Debt' : 'Add Credit'}
+            {activeTab === 'debts' ? m.modals.debt.addTitle : m.modals.debt.addCredit}
           </button>
         </div>
       )}

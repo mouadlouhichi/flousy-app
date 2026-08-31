@@ -374,7 +374,7 @@ users/{uid}                     UserProfile
   ├── planNextBillingDate?      (YYYY-MM-DD, set at checkout)
   ├── currency: string
   ├── onboardingComplete: bool
-  ├── displayName?, theme?
+  ├── displayName?, avatarUrl?, theme?
   ├── language?: 'en' | 'fr' | 'ar'
   └── householdMembers?: string[]
 

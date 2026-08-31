@@ -1,0 +1,99 @@
+/**
+ * Profile-avatar helpers shared by the profile editor and the small avatars in
+ * the dashboard chrome. Images are kept deliberately small because custom
+ * photos are stored on the user's Firestore profile (rather than requiring a
+ * separate Storage setup).
+ */
+
+const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const AVATAR_EDGE = 256;
+const MAX_DATA_URL_LENGTH = 160_000;
+
+/** Only render sources that are safe for an image element and can be persisted. */
+export function isProfileAvatarSource(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const source = value.trim();
+  return (
+    /^https:\/\/.+/i.test(source) ||
+    /^data:image\/(?:jpeg|png|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(source)
+  );
+}
+
+/** Prefer a saved profile image, falling back to the identity-provider photo. */
+export function resolveProfileAvatarSource(
+  savedAvatarUrl?: string | null,
+  authPhotoUrl?: string | null,
+): string | undefined {
+  if (isProfileAvatarSource(savedAvatarUrl)) return savedAvatarUrl.trim();
+  if (isProfileAvatarSource(authPhotoUrl)) return authPhotoUrl.trim();
+  return undefined;
+}
+
+function loadImage(source: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('The selected image could not be read.'));
+    image.src = source;
+  });
+}
+
+function avatarDataUrl(image: HTMLImageElement, edge: number, quality: number): string {
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error('The selected image has no usable dimensions.');
+
+  // Crop from the centre into a square so the photo fills the circular avatar
+  // consistently, without stretching faces or logos.
+  const sourceEdge = Math.min(width, height);
+  const sourceX = (width - sourceEdge) / 2;
+  const sourceY = (height - sourceEdge) / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = edge;
+  canvas.height = edge;
+
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Your browser could not prepare this image.');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, edge, edge);
+  context.drawImage(image, sourceX, sourceY, sourceEdge, sourceEdge, 0, 0, edge, edge);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
+ * Turns an uploaded image into a small, square JPEG data URL. The retry sizes
+ * keep the profile document comfortably below Firestore's 1 MiB document cap
+ * while still producing a crisp avatar on high-density displays.
+ */
+export async function createProfileAvatarDataUrl(file: File): Promise<string> {
+  if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+    throw new Error('Choose a JPG, PNG, WebP, or GIF image.');
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error('Choose an image smaller than 8 MB.');
+  }
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('Profile images can only be prepared in a browser.');
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await loadImage(objectUrl);
+    const attempts: Array<[edge: number, quality: number]> = [
+      [AVATAR_EDGE, 0.82],
+      [224, 0.76],
+      [192, 0.7],
+      [160, 0.64],
+    ];
+
+    let result = '';
+    for (const [edge, quality] of attempts) {
+      result = avatarDataUrl(image, edge, quality);
+      if (result.length <= MAX_DATA_URL_LENGTH) return result;
+    }
+    throw new Error('This image could not be compressed enough. Please choose another photo.');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}

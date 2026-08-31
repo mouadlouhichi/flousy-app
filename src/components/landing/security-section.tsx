@@ -4,33 +4,18 @@ import { useEffect, useState, useRef } from "react";
 import { Shield, Lock, Eye, FileCheck } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-const securityFeatures = [
-  {
-    icon: Shield,
-    title: "Private by default",
-    description: "Firestore security rules isolate each account so signed-in users can access only their own budget.",
-  },
-  {
-    icon: Lock,
-    title: "No bank connections",
-    description: "We never ask for your card or account numbers. You stay in control of what you enter.",
-  },
-  {
-    icon: Eye,
-    title: "No advertising profiles",
-    description: "We do not use your financial data to build advertising profiles or sell it to third parties.",
-  },
-  {
-    icon: FileCheck,
-    title: "Export or delete anytime",
-    description: "Download everything as a spreadsheet, or erase your account completely, whenever you like.",
-  },
-];
+const SECURITY_ICONS = [Shield, Lock, Eye, FileCheck];
 
-const certifications = ["Private accounts", "No bank sync required", "Data export", "Easy account deletion", "No ad tracking"];
+
+
 
 export function SecuritySection() {
   const { messages: m } = useLightLanguage();
+  const securityFeatures = m.landing.security.features.map((feature, index) => ({
+    ...feature,
+    icon: SECURITY_ICONS[index] || Shield,
+  }));
+  const certifications = m.landing.security.badges;
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -58,7 +43,7 @@ export function SecuritySection() {
           >
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              Privacy
+              {m.landing.security.eyebrow}
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
               {m.landing.security.titleLine1}
@@ -66,9 +51,7 @@ export function SecuritySection() {
               {m.landing.security.titleLine2}
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
-              Budgeting means sharing personal details about your life. We
-              take that seriously — your information stays private, protected,
-              and always under your control.
+{m.landing.security.description}
             </p>
 
             {/* Certifications */}

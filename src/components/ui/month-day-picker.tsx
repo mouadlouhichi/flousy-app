@@ -1,9 +1,19 @@
 'use client';
 
 import { AppIcon } from './app-icon';
-import { formatDayOfMonth } from '@/lib/utils';
+import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
+import { useLanguage } from '@/lib/i18n-context';
 
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+function getWeekdayLabels(intlLocale: string): string[] {
+  // Monday-first grid to match the picker layout. `narrow` keeps every label
+  // compact while using the active locale's script (including Arabic).
+  const monday = new Date(2024, 0, 1);
+  return Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(intlLocale, { weekday: 'narrow' }).format(
+      new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index),
+    ),
+  );
+}
 
 interface MonthDayPickerProps {
   value: number | undefined;
@@ -24,10 +34,14 @@ interface MonthDayPickerProps {
 export function MonthDayPicker({
   value,
   onChange,
-  label = 'Monthly start date',
+  label,
   hint,
   allowClear = true,
 }: MonthDayPickerProps) {
+  const { messages: m, language, intlLocale } = useLanguage();
+  const visibleLabel = label || m.monthDayPicker.monthlyStartDate;
+  const weekdayLabels = getWeekdayLabels(intlLocale);
+  const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
@@ -36,15 +50,15 @@ export function MonthDayPicker({
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
             <AppIcon name="calendar_clock" className="text-[13px] text-primary" />
-            {label}
+            {visibleLabel}
           </span>
           {value !== undefined && allowClear && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
-              {formatDayOfMonth(value)}
+              {localizedDay(value)}
               <button
                 type="button"
                 onClick={() => onChange(undefined)}
-                aria-label="Clear monthly start date"
+                aria-label={m.monthDayPicker.clearMonthlyStartDate}
                 className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
               >
                 <AppIcon name="close" className="text-[10px]" />
@@ -56,7 +70,7 @@ export function MonthDayPicker({
 
       <div className="rounded-xl border border-outline-variant bg-surface-container p-2.5">
         <div className="grid grid-cols-7 gap-1">
-          {WEEKDAY_LABELS.map((w, i) => (
+          {weekdayLabels.map((w, i) => (
             <span
               key={`${w}-${i}`}
               className="py-1 text-center text-[10px] font-extrabold uppercase tracking-wide text-on-surface-variant"
@@ -71,7 +85,7 @@ export function MonthDayPicker({
                 key={d}
                 type="button"
                 aria-pressed={selected}
-                aria-label={formatDayOfMonth(d)}
+                aria-label={localizedDay(d)}
                 onClick={() => onChange(d)}
                 className={`flex aspect-square items-center justify-center rounded-lg text-[13px] font-bold transition-all active:scale-90 ${
                   selected
@@ -79,7 +93,7 @@ export function MonthDayPicker({
                     : 'text-on-surface hover:bg-primary/10 hover:text-primary'
                 }`}
               >
-                {d}
+                {new Intl.NumberFormat(intlLocale).format(d)}
               </button>
             );
           })}

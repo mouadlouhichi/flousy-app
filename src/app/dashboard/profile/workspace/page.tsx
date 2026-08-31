@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function WorkspacePage() {
   return (
-    <ProfileSubpage title="Workspace" description="Switch between your personal dashboard and household.">
+    <ProfileSubpage titleKey="workspaceTitle" descriptionKey="workspaceDescription">
       <WorkspacePanel />
     </ProfileSubpage>
   );

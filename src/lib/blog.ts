@@ -12,6 +12,8 @@ export interface BlogPost {
   date: string;
   dateTime: string;
   readTime: string;
+  /** Numeric reading time used to format copy in the active locale. */
+  readingMinutes: number;
   sections: readonly BlogSection[];
 }
 
@@ -24,6 +26,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
     date: 'July 2026',
     dateTime: '2026-07-15',
     readTime: '4 min read',
+    readingMinutes: 4,
     sections: [
       {
         heading: 'A budget and a balance answer different questions',
@@ -90,6 +93,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
     date: 'June 2026',
     dateTime: '2026-06-18',
     readTime: '5 min read',
+    readingMinutes: 5,
     sections: [
       {
         heading: 'A budgeting method is a starting structure',
@@ -163,6 +167,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
     date: 'May 2026',
     dateTime: '2026-05-20',
     readTime: '3 min read',
+    readingMinutes: 3,
     sections: [
       {
         heading: 'Cash becomes invisible faster than card spending',

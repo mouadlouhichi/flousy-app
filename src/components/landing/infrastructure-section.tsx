@@ -4,18 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { Check, Lock } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-const perks = [
-  { name: "Track spending across bank, wallet & home", pro: false },
-  { name: "4 budgeting styles to choose from", pro: false },
-  { name: "Unlimited savings goals", pro: false },
-  { name: "See exactly where every dirham went", pro: false },
-  { name: "Spot spending trends over months", pro: true },
-  { name: "Get notified before you overspend", pro: true },
-  { name: "Automatic recurring bills", pro: true },
-];
+
 
 export function InfrastructureSection() {
   const { messages: m } = useLightLanguage();
+  const perks = m.landing.infrastructure.perks;
   const [isVisible, setIsVisible] = useState(false);
   const [activePerk, setActivePerk] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
@@ -37,7 +30,7 @@ export function InfrastructureSection() {
       setActivePerk((prev) => (prev + 1) % perks.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [perks.length]);
 
   return (
     <section ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
@@ -54,29 +47,27 @@ export function InfrastructureSection() {
               {m.landing.infrastructure.eyebrow}
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Start free.
+              {m.landing.infrastructure.titleLine1}
               <br />
-              Upgrade when ready.
+              {m.landing.infrastructure.titleLine2}
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
-              Everything you need to budget well is free, forever. When you
-              want deeper insight into your habits and a little help staying
-              on track, SmartJib Pro is right there.
+{m.landing.infrastructure.description}
             </p>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8">
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">Free</div>
-                <div className="text-sm text-muted-foreground">Core budgeting</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">{m.landing.infrastructure.statFree}</div>
+                <div className="text-sm text-muted-foreground">{m.landing.infrastructure.statFreeLabel}</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">3</div>
-                <div className="text-sm text-muted-foreground">Places to track cash</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">{m.landing.infrastructure.stat3}</div>
+                <div className="text-sm text-muted-foreground">{m.landing.infrastructure.stat3Label}</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">Pro</div>
-                <div className="text-sm text-muted-foreground">Smarter insights</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">{m.landing.infrastructure.statPro}</div>
+                <div className="text-sm text-muted-foreground">{m.landing.infrastructure.statProLabel}</div>
               </div>
             </div>
           </div>
@@ -90,11 +81,9 @@ export function InfrastructureSection() {
             <div className="border border-foreground/10">
               {/* Header */}
               <div className="px-6 py-4 border-b border-foreground/10 flex items-center justify-between">
-                <span className="text-sm font-mono text-muted-foreground">What you get</span>
+                <span className="text-sm font-mono text-muted-foreground">{m.landing.infrastructure.whatYouGet}</span>
                 <span className="flex items-center gap-2 text-xs font-mono text-green-600">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Free to start
-                </span>
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />{m.landing.infrastructure.freeToStart}</span>
               </div>
 
               {/* Perks */}
@@ -116,9 +105,7 @@ export function InfrastructureSection() {
                     </div>
                     {perk.pro ? (
                       <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                        <Lock className="w-3 h-3" />
-                        Pro
-                      </span>
+                        <Lock className="w-3 h-3" />{m.landing.infrastructure.statPro}</span>
                     ) : (
                       <Check className="w-4 h-4 text-foreground" />
                     )}

@@ -35,22 +35,22 @@ export function ContactForm() {
       <div className="grid sm:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="name">{s.yourName}</Label>
-          <Input id="name" name="name" placeholder="Jane Doe" required />
+          <Input id="name" name="name" placeholder={s.yourName} required />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">{s.emailAddress}</Label>
-          <Input id="email" name="email" type="email" placeholder="you@example.com" required />
+          <Input id="email" name="email" type="email" placeholder={m.auth.emailPlaceholder} required />
         </div>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="topic">{s.topic}</Label>
-        <Input id="topic" name="topic" placeholder="Question about Pro, a bug, feedback..." />
+        <Input id="topic" name="topic" placeholder={s.topicPlaceholder} />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="message">{s.message}</Label>
-        <Textarea id="message" name="message" placeholder="Tell us a bit more..." className="min-h-40" required />
+        <Textarea id="message" name="message" placeholder={s.messagePlaceholder} className="min-h-40" required />
       </div>
 
       <Button
@@ -58,8 +58,8 @@ export function ContactForm() {
         size="lg"
         className="bg-primary hover:bg-accent-foreground text-primary-foreground px-8 h-14 text-base rounded-full group"
       >
-        Send message
-        <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1" />
+        {s.send}
+        <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1 rtl:rotate-180" />
       </Button>
     </form>
   );

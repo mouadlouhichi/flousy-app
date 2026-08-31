@@ -6,6 +6,11 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { VariableExpense, FixedExpense, MoneyPlace, MonthBudget } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
+import type { Language } from '../../lib/i18n-core';
+import { useMoneyPlaces } from '../../lib/use-money-places';
+import { localizeCategoryName } from '../../lib/localized-labels';
+import { formatShortDate } from '../../lib/utils';
 
 interface ImportCsvModalProps {
   isOpen: boolean;
@@ -25,6 +30,208 @@ interface ParsedRow {
   note?: string;
 }
 
+type CsvHeaderKind = 'name' | 'amount' | 'date' | 'category' | 'place' | 'note' | 'person';
+
+/**
+ * CSV exports use the language configured by the bank or spreadsheet. These
+ * aliases let an Arabic or French user import an export without first having
+ * to rename every heading in English.
+ */
+const CSV_HEADER_ALIASES: Record<CsvHeaderKind, readonly string[]> = {
+  name: ['name', 'description', 'item', 'nom', 'designation', 'libelle', 'اسم', 'الاسم', 'وصف', 'الوصف', 'عنصر'],
+  amount: ['amount', 'price', 'value', 'val', 'montant', 'prix', 'valeur', 'مبلغ', 'المبلغ', 'سعر', 'القيمة', 'قيمة'],
+  date: ['date', 'time', 'temps', 'تاريخ', 'التاريخ', 'وقت'],
+  category: ['category', 'type', 'categorie', 'الفئة', 'فئة', 'تصنيف', 'النوع', 'نوع'],
+  place: ['place', 'source', 'account', 'emplacement', 'compte', 'lieu', 'مكان', 'المكان', 'حساب', 'المصدر'],
+  note: ['note', 'memo', 'comment', 'remarque', 'ملاحظة', 'ملاحظات', 'تعليق'],
+  person: ['person', 'member', 'personne', 'membre', 'شخص', 'الشخص', 'عضو', 'العضو'],
+};
+
+function normalizeCsvText(value: string): string {
+  return value
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLocaleLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f\u064B-\u065F\u0670\u0640]/g, '');
+}
+
+function getCsvHeaderKind(header: string): CsvHeaderKind | undefined {
+  const normalized = normalizeCsvText(header);
+  if (!normalized) return undefined;
+
+  return (Object.keys(CSV_HEADER_ALIASES) as CsvHeaderKind[]).find((kind) =>
+    CSV_HEADER_ALIASES[kind].some(
+      (alias) => normalized === alias || normalized.includes(alias),
+    ),
+  );
+}
+
+function detectCsvDelimiter(headerLine: string): ',' | ';' | '\t' {
+  let commas = 0;
+  let semicolons = 0;
+  let tabs = 0;
+  let inQuotes = false;
+
+  for (let index = 0; index < headerLine.length; index += 1) {
+    const character = headerLine[index];
+    if (character === '"') {
+      if (inQuotes && headerLine[index + 1] === '"') {
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (inQuotes) continue;
+    if (character === ',') commas += 1;
+    else if (character === ';') semicolons += 1;
+    else if (character === '\t') tabs += 1;
+  }
+
+  if (semicolons > commas && semicolons >= tabs) return ';';
+  if (tabs > commas && tabs > semicolons) return '\t';
+  return ',';
+}
+
+function parseCsvLine(line: string, delimiter: string): string[] {
+  const values: string[] = [];
+  let value = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (character === delimiter && !inQuotes) {
+      values.push(value.trim());
+      value = '';
+    } else {
+      value += character;
+    }
+  }
+
+  values.push(value.trim());
+  return values;
+}
+
+function toAsciiDigits(value: string): string {
+  const arabicIndic = '٠١٢٣٤٥٦٧٨٩';
+  const easternArabicIndic = '۰۱۲۳۴۵۶۷۸۹';
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(arabicIndic.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(easternArabicIndic.indexOf(digit)));
+}
+
+/** Parse English, French, and Arabic-formatted money values without using the UI locale as a constraint. */
+function parseLocalizedAmount(value: string, language: Language): number | null {
+  const usesArabicDecimalSeparator = value.includes('٫');
+  let normalized = toAsciiDigits(value)
+    .replace(/[\s\u00A0\u202F]/g, '')
+    .replace(/٬/g, ',')
+    .replace(/٫/g, '.')
+    .replace(/[^\d,.+\-]/g, '');
+
+  if (!normalized || !/\d/.test(normalized)) return null;
+
+  const sign = normalized.startsWith('-') ? '-' : '';
+  normalized = sign + normalized.replace(/[+-]/g, '');
+
+  const lastComma = normalized.lastIndexOf(',');
+  const lastDot = normalized.lastIndexOf('.');
+
+  if (lastComma !== -1 && lastDot !== -1) {
+    const decimalIsComma = lastComma > lastDot;
+    const decimalSeparator = decimalIsComma ? ',' : '.';
+    const groupingSeparator = decimalIsComma ? /\./g : /,/g;
+    normalized = normalized.replace(groupingSeparator, '').replace(decimalSeparator, '.');
+  } else if (lastComma !== -1) {
+    const parts = normalized.split(',');
+    const decimal = parts[parts.length - 1];
+    normalized = decimal.length <= 2
+      ? `${parts.slice(0, -1).join('')}.${decimal}`
+      : parts.join('');
+  } else if (lastDot !== -1) {
+    const parts = normalized.split('.');
+    const decimal = parts[parts.length - 1];
+    if (parts.length > 2) {
+      normalized = decimal.length <= 2
+        ? `${parts.slice(0, -1).join('')}.${decimal}`
+        : parts.join('');
+    } else if (language !== 'en' && !usesArabicDecimalSeparator && decimal.length === 3) {
+      // In French/Arabic exports a single dot is commonly a thousands separator.
+      normalized = parts.join('');
+    }
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Math.abs(parsed) : null;
+}
+
+function validIsoDate(year: number, month: number, day: number): string | undefined {
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function parseLocalizedDate(value: string, language: Language): string | undefined {
+  const datePart = toAsciiDigits(value).trim().replace(/[\u200E\u200F]/g, '').split(/[T ]/, 1)[0];
+  let match = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(datePart);
+  if (match) return validIsoDate(Number(match[1]), Number(match[2]), Number(match[3]));
+
+  match = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/.exec(datePart);
+  if (!match) return undefined;
+
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  const year = Number(match[3]);
+  return language === 'en'
+    ? validIsoDate(year, first, second)
+    : validIsoDate(year, second, first);
+}
+
+function todayLocalIso(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+}
+
+function resolveCsvPlace(
+  rawPlace: string,
+  places: readonly { id: string; name: string }[],
+  placeLabel: (id: string) => string,
+): MoneyPlace {
+  const normalized = normalizeCsvText(rawPlace);
+  if (!normalized) return 'bank';
+
+  const configuredPlace = places.find((place) =>
+    [place.id, place.name, placeLabel(place.id)].some(
+      (candidate) => normalizeCsvText(candidate) === normalized,
+    ),
+  );
+  if (configuredPlace) return configuredPlace.id;
+
+  const contains = (...aliases: string[]) => aliases.some(
+    (alias) => normalized.includes(normalizeCsvText(alias)),
+  );
+  if (contains('home', 'cash', 'maison', 'domicile', 'especes', 'espèces', 'منزل', 'المنزل', 'بيت', 'البيت', 'نقد', 'النقد')) {
+    return 'home';
+  }
+  if (contains('wallet', 'portefeuille', 'محفظة', 'المحفظة')) return 'wallet';
+  return 'bank';
+}
+
 export function ImportCsvModal({
   isOpen,
   onClose,
@@ -33,109 +240,111 @@ export function ImportCsvModal({
   onImportFixed,
 }: ImportCsvModalProps) {
   const { format } = useCurrency();
+  const { messages: m, t, intlLocale, language } = useLanguage();
+  const copy = m.modals.importCsv;
+  const { label: placeLabel, places } = useMoneyPlaces();
   const [targetType, setTargetType] = useState<'variable' | 'fixed'>('variable');
   const [fileText, setFileText] = useState<string>('');
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
+    reader.onload = (loadEvent) => {
+      const content = loadEvent.target?.result;
+      if (typeof content === 'string') {
         parseCsv(content);
+      } else {
+        setFileText('');
+        setParsedRows([]);
+        setError(copy.parseFailed);
       }
+    };
+    reader.onerror = () => {
+      setFileText('');
+      setParsedRows([]);
+      setError(copy.parseFailed);
     };
     reader.readAsText(file);
   };
 
   const parseCsv = (csv: string) => {
     setError(null);
+    setParsedRows([]);
     setFileText(csv);
 
     try {
       const lines = csv
         .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
 
       if (lines.length < 2) {
-        setError('CSV must contain a header row and at least one data row.');
+        setError(copy.invalidRows);
         return;
       }
 
-      const parseLine = (line: string): string[] => {
-        const result: string[] = [];
-        let cur = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(cur.trim().replace(/^"|"$/g, ''));
-            cur = '';
-          } else {
-            cur += char;
-          }
-        }
-        result.push(cur.trim().replace(/^"|"$/g, ''));
-        return result;
-      };
-
-      const header = parseLine(lines[0]).map((h) => h.toLowerCase());
+      const delimiter = detectCsvDelimiter(lines[0]);
+      const headers = parseCsvLine(lines[0], delimiter).map(getCsvHeaderKind);
       const rows: ParsedRow[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const cols = parseLine(lines[i]);
-        if (cols.length < 2) continue;
+      for (let index = 1; index < lines.length; index += 1) {
+        const columns = parseCsvLine(lines[index], delimiter);
+        if (columns.length < 2) continue;
 
-        let name = cols[0] || 'Imported Expense';
+        let name = columns[0] || copy.importedExpense;
         let amount = 0;
-        let date = new Date().toISOString().split('T')[0];
+        let date = todayLocalIso();
+        // Built-in fallbacks intentionally use canonical stored values. Their display
+        // labels are translated later by localizeCategoryName/localizePersonName.
         let category = month.activeCategories?.[0] || 'Groceries';
         let place: MoneyPlace = 'bank';
         let note = '';
         let person = 'Self';
 
-        cols.forEach((col, idx) => {
-          const colName = header[idx] || '';
-          if (colName.includes('name') || colName.includes('description') || colName.includes('item')) {
-            name = col || name;
-          } else if (colName.includes('amount') || colName.includes('price') || colName.includes('val')) {
-            const parsedAmt = parseFloat(col.replace(/[^0-9.-]/g, ''));
-            if (!isNaN(parsedAmt)) amount = Math.abs(parsedAmt);
-          } else if (colName.includes('date') || colName.includes('time')) {
-            if (col.match(/^\d{4}-\d{2}-\d{2}$/)) date = col;
-          } else if (colName.includes('category') || colName.includes('type')) {
-            if (col) category = col;
-          } else if (colName.includes('place') || colName.includes('source') || colName.includes('account')) {
-            const p = col.toLowerCase();
-            if (p.includes('home') || p.includes('cash')) place = 'home';
-            else if (p.includes('wallet')) place = 'wallet';
-            else place = 'bank';
-          } else if (colName.includes('note') || colName.includes('memo')) {
-            note = col;
-          } else if (colName.includes('person') || colName.includes('member')) {
-            person = col;
+        columns.forEach((column, columnIndex) => {
+          switch (headers[columnIndex]) {
+            case 'name':
+              name = column || name;
+              break;
+            case 'amount': {
+              const parsedAmount = parseLocalizedAmount(column, language);
+              if (parsedAmount !== null) amount = parsedAmount;
+              break;
+            }
+            case 'date':
+              date = parseLocalizedDate(column, language) || date;
+              break;
+            case 'category':
+              if (column) category = column;
+              break;
+            case 'place':
+              place = resolveCsvPlace(column, places, placeLabel);
+              break;
+            case 'note':
+              note = column;
+              break;
+            case 'person':
+              person = column;
+              break;
+            default:
+              break;
           }
         });
 
-        if (amount > 0) {
-          rows.push({ name, amount, date, category, place, note, person });
-        }
+        if (amount > 0) rows.push({ name, amount, date, category, place, note, person });
       }
 
       if (rows.length === 0) {
-        setError('No valid numeric amounts found in the CSV rows.');
+        setError(copy.noNumericAmounts);
       } else {
         setParsedRows(rows);
       }
-    } catch (err: any) {
-      setError('Failed to parse CSV file: ' + err.message);
+    } catch {
+      setError(copy.parseFailed);
     }
   };
 
@@ -143,26 +352,26 @@ export function ImportCsvModal({
     if (parsedRows.length === 0) return;
 
     if (targetType === 'variable') {
-      const expenses: VariableExpense[] = parsedRows.map((r, idx) => ({
-        id: `csv-var-${Date.now()}-${idx}`,
-        name: r.name,
-        amount: r.amount,
-        type: r.category,
-        date: r.date,
-        place: r.place,
-        note: r.note,
-        person: r.person,
+      const expenses: VariableExpense[] = parsedRows.map((row, index) => ({
+        id: `csv-var-${Date.now()}-${index}`,
+        name: row.name,
+        amount: row.amount,
+        type: row.category,
+        date: row.date,
+        place: row.place,
+        note: row.note,
+        person: row.person,
       }));
       onImportVariable(expenses);
     } else {
-      const bills: FixedExpense[] = parsedRows.map((r, idx) => ({
-        id: `csv-fix-${Date.now()}-${idx}`,
-        name: r.name,
-        amount: r.amount,
-        type: r.category,
+      const bills: FixedExpense[] = parsedRows.map((row, index) => ({
+        id: `csv-fix-${Date.now()}-${index}`,
+        name: row.name,
+        amount: row.amount,
+        type: row.category,
         date: '1st',
-        place: r.place,
-        person: r.person,
+        place: row.place,
+        person: row.person,
         recurring: true,
       }));
       onImportFixed(bills);
@@ -170,88 +379,87 @@ export function ImportCsvModal({
 
     setParsedRows([]);
     setFileText('');
+    setError(null);
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Import CSV Transactions">
+    <Modal isOpen={isOpen} onClose={onClose} title={copy.title}>
       <div className="flex flex-col gap-5">
-        {/* ── Type Selector ── */}
-        <div className="flex bg-surface-container-high rounded-xl p-1">
+        <div className="flex bg-surface-container-high rounded-xl p-1" role="group">
           <button
             type="button"
             onClick={() => setTargetType('variable')}
+            aria-pressed={targetType === 'variable'}
             className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               targetType === 'variable'
                 ? 'bg-primary text-on-primary shadow-sm'
                 : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            Variable Expenses
+            {copy.variableExpenses}
           </button>
           <button
             type="button"
             onClick={() => setTargetType('fixed')}
+            aria-pressed={targetType === 'fixed'}
             className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               targetType === 'fixed'
                 ? 'bg-primary text-on-primary shadow-sm'
                 : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
-            Fixed Bills
+            {copy.fixedBills}
           </button>
         </div>
 
-        {/* ── Upload Box ── */}
         <div className="p-6 bg-surface-container border-2 border-dashed border-outline-variant rounded-2xl text-center hover:bg-surface-container transition-colors cursor-pointer">
           <input
             type="file"
-            accept=".csv"
+            accept=".csv,text/csv"
             onChange={handleFileUpload}
             id="csv-file-input"
             className="hidden"
           />
           <label htmlFor="csv-file-input" className="cursor-pointer flex flex-col items-center gap-2">
-            <AppIcon name="upload_file" className=" text-[44px] text-primary" />
+            <AppIcon name="upload_file" className="text-[44px] text-primary" />
             <span className="font-label-lg text-label-lg font-bold text-on-surface">
-              Click to upload CSV
+              {copy.uploadLabel}
             </span>
             <span className="font-body-sm text-body-sm text-on-surface-variant">
-              Supported columns: Name, Amount, Date, Category, Place, Note, Person
+              {copy.supportedColumns}
             </span>
           </label>
         </div>
 
-        {/* ── Error ── */}
         {error && (
-          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-[13px] font-medium flex items-start gap-2">
-            <AppIcon name="error" className=" text-[18px] shrink-0 mt-0.5" />
+          <div role="alert" className="p-3 bg-error-container text-on-error-container rounded-xl text-[13px] font-medium flex items-start gap-2">
+            <AppIcon name="error" className="text-[18px] shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* ── Parsed Preview ── */}
         {parsedRows.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-                Preview ({parsedRows.length} transactions)
+                {t(copy.preview, { count: new Intl.NumberFormat(intlLocale).format(parsedRows.length) })}
               </span>
               <span className="text-[13px] font-bold text-primary">
-                Total: {format(parsedRows.reduce((a, b) => a + b.amount, 0))}
+                {t(copy.total, { amount: format(parsedRows.reduce((total, row) => total + row.amount, 0)) })}
               </span>
             </div>
 
-            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-              {parsedRows.map((row, idx) => (
+            <div className="max-h-56 overflow-y-auto space-y-1.5 pe-1">
+              {parsedRows.map((row, index) => (
                 <div
-                  key={idx}
+                  key={`${row.name}-${row.date}-${index}`}
                   className="p-2.5 bg-surface-container rounded-xl flex items-center justify-between"
                 >
-                  <div className="flex flex-col min-w-0 pr-2">
+                  <div className="flex flex-col min-w-0 pe-2">
                     <span className="font-bold text-[13px] text-on-surface truncate">{row.name}</span>
                     <span className="text-[11px] text-on-surface-variant">
-                      {row.date} · {row.category} ({row.place})
+                      {formatShortDate(row.date, intlLocale)} · {localizeCategoryName(row.category, m)} ({placeLabel(row.place)})
                     </span>
                   </div>
                   <span className="font-bold text-[13px] text-error whitespace-nowrap">{format(row.amount)}</span>
@@ -264,18 +472,15 @@ export function ImportCsvModal({
               onClick={handleConfirmImport}
               className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <AppIcon name="add_task" className=" text-[20px]" />
-              <span>Import {parsedRows.length} Item{parsedRows.length !== 1 ? 's' : ''}</span>
+              <AppIcon name="add_task" className="text-[20px]" />
+              <span>{t(copy.importButton, { count: new Intl.NumberFormat(intlLocale).format(parsedRows.length) })}</span>
             </button>
           </div>
         )}
 
-        {/* ── Empty state ── */}
         {!fileText && !error && parsedRows.length === 0 && (
           <div className="p-4 bg-surface-container rounded-xl border border-dashed border-outline-variant text-center">
-            <p className="text-[13px] text-on-surface-variant">
-              Select a CSV file to preview your transactions before importing.
-            </p>
+            <p className="text-[13px] text-on-surface-variant">{copy.selectFile}</p>
           </div>
         )}
       </div>

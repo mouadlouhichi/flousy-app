@@ -4,11 +4,18 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { useLightLanguage } from "@/lib/i18n-light";
+import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
 import { AnimatedSphere } from './animated-sphere';
 
 export function HeroSection() {
-  const { messages: m, isRTL } = useLightLanguage();
+  const { messages: m, isRTL, intlLocale } = useLightLanguage();
+  const formatStatValue = (value: string) => {
+    const percent = /^(\d+(?:\.\d+)?)%$/.exec(value);
+    if (percent) return formatLocalizedPercent(Number(percent[1]), intlLocale);
+    if (/^\d+$/.test(value)) return new Intl.NumberFormat(intlLocale).format(Number(value));
+    return value;
+  };
   const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
@@ -39,7 +46,7 @@ export function HeroSection() {
         {[...Array(8)].map((_, index) => (
           <div
             key={`h-${index}`}
-            className="absolute left-0 right-0 h-px bg-foreground/10"
+            className="absolute inset-x-0 h-px bg-foreground/10"
             style={{ top: `${12.5 * (index + 1)}%` }}
           />
         ))}
@@ -83,7 +90,7 @@ export function HeroSection() {
                 </span>
                 <span
                   aria-hidden="true"
-                  className="absolute -bottom-2 left-0 right-0 h-3 bg-foreground/10"
+                  className="absolute inset-x-0 -bottom-2 h-3 bg-foreground/10"
                 />
               </span>
             </span>
@@ -102,8 +109,8 @@ export function HeroSection() {
               className="group h-14 rounded-full bg-primary px-8 text-base text-white hover:bg-primary/90"
             >
               <a href={isLoggedIn ? "/dashboard" : "/login"}>
-                {isLoggedIn ? "Go to Dashboard" : m.landing.hero.ctaPrimary}
-                <ArrowRight className="ms-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                {isLoggedIn ? m.landing.nav.goToDashboard : m.landing.hero.ctaPrimary}
+                <ArrowRight className={`ms-2 h-4 w-4 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
               </a>
             </Button>
             <Button
@@ -118,18 +125,13 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="absolute bottom-24 left-0 right-0 hidden overflow-hidden sm:block">
+      <div className="absolute inset-x-0 bottom-24 hidden overflow-hidden sm:block">
         <div className="marquee flex gap-16 whitespace-nowrap">
           {[...Array(2)].map((_, setIndex) => (
             <div key={setIndex} className="flex gap-16" aria-hidden={setIndex === 1}>
-              {(m.landing.hero.stats || [
-                { value: '4', label: 'budgeting styles to pick from', detail: '50/30/20 & MORE' },
-                { value: '3', label: 'places to track your cash', detail: 'BANK · HOME · WALLET' },
-                { value: '12', label: 'currencies supported', detail: 'MAD · EUR · USD' },
-                { value: '100%', label: 'of your money accounted for', detail: 'NEVER LOST' },
-              ]).map((stat) => (
+              {m.landing.hero.stats.map((stat) => (
                 <div key={`${stat.detail}-${setIndex}`} className="flex items-baseline gap-4">
-                  <span className="font-display text-4xl lg:text-5xl">{stat.value}</span>
+                  <span className="font-display text-4xl lg:text-5xl">{formatStatValue(stat.value)}</span>
                   <span className="text-sm text-muted-foreground">
                     {stat.label}
                     <span className="mt-1 block font-mono text-xs">{stat.detail}</span>

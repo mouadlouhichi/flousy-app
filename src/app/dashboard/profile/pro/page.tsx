@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function ProPage() {
   return (
-    <ProfileSubpage title="Pro" description="Plan features, income sources and analytics.">
+    <ProfileSubpage titleKey="proTitle" descriptionKey="proDescription">
       <ProPanel />
     </ProfileSubpage>
   );

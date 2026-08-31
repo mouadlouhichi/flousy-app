@@ -31,6 +31,8 @@ const IMMUTABLE_ASSET_RE =
   /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?|ttf|otf|css|js|map|json|webmanifest)$/i;
 const SHORT_LIVED_PUBLIC = new Set([
   '/manifest.json',
+  '/manifest-fr.json',
+  '/manifest-ar.json',
   '/site.webmanifest',
   '/offline.html',
   '/robots.txt',

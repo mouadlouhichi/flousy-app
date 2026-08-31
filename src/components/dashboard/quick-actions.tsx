@@ -6,11 +6,13 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { getMobileQuickActions } from '@/lib/dashboard-quick-actions';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath } from './nav-items';
+import { useLanguage } from '@/lib/i18n-context';
 
 /** Floating quick-action button + expandable actions (mobile only). */
 export function QuickActions() {
   const pathname = usePathname();
   const router = useRouter();
+  const { messages: m } = useLanguage();
   const { openExpenseModal, openFixedModal, openSavingsModal } = useDashboard();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
@@ -32,20 +34,20 @@ export function QuickActions() {
       {isQuickActionsOpen && (
         <button
           type="button"
-          aria-label="Close quick actions"
+          aria-label={m.quickActions.close}
           className="md:hidden fixed inset-0 z-30 bg-transparent"
           onClick={() => setIsQuickActionsOpen(false)}
         />
       )}
 
       <div
-        className={`md:hidden fixed bottom-38 right-5 z-40 flex flex-col items-end gap-2 transition-all duration-300 ease-out ${
+        className={`md:hidden fixed bottom-38 end-5 z-40 flex flex-col items-end gap-2 transition-all duration-300 ease-out ${
           isQuickActionsOpen
             ? 'translate-y-0 opacity-100 pointer-events-auto'
             : 'translate-y-3 opacity-0 pointer-events-none'
         }`}
       >
-        {getMobileQuickActions().map((action, index) => (
+        {getMobileQuickActions(m).map((action, index) => (
           <button
             key={action.id}
             type="button"
@@ -78,8 +80,8 @@ export function QuickActions() {
 
       <button
         onClick={() => setIsQuickActionsOpen((prev) => !prev)}
-        className="md:hidden fixed bottom-22 right-5 z-40 h-14 w-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-accent-foreground active:scale-95 transition-all"
-        aria-label={isQuickActionsOpen ? 'Close quick actions' : 'Open quick actions'}
+        className="md:hidden fixed bottom-22 end-5 z-40 h-14 w-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-accent-foreground active:scale-95 transition-all"
+        aria-label={isQuickActionsOpen ? m.quickActions.close : m.quickActions.open}
       >
         <AppIcon
           name={isQuickActionsOpen ? 'close' : 'add'}

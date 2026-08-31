@@ -3,23 +3,18 @@
 import { useEffect, useState, useRef } from "react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-const integrations = [
-  { name: "MAD", category: "Moroccan Dirham" },
-  { name: "EUR", category: "Euro" },
-  { name: "USD", category: "US Dollar" },
-  { name: "GBP", category: "British Pound" },
-  { name: "CAD", category: "Canadian Dollar" },
-  { name: "CHF", category: "Swiss Franc" },
-  { name: "AED", category: "UAE Dirham" },
-  { name: "SAR", category: "Saudi Riyal" },
-  { name: "EGP", category: "Egyptian Pound" },
-  { name: "TND", category: "Tunisian Dinar" },
-  { name: "DZD", category: "Algerian Dinar" },
-  { name: "XOF", category: "West African CFA" },
-];
+const CURRENCY_CODES = [
+  'MAD', 'EUR', 'USD', 'GBP', 'CAD', 'CHF', 'AED', 'SAR', 'EGP', 'TND', 'DZD', 'XOF',
+] as const;
+
 
 export function IntegrationsSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, intlLocale } = useLightLanguage();
+  const currencyNames = new Intl.DisplayNames([intlLocale], { type: 'currency' });
+  const integrations = CURRENCY_CODES.map((name) => ({
+    name,
+    category: currencyNames.of(name) || name,
+  }));
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -50,12 +45,12 @@ export function IntegrationsSection() {
             <span className="w-8 h-px bg-foreground/30" />
           </span>
           <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-6">
-            Wherever your money
+            {m.landing.integrations.titleLine1}
             <br />
-            lives, we speak it.
+            {m.landing.integrations.titleLine2}
           </h2>
           <p className="text-xl text-muted-foreground">
-            12 currencies, formatted the way you&apos;re used to seeing them. Switch anytime in Settings.
+{m.landing.integrations.description}
           </p>
         </div>
 

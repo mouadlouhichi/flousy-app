@@ -12,6 +12,7 @@ import { DashboardHeader } from './dashboard-header';
 import { QuickActions } from './quick-actions';
 import { DashboardModals } from './dashboard-modals';
 import { DashboardSkeleton } from './dashboard-skeleton';
+import { useLanguage } from '@/lib/i18n-context';
 
 /**
  * Instagram-style push transition: the incoming screen slides in from the
@@ -58,6 +59,7 @@ const pageVariants: Variants = {
 };
 
 function EmailVerificationBanner() {
+  const { messages: m } = useLanguage();
   const {
     user,
     verificationSent,
@@ -72,19 +74,19 @@ function EmailVerificationBanner() {
     <div className="bg-tertiary-container text-on-tertiary-container px-margin-mobile py-2.5 flex items-center justify-between font-label-md text-label-md">
       <div className="flex items-center gap-xs">
         <AppIcon name="mark_email_unread" className=" text-[20px]" />
-        <span>Please verify your email address to secure your account.</span>
+        <span>{m.notifications.emailVerificationPrompt}</span>
         {verificationSent ? (
-          <span className="font-bold underline ml-xs">Verification email sent!</span>
+          <span className="font-bold underline ms-xs">{m.notifications.verificationSent}</span>
         ) : (
-          <button onClick={sendVerification} className="font-bold underline ml-xs hover:opacity-80">
-            Resend email
+          <button onClick={sendVerification} className="font-bold underline ms-xs hover:opacity-80">
+            {m.notifications.resendEmail}
           </button>
         )}
       </div>
       <button
         onClick={() => setDismissVerificationBanner(true)}
         className="p-1 hover:bg-tertiary/20 rounded-full"
-        aria-label="Dismiss banner"
+        aria-label={m.notifications.dismissBanner}
       >
         <AppIcon name="close" className=" text-[18px]" />
       </button>
@@ -101,6 +103,7 @@ function EmailVerificationBanner() {
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isRTL } = useLanguage();
   const { loading } = useDashboard();
   const reduceMotion = useReducedMotion();
 
@@ -125,12 +128,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
   }, [pathname]);
 
-  // Direction of the horizontal transition, derived from nav order:
-  // navigating to a higher-index screen slides in from the right.
+  // Direction of the horizontal transition, derived from nav order. In RTL,
+  // a later destination enters from the logical start (the left/right motion
+  // is mirrored to keep navigation feeling natural).
   const activeScreen = getScreenIdFromPath(pathname);
   const targetIndex = DASHBOARD_NAV_ITEMS.findIndex((item) => item.id === activeScreen);
   const previousIndexRef = useRef(targetIndex);
-  const direction = targetIndex >= previousIndexRef.current ? 1 : -1;
+  const direction = (targetIndex >= previousIndexRef.current ? 1 : -1) * (isRTL ? -1 : 1);
 
   useEffect(() => {
     previousIndexRef.current = targetIndex;
@@ -141,7 +145,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 md:ml-64">
+      <div className="flex-1 flex flex-col min-w-0 md:ms-64">
         <EmailVerificationBanner />
         <DashboardHeader />
 

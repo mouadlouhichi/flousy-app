@@ -8,6 +8,8 @@ import { SavingGoal, MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
 
 interface SavingsModalProps {
   isOpen: boolean;
@@ -42,6 +44,8 @@ export function SavingsModal({
   placeBalances,
 }: SavingsModalProps) {
   const { symbol, format } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const s = m.modals.savings;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
@@ -88,14 +92,16 @@ export function SavingsModal({
         const errs: Record<string, string> = {};
         const issues = valRes.error.issues || (valRes.error as any).errors || [];
         issues.forEach((err: any) => {
-          if (err.path[0]) errs[String(err.path[0])] = err.message;
+          const field = String(err.path[0] || '');
+          if (field === 'name') errs.name = m.errors.validationNameRequired;
+          else if (field === 'target' || field === 'current') errs[field] = m.errors.validationAmountInvalid;
         });
         setErrors(errs);
         return;
       }
 
       if (parsedCurrent > parsedTarget) {
-        setErrors({ current: 'Already saved cannot be more than the target amount' });
+        setErrors({ current: s.currentExceedsTarget });
         return;
       }
 
@@ -105,7 +111,10 @@ export function SavingsModal({
         const delta = parsedCurrent - alreadyAllocated;
         if (delta > selectedPlaceBalance) {
           setErrors({
-            current: `Only ${format(selectedPlaceBalance)} available in ${place}. Uncheck the transfer option to just record the balance.`,
+            current: t(s.openingInsufficient, {
+              amount: format(selectedPlaceBalance),
+              place: placeLabel(place),
+            }),
           });
           return;
         }
@@ -127,7 +136,7 @@ export function SavingsModal({
       const valRes = fundGoalSchema.safeParse({ amount: parsedAmount, sourcePlace: place });
 
       if (!valRes.success) {
-        setErrors({ amount: 'Please enter a valid positive amount' });
+        setErrors({ amount: s.validPositiveAmount });
         return;
       }
 
@@ -135,9 +144,10 @@ export function SavingsModal({
       // Half-a-cent tolerance absorbs float noise from prior arithmetic.
       if (parsedAmount - selectedPlaceBalance > 0.005) {
         setErrors({
-          amount: `Only ${format(selectedPlaceBalance)} available in ${
-            placeLabel(place)
-          }. Lower the deposit or move money into this place first.`,
+          amount: t(s.fundInsufficient, {
+            amount: format(selectedPlaceBalance),
+            place: placeLabel(place),
+          }),
         });
         return;
       }
@@ -149,12 +159,12 @@ export function SavingsModal({
       const valRes = withdrawGoalSchema.safeParse({ amount: parsedAmount, targetPlace: place });
 
       if (!valRes.success) {
-        setErrors({ amount: 'Please enter a valid positive amount' });
+        setErrors({ amount: s.validPositiveAmount });
         return;
       }
 
       if (parsedAmount > goal.current) {
-        setErrors({ amount: `Cannot withdraw more than goal balance (${format(goal.current)})` });
+        setErrors({ amount: t(s.withdrawTooMuch, { amount: format(goal.current) }) });
         return;
       }
 
@@ -165,10 +175,10 @@ export function SavingsModal({
 
   const getTitle = () => {
     switch (mode) {
-      case 'create': return 'New Savings Goal';
-      case 'edit': return 'Edit Goal';
-      case 'fund': return `Fund "${goal?.name}"`;
-      case 'withdraw': return `Withdraw from "${goal?.name}"`;
+      case 'create': return s.createTitle;
+      case 'edit': return s.editTitle;
+      case 'fund': return t(s.fundTitle, { name: goal?.name || '' });
+      case 'withdraw': return t(s.withdrawTitle, { name: goal?.name || '' });
     }
   };
 
@@ -186,20 +196,20 @@ export function SavingsModal({
           <>
             {/* Goal Name */}
             <CustomInput
-              label="Goal Name"
+              label={s.goalName}
               type="text"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
                 setErrors((prev) => ({ ...prev, name: '' }));
               }}
-              placeholder="e.g. Emergency Fund, New Laptop, Vacation"
+              placeholder={s.goalNamePlaceholder}
               error={errors.name}
             />
 
             {/* Target Amount */}
             <CustomInput
-              label={`Target Amount (${symbol})`}
+              label={`${s.targetAmount} (${symbol})`}
               type="number"
               step="any"
               value={target}
@@ -213,7 +223,7 @@ export function SavingsModal({
 
             {/* Quick target chips */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] font-bold text-on-surface-variant mr-0.5">Suggestions:</span>
+              <span className="text-[11px] font-bold text-on-surface-variant me-0.5">{s.suggestions}</span>
               {[5000, 10000, 25000, 50000].map((amt) => (
                 <button
                   key={amt}
@@ -221,7 +231,7 @@ export function SavingsModal({
                   onClick={() => { setTarget(String(amt)); setErrors((p) => ({ ...p, target: '' })); }}
                   className="px-2.5 py-1 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
                 >
-                  {symbol}{(amt).toLocaleString()}
+                  {format(amt)}
                 </button>
               ))}
             </div>
@@ -229,7 +239,7 @@ export function SavingsModal({
             {/* Already Saved (opening balance) */}
             <div className="flex flex-col gap-2.5 rounded-2xl border border-outline-variant bg-surface-container p-4">
               <CustomInput
-                label={`Already Saved (${symbol})`}
+                label={t(s.alreadySaved, { currency: symbol })}
                 type="number"
                 step="any"
                 min="0"
@@ -242,8 +252,7 @@ export function SavingsModal({
                 error={errors.current}
               />
               <p className="text-[11px] font-medium text-on-surface-variant leading-snug">
-                Starting an existing goal? Enter what you have put aside for it so far —
-                progress starts from there instead of zero.
+{s.openingBalanceHint}
               </p>
 
               {parsedCurrentPreview > 0 && (
@@ -256,14 +265,13 @@ export function SavingsModal({
                         setDeductFromPlace(e.target.checked);
                         setErrors((prev) => ({ ...prev, current: '' }));
                       }}
+                      aria-label={t(s.deductOpening, { place: placeLabel(place) })}
                       className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)] cursor-pointer"
                     />
                     <span className="text-[12px] font-semibold text-on-surface leading-snug">
-                      Move this amount out of my tracked{' '}
-                      <span className="capitalize">{place}</span> balance
+                      {t(s.deductOpening, { place: placeLabel(place) })}
                       <span className="block text-[11px] font-medium text-on-surface-variant mt-0.5">
-                        Leave unchecked if this money is already kept separately and is not part
-                        of your bank / home / wallet totals. Available: {format(selectedPlaceBalance)}.
+                        {t(s.deductOpeningHint, { amount: format(selectedPlaceBalance) })}
                       </span>
                     </span>
                   </label>
@@ -274,11 +282,13 @@ export function SavingsModal({
                       <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
                         <span>{format(parsedCurrentPreview)}</span>
                         <span>
-                          {Math.min(
-                            100,
-                            Math.round((parsedCurrentPreview / parsedTargetPreview) * 100),
-                          )}
-                          % of {format(parsedTargetPreview)}
+                          {t(s.progressOfTarget, {
+                            target: format(parsedTargetPreview),
+                            percent: formatLocalizedPercent(
+                              Math.min(100, Math.round((parsedCurrentPreview / parsedTargetPreview) * 100)),
+                              intlLocale,
+                            ),
+                          })}
                         </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-variant">
@@ -300,7 +310,7 @@ export function SavingsModal({
 
             {/* Source Place — segmented with sliding background */}
             <SegmentedControl
-              label="Primary Source Place"
+              label={s.primarySource}
               value={place}
               onChange={(v) => setPlace(v as MoneyPlace)}
               options={moneyPlaceOptions}
@@ -311,7 +321,7 @@ export function SavingsModal({
             {/* Fund / Withdraw Amount */}
             <div className="flex flex-col items-center justify-center py-2">
               <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-                {mode === 'fund' ? 'Deposit Amount' : 'Withdrawal Amount'}
+                {mode === 'fund' ? s.fundAmount : s.withdrawAmount}
               </label>
               <div className="flex items-center text-primary font-bold">
                 <AmountSymbol symbol={symbol} />
@@ -345,7 +355,7 @@ export function SavingsModal({
                       }}
                       className="px-3 py-1.5 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
                     >
-                      +{symbol}{(amt).toLocaleString()}
+                      +{format(amt)}
                     </button>
                   ))}
                 </div>
@@ -354,7 +364,7 @@ export function SavingsModal({
 
             {/* Account Selection — segmented with sliding background */}
             <SegmentedControl
-              label={mode === 'fund' ? 'Deduct From Account' : 'Deposit Into Account'}
+              label={mode === 'fund' ? s.deductFrom : s.depositInto}
               value={place}
               onChange={(v) => {
                 setPlace(v as MoneyPlace);
@@ -366,10 +376,10 @@ export function SavingsModal({
             {/* Live balance of the source account — the deposit cap for fund mode */}
             {mode === 'fund' && (
               <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-                Available in {placeLabel(place)}:{' '}
-                <span className="font-mono font-bold text-on-surface">
-                  {format(selectedPlaceBalance)}
-                </span>
+                {t(s.availableIn, {
+                  place: placeLabel(place),
+                  amount: format(selectedPlaceBalance),
+                })}
               </p>
             )}
 
@@ -381,12 +391,17 @@ export function SavingsModal({
                   <div className="flex-1">
                     <span className="font-bold text-[14px] text-on-surface block">{goal.name}</span>
                     <span className="text-[12px] text-on-surface-variant">
-                      Current: {format(goal.current)} · Target: {format(goal.target)}
+                      {t(s.currentTarget, { current: format(goal.current), target: format(goal.target) })}
                     </span>
                   </div>
                   {goal.target > 0 && (
                     <span className="text-[13px] font-bold text-primary">
-                      {Math.round((goal.current / goal.target) * 100)}%
+                      {t(m.common.percentComplete, {
+                        percent: formatLocalizedPercent(
+                          Math.round((goal.current / goal.target) * 100),
+                          intlLocale,
+                        ),
+                      })}
                     </span>
                   )}
                 </div>
@@ -414,7 +429,7 @@ export function SavingsModal({
               }}
               className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
-              Delete
+              {m.common.delete}
             </button>
           )}
           <button
@@ -423,7 +438,7 @@ export function SavingsModal({
           >
             <AppIcon name={mode === 'create' ? 'add' : mode === 'edit' ? 'check' : mode === 'fund' ? 'add_circle' : 'remove_circle'} className=" text-[18px]" />
             <span>
-              {mode === 'create' ? 'Create Goal' : mode === 'edit' ? 'Save Changes' : mode === 'fund' ? 'Add Funds' : 'Withdraw Funds'}
+              {mode === 'create' ? s.createGoal : mode === 'edit' ? m.common.save : mode === 'fund' ? s.fundGoal : s.withdrawGoal}
             </span>
           </button>
         </div>

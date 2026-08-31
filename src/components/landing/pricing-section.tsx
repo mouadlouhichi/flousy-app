@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
 
 const plansBase = [
@@ -10,8 +11,18 @@ const plansBase = [
   { price: { monthly: 29, annual: 19 }, popular: true },
 ];
 
+function formatPrice(price: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
 export function PricingSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, t, intlLocale, isRTL } = useLightLanguage();
+  const formatPlanNumber = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { minimumIntegerDigits: 2, useGrouping: false }).format(value);
   const { signedIn: user } = useAuthStatus();
   const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
@@ -24,15 +35,15 @@ export function PricingSection() {
         {/* Header */}
         <div className="max-w-3xl mb-20">
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-6">
-            {pricingData?.eyebrow || 'Pricing'}
+            {pricingData.eyebrow}
           </span>
           <h2 className="font-display text-5xl md:text-6xl lg:text-7xl tracking-tight text-foreground mb-6">
-            {pricingData?.titleLine1 || 'Free to start.'}
+            {pricingData.titleLine1}
             <br />
-            <span className="text-stroke">{pricingData?.titleLine2 || "Pro when you're ready."}</span>
+            <span className="text-stroke">{pricingData.titleLine2}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl">
-            {pricingData?.description || 'Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.'}
+            {pricingData.description}
           </p>
         </div>
 
@@ -43,19 +54,19 @@ export function PricingSection() {
               !isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            {pricingData?.monthly || 'Monthly'}
+            {pricingData.monthly}
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={isAnnual}
-            aria-label="Use annual billing"
+            aria-label={pricingData.useAnnualBilling}
             onClick={() => setIsAnnual(!isAnnual)}
             className="relative w-14 h-7 bg-foreground/10 rounded-full p-1 transition-colors hover:bg-foreground/20"
           >
             <div
               className={`w-5 h-5 bg-foreground rounded-full transition-transform duration-300 ${
-                isAnnual ? "translate-x-7" : "translate-x-0"
+                isAnnual ? "translate-x-7 rtl:-translate-x-7" : "translate-x-0"
               }`}
             />
           </button>
@@ -64,18 +75,18 @@ export function PricingSection() {
               isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            {pricingData?.annual || 'Annual'}
+            {pricingData.annual}
           </span>
           {isAnnual && (
-            <span className="ml-2 px-2 py-1 bg-primary text-card  text-xs font-mono">
-              {pricingData?.save34 || 'Save 34%'}
+            <span className="ms-2 px-2 py-1 bg-primary text-card text-xs font-mono">
+              {t(pricingData.save34, { percent: formatLocalizedPercent(34, intlLocale) })}
             </span>
           )}
         </div>
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-px bg-foreground/10 max-w-4xl">
-          {(pricingData?.plans || []).map((planData, idx) => {
+          {pricingData.plans.map((planData, idx) => {
             const priceInfo = plansBase[idx] || { price: { monthly: 0, annual: 0 }, popular: false };
             return (
               <div
@@ -85,15 +96,15 @@ export function PricingSection() {
                 }`}
               >
               {priceInfo.popular && (
-                <span className="absolute -top-3 left-8 px-3 py-1 bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
-                  {pricingData?.mostPopular || 'Most popular'}
+                <span className="absolute -top-3 start-8 px-3 py-1 bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
+                  {pricingData.mostPopular}
                 </span>
               )}
 
               {/* Plan Header */}
               <div className="mb-8">
                 <span className="font-mono text-xs text-muted-foreground">
-                  {String(idx + 1).padStart(2, "0")}
+                  {formatPlanNumber(idx + 1)}
                 </span>
                 <h3 className="font-display text-3xl text-foreground mt-2">{planData.name}</h3>
                 <p className="text-sm text-muted-foreground mt-2">{planData.description}</p>
@@ -103,9 +114,9 @@ export function PricingSection() {
               <div className="mb-8 pb-8 border-b border-foreground/10">
                 <div className="flex items-baseline gap-2">
                   <span className="font-display text-5xl lg:text-6xl text-foreground">
-                    ${isAnnual ? priceInfo.price.annual : priceInfo.price.monthly}
+                    {formatPrice(isAnnual ? priceInfo.price.annual : priceInfo.price.monthly, intlLocale)}
                   </span>
-                  <span className="text-muted-foreground">{pricingData?.perMonth || '/month'}</span>
+                  <span className="text-muted-foreground">{pricingData.perMonth}</span>
                 </div>
               </div>
 
@@ -128,8 +139,8 @@ export function PricingSection() {
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"
                 }`}
               >
-                {isLoggedIn ? "Go to Dashboard" : planData.cta}
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                {isLoggedIn ? m.landing.nav.goToDashboard : planData.cta}
+                <ArrowRight className={`h-4 w-4 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
               </a>
             </div>
             );
@@ -139,7 +150,7 @@ export function PricingSection() {
 
         {/* Bottom Note */}
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          {pricingData?.bottomNote || 'Your budget stays private, always. No credit card required to start.'}
+          {pricingData.bottomNote}
         </p>
       </div>
     </section>

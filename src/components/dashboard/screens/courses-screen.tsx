@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
-import { MONEY_PLACE_OPTIONS, SegmentedControl } from '@/components/ui/segmented-control';
+import { getMoneyPlaceOptions, SegmentedControl } from '@/components/ui/segmented-control';
 import { useCourseSession } from '@/hooks/use-course-session';
 import { isProFeatureUnlocked } from '@/lib/household';
 import { useHousehold } from '@/lib/household-context';
 import { trackEvent } from '@/lib/analytics';
 import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
+import { formatShortDate } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
@@ -90,7 +92,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 
 export function CoursesScreen() {
   const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
-  const { t, language, messages: m } = useLanguage();
+  const { t, messages: m, intlLocale } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
   const { workspace } = useHousehold();
@@ -259,14 +261,15 @@ export function CoursesScreen() {
     trackEvent('course_logged_to_budget', { amount: billSession.total, category });
   };
 
-  const monthLocale = language === 'fr' ? 'fr-FR' : language === 'ar' ? 'ar-MA' : 'en-US';
   const [monthYear, monthNum] = currentMonthKey.split('-').map(Number);
-  const monthLabel = new Date(monthYear, monthNum - 1, 1).toLocaleDateString(monthLocale, {
+  const monthLabel = new Date(monthYear, monthNum - 1, 1).toLocaleDateString(intlLocale, {
     month: 'long',
     year: 'numeric',
   });
 
-  const totalLabel = active ? formatCurrency(active.total, active.currency) : formatCurrency(0, currency);
+  const totalLabel = active
+    ? formatCurrency(active.total, active.currency, intlLocale)
+    : formatCurrency(0, currency, intlLocale);
 
   return (
     <div className="space-y-4">
@@ -301,7 +304,7 @@ export function CoursesScreen() {
             <div>
               <h2 className="font-headline-sm text-headline-sm text-on-surface">{c.title}</h2>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                {active.date} · {sessionUnits(active)} {c.items}
+                {formatShortDate(active.date, intlLocale)} · {new Intl.NumberFormat(intlLocale).format(sessionUnits(active))} {c.items}
               </p>
             </div>
             <div className="ms-auto w-full sm:w-auto">
@@ -309,7 +312,7 @@ export function CoursesScreen() {
                 label={c.paidFrom}
                 value={active.place}
                 onChange={(value) => store.setPlace(value as MoneyPlace)}
-                options={MONEY_PLACE_OPTIONS}
+                options={getMoneyPlaceOptions(m)}
               />
             </div>
           </div>
@@ -445,12 +448,12 @@ export function CoursesScreen() {
                       )}
                     </p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
-                      {formatCurrency(line.unitPrice, active.currency)} / {c.unit}
+                      {formatCurrency(line.unitPrice, active.currency, intlLocale)} / {c.unit}
                     </p>
                   </div>
                   <QtyControl value={line.qty} onChange={(q) => store.setQty(line.key, q)} />
                   <span className="w-20 text-right font-body-md text-body-md font-bold text-on-surface tabular-nums">
-                    {formatCurrency(line.lineTotal, active.currency)}
+                    {formatCurrency(line.lineTotal, active.currency, intlLocale)}
                   </span>
                   <button
                     type="button"
@@ -465,8 +468,9 @@ export function CoursesScreen() {
             </ul>
           )}
 
-          {/* Bottom action bar — sits clear above the floating nav pill. */}
-          <div className="fixed inset-x-0 bottom-24 md:bottom-6 z-20 mx-auto max-w-3xl px-4">
+          {/* Bottom action bar — rendered at <body> level so the dashboard's
+              animated page wrapper cannot constrain its fixed positioning. */}
+          <CourseFloatingBar>
             {confirmDiscard ? (
               <div className="flex items-center gap-3 rounded-2xl border border-error/40 bg-surface-container-high p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
                 <p className="flex-1 font-body-md text-body-md text-on-surface">{c.discardConfirm}</p>
@@ -509,10 +513,33 @@ export function CoursesScreen() {
                 </button>
               </div>
             )}
-          </div>
+          </CourseFloatingBar>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Keeps the live course controls fixed to the viewport instead of the
+ * animated route container. `left-64` starts at the desktop workspace edge;
+ * the horizontal padding is intentionally outside the card so its shadow has
+ * room while the card itself uses every available pixel.
+ */
+function CourseFloatingBar({ children }: { children: ReactNode }) {
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
+  if (!portalTarget) return null;
+
+  return createPortal(
+    <div className="fixed inset-x-0 bottom-24 z-20 px-4 md:bottom-6 md:start-64 md:px-8">
+      {children}
+    </div>,
+    portalTarget,
   );
 }
 
@@ -566,7 +593,7 @@ function EmptyCourse({ store, currency, startSession, onOpenBill }: EmptyCourseP
 }
 
 function HistoryRow({ session, onOpen }: { session: CourseSession; onOpen: (s: CourseSession) => void }) {
-  const { messages: m, isRTL } = useLanguage();
+  const { messages: m, isRTL, intlLocale } = useLanguage();
   const c = m.courses;
   return (
     <li>
@@ -580,14 +607,14 @@ function HistoryRow({ session, onOpen }: { session: CourseSession; onOpen: (s: C
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-body-md text-body-md font-semibold text-on-surface">
-            {session.date} · {session.items.length} {c.items}
+            {formatShortDate(session.date, intlLocale)} · {new Intl.NumberFormat(intlLocale).format(session.items.length)} {c.items}
           </span>
           <span className="block font-label-sm text-label-sm text-on-surface-variant">
             {c.paidFrom}: {m.places[session.place]}
           </span>
         </span>
         <span className="font-body-md text-body-md font-bold text-on-surface tabular-nums">
-          {formatCurrency(session.total, session.currency)}
+          {formatCurrency(session.total, session.currency, intlLocale)}
         </span>
         <AppIcon
           name="chevron_right"

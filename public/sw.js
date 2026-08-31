@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flousy-v3';
+const CACHE_NAME = 'flousy-v4';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -7,6 +7,8 @@ const OFFLINE_URL = '/offline.html';
 const ASSETS_TO_CACHE = [
   OFFLINE_URL,
   '/manifest.json',
+  '/manifest-fr.json',
+  '/manifest-ar.json',
   '/site.webmanifest',
   '/favicon.ico',
   '/favicon.svg',

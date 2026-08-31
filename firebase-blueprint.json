@@ -453,6 +453,11 @@
         "displayName": {
           "type": "string"
         },
+        "avatarUrl": {
+          "type": "string",
+          "maxLength": 160000,
+          "description": "Persisted profile image: a small JPEG data URL or HTTPS identity-provider photo."
+        },
         "theme": {
           "type": "string",
           "enum": [

@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { formatCurrency } from '@/lib/currency';
 import { useLanguage } from '@/lib/i18n-context';
 import { resolveCourseCategory } from '@/lib/course-session';
+import { localizeCategoryName } from '@/lib/localized-labels';
 import type { CourseSession } from '@/lib/store';
 
 interface CoursesBudgetLoggerProps {
@@ -31,12 +33,16 @@ export function CoursesBudgetLogger({
   monthLabel,
   onLog,
 }: CoursesBudgetLoggerProps) {
-  const { t, messages } = useLanguage();
+  const { t, messages, intlLocale } = useLanguage();
   const c = messages.courses;
   const [category, setCategory] = useState(() => resolveCourseCategory(categories));
 
   const logged = Boolean(session.loggedExpenseId);
   const options = categories.length > 0 ? categories : [category];
+  const categoryOptions = options.map((name) => ({
+    value: name,
+    label: localizeCategoryName(name, messages),
+  }));
 
   return (
     <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5">
@@ -50,7 +56,7 @@ export function CoursesBudgetLogger({
             {logged
               ? c.logDone
               : t(c.logHint, {
-                  amount: formatCurrency(session.total, session.currency),
+                  amount: formatCurrency(session.total, session.currency, intlLocale),
                   month: monthLabel,
                 })}
           </p>
@@ -59,27 +65,18 @@ export function CoursesBudgetLogger({
         {logged ? (
           <span className="ms-auto flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 font-label-md text-label-md text-primary tabular-nums">
             <AppIcon name="check_circle" className="size-4" />
-            {formatCurrency(session.total, session.currency)}
+            {formatCurrency(session.total, session.currency, intlLocale)}
           </span>
         ) : (
           <div className="ms-auto flex flex-wrap items-end gap-2.5">
-            <label className="block">
-              <span className="mb-1 block font-label-sm text-label-sm text-on-surface-variant">
-                {c.logCategory}
-              </span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                aria-label={c.logCategory}
-                className="h-9 w-full min-w-[9rem] cursor-pointer rounded-md border border-input bg-surface px-3 text-sm font-medium text-on-surface shadow-xs outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              >
-                {options.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CustomSelect
+              value={category}
+              onChange={setCategory}
+              options={categoryOptions}
+              label={c.logCategory}
+              className="min-w-[9rem]"
+              triggerClassName="!h-9 !rounded-md !px-3 !text-sm"
+            />
             <button
               type="button"
               onClick={() => onLog(category)}
