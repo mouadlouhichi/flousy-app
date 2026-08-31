@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import {
   type DebtItem,
   addDebt,

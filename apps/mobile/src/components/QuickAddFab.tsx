@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus, X, Wallet, Receipt, PiggyBank, ScanLine } from 'lucide-react-native';
 
 const TEAL = '#026462';
@@ -12,12 +13,15 @@ const ACTIONS = [
 ] as const;
 
 export function QuickAddFab({ onAction }: { onAction: (id: (typeof ACTIONS)[number]['id']) => void }) {
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  // Sit just above the floating pill (bar ~56px + 8px offset + safe area).
+  const bottom = Math.max(insets.bottom, 8) + 62;
 
   return (
     <View
       pointerEvents="box-none"
-      style={{ position: 'absolute', right: 16, bottom: 96, alignItems: 'flex-end' }}
+      style={{ position: 'absolute', right: 18, bottom, alignItems: 'flex-end' }}
     >
       {open
         ? ACTIONS.map((a) => (

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   Alert,
   Switch,
   ActivityIndicator,
 } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';

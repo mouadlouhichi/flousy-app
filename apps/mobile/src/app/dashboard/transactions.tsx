@@ -2,11 +2,11 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   TextInput,
   Alert,
 } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import { useTranslation } from 'react-i18next';
 import {
   type VariableExpense,

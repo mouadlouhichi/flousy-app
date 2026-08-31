@@ -32,6 +32,7 @@ export function configureGoogleSignIn(webClientId?: string) {
   GoogleSignin.configure({
     webClientId: resolvedClientId,
     offlineAccess: false,
+    scopes: ['openid', 'profile', 'email'],
   });
 }
 

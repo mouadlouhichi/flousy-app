@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
 } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import { useTranslation } from 'react-i18next';
 import {
   type FixedExpense,

@@ -2,11 +2,11 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import {
@@ -77,6 +77,7 @@ export default function DashboardOverviewScreen() {
   const [fixedVisible, setFixedVisible] = useState(false);
   const [savingsVisible, setSavingsVisible] = useState(false);
   const [balancesVisible, setBalancesVisible] = useState(false);
+  const [moveFrom, setMoveFrom] = useState<MoneyPlace | undefined>();
 
   useBudgetNotifications(month, currency);
 
@@ -174,9 +175,14 @@ export default function DashboardOverviewScreen() {
           const Icon = style.Icon;
           const balance = getPlaceBalance(month, place.id);
           return (
-            <View
+            <Pressable
               key={place.id}
+              onPress={() => {
+                setMoveFrom(place.id);
+                setMoveModalVisible(true);
+              }}
               className="mb-2.5 flex-row items-center rounded-[22px] border border-neutral-100 bg-white px-3.5 py-3.5"
+              hitSlop={4}
             >
               <View
                 className="mr-3 h-11 w-11 items-center justify-center rounded-2xl"
@@ -191,16 +197,13 @@ export default function DashboardOverviewScreen() {
                   <Text className="text-xs font-bold text-neutral-400">{currency}</Text>
                 </Text>
               </View>
-              <Pressable
-                onPress={() => setMoveModalVisible(true)}
-                className="flex-row items-center"
-              >
+              <View className="flex-row items-center py-2 pl-3">
                 <Text className="mr-1 text-sm font-bold" style={{ color: style.accent }}>
                   Move
                 </Text>
                 <ArrowUpDown size={16} color={style.accent} />
-              </Pressable>
-            </View>
+              </View>
+            </Pressable>
           );
         })}
 

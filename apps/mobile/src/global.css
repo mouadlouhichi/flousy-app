@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .font-normal {
+    font-family: InstrumentSans-400;
+  }
+  .font-medium {
+    font-family: InstrumentSans-500;
+  }
+  .font-semibold {
+    font-family: InstrumentSans-600;
+  }
+  .font-bold {
+    font-family: InstrumentSans-700;
+  }
+  .font-extrabold {
+    font-family: InstrumentSans-700;
+  }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import { useRouter } from 'expo-router';
 import Svg, { Rect, Circle, G, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';

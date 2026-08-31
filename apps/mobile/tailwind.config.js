@@ -4,6 +4,12 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["InstrumentSans-400"],
+        medium: ["InstrumentSans-500"],
+        semibold: ["InstrumentSans-600"],
+        bold: ["InstrumentSans-700"],
+      },
       colors: {
         primary: "#026462",
         needs: "#3b82f6",

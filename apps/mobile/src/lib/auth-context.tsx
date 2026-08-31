@@ -47,8 +47,18 @@ export function MobileAuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     configureGoogleSignIn();
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    } catch {
+      // Play Services check can throw DEVELOPER_ERROR on a mis-signed debug
+      // build; still attempt sign-in so the real error surfaces once.
+    }
+    try {
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // ignore — no cached Google session
+      }
       const signInResult = (await GoogleSignin.signIn()) as {
         type?: string;
         data?: { idToken?: string | null };
@@ -66,8 +76,26 @@ export function MobileAuthProvider({ children }: { children: ReactNode }) {
       await auth().signInWithCredential(googleCredential);
       return true;
     } catch (err: any) {
-      if (err?.code === 'SIGN_IN_CANCELLED' || err?.code === '12501' || err?.code === '-5') {
+      const code = String(err?.code ?? '');
+      if (
+        code === statusCodes.SIGN_IN_CANCELLED ||
+        code === 'SIGN_IN_CANCELLED' ||
+        code === '12501' ||
+        code === '-5'
+      ) {
         return false;
+      }
+      if (code === statusCodes.IN_PROGRESS || code === 'IN_PROGRESS') {
+        return false;
+      }
+      if (
+        code === (statusCodes as { DEVELOPER_ERROR?: string }).DEVELOPER_ERROR ||
+        code === 'DEVELOPER_ERROR' ||
+        code === '10'
+      ) {
+        throw new Error(
+          'Google Sign-In DEVELOPER_ERROR: this APK’s SHA-1 is not registered in Firebase. In Firebase Console → Project settings → Your Android app (com.luigiagentz.smartjib), add the debug SHA-1 (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`) and the EAS/Play App Signing SHA-1 (`eas credentials -p android`), then rebuild the dev client.',
+        );
       }
       throw err;
     }

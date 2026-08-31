@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Landmark, Home, Wallet, ArrowUpDown, X } from 'lucide-react-native';
 import {
-  Modal,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { type MoneyPlace, type MoneyPlaceConfig, type MonthBudget, getPlaceBalance } from '@flousy/core';
+  type MoneyPlace,
+  type MoneyPlaceConfig,
+  type MonthBudget,
+  getPlaceBalance,
+} from '@flousy/core';
+import { Sheet } from './Sheet';
+import { formatMoney } from '../lib/format-money';
+
+const TEAL = '#026462';
+
+const ICONS: Record<string, typeof Landmark> = {
+  bank: Landmark,
+  home: Home,
+  wallet: Wallet,
+};
 
 interface MoveMoneyModalProps {
   visible: boolean;
@@ -18,6 +24,7 @@ interface MoveMoneyModalProps {
   month: MonthBudget;
   currency: string;
   places?: MoneyPlaceConfig[];
+  initialFrom?: MoneyPlace;
   onConfirm: (from: MoneyPlace, to: MoneyPlace, amount: number) => Promise<void>;
 }
 
@@ -27,178 +34,226 @@ export function MoveMoneyModal({
   month,
   currency,
   places: placeConfigs,
+  initialFrom,
   onConfirm,
 }: MoveMoneyModalProps) {
-  const { t } = useTranslation();
-  const [fromPlace, setFromPlace] = useState<MoneyPlace>('bank');
-  const [toPlace, setToPlace] = useState<MoneyPlace>('wallet');
-  const [amountStr, setAmountStr] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const places: { id: MoneyPlace; label: string; balance: number }[] = (
+  const places = (
     placeConfigs && placeConfigs.length > 0
       ? placeConfigs
       : [
-          { id: 'bank', name: 'Bank Account', icon: 'account_balance' },
-          { id: 'home', name: 'Home Cash', icon: 'home' },
+          { id: 'bank', name: 'Bank', icon: 'account_balance' },
+          { id: 'home', name: 'Home', icon: 'home' },
           { id: 'wallet', name: 'Wallet', icon: 'account_balance_wallet' },
         ]
   ).map((p) => ({
-    id: p.id,
+    id: p.id as MoneyPlace,
     label: p.name,
     balance: getPlaceBalance(month, p.id),
   }));
 
+  const fallbackTo = (from: string) => places.find((p) => p.id !== from)?.id || from;
+
+  const [fromPlace, setFromPlace] = useState<MoneyPlace>(initialFrom || places[0]?.id || 'bank');
+  const [toPlace, setToPlace] = useState<MoneyPlace>(fallbackTo(initialFrom || places[0]?.id || 'bank'));
+  const [amountStr, setAmountStr] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    const from = initialFrom && places.some((p) => p.id === initialFrom) ? initialFrom : places[0]?.id || 'bank';
+    setFromPlace(from);
+    setToPlace(fallbackTo(from));
+    setAmountStr('');
+    setError('');
+  }, [visible, initialFrom]);
+
+  const parsed = parseFloat(amountStr) || 0;
+  const fromBal = getPlaceBalance(month, fromPlace);
+  const toBal = getPlaceBalance(month, toPlace);
+  const actual = Math.min(fromBal, Math.max(0, parsed));
+
   const handleTransfer = async () => {
-    const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid transfer amount.');
+    if (!(parsed > 0)) {
+      setError('Enter an amount to transfer.');
       return;
     }
     if (fromPlace === toPlace) {
-      Alert.alert('Invalid Transfer', 'Source and destination cannot be the same.');
+      setError('Source and destination cannot be the same.');
       return;
     }
-
-    const sourceObj = places.find((p) => p.id === fromPlace);
-    if (!sourceObj || sourceObj.balance <= 0) {
-      Alert.alert('No Funds', 'The source money place has zero balance.');
+    if (parsed > fromBal) {
+      setError(`Not enough in ${places.find((p) => p.id === fromPlace)?.label || fromPlace}.`);
       return;
     }
-
     setLoading(true);
     try {
-      await onConfirm(fromPlace, toPlace, amount);
-      setAmountStr('');
+      await onConfirm(fromPlace, toPlace, parsed);
       onClose();
     } catch (err: any) {
-      Alert.alert('Transfer Error', err?.message || 'Failed to move money');
+      setError(err?.message || 'Failed to move money');
     } finally {
       setLoading(false);
     }
   };
 
+  const PlaceRow = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: MoneyPlace;
+    onChange: (id: MoneyPlace) => void;
+  }) => (
+    <View className="mb-3">
+      <Text className="mb-1.5 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">{label}</Text>
+      <View className="flex-row flex-wrap rounded-2xl border border-neutral-200 bg-[#F5FAF8] p-1">
+        {places.map((p) => {
+          const selected = value === p.id;
+          const Icon = ICONS[p.id] || Wallet;
+          return (
+            <Pressable
+              key={p.id}
+              onPress={() => onChange(p.id)}
+              className="min-w-[30%] flex-1 items-center rounded-xl px-2 py-2.5"
+              style={{ backgroundColor: selected ? TEAL : 'transparent' }}
+              hitSlop={6}
+            >
+              <Icon size={18} color={selected ? '#fff' : '#6B7280'} />
+              <Text
+                className="mt-1 text-[12px] font-bold"
+                style={{ color: selected ? '#fff' : '#374151' }}
+                numberOfLines={1}
+              >
+                {p.label}
+              </Text>
+              <Text className="text-[10px]" style={{ color: selected ? 'rgba(255,255,255,0.8)' : '#9CA3AF' }}>
+                {formatMoney(p.balance)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 justify-end bg-black/50"
-      >
-        <View className="bg-white dark:bg-neutral-900 rounded-t-3xl p-6 space-y-5">
-          <View className="flex-row justify-between items-center border-b border-neutral-200 dark:border-neutral-800 pb-4">
-            <Text className="text-xl font-bold text-neutral-900 dark:text-white">
-              Move Money
-            </Text>
-            <Pressable onPress={onClose}>
-              <Text className="text-neutral-500 font-bold text-base">Close</Text>
+    <Sheet visible={visible} onClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View className="max-h-[92%] rounded-t-[28px] bg-[#F5FAF8] px-5 pb-8 pt-3">
+          <View className="mb-3 h-1 w-10 self-center rounded-full bg-neutral-300" />
+          <View className="mb-4 flex-row items-center justify-between">
+            <Text className="text-xl font-extrabold text-neutral-900">Move Money</Text>
+            <Pressable onPress={onClose} hitSlop={12} className="p-1">
+              <X size={22} color="#374151" />
             </Pressable>
           </View>
-
-          <Text className="text-xs text-neutral-500 dark:text-neutral-400">
-            Transfer cash between your money places. Total wealth is strictly conserved.
-          </Text>
-
-          <View className="space-y-4">
-            <View>
-              <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                From (Source)
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <View className="mb-4 rounded-2xl border border-neutral-200 bg-white p-4">
+              <Text className="mb-2 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">
+                Transfer between accounts
               </Text>
-              <View className="flex-row space-x-2">
-                {places.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => {
-                      setFromPlace(p.id);
-                      if (toPlace === p.id) {
-                        setToPlace(p.id === 'bank' ? 'wallet' : 'bank');
-                      }
-                    }}
-                    className={`flex-1 p-3 rounded-xl border items-center ${
-                      fromPlace === p.id
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
-                    }`}
-                  >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        fromPlace === p.id
-                          ? 'text-primary'
-                          : 'text-neutral-800 dark:text-neutral-200'
-                      }`}
-                    >
-                      {p.label}
-                    </Text>
-                    <Text className="text-xs text-neutral-500 mt-1">
-                      {p.balance} {currency}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View>
-              <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                To (Destination)
-              </Text>
-              <View className="flex-row space-x-2">
-                {places.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    disabled={p.id === fromPlace}
-                    onPress={() => setToPlace(p.id)}
-                    className={`flex-1 p-3 rounded-xl border items-center ${
-                      p.id === fromPlace
-                        ? 'opacity-40 bg-neutral-200 dark:bg-neutral-900 border-neutral-300'
-                        : toPlace === p.id
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
-                    }`}
-                  >
-                    <Text
-                      className={`font-semibold text-xs ${
-                        toPlace === p.id
-                          ? 'text-primary'
-                          : 'text-neutral-800 dark:text-neutral-200'
-                      }`}
-                    >
-                      {p.label}
-                    </Text>
-                    <Text className="text-xs text-neutral-500 mt-1">
-                      {p.balance} {currency}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View>
-              <Text className="text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Amount to Move ({currency})
-              </Text>
-              <TextInput
-                className="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-700 font-bold text-lg"
-                placeholder="0.00"
-                placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
-                value={amountStr}
-                onChangeText={setAmountStr}
+              <PlaceRow
+                label="From"
+                value={fromPlace}
+                onChange={(id) => {
+                  setFromPlace(id);
+                  if (id === toPlace) setToPlace(fallbackTo(id));
+                  setError('');
+                }}
+              />
+              <PlaceRow
+                label="To"
+                value={toPlace}
+                onChange={(id) => {
+                  setToPlace(id);
+                  if (id === fromPlace) setFromPlace(fallbackTo(id));
+                  setError('');
+                }}
               />
             </View>
-          </View>
 
-          <View className="pt-4">
-            <Pressable
-              onPress={handleTransfer}
-              disabled={loading}
-              className="w-full bg-primary py-4 rounded-xl items-center justify-center shadow-sm"
-            >
-              <Text className="text-white font-bold text-base">
-                {loading ? 'Moving...' : 'Confirm Transfer'}
+            <View className="mb-4 items-center py-1">
+              <Text className="mb-1 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">
+                Transfer amount
               </Text>
-            </Pressable>
-          </View>
+              <View className="flex-row items-end">
+                <Text className="mb-1 mr-1 text-lg font-bold" style={{ color: TEAL }}>
+                  {currency}
+                </Text>
+                <TextInput
+                  keyboardType="numeric"
+                  value={amountStr}
+                  onChangeText={(v) => {
+                    setAmountStr(v.replace(/[^0-9.]/g, ''));
+                    setError('');
+                  }}
+                  placeholder="0.00"
+                  placeholderTextColor="#D1D5DB"
+                  className="min-w-[140px] text-center text-[40px] font-extrabold text-neutral-900"
+                />
+              </View>
+              {error ? <Text className="mt-1 text-center text-xs font-medium text-red-600">{error}</Text> : null}
+              <View className="mt-3 flex-row flex-wrap justify-center">
+                {[100, 200, 500, 1000].map((chip) => (
+                  <Pressable
+                    key={chip}
+                    onPress={() => {
+                      setAmountStr(String(parsed + chip));
+                      setError('');
+                    }}
+                    className="m-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5"
+                  >
+                    <Text className="text-[12px] font-bold text-neutral-600">
+                      +{currency} {formatMoney(chip)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+              <Text className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: TEAL }}>
+                Preview after transfer
+              </Text>
+              <View className="mt-2 flex-row items-center justify-between">
+                <Text className="text-[13px] text-neutral-500">
+                  {places.find((p) => p.id === fromPlace)?.label}:
+                </Text>
+                <Text className="text-[13px] font-semibold text-neutral-800">
+                  {currency} {formatMoney(fromBal)} →{' '}
+                  <Text className="text-amber-800">
+                    {currency} {formatMoney(fromBal - actual)}
+                  </Text>
+                </Text>
+              </View>
+              <View className="mt-1 flex-row items-center justify-between">
+                <Text className="text-[13px] text-neutral-500">
+                  {places.find((p) => p.id === toPlace)?.label}:
+                </Text>
+                <Text className="text-[13px] font-semibold text-neutral-800">
+                  {currency} {formatMoney(toBal)} →{' '}
+                  <Text style={{ color: TEAL }}>
+                    {currency} {formatMoney(toBal + actual)}
+                  </Text>
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+          <Pressable
+            onPress={handleTransfer}
+            disabled={loading}
+            className="mt-1 flex-row items-center justify-center rounded-xl py-3.5"
+            style={{ backgroundColor: TEAL, opacity: loading ? 0.6 : 1 }}
+          >
+            <ArrowUpDown size={18} color="#fff" />
+            <Text className="ml-2 text-[15px] font-bold text-white">
+              {loading ? 'Moving…' : 'Confirm Transfer'}
+            </Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </Sheet>
   );
 }

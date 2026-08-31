@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
 import { type SavingGoal, type MonthBudget, saveGoalWithBalance } from '@flousy/core';
 import { useMobileStore } from '../../lib/store-context';
 import { SavingsGoalModal, SavingsActionModal } from '../../components/SavingsModal';
