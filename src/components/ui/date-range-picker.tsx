@@ -72,7 +72,7 @@ export function DateRangePicker({ from, to, onChange, ariaLabel }: DateRangePick
         align="end"
         sideOffset={8}
         collisionPadding={16}
-        className="w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border-outline-variant p-3"
+        className="w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] overflow-x-hidden rounded-xl border-outline-variant p-3"
       >
         {(draftFrom || draftTo) && (
           <button

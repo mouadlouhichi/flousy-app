@@ -80,10 +80,10 @@ function Calendar({
             : 'rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5',
           defaultClassNames.caption_label,
         ),
-        table: 'w-full border-collapse',
-        weekdays: 'grid w-full grid-cols-7',
-        weekday: 'flex h-8 items-center justify-center text-center text-[0.7rem] font-medium text-muted-foreground select-none',
-        week: 'grid w-full grid-cols-7',
+        table: 'w-full table-fixed border-collapse',
+        weekdays: 'flex w-full',
+        weekday: 'flex h-8 w-[14.285%] items-center justify-center text-center text-[0.7rem] font-medium text-muted-foreground select-none',
+        week: 'flex w-full',
         week_number_header: cn(
           'select-none w-(--cell-size)',
           defaultClassNames.week_number_header,
@@ -92,14 +92,14 @@ function Calendar({
           'text-[0.8rem] select-none text-muted-foreground',
           defaultClassNames.week_number,
         ),
-        day: 'group/day relative aspect-square p-0.5 text-center select-none',
+        day: 'group/day relative aspect-square w-[14.285%] p-0.5 text-center select-none',
         range_start: cn(
           'rounded-l-md bg-primary/20',
           defaultClassNames.range_start,
         ),
         range_middle: cn('rounded-none bg-primary/20', defaultClassNames.range_middle),
         range_end: cn('rounded-r-md bg-primary/20', defaultClassNames.range_end),
-        today: 'text-primary',
+        today: '',
         outside: cn(
           'text-muted-foreground aria-selected:text-muted-foreground',
           defaultClassNames.outside,
@@ -187,6 +187,9 @@ function CalendarDayButton({
       className={cn(
         'flex size-full items-center justify-center rounded-lg text-sm font-medium leading-none',
         'hover:bg-accent hover:text-accent-foreground',
+        modifiers.today && !modifiers.selected && !modifiers.range_start && !modifiers.range_end && !modifiers.range_middle
+          ? 'bg-primary/15 text-primary ring-1 ring-primary/40'
+          : null,
         'data-[selected-single=true]:bg-primary data-[selected-single=true]:text-on-primary',
         'data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-primary/20 data-[range-middle=true]:text-on-surface',
         'data-[range-start=true]:rounded-l-lg data-[range-start=true]:rounded-r-none data-[range-start=true]:bg-primary data-[range-start=true]:text-on-primary',
