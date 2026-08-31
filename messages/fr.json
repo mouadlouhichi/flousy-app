@@ -575,7 +575,16 @@
       "left": "Il reste {amount}",
       "editBudget": "Modifier le budget de {category}",
       "saveBudget": "Enregistrer le budget de {category}",
-      "cancelBudgetEdit": "Annuler la modification du budget"
+      "cancelBudgetEdit": "Annuler la modification du budget",
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "sortLabel": "Trier",
+      "sortNewest": "Plus récent",
+      "sortOldest": "Plus ancien",
+      "sortAmountHigh": "Montant : décroissant",
+      "sortAmountLow": "Montant : croissant",
+      "sortName": "Nom A–Z",
+      "clearDates": "Effacer les dates"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",

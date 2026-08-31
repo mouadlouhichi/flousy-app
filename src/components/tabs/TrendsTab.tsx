@@ -3,6 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
+import Link from 'next/link';
 import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
@@ -29,7 +30,7 @@ const CHART_COLORS = [
 
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
-  const { messages: m, t, intlLocale } = useLanguage();
+  const { messages: m, t, intlLocale, isRTL } = useLanguage();
   const { workspace } = useHousehold();
 
   const isPro = isProUser(profile);
@@ -107,15 +108,25 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
     <div className="space-y-6 pb-24">
       {/* ── Header ── */}
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <AppIcon name="trending_up" className=" text-primary text-[28px]" />
-          <div>
-            <h2 className="font-headline-md text-headline-md font-extrabold text-on-surface">
-              {m.tabs.trends.title}
-            </h2>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              {m.tabs.trends.description}
-            </p>
+        <div className="flex items-start gap-3">
+          <Link
+            href="/dashboard"
+            prefetch={true}
+            aria-label={m.common.back}
+            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+          >
+            <AppIcon name="arrow_back" className={`text-[20px] ${isRTL ? 'rotate-180' : ''}`} />
+          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <AppIcon name="trending_up" className=" text-primary text-[28px]" />
+            <div>
+              <h2 className="font-headline-md text-headline-md font-extrabold text-on-surface">
+                {m.tabs.trends.title}
+              </h2>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                {m.tabs.trends.description}
+              </p>
+            </div>
           </div>
         </div>
       </div>

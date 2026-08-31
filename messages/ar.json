@@ -575,7 +575,16 @@
       "left": "المتبقي {amount}",
       "editBudget": "تعديل ميزانية {category}",
       "saveBudget": "حفظ ميزانية {category}",
-      "cancelBudgetEdit": "إلغاء تعديل الميزانية"
+      "cancelBudgetEdit": "إلغاء تعديل الميزانية",
+      "dateFrom": "من",
+      "dateTo": "إلى",
+      "sortLabel": "ترتيب",
+      "sortNewest": "الأحدث أولاً",
+      "sortOldest": "الأقدم أولاً",
+      "sortAmountHigh": "المبلغ: من الأعلى",
+      "sortAmountLow": "المبلغ: من الأدنى",
+      "sortName": "الاسم أ–ي",
+      "clearDates": "مسح التواريخ"
     },
     "fixed": {
       "totalCommitments": "الالتزامات الثابتة الشهرية",

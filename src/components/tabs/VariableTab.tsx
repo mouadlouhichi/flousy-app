@@ -12,6 +12,13 @@ import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+
+type ExpenseSort = 'newest' | 'oldest' | 'amountHigh' | 'amountLow' | 'name';
+
+function expenseDay(date: string): string {
+  return (date || '').slice(0, 10);
+}
 
 interface VariableTabProps {
   month: MonthBudget;
@@ -39,6 +46,9 @@ export function VariableTab({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState<ExpenseSort>('newest');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState<string>('');
   const [budgetsOpen, setBudgetsOpen] = useState(false);
@@ -46,15 +56,26 @@ export function VariableTab({
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
 
-  const filteredExpenses = (month.variableExpenses || []).filter((exp) => {
-    const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
-    const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
-    const matchesSearch =
-      exp.name.toLowerCase().includes(search.toLowerCase()) ||
-      exp.type.toLowerCase().includes(search.toLowerCase()) ||
-      (exp.note && exp.note.toLowerCase().includes(search.toLowerCase()));
-    return matchesCategory && matchesPerson && matchesSearch;
-  });
+  const filteredExpenses = (month.variableExpenses || [])
+    .filter((exp) => {
+      const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
+      const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
+      const matchesSearch =
+        exp.name.toLowerCase().includes(search.toLowerCase()) ||
+        exp.type.toLowerCase().includes(search.toLowerCase()) ||
+        (exp.note && exp.note.toLowerCase().includes(search.toLowerCase()));
+      const day = expenseDay(exp.date);
+      const matchesFrom = !dateFrom || day >= dateFrom;
+      const matchesTo = !dateTo || day <= dateTo;
+      return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'oldest') return expenseDay(a.date).localeCompare(expenseDay(b.date)) || a.name.localeCompare(b.name);
+      if (sortBy === 'amountHigh') return b.amount - a.amount;
+      if (sortBy === 'amountLow') return a.amount - b.amount;
+      if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
+      return expenseDay(b.date).localeCompare(expenseDay(a.date)) || b.name.localeCompare(a.name);
+    });
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
 
@@ -285,6 +306,57 @@ export function VariableTab({
             className="w-full ps-10 pe-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
           />
         </div>
+
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_minmax(10rem,auto)]">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+              {m.tabs.variable.dateFrom}
+            </span>
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+              {m.tabs.variable.dateTo}
+            </span>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-full rounded-xl border border-outline-variant bg-surface-container px-3 py-2.5 text-sm text-on-surface outline-none focus:border-primary"
+            />
+          </label>
+          <CustomSelect
+            label={m.tabs.variable.sortLabel}
+            value={sortBy}
+            onChange={(value) => setSortBy(value as ExpenseSort)}
+            options={[
+              { value: 'newest', label: m.tabs.variable.sortNewest },
+              { value: 'oldest', label: m.tabs.variable.sortOldest },
+              { value: 'amountHigh', label: m.tabs.variable.sortAmountHigh },
+              { value: 'amountLow', label: m.tabs.variable.sortAmountLow },
+              { value: 'name', label: m.tabs.variable.sortName },
+            ]}
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => {
+              setDateFrom('');
+              setDateTo('');
+            }}
+            className="self-start text-xs font-bold text-primary hover:underline"
+          >
+            {m.tabs.variable.clearDates}
+          </button>
+        )}
 
         <div className="flex items-center gap-xs overflow-x-auto pb-xs no-scrollbar">
           {categories.map((cat) => (

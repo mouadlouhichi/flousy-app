@@ -575,7 +575,16 @@
       "left": "{amount} left",
       "editBudget": "Edit {category} budget",
       "saveBudget": "Save {category} budget",
-      "cancelBudgetEdit": "Cancel budget edit"
+      "cancelBudgetEdit": "Cancel budget edit",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "sortAmountHigh": "Amount: high to low",
+      "sortAmountLow": "Amount: low to high",
+      "sortName": "Name A–Z",
+      "clearDates": "Clear dates"
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
