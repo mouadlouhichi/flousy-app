@@ -32,7 +32,7 @@ export function ProfileScreen() {
   const { currency } = useCurrency();
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
-  const { month, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
+  const { month, isPro, openIncomeModal, openProModal } = useDashboard();
   const { workspace } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
   const { places } = useMoneyPlaces(month);
@@ -98,12 +98,6 @@ export function ProfileScreen() {
           icon: 'payments',
           title: p.pro.manageIncomeSources,
           hint: p.pro.features.incomeSources.description,
-        },
-        {
-          onClick: proUnlocked ? openCsvModal : openProModal,
-          icon: 'upload_file',
-          title: p.pro.importExportCsv,
-          hint: p.pro.features.csv.description,
         },
         {
           href: '/dashboard/profile/household',

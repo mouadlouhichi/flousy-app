@@ -119,20 +119,24 @@ export function useBarcodeScanner({
     setTorchAvailable(capabilities.torch === true);
   }, [getVideoTrack]);
 
-  const toggleTorch = useCallback(async () => {
+  const setTorch = useCallback(async (on: boolean) => {
     const track = getVideoTrack();
-    if (!track) return;
-    const next = !torchOnRef.current;
+    if (!track) return false;
     try {
       await track.applyConstraints({
-        advanced: [{ torch: next } as unknown as MediaTrackConstraintSet],
+        advanced: [{ torch: on } as unknown as MediaTrackConstraintSet],
       });
-      torchOnRef.current = next;
-      setTorchOn(next);
+      torchOnRef.current = on;
+      setTorchOn(on);
+      return true;
     } catch {
-      /* torch unsupported on this device — ignore */
+      return false;
     }
   }, [getVideoTrack]);
+
+  const toggleTorch = useCallback(async () => {
+    await setTorch(!torchOnRef.current);
+  }, [setTorch]);
 
   const setZoom = useCallback((next: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 10) / 10));
