@@ -66,8 +66,9 @@ export function VariableTab({
         exp.type.toLowerCase().includes(search.toLowerCase()) ||
         (exp.note && exp.note.toLowerCase().includes(search.toLowerCase()));
       const day = expenseDay(exp.date);
+      const rangeEnd = dateTo || dateFrom;
       const matchesFrom = !dateFrom || day >= dateFrom;
-      const matchesTo = !dateTo || day <= dateTo;
+      const matchesTo = !rangeEnd || day <= rangeEnd;
       return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
     })
     .sort((a, b) => {
