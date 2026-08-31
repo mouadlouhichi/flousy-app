@@ -23,7 +23,7 @@ export default function DashboardLayout() {
               tabBar={(props) => <FloatingTabBar {...props} />}
               screenOptions={{
                 headerShown: false,
-                sceneStyle: { backgroundColor: '#F5FAF8', paddingBottom: 108 },
+                sceneStyle: { backgroundColor: '#F5FAF8', paddingBottom: 132 },
               }}
             >
               <Tabs.Screen name="index" options={{ title: t('tabs.overview', 'Overview') }} />

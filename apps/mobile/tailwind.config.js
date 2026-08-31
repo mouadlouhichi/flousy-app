@@ -4,6 +4,10 @@ const plugin = require("tailwindcss/plugin");
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
+  corePlugins: {
+    // Prevent font-extrabold from applying fontWeight 800 on a 700 TTF (Android fake-bold).
+    fontWeight: false,
+  },
   theme: {
     extend: {
       fontFamily: {

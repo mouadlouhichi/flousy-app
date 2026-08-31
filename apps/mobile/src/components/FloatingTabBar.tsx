@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Home, Receipt, ShoppingCart, PiggyBank, Landmark } from 'lucide-react-native';
 import { navCompact, NAV_COMPACT_SPRING } from '../lib/nav-compact';
+import { tabBarBottom } from '../lib/chrome';
 
 type FloatingTabBarProps = {
   state: { index: number; routes: { key: string; name: string }[] };
@@ -69,7 +70,7 @@ export function FloatingTabBar({ state, navigation }: FloatingTabBarProps) {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: Math.max(insets.bottom, 8) + 8,
+        bottom: tabBarBottom(insets.bottom),
         alignItems: 'center',
       }}
     >

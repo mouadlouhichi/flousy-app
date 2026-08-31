@@ -7,10 +7,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import { MobileAuthProvider } from '../lib/auth-context';
 import { configureGoogleSignIn } from '../lib/firebase';
-import { FONT, useAppFonts } from '../lib/fonts';
+import { FONT, installFontPatch, useAppFonts } from '../lib/fonts';
 import '../lib/i18n';
 import '../global.css';
 
+installFontPatch();
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 try {

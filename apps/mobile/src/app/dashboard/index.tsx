@@ -203,9 +203,9 @@ export default function DashboardOverviewScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-[13px] font-semibold text-neutral-800">{place.name}</Text>
-                <Text className="text-[18px] font-extrabold text-neutral-900">
+                <Text className="text-[18px] font-bold text-neutral-900" style={{ lineHeight: 26 }}>
                   {formatMoney(balance)}{' '}
-                  <Text className="text-xs font-bold text-neutral-400">{currency}</Text>
+                  <Text className="text-xs font-semibold text-neutral-400">{currency}</Text>
                 </Text>
               </View>
               <View className="flex-row items-center py-2 pl-3">
@@ -263,18 +263,18 @@ export default function DashboardOverviewScreen() {
           <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
             Total monthly budget
           </Text>
-          <Text className="mt-1 text-[28px] leading-9 font-extrabold text-neutral-900">
+          <Text className="mt-1 text-[28px] font-bold text-neutral-900" style={{ lineHeight: 36 }}>
             {formatMoney(month.totalBudget)}
-            <Text className="text-sm font-bold text-neutral-400"> {currency}</Text>
+            <Text className="text-sm font-semibold text-neutral-400"> {currency}</Text>
           </Text>
           <View className="mt-4 flex-row items-center">
             <View className="min-w-0 flex-1 pr-3">
               <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
                 Total cash on hand
               </Text>
-              <Text className="mt-1 text-[22px] leading-8 font-extrabold text-neutral-900" numberOfLines={1}>
+              <Text className="mt-1 text-[22px] font-bold text-neutral-900" style={{ lineHeight: 30 }} numberOfLines={1}>
                 {formatMoney(totalCash)}
-                <Text className="text-sm font-bold text-neutral-400"> {currency}</Text>
+                <Text className="text-sm font-semibold text-neutral-400"> {currency}</Text>
               </Text>
             </View>
             <Pressable
