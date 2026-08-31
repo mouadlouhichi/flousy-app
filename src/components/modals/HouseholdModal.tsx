@@ -48,6 +48,8 @@ export function HouseholdModal({
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lastInviteCode, setLastInviteCode] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);

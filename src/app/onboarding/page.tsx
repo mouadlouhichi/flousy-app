@@ -1118,25 +1118,3 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
     </div>
   );
 }
-g-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                <span>{isCompleting ? m.onboarding.finishingSetup : m.onboarding.confirmAndFinish}</span>
-                {!isCompleting && (
-                  <AppIcon name="check_circle" className=" text-[20px]" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                disabled={isCompleting}
-                className="text-primary font-bold text-[14px] hover:underline text-center py-1 cursor-pointer"
-              >
-                {m.onboarding.editAllocation}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

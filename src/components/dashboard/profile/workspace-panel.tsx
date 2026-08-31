@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { HouseholdModal } from '@/components/modals/HouseholdModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
 import { HouseholdInvoiceReview } from '../household-invoice-review';
 import { useLanguage } from '@/lib/i18n-context';
@@ -27,6 +28,7 @@ export function WorkspacePanel() {
   const [householdName, setHouseholdName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
   useEffect(() => { if (inviteCode) setHouseholdOpen(true); }, [inviteCode]);
 
   const hasHousehold = Boolean(profile?.activeHouseholdId || household?.id);
