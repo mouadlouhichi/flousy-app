@@ -34,7 +34,7 @@ export function HouseholdInviteNotifications() {
           {pendingInvites.map((invite) => (
             <Link
               key={invite.id}
-              href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`}
+              href={`/dashboard/profile/household?invite=${encodeURIComponent(invite.id)}`}
               onClick={() => setOpen(false)}
               className="block rounded-xl p-3 hover:bg-surface-container"
             >

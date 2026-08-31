@@ -1642,7 +1642,9 @@
       "proDescription": "ميزات الخطة ومصادر الدخل والتحليلات.",
       "workspaceTitle": "مساحة العمل",
       "workspaceDescription": "بدّل بين لوحتك الشخصية ولوحة الأسرة.",
-      "backToProfile": "العودة إلى الملف الشخصي"
+      "backToProfile": "العودة إلى الملف الشخصي",
+      "householdTitle": "إدارة المنزل",
+      "householdDescription": "الأعضاء والدعوات والوصول المشترك."
     },
     "account": {
       "privacy": "الخصوصية",

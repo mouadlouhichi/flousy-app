@@ -122,7 +122,7 @@ function OnboardingFlow() {
 
   const [isCompleting, setIsCompleting] = useState(false);
   const [incomeError, setIncomeError] = useState('');
-  const [importPersonal, setImportPersonal] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Clean numeric string parsing for income (handles comma/formatting)
   const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
@@ -228,6 +228,49 @@ function OnboardingFlow() {
     setShowAddCustom(false);
   };
 
+  const goDashboard = () => {
+    try {
+      router.push('/dashboard');
+    } catch {
+      window.location.href = '/dashboard';
+    }
+  };
+
+  const handleImportPersonal = async () => {
+    if (isImporting || isCompleting || !isHouseholdScope) return;
+    setIsImporting(true);
+    const today = new Date();
+    const monthKey = getCurrentMonthKey(monthStartDate, today);
+    try {
+      if (householdId) {
+        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        const personalRaw = localStorage.getItem(`flousy_month_${monthKey}`);
+        if (personalRaw) {
+          localStorage.setItem(`flousy_household_${householdId}_month_${monthKey}`, personalRaw);
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (user && householdId) {
+      try {
+        await importPersonalBudgetIntoHousehold(user.uid, householdId);
+        const personal = await getMonthBudget(user.uid, monthKey);
+        if (!personal) {
+          try {
+            const local = localStorage.getItem(`flousy_month_${monthKey}`);
+            if (local) {
+              await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
+            }
+          } catch { /* ignore */ }
+        }
+        await markHouseholdOnboarded();
+      } catch (e) {
+        console.warn('Personal import skipped or failed:', e);
+      }
+    }
+    goDashboard();
+  };
+
   const handleCompleteOnboarding = async () => {
     if (isCompleting) return;
     setIsCompleting(true);
@@ -245,18 +288,9 @@ function OnboardingFlow() {
       selectedStrategy === 'custom' ? customRatios : undefined,
     );
 
-    const shouldImport = isHouseholdScope && importPersonal && !!user && !!householdId;
-
-    // Save in localStorage immediately
     try {
       if (isHouseholdScope && householdId) {
         localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
-        if (shouldImport) {
-          const personalRaw = localStorage.getItem(`flousy_month_${monthKey}`);
-          if (personalRaw) {
-            localStorage.setItem(`flousy_household_${householdId}_month_${monthKey}`, personalRaw);
-          }
-        }
       } else {
         localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
         localStorage.setItem('flousy_onboarding_done', 'true');
@@ -268,28 +302,14 @@ function OnboardingFlow() {
 
     if (user) {
       try {
-        const timeoutMs = shouldImport ? 8000 : 2000;
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Firebase timeout')), timeoutMs)
+          setTimeout(() => reject(new Error('Firebase timeout')), 2000)
         );
         const dbPromise = isHouseholdScope && householdId
-          ? (async () => {
-              if (shouldImport) {
-                await importPersonalBudgetIntoHousehold(user.uid, householdId);
-                const personal = await getMonthBudget(user.uid, monthKey);
-                if (!personal) {
-                  try {
-                    const local = localStorage.getItem(`flousy_month_${monthKey}`);
-                    if (local) {
-                      await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
-                    }
-                  } catch { /* ignore */ }
-                }
-              } else {
-                await saveHouseholdMonthBudget(householdId, monthKey, newMonth);
-              }
-              await markHouseholdOnboarded();
-            })()
+          ? Promise.all([
+              saveHouseholdMonthBudget(householdId, monthKey, newMonth),
+              markHouseholdOnboarded(),
+            ])
           : Promise.all([
               saveMonthBudget(user.uid, monthKey, newMonth),
               updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
@@ -460,18 +480,20 @@ function OnboardingFlow() {
             </div>
 
             {isHouseholdScope && (
-              <label className="flex items-start gap-3 bg-background p-4 rounded-[20px] border border-outline-variant cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 accent-primary"
-                  checked={importPersonal}
-                  onChange={(e) => setImportPersonal(e.target.checked)}
-                />
+              <button
+                type="button"
+                disabled={isImporting}
+                onClick={() => void handleImportPersonal()}
+                className="flex items-start gap-3 bg-background p-4 rounded-[20px] border border-outline-variant text-start disabled:opacity-50"
+              >
+                <AppIcon name="file_copy" className="mt-0.5 text-[20px] text-primary shrink-0" />
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[14px] font-bold text-on-surface">{m.onboarding.importPersonalTitle}</span>
+                  <span className="text-[14px] font-bold text-on-surface">
+                    {isImporting ? m.onboarding.finishingSetup : m.onboarding.importPersonalTitle}
+                  </span>
                   <span className="text-[12px] font-medium text-on-surface-variant">{m.onboarding.importPersonalHint}</span>
                 </span>
-              </label>
+              </button>
             )}
 
             <button

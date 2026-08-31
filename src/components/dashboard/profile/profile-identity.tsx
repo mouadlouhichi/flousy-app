@@ -169,9 +169,22 @@ export function ProfileIdentity() {
             </div>
           ) : (
             <>
-              <h2 className="truncate text-2xl font-extrabold leading-tight tracking-tight text-on-surface">
-                {resolvedName}
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="min-w-0 truncate text-2xl font-extrabold leading-tight tracking-tight text-on-surface">
+                  {resolvedName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingName(true);
+                    setDisplayName(profile?.displayName || '');
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
+                >
+                  <AppIcon name="edit" className="text-[14px]" />
+                  {p.editName}
+                </button>
+              </div>
               {user?.email && (
                 <p title={user.email} className="mt-1 truncate text-sm text-on-surface-variant">
                   {user.email}
@@ -198,17 +211,6 @@ export function ProfileIdentity() {
                   {workspace === 'household' && memberRole ? ` · ${localizeHouseholdRole(memberRole, m)}` : ''}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditingName(true);
-                  setDisplayName(profile?.displayName || '');
-                }}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3.5 py-2 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant/70"
-              >
-                <AppIcon name="edit" className="text-[14px]" />
-                {p.editName}
-              </button>
             </>
           )}
         </div>

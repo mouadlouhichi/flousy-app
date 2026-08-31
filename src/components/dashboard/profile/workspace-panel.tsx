@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
-import { HouseholdModal } from '@/components/modals/HouseholdModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
 import { HouseholdInvoiceReview } from '../household-invoice-review';
@@ -15,21 +15,17 @@ import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
 
 export function WorkspacePanel() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const inviteCode = searchParams.get('invite') || undefined;
   const { profile } = useAuth();
-  const { month, openProModal } = useDashboard();
+  const { openProModal } = useDashboard();
   const { household, workspace, selectWorkspace, memberRole, isOwner, create, removeHouseholdWorkspace } = useHousehold();
   const { messages: m, t, isRTL } = useLanguage();
   const p = m.profile.workspace;
   const isPro = isProUser(profile);
-  const [householdOpen, setHouseholdOpen] = useState(false);
   const [householdName, setHouseholdName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
-  useEffect(() => { if (inviteCode) setHouseholdOpen(true); }, [inviteCode]);
 
   const hasHousehold = Boolean(profile?.activeHouseholdId || household?.id);
 
@@ -139,9 +135,9 @@ export function WorkspacePanel() {
       <ContributorInvoiceForm />
       <HouseholdInvoiceReview />
 
-      <button
-        type="button"
-        onClick={() => setHouseholdOpen(true)}
+      <Link
+        href="/dashboard/profile/household"
+        prefetch={true}
         className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
       >
         <span className="flex items-center gap-3">
@@ -149,21 +145,13 @@ export function WorkspacePanel() {
           <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
         </span>
         <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-      </button>
+      </Link>
 
       {notice && (
         <p role="status" className="rounded-xl bg-surface-container p-3 text-sm text-on-surface">
           {notice}
         </p>
       )}
-
-      <HouseholdModal
-        isOpen={householdOpen}
-        onClose={() => setHouseholdOpen(false)}
-        onOpenPro={openProModal}
-        month={month}
-        initialInviteCode={inviteCode}
-      />
 
       <ConfirmDialog
         isOpen={confirmRemove}

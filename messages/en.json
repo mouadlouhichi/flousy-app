@@ -1642,7 +1642,9 @@
       "proDescription": "Plan features, income sources and analytics.",
       "workspaceTitle": "Workspace",
       "workspaceDescription": "Switch between your personal dashboard and household.",
-      "backToProfile": "Back to profile"
+      "backToProfile": "Back to profile",
+      "householdTitle": "Manage household",
+      "householdDescription": "Members, invitations, and shared access."
     },
     "account": {
       "privacy": "Privacy",

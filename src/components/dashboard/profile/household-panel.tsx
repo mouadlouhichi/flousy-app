@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Modal } from '../ui/Modal';
-import { AppIcon } from '../ui/app-icon';
-import { CustomSelect } from '../ui/CustomSelect';
+import { useEffect, useState } from 'react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { isProUser } from '@/lib/pro-features';
@@ -15,22 +13,18 @@ import { HOUSEHOLD_AREAS, type AccessLevel, type HouseholdPermissions } from '@/
 
 type InviteRole = 'editor' | 'viewer' | 'custom';
 
-interface HouseholdModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface HouseholdPanelProps {
   onOpenPro?: () => void;
   month?: MonthBudget;
   initialInviteCode?: string;
 }
 
-/** Controls household setup, invitations, access and shared contribution visibility. */
-export function HouseholdModal({
-  isOpen,
-  onClose,
+/** Household setup, invitations, access and shared contribution visibility. */
+export function HouseholdPanel({
   onOpenPro,
   month,
   initialInviteCode,
-}: HouseholdModalProps) {
+}: HouseholdPanelProps) {
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { messages: m, t, language } = useLanguage();
@@ -50,6 +44,10 @@ export function HouseholdModal({
   const [busy, setBusy] = useState(false);
   const [lastInviteCode, setLastInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (initialInviteCode) setCode(initialInviteCode);
+  }, [initialInviteCode]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -98,7 +96,6 @@ export function HouseholdModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={h.title} className="max-w-lg">
       <div className="space-y-5">
         {!household ? (
           <>
@@ -369,6 +366,5 @@ export function HouseholdModal({
           </p>
         )}
       </div>
-    </Modal>
   );
 }

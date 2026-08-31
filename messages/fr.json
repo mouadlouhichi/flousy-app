@@ -1642,7 +1642,9 @@
       "proDescription": "Fonctionnalités du forfait, sources de revenus et analyses.",
       "workspaceTitle": "Espace de travail",
       "workspaceDescription": "Basculez entre votre tableau personnel et votre foyer.",
-      "backToProfile": "Retour au profil"
+      "backToProfile": "Retour au profil",
+      "householdTitle": "Gérer le foyer",
+      "householdDescription": "Membres, invitations et accès partagé."
     },
     "account": {
       "privacy": "Confidentialité",

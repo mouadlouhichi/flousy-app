@@ -22,7 +22,7 @@ export function ProfileScreen() {
   const inviteCode = searchParams.get('invite');
   useEffect(() => {
     if (inviteCode) {
-      router.replace(`/dashboard/profile/workspace?invite=${encodeURIComponent(inviteCode)}`);
+      router.replace(`/dashboard/profile/household?invite=${encodeURIComponent(inviteCode)}`);
     }
   }, [inviteCode, router]);
 
