@@ -379,19 +379,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setMonth(data);
           persist(data);
         } else {
-          // A new household starts from the owner's current personal month so
-          // creating collaboration does not make their visible balance vanish.
-          const personal = user && canEdit ? await getMonthBudget(user.uid, currentMonthKey) : null;
-          if (personal && personal.totalBudget > 0) {
-            const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
-            setMonth(initialSharedMonth);
-            persist(initialSharedMonth);
-            saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
-          } else {
-            const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, await getPreviousMonth(currentMonthKey));
-            setMonth(fresh);
-            persist(fresh);
-          }
+          const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile);
+          setMonth(fresh);
+          persist(fresh);
         }
         setLoading(false);
       });

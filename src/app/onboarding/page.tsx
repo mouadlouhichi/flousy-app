@@ -246,8 +246,12 @@ function OnboardingFlow() {
 
     // Save in localStorage immediately
     try {
-      localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
-      localStorage.setItem('flousy_onboarding_done', 'true');
+      if (isHouseholdScope && householdId) {
+        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+      } else {
+        localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
+        localStorage.setItem('flousy_onboarding_done', 'true');
+      }
       localStorage.setItem('flousy_currency', currency);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
@@ -259,12 +263,15 @@ function OnboardingFlow() {
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Firebase timeout')), 2000)
         );
-        // updateProfileData also flips the in-context profile so route guards
-        // immediately treat onboarding as complete.
-        const dbPromise = Promise.all([
-          saveMonthBudget(user.uid, monthKey, newMonth),
-          updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
-        ]);
+        const dbPromise = isHouseholdScope && householdId
+          ? Promise.all([
+              saveHouseholdMonthBudget(householdId, monthKey, newMonth),
+              markHouseholdOnboarded(),
+            ])
+          : Promise.all([
+              saveMonthBudget(user.uid, monthKey, newMonth),
+              updateProfileData({ currency, onboardingComplete: true, monthStartDate }),
+            ]);
         await Promise.race([dbPromise, timeoutPromise]);
       } catch (e) {
         console.warn('Firebase save skipped or timed out:', e);

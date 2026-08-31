@@ -438,13 +438,25 @@ import type { Household, HouseholdInvite, HouseholdMember } from './household';
 
 export function subscribeHousehold(householdId: string | undefined, onData: (household: Household | null) => void) {
   if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId), (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null));
+  return onSnapshot(
+    doc(db, 'households', householdId),
+    (snap) => onData(snap.exists() ? { id: snap.id, ...snap.data() } as Household : null),
+    (err) => {
+      console.error('Error listening to household:', err);
+      onData(null);
+    },
+  );
 }
 
 export function subscribeHouseholdMembers(householdId: string | undefined, onData: (members: HouseholdMember[]) => void) {
   if (!householdId || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
-  return onSnapshot(collection(db, 'households', householdId, 'members'), (snap) =>
-    onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember)))
+  return onSnapshot(
+    collection(db, 'households', householdId, 'members'),
+    (snap) => onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember))),
+    (err) => {
+      console.error('Error listening to household members:', err);
+      onData([]);
+    },
   );
 }
 
@@ -519,7 +531,14 @@ export async function acceptHouseholdInvite(invite: HouseholdInvite, userId: str
 
 export function subscribeHouseholdMonthBudget(householdId: string, monthKey: string, onData: (month: MonthBudget | null) => void) {
   if (!isFirebaseConfigured || !db) { onData(null); return () => {}; }
-  return onSnapshot(doc(db, 'households', householdId, 'months', monthKey), (snap) => onData(snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null));
+  return onSnapshot(
+    doc(db, 'households', householdId, 'months', monthKey),
+    (snap) => onData(snap.exists() ? normalizeMonth(snap.data() as MonthBudget, monthKey) : null),
+    (err) => {
+      console.error('Error listening to household month:', err);
+      onData(null);
+    },
+  );
 }
 export async function saveHouseholdMonthBudget(householdId: string, monthKey: string, month: MonthBudget) {
   if (!isFirebaseConfigured || !db) return;
@@ -565,5 +584,12 @@ export async function saveHouseholdInvoice(householdId: string, invoice: Househo
 export function subscribePendingHouseholdInvites(email: string | null | undefined, onData: (invites: HouseholdInvite[]) => void) {
   if (!email || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
   const invites = query(collection(db, 'householdInvites'), where('email', '==', email.toLowerCase()), where('status', '==', 'pending'));
-  return onSnapshot(invites, (snap) => onData(snap.docs.map(item => ({ id: item.id, ...item.data() } as HouseholdInvite))));
+  return onSnapshot(
+    invites,
+    (snap) => onData(snap.docs.map(item => ({ id: item.id, ...item.data() } as HouseholdInvite))),
+    (err) => {
+      console.error('Error listening to household invites:', err);
+      onData([]);
+    },
+  );
 }
