@@ -100,8 +100,11 @@ export function useCourseSession(uid: string | null | undefined) {
       subscribeActiveCourseSession(uid, (session) => {
         if (cancelled) return;
         setSessions((prev) => {
-          const rest = prev.filter((s) => s.id !== session!.id);
-          return session ? [session, ...rest] : rest;
+          // Firestore sends null when there is no active session. Do not
+          // dereference it while removing a previously active local copy.
+          if (!session) return prev.filter((s) => s.status !== 'active');
+          const rest = prev.filter((s) => s && s.id !== session.id);
+          return [session, ...rest];
         });
         setLoaded(true);
       }),
