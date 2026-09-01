@@ -154,7 +154,7 @@ export function VariableTab({
           type="button"
           onClick={() => setBudgetsOpen((open) => !open)}
           aria-expanded={budgetsOpen}
-          className="flex w-full items-center gap-3 px-lg py-3.5 text-start"
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-start"
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <AppIcon name="sliders-horizontal" className="text-[22px]" />
@@ -193,7 +193,7 @@ export function VariableTab({
           />
         </button>
         
-        {budgetsOpen && <div className="mt-md flex flex-col gap-md px-lg pb-lg">
+        {budgetsOpen && <div className="mt-md flex flex-col gap-md px-4 pb-4">
           {(month.activeCategories || []).map((category) => {
             const budget = month.categoryBudgets?.[category] || 0;
             const spent = calculateCategorySpent(month, category);
