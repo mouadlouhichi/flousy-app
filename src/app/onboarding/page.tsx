@@ -415,7 +415,7 @@ function OnboardingFlow() {
                 onClick={() => void handleImportPersonal()}
                 className="flex items-start gap-3 bg-primary/8 p-4 rounded-[20px] border-2 border-primary text-start"
               >
-                <AppIcon name="file_copy" className="mt-0.5 text-[22px] text-primary shrink-0" />
+                <AppIcon name="cloud_download" className="mt-0.5 text-[22px] text-primary shrink-0" />
                 <span className="flex flex-col gap-0.5">
                   <span className="text-[15px] font-extrabold text-on-surface">
                     {m.onboarding.importPersonalTitle}

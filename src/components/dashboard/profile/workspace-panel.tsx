@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
@@ -86,18 +87,28 @@ export function WorkspacePanel() {
                 <span className="block font-bold">{household?.name || p.householdDashboard}</span>
                 <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
               </button>
-              <div className="mt-3 flex items-center justify-between border-t border-outline-variant/70 pt-2">
-                <Link href="/dashboard/profile/household" prefetch={true} className="text-xs font-bold text-primary hover:underline">
-                  {p.manageHousehold}
-                </Link>
-                <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} className="text-xs font-bold text-error hover:underline disabled:opacity-50">
-                  {isOwner ? p.removeHousehold : p.leaveHousehold}
-                </button>
-              </div>
+              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} className="mt-3 flex items-center gap-2 border-t border-outline-variant/70 pt-2 text-xs font-bold text-error hover:underline disabled:opacity-50">
+                <AppIcon name="delete" className="text-[16px]" />
+                {isOwner ? p.removeHousehold : p.leaveHousehold}
+              </button>
             </div>
           )}
         </div>
       </section>
+
+      {hasHousehold && (
+        <Link
+          href="/dashboard/profile/household"
+          prefetch={true}
+          className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
+        >
+          <span className="flex items-center gap-3">
+            <AppIcon name="family_restroom" className="text-[20px] text-primary" />
+            <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
+          </span>
+          <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+        </Link>
+      )}
 
       {!hasHousehold && (
         <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
