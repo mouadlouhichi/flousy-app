@@ -4,6 +4,7 @@ import en from '../../../../messages/en.json';
 import fr from '../../../../messages/fr.json';
 import ar from '../../../../messages/ar.json';
 import { formatMessage, type Language, type Messages } from '@/lib/i18n-core';
+import { verifyFirebaseIdToken, type TokenRejection } from '@/lib/firebase-id-token';
 
 export const runtime = 'nodejs';
 
@@ -60,36 +61,38 @@ function rateLimited(uid: string): boolean {
   return hits.length > MAX_SENDS_PER_WINDOW;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Caller verification                                                         */
-/* -------------------------------------------------------------------------- */
+/**
+ * Who is calling, established cryptographically rather than by trust.
+ *
+ * `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is required because it is what pins the
+ * token's issuer and audience to *this* project: without it, a valid ID token
+ * from any other Firebase project would verify. It is a public value (the
+ * browser bundle contains it), so reading it server-side is not a secret
+ * dependency — unlike the previous implementation, which needed the API key
+ * merely to ask Identity Toolkit who the caller was, and therefore answered
+ * `401 unauthorized` to logged-in users whenever that variable was absent from
+ * the function's environment. A missing project id is now reported as
+ * `auth_not_configured` (503) so a deployment mistake does not look like a
+ * broken account.
+ */
+/** A verified caller, or why the token was refused. */
+type Caller = { uid: string; email?: string };
+type CallerIdentity = Caller | { reason: TokenRejection | 'auth_not_configured' };
 
-interface Caller {
-  uid: string;
-  email?: string;
+function isCaller(value: CallerIdentity): value is Caller {
+  return typeof (value as Caller).uid === 'string';
 }
 
-/**
- * Verify the bearer ID token with the Identity Toolkit, without pulling
- * `firebase-admin` (and its service-account key) into a route that only needs to
- * know who is calling. The lookup also reflects revocation, which a pure JWT
- * signature check would not.
- */
-async function verifyIdToken(token: string): Promise<Caller | null> {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!apiKey) return null;
-  try {
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?idToken=${encodeURIComponent(token)}`,
-      { headers: { 'Content-Type': 'application/json' }, cache: 'no-store' },
-    );
-    if (!response.ok) return null;
-    const body = (await response.json()) as { users?: Array<{ localId: string; email?: string }> };
-    const user = body.users?.[0];
-    return user ? { uid: user.localId, email: user.email } : null;
-  } catch {
-    return null;
-  }
+async function identifyCaller(token: string): Promise<CallerIdentity> {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (!projectId) return { reason: 'auth_not_configured' };
+  const result = await verifyFirebaseIdToken(token, {
+    projectId,
+    // Optional refinement only; the route works without it.
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  });
+  if ('uid' in result) return { uid: result.uid, email: result.email };
+  return { reason: result.reason };
 }
 
 /** Firestore document fields, decoded from the REST representation. */
@@ -238,10 +241,28 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
-  const caller = await verifyIdToken(token);
-  if (!caller) {
+  const caller = await identifyCaller(token);
+  if (!isCaller(caller)) {
+    const reason = caller.reason;
+    if (reason === 'auth_not_configured') {
+      return NextResponse.json(
+        {
+          error: 'This deployment cannot verify who is calling.',
+          code: 'auth_not_configured',
+          hint: 'Set NEXT_PUBLIC_FIREBASE_PROJECT_ID for this Vercel environment and redeploy.',
+        },
+        { status: 503 },
+      );
+    }
+    const expired = reason === 'expired' || reason === 'revoked' || reason === 'not_yet_valid';
     return NextResponse.json(
-      { error: 'Your session has expired. Sign in again.', code: 'session_expired' },
+      {
+        error: expired
+          ? 'Your session has expired. Sign in again.'
+          : 'Your session could not be verified. Reload the page and try again.',
+        code: expired ? 'session_expired' : 'invalid_token',
+        reason,
+      },
       { status: 401 },
     );
   }

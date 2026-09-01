@@ -58,7 +58,13 @@ describe('server endpoint abuse limits', () => {
   const barcode = read('src/app/api/barcode/lookup/route.ts');
 
   it('requires a signed-in caller before mailing an invitation', () => {
-    assert.match(invitations, /accounts:lookup\?idToken=/);
+    // Verification is cryptographic, so it cannot fail because an environment
+    // variable is missing from the function (the previous `accounts:lookup`
+    // call had no `key=` and rejected every caller with 401).
+    assert.match(invitations, /verifyFirebaseIdToken/);
+    assert.match(invitations, /NEXT_PUBLIC_FIREBASE_PROJECT_ID/);
+    assert.match(invitations, /'auth_not_configured'/);
+    assert.doesNotMatch(invitations, /accounts:lookup\?idToken=/);
     assert.match(invitations, /status: 401/);
     assert.match(invitations, /Authorization: `Bearer \$\{token\}`/);
     // The recipient address must come from the stored invitation, never from the
@@ -86,6 +92,23 @@ describe('server endpoint abuse limits', () => {
     assert.match(invitations, /resolveAppBaseUrl\(\)/);
   });
 
+  it('verifies tokens by signature and project binding, not by trust', () => {
+    const verifier = read('src/lib/firebase-id-token.ts');
+    // `alg` must be read and rejected, never used to choose the mode.
+    assert.match(verifier, /header\.alg !== 'RS256'/);
+    assert.match(verifier, /bad_issuer/);
+    assert.match(verifier, /bad_audience/);
+    assert.match(verifier, /MAX_UID_LENGTH/);
+    // Revocation is the refinement, never the gate: an unreachable Identity
+    // Toolkit must not sign everyone out, and the lookup must be POST with the
+    // project key while the token stays in the body.
+    assert.match(verifier, /accounts:lookup\?key=/);
+    assert.match(verifier, /method: 'POST'/);
+    assert.match(verifier, /fail open on transport errors/);
+    assert.match(verifier, /if \(!options\.apiKey\)|apiKey\s*\)/);
+    assert.match(verifier, /reason: 'revoked'/);
+  });
+
   it('answers every failure with a stable code the UI can explain', () => {
     // A swallowed 503 previously looked like "mail sent, maybe"; the panel must
     // distinguish "provider unconfigured" from "your session expired".
@@ -101,6 +124,8 @@ describe('server endpoint abuse limits', () => {
     }
     const panel = read('src/components/dashboard/profile/household-panel.tsx');
     assert.match(panel, /invitationUnavailable/);
+    // A visitor with no session must not spend a request that can only 401.
+    assert.match(panel, /if \(email && !user\)/);
     assert.match(panel, /console\.warn\('\[household-invitations\] email not sent'/);
     // The invitation is created (and its code kept on screen) before the email is
     // attempted, so a mail failure never reads as the invite itself failing.

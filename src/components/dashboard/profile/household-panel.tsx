@@ -272,7 +272,14 @@ export function HouseholdPanel({
                         );
                         setLastInviteCode(inviteId);
                         setCopied(false);
-                        if (email) {
+                        if (email && !user) {
+                          // No Firebase session (demo mode, or a deployment whose
+                          // config failed to load) has no ID token to present, and
+                          // the endpoint refuses anonymous callers by design. Not
+                          // worth a doomed round-trip and a confusing "(401)": the
+                          // code below is the working path.
+                          setNotice(h.inviteCodeReady);
+                        } else if (email) {
                           // The endpoint mails from our own domain, so it only
                           // accepts a request that proves who is asking: without
                           // the ID token there is no sender identity to check the

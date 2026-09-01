@@ -246,6 +246,11 @@ vercel redeploy                          # env vars are baked into the build
 `GET /api/household-invitations` reports what this deployment can actually do
 without sending anything, so the state can be checked from a terminal:
 
+Caller identity is checked by verifying the ID token's RS256 signature against
+the certificates Firebase publishes (`src/lib/firebase-id-token.ts`), so the
+route needs **no** server-side secret to know who is calling — only sending mail
+needs `RESEND_API_KEY`.
+
 ```bash
 curl -s https://<deployment>/api/household-invitations
 # {"emailConfigured":false,"code":"email_not_configured","sandboxSender":true,"environment":"preview"}
