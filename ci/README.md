@@ -1,6 +1,6 @@
 # CI
 
-`github-actions-ci.yml` runs typecheck → lint → lint:strict → test → build on every
+`github-actions-ci.yml` runs typecheck → typecheck:strict → lint → test → build on every
 push and pull request, and deploys `firestore.rules` + `firestore.indexes.json` to
 the Firebase project on merges to `main`.
 

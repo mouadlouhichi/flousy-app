@@ -22,6 +22,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Typecheck (strict)
+        # `tsc --strict` catches a different class of error than the project's
+        # own config — notably unsound widening of union-typed arrays — and has
+        # failed on code that plain `typecheck` passed. It must run in CI too.
+        run: npm run typecheck:strict
+
       - name: Lint
         run: npm run lint
 
