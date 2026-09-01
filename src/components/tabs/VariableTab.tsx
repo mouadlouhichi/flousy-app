@@ -163,6 +163,9 @@ export function VariableTab({
             <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
               {m.tabs.variable.categoryBudgets}
             </span>
+            <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+              {m.tabs.variable.categoryBudgetsHint}
+            </span>
           </span>
           {canShowProUpgrade(isPro, workspace) && (
             <span
