@@ -5,7 +5,6 @@ module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   corePlugins: {
-    // Prevent font-extrabold from applying fontWeight 800 on a 700 TTF (Android fake-bold).
     fontWeight: false,
   },
   theme: {
@@ -13,12 +12,13 @@ module.exports = {
       fontFamily: {
         sans: ["InstrumentSans-400"],
         display: ["InstrumentSerif-400"],
+        mono: ["JetBrainsMono-400"],
         medium: ["InstrumentSans-500"],
         semibold: ["InstrumentSans-600"],
         bold: ["InstrumentSans-700"],
       },
       colors: {
-        primary: "#026462",
+        primary: "#00685f",
         needs: "#3b82f6",
         wants: "#f97316",
         savings: "#10b981",
@@ -26,7 +26,6 @@ module.exports = {
     },
   },
   plugins: [
-    // Android needs a dedicated TTF per weight — fontWeight alone stays on Regular.
     plugin(({ addUtilities }) => {
       addUtilities({
         ".font-normal": { fontFamily: "InstrumentSans-400", fontWeight: "400" },
@@ -35,7 +34,9 @@ module.exports = {
         ".font-bold": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
         ".font-extrabold": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
         ".font-black": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
-        ".font-display": { fontFamily: "InstrumentSerif-400", fontWeight: "400" },
+        ".font-display": { fontFamily: "InstrumentSans-700", fontWeight: "400" },
+        ".font-mono": { fontFamily: "JetBrainsMono-400", fontWeight: "400" },
+        ".font-sans": { fontFamily: "InstrumentSans-400", fontWeight: "400" },
       });
     }),
   ],

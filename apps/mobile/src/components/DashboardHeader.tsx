@@ -37,7 +37,7 @@ export function DashboardHeader() {
     <View className="flex-row items-center justify-between bg-[#F5FAF8] px-4 py-3">
       <View className="w-[108px] flex-row items-center gap-1.5">
         <AppLogo size={22} />
-        <Text className="text-[15px] font-bold tracking-tight" style={{ color: TEAL }}>
+        <Text className="text-base font-extrabold tracking-tight" style={{ color: TEAL }}>
           SmartJib
         </Text>
       </View>

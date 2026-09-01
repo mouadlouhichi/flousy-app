@@ -7,9 +7,11 @@ export const FONT = {
   semibold: 'InstrumentSans-600',
   bold: 'InstrumentSans-700',
   display: 'InstrumentSerif-400',
+  mono: 'JetBrainsMono-400',
+  monoMedium: 'JetBrainsMono-500',
+  monoBold: 'JetBrainsMono-700',
 } as const;
 
-/** Web dashboard uses Instrument Sans for body and wordmark (variable 400–700). */
 export function useAppFonts() {
   return useFonts({
     [FONT.regular]: require('../../assets/fonts/InstrumentSans_400Regular.ttf'),
@@ -17,15 +19,28 @@ export function useAppFonts() {
     [FONT.semibold]: require('../../assets/fonts/InstrumentSans_600SemiBold.ttf'),
     [FONT.bold]: require('../../assets/fonts/InstrumentSans_700Bold.ttf'),
     [FONT.display]: require('../../assets/fonts/InstrumentSerif_400Regular.ttf'),
+    [FONT.mono]: require('../../assets/fonts/JetBrainsMono_400Regular.ttf'),
+    [FONT.monoMedium]: require('../../assets/fonts/JetBrainsMono_500Medium.ttf'),
+    [FONT.monoBold]: require('../../assets/fonts/JetBrainsMono_700Bold.ttf'),
   });
+}
+
+function isMono(family?: string) {
+  return !!family && (family.includes('JetBrains') || family.includes('Mono'));
 }
 
 function familyForWeight(weight: unknown, current?: string) {
   if (current === FONT.display || String(current || '').includes('Serif')) return FONT.display;
   const w = String(weight ?? '');
+  const bold = w === '700' || w === 'bold' || w === '800' || w === '900';
+  if (isMono(current)) {
+    if (bold) return FONT.monoBold;
+    if (w === '500' || w === '600') return FONT.monoMedium;
+    return current && current.startsWith('JetBrains') ? current : FONT.mono;
+  }
   if (w === '500') return FONT.medium;
   if (w === '600') return FONT.semibold;
-  if (w === '700' || w === 'bold' || w === '800' || w === '900') return FONT.bold;
+  if (bold) return FONT.bold;
   if (current && String(current).startsWith('InstrumentSans')) return current;
   return FONT.regular;
 }
@@ -52,7 +67,6 @@ function patchForwardRef(Comp: { render?: (props: object, ref: unknown) => unkno
   };
 }
 
-/** Android synthesizes bold on top of *-700 TTFs (glyphs overlap / “hidden”). */
 export function installFontPatch() {
   patchForwardRef(Text as never);
   patchForwardRef(TextInput as never);

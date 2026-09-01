@@ -47,8 +47,9 @@ import { SavingsGoalModal } from '../../components/SavingsModal';
 import { EditBalancesModal } from '../../components/EditBalancesModal';
 import { formatMoney } from '../../lib/format-money';
 import { useQuickActionHandler } from '../../lib/quick-actions';
+import { FONT } from '../../lib/fonts';
 
-const TEAL = '#026462';
+const TEAL = '#00685f';
 const PLACE_STYLE: Record<string, { bg: string; accent: string; Icon: typeof Landmark }> = {
   bank: { bg: '#026462', accent: '#026462', Icon: Landmark },
   home: { bg: '#8B5A3C', accent: '#8B5A3C', Icon: Home },
@@ -196,23 +197,25 @@ export default function DashboardOverviewScreen() {
               hitSlop={4}
             >
               <View
-                className="mr-3 h-11 w-11 items-center justify-center rounded-2xl"
+                className="mr-3 h-10 w-10 items-center justify-center rounded-2xl"
                 style={{ backgroundColor: style.bg }}
               >
                 <Icon size={20} color="#fff" />
               </View>
               <View className="flex-1">
-                <Text className="text-[13px] font-semibold text-neutral-800">{place.name}</Text>
-                <Text className="text-[18px] font-bold text-neutral-900" style={{ lineHeight: 26 }}>
-                  {formatMoney(balance)}{' '}
-                  <Text className="text-xs font-semibold text-neutral-400">{currency}</Text>
-                </Text>
+                <Text className="text-base font-bold text-neutral-800">{place.name}</Text>
+                <View className="flex-row items-baseline">
+                  <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }}>
+                    {formatMoney(balance)}
+                  </Text>
+                  <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+                </View>
               </View>
               <View className="flex-row items-center py-2 pl-3">
-                <Text className="mr-1 text-sm font-bold" style={{ color: style.accent }}>
+                <Text className="mr-1 text-xs font-bold" style={{ color: style.accent }}>
                   Move
                 </Text>
-                <ArrowUpDown size={16} color={style.accent} />
+                <ArrowUpDown size={14} color={style.accent} />
               </View>
             </Pressable>
           );
@@ -220,16 +223,16 @@ export default function DashboardOverviewScreen() {
 
         <View className="mb-2.5 rounded-[22px] border border-neutral-100 bg-white p-4">
           <View className="mb-3 flex-row items-center justify-between">
-            <Text className="text-base font-extrabold text-neutral-900">Budget Plan</Text>
+            <Text className="text-base font-bold text-neutral-900">Budget Plan</Text>
             <Pressable
               onPress={() => setStrategyVisible(true)}
-              className="flex-row items-center rounded-full border border-neutral-200 bg-[#F5FAF8] px-2.5 py-1.5"
+              className="flex-row items-center rounded-full bg-neutral-100 px-3 py-1.5"
             >
-              <Box size={14} color={TEAL} />
-              <Text className="mx-1.5 text-[11px] font-extrabold uppercase text-neutral-700">
+              <Box size={12} color={TEAL} />
+              <Text className="mx-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-800">
                 {strategy.name}
               </Text>
-              <ChevronDown size={14} color="#6B7280" />
+              <ChevronDown size={12} color="#6B7280" />
             </Pressable>
           </View>
 
@@ -260,37 +263,41 @@ export default function DashboardOverviewScreen() {
         </View>
 
         <View className="mb-5 rounded-[22px] border border-neutral-100 bg-white p-4">
-          <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
-            Total monthly budget
+          <Text className="text-[11px] font-semibold uppercase tracking-[1.3px] text-neutral-500">
+            Total Monthly Budget
           </Text>
-          <Text className="mt-1 text-[28px] font-bold text-neutral-900" style={{ lineHeight: 36 }}>
-            {formatMoney(month.totalBudget)}
-            <Text className="text-sm font-semibold text-neutral-400"> {currency}</Text>
-          </Text>
+          <View className="mt-1.5 flex-row items-baseline">
+            <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }}>
+              {formatMoney(month.totalBudget)}
+            </Text>
+            <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+          </View>
           <View className="mt-4 flex-row items-center">
             <View className="min-w-0 flex-1 pr-3">
-              <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-400">
-                Total cash on hand
+              <Text className="text-[11px] font-semibold uppercase tracking-[1.3px] text-neutral-500">
+                Total Cash on Hand
               </Text>
-              <Text className="mt-1 text-[22px] font-bold text-neutral-900" style={{ lineHeight: 30 }} numberOfLines={1}>
-                {formatMoney(totalCash)}
-                <Text className="text-sm font-semibold text-neutral-400"> {currency}</Text>
-              </Text>
+              <View className="mt-1.5 flex-row items-baseline">
+                <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }} numberOfLines={1}>
+                  {formatMoney(totalCash)}
+                </Text>
+                <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+              </View>
             </View>
             <Pressable
               onPress={() => setBalancesVisible(true)}
-              className="h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E7F3F1]"
+              className="h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white"
             >
-              <Pencil size={16} color={TEAL} />
+              <Pencil size={14} color="#6B7280" />
             </Pressable>
           </View>
         </View>
 
         <View className="mb-2 flex-row items-center justify-between">
-          <Text className="text-base font-extrabold text-neutral-900">Recent Activity</Text>
+          <Text className="text-base font-bold text-neutral-900">Recent Activity</Text>
           <Pressable onPress={() => router.push('/dashboard/transactions')}>
-            <Text className="text-sm font-bold" style={{ color: TEAL }}>
-              View all
+            <Text className="text-xs font-bold" style={{ color: TEAL }}>
+              View All
             </Text>
           </Pressable>
         </View>
@@ -401,16 +408,20 @@ function EnvelopeRow({
       <View className="mb-1 flex-row items-center justify-between">
         <View className="flex-row items-center">
           <View className="mr-1.5 h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-          <Text className="text-[13px] font-semibold text-neutral-800">{label}</Text>
+          <Text className="text-xs font-bold text-neutral-800">{label}</Text>
         </View>
-        <Text className="text-[11px] font-semibold text-neutral-400">{used}</Text>
+        <Text className="text-[11px] font-semibold text-neutral-500">{used}</Text>
       </View>
-      <View className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
+      <View className="h-2.5 overflow-hidden rounded-full bg-primary/10">
         <View className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
       </View>
       <View className="mt-1 flex-row justify-between">
-        <Text className="text-[11px] text-neutral-400">{left}</Text>
-        <Text className="text-[11px] text-neutral-400">{right}</Text>
+        <Text className="text-[11px] font-medium font-mono text-neutral-500" style={{ fontFamily: FONT.mono }}>
+          {left}
+        </Text>
+        <Text className="text-[11px] font-medium font-mono text-neutral-500" style={{ fontFamily: FONT.mono }}>
+          {right}
+        </Text>
       </View>
     </View>
   );
