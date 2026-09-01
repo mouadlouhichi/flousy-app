@@ -741,6 +741,7 @@
     "logCta": "Ajouter comme dépense",
     "logHint": "Enregistre {amount} comme dépense variable dans {month}.",
     "logDone": "Total ajouté à votre budget.",
+    "priceFromLabel": "Prix lu depuis le code-barres de l’étiquette — vérifiez qu’il correspond à l’étiquette.",
     "notFound": "Produit introuvable — ajoutez-le manuellement avec le code.",
     "lookupFailed": "Impossible de joindre le catalogue produits — vérifiez votre connexion ou ajoutez-le manuellement.",
     "codeInvalid": "Ce code ne ressemble pas à un code-barres (8 ou 13 chiffres). Vous pouvez l'ajouter par nom.",

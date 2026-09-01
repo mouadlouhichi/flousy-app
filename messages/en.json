@@ -741,6 +741,7 @@
     "logCta": "Add as expense",
     "logHint": "Logs {amount} as a variable expense in {month}.",
     "logDone": "Total added to your budget.",
+    "priceFromLabel": "Price read from the label barcode — check it matches the sticker.",
     "notFound": "Product not found — add it manually with the code attached.",
     "lookupFailed": "Couldn't reach the product catalog — check your connection or add it manually.",
     "codeInvalid": "That code doesn't look like a barcode (8 or 13 digits). You can still add it by name.",

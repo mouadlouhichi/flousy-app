@@ -136,13 +136,15 @@ function CoursesScreenInner() {
   const clearNotice = () => setNotice(null);
 
   // ---- scan / manual code handling ---------------------------------------------
-  const openPending = (product: PendingProduct) => {
+  const openPending = (product: PendingProduct, prefilledPrice?: string) => {
     setPending(product);
     setPendingQty(1);
-    // Price is ALWAYS entered fresh: it varies from market to market, so we
+    // Price is normally entered fresh: it varies from market to market, so we
     // never prefill or suggest a value (the catalog's last price is recorded
-    // for future price history but intentionally not shown here).
-    setPendingPrice('');
+    // for future price history but intentionally not shown here). The single
+    // exception is an in-store variable-measure barcode, whose price is
+    // printed *inside* the code and is passed in as `prefilledPrice`.
+    setPendingPrice(prefilledPrice ?? '');
   };
 
   const handleCode = async (raw: string) => {
@@ -194,11 +196,20 @@ function CoursesScreenInner() {
           ma,
         });
       } else {
-        setNotice({
-          kind: 'warn',
-          text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
-        });
-        openPending({ barcode, name: '', source: 'manual', ma });
+        const embeddedPrice =
+          resolution.kind === 'not-found' ? resolution.embeddedPrice : undefined;
+        if (embeddedPrice != null) {
+          // In-store scale label: the name still has to be typed, but the
+          // amount is already printed in the barcode, so prefill it.
+          setNotice({ kind: 'info', text: c.priceFromLabel });
+          openPending({ barcode, name: '', source: 'manual', ma }, embeddedPrice.toFixed(2));
+        } else {
+          setNotice({
+            kind: 'warn',
+            text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
+          });
+          openPending({ barcode, name: '', source: 'manual', ma });
+        }
       }
     } finally {
       setResolving(false);
