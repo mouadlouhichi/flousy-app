@@ -76,7 +76,7 @@ export function ProfileScreen() {
       items: [
         {
           href: '/dashboard/profile/workspace',
-          icon: 'group',
+          icon: 'inventory_2',
           title: p.links.workspace,
           hint: p.hints.personalAndHousehold,
         },

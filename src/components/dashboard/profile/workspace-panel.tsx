@@ -19,7 +19,7 @@ export function WorkspacePanel() {
   const { profile } = useAuth();
   const { openProModal } = useDashboard();
   const { household, workspace, selectWorkspace, memberRole, isOwner, create, removeHouseholdWorkspace } = useHousehold();
-  const { messages: m, t, isRTL } = useLanguage();
+  const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
   const isPro = isProUser(profile);
   const [householdName, setHouseholdName] = useState('');
@@ -78,21 +78,30 @@ export function WorkspacePanel() {
             onClick={() => switchWorkspace('personal')}
             className={`rounded-xl border p-3 text-start ${workspace === 'personal' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}
           >
-            <span className="block font-bold">{p.mySmartJib}</span>
+            <span className="flex items-center gap-2 font-bold"><AppIcon name="person" className="text-[19px]" />{p.mySmartJib}</span>
             <span className="text-xs text-on-surface-variant">{p.personalDashboard}</span>
           </button>
           {hasHousehold && (
-            <button
-              type="button"
-              onClick={() => switchWorkspace('household')}
-              className={`rounded-xl border p-3 text-start ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}
-            >
-              <span className="block font-bold">{household?.name || p.householdDashboard}</span>
-              <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
-            </button>
+            <div className={`relative rounded-xl border p-3 ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}>
+              <button type="button" onClick={() => switchWorkspace('household')} className="w-full pe-10 text-start">
+                <span className="flex items-center gap-2 font-bold"><AppIcon name="inventory_2" className="text-[19px]" />{household?.name || p.householdDashboard}</span>
+                <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
+              </button>
+              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="absolute end-3 top-1/2 -translate-y-1/2 text-error hover:text-error/70 disabled:opacity-50">
+                <AppIcon name="delete" className="text-[22px]" />
+              </button>
+            </div>
           )}
         </div>
       </section>
+
+      <Link href="/dashboard/profile/household" prefetch={true} className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high">
+        <span className="flex items-center gap-3">
+          <AppIcon name="inventory_2" className="text-[20px] text-primary" />
+          <span className="text-sm font-bold text-on-surface">{hasHousehold ? p.manageHousehold : 'Add workspace'}</span>
+        </span>
+        <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+      </Link>
 
       {!hasHousehold && (
         <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
@@ -116,36 +125,8 @@ export function WorkspacePanel() {
         </section>
       )}
 
-      {hasHousehold && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setConfirmRemove(true)}
-          className="flex items-center justify-between rounded-2xl border border-error/30 bg-surface-container p-4 text-start transition-colors hover:bg-error/5 disabled:opacity-50"
-        >
-          <span className="flex items-center gap-3">
-            <AppIcon name="delete" className="text-[20px] text-error" />
-            <span className="text-sm font-bold text-error">
-              {isOwner ? p.removeHousehold : p.leaveHousehold}
-            </span>
-          </span>
-        </button>
-      )}
-
       <ContributorInvoiceForm />
       <HouseholdInvoiceReview />
-
-      <Link
-        href="/dashboard/profile/household"
-        prefetch={true}
-        className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-      >
-        <span className="flex items-center gap-3">
-          <AppIcon name="family_restroom" className="text-[20px] text-primary" />
-          <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
-        </span>
-        <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-      </Link>
 
       {notice && (
         <p role="status" className="rounded-xl bg-surface-container p-3 text-sm text-on-surface">

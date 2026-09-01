@@ -590,7 +590,8 @@
       "sortAmountHigh": "Montant : décroissant",
       "sortAmountLow": "Montant : croissant",
       "sortName": "Nom A–Z",
-      "clearDates": "Effacer les dates"
+      "clearDates": "Effacer les dates",
+      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie."
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",

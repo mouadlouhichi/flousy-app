@@ -254,6 +254,7 @@ const icons: Record<string, LucideIcon> = {
   shopping_bag: ShoppingBag,
   shopping_cart: ShoppingCart,
   sliders: SlidersHorizontal,
+  'sliders-horizontal': SlidersHorizontal,
   sort: ArrowDownUp,
   south: ArrowDown,
   sports_esports: Gamepad2,

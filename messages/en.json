@@ -590,7 +590,8 @@
       "sortAmountHigh": "Amount: high to low",
       "sortAmountLow": "Amount: low to high",
       "sortName": "Name A–Z",
-      "clearDates": "Clear dates"
+      "clearDates": "Clear dates",
+      "categoryBudgetsHint": "Set spending limits for each category."
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
