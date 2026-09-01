@@ -87,9 +87,8 @@ export function WorkspacePanel() {
                 <span className="block font-bold">{household?.name || p.householdDashboard}</span>
                 <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
               </button>
-              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} className="mt-3 flex items-center gap-2 border-t border-outline-variant/70 pt-2 text-xs font-bold text-error hover:underline disabled:opacity-50">
-                <AppIcon name="delete" className="text-[16px]" />
-                {isOwner ? p.removeHousehold : p.leaveHousehold}
+              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="mt-3 flex w-full justify-end border-t border-outline-variant/70 pt-2 text-error hover:text-error/70 disabled:opacity-50">
+                <AppIcon name="delete" className="text-[22px]" />
               </button>
             </div>
           )}
@@ -103,7 +102,7 @@ export function WorkspacePanel() {
           className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
         >
           <span className="flex items-center gap-3">
-            <AppIcon name="family_restroom" className="text-[20px] text-primary" />
+            <AppIcon name="inventory_2" className="text-[20px] text-primary" />
             <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
           </span>
           <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
