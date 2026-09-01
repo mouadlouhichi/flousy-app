@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AppIcon } from '@/components/ui/app-icon';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
@@ -31,12 +32,17 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, create, invite, acceptInvite, updateMember, canViewArea } =
+  const { household, members, isOwner, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
     useHousehold();
   // The roster, per-member contribution totals and the invite form are all
   // `members` data. Someone with an invitation code still has no membership
   // row (personal workspace), so the join form below stays reachable.
   const canSeeMembers = canViewArea(TOOL_AREA.household);
+  // Household management is a Pro feature. A free user in their personal
+  // workspace must not reach the create form, member roster or invitations just
+  // by opening this page — switching workspace leaves `activeHouseholdId` set,
+  // which is what used to keep the household document loaded here.
+  const canManageHousehold = isPro || workspace === 'household';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
@@ -100,6 +106,27 @@ export function HouseholdPanel({
     if (status === 'invited') return h.invited;
     return status;
   };
+
+  // An invitation link (?invite=CODE) is the one exception: that is how a
+  // member who is not Pro themselves joins somebody else's household.
+  if (!canManageHousehold && !initialInviteCode) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container p-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-variant text-on-surface-variant">
+          <AppIcon name="inventory_2" className="text-[22px]" />
+        </span>
+        <p className="text-sm font-bold text-on-surface">{h.title}</p>
+        <p className="max-w-sm text-xs text-on-surface-variant">{h.createDescription}</p>
+        <button
+          type="button"
+          onClick={onOpenPro}
+          className="mt-1 w-full max-w-xs rounded-xl bg-primary py-3 font-bold text-on-primary"
+        >
+          {h.unlockWithPro}
+        </button>
+      </div>
+    );
+  }
 
   return (
       <div className="space-y-5">

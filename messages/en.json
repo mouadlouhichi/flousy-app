@@ -1457,6 +1457,9 @@
     }
   },
   "navigation": {
+    "groupBudget": "Budget",
+    "groupTools": "Tools",
+    "groupAccount": "Account",
     "overview": "Overview",
     "dashboardOverview": "Dashboard Overview",
     "fixedBills": "Fixed Bills",
@@ -1635,6 +1638,7 @@
       "preferences": "Preferences",
       "moneySources": "Money sources",
       "workspace": "Workspace",
+      "household": "Household",
       "pro": "Pro",
       "data": "Data",
       "account": "Account"
@@ -1746,7 +1750,9 @@
     },
     "free": "Free",
     "avatarSaveError": "Unable to save this profile photo.",
-    "upgradeToPro": "Upgrade to Pro"
+    "upgradeToPro": "Upgrade to Pro",
+    "monthStartDatePersonalScope": "Personal",
+    "monthStartDateHouseholdScope": "Household"
   },
   "household": {
     "title": "Household collaboration",

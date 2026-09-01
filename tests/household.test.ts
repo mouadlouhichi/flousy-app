@@ -24,8 +24,43 @@ import {
   actorForMonth,
   canShowProUpgrade,
   isProFeatureUnlocked,
+  monthStartDateField,
+  monthStartDateFor,
   type HouseholdRole,
 } from '../src/lib/household';
+
+describe('Per-workspace month start date', () => {
+  it('maps each workspace to its own profile field', () => {
+    assert.strictEqual(monthStartDateField('personal'), 'monthStartDate');
+    assert.strictEqual(monthStartDateField('household'), 'householdMonthStartDate');
+    assert.strictEqual(monthStartDateField(undefined), 'monthStartDate');
+  });
+
+  it('reads a separate payday per workspace', () => {
+    const profile = { monthStartDate: 15, householdMonthStartDate: 2 };
+    assert.strictEqual(monthStartDateFor(profile, 'personal'), 15);
+    assert.strictEqual(monthStartDateFor(profile, 'household'), 2);
+  });
+
+  it('falls back to the personal payday while the household one is unset', () => {
+    const profile = { monthStartDate: 15, householdMonthStartDate: undefined };
+    assert.strictEqual(monthStartDateFor(profile, 'household'), 15);
+  });
+
+  it('never lets the household payday leak into the personal period', () => {
+    const profile = { monthStartDate: 15, householdMonthStartDate: 2 };
+    assert.notStrictEqual(
+      monthStartDateFor(profile, 'personal'),
+      monthStartDateFor(profile, 'household'),
+    );
+  });
+
+  it('handles a missing or empty profile without throwing', () => {
+    assert.strictEqual(monthStartDateFor(null, 'personal'), undefined);
+    assert.strictEqual(monthStartDateFor(undefined, 'household'), undefined);
+    assert.strictEqual(monthStartDateFor({}, 'personal'), undefined);
+  });
+});
 
 describe('Household RBAC permissions', () => {
   it('grants full editAll permissions to owner and editor roles across all 11 areas', () => {

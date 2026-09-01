@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
+import { monthStartDateFor } from '@/lib/household';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { useDashboard } from './dashboard-provider';
 import { ProfileAvatar } from './profile-avatar';
@@ -68,8 +69,10 @@ export function DashboardHeader() {
 
   // When a monthly start date is configured, the navigator shows the budget
   // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
-  const budgetPeriod = isMounted && profile?.monthStartDate
-    ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
+  // The period label follows the ACTIVE workspace's start date.
+  const monthStartDate = monthStartDateFor(profile, workspace);
+  const budgetPeriod = isMounted && monthStartDate
+    ? getSourcePeriod(currentMonthKey, monthStartDate)
     : null;
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
   const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
@@ -102,8 +105,8 @@ export function DashboardHeader() {
       <div
         className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
         title={
-          profile?.monthStartDate
-            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale)})`
+          monthStartDate
+            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(monthStartDate, language, intlLocale)})`
             : undefined
         }
       >

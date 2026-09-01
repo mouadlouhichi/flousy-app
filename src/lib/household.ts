@@ -1,4 +1,4 @@
-import type { MonthBudget } from './store';
+import type { MonthBudget, UserProfile } from './store';
 import type { HouseholdPermissions } from './household-rbac';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
@@ -76,6 +76,31 @@ export interface HouseholdInvoice {
   note?: string;
   status: 'submitted' | 'approved' | 'rejected';
   createdAt: string;
+}
+
+/** Which profile field holds the start date for a workspace. */
+export function monthStartDateField(
+  workspace: 'personal' | 'household' | undefined,
+): 'monthStartDate' | 'householdMonthStartDate' {
+  return workspace === 'household' ? 'householdMonthStartDate' : 'monthStartDate';
+}
+
+/**
+ * The monthly start date that applies to the active workspace.
+ *
+ * Personal and household budgets are usually paid on different days, so each
+ * workspace keeps its own value. A household that has not been given one yet
+ * falls back to the personal setting, so switching workspace never leaves the
+ * budget period undefined.
+ */
+export function monthStartDateFor(
+  profile: Pick<UserProfile, 'monthStartDate' | 'householdMonthStartDate'> | null | undefined,
+  workspace: 'personal' | 'household' | undefined,
+): number | undefined {
+  if (!profile) return undefined;
+  return workspace === 'household'
+    ? (profile.householdMonthStartDate ?? profile.monthStartDate)
+    : profile.monthStartDate;
 }
 
 /**

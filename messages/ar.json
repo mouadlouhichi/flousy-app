@@ -1457,6 +1457,9 @@
     }
   },
   "navigation": {
+    "groupBudget": "الميزانية",
+    "groupTools": "الأدوات",
+    "groupAccount": "الحساب",
     "overview": "نظرة عامة",
     "dashboardOverview": "نظرة عامة على لوحة التحكم",
     "fixedBills": "الفواتير الثابتة",
@@ -1635,6 +1638,7 @@
       "preferences": "التفضيلات",
       "moneySources": "مصادر المال",
       "workspace": "مساحة العمل",
+      "household": "الأسرة",
       "pro": "برو",
       "data": "البيانات",
       "account": "الحساب"
@@ -1746,7 +1750,9 @@
     },
     "free": "مجاني",
     "avatarSaveError": "تعذر حفظ صورة الملف الشخصي هذه.",
-    "upgradeToPro": "الترقية إلى برو"
+    "upgradeToPro": "الترقية إلى برو",
+    "monthStartDatePersonalScope": "شخصي",
+    "monthStartDateHouseholdScope": "الأسرة"
   },
   "household": {
     "title": "التعاون الأسري",

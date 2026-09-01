@@ -32,6 +32,7 @@ import {
   updateBudgetStrategy,
   carryOverFixedExpenses,
 } from '../../lib/store';
+import { monthStartDateFor } from '../../lib/household';
 import {
   subscribeMonthBudget,
   saveMonthBudget,
@@ -182,17 +183,25 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
+  /**
+   * The start date that applies to the ACTIVE workspace — personal and
+   * household keep their own. Everything that decides "which budget period are
+   * we in" must go through this, never `profile.monthStartDate` directly.
+   */
+  const activeMonthStartDate = monthStartDateFor(profile, workspace);
+  const periodContextKey = `${workspace}:${activeMonthStartDate ?? ''}`;
+
   // Active Month Key (YYYY-MM). When a monthly start date is configured, the
   // active month is the budget period containing today (so on the 1st the
   // month does not flip to the new calendar month until the start date).
   const today = new Date();
-  const defaultMonthKey = getCurrentMonthKey(profile?.monthStartDate, today);
+  const defaultMonthKey = getCurrentMonthKey(activeMonthStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
   const profileRef = useRef(profile);
   profileRef.current = profile;
   const profileReady = Boolean(profile);
   const hydratedStartRef = useRef(false);
-  const lastStartDateRef = useRef<number | undefined>(undefined);
+  const lastPeriodContextRef = useRef<string | null>(null);
 
   // Core State
   const [month, setMonth] = useState<MonthBudget>(() =>
@@ -275,11 +284,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || (user && !profileReady)) return;
 
-    const nextStart = profile?.monthStartDate;
+    const nextStart = activeMonthStartDate;
 
     if (!hydratedStartRef.current) {
       hydratedStartRef.current = true;
-      lastStartDateRef.current = nextStart;
+      lastPeriodContextRef.current = periodContextKey;
       const stored = readStoredMonthKey();
       const resolved = getCurrentMonthKey(nextStart);
       // A stored calendar-month key can be stale when the app is reopened
@@ -299,12 +308,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (lastStartDateRef.current === nextStart) return;
-    lastStartDateRef.current = nextStart;
+    // Keyed on workspace AND start date: switching workspace has to re-resolve
+    // even when the user never edited a start date, because the two workspaces
+    // can be paid on different days.
+    if (lastPeriodContextRef.current === periodContextKey) return;
+    lastPeriodContextRef.current = periodContextKey;
     const resolved = getCurrentMonthKey(nextStart);
     setCurrentMonthKey(resolved);
     writeStoredMonthKey(resolved);
-  }, [authLoading, user, profileReady, profile?.monthStartDate]);
+  }, [authLoading, user, profileReady, activeMonthStartDate, periodContextKey]);
 
   useEffect(() => {
     writeStoredMonthKey(currentMonthKey);

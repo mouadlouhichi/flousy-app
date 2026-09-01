@@ -10,6 +10,12 @@ interface MonthlyStartDateControlProps {
   onChange: (day: number | undefined) => void;
   /** Compact variant for modals (no outer heading). */
   compact?: boolean;
+  /**
+   * Names the workspace the date applies to. The start date is stored per
+   * workspace, so without this the user cannot tell which budget they are
+   * editing when they switch between personal and household.
+   */
+  scopeLabel?: string;
 }
 
 /**
@@ -22,6 +28,7 @@ export function MonthlyStartDateControl({
   value,
   onChange,
   compact = false,
+  scopeLabel,
 }: MonthlyStartDateControlProps) {
   const { messages: m, t, language, intlLocale } = useLanguage();
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
@@ -32,7 +39,14 @@ export function MonthlyStartDateControl({
           <AppIcon name="calendar_clock" className="text-[20px] text-primary" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-sm font-medium text-on-surface">{m.onboarding.monthlyStartDate}</p>
+          <p className="mb-1 flex flex-wrap items-center gap-1.5 text-sm font-medium text-on-surface">
+            {m.onboarding.monthlyStartDate}
+            {scopeLabel && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-primary">
+                {scopeLabel}
+              </span>
+            )}
+          </p>
           <MonthDayPicker
             value={value}
             onChange={onChange}

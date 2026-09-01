@@ -333,9 +333,15 @@ export interface UserProfile {
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
-  /** Global preference for the day of the month a budget month starts.
-   * Mirrors the per-source salary start date used by Income Sources. */
+  /** Day of the month the PERSONAL budget month starts. Mirrors the
+   * per-source salary start date used by Income Sources. */
   monthStartDate?: number;
+  /**
+   * Day of the month the HOUSEHOLD budget month starts. The two workspaces are
+   * paid on different days in real life, so each keeps its own value; read them
+   * through `monthStartDateFor()` rather than touching the fields directly.
+   */
+  householdMonthStartDate?: number;
   /** Cash locations (Bank, Home, Wallet, plus any the user added). */
   moneyPlaces?: MoneyPlaceConfig[];
 }

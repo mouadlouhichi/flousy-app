@@ -8,7 +8,7 @@ import { ProfileIdentity } from '../profile/profile-identity';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
-import { isProFeatureUnlocked } from '@/lib/household';
+import { isProFeatureUnlocked, monthStartDateFor } from '@/lib/household';
 import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
@@ -39,6 +39,10 @@ export function ProfileScreen() {
   // Profile is the member's own account page, so it is never blocked wholesale.
   // Individual entries that lead into a household area are gated instead.
   const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
+  // Household management is a Pro feature: a free user in their personal
+  // workspace gets no household entry at all. A member of someone else's
+  // household keeps it — their access comes from the household, not a plan.
+  const canManageHousehold = isPro || workspace === 'household';
   const canSeeMembers = canViewArea(TOOL_AREA.household);
   const canSeeAnalytics = canViewArea('analytics');
   const canSeeExpenses = canViewArea('expenses');
@@ -55,13 +59,14 @@ export function ProfileScreen() {
     hidden?: boolean;
   };
 
+  const monthStartDate = monthStartDateFor(profile, workspace);
   const preferenceHint = [
     currency,
     localeNames[language],
     themeLabel,
-    profile?.monthStartDate
+    monthStartDate
       ? t(p.hints.budgetStarts, {
-          day: formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale),
+          day: formatLocalizedDayOfMonth(monthStartDate, language, intlLocale),
         })
       : null,
   ]
@@ -116,7 +121,7 @@ export function ProfileScreen() {
           icon: 'family_restroom',
           title: p.pro.manageHousehold,
           hint: p.pro.features.household.description,
-          hidden: !canSeeMembers,
+          hidden: !canSeeMembers || !canManageHousehold,
         },
       ],
     },

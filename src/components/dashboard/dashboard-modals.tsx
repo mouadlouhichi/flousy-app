@@ -27,6 +27,7 @@ import {
 } from '@/lib/store';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useHousehold } from '@/lib/household-context';
+import { monthStartDateFor } from '@/lib/household';
 import { trackEvent } from '@/lib/analytics';
 
 /**
@@ -87,7 +88,7 @@ const DebtModal = dynamic(
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
-  const { canEditArea, canViewArea } = useHousehold();
+  const { canEditArea, canViewArea, workspace } = useHousehold();
   // Income is viewable in read-only mode: the modal shows the sources without
   // any affordance that would write them.
   const incomeReadOnly = !canEditArea('income');
@@ -321,7 +322,7 @@ export function DashboardModals() {
           onClose={dashboard.closeIncomeModal}
           month={month}
           monthKey={currentMonthKey}
-          defaultPayDay={dashboard.profile?.monthStartDate}
+          defaultPayDay={monthStartDateFor(dashboard.profile, workspace)}
           onSaveIncomeSources={handleSaveIncomeSources}
           readOnly={incomeReadOnly}
         />

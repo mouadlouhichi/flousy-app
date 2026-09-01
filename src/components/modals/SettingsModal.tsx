@@ -18,7 +18,7 @@ import { trackEvent } from '../../lib/analytics';
 import { useHousehold } from '../../lib/household-context';
 import { resolveProfileAvatarSource } from '../../lib/profile-avatar';
 import { ProfileAvatar } from '../dashboard/profile-avatar';
-import { canShowProUpgrade } from '../../lib/household';
+import { canShowProUpgrade, monthStartDateFor, monthStartDateField } from '../../lib/household';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -256,8 +256,15 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <div className="bg-surface-container rounded-xl border border-outline-variant/50 p-4">
               <MonthlyStartDateControl
                 compact
-                value={profile?.monthStartDate}
-                onChange={(day) => updateProfileData({ monthStartDate: day })}
+                value={monthStartDateFor(profile, workspace)}
+                scopeLabel={
+                  workspace === 'household'
+                    ? m.profile.monthStartDateHouseholdScope
+                    : m.profile.monthStartDatePersonalScope
+                }
+                onChange={(day) =>
+                  updateProfileData({ [monthStartDateField(workspace)]: day })
+                }
               />
             </div>
           </div>

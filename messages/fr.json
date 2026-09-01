@@ -1457,6 +1457,9 @@
     }
   },
   "navigation": {
+    "groupBudget": "Budget",
+    "groupTools": "Outils",
+    "groupAccount": "Compte",
     "overview": "Vue d’ensemble",
     "dashboardOverview": "Vue d’ensemble du tableau de bord",
     "fixedBills": "Factures fixes",
@@ -1635,6 +1638,7 @@
       "preferences": "Préférences",
       "moneySources": "Sources d’argent",
       "workspace": "Espace de travail",
+      "household": "Foyer",
       "pro": "Pro",
       "data": "Données",
       "account": "Compte"
@@ -1746,7 +1750,9 @@
     },
     "free": "Gratuit",
     "avatarSaveError": "Impossible d’enregistrer cette photo de profil.",
-    "upgradeToPro": "Passer à Pro"
+    "upgradeToPro": "Passer à Pro",
+    "monthStartDatePersonalScope": "Personnel",
+    "monthStartDateHouseholdScope": "Foyer"
   },
   "household": {
     "title": "Collaboration du foyer",
