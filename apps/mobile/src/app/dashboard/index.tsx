@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ActivityIndicator,
   Alert,
@@ -17,6 +18,7 @@ import {
   Box,
   ChevronDown,
   Pencil,
+  SlidersHorizontal,
 } from 'lucide-react-native';
 import {
   addFixedExpense,
@@ -48,6 +50,7 @@ import { EditBalancesModal } from '../../components/EditBalancesModal';
 import { formatMoney } from '../../lib/format-money';
 import { useQuickActionHandler } from '../../lib/quick-actions';
 import { FONT } from '../../lib/fonts';
+import { CategoryIcon } from '../../components/CategoryIcon';
 
 const TEAL = '#00685f';
 const PLACE_STYLE: Record<string, { bg: string; accent: string; Icon: typeof Landmark }> = {
@@ -79,8 +82,14 @@ export default function DashboardOverviewScreen() {
   const [savingsVisible, setSavingsVisible] = useState(false);
   const [balancesVisible, setBalancesVisible] = useState(false);
   const [moveFrom, setMoveFrom] = useState<MoneyPlace | undefined>();
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [draftBudget, setDraftBudget] = useState('');
 
   useBudgetNotifications(month, currency);
+
+  useEffect(() => {
+    if (month) setDraftBudget(String(month.totalBudget || 0));
+  }, [month]);
 
   const onQuickAction = useCallback(
     (id: 'expense' | 'charge' | 'savings' | 'courses') => {
@@ -96,22 +105,28 @@ export default function DashboardOverviewScreen() {
   const activity = useMemo(() => {
     if (!month) return [];
     const vars = (month.variableExpenses || []).map((e) => ({
+      kind: 'expense' as const,
       id: e.id,
       name: e.name,
       meta: `${formatShortDate(e.date)} · ${e.type}`,
-      amount: -e.amount,
+      amount: e.amount,
+      icon: month.categoryIcons?.[e.type] || 'shopping_bag',
+      isDeposit: false,
       date: e.date,
     }));
     const sav = (month.savingsActivity || []).map((e) => ({
+      kind: 'savings' as const,
       id: e.id,
       name: e.goalName,
-      meta: `${e.type === 'deposit' ? 'Deposit' : 'Withdraw'} · Savings`,
-      amount: e.type === 'deposit' ? e.amount : -e.amount,
+      meta: `${e.type === 'deposit' ? 'Deposit' : 'Withdrawal'} · Savings`,
+      amount: e.amount,
+      icon: 'savings',
+      isDeposit: e.type === 'deposit',
       date: e.date,
     }));
     return [...vars, ...sav]
       .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-      .slice(0, 8);
+      .slice(0, 5);
   }, [month]);
 
   if (loading) {
@@ -153,6 +168,21 @@ export default function DashboardOverviewScreen() {
   const handleMoveMoney = async (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     await updateMonth(moveMoney(month, from, to, amount));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const saveTotalBudget = async () => {
+    const parsed = Number.parseFloat(draftBudget.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
+    const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : month.totalBudget || 0;
+    setEditingBudget(false);
+    setDraftBudget(String(safe));
+    if (safe === (month.totalBudget || 0)) return;
+    const delta = safe - (month.totalBudget || 0);
+    await updateMonth({
+      ...month,
+      totalBudget: safe,
+      bankPart: Math.max(0, (month.bankPart || 0) + delta),
+      monthlySavingsTarget: calculateEnvelopeAmounts(safe, month.strategyId, month.customRatios).savings,
+    });
   };
 
   return (
@@ -262,34 +292,68 @@ export default function DashboardOverviewScreen() {
           />
         </View>
 
-        <View className="mb-5 rounded-[22px] border border-neutral-100 bg-white p-4">
+        <View className="mb-6 rounded-3xl border border-neutral-200 bg-white p-5">
           <Text className="text-[11px] font-semibold uppercase tracking-[1.3px] text-neutral-500">
             Total Monthly Budget
           </Text>
-          <View className="mt-1.5 flex-row items-baseline">
-            <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }}>
-              {formatMoney(month.totalBudget)}
-            </Text>
-            <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+          <View className="mt-1.5 flex-row items-center gap-2">
+            {editingBudget ? (
+              <View className="min-w-0 flex-row items-baseline rounded-2xl bg-[#F5FAF8] px-2 py-0.5" style={{ borderWidth: 2, borderColor: 'rgba(0,104,95,0.4)' }}>
+                <TextInput
+                  value={draftBudget}
+                  onChangeText={setDraftBudget}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                  onBlur={() => {
+                    void saveTotalBudget();
+                  }}
+                  onSubmitEditing={() => {
+                    void saveTotalBudget();
+                  }}
+                  className="text-xl font-bold font-mono text-neutral-900"
+                  style={{ fontFamily: FONT.monoBold, lineHeight: 28, minWidth: 80, padding: 0 }}
+                />
+                <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => canEditArea('balances') && setEditingBudget(true)}
+                className="min-w-0 flex-row items-baseline"
+              >
+                <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }}>
+                  {formatMoney(month.totalBudget)}
+                </Text>
+                <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => canEditArea('balances') && setEditingBudget(true)}
+              accessibilityLabel="Edit total monthly budget"
+              className="shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white p-1.5"
+            >
+              <Pencil size={14} color="#6B7280" />
+            </Pressable>
           </View>
-          <View className="mt-4 flex-row items-center">
-            <View className="min-w-0 flex-1 pr-3">
-              <Text className="text-[11px] font-semibold uppercase tracking-[1.3px] text-neutral-500">
-                Total Cash on Hand
-              </Text>
-              <View className="mt-1.5 flex-row items-baseline">
+
+          <View className="mt-4 border-t border-neutral-200/50 pt-4">
+            <Text className="text-[11px] font-semibold uppercase tracking-[1.3px] text-neutral-500">
+              Total Cash on Hand
+            </Text>
+            <View className="mt-1.5 flex-row items-center gap-2">
+              <View className="min-w-0 flex-row items-baseline">
                 <Text className="text-xl font-bold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold, lineHeight: 28 }} numberOfLines={1}>
                   {formatMoney(totalCash)}
                 </Text>
                 <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
               </View>
+              <Pressable
+                onPress={() => setBalancesVisible(true)}
+                accessibilityLabel="Adjust cash balances"
+                className="shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white p-1.5"
+              >
+                <SlidersHorizontal size={14} color="#6B7280" />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={() => setBalancesVisible(true)}
-              className="h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white"
-            >
-              <Pencil size={14} color="#6B7280" />
-            </Pressable>
           </View>
         </View>
 

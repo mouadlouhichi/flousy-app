@@ -14,12 +14,6 @@ const ACTIONS: { id: QuickActionId; label: string; Icon: typeof Wallet }[] = [
   { id: 'courses', label: 'Start course', Icon: ScanLine },
 ];
 
-/**
- * Web open menu: one rounded-full chip per action
- * `flex items-center gap-2 rounded-full bg-surface/95 px-3 py-2
- *  shadow-[0_10px_30px_rgba(0,0,0,0.18)] border border-outline-variant`
- * with the 40px primary icon inside the chip (not a separate circle).
- */
 export function QuickAddFab() {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
@@ -37,8 +31,18 @@ export function QuickAddFab() {
                   setOpen(false);
                   emitQuickAction(action.id);
                 }}
-                className="mb-2 flex-row items-center rounded-full border border-neutral-200 bg-white/95 py-2 pl-3 pr-2"
                 style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                  paddingVertical: 8,
+                  paddingLeft: 12,
+                  paddingRight: 8,
+                  borderRadius: 999,
+                  backgroundColor: '#F5FAF8',
+                  borderWidth: 1,
+                  borderColor: '#BCC9C6',
+                  overflow: 'hidden',
                   shadowColor: '#000',
                   shadowOpacity: 0.18,
                   shadowRadius: 15,
@@ -47,7 +51,16 @@ export function QuickAddFab() {
                 }}
               >
                 <Text className="mr-2 text-xs font-semibold text-neutral-800">{action.label}</Text>
-                <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: TEAL }}>
+                <View
+                  style={{
+                    height: 40,
+                    width: 40,
+                    borderRadius: 20,
+                    backgroundColor: TEAL,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <Icon size={18} color="#fff" />
                 </View>
               </Pressable>
