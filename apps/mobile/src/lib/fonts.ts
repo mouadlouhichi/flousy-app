@@ -1,12 +1,21 @@
 import { useFonts } from 'expo-font';
 import { Platform, StyleSheet, Text, TextInput, type TextStyle } from 'react-native';
 
+/**
+ * Same faces as web:
+ * - Instrument Sans ← apps/web/src/app/fonts/instrument-sans-latin{,-ext}-wght-normal.woff2
+ *   (next/font/local, variable wght 400–700), instantiated to static TTFs.
+ * - JetBrains Mono ← @fontsource-variable/jetbrains-mono (web layout import),
+ *   latin + latin-ext, instantiated at 400/500/700.
+ * RN/Android cannot load those WOFF2 variable files, so we ship TTF instances
+ * of the exact same outlines under per-weight family names.
+ */
 export const FONT = {
   regular: 'InstrumentSans-400',
   medium: 'InstrumentSans-500',
   semibold: 'InstrumentSans-600',
   bold: 'InstrumentSans-700',
-  display: 'InstrumentSerif-400',
+  display: 'InstrumentSans-700',
   mono: 'JetBrainsMono-400',
   monoMedium: 'JetBrainsMono-500',
   monoBold: 'JetBrainsMono-700',
@@ -18,7 +27,6 @@ export function useAppFonts() {
     [FONT.medium]: require('../../assets/fonts/InstrumentSans_500Medium.ttf'),
     [FONT.semibold]: require('../../assets/fonts/InstrumentSans_600SemiBold.ttf'),
     [FONT.bold]: require('../../assets/fonts/InstrumentSans_700Bold.ttf'),
-    [FONT.display]: require('../../assets/fonts/InstrumentSerif_400Regular.ttf'),
     [FONT.mono]: require('../../assets/fonts/JetBrainsMono_400Regular.ttf'),
     [FONT.monoMedium]: require('../../assets/fonts/JetBrainsMono_500Medium.ttf'),
     [FONT.monoBold]: require('../../assets/fonts/JetBrainsMono_700Bold.ttf'),
@@ -30,7 +38,7 @@ function isMono(family?: string) {
 }
 
 function familyForWeight(weight: unknown, current?: string) {
-  if (current === FONT.display || String(current || '').includes('Serif')) return FONT.display;
+  if (current === FONT.display) return FONT.display;
   const w = String(weight ?? '');
   const bold = w === '700' || w === 'bold' || w === '800' || w === '900';
   if (isMono(current)) {
