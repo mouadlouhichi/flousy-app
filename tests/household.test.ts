@@ -26,8 +26,23 @@ import {
   isProFeatureUnlocked,
   monthStartDateField,
   monthStartDateFor,
+  normalizeHouseholdName,
   type HouseholdRole,
 } from '../src/lib/household';
+
+describe('Household name validation (rename workspace)', () => {
+  it('trims surrounding whitespace', () => {
+    assert.strictEqual(normalizeHouseholdName('  The Silva family  '), 'The Silva family');
+  });
+  it('rejects empty or whitespace-only names', () => {
+    assert.strictEqual(normalizeHouseholdName(''), null);
+    assert.strictEqual(normalizeHouseholdName('   '), null);
+  });
+  it('accepts up to 100 characters and rejects 101', () => {
+    assert.strictEqual(normalizeHouseholdName('a'.repeat(100)), 'a'.repeat(100));
+    assert.strictEqual(normalizeHouseholdName('a'.repeat(101)), null);
+  });
+});
 
 describe('Per-workspace month start date', () => {
   it('maps each workspace to its own profile field', () => {

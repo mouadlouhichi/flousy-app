@@ -32,7 +32,7 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
+  const { household, members, isOwner, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
     useHousehold();
   // The roster, per-member contribution totals and the invite form are all
   // `members` data. Someone with an invitation code still has no membership
@@ -56,6 +56,21 @@ export function HouseholdPanel({
   const [busy, setBusy] = useState(false);
   const [lastInviteCode, setLastInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDraft, setRenameDraft] = useState('');
+
+  const submitRename = async () => {
+    setBusy(true);
+    try {
+      await renameHousehold(renameDraft);
+      setRenameOpen(false);
+      setNotice(h.renameSaved);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : h.genericError);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (initialInviteCode) setCode(initialInviteCode);
@@ -198,7 +213,57 @@ export function HouseholdPanel({
         ) : (
           <>
             <div className="rounded-xl bg-primary/10 p-4">
-              <p className="font-bold text-on-surface">{household.name}</p>
+              {renameOpen ? (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitRename();
+                  }}
+                >
+                  <input
+                    value={renameDraft}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                    maxLength={100}
+                    autoFocus
+                    aria-label={h.renameHousehold}
+                    placeholder={h.householdNamePlaceholder}
+                    className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface p-2 text-sm text-on-surface"
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
+                  >
+                    {m.common.save}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setRenameOpen(false)}
+                    className="rounded-lg px-2 py-2 text-sm text-on-surface-variant hover:bg-primary/10"
+                  >
+                    {m.common.cancel}
+                  </button>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold text-on-surface">{household.name}</p>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenameDraft(household.name);
+                        setRenameOpen(true);
+                      }}
+                      aria-label={h.renameHousehold}
+                      className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                    >
+                      <AppIcon name="edit" className="text-[18px]" />
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-on-surface-variant">
                 {t(h.activeMembers, { count: members.filter((member) => member.status === 'active').length })}{' '}
                 · {h.sharedBudgetLive}

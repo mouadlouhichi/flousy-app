@@ -4,6 +4,7 @@ import { useAuth } from './auth-context';
 import { isProUser } from './pro-features';
 import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold, type HouseholdAccess } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
+import { normalizeHouseholdName } from './household';
 import { resolveAreaAccess, type AccessLevel, type ExportSections, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
 import { useLanguage } from './i18n-context';
 
@@ -18,7 +19,7 @@ type HouseholdContextValue = {
   exportSections: ExportSections;
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
-  payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
+  payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>; renameHousehold: (name: string) => Promise<void>;
   invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
   markHouseholdOnboarded: () => Promise<void>;
@@ -131,6 +132,15 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     await saveHousehold(trackedHouseholdId, { onboardingComplete: true });
     setHousehold((current) => (current ? { ...current, onboardingComplete: true } : current));
   }, [trackedHouseholdId]);
+  const renameHousehold = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    // Mirrors firestore.rules:96-105 (owner-only update; name 1–100 chars).
+    if (!trackedHouseholdId || !trimmed || trimmed.length > 100) {
+      throw new Error(m.household.householdNameRequired);
+    }
+    await saveHousehold(trackedHouseholdId, { name: trimmed });
+    setHousehold((current) => (current ? { ...current, name: trimmed } : current));
+  }, [trackedHouseholdId, m.household.householdNameRequired]);
   const removeHouseholdWorkspace = useCallback(async () => {
     const targetId = householdId || profile?.activeHouseholdId;
     if (!user || !profile || !targetId) throw new Error(m.household.genericError);
@@ -152,6 +162,6 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setHousehold(null);
     setMembers([]);
   }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, areaLevel, exportSections, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, areaLevel, exportSections, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, renameHousehold, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

@@ -79,6 +79,18 @@ export interface HouseholdInvoice {
 }
 
 /** Which profile field holds the start date for a workspace. */
+/**
+ * Trims a household name and enforces the Firestore rule contract
+ * (`firestore.rules`: `name.size() > 0 && name.size() <= 100`). Returns the
+ * cleaned name, or `null` when it would be rejected, so the UI and the context
+ * share one definition of "valid".
+ */
+export function normalizeHouseholdName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 100) return null;
+  return trimmed;
+}
+
 export function monthStartDateField(
   workspace: 'personal' | 'household' | undefined,
 ): 'monthStartDate' | 'householdMonthStartDate' {
