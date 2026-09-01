@@ -11,7 +11,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["InstrumentSans-400"],
-        display: ["InstrumentSerif-400"],
+        display: ["InstrumentSans-700"],
         mono: ["JetBrainsMono-400"],
         medium: ["InstrumentSans-500"],
         semibold: ["InstrumentSans-600"],
