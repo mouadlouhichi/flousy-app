@@ -71,9 +71,9 @@ export function QuickAddFab() {
         }}
       >
         {open ? (
-          <X size={30} color="#fff" strokeWidth={2} style={{ transform: [{ rotate: '45deg' }] }} />
+          <X size={24} color="#fff" strokeWidth={2} style={{ transform: [{ rotate: '45deg' }] }} />
         ) : (
-          <PlusCircle size={30} color="#fff" strokeWidth={2} />
+          <PlusCircle size={24} color="#fff" strokeWidth={2} />
         )}
       </Pressable>
     </View>
