@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AppIcon } from './app-icon';
-import { CustomInput } from './CustomInput';
+import { MonthDayPicker } from './month-day-picker';
 import { formatDayOfMonth } from '@/lib/utils';
 import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
 import { useLanguage } from '@/lib/i18n-context';
@@ -105,22 +105,24 @@ export function DueDayPicker({ label, value, onChange }: DueDayPickerProps) {
         aria-live="polite"
         className="flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary"
       >
-        <AppIcon name={customMode ? 'edit' : 'check_circle'} className="text-[13px]" />
-        {customMode
-          ? isCustomValue(value)
-            ? t(m.dueDayPicker.customSchedule, { value: value.trim() })
-            : m.dueDayPicker.enterCustom
-          : parsedDay
-            ? t(m.dueDayPicker.selectedRepeats, { day: localizedDay(parsedDay) })
+        <AppIcon name={parsedDay ? 'check_circle' : 'edit'} className="text-[13px]" />
+        {parsedDay
+          ? t(m.dueDayPicker.selectedRepeats, { day: localizedDay(parsedDay) })
+          : customMode
+            ? m.dueDayPicker.enterCustom
             : m.dueDayPicker.selectDueDay}
       </p>
+      {/* Custom opens a real day-of-month calendar instead of a text input, so
+          the picked day is kept as a clean value (and previously saved strings
+          still resolve to their day via parseDueDay). */}
       {customMode && (
-        <CustomInput
-          type="text"
-          value={value}
-          onChange={(e) => emit(e.target.value)}
-          placeholder={m.dueDayPicker.customPlaceholder}
-          aria-label={t(m.dueDayPicker.customField, { label: visibleLabel })}
+        <MonthDayPicker
+          value={parsedDay ?? undefined}
+          onChange={(day) => {
+            if (day != null) emit(formatDayOfMonth(day));
+          }}
+          label={null}
+          allowClear={false}
         />
       )}
     </div>
