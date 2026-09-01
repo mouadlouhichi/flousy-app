@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
@@ -19,7 +18,7 @@ export function WorkspacePanel() {
   const { profile } = useAuth();
   const { openProModal } = useDashboard();
   const { household, workspace, selectWorkspace, memberRole, isOwner, create, removeHouseholdWorkspace } = useHousehold();
-  const { messages: m, t, isRTL } = useLanguage();
+  const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
   const isPro = isProUser(profile);
   const [householdName, setHouseholdName] = useState('');
@@ -82,14 +81,20 @@ export function WorkspacePanel() {
             <span className="text-xs text-on-surface-variant">{p.personalDashboard}</span>
           </button>
           {hasHousehold && (
-            <button
-              type="button"
-              onClick={() => switchWorkspace('household')}
-              className={`rounded-xl border p-3 text-start ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}
-            >
-              <span className="block font-bold">{household?.name || p.householdDashboard}</span>
-              <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
-            </button>
+            <div className={`rounded-xl border p-3 ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}>
+              <button type="button" onClick={() => switchWorkspace('household')} className="w-full text-start">
+                <span className="block font-bold">{household?.name || p.householdDashboard}</span>
+                <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
+              </button>
+              <div className="mt-3 flex items-center justify-between border-t border-outline-variant/70 pt-2">
+                <Link href="/dashboard/profile/household" prefetch={true} className="text-xs font-bold text-primary hover:underline">
+                  {p.manageHousehold}
+                </Link>
+                <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} className="text-xs font-bold text-error hover:underline disabled:opacity-50">
+                  {isOwner ? p.removeHousehold : p.leaveHousehold}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </section>
@@ -116,36 +121,8 @@ export function WorkspacePanel() {
         </section>
       )}
 
-      {hasHousehold && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setConfirmRemove(true)}
-          className="flex items-center justify-between rounded-2xl border border-error/30 bg-surface-container p-4 text-start transition-colors hover:bg-error/5 disabled:opacity-50"
-        >
-          <span className="flex items-center gap-3">
-            <AppIcon name="delete" className="text-[20px] text-error" />
-            <span className="text-sm font-bold text-error">
-              {isOwner ? p.removeHousehold : p.leaveHousehold}
-            </span>
-          </span>
-        </button>
-      )}
-
       <ContributorInvoiceForm />
       <HouseholdInvoiceReview />
-
-      <Link
-        href="/dashboard/profile/household"
-        prefetch={true}
-        className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-      >
-        <span className="flex items-center gap-3">
-          <AppIcon name="family_restroom" className="text-[20px] text-primary" />
-          <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
-        </span>
-        <AppIcon name="chevron_right" className={`text-[18px] text-on-surface-variant ${isRTL ? 'rotate-180' : ''}`} />
-      </Link>
 
       {notice && (
         <p role="status" className="rounded-xl bg-surface-container p-3 text-sm text-on-surface">
