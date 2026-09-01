@@ -95,20 +95,6 @@ export function WorkspacePanel() {
         </div>
       </section>
 
-      {hasHousehold && (
-        <Link
-          href="/dashboard/profile/household"
-          prefetch={true}
-          className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high"
-        >
-          <span className="flex items-center gap-3">
-            <AppIcon name="inventory_2" className="text-[20px] text-primary" />
-            <span className="text-sm font-bold text-on-surface">{p.manageHousehold}</span>
-          </span>
-          <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
-        </Link>
-      )}
-
       <Link href="/dashboard/profile/household" prefetch={true} className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high">
         <span className="flex items-center gap-3">
           <AppIcon name="inventory_2" className="text-[20px] text-primary" />
