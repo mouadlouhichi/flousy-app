@@ -78,11 +78,14 @@ export function VariableTab({
       return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
     })
     .sort((a, b) => {
-      if (sortBy === 'oldest') return expenseDay(a.date).localeCompare(expenseDay(b.date)) || a.name.localeCompare(b.name);
+      // Dates are ISO timestamps, so comparing the full string orders by date
+      // *and* time (most-recent first for "newest"). Comparing only the day, as
+      // before, left same-day expenses in arbitrary order.
+      if (sortBy === 'oldest') return (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name);
       if (sortBy === 'amountHigh') return b.amount - a.amount;
       if (sortBy === 'amountLow') return a.amount - b.amount;
       if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
-      return expenseDay(b.date).localeCompare(expenseDay(a.date)) || b.name.localeCompare(a.name);
+      return (b.date || '').localeCompare(a.date || '') || b.name.localeCompare(a.name);
     });
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);

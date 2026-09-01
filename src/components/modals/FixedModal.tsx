@@ -17,6 +17,8 @@ import {
   addFixedCategory,
   updateFixedCategory,
   availableForCharge,
+  FIXED_TYPE_COLORS,
+  fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
@@ -67,28 +69,6 @@ function pickUnusedColor(takenColors: string[]): string {
 }
 
 /** Fallback icons/colors used when the month data has none for a bill type. */
-const FIXED_TYPE_ICONS: Record<string, string> = {
-  Rent: 'home',
-  Utilities: 'bolt',
-  Housing: 'house',
-  Subscriptions: 'subscriptions',
-  Insurance: 'shield',
-  Internet: 'wifi',
-  Gym: 'fitness_center',
-  Other: 'label',
-};
-
-const FIXED_TYPE_COLORS: Record<string, string> = {
-  Rent: '#8b5cf6',
-  Utilities: '#eab308',
-  Housing: '#f97316',
-  Subscriptions: '#6366f1',
-  Insurance: '#10b981',
-  Internet: '#06b6d4',
-  Gym: '#ec4899',
-  Other: '#6d7a77',
-};
-
 export function FixedModal({
   isOpen,
   onClose,
@@ -127,10 +107,12 @@ export function FixedModal({
   const [customIcon, setCustomIcon] = useState('label');
   const [categoryError, setCategoryError] = useState('');
 
-  const categoryVisual = (catName: string) => ({
-    icon: categoryIcons[catName] || customByName.get(catName)?.icon || FIXED_TYPE_ICONS[catName] || 'label',
-    color: categoryColors[catName] || customByName.get(catName)?.color || FIXED_TYPE_COLORS[catName] || '#6d7a77',
-  });
+  const categoryVisual = (catName: string) =>
+    fixedCategoryVisual(catName, {
+      icons: categoryIcons,
+      colors: categoryColors,
+      custom: customCategories,
+    });
 
   const resetCategoryForm = () => {
     setShowCategoryForm(false);

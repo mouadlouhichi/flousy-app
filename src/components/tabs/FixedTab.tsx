@@ -1,6 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
-import { MonthBudget, FixedExpense } from '../../lib/store';
+import { MonthBudget, FixedExpense, fixedCategoryVisual } from '../../lib/store';
+import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
@@ -16,6 +17,8 @@ interface FixedTabProps {
 
 export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: FixedTabProps) {
   const { format } = useCurrency();
+  const { profile } = useAuth();
+  const customCategories = profile?.fixedCategories || [];
   const { messages: m, t, language, intlLocale } = useLanguage();
 
   const totalFixed = (month.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
@@ -64,6 +67,13 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
             const dueLabel = dueDay
               ? formatLocalizedDayOfMonth(dueDay, language, intlLocale)
               : m.tabs.fixed.monthly;
+            // Render the category's own icon + colour (same resolution as the
+            // Add/Edit modal) instead of a generic receipt glyph.
+            const visual = fixedCategoryVisual(bill.type, {
+              icons: month.categoryIcons,
+              colors: month.categoryColors,
+              custom: customCategories,
+            });
 
             return (
             <div
@@ -75,8 +85,11 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
               }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-md">
-                <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0">
-                  <AppIcon name="receipt_long" className=" text-[24px]" />
+                <div
+                  className="p-3 rounded-xl shrink-0"
+                  style={{ backgroundColor: `${visual.color}1a`, color: visual.color }}
+                >
+                  <AppIcon name={visual.icon} className=" text-[24px]" />
                 </div>
                 <div className="flex min-w-0 flex-col">
                   <div className="flex min-w-0 items-center gap-xs">

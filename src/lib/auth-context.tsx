@@ -24,6 +24,7 @@ import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudget
 import { getCurrentMonthKey } from './utils';
 import { isOnboardingDoneLocally } from './demo-mode';
 import { isProPlan } from './pro-features';
+import { CONSENT_STORAGE_KEY } from './analytics';
 
 /** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
 export class RequiresRecentLoginError extends Error {
@@ -121,7 +122,10 @@ function clearLocalData() {
   if (typeof window === 'undefined') return;
   try {
     Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('flousy_')) {
+      // The analytics-consent answer is a device preference, not user budget
+      // data: wiping it on sign-out made the privacy bar re-appear on every
+      // subsequent login, which reads as a bug rather than a choice.
+      if (key.startsWith('flousy_') && key !== CONSENT_STORAGE_KEY) {
         localStorage.removeItem(key);
       }
     });

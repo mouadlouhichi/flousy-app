@@ -178,7 +178,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess, canEditArea, canViewArea, exportSections } = useHousehold();
+  const { household, canEdit, isContributor, isOwner, workspace, loading: householdLoading, householdAccess, canEditArea, canViewArea, exportSections } = useHousehold();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
 
   // Contributors never load private household month documents. Their invoice
@@ -256,7 +256,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const householdOnboardedLocally =
         typeof window !== 'undefined' &&
         localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
-      if (household.onboardingComplete === false && !householdOnboardedLocally) {
+      // Only the OWNER is bounced into new-household onboarding: it imports the
+      // owner's personal budget, and a member can't write the household doc, so
+      // for them the cloud `onboardingComplete` never flips and they would be
+      // re-shown the "new household" screen on later logins.
+      if (isOwner && household.onboardingComplete === false && !householdOnboardedLocally) {
         router.replace('/onboarding?scope=household');
         return;
       }
@@ -271,7 +275,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         updateProfileData({ onboardingComplete: true }).catch(() => {});
       }
     }
-  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading, householdAccess]);
+  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading, householdAccess, isOwner]);
 
   useEffect(() => {
     setIsMounted(true);
