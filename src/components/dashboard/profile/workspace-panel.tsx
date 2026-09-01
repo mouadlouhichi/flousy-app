@@ -13,7 +13,6 @@ import { HouseholdInvoiceReview } from '../household-invoice-review';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
-import { AppIcon } from '@/components/ui/app-icon';
 
 export function WorkspacePanel() {
   const router = useRouter();
