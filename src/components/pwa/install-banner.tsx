@@ -5,12 +5,14 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useEffect, useState } from 'react';
 import { usePwaInstall } from '../../hooks/use-pwa-install';
 import { IosInstallSheet } from './ios-install-sheet';
+import { useLightLanguage } from '@/lib/i18n-light';
 
 /**
  * Auto-surfacing install banner. Appears a few seconds after the browser marks
  * the app installable, and stays hidden for two weeks once dismissed.
  */
 export function InstallBanner() {
+  const { messages: m } = useLightLanguage();
   const { canInstall, isIos, isDismissed, isPrompting, promptInstall, dismiss } = usePwaInstall();
   const [visible, setVisible] = useState(false);
   const [showIosSheet, setShowIosSheet] = useState(false);
@@ -42,8 +44,8 @@ export function InstallBanner() {
     <>
       <div
         role="region"
-        aria-label="Install SmartJib"
-        className={`fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md transition-all duration-500 md:inset-x-auto md:right-6 md:bottom-6 ${
+        aria-label={m.pwa.installRegion}
+        className={`fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md transition-all duration-500 md:inset-x-auto md:end-6 md:bottom-6 ${
           visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
         }`}
       >
@@ -53,9 +55,9 @@ export function InstallBanner() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="font-label-lg text-label-lg font-bold text-on-surface">Install SmartJib</p>
+            <p className="font-label-lg text-label-lg font-bold text-on-surface">{m.pwa.installTitle}</p>
             <p className="truncate text-body-sm text-on-surface-variant">
-              Faster access, works offline.
+              {m.pwa.offlineHint}
             </p>
           </div>
 
@@ -65,13 +67,13 @@ export function InstallBanner() {
             disabled={isPrompting}
             className="shrink-0 rounded-xl bg-primary px-4 py-2 font-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            Install
+            {m.pwa.install}
           </button>
 
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Dismiss install prompt"
+            aria-label={m.pwa.dismissPrompt}
             className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
             <AppIcon name="close" className=" text-[20px]" />

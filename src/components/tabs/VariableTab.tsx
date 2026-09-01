@@ -1,6 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
 import { formatShortDate } from '../../lib/utils';
 import { useCurrency } from '../../lib/currency-context';
@@ -8,12 +9,22 @@ import { useAuth } from '../../lib/auth-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
+import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
+import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { IconSelect } from '@/components/ui/icon-select';
+
+type ExpenseSort = 'newest' | 'oldest' | 'amountHigh' | 'amountLow' | 'name';
+
+function expenseDay(date: string): string {
+  return (date || '').slice(0, 10);
+}
 
 interface VariableTabProps {
   month: MonthBudget;
   onOpenAddModal: () => void;
   onEditExpense: (exp: VariableExpense) => void;
-  onManageCategories: () => void;
   onUpdateMonth: (month: MonthBudget) => void;
   onUpdateProfile: (profile: UserProfile) => void;
   onOpenProModal: () => void;
@@ -23,33 +34,50 @@ export function VariableTab({
   month,
   onOpenAddModal,
   onEditExpense,
-  onManageCategories,
   onUpdateMonth,
   onUpdateProfile,
   onOpenProModal,
 }: VariableTabProps) {
   const { format } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
   const { workspace } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState<ExpenseSort>('newest');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState<string>('');
+  const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
 
-  const filteredExpenses = (month.variableExpenses || []).filter((exp) => {
-    const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
-    const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
-    const matchesSearch =
-      exp.name.toLowerCase().includes(search.toLowerCase()) ||
-      exp.type.toLowerCase().includes(search.toLowerCase()) ||
-      (exp.note && exp.note.toLowerCase().includes(search.toLowerCase()));
-    return matchesCategory && matchesPerson && matchesSearch;
-  });
+  const filteredExpenses = (month.variableExpenses || [])
+    .filter((exp) => {
+      const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
+      const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
+      const matchesSearch =
+        exp.name.toLowerCase().includes(search.toLowerCase()) ||
+        exp.type.toLowerCase().includes(search.toLowerCase()) ||
+        (exp.note && exp.note.toLowerCase().includes(search.toLowerCase()));
+      const day = expenseDay(exp.date);
+      const rangeEnd = dateTo || dateFrom;
+      const matchesFrom = !dateFrom || day >= dateFrom;
+      const matchesTo = !rangeEnd || day <= rangeEnd;
+      return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'oldest') return expenseDay(a.date).localeCompare(expenseDay(b.date)) || a.name.localeCompare(b.name);
+      if (sortBy === 'amountHigh') return b.amount - a.amount;
+      if (sortBy === 'amountLow') return a.amount - b.amount;
+      if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
+      return expenseDay(b.date).localeCompare(expenseDay(a.date)) || b.name.localeCompare(a.name);
+    });
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
 
@@ -83,50 +111,89 @@ export function VariableTab({
   return (
     <div className="flex flex-col gap-lg pb-24">
       {/* Header & Total */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center">
-        <div>
+      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex justify-between items-center gap-3">
+        <div className="min-w-0">
           <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
-            TOTAL VARIABLE SPENT
+            {m.tabs.variable.totalSpent}
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
             <FormattedAmount value={totalSpent} />
           </h2>
         </div>
-        <div className="flex gap-sm">
-          <button
-            onClick={onManageCategories}
-            className="p-3 bg-surface hover:bg-surface-variant text-on-surface border border-outline-variant rounded-xl font-label-md text-label-md font-semibold flex items-center gap-xs"
-            title="Manage Categories"
-          >
-            <AppIcon name="label" className=" text-[20px]" />
-          </button>
-          <button
-            onClick={onOpenAddModal}
-            className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
-          >
-            <AppIcon name="add" className=" text-[20px]" />
-            <span>Add Expense</span>
-          </button>
-        </div>
+        <button
+          onClick={onOpenAddModal}
+          className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+        >
+          <AppIcon name="add" className=" text-[20px]" />
+          <span>{m.tabs.variable.addExpense}</span>
+        </button>
       </div>
 
+      <button
+        type="button"
+        onClick={() => router.push('/dashboard/courses')}
+        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <AppIcon name="scan_barcode" className="text-[22px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
+            {m.courses.newCourse}
+          </span>
+          <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+            {m.courses.emptyHint}
+          </span>
+        </span>
+        <AppIcon name="chevron_right" className="size-5 shrink-0 text-on-surface-variant rtl:rotate-180" />
+      </button>
+
       {/* Category Budgets (Pro Feature) */}
-      <div className="bg-surface-container rounded-3xl border border-outline-variant p-lg shadow-2xs">
-        <div className="flex justify-between items-center mb-md">
-          <h3 className="font-headline-md text-headline-md text-on-surface font-extrabold">
-            Category Budgets
-          </h3>
+      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setBudgetsOpen((open) => !open)}
+          aria-expanded={budgetsOpen}
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-start"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <AppIcon name="sliders-horizontal" className="text-[22px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
+              {m.tabs.variable.categoryBudgets}
+            </span>
+            <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+              {m.tabs.variable.categoryBudgetsHint}
+            </span>
+          </span>
           {canShowProUpgrade(isPro, workspace) && (
-            <button
-              onClick={onOpenProModal}
-              className="px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenProModal();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onOpenProModal();
+                }
+              }}
+              className="shrink-0 px-3 py-1.5 bg-primary/10 text-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/20 transition-all"
             >
-              PRO
-            </button>
+              {m.tabs.variable.pro}
+            </span>
           )}
-        </div>
+          <AppIcon
+            name="expand_more"
+            className={`ms-1 size-7 shrink-0 text-on-surface-variant transition-transform ${budgetsOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
         
-        <div className="flex flex-col gap-md">
+        {budgetsOpen && <div className="mt-md flex flex-col gap-md px-4 pb-4">
           {(month.activeCategories || []).map((category) => {
             const budget = month.categoryBudgets?.[category] || 0;
             const spent = calculateCategorySpent(month, category);
@@ -145,7 +212,7 @@ export function VariableTab({
                       />
                     </div>
                     <span className="font-label-lg text-label-lg font-bold text-on-surface">
-                      {category}
+                      {localizeCategoryName(category, m)}
                     </span>
                   </div>
                   
@@ -163,11 +230,13 @@ export function VariableTab({
                           }
                         }}
                         placeholder="0"
+                        aria-label={t(m.tabs.variable.editBudget, { category: localizeCategoryName(category, m) })}
                         className="w-24 px-2 py-1 bg-surface border border-outline-variant rounded-lg font-mono text-base text-on-surface focus:border-primary outline-none"
                         autoFocus
                       />
                       <button
                         onClick={() => handleSetBudget(category)}
+                        aria-label={t(m.tabs.variable.saveBudget, { category: localizeCategoryName(category, m) })}
                         className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
                       >
                         <AppIcon name="check" className="text-[18px]" />
@@ -177,6 +246,7 @@ export function VariableTab({
                           setEditingCategory(null);
                           setBudgetInput('');
                         }}
+                        aria-label={m.tabs.variable.cancelBudgetEdit}
                         className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
                       >
                         <AppIcon name="close" className="text-[18px]" />
@@ -185,6 +255,7 @@ export function VariableTab({
                   ) : (
                     <button
                       onClick={() => handleStartEdit(category)}
+                      aria-label={t(m.tabs.variable.editBudget, { category: localizeCategoryName(category, m) })}
                       className="flex items-center gap-xs text-on-surface-variant hover:text-primary transition-all"
                     >
                       <span className="font-mono font-bold text-sm">
@@ -215,12 +286,12 @@ export function VariableTab({
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className={`font-bold ${isOverBudget ? 'text-error' : 'text-on-surface-variant'}`}>
-                        {progress.toFixed(0)}% used
+                        {t(m.tabs.variable.percentUsed, { percent: formatLocalizedPercent(progress, intlLocale) })}
                       </span>
                       <span className="font-mono text-on-surface-variant">
                         {isOverBudget 
-                          ? `Over by ${format(spent - budget)}`
-                          : `${format(budget - spent)} left`
+                          ? t(m.tabs.variable.overBy, { amount: format(spent - budget) })
+                          : t(m.tabs.variable.left, { amount: format(budget - spent) })
                         }
                       </span>
                     </div>
@@ -229,19 +300,45 @@ export function VariableTab({
               </div>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Search & Category Chips */}
       <div className="flex flex-col gap-md">
-        <div className="relative">
-          <AppIcon name="search" className=" absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search expenses or notes..."
-            className="w-full pl-10 pr-md py-3 bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <AppIcon name="search" className=" absolute start-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={m.tabs.variable.searchPlaceholder}
+              aria-label={m.tabs.variable.searchPlaceholder}
+              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+            />
+          </div>
+          <DateRangePicker
+            from={dateFrom}
+            to={dateTo}
+            onChange={(nextFrom, nextTo) => {
+              setDateFrom(nextFrom);
+              setDateTo(nextTo);
+            }}
+            ariaLabel={m.tabs.variable.dateFrom}
+          />
+          <IconSelect
+            value={sortBy}
+            onChange={(value) => setSortBy(value as ExpenseSort)}
+            ariaLabel={m.tabs.variable.sortLabel}
+            icon="sort"
+            isActive={sortBy !== 'newest'}
+            options={[
+              { value: 'newest', label: m.tabs.variable.sortNewest },
+              { value: 'oldest', label: m.tabs.variable.sortOldest },
+              { value: 'amountHigh', label: m.tabs.variable.sortAmountHigh },
+              { value: 'amountLow', label: m.tabs.variable.sortAmountLow },
+              { value: 'name', label: m.tabs.variable.sortName },
+            ]}
           />
         </div>
 
@@ -256,7 +353,7 @@ export function VariableTab({
                   : 'bg-surface border border-outline-variant text-on-surface-variant hover:bg-surface-variant'
               }`}
             >
-              {cat}
+              {cat === 'All' ? m.common.all : localizeCategoryName(cat, m)}
             </button>
           ))}
         </div>
@@ -266,7 +363,7 @@ export function VariableTab({
       {filteredExpenses.length === 0 ? (
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
           <AppIcon name="search_off" className=" text-outline text-[44px]" />
-          <p className="font-body-md text-body-md text-on-surface-variant">No matching variable expenses found.</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.variable.noResults}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-sm">
@@ -287,20 +384,20 @@ export function VariableTab({
                     </span>
                     {exp.person && exp.person !== 'Self' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
-                        {exp.person}
+                        {localizePersonName(exp.person, m)}
                       </span>
                     )}
                     {exp.receiptUrl && (
-                      <AppIcon name="receipt_long" className="shrink-0 text-[16px] text-primary" title="Has receipt" />
+                      <AppIcon name="receipt_long" className="shrink-0 text-[16px] text-primary" title={m.tabs.variable.hasReceipt} />
                     )}
                   </div>
-                  <div className="mt-0.5 flex min-w-0 items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
-                    <span className="min-w-0 truncate">{exp.type}</span>
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 font-label-sm text-label-sm text-on-surface-variant">
+                    <span className="min-w-0 truncate">{localizeCategoryName(exp.type, m)}</span>
                     <span className="shrink-0">•</span>
-                    <span className="shrink-0 capitalize">{exp.place}</span>
+                    <span className="min-w-0 truncate">{localizePlaceName(exp.place, exp.place, m)}</span>
                     <span className="shrink-0">•</span>
-                    <time dateTime={exp.date} className="shrink-0 whitespace-nowrap">
-                      {formatShortDate(exp.date)}
+                    <time dateTime={exp.date} className="min-w-0 truncate">
+                      {formatShortDate(exp.date, intlLocale)}
                     </time>
                   </div>
                   {exp.note && (

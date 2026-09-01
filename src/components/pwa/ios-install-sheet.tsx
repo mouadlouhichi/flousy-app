@@ -3,6 +3,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useEffect, useRef } from 'react';
+import { useLightLanguage } from '@/lib/i18n-light';
 
 interface IosInstallSheetProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface IosInstallSheetProps {
  * explained rather than triggered.
  */
 export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
+  const { messages: m, intlLocale } = useLightLanguage();
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -54,13 +56,13 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
             id="ios-install-title"
             className="font-headline-sm text-headline-sm font-extrabold text-on-surface"
           >
-            Install SmartJib
+            {m.pwa.iosTitle}
           </h2>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={m.common.close}
             className="rounded-xl p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
             <AppIcon name="close" className=" text-[20px]" />
@@ -68,18 +70,18 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
         </div>
 
         <p className="mb-5 text-body-md text-on-surface-variant">
-          Add SmartJib to your Home Screen for a full-screen, app-like experience.
+          {m.pwa.iosDescription}
         </p>
 
         <ol className="space-y-3">
           {[
-            { icon: 'ios_share', text: 'Tap the Share button in the Safari toolbar' },
-            { icon: 'add_box', text: 'Choose "Add to Home Screen"' },
-            { icon: 'check_circle', text: 'Tap "Add" to finish' },
+            { icon: 'ios_share', text: m.pwa.iosStepShare },
+            { icon: 'add_box', text: m.pwa.iosStepAddHome },
+            { icon: 'check_circle', text: m.pwa.iosStepFinish },
           ].map((step, index) => (
             <li key={step.icon} className="flex items-center gap-3">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-label-md font-bold text-primary">
-                {index + 1}
+                {new Intl.NumberFormat(intlLocale).format(index + 1)}
               </span>
               <AppIcon name={step.icon} className=" text-[22px] text-primary" />
               <span className="text-body-md text-on-surface">{step.text}</span>
@@ -92,7 +94,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
           onClick={onClose}
           className="mt-6 w-full rounded-2xl bg-primary px-4 py-3 font-label-lg font-bold text-on-primary transition-opacity hover:opacity-90"
         >
-          Got it
+          {m.pwa.gotIt}
         </button>
       </div>
     </div>

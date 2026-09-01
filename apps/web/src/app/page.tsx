@@ -34,12 +34,13 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
+    // Self-referential canonical only. There is a single URL per page — the UI
+    // language is a client preference, not a locale path — so declaring
+    // `/en`, `/fr` and `/ar` alternates promised crawlers three localized
+    // versions that return 404. hreflang entries for missing URLs cost crawl
+    // budget and can get the whole cluster ignored; the localized titles are
+    // applied after hydration by <LocalizedDocumentTitle/>.
     canonical: '/',
-    languages: {
-      'en': '/en',
-      'fr': '/fr',
-      'ar': '/ar',
-    },
   },
   openGraph: {
     title,
@@ -96,29 +97,11 @@ const faqSchema = {
   })),
 };
 
-const localBusinessSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'LocalBusiness',
-  name: SITE_NAME,
-  image: `${SITE_URL}/web-app-manifest-512x512.png`,
-  url: SITE_URL,
-  telephone: '+1-555-123-4567',
-  address: {
-    '@type': 'PostalAddress',
-    streetAddress: '123 Budget St',
-    addressLocality: 'Finance City',
-    addressRegion: 'FC',
-    postalCode: '12345',
-    addressCountry: 'US'
-  }
-};
-
 export default function Home() {
   return (
     <>
       <JsonLd id="software-application-json-ld" data={softwareApplicationSchema} />
       <JsonLd id="organization-json-ld" data={organizationSchema} />
-      <JsonLd id="local-business-json-ld" data={localBusinessSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
       <main className="noise-overlay relative min-h-screen overflow-x-hidden">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from './Modal';
+import { useLanguage } from '@/lib/i18n-context';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -18,10 +19,14 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   isDestructive = false,
 }: ConfirmDialogProps) {
+  const { messages: m } = useLanguage();
+  const resolvedConfirmLabel = confirmLabel || m.common.confirm;
+  const resolvedCancelLabel = cancelLabel || m.common.cancel;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="flex flex-col gap-lg">
@@ -31,7 +36,7 @@ export function ConfirmDialog({
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl border border-outline text-on-surface hover:bg-surface-variant/40 font-label-md text-label-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             onClick={() => {
@@ -44,7 +49,7 @@ export function ConfirmDialog({
                 : 'bg-primary hover:bg-accent-foreground focus:ring-primary'
             }`}
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>

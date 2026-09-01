@@ -19,7 +19,75 @@
     "open": "Open",
     "settled": "Settled",
     "step": "STEP {current} OF {total}",
-    "percentComplete": "{percent}%"
+    "percentComplete": "{percent}",
+    "yes": "Yes",
+    "no": "No",
+    "done": "Done",
+    "create": "Create",
+    "update": "Update",
+    "apply": "Apply",
+    "reset": "Reset",
+    "optional": "Optional",
+    "required": "Required",
+    "amount": "Amount",
+    "date": "Date",
+    "category": "Category",
+    "note": "Note",
+    "description": "Description",
+    "name": "Name",
+    "from": "From",
+    "to": "To",
+    "total": "Total",
+    "remaining": "Remaining",
+    "none": "None",
+    "select": "Select",
+    "choose": "Choose",
+    "viewAll": "View all",
+    "viewDetails": "View details",
+    "viewMore": "View more",
+    "learnMore": "Learn more",
+    "tryAgain": "Try again",
+    "dismiss": "Dismiss",
+    "month": "Month",
+    "year": "Year",
+    "day": "Day",
+    "days": "days",
+    "perMonth": "per month",
+    "custom": "Custom",
+    "active": "Active",
+    "inactive": "Inactive",
+    "notSet": "Not set",
+    "notAvailable": "Not available",
+    "copy": "Copy",
+    "share": "Share",
+    "download": "Download",
+    "upload": "Upload",
+    "chooseFile": "Choose file",
+    "clear": "Clear",
+    "previous": "Previous",
+    "next": "Next",
+    "menu": "Menu",
+    "actions": "Actions",
+    "manage": "Manage",
+    "addNew": "Add new",
+    "user": "User",
+    "accessibility": {
+      "loading": "Loading",
+      "pagination": "Pagination",
+      "previousPage": "Go to previous page",
+      "nextPage": "Go to next page",
+      "morePages": "More pages",
+      "breadcrumb": "Breadcrumb",
+      "more": "More",
+      "sidebarTitle": "Sidebar",
+      "sidebarDescription": "Displays the mobile sidebar.",
+      "toggleSidebar": "Toggle sidebar",
+      "previousSlide": "Previous slide",
+      "nextSlide": "Next slide",
+      "carousel": "Carousel",
+      "slide": "Slide"
+    },
+    "retry": "Try again"
   },
   "auth": {
     "signIn": "Log in",
@@ -45,10 +113,23 @@
     "failedResetEmail": "Failed to send reset email",
     "invalidCredentials": "Invalid email or password",
     "authFailed": "Authentication failed. Please verify credentials.",
+    "unauthorizedDomain": "This domain is not allowed to sign in. Add it under Firebase → Authentication → Authorized domains, or use the production site.",
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "popupBlocked": "The sign-in popup was blocked. Allow popups for this site, or use email login.",
+    "signInCancelled": "Sign-in was cancelled.",
+    "networkError": "Network error. Check your connection and try again.",
+    "signInMethodDisabled": "This sign-in method is disabled in Firebase.",
+    "emailAlreadyInUse": "An account with this email already exists. Log in instead.",
+    "weakPassword": "Password must be at least 6 characters.",
+    "apiKeyReferrerBlocked": "Firebase blocked this preview domain. Add it to the API key HTTP referrers, or use the production site.",
     "googleSignInFailed": "Google sign-in failed",
     "demoMode": "Demo Mode Available",
     "demoModeDescription": "Experience SmartJib instantly with sample data in local preview mode.",
     "continueDemo": "Continue in Demo Mode",
+    "demoActiveTitle": "You're in demo mode",
+    "demoActiveHint": "You're browsing with sample data. To use a real account, exit demo and sign in.",
+    "demoContinue": "Continue to dashboard",
+    "demoExit": "Exit demo",
     "demoResetRequested": "Demo Mode: Password reset requested for {email}",
     "signedInAs": "Signed in as",
     "anonymousUser": "Anonymous User",
@@ -59,7 +140,12 @@
     "signOutConfirmMessage": "Are you sure you want to sign out of your SmartJib account?",
     "deleteConfirmTitle": "Delete Account Permanently",
     "deleteConfirmMessage": "This action is irreversible. All your budget data, expenses, and savings goals will be permanently deleted from Firestore.",
-    "firebaseNotConfigured": "Firebase isn't configured"
+    "firebaseNotConfigured": "Firebase isn't configured",
+    "confirmPasswordTitle": "Confirm your password",
+    "confirmPasswordHint": "For your security, deleting an account needs a sign-in from the last few minutes. Enter your password to continue.",
+    "confirmPasswordAction": "Confirm and delete",
+    "deletePartialFailure": "Some data could not be deleted yet ({items}). Your account is still active so nothing is lost — try again, or contact support.",
+    "deleteDemoUnsupported": "Account deletion is not available in demo mode, because nothing is stored in an account."
   },
   "onboarding": {
     "tagline": "Private, mobile-first budget tracker that separates what money is for from where it is.",
@@ -89,7 +175,7 @@
     "fixedNeeds": "Fixed Needs",
     "variableWants": "Variable Wants",
     "futureSavings": "Future Savings",
-    "ofIncome": "{percent}% of income",
+    "ofIncome": "{percent} of income",
     "confirmAndFinish": "Confirm & Finish",
     "finishingSetup": "Finishing setup...",
     "editAllocation": "Edit Allocation",
@@ -102,7 +188,37 @@
     "spendTheRest": "Spend the rest",
     "housingCategory": "Housing",
     "rent": "Rent",
-    "electricity": "Electricity"
+    "electricity": "Electricity",
+    "monthlyStartDate": "Monthly start date",
+    "salaryDay": "Salary day",
+    "monthlyStartHint": "Your budget month starts on the {day} of each month.",
+    "skipForNow": "Skip for now",
+    "categoryNamePlaceholder": "Category name (e.g. Gym)",
+    "billNamePlaceholder": "e.g. Rent, Netflix, Electricity",
+    "addedBills": "Added bills",
+    "billCategoryOptions": {
+      "housing": "Housing / Rent",
+      "utilities": "Utilities",
+      "internetPhone": "Internet & Phone",
+      "subscriptions": "Subscriptions",
+      "insurance": "Insurance",
+      "transport": "Transport / Fuel",
+      "foodGroceries": "Food & Groceries",
+      "health": "Health / Medical",
+      "education": "Education",
+      "childcare": "Childcare",
+      "entertainment": "Entertainment",
+      "loans": "Loans / Debt",
+      "savings": "Savings / Investment",
+      "other": "Other"
+    },
+    "customSplitInvalid": "Needs, Wants and Savings must add up to exactly {required} (currently {percent}).",
+    "customSplitSummary": "{percent} {label}",
+    "removeBill": "Remove {name}",
+    "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then.",
+    "importPersonalTitle": "Import my personal budget",
+    "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household.",
+    "importPersonalLoading": "Copying your personal budget…"
   },
   "dashboard": {
     "overview": "Overview",
@@ -118,10 +234,10 @@
     "addFunds": "Add Funds",
     "withdraw": "Withdraw",
     "budgetPlan": "Budget Plan",
-    "needsLabel": "Needs ({percent}%)",
-    "wantsLabel": "Wants ({percent}%)",
-    "savingsLabel": "Savings ({percent}%)",
-    "used": "{percent}% Used",
+    "needsLabel": "Needs ({percent})",
+    "wantsLabel": "Wants ({percent})",
+    "savingsLabel": "Savings ({percent})",
+    "used": "{percent} Used",
     "activeGoals": "{count, plural, =0 {No Active Goals} one {# Active Goal} other {# Active Goals}}",
     "totalMonthlyBudget": "TOTAL MONTHLY BUDGET",
     "totalCashOnHand": "TOTAL CASH ON HAND",
@@ -137,7 +253,16 @@
     "sendVerification": "Send Verification Email",
     "verificationSent": "Verification email sent!",
     "trendsAndAnalytics": "Trends & Analytics",
-    "debtsAndCredits": "Debts & Credits"
+    "debtsAndCredits": "Debts & Credits",
+    "move": "Move",
+    "noActivityYet": "No expenses or savings deposits yet this month.",
+    "depositedThisMonth": "Deposited into goals this month",
+    "editBudgetTooltip": "Click to edit your monthly budget",
+    "editTotalBudget": "Edit total monthly budget",
+    "adjustCashBalances": "Adjust cash balances",
+    "deposit": "Deposit",
+    "withdrawal": "Withdrawal",
+    "savingsActivity": "Savings"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",
@@ -171,7 +296,18 @@
       "receiptOptional": "RECEIPT / ATTACHMENT (OPTIONAL)",
       "receiptAttached": "Receipt Attached",
       "uploadReceipt": "Upload Receipt Photo",
-      "saveChanges": "Save Changes"
+      "saveChanges": "Save Changes",
+      "new": "New",
+      "newExpenseCategory": "New expense category",
+      "customCategoryPlaceholder": "Category name, e.g. Beauty",
+      "invalidCategoryData": "Enter valid category details.",
+      "duplicateCategory": "A category with this name already exists.",
+      "availableIn": "Available in {place}: {amount}",
+      "insufficientFunds": "Only {amount} is available in {place}. Lower the amount or move money into this place first.",
+      "householdPro": "Household member tracking is available in Pro.",
+      "receiptPro": "Receipt attachments are available in Pro.",
+      "receiptPreview": "Receipt preview",
+      "removeReceipt": "Remove receipt"
     },
     "fixed": {
       "addTitle": "Add Fixed Charge",
@@ -184,7 +320,20 @@
       "dueDate": "Due Date (Optional)",
       "repeatEveryMonth": "Repeat Every Month",
       "autoCarries": "Auto-carries bill to future months",
-      "saveChanges": "Save Changes"
+      "saveChanges": "Save Changes",
+      "monthlyCharge": "Monthly Charge",
+      "billSubscriptionName": "Bill / Subscription Name",
+      "billSubscriptionPlaceholder": "e.g. Apartment Rent, Electricity, Netflix",
+      "editCategory": "Edit category",
+      "new": "New",
+      "newFixedCategory": "New Fixed Category",
+      "updateCategory": "Update “{name}”",
+      "customCategoryPlaceholder": "Category name (e.g. Daycare)",
+      "invalidCategoryData": "Enter valid category details.",
+      "duplicateCategory": "A category with this name already exists.",
+      "availableIn": "Available in {place}: {amount}",
+      "insufficientFunds": "Only {amount} is available in {place}. Lower the amount or move money into this place first.",
+      "householdPro": "Household member tracking is available in Pro."
     },
     "savings": {
       "createTitle": "Create Saving Goal",
@@ -201,7 +350,38 @@
       "createGoal": "Create Goal",
       "fundGoal": "Fund Goal",
       "withdrawGoal": "Withdraw",
-      "progressLabel": "{current} of {target} ({percent}%)"
+      "progressLabel": "{current} of {target} ({percent})",
+      "alreadySaved": "Already Saved ({currency})",
+      "suggestions": "Suggestions:",
+      "openingBalanceHint": "Starting an existing goal? Enter what you have put aside for it so far — progress starts from there instead of zero.",
+      "deductOpening": "Move this amount out of my tracked {place} balance",
+      "deductOpeningHint": "Leave unchecked if this money is already kept separately and is not part of your bank, home, or wallet totals. Available: {amount}.",
+      "primarySource": "Primary Source Place",
+      "deductFrom": "Deduct From Account",
+      "depositInto": "Deposit Into Account",
+      "availableIn": "Available in {place}: {amount}",
+      "currentTarget": "Current: {current} · Target: {target}",
+      "savedAvailable": "{saved} saved · {available} available once this entry is re-applied.",
+      "currentExceedsTarget": "Already saved cannot be more than the target amount.",
+      "openingInsufficient": "Only {amount} is available in {place}. Uncheck the transfer option to just record the balance.",
+      "fundInsufficient": "Only {amount} is available in {place}. Lower the deposit or move money into this place first.",
+      "withdrawTooMuch": "Cannot withdraw more than the goal balance ({amount}).",
+      "validPositiveAmount": "Please enter a valid positive amount.",
+      "progressOfTarget": "{percent} of {target}",
+      "editDeposit": "Edit Deposit",
+      "editWithdrawal": "Edit Withdrawal",
+      "movementType": "Movement type",
+      "deposit": "Deposit",
+      "withdrawal": "Withdrawal",
+      "savingsGoal": "Savings Goal",
+      "selectGoal": "Select a goal",
+      "missingGoal": "This goal no longer exists — delete the entry to fix your plan.",
+      "takenFrom": "Taken From Account",
+      "returnedTo": "Returned To Account",
+      "goalReapply": "{name}: {saved} saved · {available} available once this entry is re-applied.",
+      "selectGoalError": "Please pick a savings goal.",
+      "deleteActivityTitle": "Delete savings activity?",
+      "deleteActivityMessage": "This reverses the recorded money movement and updates the goal balance."
     },
     "moveMoney": {
       "title": "Move Money",
@@ -213,7 +393,10 @@
       "insufficientFunds": "Insufficient funds in {place}. Maximum available: {amount}",
       "bankLabel": "Bank ({balance})",
       "homeCashLabel": "Home Cash ({balance})",
-      "walletLabel": "Wallet ({balance})"
+      "walletLabel": "Wallet ({balance})",
+      "betweenAccounts": "Transfer between accounts",
+      "previewAfter": "Preview after transfer",
+      "samePlaces": "Choose two different money places"
     },
     "debt": {
       "addTitle": "Add Debt",
@@ -227,7 +410,8 @@
       "dateLabel": "Date",
       "noteOptional": "Note (Optional)",
       "notePlaceholder": "What is this debt for?",
-      "saveChanges": "Save Changes"
+      "saveChanges": "Save Changes",
+      "addCredit": "Add Credit"
     },
     "categories": {
       "title": "Manage Categories",
@@ -246,11 +430,16 @@
       "supportedColumns": "Supported columns: Name, Amount, Date, Category, Place, Note, Person",
       "preview": "Preview ({count} transactions)",
       "total": "Total: {amount}",
-      "importButton": "Import {count} Items"
+      "importButton": "Import {count} Items",
+      "invalidRows": "CSV must contain a header row and at least one data row.",
+      "noNumericAmounts": "No valid numeric amounts found in the CSV rows.",
+      "parseFailed": "The CSV file could not be read.",
+      "importedExpense": "Imported expense",
+      "selectFile": "Select a CSV file to preview your transactions before importing."
     },
     "incomeSources": {
       "title": "Income Sources",
-      "description": "Specify all streams of income contributing to this month's budget.",
+      "description": "Specify all streams of income contributing to this month’s budget. For a monthly salary, set its start date (payday) to track the period it covers.",
       "combinedTotal": "Combined Total Income",
       "addIncomeSource": "Add Income Source",
       "sourceNamePlaceholder": "Source Name (e.g., Freelance, Rental)",
@@ -258,7 +447,25 @@
       "addIncomeStream": "Add Income Stream",
       "saveIncomeSources": "Save Income Sources ({total})",
       "perSourceAnalytics": "Per-Source Analytics",
-      "shareOfTotal": "{pct}% of total income"
+      "shareOfTotal": "{pct} of total income",
+      "primaryIncome": "Primary Income",
+      "nameRequired": "Name is required.",
+      "validAmount": "Enter a valid amount.",
+      "amountExceedsLimit": "Amount exceeds the limit.",
+      "required": "Required.",
+      "dayRange": "Day must be between 1 and 31.",
+      "incomeStreams": "Income streams ({count})",
+      "noSources": "No income sources yet. Add one below.",
+      "sourceName": "Source name",
+      "editSource": "Edit {name}",
+      "removeSource": "Remove {name}",
+      "addIncomeStreamLabel": "Add income stream",
+      "quick": "Quick:",
+      "monthlyStartDate": "Monthly start date",
+      "startsOn": "Starts on {day}",
+      "period": "Period {start} → {end}",
+      "payDayHint": "Salary arrives monthly on {day} — your budget period for this source starts then.",
+      "payDayOptional": "Optional: pick the day of the month this income arrives."
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -284,7 +491,66 @@
       "proStatusActive": "Your Pro status is active on this account.",
       "switchToFree": "Switch back to Free Plan",
       "goToPremium": "Go to Premium",
-      "proMembership": "Pro Membership"
+      "proMembership": "Pro Membership",
+      "planActive": "Pro plan is active",
+      "nextBilling": "Next billing: {date}",
+      "allPremiumUnlocked": "All premium features unlocked.",
+      "backToDashboard": "Back to dashboard",
+      "perPeriod": "/{period}",
+      "annualValue": "{price} per month — save {savings}",
+      "monthlyValue": "Billed monthly. Switch to annual anytime to save {percent}.",
+      "courseScanning": "Barcode Course Scanning",
+      "courseScanningDesc": "Scan groceries as you shop — SmartJib builds the bill for you.",
+      "advancedReports": "Advanced Reports",
+      "advancedReportsDesc": "Category-level breakdowns and per-person spending insights.",
+      "prioritySync": "Priority Sync",
+      "prioritySyncDesc": "Faster Firestore sync and priority support.",
+      "continueCheckout": "Continue to checkout",
+      "secureCheckout": "Secure checkout",
+      "cancelAnytime": "Cancel anytime",
+      "annualPlan": "Annual Pro Plan",
+      "monthlyPlan": "Monthly Pro Plan",
+      "annualDiscount": "{percent} OFF",
+      "flexible": "Flexible",
+      "fillDemoTestCard": "Fill demo test card",
+      "cardNumber": "Card number",
+      "cardNumberPlaceholder": "4242 4242 4242 4242",
+      "expiry": "Expiry",
+      "expiryPlaceholder": "MM/YY",
+      "cvc": "CVC",
+      "cardholderName": "Name on card",
+      "cardholderPlaceholder": "Jane Doe",
+      "receiptEmail": "Receipt email",
+      "emailPlaceholder": "you@example.com",
+      "validCardNumber": "Enter a valid card number.",
+      "validExpiry": "Enter a valid expiry date (MM/YY).",
+      "validCvc": "Enter a valid CVC.",
+      "validCardholder": "Enter the name on the card.",
+      "validReceiptEmail": "Enter a receipt email.",
+      "creatingCheckout": "Creating secure checkout session…",
+      "validatingCard": "Validating card with issuing bank…",
+      "processingPayment": "Processing payment…",
+      "activatingFeatures": "Activating Pro features…",
+      "processingTitle": "Processing payment",
+      "pay": "Pay {price}",
+      "encryptedTestPayment": "Encrypted test payment · No real funds charged",
+      "paymentSuccessful": "Payment successful!",
+      "proNowActive": "SmartJib Pro is now active on your account.",
+      "receipt": "Receipt",
+      "plan": "Plan",
+      "paymentMethod": "Payment method",
+      "nextBillingLabel": "Next billing",
+      "totalPaid": "Total paid",
+      "startUsingPro": "Start using Pro",
+      "paymentFailed": "Payment failed",
+      "paymentFailedDescription": "Your payment could not be completed. Please check your card details."
+    },
+    "moneyPlaces": {
+      "title": "Edit Money Balances",
+      "description": "Correct your current cash in each place. This adjusts your cash on hand — your monthly budget stays unchanged.",
+      "totalCash": "Total cash on hand",
+      "monthlyBudget": "Monthly budget: {amount}",
+      "saveBalances": "Save balances"
     }
   },
   "settings": {
@@ -307,7 +573,25 @@
       "addExpense": "Add Expense",
       "searchPlaceholder": "Search expenses or notes...",
       "noResults": "No matching variable expenses found.",
-      "hasReceipt": "Has receipt"
+      "hasReceipt": "Has receipt",
+      "categoryBudgets": "Category Budgets",
+      "pro": "PRO",
+      "percentUsed": "{percent} used",
+      "overBy": "Over by {amount}",
+      "left": "{amount} left",
+      "editBudget": "Edit {category} budget",
+      "saveBudget": "Save {category} budget",
+      "cancelBudgetEdit": "Cancel budget edit",
+      "dateFrom": "From",
+      "dateTo": "To",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first",
+      "sortAmountHigh": "Amount: high to low",
+      "sortAmountLow": "Amount: low to high",
+      "sortName": "Name A–Z",
+      "clearDates": "Clear dates",
+      "categoryBudgetsHint": "Set spending limits for each category."
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
@@ -317,7 +601,10 @@
       "recurring": "Recurring",
       "oneTime": "One-time",
       "recurringLabel": "Recurring",
-      "carryOverNote": "Recurring bills are auto-carried from the previous month."
+      "carryOverNote": "Recurring bills are auto-carried from the previous month.",
+      "recurringMonthly": "Recurring monthly",
+      "due": "Due {date}",
+      "monthly": "Monthly"
     },
     "savings": {
       "totalSaved": "TOTAL SAVED",
@@ -325,10 +612,25 @@
       "noGoals": "You haven't created any saving goals yet.",
       "createGoal": "Create Your First Goal",
       "reached": "Reached!",
-      "progress": "{percent}%",
+      "progress": "{percent}",
       "fund": "Fund",
       "withdrawButton": "Withdraw",
-      "deleteGoal": "Delete Goal"
+      "deleteGoal": "Delete Goal",
+      "totalAccumulated": "TOTAL ACCUMULATED SAVINGS",
+      "newGoal": "New Goal",
+      "noActiveGoals": "No active savings goals defined.",
+      "createEmergencyFund": "Create Emergency Fund or Goal",
+      "source": "Source: {place}",
+      "editGoal": "Edit goal",
+      "target": "Target: {amount}",
+      "percentReached": "{percent} reached",
+      "thisMonthsDeposits": "THIS MONTH'S DEPOSITS",
+      "movementsLogged": "{count, plural, one {# movement logged} other {# movements logged}}",
+      "saved": "{amount} saved",
+      "noDeposits": "No deposits logged this month.",
+      "useDeposit": "Use Deposit on a goal above to move money into savings.",
+      "editDeposit": "Edit deposit",
+      "editWithdrawal": "Edit withdrawal"
     },
     "debts": {
       "debtsIOwe": "Debts (I owe)",
@@ -370,12 +672,19 @@
       "variable": "Variable",
       "fixed": "Fixed",
       "budgetHealth": "Budget Health",
-      "needsLabel": "Needs ({ratio}%)",
-      "wantsLabel": "Wants ({ratio}%)",
+      "needsLabel": "Needs ({percent})",
+      "wantsLabel": "Wants ({percent})",
       "vsLabel": "vs",
       "ofLabel": "of",
       "loadingTrends": "Loading trends...",
-      "proLabel": "PRO"
+      "proLabel": "PRO",
+      "percentVsLastMonth": "{percent} vs last month",
+      "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
+      "strategySavings": "{strategy} · {percent} savings",
+      "incomeSourcesPro": "Income source analytics are available in Pro.",
+      "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
+      "variableAmount": "Variable: {amount}",
+      "fixedAmount": "Fixed: {amount}"
     }
   },
   "courses": {
@@ -393,6 +702,10 @@
     "lookup": "Lookup",
     "scanned": "Scanned",
     "alignHint": "Hold steady — align the barcode inside the frame",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "torchOn": "Turn on flashlight",
+    "torchOff": "Turn off flashlight",
     "scannedAdded": "{name} +1 (×{qty})",
     "scanProTitle": "Barcode scanning is a Pro feature",
     "scanProHint": "With Pro, point your camera at a product — SmartJib recognizes it, fills in the name and builds your bill as you shop.",
@@ -417,41 +730,56 @@
     "total": "Total",
     "items": "items",
     "billTitle": "Course bill",
-    "billShare": "Share",
+    "billThanks": "Thank you for your visit!",
+    "billShare": "Share image",
+    "shareFailed": "Couldn't create the bill image. Please try again.",
     "billCopy": "Copy",
     "billCopied": "Bill copied",
-    "billDownload": "Download .txt",
-    "billCsv": "Download .csv",
+    "billCsv": "Download",
     "logTitle": "Add to budget",
     "logCategory": "Category",
     "logCta": "Add as expense",
     "logHint": "Logs {amount} as a variable expense in {month}.",
     "logDone": "Total added to your budget.",
     "notFound": "Product not found — add it manually with the code attached.",
+    "lookupFailed": "Couldn't reach the product catalog — check your connection or add it manually.",
     "codeInvalid": "That code doesn't look like a barcode (8 or 13 digits). You can still add it by name.",
     "priceRequired": "Enter a price (0 or more).",
     "nameRequired": "Give the product a name to add it.",
     "remembered": "Saved to your product catalog",
     "fromCatalog": "From your product catalog",
+    "fromSeed": "From the Morocco catalog",
     "fromOff": "From Open Food Facts",
     "maBadge": "Made in Morocco",
     "recentTitle": "Recent courses",
     "noRecent": "No finished courses yet.",
     "noItems": "Nothing scanned yet — each product will appear here and in the bill.",
     "newCourse": "New course",
-    "back": "Back"
+    "back": "Back",
+    "billTextCourse": "COURSE",
+    "billTextLine": "line",
+    "billTextLines": "lines",
+    "billTextItem": "item",
+    "billTextItems": "items",
+    "billTextTotal": "TOTAL",
+    "unnamedItem": "Unnamed item"
   },
   "alerts": {
-    "budgetHealth": "Budget Health",
-    "needsExceeded": "Needs Envelope Exceeded",
-    "needsAlert": "Needs Envelope Alert",
-    "wantsExceeded": "Wants Envelope Exceeded",
-    "wantsAlert": "Wants Envelope Alert",
-    "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}%).",
-    "spentOfBudget": "Spent {spent} of {budget} budget ({percent}%).",
-    "allHealthy": "All budget envelopes are healthy! No overspending detected.",
-    "categoryAlertTitle": "{cat} Spending Alert",
-    "categoryAlertMessage": "{cat} represents {pct}% of variable spending ({amount}). Consider reviewing this category."
+    "needsExceeded": "Needs envelope exceeded",
+    "needsAlert": "Needs envelope alert",
+    "wantsExceeded": "Wants envelope exceeded",
+    "wantsAlert": "Wants envelope alert",
+    "categoryExceeded": "\"{category}\" budget exceeded",
+    "categoryAlert": "\"{category}\" budget alert",
+    "spentVsBudget": "Spent {spent} vs {budget} budget ({percent}).",
+    "spentOfBudget": "Spent {spent} of {budget} budget ({percent}).",
+    "viewNotifications": "View notifications ({count})",
+    "title": "Notifications",
+    "householdInvitations": "Household invitations",
+    "householdInvitation": "Household invitation",
+    "openToJoinAs": "Open to join as {role}.",
+    "budgetHealth": "Budget health",
+    "allHealthy": "All budget envelopes are healthy! No overspending detected."
   },
   "legal": {
     "eyebrow": "Legal",
@@ -506,7 +834,11 @@
     "notFoundDescription": "The page you're looking for doesn't exist or has been moved.",
     "goHome": "Go Home",
     "validationNameRequired": "Please enter a name or person",
-    "validationAmountInvalid": "Please enter a valid amount"
+    "validationAmountInvalid": "Please enter a valid amount",
+    "unexpected": "An unexpected error occurred.",
+    "tryAgain": "Try again",
+    "loadingApp": "Loading SmartJib…",
+    "returnDashboard": "Return to dashboard"
   },
   "categories": {
     "food": "Food",
@@ -531,7 +863,29 @@
     "installApp": "Install App",
     "installBanner": "Install SmartJib for the best experience",
     "install": "Install",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "installRegion": "Install SmartJib",
+    "installTitle": "Install SmartJib",
+    "offlineHint": "Faster access, works offline.",
+    "dismissPrompt": "Dismiss install prompt",
+    "installAppLabel": "Install SmartJib app",
+    "iosTitle": "Install SmartJib",
+    "iosDescription": "Add SmartJib to your Home Screen for a full-screen, app-like experience.",
+    "iosStepShare": "Tap the Share button in the Safari toolbar",
+    "iosStepAddHome": "Choose \"Add to Home Screen\"",
+    "iosStepFinish": "Tap \"Add\" to finish",
+    "gotIt": "Got it",
+    "generic": "Something went wrong",
+    "networkError": "Network error. Please check your connection.",
+    "notFound": "Page not found",
+    "notFoundDescription": "The page you are looking for does not exist or has been moved.",
+    "goHome": "Go Home",
+    "validationNameRequired": "Please enter a name or person",
+    "validationAmountInvalid": "Please enter a valid amount",
+    "unexpected": "An unexpected error occurred while processing your budget request.",
+    "tryAgain": "Try again",
+    "returnDashboard": "Return to Dashboard",
+    "loadingApp": "Loading SmartJib..."
   },
   "landing": {
     "nav": {
@@ -541,7 +895,15 @@
       "pricing": "Pricing",
       "faq": "FAQ",
       "signIn": "Sign in",
-      "startBudgeting": "Start budgeting"
+      "startBudgeting": "Start budgeting",
+      "goToDashboard": "Go to Dashboard",
+      "changeLanguage": "Change language",
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
     },
     "hero": {
       "eyebrow": "Needs, wants, savings — and every money place.",
@@ -580,7 +942,8 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "What is SmartJib? The Free Budgeting App"
+      "title": "What is SmartJib? The Free Budgeting App",
+      "description": "SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in."
     },
     "features": {
       "eyebrow": "Budgeting styles & Capabilities",
@@ -667,7 +1030,8 @@
             }
           ]
         }
-      ]
+      ],
+      "synced": "Synced"
     },
     "infrastructure": {
       "eyebrow": "Free, with room to grow",
@@ -792,7 +1156,7 @@
           "author": "Youssef B.",
           "role": "Freelance designer",
           "company": "Casablanca",
-          "metric": "Saved 20% more in 3 months"
+          "metric": "Saved {percent} more in 3 months"
         },
         {
           "quote": "The wallet vs bank split is genius. I used to lose track of cash completely.",
@@ -808,7 +1172,9 @@
           "company": "Marrakech",
           "metric": "From spreadsheet to app in 2 days"
         }
-      ]
+      ],
+      "showTestimonial": "Show testimonial {number}",
+      "illustrative": "Illustrative examples of how people use SmartJib — not customer reviews."
     },
     "pricing": {
       "eyebrow": "Pricing",
@@ -817,7 +1183,7 @@
       "description": "Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.",
       "monthly": "Monthly",
       "annual": "Annual",
-      "save34": "Save 34%",
+      "save34": "Save {percent}",
       "perMonth": "/month",
       "mostPopular": "Most popular",
       "bottomNote": "Your budget stays private, always. No credit card required to start.",
@@ -848,11 +1214,46 @@
           ],
           "cta": "Upgrade to Pro"
         }
-      ]
+      ],
+      "useAnnualBilling": "Use annual billing"
     },
     "faq": {
       "eyebrow": "SmartJib facts",
-      "title": "Frequently asked questions"
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "Is SmartJib free?",
+          "answer": "SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade."
+        },
+        {
+          "question": "Does SmartJib connect to my bank?",
+          "answer": "No, SmartJib does not connect to your bank. You manually enter transactions for privacy and control."
+        },
+        {
+          "question": "What currencies does SmartJib support?",
+          "answer": "SmartJib supports 12 currencies: MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD, and XOF."
+        },
+        {
+          "question": "Is my data private?",
+          "answer": "Yes. Account data is cached locally and synced to Firebase when you sign in. We do not use your financial data to build advertising profiles or sell it to third parties. See our Privacy Policy for details.",
+          "link": {
+            "label": "Privacy Policy",
+            "href": "/privacy"
+          }
+        },
+        {
+          "question": "What budgeting methods does SmartJib support?",
+          "answer": "SmartJib supports 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first."
+        },
+        {
+          "question": "Can I export my data?",
+          "answer": "Yes. You can export your budgeting data as a CSV file from Settings."
+        },
+        {
+          "question": "How do I delete my account?",
+          "answer": "You can permanently delete your account and its associated budgeting data from Settings."
+        }
+      ]
     },
     "cta": {
       "titleLine1": "Ready to know",
@@ -1005,6 +1406,476 @@
           "body": "You can control or clear cookies through your browser settings at any time. Note that blocking essential cookies may prevent SmartJib from working properly."
         }
       ]
+    },
+    "blog": {
+      "eyebrow": "Blog",
+      "title": "Notes on money and habits.",
+      "subtitle": "Short, practical writing about budgeting well — from the team building SmartJib.",
+      "readArticle": "Read article",
+      "readArticleAria": "Read {title}",
+      "moreOnWayPrefix": "More on the way. Have a topic you'd like us to cover?",
+      "letUsKnow": "Let us know",
+      "home": "Home",
+      "allArticles": "All articles",
+      "byAuthor": "By SmartJib Team",
+      "readingTime": "{minutes} min read",
+      "continueReading": "Continue reading",
+      "relatedArticles": "Related articles",
+      "articleCtaDescription": "SmartJib keeps budget envelopes separate from bank, home, and wallet balances.",
+      "startBudgeting": "Start budgeting free",
+      "breadcrumb": "Breadcrumb"
+    }
+  },
+  "strategies": {
+    "50-30-20": {
+      "name": "50/30/20 Rule",
+      "description": "Balanced approach: {needs} for needs, {wants} for wants, and {savings} for savings."
+    },
+    "70-20-10": {
+      "name": "70/20/10 Rule",
+      "description": "A needs-first split that is great for building a first budget."
+    },
+    "80-20": {
+      "name": "80/20 Rule",
+      "description": "A simple, flexible split between spending and savings."
+    },
+    "zero-based": {
+      "name": "Zero-Based Budgeting",
+      "description": "Give every unit of income a job before you spend it."
+    },
+    "envelope": {
+      "name": "Envelope System",
+      "description": "Set aside spending amounts by category before the month begins."
+    },
+    "pay-first": {
+      "name": "Pay Yourself First",
+      "description": "Prioritize your savings goal before the rest of your spending."
+    },
+    "custom": {
+      "name": "Custom Strategy",
+      "description": "Create your own split for needs, wants, and savings."
+    }
+  },
+  "navigation": {
+    "overview": "Overview",
+    "dashboardOverview": "Dashboard Overview",
+    "fixedBills": "Fixed Bills",
+    "variableExpenses": "Variable Expenses",
+    "courses": "Courses",
+    "courseSession": "Course Session",
+    "savings": "Savings",
+    "savingsGoals": "Savings Goals",
+    "trends": "Trends",
+    "trendsAnalytics": "Trends & Analytics",
+    "debts": "Debts",
+    "debtsCredits": "Debts & Credits",
+    "profile": "Profile",
+    "profileAccount": "Profile & Account",
+    "preferences": "Preferences",
+    "moneySources": "Money Sources",
+    "workspace": "Workspace",
+    "pro": "Pro",
+    "data": "Data",
+    "account": "Account",
+    "incomeSources": "Income Sources",
+    "importExportCsv": "Import / Export CSV",
+    "newTransaction": "New Transaction",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "customBudgetMonth": "Custom budget month",
+    "openProfileAccount": "Open profile and account",
+    "freePlan": "Free plan",
+    "proPlan": "Pro plan"
+  },
+  "notifications": {
+    "emailVerificationPrompt": "Please verify your email address to secure your account.",
+    "verificationSent": "Verification email sent!",
+    "resendEmail": "Resend email",
+    "dismissBanner": "Dismiss banner"
+  },
+  "quickActions": {
+    "close": "Close quick actions",
+    "open": "Open quick actions"
+  },
+  "householdRoles": {
+    "owner": "Owner",
+    "editor": "Editor",
+    "viewer": "Viewer",
+    "contributor": "Contributor",
+    "custom": "Custom",
+    "profile": "Profile"
+  },
+  "strategySelector": {
+    "title": "Choose Budget Strategy",
+    "changeStrategy": "Change budget strategy",
+    "previewAllocation": "Preview allocation",
+    "needs": "Needs",
+    "wants": "Wants",
+    "savings": "Savings",
+    "tags": {
+      "popular": "Popular",
+      "beginner": "Beginner",
+      "simple": "Simple",
+      "detailed": "Detailed",
+      "visual": "Visual",
+      "saver": "Saver",
+      "yours": "Yours"
+    },
+    "customStrategy": "Custom Strategy",
+    "customDescription": "Set your own Needs / Wants / Savings split.",
+    "percentage": "{label} percentage",
+    "slider": "{label} slider",
+    "totalAllocated": "Total allocated",
+    "mustEqual": "Needs, Wants and Savings must add up to exactly {total}.",
+    "applyCustomSplit": "Apply Custom Split"
+  },
+  "datePicker": {
+    "chooseDate": "Choose a date",
+    "openDatePicker": "Choose date: {date}"
+  },
+  "monthDayPicker": {
+    "monthlyStartDate": "Monthly start date",
+    "clearMonthlyStartDate": "Clear monthly start date"
+  },
+  "dueDayPicker": {
+    "dueDayOfMonth": "Due day of month",
+    "custom": "Custom",
+    "customSchedule": "Custom due schedule: {value}",
+    "enterCustom": "Enter a custom due schedule",
+    "selectedRepeats": "{day} selected · repeats every month",
+    "selectDueDay": "Select a due day",
+    "customField": "{label} (custom)",
+    "customPlaceholder": "e.g. 20th of month, last Friday"
+  },
+  "iconPicker": {
+    "pickIcon": "Pick an icon",
+    "findIcon": "Find an icon",
+    "noMatches": "No icons match “{query}”. Try shopping, car, health, or home.",
+    "choices": {
+      "label": "Other",
+      "shopping_bag": "Shopping",
+      "shopping_cart": "Groceries",
+      "restaurant": "Restaurant",
+      "local_cafe": "Coffee",
+      "home": "Home",
+      "house": "Housing",
+      "bolt": "Utilities",
+      "wifi": "Internet",
+      "phone": "Phone",
+      "subscriptions": "Subscriptions",
+      "payments": "Cash",
+      "credit_card": "Card",
+      "account_balance": "Bank",
+      "savings": "Savings",
+      "directions_car": "Car",
+      "fuel": "Fuel",
+      "directions_bike": "Bike",
+      "directions_bus": "Bus",
+      "directions_train": "Train",
+      "flight": "Travel",
+      "hotel": "Lodging",
+      "school": "Education",
+      "work": "Work",
+      "child_care": "Child care",
+      "medical_services": "Health",
+      "medication": "Pharmacy",
+      "fitness_center": "Fitness",
+      "pets": "Pets",
+      "movie": "Movies",
+      "music_note": "Music",
+      "sports_esports": "Gaming",
+      "card_giftcard": "Gifts",
+      "favorite": "Personal",
+      "store": "Store",
+      "inventory_2": "Goods",
+      "build": "Repairs",
+      "shirt": "Clothing",
+      "content_cut": "Beauty",
+      "menu_book": "Books",
+      "local_parking": "Parking",
+      "local_activity": "Tickets",
+      "receipt_long": "Bills",
+      "event_repeat": "Recurring",
+      "category": "Category",
+      "palette": "Art",
+      "sports_tennis": "Tennis",
+      "account_balance_wallet": "Wallet",
+      "local_atm": "Cash machine",
+      "phone_iphone": "Phone",
+      "travel_explore": "Travel"
+    }
+  },
+  "modal": {
+    "close": "Close modal"
+  },
+  "profile": {
+    "setYourName": "Set your name",
+    "personal": "Personal",
+    "household": "Household",
+    "profilePhotoAlt": "{name}'s profile photo",
+    "chooseProfilePhoto": "Choose a profile photo",
+    "changeProfilePhoto": "Change profile photo",
+    "proMember": "Pro member",
+    "editName": "Edit name",
+    "displayName": "Display name",
+    "enterYourName": "Enter your name",
+    "preferencesSaved": "Preferences saved.",
+    "preferencesSaveHint": "Save your changes when you are ready.",
+    "preferencesSaveError": "Your preferences could not be saved. Please try again.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveChanges": "Save changes",
+    "theme": "Theme",
+    "groups": {
+      "settings": "Settings",
+      "workspace": "Workspace",
+      "privacyAccount": "Privacy & account"
+    },
+    "links": {
+      "preferences": "Preferences",
+      "moneySources": "Money sources",
+      "workspace": "Workspace",
+      "pro": "Pro",
+      "data": "Data",
+      "account": "Account"
+    },
+    "hints": {
+      "budgetStarts": "starts {day}",
+      "locations": "{count, plural, one {# location} other {# locations}}",
+      "personalAndHousehold": "Personal dashboard & household",
+      "planIncomeInsights": "Plan, income sources & insights",
+      "exportImportDelete": "Export, import, delete",
+      "signOutDelete": "Sign out & delete account"
+    },
+    "subpages": {
+      "accountTitle": "Account",
+      "accountDescription": "Sign out or permanently delete your SmartJib account.",
+      "dataTitle": "Data",
+      "dataDescription": "Export a copy, import a CSV, or wipe budget data.",
+      "moneySourcesTitle": "Money sources",
+      "moneySourcesDescription": "Add, rename or remove Bank, Home, Wallet and any cash location you track.",
+      "preferencesTitle": "Preferences",
+      "preferencesDescription": "Currency, language, theme and the day your budget month starts.",
+      "proTitle": "Pro",
+      "proDescription": "Plan features, income sources and analytics.",
+      "workspaceTitle": "Workspace",
+      "workspaceDescription": "Switch between your personal dashboard and household.",
+      "backToProfile": "Back to profile",
+      "householdTitle": "Manage household",
+      "householdDescription": "Members, invitations, and shared access."
+    },
+    "account": {
+      "privacy": "Privacy",
+      "terms": "Terms"
+    },
+    "data": {
+      "exportThisMonth": "Export this month as CSV",
+      "importCsv": "Import CSV",
+      "deleteAllData": "Delete All Data",
+      "deleteAllDataMessage": "This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
+    },
+    "moneySources": {
+      "description": "These are the cash locations you spend from — Bank, Home, Wallet, or any jar you add. Removing one moves leftover cash into the first remaining source.",
+      "nameRequired": "Give this money source a name.",
+      "duplicateName": "That name is already used.",
+      "uniqueName": "Enter a unique name.",
+      "exampleName": "e.g. PayPal, Safe, Revolut",
+      "addSource": "Add source",
+      "addMoneySource": "Add money source",
+      "editSource": "Edit {name}",
+      "removeSource": "Remove {name}",
+      "removeSourceTitle": "Remove {name}?",
+      "thisSource": "this source",
+      "moveBalanceMessage": "{amount} currently in {source} will move to {destination}. Expenses paid from this source will follow.",
+      "removeSourceMessage": "You can always add it back later. You must keep at least one money source.",
+      "chooseIcon": "Choose an icon"
+    },
+    "workspace": {
+      "mySmartJib": "My SmartJib",
+      "personalDashboard": "Private personal dashboard",
+      "householdDashboard": "Household Dashboard",
+      "memberAccess": "{role} access",
+      "manageHousehold": "Manage Household",
+      "convertToHousehold": "Make this a household",
+      "convertToHouseholdHint": "Turn your private workspace into a shared household. You'll set up the household budget next.",
+      "removeHousehold": "Remove household workspace",
+      "leaveHousehold": "Leave household workspace",
+      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here."
+    },
+    "pro": {
+      "yourFeatures": "Your Pro Features",
+      "unlockWithPro": "Unlock with Pro",
+      "allActive": "All active",
+      "manageIncomeSources": "Manage Income Sources",
+      "importExportCsv": "Import / Export CSV",
+      "manageHousehold": "Manage Household",
+      "analyticsInsights": "Analytics & Insights",
+      "privateWorkspaceHint": "Pro upgrades apply to your private workspace. Switch to {workspace} to manage or upgrade your personal plan.",
+      "features": {
+        "courseScan": {
+          "title": "Barcode Course Scanning",
+          "description": "Scan groceries as you shop and let SmartJib build the bill automatically."
+        },
+        "trends": {
+          "title": "Trends & Analytics",
+          "description": "Multi-month charts comparing income, envelopes and spend over time."
+        },
+        "incomeSources": {
+          "title": "Multiple Income Sources",
+          "description": "Track salary, freelance and side income separately in one budget."
+        },
+        "csv": {
+          "title": "CSV Import & Export",
+          "description": "Bulk-import statements and export your full history any time."
+        },
+        "categoryBudgets": {
+          "title": "Category Budgets",
+          "description": "Set a planned maximum per category with alerts before you overspend."
+        },
+        "rollover": {
+          "title": "Budget Rollover",
+          "description": "Carry unused category budget into next month automatically."
+        },
+        "household": {
+          "title": "Household Members",
+          "description": "Attribute expenses to family members and see who spends what."
+        }
+      },
+      "privateWorkspaceLead": "Pro upgrades apply to your private workspace. Switch to",
+      "privateWorkspaceTail": "to manage or upgrade your personal plan."
+    },
+    "free": "Free",
+    "avatarSaveError": "Unable to save this profile photo.",
+    "upgradeToPro": "Upgrade to Pro"
+  },
+  "household": {
+    "title": "Household collaboration",
+    "createDescription": "Create a shared household to track who paid, collaborate live, and see contribution balances.",
+    "unlockWithPro": "Unlock with Pro",
+    "householdNamePlaceholder": "Household name (e.g. The Silva family)",
+    "createHousehold": "Create household",
+    "householdCreated": "Household created. Your personal budget stays private; new shared activity is stored in this workspace.",
+    "invitationCode": "Have an invitation code?",
+    "invitationCodePlaceholder": "Paste invitation code",
+    "join": "Join",
+    "joined": "You joined the household.",
+    "activeMembers": "{count, plural, one {# active member} other {# active members}}",
+    "sharedBudgetLive": "shared budget is live",
+    "restore": "Restore",
+    "remove": "Remove",
+    "monthlyContributions": "This month's contributions",
+    "contributionGuide": "Balance compares each active collaborator’s paid expenses with an equal share. Use it as a settle-up guide; no money is moved by SmartJib.",
+    "inviteMember": "Invite a household member",
+    "inviteDescription": "Choose their access instead of assigning a fixed family role.",
+    "fullName": "Full name",
+    "emailAddress": "Email address",
+    "customAccess": "Custom access",
+    "fullAccess": "Full access",
+    "viewOnly": "View only",
+    "send": "Send",
+    "noAccess": "No access",
+    "view": "View",
+    "editOwn": "Edit own",
+    "editAll": "Edit all",
+    "invitationSent": "Invitation email sent to {email}.",
+    "invitationUnavailable": "Invitation created but the email service is unavailable ({status}).",
+    "genericError": "Something went wrong. Please try again.",
+    "funds": "Household funds",
+    "me": "Me",
+    "member": "Member",
+    "submitted": "Submitted",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "areas": {
+      "dashboard": "Dashboard summary",
+      "balances": "Balances",
+      "income": "Income",
+      "expenses": "Variable expenses",
+      "fixedBills": "Fixed bills",
+      "savings": "Savings",
+      "debts": "Debts",
+      "analytics": "Analytics",
+      "invoices": "Invoices",
+      "members": "Members",
+      "settings": "Household settings"
+    },
+    "invoice": {
+      "title": "Submit an invoice",
+      "description": "Your submission is shared for review. Household balances, debts, savings and analytics remain private.",
+      "namePlaceholder": "Merchant or invoice name",
+      "amount": "Amount",
+      "category": "Category",
+      "submit": "Submit invoice",
+      "submitting": "Submitting…",
+      "invalid": "Enter an invoice name and a valid amount.",
+      "submitted": "Invoice submitted for household review.",
+      "submitFailed": "Unable to submit the invoice. Please try again.",
+      "reviewTitle": "Invoice review",
+      "reviewDescription": "Review contributor submissions before recording them in the private household budget.",
+      "nonePending": "No pending invoice submissions.",
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "invited": "Invited",
+    "invitationCount": "{count, plural, one {# household invitation} other {# household invitations}}",
+    "invitations": "Household invitations",
+    "invitedAs": "You are invited as {role}",
+    "reviewAndJoin": "Open to review and join this household.",
+    "emailSubject": "You are invited to {household}",
+    "emailGreeting": "Hello,",
+    "emailBody": "You were invited to join {household} as {role}.",
+    "emailAccept": "Accept invitation",
+    "emailExpires": "This invitation expires in 14 days.",
+    "savingsPrivateTitle": "Savings are private",
+    "savingsPrivateDescription": "Your household access does not include savings goals or balances.",
+    "debtsPrivateTitle": "Debts are private",
+    "debtsPrivateDescription": "Your household access does not include debts or credits.",
+    "copyCode": "Copy",
+    "copied": "Copied",
+    "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
+    "inviteCodeHint": "Anyone with this code can join from Household → Join."
+  },
+  "consent": {
+    "title": "Privacy controls",
+    "body": "SmartJib can send anonymous usage events (which features are opened) to help improve the app. Nothing about your money — amounts, categories or notes — is ever sent. You can change this any time in Settings.",
+    "accept": "Allow usage analytics",
+    "decline": "Keep it off",
+    "enabled": "Usage analytics are on",
+    "disabled": "Usage analytics are off",
+    "changeInSettings": "Change in Settings",
+    "settingsLabel": "Usage analytics",
+    "settingsHint": "Anonymous counts of which features are used. Financial values are never included."
+  },
+  "receipt": {
+    "tooLarge": "That image is too large to save with this expense. Pick a smaller photo.",
+    "processing": "Compressing image…"
+  },
+  "import": {
+    "truncated": "Only the first {limit} rows were imported — a single month cannot hold more."
+  },
+  "pro": {
+    "betaTitle": "Pro is included during the beta",
+    "betaBody": "Billing is not connected yet, so Pro is unlocked for your account at no cost. Nothing is charged and no card details are needed.",
+    "betaAction": "Unlock Pro for free",
+    "cardFieldsRemoved": "No payment form — SmartJib does not collect card details.",
+    "trialClaimed": "Pro unlocked on this account.",
+    "alreadyIncluded": "Pro is already active on your account during the beta."
+  },
+  "seo": {
+    "titles": {
+      "home": "SmartJib — Free Private Budget Tracker",
+      "about": "About SmartJib",
+      "help": "Help center",
+      "careers": "Careers",
+      "contact": "Contact",
+      "cookies": "Cookie Policy",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "blog": "Budgeting Guides",
+      "login": "Sign in",
+      "onboarding": "Set up your budget",
+      "notFound": "Page not found",
+      "landing": "SmartJib — Track your money, offline-first, no ads"
     }
   }
 }

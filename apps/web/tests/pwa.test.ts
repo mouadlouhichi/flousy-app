@@ -189,7 +189,6 @@ describe('beforeinstallprompt capture behaviour', () => {
     const script = source.match(/const CAPTURE_SCRIPT = `([\s\S]*?)`;/)?.[1];
     assert.ok(script, 'could not extract capture script');
 
-    // eslint-disable-next-line no-new-func
     new Function('window', 'Event', script)(win, class {
       type: string;
       constructor(type: string) {

@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { useCurrency } from '../../lib/currency-context';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MoneyPlaceConfig } from '../../lib/store';
+import { useLanguage } from '../../lib/i18n-context';
 
 interface EditMoneyPlacesModalProps {
   isOpen: boolean;
@@ -27,7 +28,9 @@ function parseAmount(raw: string): number {
 
 export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, totalBudget }: EditMoneyPlacesModalProps) {
   const { format, symbol } = useCurrency();
-  const { places } = useMoneyPlaces();
+  const { messages: m, t } = useLanguage();
+  const copy = m.modals.moneyPlaces;
+  const { places, label } = useMoneyPlaces();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,7 +57,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
     places.forEach(({ id }) => {
       const parsed = parseAmount(drafts[id] ?? '');
       if (!Number.isFinite(parsed)) {
-        nextErrors[id] = 'Enter a valid amount';
+        nextErrors[id] = m.errors.validationAmountInvalid;
       } else {
         values[id] = parsed;
       }
@@ -68,20 +71,20 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit Money Balances">
+    <Modal isOpen={isOpen} onClose={onClose} title={copy.title}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-          Correct your current cash in each place. This adjusts your cash on hand — your monthly budget stays unchanged.
+{copy.description}
         </p>
 
-        {places.map(({ id, name, icon }) => (
+        {places.map(({ id, icon }) => (
           <div key={id} className="rounded-2xl border border-outline-variant bg-surface-container p-3">
             <label
               htmlFor={`money-place-${id}`}
               className="mb-2 flex items-center gap-1.5 text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
             >
               <AppIcon name={icon} className="text-[14px]" />
-              {name}
+              {label(id)}
             </label>
             <div
               className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-colors focus-within:border-primary ${
@@ -111,11 +114,11 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
         <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex flex-col">
             <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Total cash on hand
+              {copy.totalCash}
             </span>
             {typeof totalBudget === 'number' && totalBudget > 0 && (
               <span className="text-[11px] font-bold text-on-surface-variant">
-                Monthly budget: {format(totalBudget)}
+                {t(copy.monthlyBudget, { amount: format(totalBudget) })}
               </span>
             )}
           </div>
@@ -130,14 +133,14 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
             onClick={onClose}
             className="flex-1 rounded-xl border border-outline-variant py-3 font-bold text-on-surface-variant transition-colors hover:bg-surface-variant/50"
           >
-            Cancel
+            {m.common.cancel}
           </button>
           <button
             type="submit"
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary transition-colors hover:bg-accent-foreground"
           >
             <AppIcon name="check" className="text-[18px]" />
-            <span>Save Balances</span>
+            <span>{copy.saveBalances}</span>
           </button>
         </div>
       </form>

@@ -3,32 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-const features = [
-  {
-    number: "01",
-    title: "Know what it's for",
-    description: "Every dirham gets a job — needs, wants, or savings — so you always know why you're spending, not just what you spent.",
-    visual: "deploy",
-  },
-  {
-    number: "02",
-    title: "Pick a style that fits you",
-    description: "Choose from a few proven budgeting styles, or let SmartJib suggest one. Your income splits itself automatically, no spreadsheets required.",
-    visual: "ai",
-  },
-  {
-    number: "03",
-    title: "See where it actually is",
-    description: "Bank, home, or wallet — track your cash wherever it sits. Move money between them and your budget updates instantly.",
-    visual: "collab",
-  },
-  {
-    number: "04",
-    title: "Nothing ever gets lost",
-    description: "Delete an expense and the money comes right back. Save toward a goal, then dip into it when you need to — it's always exactly where you left it.",
-    visual: "security",
-  },
-];
+const FEATURE_VISUALS = ['deploy', 'ai', 'collab', 'security'] as const;
+type FeatureVisual = (typeof FEATURE_VISUALS)[number];
+
+type Feature = {
+  number: string;
+  title: string;
+  description: string;
+  visual: FeatureVisual;
+};
 
 function DeployVisual() {
   return (
@@ -231,7 +214,7 @@ function SecurityVisual() {
   );
 }
 
-function AnimatedVisual({ type }: { type: string }) {
+function AnimatedVisual({ type }: { type: FeatureVisual }) {
   switch (type) {
     case "deploy":
       return <DeployVisual />;
@@ -246,7 +229,7 @@ function AnimatedVisual({ type }: { type: string }) {
   }
 }
 
-function FeatureCard({ feature, index }: { feature: typeof features[0]; index: number }) {
+function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const [isVisible, setIsVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -301,6 +284,11 @@ function FeatureCard({ feature, index }: { feature: typeof features[0]; index: n
 
 export function FeaturesSection() {
   const { messages: m } = useLightLanguage();
+  const features: Feature[] = m.landing.features.items.map((item, index) => ({
+    ...item,
+    number: String(index + 1).padStart(2, '0'),
+    visual: FEATURE_VISUALS[index] || 'deploy',
+  }));
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -334,9 +322,9 @@ export function FeaturesSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            What it&apos;s for.
+            {m.landing.features.titleLine1}
             <br />
-            <span className="text-muted-foreground">Where it actually is.</span>
+            <span className="text-muted-foreground">{m.landing.features.titleLine2}</span>
           </h2>
         </div>
 

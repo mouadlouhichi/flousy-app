@@ -19,7 +19,75 @@
     "open": "مفتوح",
     "settled": "مسدد",
     "step": "الخطوة {current} من {total}",
-    "percentComplete": "{percent}%"
+    "percentComplete": "{percent}",
+    "yes": "نعم",
+    "no": "لا",
+    "done": "تم",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "apply": "تطبيق",
+    "reset": "إعادة ضبط",
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "category": "الفئة",
+    "note": "ملاحظة",
+    "description": "الوصف",
+    "name": "الاسم",
+    "from": "من",
+    "to": "إلى",
+    "total": "الإجمالي",
+    "remaining": "المتبقي",
+    "none": "لا شيء",
+    "select": "اختر",
+    "choose": "اختر",
+    "viewAll": "عرض الكل",
+    "viewDetails": "عرض التفاصيل",
+    "viewMore": "عرض المزيد",
+    "learnMore": "اعرف المزيد",
+    "tryAgain": "حاول مجدداً",
+    "dismiss": "إخفاء",
+    "month": "الشهر",
+    "year": "السنة",
+    "day": "اليوم",
+    "days": "أيام",
+    "perMonth": "شهرياً",
+    "custom": "مخصص",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "notSet": "غير محدد",
+    "notAvailable": "غير متاح",
+    "copy": "نسخ",
+    "share": "مشاركة",
+    "download": "تنزيل",
+    "upload": "رفع",
+    "chooseFile": "اختر ملفاً",
+    "clear": "مسح",
+    "previous": "السابق",
+    "next": "التالي",
+    "menu": "القائمة",
+    "actions": "الإجراءات",
+    "manage": "إدارة",
+    "addNew": "إضافة جديد",
+    "user": "مستخدم",
+    "accessibility": {
+      "loading": "جارٍ التحميل",
+      "pagination": "ترقيم الصفحات",
+      "previousPage": "انتقل إلى الصفحة السابقة",
+      "nextPage": "انتقل إلى الصفحة التالية",
+      "morePages": "المزيد من الصفحات",
+      "breadcrumb": "مسار التنقل",
+      "more": "المزيد",
+      "sidebarTitle": "الشريط الجانبي",
+      "sidebarDescription": "يعرض الشريط الجانبي على الهاتف.",
+      "toggleSidebar": "تبديل الشريط الجانبي",
+      "previousSlide": "الشريحة السابقة",
+      "nextSlide": "الشريحة التالية",
+      "carousel": "عارض شرائح",
+      "slide": "شريحة"
+    },
+    "retry": "إعادة المحاولة"
   },
   "auth": {
     "signIn": "تسجيل الدخول",
@@ -45,10 +113,23 @@
     "failedResetEmail": "فشل إرسال بريد إعادة التعيين",
     "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صالحة",
     "authFailed": "فشل المصادقة. يرجى التحقق من بياناتك.",
+    "unauthorizedDomain": "هذا النطاق غير مسموح له بتسجيل الدخول. أضِفه ضمن Firebase ← Authentication ← Authorized domains، أو استخدم الموقع المنشور.",
+    "tooManyAttempts": "محاولات كثيرة جدًا. انتظر بضع دقائق ثم أعد المحاولة.",
+    "popupBlocked": "تم حظر نافذة تسجيل الدخول. اسمح بالنوافذ المنبثقة لهذا الموقع، أو استخدم تسجيل الدخول بالبريد الإلكتروني.",
+    "signInCancelled": "تم إلغاء تسجيل الدخول.",
+    "networkError": "خطأ في الشبكة. تحقق من اتصالك ثم أعد المحاولة.",
+    "signInMethodDisabled": "طريقة تسجيل الدخول هذه معطلة في Firebase.",
+    "emailAlreadyInUse": "هناك حساب يستخدم هذا البريد الإلكتروني بالفعل. سجّل الدخول بدلاً من ذلك.",
+    "weakPassword": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.",
+    "apiKeyReferrerBlocked": "حظر Firebase نطاق المعاينة هذا. أضِفه إلى مراجع HTTP لمفتاح API، أو استخدم الموقع المنشور.",
     "googleSignInFailed": "فشل تسجيل الدخول بـ Google",
     "demoMode": "الوضع التجريبي متاح",
     "demoModeDescription": "جرّب سمارت جيب فوراً مع بيانات نموذجية في وضع المعاينة المحلية.",
     "continueDemo": "المتابعة في الوضع التجريبي",
+    "demoActiveTitle": "أنت في وضع التجربة",
+    "demoActiveHint": "تتصفح ببيانات تجريبية. لاستخدام حساب حقيقي، اخرج من وضع التجربة وسجّل الدخول.",
+    "demoContinue": "المتابعة إلى لوحة التحكم",
+    "demoExit": "الخروج من وضع التجربة",
     "demoResetRequested": "الوضع التجريبي: طلب إعادة التعيين لـ {email}",
     "signedInAs": "مسجّل الدخول كـ",
     "anonymousUser": "مستخدم مجهول",
@@ -59,7 +140,12 @@
     "signOutConfirmMessage": "هل أنت متأكد من رغبتك في تسجيل الخروج من حساب سمارت جيب؟",
     "deleteConfirmTitle": "حذف الحساب نهائياً",
     "deleteConfirmMessage": "هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بيانات ميزانيتك ومصاريفك وأهداف الادخار نهائياً.",
-    "firebaseNotConfigured": "لم يتم تكوين Firebase"
+    "firebaseNotConfigured": "لم يتم تكوين Firebase",
+    "confirmPasswordTitle": "أكّد كلمة المرور",
+    "confirmPasswordHint": "لأمانك، يتطلب حذف الحساب تسجيل دخول حديث. أدخل كلمة المرور للمتابعة.",
+    "confirmPasswordAction": "تأكيد وحذف",
+    "deletePartialFailure": "تعذّر حذف بعض البيانات ({items}). حسابك ما زال نشطاً لذا لم تُفقد أي بيانات — أعد المحاولة أو راسلنا.",
+    "deleteDemoUnsupported": "حذف الحساب غير متاح في وضع التجربة، لأنه لا توجد بيانات محفوظة على أي حساب."
   },
   "onboarding": {
     "tagline": "تطبيق إدارة ميزانية شخصية بفصل بين غرض المال ومكان وجوده الحقيقي.",
@@ -89,7 +175,7 @@
     "fixedNeeds": "الاحتياجات الثابتة",
     "variableWants": "الرغبات المتغيرة",
     "futureSavings": "الادخار المستقبلي",
-    "ofIncome": "{percent}% من الدخل",
+    "ofIncome": "{percent} من الدخل",
     "confirmAndFinish": "تأكيد والانتهاء",
     "finishingSetup": "جارٍ الانتهاء...",
     "editAllocation": "تعديل التوزيع",
@@ -102,7 +188,37 @@
     "spendTheRest": "أنفق الباقي",
     "housingCategory": "السكن",
     "rent": "الإيجار",
-    "electricity": "الكهرباء"
+    "electricity": "الكهرباء",
+    "monthlyStartDate": "تاريخ بداية الشهر",
+    "salaryDay": "يوم الراتب",
+    "monthlyStartHint": "يبدأ شهر ميزانيتك في {day} من كل شهر.",
+    "skipForNow": "تخطَّ الآن",
+    "categoryNamePlaceholder": "اسم الفئة (مثال: النادي الرياضي)",
+    "billNamePlaceholder": "مثال: الإيجار أو نتفليكس أو الكهرباء",
+    "addedBills": "الفواتير المضافة",
+    "billCategoryOptions": {
+      "housing": "السكن / الإيجار",
+      "utilities": "المرافق",
+      "internetPhone": "الإنترنت والهاتف",
+      "subscriptions": "الاشتراكات",
+      "insurance": "التأمين",
+      "transport": "النقل / الوقود",
+      "foodGroceries": "الطعام والبقالة",
+      "health": "الصحة / الطب",
+      "education": "التعليم",
+      "childcare": "رعاية الأطفال",
+      "entertainment": "الترفيه",
+      "loans": "القروض / الديون",
+      "savings": "الادخار / الاستثمار",
+      "other": "أخرى"
+    },
+    "customSplitInvalid": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {required} بالضبط (حالياً {percent}).",
+    "customSplitSummary": "{percent} {label}",
+    "removeBill": "إزالة {name}",
+    "monthlyStartDescription": "اختر اليوم الذي يصل فيه راتبك كل شهر، وسيبدأ شهر ميزانيتك عنده.",
+    "importPersonalTitle": "استيراد ميزانيتي الشخصية",
+    "importPersonalHint": "انسخ الأشهر والمصروفات وأهداف الادخار من مساحتك الخاصة إلى هذا المنزل.",
+    "importPersonalLoading": "جارٍ نسخ ميزانيتك الشخصية…"
   },
   "dashboard": {
     "overview": "نظرة عامة",
@@ -118,10 +234,10 @@
     "addFunds": "إضافة أموال",
     "withdraw": "سحب",
     "budgetPlan": "خطة الميزانية",
-    "needsLabel": "الاحتياجات ({percent}%)",
-    "wantsLabel": "الرغبات ({percent}%)",
-    "savingsLabel": "الادخار ({percent}%)",
-    "used": "{percent}% مستخدم",
+    "needsLabel": "الاحتياجات ({percent})",
+    "wantsLabel": "الرغبات ({percent})",
+    "savingsLabel": "الادخار ({percent})",
+    "used": "تم استخدام {percent}",
     "activeGoals": "{count, plural, =0 {لا أهداف نشطة} one {هدف نشط واحد} two {هدفان نشطان} few {# أهداف نشطة} many {# هدفاً نشطاً} other {# هدف نشط}}",
     "totalMonthlyBudget": "إجمالي الميزانية الشهرية",
     "totalCashOnHand": "إجمالي النقد المتاح",
@@ -137,7 +253,16 @@
     "sendVerification": "إرسال بريد التحقق",
     "verificationSent": "تم إرسال بريد التحقق!",
     "trendsAndAnalytics": "الاتجاهات والتحليلات",
-    "debtsAndCredits": "الديون والائتمانات"
+    "debtsAndCredits": "الديون والائتمانات",
+    "move": "تحويل",
+    "noActivityYet": "لا توجد مصروفات أو إيداعات ادخار مسجلة هذا الشهر بعد.",
+    "depositedThisMonth": "المبلغ المودع في الأهداف هذا الشهر",
+    "editBudgetTooltip": "انقر لتعديل ميزانيتك الشهرية",
+    "editTotalBudget": "تعديل إجمالي الميزانية الشهرية",
+    "adjustCashBalances": "تعديل أرصدة الأموال",
+    "deposit": "إيداع",
+    "withdrawal": "سحب",
+    "savingsActivity": "الادخار"
   },
   "budgetPlan": {
     "totalIncome": "إجمالي الدخل",
@@ -171,7 +296,18 @@
       "receiptOptional": "إيصال / مرفق (اختياري)",
       "receiptAttached": "إيصال مرفق",
       "uploadReceipt": "تحميل صورة الإيصال",
-      "saveChanges": "حفظ التعديلات"
+      "saveChanges": "حفظ التعديلات",
+      "new": "جديد",
+      "newExpenseCategory": "فئة مصروف جديدة",
+      "customCategoryPlaceholder": "اسم الفئة، مثل العناية",
+      "invalidCategoryData": "أدخل تفاصيل فئة صالحة.",
+      "duplicateCategory": "توجد فئة بهذا الاسم بالفعل.",
+      "availableIn": "المتاح في {place}: {amount}",
+      "insufficientFunds": "المتاح في {place} هو {amount} فقط. خفّض المبلغ أو انقل أموالًا إلى هذا الموقع أولًا.",
+      "householdPro": "تتبع أفراد الأسرة متاح مع برو.",
+      "receiptPro": "إرفاقات الإيصالات متاحة مع برو.",
+      "receiptPreview": "معاينة الإيصال",
+      "removeReceipt": "إزالة الإيصال"
     },
     "fixed": {
       "addTitle": "إضافة رسوم ثابتة",
@@ -184,7 +320,20 @@
       "dueDate": "تاريخ الاستحقاق (اختياري)",
       "repeatEveryMonth": "تكرار كل شهر",
       "autoCarries": "ينقل الفاتورة تلقائياً للأشهر القادمة",
-      "saveChanges": "حفظ التعديلات"
+      "saveChanges": "حفظ التعديلات",
+      "monthlyCharge": "الرسوم الشهرية",
+      "billSubscriptionName": "اسم الفاتورة / الاشتراك",
+      "billSubscriptionPlaceholder": "مثل إيجار الشقة أو الكهرباء أو Netflix",
+      "editCategory": "تعديل الفئة",
+      "new": "جديد",
+      "newFixedCategory": "فئة ثابتة جديدة",
+      "updateCategory": "تعديل «{name}»",
+      "customCategoryPlaceholder": "اسم الفئة (مثل الحضانة)",
+      "invalidCategoryData": "أدخل تفاصيل فئة صالحة.",
+      "duplicateCategory": "توجد فئة بهذا الاسم بالفعل.",
+      "availableIn": "المتاح في {place}: {amount}",
+      "insufficientFunds": "المتاح في {place} هو {amount} فقط. خفّض المبلغ أو انقل أموالًا إلى هذا الموقع أولًا.",
+      "householdPro": "تتبع أفراد الأسرة متاح مع برو."
     },
     "savings": {
       "createTitle": "إنشاء هدف ادخار",
@@ -201,7 +350,38 @@
       "createGoal": "إنشاء الهدف",
       "fundGoal": "تمويل الهدف",
       "withdrawGoal": "سحب",
-      "progressLabel": "{current} من {target} ({percent}%)"
+      "progressLabel": "{current} من {target} ({percent})",
+      "alreadySaved": "المدخر بالفعل ({currency})",
+      "suggestions": "اقتراحات:",
+      "openingBalanceHint": "هل تبدأ بهدف قائم؟ أدخل ما ادخرته له حتى الآن، لتبدأ نسبة التقدم من هذا المبلغ بدل الصفر.",
+      "deductOpening": "انقل هذا المبلغ من رصيد {place} الذي أتابعه",
+      "deductOpeningHint": "اتركه غير محدد إن كانت هذه الأموال محفوظة منفصلة أصلًا وليست جزءًا من إجمالي البنك أو المنزل أو المحفظة. المتاح: {amount}.",
+      "primarySource": "موقع المصدر الرئيسي",
+      "deductFrom": "الخصم من الحساب",
+      "depositInto": "الإيداع في الحساب",
+      "availableIn": "المتاح في {place}: {amount}",
+      "currentTarget": "الحالي: {current} · الهدف: {target}",
+      "savedAvailable": "تم ادخار {saved} · المتاح {available} عند إعادة تطبيق هذا الإدخال.",
+      "currentExceedsTarget": "لا يمكن أن يتجاوز المدخر بالفعل مبلغ الهدف.",
+      "openingInsufficient": "المتاح في {place} هو {amount} فقط. أزل تحديد خيار التحويل لتسجيل الرصيد فقط.",
+      "fundInsufficient": "المتاح في {place} هو {amount} فقط. خفّض الإيداع أو انقل أموالًا إلى هذا الموقع أولًا.",
+      "withdrawTooMuch": "لا يمكن سحب أكثر من رصيد الهدف ({amount}).",
+      "validPositiveAmount": "يرجى إدخال مبلغ موجب صالح.",
+      "progressOfTarget": "{percent} من {target}",
+      "editDeposit": "تعديل الإيداع",
+      "editWithdrawal": "تعديل السحب",
+      "movementType": "نوع الحركة",
+      "deposit": "إيداع",
+      "withdrawal": "سحب",
+      "savingsGoal": "هدف الادخار",
+      "selectGoal": "اختر هدفًا",
+      "missingGoal": "لم يعد هذا الهدف موجودًا — احذف الإدخال لإصلاح خطتك.",
+      "takenFrom": "مأخوذ من الحساب",
+      "returnedTo": "مُعاد إلى الحساب",
+      "goalReapply": "{name}: المدخر {saved} · المتاح {available} عند إعادة تطبيق هذا الإدخال.",
+      "selectGoalError": "يرجى اختيار هدف ادخار.",
+      "deleteActivityTitle": "هل تريد حذف نشاط الادخار؟",
+      "deleteActivityMessage": "سيعكس هذا حركة الأموال المسجلة ويحدّث رصيد الهدف."
     },
     "moveMoney": {
       "title": "تحويل أموال",
@@ -213,7 +393,10 @@
       "insufficientFunds": "رصيد غير كافٍ في {place}. الحد الأقصى المتاح: {amount}",
       "bankLabel": "البنك ({balance})",
       "homeCashLabel": "نقد المنزل ({balance})",
-      "walletLabel": "المحفظة ({balance})"
+      "walletLabel": "المحفظة ({balance})",
+      "betweenAccounts": "تحويل بين الحسابات",
+      "previewAfter": "معاينة بعد التحويل",
+      "samePlaces": "اختر موقعين ماليين مختلفين"
     },
     "debt": {
       "addTitle": "إضافة دين",
@@ -227,7 +410,8 @@
       "dateLabel": "التاريخ",
       "noteOptional": "ملاحظة (اختياري)",
       "notePlaceholder": "ما سبب هذا الدين؟",
-      "saveChanges": "حفظ التعديلات"
+      "saveChanges": "حفظ التعديلات",
+      "addCredit": "إضافة مستحق"
     },
     "categories": {
       "title": "إدارة الفئات",
@@ -246,11 +430,16 @@
       "supportedColumns": "الأعمدة المدعومة: الاسم، المبلغ، التاريخ، الفئة، المكان، الملاحظة، الشخص",
       "preview": "معاينة ({count} معاملة)",
       "total": "الإجمالي: {amount}",
-      "importButton": "استيراد {count} عنصر"
+      "importButton": "استيراد {count} عنصر",
+      "invalidRows": "يجب أن يحتوي ملف CSV على صف عناوين وصف بيانات واحد على الأقل.",
+      "noNumericAmounts": "لم يُعثر على مبالغ رقمية صالحة في صفوف CSV.",
+      "parseFailed": "تعذر قراءة ملف CSV.",
+      "importedExpense": "مصروف مستورد",
+      "selectFile": "اختر ملف CSV لمعاينة معاملاتك قبل الاستيراد."
     },
     "incomeSources": {
       "title": "مصادر الدخل",
-      "description": "حدد جميع مصادر الدخل المساهمة في ميزانية هذا الشهر.",
+      "description": "حدد كل مصادر الدخل التي تساهم في ميزانية هذا الشهر. بالنسبة للراتب الشهري، حدد تاريخ بدايته (يوم الراتب) لتتبع الفترة التي يغطيها.",
       "combinedTotal": "إجمالي الدخل المجمّع",
       "addIncomeSource": "إضافة مصدر دخل",
       "sourceNamePlaceholder": "اسم المصدر (مثلاً: عمل حر، إيجار)",
@@ -258,7 +447,25 @@
       "addIncomeStream": "إضافة مصدر دخل",
       "saveIncomeSources": "حفظ مصادر الدخل ({total})",
       "perSourceAnalytics": "تحليل حسب المصدر",
-      "shareOfTotal": "{pct}% من إجمالي الدخل"
+      "shareOfTotal": "{pct} من إجمالي الدخل",
+      "primaryIncome": "الدخل الأساسي",
+      "nameRequired": "الاسم مطلوب.",
+      "validAmount": "أدخل مبلغًا صالحًا.",
+      "amountExceedsLimit": "يتجاوز المبلغ الحد المسموح.",
+      "required": "مطلوب.",
+      "dayRange": "يجب أن يكون اليوم بين 1 و31.",
+      "incomeStreams": "مصادر الدخل ({count})",
+      "noSources": "لا توجد مصادر دخل بعد. أضف واحدًا أدناه.",
+      "sourceName": "اسم المصدر",
+      "editSource": "تعديل {name}",
+      "removeSource": "إزالة {name}",
+      "addIncomeStreamLabel": "إضافة مصدر دخل",
+      "quick": "سريع:",
+      "monthlyStartDate": "تاريخ البداية الشهري",
+      "startsOn": "يبدأ في {day}",
+      "period": "الفترة من {start} إلى {end}",
+      "payDayHint": "يصل الراتب شهريًا في {day} — وتبدأ فترة ميزانية هذا المصدر حينها.",
+      "payDayOptional": "اختياري: اختر يوم الشهر الذي يصل فيه هذا الدخل."
     },
     "pro": {
       "title": "الترقية إلى سمارت جيب برو",
@@ -284,7 +491,66 @@
       "proStatusActive": "حالة برو نشطة على هذا الحساب.",
       "switchToFree": "العودة للخطة المجانية",
       "goToPremium": "الترقية للمتقدمة",
-      "proMembership": "عضوية برو"
+      "proMembership": "عضوية برو",
+      "planActive": "اشتراك برو نشط",
+      "nextBilling": "موعد الفوترة التالي: {date}",
+      "allPremiumUnlocked": "كل الميزات المميزة متاحة الآن.",
+      "backToDashboard": "العودة إلى لوحة التحكم",
+      "perPeriod": "لكل {period}",
+      "annualValue": "{price} شهريًا — وفّر {savings}",
+      "monthlyValue": "تتم الفوترة شهريًا. يمكنك التحويل إلى الخطة السنوية في أي وقت لتوفير {percent}.",
+      "courseScanning": "مسح المشتريات بالرمز الشريطي",
+      "courseScanningDesc": "امسح مشتريات البقالة أثناء التسوق، وسينشئ سمارت جيب الفاتورة لك.",
+      "advancedReports": "تقارير متقدمة",
+      "advancedReportsDesc": "تفصيل حسب الفئات ورؤى عن إنفاق كل شخص.",
+      "prioritySync": "مزامنة ذات أولوية",
+      "prioritySyncDesc": "مزامنة أسرع مع فايرستور ودعم بأولوية.",
+      "continueCheckout": "المتابعة إلى الدفع",
+      "secureCheckout": "دفع آمن",
+      "cancelAnytime": "يمكنك الإلغاء في أي وقت",
+      "annualPlan": "خطة برو السنوية",
+      "monthlyPlan": "خطة برو الشهرية",
+      "annualDiscount": "خصم {percent}",
+      "flexible": "مرنة",
+      "fillDemoTestCard": "تعبئة بطاقة الاختبار التجريبية",
+      "cardNumber": "رقم البطاقة",
+      "cardNumberPlaceholder": "4242 4242 4242 4242",
+      "expiry": "تاريخ الانتهاء",
+      "expiryPlaceholder": "شهر/سنة",
+      "cvc": "رمز CVC",
+      "cardholderName": "الاسم على البطاقة",
+      "cardholderPlaceholder": "محمد العلوي",
+      "receiptEmail": "بريد إيصال الدفع",
+      "emailPlaceholder": "you@example.com",
+      "validCardNumber": "أدخل رقم بطاقة صالحًا.",
+      "validExpiry": "أدخل تاريخ انتهاء صالحًا.",
+      "validCvc": "أدخل رمز CVC صالحًا.",
+      "validCardholder": "أدخل الاسم الظاهر على البطاقة.",
+      "validReceiptEmail": "أدخل بريدًا إلكترونيًا لإيصال الدفع.",
+      "creatingCheckout": "جارٍ إنشاء جلسة دفع آمنة…",
+      "validatingCard": "جارٍ التحقق من البطاقة لدى البنك المُصدر…",
+      "processingPayment": "جارٍ معالجة الدفع…",
+      "activatingFeatures": "جارٍ تفعيل ميزات برو…",
+      "processingTitle": "جارٍ معالجة الدفع",
+      "pay": "ادفع {price}",
+      "encryptedTestPayment": "دفع تجريبي مشفر · لن تُخصم أموال حقيقية",
+      "paymentSuccessful": "تم الدفع بنجاح!",
+      "proNowActive": "أصبح سمارت جيب برو نشطًا الآن في حسابك.",
+      "receipt": "إيصال",
+      "plan": "الخطة",
+      "paymentMethod": "طريقة الدفع",
+      "nextBillingLabel": "الفوترة التالية",
+      "totalPaid": "إجمالي المدفوع",
+      "startUsingPro": "ابدأ استخدام برو",
+      "paymentFailed": "فشل الدفع",
+      "paymentFailedDescription": "تعذر إتمام دفعتك. يرجى التحقق من بيانات بطاقتك."
+    },
+    "moneyPlaces": {
+      "title": "تعديل أرصدة الأموال",
+      "description": "صحّح رصيدك النقدي الحالي في كل موقع. يضبط هذا النقد المتاح لديك، بينما تظل ميزانيتك الشهرية دون تغيير.",
+      "totalCash": "إجمالي النقد المتاح",
+      "monthlyBudget": "الميزانية الشهرية: {amount}",
+      "saveBalances": "حفظ الأرصدة"
     }
   },
   "settings": {
@@ -307,7 +573,25 @@
       "addExpense": "إضافة مصروف",
       "searchPlaceholder": "البحث في المصاريف أو الملاحظات...",
       "noResults": "لم يتم العثور على مصاريف متغيرة مطابقة.",
-      "hasReceipt": "يوجد إيصال"
+      "hasReceipt": "يوجد إيصال",
+      "categoryBudgets": "ميزانيات الفئات",
+      "pro": "برو",
+      "percentUsed": "تم استخدام {percent}",
+      "overBy": "تم التجاوز بمقدار {amount}",
+      "left": "المتبقي {amount}",
+      "editBudget": "تعديل ميزانية {category}",
+      "saveBudget": "حفظ ميزانية {category}",
+      "cancelBudgetEdit": "إلغاء تعديل الميزانية",
+      "dateFrom": "من",
+      "dateTo": "إلى",
+      "sortLabel": "ترتيب",
+      "sortNewest": "الأحدث أولاً",
+      "sortOldest": "الأقدم أولاً",
+      "sortAmountHigh": "المبلغ: من الأعلى",
+      "sortAmountLow": "المبلغ: من الأدنى",
+      "sortName": "الاسم أ–ي",
+      "clearDates": "مسح التواريخ",
+      "categoryBudgetsHint": "حدّد حدود الإنفاق لكل فئة."
     },
     "fixed": {
       "totalCommitments": "الالتزامات الثابتة الشهرية",
@@ -317,7 +601,10 @@
       "recurring": "متكرر",
       "oneTime": "مرة واحدة",
       "recurringLabel": "متكرر",
-      "carryOverNote": "يتم ترحيل الفواتير المتكررة تلقائياً من الشهر السابق."
+      "carryOverNote": "يتم ترحيل الفواتير المتكررة تلقائياً من الشهر السابق.",
+      "recurringMonthly": "يتكرر شهرياً",
+      "due": "موعد الاستحقاق: {date}",
+      "monthly": "شهرياً"
     },
     "savings": {
       "totalSaved": "إجمالي المدّخرات",
@@ -325,10 +612,25 @@
       "noGoals": "لم تنشئ أي أهداف ادخار بعد.",
       "createGoal": "أنشئ هدفك الأول",
       "reached": "تم الوصول!",
-      "progress": "{percent}%",
+      "progress": "{percent}",
       "fund": "تمويل",
       "withdrawButton": "سحب",
-      "deleteGoal": "حذف الهدف"
+      "deleteGoal": "حذف الهدف",
+      "totalAccumulated": "إجمالي الادخار المتراكم",
+      "newGoal": "هدف جديد",
+      "noActiveGoals": "لا توجد أهداف ادخار نشطة محددة.",
+      "createEmergencyFund": "أنشئ صندوق طوارئ أو هدفاً",
+      "source": "المصدر: {place}",
+      "editGoal": "تعديل الهدف",
+      "target": "الهدف: {amount}",
+      "percentReached": "تم بلوغ {percent}",
+      "thisMonthsDeposits": "إيداعات هذا الشهر",
+      "movementsLogged": "{count, plural, zero {لا حركات مسجلة} one {حركة واحدة مسجلة} two {حركتان مسجلتان} few {# حركات مسجلة} many {# حركة مسجلة} other {# حركة مسجلة}}",
+      "saved": "تم ادخار {amount}",
+      "noDeposits": "لا توجد إيداعات مسجلة هذا الشهر.",
+      "useDeposit": "استخدم «إيداع» على الهدف أعلاه لنقل الأموال إلى الادخار.",
+      "editDeposit": "تعديل الإيداع",
+      "editWithdrawal": "تعديل السحب"
     },
     "debts": {
       "debtsIOwe": "ديون (عليّ)",
@@ -370,12 +672,19 @@
       "variable": "متغير",
       "fixed": "ثابت",
       "budgetHealth": "صحة الميزانية",
-      "needsLabel": "الاحتياجات ({ratio}%)",
-      "wantsLabel": "الرغبات ({ratio}%)",
+      "needsLabel": "الاحتياجات ({percent})",
+      "wantsLabel": "الرغبات ({percent})",
       "vsLabel": "مقابل",
       "ofLabel": "من",
       "loadingTrends": "جاري تحميل الاتجاهات...",
-      "proLabel": "برو"
+      "proLabel": "برو",
+      "percentVsLastMonth": "{percent} مقارنة بالشهر الماضي",
+      "cashBreakdown": "{bank} {bankAmount} · {wallet} {walletAmount} · {home} {homeAmount}",
+      "strategySavings": "{strategy} · {percent} للادخار",
+      "incomeSourcesPro": "تحليلات مصادر الدخل متاحة في برو.",
+      "advancedAnalytics": "التحليلات المتقدمة مثل اتجاهات عدة أشهر، وتوزيع مصادر الدخل، وإنفاق أفراد الأسرة متاحة في برو.",
+      "variableAmount": "متغير: {amount}",
+      "fixedAmount": "ثابت: {amount}"
     }
   },
   "courses": {
@@ -393,6 +702,10 @@
     "lookup": "بحث",
     "scanned": "تم المسح",
     "alignHint": "ثبّت الهاتف — وجّه الرمز داخل الإطار",
+    "zoomIn": "تقريب",
+    "zoomOut": "إبعاد",
+    "torchOn": "تشغيل المصباح",
+    "torchOff": "إيقاف المصباح",
     "scannedAdded": "{name} +1 (×{qty})",
     "scanProTitle": "مسح الرمز الشريطي ميزة في الخطة المدفوعة",
     "scanProHint": "مع Pro، وجّه الكاميرا إلى المنتج — يتعرّف عليه SmartJib ويملأ الاسم ويبني الفاتورة أثناء التسوق.",
@@ -417,41 +730,56 @@
     "total": "المجموع",
     "items": "عناصر",
     "billTitle": "فاتورة التسوق",
-    "billShare": "مشاركة",
+    "billThanks": "شكراً لزيارتكم!",
+    "billShare": "مشاركة صورة",
+    "shareFailed": "تعذّر إنشاء صورة الفاتورة. حاول مرة أخرى.",
     "billCopy": "نسخ",
     "billCopied": "تم نسخ الفاتورة",
-    "billDownload": "تحميل .txt",
-    "billCsv": "تحميل .csv",
+    "billCsv": "تحميل",
     "logTitle": "إضافة إلى الميزانية",
     "logCategory": "الفئة",
     "logCta": "إضافة كنفقة",
     "logHint": "يسجّل {amount} كنفقة متغيرة في {month}.",
     "logDone": "أُضيف المجموع إلى ميزانيتك.",
     "notFound": "المنتج غير موجود — أضفه يدويًا مع الرمز.",
+    "lookupFailed": "تعذّر الوصول إلى كتالوج المنتجات — تحقق من الاتصال أو أضفه يدويًا.",
     "codeInvalid": "هذا الرمز لا يشبه رمز باركود (8 أو 13 رقمًا). يمكنك إضافته بالاسم.",
     "priceRequired": "أدخل سعرًا (صفر أو أكثر).",
     "nameRequired": "أعطِ المنتج اسمًا لإضافته.",
     "remembered": "حُفظ في قائمتك",
     "fromCatalog": "من قائمتك",
+    "fromSeed": "من كتالوج المغرب",
     "fromOff": "من Open Food Facts",
     "maBadge": "صنع في المغرب",
     "recentTitle": "المشتريات الأخيرة",
     "noRecent": "لا توجد مشتريات منتهية بعد.",
     "noItems": "لم يتم مسح أي شيء بعد — سيظهر كل منتج هنا وفي الفاتورة.",
     "newCourse": "جلسة جديدة",
-    "back": "رجوع"
+    "back": "رجوع",
+    "billTextCourse": "مشتريات",
+    "billTextLine": "سطر",
+    "billTextLines": "أسطر",
+    "billTextItem": "صنف",
+    "billTextItems": "أصناف",
+    "billTextTotal": "الإجمالي",
+    "unnamedItem": "صنف بلا اسم"
   },
   "alerts": {
+    "needsExceeded": "تم تجاوز مخصصات الاحتياجات",
+    "needsAlert": "تنبيه مخصصات الاحتياجات",
+    "wantsExceeded": "تم تجاوز مخصصات الرغبات",
+    "wantsAlert": "تنبيه مخصصات الرغبات",
+    "categoryExceeded": "تم تجاوز ميزانية «{category}»",
+    "categoryAlert": "تنبيه ميزانية «{category}»",
+    "spentVsBudget": "تم إنفاق {spent} مقابل ميزانية {budget} ({percent}).",
+    "spentOfBudget": "تم إنفاق {spent} من ميزانية {budget} ({percent}).",
+    "viewNotifications": "عرض الإشعارات ({count})",
+    "title": "الإشعارات",
+    "householdInvitations": "دعوات الأسرة",
+    "householdInvitation": "دعوة للانضمام إلى الأسرة",
+    "openToJoinAs": "يمكنك الانضمام بصفتك {role}.",
     "budgetHealth": "صحة الميزانية",
-    "needsExceeded": "تجاوز ظرف الاحتياجات",
-    "needsAlert": "تنبيه ظرف الاحتياجات",
-    "wantsExceeded": "تجاوز ظرف الرغبات",
-    "wantsAlert": "تنبيه ظرف الرغبات",
-    "spentVsBudget": "أُنفق {spent} مقابل ميزانية {budget} ({percent}%).",
-    "spentOfBudget": "أُنفق {spent} من ميزانية {budget} ({percent}%).",
-    "allHealthy": "جميع أظرف الميزانية سليمة! لم يُكتشف أي تجاوز.",
-    "categoryAlertTitle": "تنبيه إنفاق {cat}",
-    "categoryAlertMessage": "{cat} يمثل {pct}% من المصروفات المتغيرة ({amount}). فكر في مراجعة هذه الفئة."
+    "allHealthy": "كل مخصصات الميزانية بحالة جيدة! لم يُكتشف أي تجاوز للإنفاق."
   },
   "legal": {
     "eyebrow": "قانوني",
@@ -506,7 +834,11 @@
     "notFoundDescription": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
     "goHome": "الرئيسية",
     "validationNameRequired": "يرجى إدخال اسم أو شخص",
-    "validationAmountInvalid": "يرجى إدخال مبلغ صالح"
+    "validationAmountInvalid": "يرجى إدخال مبلغ صالح",
+    "unexpected": "حدث خطأ غير متوقع.",
+    "tryAgain": "إعادة المحاولة",
+    "loadingApp": "جارٍ تحميل سمارت جيب…",
+    "returnDashboard": "العودة إلى لوحة التحكم"
   },
   "categories": {
     "food": "الطعام",
@@ -531,7 +863,29 @@
     "installApp": "تثبيت التطبيق",
     "installBanner": "ثبّت سمارت جيب للحصول على أفضل تجربة",
     "install": "تثبيت",
-    "dismiss": "تجاهل"
+    "dismiss": "تجاهل",
+    "installRegion": "تثبيت سمارت جيب",
+    "installTitle": "ثبّت سمارت جيب",
+    "offlineHint": "وصول أسرع ويعمل دون اتصال بالإنترنت.",
+    "dismissPrompt": "إغلاق مطالبة التثبيت",
+    "installAppLabel": "تثبيت تطبيق سمارت جيب",
+    "iosTitle": "ثبّت سمارت جيب",
+    "iosDescription": "أضف سمارت جيب إلى الشاشة الرئيسية لتجربة بملء الشاشة تشبه التطبيقات.",
+    "iosStepShare": "اضغط زر المشاركة في شريط أدوات سفاري",
+    "iosStepAddHome": "اختر «إضافة إلى الشاشة الرئيسية»",
+    "iosStepFinish": "اضغط «إضافة» للإنهاء",
+    "gotIt": "فهمت",
+    "generic": "حدث خطأ ما",
+    "networkError": "خطأ في الشبكة. يرجى التحقق من اتصالك.",
+    "notFound": "الصفحة غير موجودة",
+    "notFoundDescription": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+    "goHome": "الرئيسية",
+    "validationNameRequired": "يرجى إدخال اسم أو شخص",
+    "validationAmountInvalid": "يرجى إدخال مبلغ صالح",
+    "unexpected": "حدث خطأ غير متوقع أثناء معالجة طلب ميزانيتك.",
+    "tryAgain": "حاول مجدداً",
+    "returnDashboard": "العودة إلى لوحة التحكم",
+    "loadingApp": "جارٍ تحميل سمارت جيب..."
   },
   "landing": {
     "nav": {
@@ -541,7 +895,15 @@
       "pricing": "الأسعار",
       "faq": "أسئلة شائعة",
       "signIn": "تسجيل الدخول",
-      "startBudgeting": "ابدأ الآن"
+      "startBudgeting": "ابدأ الآن",
+      "goToDashboard": "الانتقال إلى لوحة التحكم",
+      "changeLanguage": "تغيير اللغة",
+      "switchToLight": "التبديل إلى الوضع الفاتح",
+      "switchToDark": "التبديل إلى الوضع الداكن",
+      "lightMode": "الوضع الفاتح",
+      "darkMode": "الوضع الداكن",
+      "openMenu": "فتح القائمة",
+      "closeMenu": "إغلاق القائمة"
     },
     "hero": {
       "eyebrow": "الاحتياجات، الرغبات، الادخار — وكل مكان للمال.",
@@ -580,7 +942,8 @@
       ]
     },
     "whatIsFlousy": {
-      "title": "ما هو سمارت جيب؟"
+      "title": "ما هو سمارت جيب؟",
+      "description": "سمارت جيب أداة خاصة لتتبع الميزانية تفصل بين الغرض من المال — الاحتياجات والرغبات والادخار — وبين مكان حفظه — البنك أو المنزل أو المحفظة. يدعم 12 عملة وأربعة أساليب للميزانية: 50/30/20، والميزانية الصفرية، ونظام المظاريف، وادفع لنفسك أولًا. لا يتصل سمارت جيب بحسابك البنكي؛ بل تدخل المعاملات يدويًا. تُخزَّن بيانات الحساب مؤقتًا محليًا وتُزامن مع Firebase عند تسجيل الدخول."
     },
     "features": {
       "eyebrow": "القدرات",
@@ -667,7 +1030,8 @@
             }
           ]
         }
-      ]
+      ],
+      "synced": "تمت المزامنة"
     },
     "infrastructure": {
       "eyebrow": "مجاني، مع مساحة للنمو",
@@ -792,7 +1156,7 @@
           "author": "يوسف ب.",
           "role": "مصمم مستقل",
           "company": "الدار البيضاء",
-          "metric": "وفّر 20% أكثر في 3 أشهر"
+          "metric": "وفّر {percent} أكثر في 3 أشهر"
         },
         {
           "quote": "فصل المحفظة عن البنك عبقري. كنت أفقد تتبع النقد تماماً.",
@@ -808,7 +1172,9 @@
           "company": "مراكش",
           "metric": "من الجدول للتطبيق في يومين"
         }
-      ]
+      ],
+      "showTestimonial": "عرض الشهادة {number}",
+      "illustrative": "أمثلة توضيحية لطريقة استخدام SmartJib — ليست آراء عملاء."
     },
     "pricing": {
       "eyebrow": "الأسعار",
@@ -817,7 +1183,7 @@
       "description": "ضع ميزانيتك بثقة مجاناً. ترقّ في أي وقت لفهم أعمق لعاداتك.",
       "monthly": "شهري",
       "annual": "سنوي",
-      "save34": "وفّر 34%",
+      "save34": "وفّر {percent}",
       "perMonth": "/شهر",
       "mostPopular": "الأكثر شعبية",
       "bottomNote": "ميزانيتك تبقى خاصة دائماً. لا حاجة لبطاقة ائتمان.",
@@ -848,11 +1214,46 @@
           ],
           "cta": "ترقية إلى برو"
         }
-      ]
+      ],
+      "useAnnualBilling": "استخدام الفوترة السنوية"
     },
     "faq": {
       "eyebrow": "حقائق سمارت جيب",
-      "title": "أسئلة شائعة"
+      "title": "أسئلة شائعة",
+      "items": [
+        {
+          "question": "هل استخدام سمارت جيب مجاني؟",
+          "answer": "يوفر سمارت جيب خطة مجانية لإدارة الميزانية الأساسية. سمارت جيب برو ترقية مدفوعة اختيارية."
+        },
+        {
+          "question": "هل يتصل سمارت جيب بحسابي البنكي؟",
+          "answer": "لا، لا يتصل سمارت جيب بحسابك البنكي. تدخل معاملاتك يدويًا للحفاظ على الخصوصية والتحكم."
+        },
+        {
+          "question": "ما العملات التي يدعمها سمارت جيب؟",
+          "answer": "يدعم سمارت جيب 12 عملة: MAD وEUR وUSD وGBP وCAD وCHF وAED وSAR وEGP وTND وDZD وXOF."
+        },
+        {
+          "question": "هل بياناتي خاصة؟",
+          "answer": "نعم. تُخزَّن بيانات الحساب مؤقتًا محليًا وتُزامن مع Firebase عند تسجيل الدخول. لا نستخدم بياناتك المالية لإنشاء ملفات إعلانية أو بيعها لأطراف ثالثة. راجع سياسة الخصوصية لمزيد من التفاصيل.",
+          "link": {
+            "label": "سياسة الخصوصية",
+            "href": "/privacy"
+          }
+        },
+        {
+          "question": "ما أساليب الميزانية التي يدعمها سمارت جيب؟",
+          "answer": "يدعم سمارت جيب أربعة أساليب للميزانية: 50/30/20، والميزانية الصفرية، ونظام المظاريف، وادفع لنفسك أولًا."
+        },
+        {
+          "question": "هل يمكنني تصدير بياناتي؟",
+          "answer": "نعم. يمكنك تصدير بيانات ميزانيتك كملف CSV من الإعدادات."
+        },
+        {
+          "question": "كيف أحذف حسابي؟",
+          "answer": "يمكنك حذف حسابك وبيانات الميزانية المرتبطة به نهائيًا من الإعدادات."
+        }
+      ]
     },
     "cta": {
       "titleLine1": "مستعد لمعرفة",
@@ -1005,6 +1406,476 @@
           "body": "يمكنك التحكم في الكوكيز أو مسحها عبر إعدادات المتصفح في أي وقت. لاحظ أن حظر الكوكيز الأساسية قد يمنع سمارت جيب من العمل بشكل صحيح."
         }
       ]
+    },
+    "blog": {
+      "eyebrow": "المدونة",
+      "title": "ملاحظات عن المال والعادات.",
+      "subtitle": "مقالات قصيرة وعملية عن إدارة الميزانية بذكاء — من فريق بناء سمارت جيب.",
+      "readArticle": "اقرأ المقال",
+      "readArticleAria": "اقرأ {title}",
+      "moreOnWayPrefix": "المزيد في الطريق. هل لديك موضوع تود أن نغطيه؟",
+      "letUsKnow": "أخبرنا به",
+      "home": "الرئيسية",
+      "allArticles": "كل المقالات",
+      "byAuthor": "من فريق سمارت جيب",
+      "readingTime": "قراءة {minutes} دقائق",
+      "continueReading": "تابع القراءة",
+      "relatedArticles": "مقالات ذات صلة",
+      "articleCtaDescription": "يفصل سمارت جيب بين مظاريف الميزانية وأرصدة البنك والمنزل والمحفظة.",
+      "startBudgeting": "ابدأ الميزانية مجاناً",
+      "breadcrumb": "مسار التنقل"
+    }
+  },
+  "strategies": {
+    "50-30-20": {
+      "name": "قاعدة 50/30/20",
+      "description": "توزيع متوازن: {needs} للاحتياجات، و{wants} للرغبات، و{savings} للادخار."
+    },
+    "70-20-10": {
+      "name": "قاعدة 70/20/10",
+      "description": "توزيع يركز على الاحتياجات ومناسب لبناء أول ميزانية."
+    },
+    "80-20": {
+      "name": "قاعدة 80/20",
+      "description": "توزيع بسيط ومرن بين الإنفاق والادخار."
+    },
+    "zero-based": {
+      "name": "الميزانية الصفرية",
+      "description": "خصص مهمة لكل درهم من دخلك قبل إنفاقه."
+    },
+    "envelope": {
+      "name": "نظام المظاريف",
+      "description": "خصص مبالغ للإنفاق حسب الفئة قبل بداية الشهر."
+    },
+    "pay-first": {
+      "name": "ادّخر لنفسك أولاً",
+      "description": "أعطِ الأولوية لهدف ادخارك قبل بقية نفقاتك."
+    },
+    "custom": {
+      "name": "استراتيجية مخصصة",
+      "description": "أنشئ توزيعك الخاص للاحتياجات والرغبات والادخار."
+    }
+  },
+  "navigation": {
+    "overview": "نظرة عامة",
+    "dashboardOverview": "نظرة عامة على لوحة التحكم",
+    "fixedBills": "الفواتير الثابتة",
+    "variableExpenses": "المصروفات المتغيرة",
+    "courses": "المشتريات",
+    "courseSession": "جلسة مشتريات",
+    "savings": "الادخار",
+    "savingsGoals": "أهداف الادخار",
+    "trends": "الاتجاهات",
+    "trendsAnalytics": "الاتجاهات والتحليلات",
+    "debts": "الديون",
+    "debtsCredits": "الديون والمستحقات",
+    "profile": "الملف الشخصي",
+    "profileAccount": "الملف الشخصي والحساب",
+    "preferences": "التفضيلات",
+    "moneySources": "مصادر الأموال",
+    "workspace": "مساحة العمل",
+    "pro": "برو",
+    "data": "البيانات",
+    "account": "الحساب",
+    "incomeSources": "مصادر الدخل",
+    "importExportCsv": "استيراد / تصدير CSV",
+    "newTransaction": "معاملة جديدة",
+    "previousMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
+    "customBudgetMonth": "شهر ميزانية مخصص",
+    "openProfileAccount": "فتح الملف الشخصي والحساب",
+    "freePlan": "الخطة المجانية",
+    "proPlan": "خطة برو"
+  },
+  "notifications": {
+    "emailVerificationPrompt": "يرجى تأكيد عنوان بريدك الإلكتروني لحماية حسابك.",
+    "verificationSent": "تم إرسال رسالة التحقق!",
+    "resendEmail": "إعادة إرسال الرسالة",
+    "dismissBanner": "إخفاء الشريط"
+  },
+  "quickActions": {
+    "close": "إغلاق الإجراءات السريعة",
+    "open": "فتح الإجراءات السريعة"
+  },
+  "householdRoles": {
+    "owner": "مالك",
+    "editor": "محرر",
+    "viewer": "مشاهد",
+    "contributor": "مساهم",
+    "custom": "مخصص",
+    "profile": "ملف شخصي"
+  },
+  "strategySelector": {
+    "title": "اختر استراتيجية الميزانية",
+    "changeStrategy": "تغيير استراتيجية الميزانية",
+    "previewAllocation": "معاينة التوزيع",
+    "needs": "الاحتياجات",
+    "wants": "الرغبات",
+    "savings": "الادخار",
+    "tags": {
+      "popular": "شائع",
+      "beginner": "للمبتدئين",
+      "simple": "بسيط",
+      "detailed": "تفصيلي",
+      "visual": "مرئي",
+      "saver": "للمدّخرين",
+      "yours": "خاصتك"
+    },
+    "customStrategy": "استراتيجية مخصصة",
+    "customDescription": "حدد توزيعك الخاص للاحتياجات والرغبات والادخار.",
+    "percentage": "النسبة المئوية لـ {label}",
+    "slider": "شريط تمرير {label}",
+    "totalAllocated": "إجمالي المخصص",
+    "mustEqual": "يجب أن يكون مجموع الاحتياجات والرغبات والادخار {total} بالضبط.",
+    "applyCustomSplit": "تطبيق التوزيع المخصص"
+  },
+  "datePicker": {
+    "chooseDate": "اختر تاريخاً",
+    "openDatePicker": "اختر التاريخ: {date}"
+  },
+  "monthDayPicker": {
+    "monthlyStartDate": "تاريخ بداية الشهر",
+    "clearMonthlyStartDate": "مسح تاريخ بداية الشهر"
+  },
+  "dueDayPicker": {
+    "dueDayOfMonth": "يوم الاستحقاق في الشهر",
+    "custom": "مخصص",
+    "customSchedule": "جدول استحقاق مخصص: {value}",
+    "enterCustom": "أدخل جدول استحقاق مخصصاً",
+    "selectedRepeats": "تم اختيار {day} · يتكرر كل شهر",
+    "selectDueDay": "اختر يوم الاستحقاق",
+    "customField": "{label} (مخصص)",
+    "customPlaceholder": "مثال: اليوم 20 من الشهر، آخر جمعة"
+  },
+  "iconPicker": {
+    "pickIcon": "اختر أيقونة",
+    "findIcon": "ابحث عن أيقونة",
+    "noMatches": "لا توجد أيقونات مطابقة لـ «{query}». جرّب التسوق أو السيارة أو الصحة أو المنزل.",
+    "choices": {
+      "label": "أخرى",
+      "shopping_bag": "تسوق",
+      "shopping_cart": "بقالة",
+      "restaurant": "مطعم",
+      "local_cafe": "قهوة",
+      "home": "المنزل",
+      "house": "سكن",
+      "bolt": "مرافق",
+      "wifi": "إنترنت",
+      "phone": "هاتف",
+      "subscriptions": "اشتراكات",
+      "payments": "نقد",
+      "credit_card": "بطاقة",
+      "account_balance": "بنك",
+      "savings": "ادخار",
+      "directions_car": "سيارة",
+      "fuel": "وقود",
+      "directions_bike": "دراجة",
+      "directions_bus": "حافلة",
+      "directions_train": "قطار",
+      "flight": "سفر",
+      "hotel": "إقامة",
+      "school": "تعليم",
+      "work": "عمل",
+      "child_care": "رعاية الأطفال",
+      "medical_services": "صحة",
+      "medication": "صيدلية",
+      "fitness_center": "لياقة",
+      "pets": "حيوانات أليفة",
+      "movie": "أفلام",
+      "music_note": "موسيقى",
+      "sports_esports": "ألعاب",
+      "card_giftcard": "هدايا",
+      "favorite": "شخصي",
+      "store": "متجر",
+      "inventory_2": "مشتريات",
+      "build": "إصلاحات",
+      "shirt": "ملابس",
+      "content_cut": "عناية وجمال",
+      "menu_book": "كتب",
+      "local_parking": "موقف سيارات",
+      "local_activity": "تذاكر",
+      "receipt_long": "فواتير",
+      "event_repeat": "متكرر",
+      "category": "فئة",
+      "palette": "فن",
+      "sports_tennis": "تنس",
+      "account_balance_wallet": "المحفظة",
+      "local_atm": "صراف آلي",
+      "phone_iphone": "هاتف",
+      "travel_explore": "سفر"
+    }
+  },
+  "modal": {
+    "close": "إغلاق النافذة"
+  },
+  "profile": {
+    "setYourName": "أضف اسمك",
+    "personal": "شخصي",
+    "household": "الأسرة",
+    "profilePhotoAlt": "صورة الملف الشخصي لـ{name}",
+    "chooseProfilePhoto": "اختر صورة للملف الشخصي",
+    "changeProfilePhoto": "غيّر صورة الملف الشخصي",
+    "proMember": "عضو برو",
+    "editName": "تعديل الاسم",
+    "displayName": "الاسم الظاهر",
+    "enterYourName": "أدخل اسمك",
+    "preferencesSaved": "تم حفظ التفضيلات.",
+    "preferencesSaveHint": "احفظ تغييراتك عندما تكون جاهزًا.",
+    "preferencesSaveError": "تعذر حفظ تفضيلاتك. يرجى المحاولة مرة أخرى.",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم الحفظ",
+    "saveChanges": "حفظ التغييرات",
+    "theme": "المظهر",
+    "groups": {
+      "settings": "الإعدادات",
+      "workspace": "مساحة العمل",
+      "privacyAccount": "الخصوصية والحساب"
+    },
+    "links": {
+      "preferences": "التفضيلات",
+      "moneySources": "مصادر المال",
+      "workspace": "مساحة العمل",
+      "pro": "برو",
+      "data": "البيانات",
+      "account": "الحساب"
+    },
+    "hints": {
+      "budgetStarts": "يبدأ في {day}",
+      "locations": "{count, plural, one {# موقع} two {# موقعين} few {# مواقع} many {# موقعًا} other {# موقع}}",
+      "personalAndHousehold": "لوحة شخصية والأسرة",
+      "planIncomeInsights": "الخطة ومصادر الدخل والتحليلات",
+      "exportImportDelete": "تصدير واستيراد وحذف",
+      "signOutDelete": "تسجيل الخروج وحذف الحساب"
+    },
+    "subpages": {
+      "accountTitle": "الحساب",
+      "accountDescription": "سجّل الخروج أو احذف حساب سمارت جيب نهائيًا.",
+      "dataTitle": "البيانات",
+      "dataDescription": "صدّر نسخة أو استورد CSV أو امسح بيانات ميزانيتك.",
+      "moneySourcesTitle": "مصادر المال",
+      "moneySourcesDescription": "أضف أو أعد تسمية أو احذف البنك والمنزل والمحفظة وأي موقع نقدي تتابعه.",
+      "preferencesTitle": "التفضيلات",
+      "preferencesDescription": "العملة واللغة والمظهر ويوم بداية شهر ميزانيتك.",
+      "proTitle": "برو",
+      "proDescription": "ميزات الخطة ومصادر الدخل والتحليلات.",
+      "workspaceTitle": "مساحة العمل",
+      "workspaceDescription": "بدّل بين لوحتك الشخصية ولوحة الأسرة.",
+      "backToProfile": "العودة إلى الملف الشخصي",
+      "householdTitle": "إدارة المنزل",
+      "householdDescription": "الأعضاء والدعوات والوصول المشترك."
+    },
+    "account": {
+      "privacy": "الخصوصية",
+      "terms": "الشروط"
+    },
+    "data": {
+      "exportThisMonth": "تصدير هذا الشهر بصيغة CSV",
+      "importCsv": "استيراد CSV",
+      "deleteAllData": "حذف كل البيانات",
+      "deleteAllDataMessage": "سيؤدي هذا إلى حذف كل أشهر بيانات الميزانية والمصروفات وأهداف الادخار نهائيًا من حسابك. سيُحتفظ بحسابك وإعداداتك. لا يمكن التراجع عن هذا الإجراء — نزّل بياناتك أولًا إن أردت الاحتفاظ بنسخة."
+    },
+    "moneySources": {
+      "description": "هذه هي المواقع النقدية التي تنفق منها — البنك أو المنزل أو المحفظة أو أي صندوق تضيفه. تؤدي إزالة أحدها إلى نقل الرصيد المتبقي إلى أول مصدر متبقٍ.",
+      "nameRequired": "أدخل اسمًا لمصدر المال هذا.",
+      "duplicateName": "هذا الاسم مستخدم بالفعل.",
+      "uniqueName": "أدخل اسمًا فريدًا.",
+      "exampleName": "مثل PayPal أو خزنة أو Revolut",
+      "addSource": "إضافة مصدر",
+      "addMoneySource": "إضافة مصدر مال",
+      "editSource": "تعديل {name}",
+      "removeSource": "إزالة {name}",
+      "removeSourceTitle": "هل تريد إزالة {name}؟",
+      "thisSource": "هذا المصدر",
+      "moveBalanceMessage": "سينتقل {amount} الموجود حاليًا في {source} إلى {destination}. وستتبع المصروفات المدفوعة من هذا المصدر.",
+      "removeSourceMessage": "يمكنك إضافته مجددًا لاحقًا. يجب الاحتفاظ بمصدر مال واحد على الأقل.",
+      "chooseIcon": "اختر أيقونة"
+    },
+    "workspace": {
+      "mySmartJib": "سمارت جيب الخاص بي",
+      "personalDashboard": "لوحة تحكم شخصية خاصة",
+      "householdDashboard": "لوحة تحكم الأسرة",
+      "memberAccess": "صلاحية {role}",
+      "manageHousehold": "إدارة الأسرة",
+      "convertToHousehold": "تحويل هذه المساحة إلى أسرة",
+      "convertToHouseholdHint": "حوّل مساحتك الخاصة إلى أسرة مشتركة. ستُعد ميزانية الأسرة بعد ذلك.",
+      "removeHousehold": "إزالة مساحة الأسرة",
+      "leaveHousehold": "مغادرة مساحة الأسرة",
+      "removeHouseholdConfirm": "هل تريد إزالة مساحة الأسرة؟ تبقى ميزانيتك الشخصية. لن تكون بيانات الأسرة المشتركة متاحة هنا."
+    },
+    "pro": {
+      "yourFeatures": "ميزات برو الخاصة بك",
+      "unlockWithPro": "افتحها مع برو",
+      "allActive": "جميعها مفعّلة",
+      "manageIncomeSources": "إدارة مصادر الدخل",
+      "importExportCsv": "استيراد / تصدير CSV",
+      "manageHousehold": "إدارة الأسرة",
+      "analyticsInsights": "التحليلات والرؤى",
+      "privateWorkspaceHint": "تُطبّق ترقيات برو على مساحة عملك الخاصة. بدّل إلى {workspace} لإدارة خطتك الشخصية أو ترقيتها.",
+      "features": {
+        "courseScan": {
+          "title": "مسح مشتريات الباركود",
+          "description": "امسح البقالة أثناء التسوق ودع سمارت جيب ينشئ الفاتورة تلقائيًا."
+        },
+        "trends": {
+          "title": "الاتجاهات والتحليلات",
+          "description": "مخططات متعددة الأشهر تقارن الدخل والمظاريف والإنفاق مع الوقت."
+        },
+        "incomeSources": {
+          "title": "مصادر دخل متعددة",
+          "description": "تابع الراتب والعمل الحر والدخل الجانبي بشكل منفصل في ميزانية واحدة."
+        },
+        "csv": {
+          "title": "استيراد وتصدير CSV",
+          "description": "استورد الكشوفات دفعة واحدة وصدّر سجلك الكامل في أي وقت."
+        },
+        "categoryBudgets": {
+          "title": "ميزانيات الفئات",
+          "description": "حدد سقفًا مخططًا لكل فئة مع تنبيهات قبل تجاوز الإنفاق."
+        },
+        "rollover": {
+          "title": "ترحيل الميزانية",
+          "description": "رحّل ميزانية الفئة غير المستخدمة تلقائيًا إلى الشهر التالي."
+        },
+        "household": {
+          "title": "أفراد الأسرة",
+          "description": "انسب المصروفات إلى أفراد الأسرة واعرف من ينفق ماذا."
+        }
+      },
+      "privateWorkspaceLead": "تُطبّق ترقيات برو على مساحة عملك الخاصة. بدّل إلى",
+      "privateWorkspaceTail": "لإدارة خطتك الشخصية أو ترقيتها."
+    },
+    "free": "مجاني",
+    "avatarSaveError": "تعذر حفظ صورة الملف الشخصي هذه.",
+    "upgradeToPro": "الترقية إلى برو"
+  },
+  "household": {
+    "title": "التعاون الأسري",
+    "createDescription": "أنشئ أسرة مشتركة لتتبع من دفع، والتعاون مباشرة، ورؤية أرصدة المساهمات.",
+    "unlockWithPro": "افتحها مع برو",
+    "householdNamePlaceholder": "اسم الأسرة (مثل عائلة سيلفا)",
+    "createHousehold": "إنشاء الأسرة",
+    "householdCreated": "تم إنشاء الأسرة. تبقى ميزانيتك الشخصية خاصة، ويُحفظ النشاط المشترك الجديد في مساحة العمل هذه.",
+    "invitationCode": "هل لديك رمز دعوة؟",
+    "invitationCodePlaceholder": "الصق رمز الدعوة",
+    "join": "انضم",
+    "joined": "انضممت إلى الأسرة.",
+    "activeMembers": "{count, plural, one {# عضو نشط} two {# عضوان نشطان} few {# أعضاء نشطون} many {# عضوًا نشطًا} other {# عضو نشط}}",
+    "sharedBudgetLive": "الميزانية المشتركة مفعّلة",
+    "restore": "استعادة",
+    "remove": "إزالة",
+    "monthlyContributions": "مساهمات هذا الشهر",
+    "contributionGuide": "يقارن الرصيد المصروفات التي دفعها كل متعاون نشط بحصة متساوية. استخدمه كدليل للتسوية؛ لا ينقل سمارت جيب أي أموال.",
+    "inviteMember": "دعوة فرد من الأسرة",
+    "inviteDescription": "اختر مستوى وصوله بدل تعيين دور عائلي ثابت.",
+    "fullName": "الاسم الكامل",
+    "emailAddress": "عنوان البريد الإلكتروني",
+    "customAccess": "وصول مخصص",
+    "fullAccess": "وصول كامل",
+    "viewOnly": "عرض فقط",
+    "send": "إرسال",
+    "noAccess": "دون وصول",
+    "view": "عرض",
+    "editOwn": "تعديل الخاصة به",
+    "editAll": "تعديل الكل",
+    "invitationSent": "تم إرسال بريد الدعوة إلى {email}.",
+    "invitationUnavailable": "تم إنشاء الدعوة، لكن خدمة البريد الإلكتروني غير متاحة ({status}).",
+    "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "funds": "أموال الأسرة",
+    "me": "أنا",
+    "member": "عضو",
+    "submitted": "مُرسلة",
+    "approved": "مقبولة",
+    "rejected": "مرفوضة",
+    "areas": {
+      "dashboard": "ملخص لوحة التحكم",
+      "balances": "الأرصدة",
+      "income": "الدخل",
+      "expenses": "المصروفات المتغيرة",
+      "fixedBills": "الفواتير الثابتة",
+      "savings": "الادخار",
+      "debts": "الديون",
+      "analytics": "التحليلات",
+      "invoices": "الفواتير",
+      "members": "الأعضاء",
+      "settings": "إعدادات الأسرة"
+    },
+    "invoice": {
+      "title": "إرسال فاتورة",
+      "description": "تُشارك فاتورتك للمراجعة. تبقى أرصدة الأسرة وديونها ومدخراتها وتحليلاتها خاصة.",
+      "namePlaceholder": "اسم التاجر أو الفاتورة",
+      "amount": "المبلغ",
+      "category": "الفئة",
+      "submit": "إرسال الفاتورة",
+      "submitting": "جارٍ الإرسال…",
+      "invalid": "أدخل اسم الفاتورة ومبلغًا صالحًا.",
+      "submitted": "تم إرسال الفاتورة لمراجعة الأسرة.",
+      "submitFailed": "تعذر إرسال الفاتورة. يرجى المحاولة مرة أخرى.",
+      "reviewTitle": "مراجعة الفواتير",
+      "reviewDescription": "راجع طلبات المساهمين قبل تسجيلها في ميزانية الأسرة الخاصة.",
+      "nonePending": "لا توجد طلبات فواتير معلقة.",
+      "approve": "قبول",
+      "reject": "رفض"
+    },
+    "invited": "مدعو",
+    "invitationCount": "{count, plural, one {# دعوة للأسرة} two {# دعوتان للأسرة} few {# دعوات للأسرة} many {# دعوة للأسرة} other {# دعوة للأسرة}}",
+    "invitations": "دعوات الأسرة",
+    "invitedAs": "تمت دعوتك بصفتك {role}",
+    "reviewAndJoin": "افتح للمراجعة والانضمام إلى هذه الأسرة.",
+    "emailSubject": "تمت دعوتك للانضمام إلى {household}",
+    "emailGreeting": "مرحبًا،",
+    "emailBody": "تمت دعوتك للانضمام إلى {household} بصفتك {role}.",
+    "emailAccept": "قبول الدعوة",
+    "emailExpires": "تنتهي صلاحية هذه الدعوة خلال 14 يومًا.",
+    "savingsPrivateTitle": "الادخار خاص",
+    "savingsPrivateDescription": "لا يشمل وصولك إلى الأسرة أهداف الادخار أو الأرصدة.",
+    "debtsPrivateTitle": "الديون خاصة",
+    "debtsPrivateDescription": "لا يشمل وصولك إلى الأسرة الديون أو المستحقات.",
+    "copyCode": "نسخ",
+    "copied": "تم النسخ",
+    "inviteCodeReady": "تم إنشاء الدعوة. شارك الرمز أدناه إذا تعذر إرسال البريد.",
+    "inviteCodeHint": "يمكن لأي شخص لديه هذا الرمز الانضمام من المنزل ← انضمام."
+  },
+  "consent": {
+    "title": "إعدادات الخصوصية",
+    "body": "يمكن لـ SmartJib إرسال أحداث استخدام مجهولة الهوية (أي الميزات تُفتح) للمساعدة في تحسين التطبيق. لا يتم إرسال أي شيء يتعلق بأموالك — المبالغ أو الفئات أو الملاحظات. يمكنك تغيير ذلك في أي وقت من الإعدادات.",
+    "accept": "السماح بإحصاءات الاستخدام",
+    "decline": "إبقاؤها متوقفة",
+    "enabled": "إحصاءات الاستخدام مفعّلة",
+    "disabled": "إحصاءات الاستخدام متوقفة",
+    "changeInSettings": "التغيير من الإعدادات",
+    "settingsLabel": "إحصاءات الاستخدام",
+    "settingsHint": "عدّ مجهول للميزات المستخدمة. لا تُضمَّن أي قيم مالية أبداً."
+  },
+  "receipt": {
+    "tooLarge": "هذا الصورة كبيرة جداً للحفظ مع هذه المصروفات. اختر صورة أصغر.",
+    "processing": "جارٍ ضغط الصورة…"
+  },
+  "import": {
+    "truncated": "تم استيراد أول {limit} صفاً فقط — لا يمكن لشهر واحد احتواء المزيد."
+  },
+  "pro": {
+    "betaTitle": "Pro مشمول خلال النسخة التجريبية",
+    "betaBody": "لم يتم ربط الدفع بعد، لذلك تم فتح Pro لحسابك مجاناً. لا تُخصم أي مبالغ ولا نطلب أي بيانات بطاقة.",
+    "betaAction": "افتح Pro مجاناً",
+    "cardFieldsRemoved": "لا يوجد نموذج دفع — SmartJib لا يجمع بيانات البطاقات.",
+    "trialClaimed": "تم تفعيل Pro على هذا الحساب.",
+    "alreadyIncluded": "Pro مفعّل بالفعل على حسابك خلال النسخة التجريبية."
+  },
+  "seo": {
+    "titles": {
+      "home": "SmartJib — متتبع ميزانية خاص ومجاني",
+      "about": "حول SmartJib",
+      "help": "مركز المساعدة",
+      "careers": "الوظائف",
+      "contact": "اتصل بنا",
+      "cookies": "سياسة الملفات التعريفية",
+      "privacy": "سياسة الخصوصية",
+      "terms": "شروط الخدمة",
+      "blog": "أدلة الميزانية",
+      "login": "تسجيل الدخول",
+      "onboarding": "إعداد ميزانيتك",
+      "notFound": "الصفحة غير موجودة",
+      "landing": "SmartJib — تتبّع أموالك دون اتصال وبدون إعلانات"
     }
   }
 }

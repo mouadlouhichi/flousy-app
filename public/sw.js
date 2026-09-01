@@ -1,4 +1,7 @@
-const CACHE_NAME = 'flousy-v3';
+const CACHE_NAME = 'flousy-v5';
+// Prerendered app documents, kept separately from the asset cache so an update
+// of the shell never strands a stale HTML response behind a hashed chunk.
+const HTML_CACHE_NAME = 'flousy-html-v5';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -7,6 +10,8 @@ const OFFLINE_URL = '/offline.html';
 const ASSETS_TO_CACHE = [
   OFFLINE_URL,
   '/manifest.json',
+  '/manifest-fr.json',
+  '/manifest-ar.json',
   '/site.webmanifest',
   '/favicon.ico',
   '/favicon.svg',
@@ -42,7 +47,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
+            if (cacheName !== CACHE_NAME && cacheName !== HTML_CACHE_NAME) {
               return caches.delete(cacheName);
             }
             return undefined;
@@ -88,16 +93,31 @@ self.addEventListener('fetch', (event) => {
   // Network-first for navigation, falling back to a real offline page.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match(OFFLINE_URL);
-        return (
-          cached ||
-          new Response('<h1>Offline</h1>', {
-            status: 503,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          })
-        );
-      })
+      fetch(request)
+        .then(async (response) => {
+          // Remember the last good copy of each page the user actually opened.
+          // Every route here is prerendered static HTML whose JS/CSS references
+          // are content-hashed, so a cached document stays usable offline.
+          if (response && response.status === 200 && response.type === 'basic') {
+            const copy = response.clone();
+            const cache = await caches.open(HTML_CACHE_NAME);
+            await cache.put(request, copy);
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cache = await caches.open(HTML_CACHE_NAME);
+          const page = await cache.match(request);
+          if (page) return page;
+          const cached = await caches.match(OFFLINE_URL);
+          return (
+            cached ||
+            new Response('<h1>Offline</h1>', {
+              status: 503,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            })
+          );
+        })
     );
     return;
   }

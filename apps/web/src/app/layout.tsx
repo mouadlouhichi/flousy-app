@@ -4,6 +4,7 @@ import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
 import { LightLanguageProvider } from '@/lib/i18n-light';
+import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
@@ -114,14 +115,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={instrumentSans.variable}
     >
       <head>
+        {/*
+          The document is prerendered as English LTR because language is a client
+          preference, so an Arabic session used to paint the whole page LTR and
+          only flip to RTL after hydration. A ~10-line pre-paint read of the
+          stored preference sets `lang`/`dir` before the first frame; the
+          provider below stays the source of truth, and `suppressHydrationWarning`
+          on <html> covers the (build-time "en") vs runtime mismatch.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var l=localStorage.getItem('flousy_language');if(l!=='en'&&l!=='fr'&&l!=='ar')return;var d=document.documentElement;d.lang=l;d.dir=l==='ar'?'rtl':'ltr';}catch(e){}})();`,
+          }}
+        />
         <InstallPromptCapture />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>
+          <LocalizedDocumentTitle />
           {children}
+          <InstallBanner />
         </LightLanguageProvider>
-        <InstallBanner />
         <ServiceWorkerRegistrar />
       </body>
     </html>

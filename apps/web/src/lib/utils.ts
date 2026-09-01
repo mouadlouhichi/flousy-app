@@ -13,14 +13,14 @@ export function cn(...inputs: ClassValue[]) {
  * Format a YYYY-MM-DD (or ISO) date as a short label ("29 Aug").
  * Parsed locally so a date-only string never shifts by a UTC offset.
  */
-export function formatShortDate(iso: string): string {
+export function formatShortDate(iso: string, locale = 'en-GB'): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
   if (!match) return iso
   const year = Number(match[1])
   const month = Number(match[2])
   const day = Number(match[3])
   if (!year || !month || !day) return iso
-  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
   })

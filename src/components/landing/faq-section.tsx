@@ -1,14 +1,29 @@
-"use client"
+"use client";
+
 import Link from 'next/link';
-import { LANDING_FAQS, type LandingFaq } from '@/lib/seo';
 import { useLightLanguage } from "@/lib/i18n-light";
 
-function FaqAnswer({ faq }: { faq: LandingFaq }) {
-  if (!faq.link) {
-    return <>{faq.answer}</>;
-  }
+type LandingFaq = {
+  question: string;
+  answer: string;
+  link?: {
+    label: string;
+    href: string;
+  };
+};
 
-  const [before, after = ''] = faq.answer.split(faq.link.label);
+function FaqAnswer({ faq }: { faq: LandingFaq }) {
+  if (!faq.link) return <>{faq.answer}</>;
+
+  const linkIndex = faq.link.label ? faq.answer.indexOf(faq.link.label) : -1;
+
+  // A translated answer may be phrased without repeating its link label.
+  // In that case, preserve the complete answer rather than rendering the
+  // answer plus a duplicate/unrelated link.
+  if (linkIndex < 0) return <>{faq.answer}</>;
+
+  const before = faq.answer.slice(0, linkIndex);
+  const after = faq.answer.slice(linkIndex + faq.link.label.length);
 
   return (
     <>
@@ -26,6 +41,8 @@ function FaqAnswer({ faq }: { faq: LandingFaq }) {
 
 export function FaqSection() {
   const { messages: m } = useLightLanguage();
+  const faqs = m.landing.faq.items;
+
   return (
     <section
       id="faq"
@@ -46,7 +63,7 @@ export function FaqSection() {
         </div>
 
         <div className="divide-y divide-foreground/10 border-y border-foreground/10">
-          {LANDING_FAQS.map((faq) => (
+          {faqs.map((faq) => (
             <details key={faq.question} className="group py-6 lg:py-8">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-xl font-medium text-foreground marker:content-none lg:text-2xl">
                 {faq.question}

@@ -89,7 +89,7 @@ export function Navigation() {
           <a href="/" className="flex items-center gap-2 group">
             <Image
               src="/logo.png"
-              alt="SmartJib logo"
+              alt={m.common.appName}
               width={34}
               height={34}
               className="object-contain"
@@ -107,7 +107,7 @@ export function Navigation() {
                 className="text-sm md:text-base font-semiBold text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
               >
                 {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
+                <span className="absolute -bottom-1 start-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </div>
@@ -118,8 +118,8 @@ export function Navigation() {
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-foreground/10 transition-colors text-foreground/70 hover:text-foreground"
-              aria-label={isThemeDark ? "Switch to light mode" : "Switch to dark mode"}
-              title={isThemeDark ? "Light mode" : "Dark mode"}
+              aria-label={isThemeDark ? m.landing.nav.switchToLight : m.landing.nav.switchToDark}
+              title={isThemeDark ? m.landing.nav.lightMode : m.landing.nav.darkMode}
             >
               {isThemeDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -129,14 +129,14 @@ export function Navigation() {
               <button
                 onClick={() => setShowLang((v) => !v)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/10 transition-colors"
-                aria-label="Change language"
-                title="Change language"
+                aria-label={m.landing.nav.changeLanguage}
+                title={m.landing.nav.changeLanguage}
               >
                 <Globe className="w-4 h-4" />
                 <span className="uppercase text-xs font-bold">{language}</span>
               </button>
               <div
-                className={`absolute right-0 top-full mt-2 bg-background border border-foreground/10 rounded-xl shadow-xl overflow-hidden transition-all duration-200 ${
+                className={`absolute end-0 top-full mt-2 bg-background border border-foreground/10 rounded-xl shadow-xl overflow-hidden transition-all duration-200 ${
                   showLang ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-1'
                 }`}
               >
@@ -144,7 +144,7 @@ export function Navigation() {
                   <button
                     key={lang}
                     onClick={() => { setLanguage(lang); setShowLang(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-foreground/5 transition-colors font-medium ${language === lang ? 'text-primary bg-primary/5' : 'text-foreground/80'}`}
+                    className={`w-full text-start px-4 py-2.5 text-sm hover:bg-foreground/5 transition-colors font-medium ${language === lang ? 'text-primary bg-primary/5' : 'text-foreground/80'}`}
                   >
                     {localeNames[lang]}
                   </button>
@@ -158,12 +158,12 @@ export function Navigation() {
                 size="sm"
                 className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
               >
-                <a href="/dashboard">Go to Dashboard</a>
+                <a href="/dashboard">{m.landing.nav.goToDashboard}</a>
               </Button>
             ) : (
               <>
                 <a href="/login" className={`font-bold text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-sm" : "text-base"}`}>
-                  Sign in
+                  {m.landing.nav.signIn}
                 </a>
                 <Button
                   asChild
@@ -179,8 +179,8 @@ export function Navigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden relative z-50 -mr-2 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-foreground/10"
-            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            className="md:hidden relative z-50 -me-2 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors hover:bg-foreground/10"
+            aria-label={isMobileMenuOpen ? m.landing.nav.closeMenu : m.landing.nav.openMenu}
             aria-expanded={isMobileMenuOpen}
             aria-controls="mobile-menu"
           >
@@ -232,7 +232,7 @@ export function Navigation() {
             <button
               onClick={toggleTheme}
               className="p-3 rounded-full border border-foreground/10 text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
-              aria-label={isThemeDark ? 'Light mode' : 'Dark mode'}
+              aria-label={isThemeDark ? m.landing.nav.lightMode : m.landing.nav.darkMode}
             >
               {isThemeDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -262,7 +262,7 @@ export function Navigation() {
                 asChild
                 className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
               >
-                <a href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>Go to Dashboard</a>
+                <a href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>{m.landing.nav.goToDashboard}</a>
               </Button>
             ) : (
               <>

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function DataPage() {
   return (
-    <ProfileSubpage title="Data" description="Export a copy, import a CSV, or wipe budget data.">
+    <ProfileSubpage titleKey="dataTitle" descriptionKey="dataDescription">
       <DataPanel />
     </ProfileSubpage>
   );

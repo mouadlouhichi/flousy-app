@@ -197,8 +197,9 @@ describe('Store & Money Math Invariants', () => {
     // totalBudget — summing both would report 2× the monthly budget.
     const normalized = normalizeMonth({ totalBudget: 10000 }, '2026-07');
 
-    assert.strictEqual(normalized.incomeSources.length, 1);
-    assert.strictEqual(normalized.incomeSources[0].amount, 10000);
+    const sources = normalized.incomeSources ?? [];
+    assert.strictEqual(sources.length, 1);
+    assert.strictEqual(sources[0].amount, 10000);
     assert.strictEqual(calculateTotalIncome(normalized), 10000);
   });
 

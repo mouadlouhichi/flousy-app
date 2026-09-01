@@ -39,7 +39,11 @@ export function interpolate(template: string, values: Record<string, string | nu
 }
 
 /** ICU plural resolver for {count, plural, ...} patterns. */
-export function resolvePlural(template: string, values: Record<string, string | number> = {}): string {
+export function resolvePlural(
+  template: string,
+  values: Record<string, string | number> = {},
+  locale?: string,
+): string {
   return template.replace(
     /\{(\w+),\s*plural,\s*((?:[^{}]|\{[^}]*\})*)\}/g,
     (_, varName, cases) => {
@@ -59,15 +63,46 @@ export function resolvePlural(template: string, values: Record<string, string | 
         else if (count >= 11 && count <= 99 && parsed.many) result = parsed.many;
         else result = parsed.other || '';
       }
-      return result.replace(/#/g, String(count));
+      const formattedCount = locale ? new Intl.NumberFormat(locale).format(count) : String(count);
+      return result.replace(/#/g, formattedCount);
     }
   );
 }
 
 /** Full message formatter: resolves plurals then interpolates. */
-export function formatMessage(template: string, values: Record<string, string | number> = {}): string {
-  const withPlurals = resolvePlural(template, values);
+export function formatMessage(
+  template: string,
+  values: Record<string, string | number> = {},
+  locale?: string,
+): string {
+  const withPlurals = resolvePlural(template, values, locale);
   return interpolate(withPlurals, values);
+}
+
+/**
+ * Resolve a dot-separated message path (for example `tabs.fixed.addCharge`).
+ * Keeping this here lets feature components use a readable key without
+ * importing every locale file or falling back to hard-coded English copy.
+ */
+export function getMessage(messages: Messages, path: string): string {
+  const value = path.split('.').reduce<unknown>((current, segment) => {
+    if (current && typeof current === 'object') {
+      return (current as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, messages);
+
+  return typeof value === 'string' ? value : path;
+}
+
+/** Resolve and format one translated message by path. */
+export function translateMessage(
+  messages: Messages,
+  path: string,
+  values: Record<string, string | number> = {},
+  locale?: string,
+): string {
+  return formatMessage(getMessage(messages, path), values, locale);
 }
 
 /** Locale-aware number locale string for Intl APIs. */
@@ -77,4 +112,27 @@ export function getIntlLocale(language: Language): string {
     case 'fr': return 'fr-FR';
     case 'en': default: return 'en-US';
   }
+}
+
+/**
+ * Format a percentage stored as a familiar 0–100 value with the active
+ * locale's digits, spacing, sign, and bidirectional markers. Message
+ * templates receive this complete value rather than appending a literal `%`.
+ */
+export function formatLocalizedPercent(
+  value: number,
+  locale: string,
+  maximumFractionDigits = 0,
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'percent',
+    maximumFractionDigits,
+  }).format(value / 100);
+}
+
+/** The locale's standalone percent sign for numeric-input adornments. */
+export function getLocalizedPercentSign(locale: string): string {
+  return new Intl.NumberFormat(locale, { style: 'percent' })
+    .formatToParts(0)
+    .find((part) => part.type === 'percentSign')?.value || '%';
 }

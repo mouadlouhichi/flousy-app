@@ -1,18 +1,23 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Modal } from '../ui/Modal';
-import { CustomInput } from '../ui/CustomInput';
+import { DatePicker } from '../ui/date-picker';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
+import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
-import { expenseSchema } from '../../lib/validation';
+import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
+import { localizeCategoryName } from '../../lib/localized-labels';
+import { createReceiptDataUrl, receiptErrorMessage } from '../../lib/receipt-image';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -23,8 +28,25 @@ interface ExpenseModalProps {
   categories: string[];
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
+  /** Adds a variable-expense category to the current month from this form. */
+  onAddCategory?: (name: string, color: string, icon: string) => void;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+}
+
+const ADD_CATEGORY_VALUE = '__add_variable_category__';
+const VARIABLE_CATEGORY_COLORS = [
+  '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
+  '#ec4899', '#f97316', '#10b981', '#eab308',
+  '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
+  '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
+];
+
+function pickUnusedCategoryColor(existingColors: Record<string, string>): string {
+  const used = new Set(Object.values(existingColors));
+  const available = VARIABLE_CATEGORY_COLORS.filter((color) => !used.has(color));
+  const pool = available.length > 0 ? available : VARIABLE_CATEGORY_COLORS;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export function ExpenseModal({
@@ -36,10 +58,13 @@ export function ExpenseModal({
   categories,
   categoryColors = {},
   categoryIcons = {},
+  onAddCategory,
   placeBalances,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { intlLocale, messages: m, t } = useLanguage();
+  const e = m.modals.expense;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const isPro = isProUser(profile);
   const [name, setName] = useState('');
@@ -48,10 +73,16 @@ export function ExpenseModal({
   const [place, setPlace] = useState<MoneyPlace>('bank');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
-  const [person, setPerson] = useState('Me');
+  const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  const [receiptBusy, setReceiptBusy] = useState<boolean>(false);
+  const [receiptError, setReceiptError] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
+  const [customCategoryIcon, setCustomCategoryIcon] = useState('shopping_bag');
+  const [categoryError, setCategoryError] = useState('');
 
   useEffect(() => {
     if (initialExpense) {
@@ -61,9 +92,10 @@ export function ExpenseModal({
       setPlace(initialExpense.place || defaultPlace);
       setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
       setNote(initialExpense.note || '');
-      setPerson(initialExpense.person || 'Me');
+      setPerson(initialExpense.person || 'Self');
       setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
+      setReceiptError('');
     } else {
       setName('');
       setAmount('');
@@ -71,32 +103,93 @@ export function ExpenseModal({
       setPlace(defaultPlace);
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
-      setPerson('Me');
+      setPerson('Self');
       setPayerMemberId('self');
       setReceiptUrl(undefined);
+      setReceiptError('');
     }
     setErrors({});
-  }, [initialExpense, isOpen, categories]);
+    setShowCategoryForm(false);
+    setCustomCategoryName('');
+    setCustomCategoryIcon('shopping_bag');
+    setCategoryError('');
+    // `categories` and `defaultPlace` deliberately are not dependencies: creating
+    // a category (or re-deriving the default place) updates those props, but must
+    // not wipe the expense currently being typed. This effect exists to seed the
+    // form when the modal opens, not to track its inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialExpense, isOpen]);
 
-  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  /**
+   * A phone photo is stored as a downscaled JPEG rather than the raw data URL:
+   * the previous `readAsDataURL` put the whole multi-megabyte image on the
+   * expense document, which Firestore refuses, and because the rejection arrived
+   * through the save path it surfaced as a silent failure to save the expense.
+   */
+  const handleReceiptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Let the same file be picked again after a rejected attempt.
+    event.target.value = '';
     if (!file) return;
+    setReceiptBusy(true);
+    setReceiptError('');
+    try {
+      setReceiptUrl(await createReceiptDataUrl(file));
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : 'receipt_image_too_large');
+    } finally {
+      setReceiptBusy(false);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setReceiptUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+  const resetCategoryForm = () => {
+    setShowCategoryForm(false);
+    setCustomCategoryName('');
+    setCustomCategoryIcon('shopping_bag');
+    setCategoryError('');
+  };
+
+  const handleCategoryChipChange = (value: string) => {
+    if (value === ADD_CATEGORY_VALUE) {
+      setShowCategoryForm(true);
+      setCategoryError('');
+      return;
+    }
+    setType(value);
+    if (showCategoryForm) resetCategoryForm();
+  };
+
+  const handleAddCategory = () => {
+    if (!onAddCategory) return;
+
+    const trimmed = customCategoryName.trim();
+    const color = pickUnusedCategoryColor(categoryColors);
+    const validation = customCategorySchema.safeParse({
+      name: trimmed,
+      color,
+      icon: customCategoryIcon,
+    });
+    if (!validation.success) {
+      setCategoryError(e.invalidCategoryData);
+      return;
+    }
+
+    if (categories.some((category) => category.toLowerCase() === trimmed.toLowerCase())) {
+      setCategoryError(e.duplicateCategory);
+      return;
+    }
+
+    onAddCategory(trimmed, color, customCategoryIcon);
+    setType(trimmed);
+    resetCategoryForm();
   };
 
   // Cash the selected source actually has for this charge: editing an expense
   // that stays in the same place refunds its old amount first.
   const availableInPlace = availableForCharge(placeBalances, place, initialExpense);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     const parsedAmount = parseFloat(amount);
 
     const validationResult = expenseSchema.safeParse({
@@ -112,7 +205,11 @@ export function ExpenseModal({
       const fieldErrors: Record<string, string> = {};
       const issues = validationResult.error.issues || (validationResult.error as any).errors || [];
       issues.forEach((err: any) => {
-        if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
+        const field = String(err.path[0] || '');
+        if (field === 'name') fieldErrors.name = m.errors.validationNameRequired;
+        else if (field === 'amount') fieldErrors.amount = m.errors.validationAmountInvalid;
+        else if (field === 'type') fieldErrors.type = m.errors.validationNameRequired;
+        else if (field === 'date') fieldErrors.date = m.common.date;
       });
       setErrors(fieldErrors);
       return;
@@ -122,9 +219,10 @@ export function ExpenseModal({
     // tolerance absorbs float noise from prior refund/debit arithmetic.
     if (parsedAmount - availableInPlace > 0.005) {
       setErrors({
-        amount: `Only ${format(availableInPlace)} available in ${
-          placeLabel(place)
-        }. Lower the amount or move money into this place first.`,
+        amount: t(e.insufficientFunds, {
+          amount: format(availableInPlace),
+          place: placeLabel(place),
+        }),
       });
       return;
     }
@@ -137,8 +235,8 @@ export function ExpenseModal({
       date,
       place,
       note: note.trim() || undefined,
-      person,
-      payerMemberId,
+      person: person.trim() || 'Self',
+      payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
     };
 
@@ -153,19 +251,19 @@ export function ExpenseModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={initialExpense ? 'Edit Expense' : 'Add Expense'}
+      title={initialExpense ? e.editTitle : e.addTitle}
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-5">
         {/* ── Description / Merchant (with live category icon) ── */}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="expense-name"
             className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
           >
-            Description / Merchant
+            {e.description}
           </label>
           <div
-            className={`flex items-center gap-2 w-full h-12 pl-4 pr-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
+            className={`flex items-center gap-2 w-full h-12 ps-4 pe-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
               errors.name ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
             }`}
           >
@@ -177,7 +275,7 @@ export function ExpenseModal({
                 setName(e.target.value);
                 setErrors((prev) => ({ ...prev, name: '' }));
               }}
-              placeholder={`e.g. Supermarket, Coffee, ${type}`}
+              placeholder={t(e.descriptionPlaceholder, { category: localizeCategoryName(type, m) })}
               className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
             />
             <span
@@ -197,7 +295,7 @@ export function ExpenseModal({
         <div className="flex flex-col items-center justify-center py-2">
           <div className="flex items-center gap-2 mb-1">
             <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              Amount
+              {e.amount}
             </label>
             <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
               {currency}
@@ -222,22 +320,93 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* ── Category — pill chips (color-coded per design system) ── */}
-        <ChoiceChips
-          label="Category"
-          value={type}
-          onChange={setType}
-          options={categories.map((cat) => ({
-            value: cat,
-            label: cat,
-            icon: categoryIcons[cat] || 'category',
-            color: categoryColors[cat],
-          }))}
-        />
+        {/* ── Category — add a new one inline, like fixed charges ── */}
+        <div className="flex flex-col gap-2">
+          <ChoiceChips
+            label={e.category}
+            value={type}
+            onChange={handleCategoryChipChange}
+            options={[
+              ...categories.map((cat) => ({
+                value: cat,
+                label: localizeCategoryName(cat, m),
+                icon: categoryIcons[cat] || 'category',
+                color: categoryColors[cat],
+              })),
+              ...(onAddCategory
+                ? [{ value: ADD_CATEGORY_VALUE, label: e.new, icon: 'add' }]
+                : []),
+            ]}
+          />
+
+          <AnimatePresence initial={false}>
+            {showCategoryForm && (
+              <motion.div
+                key="variable-category-form"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-outline-variant bg-surface-container p-3">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary">
+                    {e.newExpenseCategory}
+                  </span>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={customCategoryName}
+                      onChange={(event) => {
+                        setCustomCategoryName(event.target.value);
+                        if (categoryError) setCategoryError('');
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          handleAddCategory();
+                        }
+                        if (event.key === 'Escape') resetCategoryForm();
+                      }}
+                      placeholder={e.customCategoryPlaceholder}
+                      aria-label={m.modals.categories.categoryName}
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
+                    />
+                    <div className="flex gap-2 sm:shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleAddCategory}
+                        className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                      >
+                        {m.common.add}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetCategoryForm}
+                        className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
+                      >
+                        {m.common.cancel}
+                      </button>
+                    </div>
+                  </div>
+
+                  {categoryError && (
+                    <p role="alert" className="text-[12px] font-medium text-error">
+                      {categoryError}
+                    </p>
+                  )}
+
+                  <CategoryIconPicker value={customCategoryIcon} onChange={setCustomCategoryIcon} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ── Paid From — segmented group with sliding active background ── */}
         <SegmentedControl
-          label="Paid From"
+          label={e.paidFrom}
           value={place}
           onChange={(v) => {
             setPlace(v as MoneyPlace);
@@ -246,8 +415,7 @@ export function ExpenseModal({
           options={moneyPlaceOptions}
         />
         <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          Available in {placeLabel(place)}:{' '}
-          <span className="font-mono font-bold text-on-surface">{format(availableInPlace)}</span>
+          {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
         </p>
 
         {/* ── Household Member — badges ── */}
@@ -255,58 +423,83 @@ export function ExpenseModal({
           <MemberBadges value={payerMemberId} onChange={(id, label) => { setPayerMemberId(id); setPerson(label); }} />
         ) : (
           <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container">
-            <p className="font-body-sm text-body-sm text-on-surface-variant">Household member tracking is available in Pro.</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">{e.householdPro}</p>
           </div>
         )}
 
-        {/* ── Date ── */}
-        <CustomInput
-          label="Date"
-          type="date"
+        {/* ── Date — responsive calendar popover (no native input overflow) ── */}
+        <DatePicker
+          label={e.date}
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(nextDate) => {
+            setDate(nextDate);
+            setErrors((previous) => ({ ...previous, date: '' }));
+          }}
+          locale={intlLocale}
+          error={errors.date}
         />
 
         {/* ── Note ── */}
         <CustomTextarea
-          label="Note (Optional)"
+          label={e.noteOptional}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="What was this for?"
+          placeholder={e.notePlaceholder}
           rows={2}
         />
 
         {/* ── Receipt Attachment ── */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Receipt / Attachment
+            {e.receiptOptional}
           </label>
           {isPro ? (
-            receiptUrl ? (
-              <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <img src={receiptUrl} alt="Receipt preview" className="w-12 h-12 object-cover rounded-lg" />
-                  <span className="font-body-sm text-body-sm text-on-surface font-bold">Receipt Attached</span>
+            <>
+              {receiptUrl ? (
+                <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {/*
+                      A `next/image` optimizer cannot serve this: the source is an
+                      inline data URL produced on this device, which is also what
+                      makes the attachment readable offline.
+                    */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={receiptUrl} alt={e.receiptPreview} className="w-12 h-12 object-cover rounded-lg" />
+                    <span className="font-body-sm text-body-sm text-on-surface font-bold">{e.receiptAttached}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptUrl(undefined)}
+                    className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                    aria-label={e.removeReceipt}
+                  >
+                    <AppIcon name="close" className=" text-[18px]" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setReceiptUrl(undefined)}
-                  className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
-                  aria-label="Remove receipt"
-                >
-                  <AppIcon name="close" className=" text-[18px]" />
-                </button>
-              </div>
-            ) : (
-              <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
-                <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
-                <span className="font-label-md text-label-md text-on-surface-variant font-medium">Upload Receipt Photo</span>
-                <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
-              </label>
-            )
+              ) : (
+                <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
+                  <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
+                  <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+                    {receiptBusy ? m.receipt.processing : e.uploadReceipt}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptUpload}
+                    disabled={receiptBusy}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              {receiptError && (
+                <p role="alert" className="text-xs font-bold text-error">
+                  {receiptErrorMessage(receiptError, m.receipt.tooLarge)}
+                </p>
+              )}
+            </>
           ) : (
             <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container text-center">
-              <p className="font-body-sm text-body-sm text-on-surface-variant">Receipt attachments are available in Pro.</p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">{e.receiptPro}</p>
             </div>
           )}
         </div>
@@ -322,7 +515,7 @@ export function ExpenseModal({
               }}
               className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
-              Delete
+              {m.common.delete}
             </button>
           )}
           <button
@@ -330,7 +523,7 @@ export function ExpenseModal({
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialExpense ? 'check' : 'add'} className=" text-[18px]" />
-            <span>{initialExpense ? 'Save Changes' : 'Add Expense'}</span>
+            <span>{initialExpense ? e.saveChanges : e.addTitle}</span>
           </button>
         </div>
       </form>

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function MoneySourcesPage() {
   return (
-    <ProfileSubpage title="Money sources" description="Add, rename or remove Bank, Home, Wallet and any cash location you track.">
+    <ProfileSubpage titleKey="moneySourcesTitle" descriptionKey="moneySourcesDescription">
       <MoneySourcesPanel />
     </ProfileSubpage>
   );

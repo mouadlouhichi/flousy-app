@@ -7,6 +7,7 @@ import { SegmentedControl } from '../ui/segmented-control';
 import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
 
 interface DebtModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ interface DebtModalProps {
 
 export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: DebtModalProps) {
   const { symbol } = useCurrency();
+  const { messages: m } = useLanguage();
+  const d = m.modals.debt;
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<DebtType>('debt');
@@ -50,11 +53,11 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
     const parsedAmount = parseFloat(amount);
 
     if (!name.trim()) {
-      setErrors({ name: 'Please enter a name or person' });
+      setErrors({ name: m.errors.validationNameRequired });
       return;
     }
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setErrors({ amount: 'Please enter a valid amount' });
+      setErrors({ amount: m.errors.validationAmountInvalid });
       return;
     }
 
@@ -73,12 +76,12 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? 'Edit Debt' : 'Add Debt'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? d.editTitle : d.addTitle}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* ── Amount ── */}
         <div className="flex flex-col items-center justify-center py-2">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-            Amount
+            {d.amount}
           </label>
           <div className="flex items-center text-primary font-bold">
             <AmountSymbol symbol={symbol} />
@@ -102,32 +105,32 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
 
         {/* ── Type — segmented with sliding active background ── */}
         <SegmentedControl
-          ariaLabel="Debt type"
+          ariaLabel={d.addTitle}
           value={type}
           onChange={(v) => setType(v as DebtType)}
           options={[
-            { value: 'debt', label: 'I Owe', icon: 'arrow_upward' },
-            { value: 'credit', label: 'Owed to Me', icon: 'arrow_downward' },
+            { value: 'debt', label: d.iOwe, icon: 'arrow_upward' },
+            { value: 'credit', label: d.owedToMe, icon: 'arrow_downward' },
           ]}
         />
 
         {/* ── Person / Entity ── */}
         <CustomInput
-          label="Person / Entity"
+          label={d.personEntity}
           type="text"
           value={name}
           onChange={(e) => {
             setName(e.target.value);
             setErrors((prev) => ({ ...prev, name: '' }));
           }}
-          placeholder="e.g. John, Bank, Friend"
+          placeholder={d.personPlaceholder}
           error={errors.name}
         />
 
         {/* ── Status ── */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Status
+            {d.status}
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -140,7 +143,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
               }`}
             >
               <AppIcon name="lock_open" className=" text-[16px]" />
-              Open
+              {m.common.open}
             </button>
             <button
               type="button"
@@ -152,14 +155,14 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
               }`}
             >
               <AppIcon name="check_circle" className=" text-[16px]" />
-              Settled
+              {m.common.settled}
             </button>
           </div>
         </div>
 
         {/* ── Date ── */}
         <CustomInput
-          label="Date"
+          label={d.dateLabel}
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
@@ -167,10 +170,10 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
 
         {/* ── Note ── */}
         <CustomTextarea
-          label="Note (Optional)"
+          label={d.noteOptional}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="What is this debt for?"
+          placeholder={d.notePlaceholder}
           rows={2}
         />
 
@@ -185,7 +188,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
               }}
               className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
-              Delete
+              {m.common.delete}
             </button>
           )}
           <button
@@ -193,7 +196,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
           >
             <AppIcon name={initialDebt ? 'check' : 'add'} className=" text-[18px]" />
-            <span>{initialDebt ? 'Save Changes' : 'Add Debt'}</span>
+            <span>{initialDebt ? d.saveChanges : d.addTitle}</span>
           </button>
         </div>
       </form>

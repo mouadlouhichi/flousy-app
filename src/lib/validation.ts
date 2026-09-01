@@ -6,6 +6,17 @@ export const moneyAmountSchema = z
   .min(0, 'Amount cannot be negative')
   .max(1000000000, 'Amount exceeds maximum limit (1B)');
 
+/**
+ * How many rows a single month document may carry. `firestore.rules` pins the
+ * same numbers for `variableExpenses` / `fixedExpenses`: a month that grows past
+ * them is not merely large, it becomes permanently unwritable (the 1 MiB document
+ * cap rejects every later save), which locks the user out of their own budget.
+ * Import and paste paths must therefore clamp here, before the write is even
+ * attempted, and tell the user what was dropped.
+ */
+export const MONTHLY_VARIABLE_EXPENSE_LIMIT = 2000;
+export const MONTHLY_FIXED_EXPENSE_LIMIT = 500;
+
 export const incomeSchema = z.object({
   income: moneyAmountSchema.refine((val) => val > 0, { message: 'Income must be greater than zero' }),
   currency: z.string().min(1, 'Currency is required'),

@@ -24,6 +24,11 @@ import {
   COURSE_FALLBACK_CATEGORY,
 } from '../src/lib/course-session';
 import type { Product } from '../src/lib/store';
+import {
+  courseBillImageFilename,
+  renderCourseBillImageSvg,
+  svgToImageDataUrl,
+} from '../src/lib/course-bill-image';
 
 const MA_PRODUCT: Product = {
   barcode: '6111246721261',
@@ -324,6 +329,79 @@ describe('renderBillText', () => {
   });
 });
 
+describe('renderCourseBillImageSvg', () => {
+  it('encodes the SVG as a data: URL (CSP img-src allows data:, not blob:)', () => {
+    const url = svgToImageDataUrl('<svg><text>Pain & <lait> "spécial"</text></svg>');
+    assert.ok(url.startsWith('data:image/svg+xml;charset=utf-8,'));
+    assert.ok(!url.includes('<'));
+    assert.ok(!url.includes('#'));
+    assert.ok(!url.startsWith('blob:'));
+  });
+
+  it('renders the same course as a self-contained, escaped visual receipt', () => {
+    let session = makeSession();
+    session = addItemToSession(session, makeItem({ name: 'Pain & <jam>', unitPrice: 8, qty: 2 }));
+    session = completeSession(session, NOW);
+
+    const image = renderCourseBillImageSvg(session, {
+      title: 'Course bill',
+      items: 'items',
+      total: 'Total',
+      paidFrom: 'Paid from',
+      place: 'Bank',
+      locale: 'en-US',
+    });
+
+    assert.match(image, /^<svg /);
+    assert.match(image, /width="1080"/);
+    assert.match(image, /Pain &amp; &lt;jam&gt;/);
+    assert.match(image, /Paid from: Bank/);
+    assert.match(image, /TOTAL/);
+    assert.match(image, /SmartJib/);
+    assert.match(image, /href="\/logo.png"/);
+    assert.doesNotMatch(image, /M520 156h40/);
+    assert.equal(courseBillImageFilename(session), 'smartjib-course-2026-08-30.png');
+  });
+
+  it('renders as a paper receipt (torn edge + faux barcode)', () => {
+    let session = makeSession();
+    session = addItemToSession(session, makeItem({ name: 'Sidi Ali 2L', unitPrice: 6, qty: 2 }));
+    session = completeSession(session, NOW);
+
+    const image = renderCourseBillImageSvg(session, {
+      title: 'Course bill',
+      items: 'items',
+      total: 'Total',
+      paidFrom: 'Paid from',
+      place: 'Bank',
+      locale: 'en-US',
+      thanks: 'Thank you for your visit!',
+    });
+
+    assert.match(image, /<path d="M 114 56/); // paper with rounded top corners
+    assert.match(image, /No\. \d{12}/); // receipt number under the barcode
+    assert.match(image, /feDropShadow/); // paper shadow
+    assert.match(image, /Thank you for your visit!/);
+    // torn bottom edge: backdrop-coloured notches cut into the paper
+    assert.match(image, /fill="#efece4"/);
+  });
+
+  it('mirrors the visual receipt for right-to-left share images', () => {
+    const image = renderCourseBillImageSvg(makeSession(), {
+      title: 'فاتورة التسوق',
+      items: 'عناصر',
+      total: 'المجموع',
+      paidFrom: 'الدفع من',
+      place: 'البنك',
+      direction: 'rtl',
+      locale: 'ar-MA',
+    });
+
+    assert.match(image, /direction="rtl"/);
+    assert.match(image, /فاتورة التسوق/);
+  });
+});
+
 describe('renderBillCsv', () => {
   it('exports one row per item plus a totals row', () => {
     let session = makeSession();
@@ -379,16 +457,35 @@ describe('resolveProduct', () => {
     });
   });
 
-  it('reports not-found when the remote misses', async () => {
+  it('resolves from the bundled seed before the network', async () => {
+    let remoteCalls = 0;
+    const resolution = await resolveProduct({
+      barcode: '6111035002175',
+      catalog: [],
+      lookupSeed: (code) => (code === '6111035002175' ? { name: 'Sidi Ali', brand: 'Sidi Ali' } : null),
+      lookupRemote: async () => {
+        remoteCalls++;
+        return { name: 'WRONG' };
+      },
+    });
+    assert.equal(remoteCalls, 0);
+    assert.deepEqual(resolution, {
+      kind: 'found',
+      product: { name: 'Sidi Ali', brand: 'Sidi Ali', category: undefined, imageUrl: undefined },
+      source: 'seed',
+    });
+  });
+
+  it('reports not-found (clean miss) when the remote misses', async () => {
     const resolution = await resolveProduct({
       barcode: '1111111111111',
       catalog: [],
       lookupRemote: async () => null,
     });
-    assert.deepEqual(resolution, { kind: 'not-found', barcode: '1111111111111' });
+    assert.deepEqual(resolution, { kind: 'not-found', barcode: '1111111111111', reason: 'not-found' });
   });
 
-  it('degrades to not-found when the remote throws or times out', async () => {
+  it('reports lookup-failed when the remote throws or times out', async () => {
     const failing = await resolveProduct({
       barcode: '2222222222222',
       catalog: [],
@@ -396,7 +493,7 @@ describe('resolveProduct', () => {
         throw new Error('network down');
       },
     });
-    assert.deepEqual(failing, { kind: 'not-found', barcode: '2222222222222' });
+    assert.deepEqual(failing, { kind: 'not-found', barcode: '2222222222222', reason: 'lookup-failed' });
 
     const slow = await resolveProduct({
       barcode: '3333333333333',
@@ -405,7 +502,7 @@ describe('resolveProduct', () => {
         new Promise((resolve) => setTimeout(() => resolve({ name: 'Too late' }), 200)),
       remoteTimeoutMs: 30,
     });
-    assert.deepEqual(slow, { kind: 'not-found', barcode: '3333333333333' });
+    assert.deepEqual(slow, { kind: 'not-found', barcode: '3333333333333', reason: 'lookup-failed' });
   });
 
   it('ignores catalog entries without a name and uses the remote', async () => {
@@ -430,7 +527,11 @@ describe('resolveProduct', () => {
 
   it('works with no remote configured (offline / demo)', async () => {
     const resolution = await resolveProduct({ barcode: '5555555555555', catalog: [] });
-    assert.deepEqual(resolution, { kind: 'not-found', barcode: '5555555555555' });
+    assert.deepEqual(resolution, {
+      kind: 'not-found',
+      barcode: '5555555555555',
+      reason: 'not-found',
+    });
   });
 });
 

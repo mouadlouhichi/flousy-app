@@ -7,7 +7,6 @@ export function VariableScreen() {
   const {
     month,
     openExpenseModal,
-    openManageCategories,
     openProModal,
     updateAndSaveMonth,
     handleUpdateProfile,
@@ -18,7 +17,6 @@ export function VariableScreen() {
       month={month}
       onOpenAddModal={() => openExpenseModal()}
       onEditExpense={(exp) => openExpenseModal(exp)}
-      onManageCategories={openManageCategories}
       onUpdateMonth={updateAndSaveMonth}
       onUpdateProfile={handleUpdateProfile}
       onOpenProModal={openProModal}

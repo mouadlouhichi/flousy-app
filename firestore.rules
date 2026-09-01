@@ -10,30 +10,69 @@ service cloud.firestore {
     function householdMember(hid) { return signedIn() && exists(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)) && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.status == 'active'; }
     function householdEditor(hid) { return householdMember(hid) && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor']; }
     function householdOwner(hid) { return signedIn() && get(/databases/$(database)/documents/households/$(hid)).data.ownerId == request.auth.uid; }
+    function isEmail(value) { return value is string && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
+    function boundedText(value, maxBytes) { return value is string && value.size() > 0 && value.size() <= maxBytes; }
+    // A receipt stored as a data URL inside a month document is the one field
+    // that has actually blown past Firestore's 1 MiB document limit — and a
+    // too-large document is then permanently unwritable, locking the user out
+    // of the whole month. Enforce the cap server-side, not just in the UI.
+    function receiptsFit(list) { return list.all(item => !('receiptUrl' in item) || (item.receiptUrl is string && item.receiptUrl.size() <= 120000)); }
 
     match /users/{uid} {
       allow get: if owner(uid);
       allow create: if owner(uid) && request.resource.data.plan == 'free' && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
-      // The profile `plan` field is the single source of truth for Pro access.
-      // While payments are mocked, the signed-in owner may flip it between
-      // 'free' and 'pro' after checkout. With a real payment provider, re-pin
-      // it (incoming().plan == existing().plan) and write it from an Admin SDK
-      // payment webhook instead.
-      allow update: if owner(uid) && incoming().plan in ['free', 'pro'] && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
+      // The profile `plan` field is the single source of truth for Pro access,
+      // so it must not be self-assignable: an account that can grant itself Pro
+      // is an account that never pays. Until a payment provider exists, the
+      // only permitted transition is a single, non-repeatable beta trial claim
+      // (free -> pro, stamped once with `proTrialClaimedAt`). With real
+      // payments, keep this shape and write `plan` from an Admin SDK webhook
+      // (which bypasses rules) instead of allowing the claim.
+      allow update: if owner(uid)
+        && (!('plan' in incoming())
+            || incoming().plan == existing().plan
+            || (incoming().plan == 'pro'
+                && existing().plan == 'free'
+                && !('proTrialClaimedAt' in existing())
+                && 'proTrialClaimedAt' in incoming()
+                && incoming().proTrialClaimedAt is string))
+        && (!('currency' in incoming()) || incoming().currency is string)
+        && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool)
+        && (!('displayName' in incoming()) || incoming().displayName == null || (incoming().displayName is string && incoming().displayName.size() <= 120))
+        && (!('activeWorkspace' in incoming()) || incoming().activeWorkspace in ['personal', 'household'])
+        && (!('householdIds' in incoming()) || (incoming().householdIds is list && incoming().householdIds.size() <= 50));
+      // Owner-only and unconstrained. The previous `allow write` validated the
+      // pre-delete snapshot's budget fields, so a legacy month document missing
+      // totalBudget/bankPart could never be deleted — it stayed orphaned after
+      // the account itself was erased, which silently breaks "delete my data".
       allow delete: if owner(uid);
-      match /months/{key} { allow read: if owner(uid); allow write: if owner(uid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
-      match /data/savings { allow read: if owner(uid); allow write: if owner(uid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
+
+      match /months/{key} {
+        allow read: if owner(uid);
+        allow create, update: if owner(uid) && isValidMonthId(key)
+          && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart)
+          && (!('variableExpenses' in incoming()) || (incoming().variableExpenses.size() <= 2000 && receiptsFit(incoming().variableExpenses)))
+          && (!('fixedExpenses' in incoming()) || (incoming().fixedExpenses.size() <= 500 && receiptsFit(incoming().fixedExpenses)))
+          && (!('savingsActivity' in incoming()) || incoming().savingsActivity.size() <= 200)
+          && (!('placeBalances' in incoming()) || incoming().placeBalances.values().all(v => isMoney(v)));
+        allow delete: if owner(uid);
+      }
+      match /data/savings {
+        allow read: if owner(uid);
+        allow create, update: if owner(uid) && (!('goals' in incoming()) || incoming().goals.size() <= 200);
+        allow delete: if owner(uid);
+      }
 
       // Course session catalog: one document per normalized barcode (8/13 digits).
       match /products/{barcode} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && (barcode matches '^[0-9]{8}$' || barcode matches '^[0-9]{13}$')
-          && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+          && (barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
+          && boundedText(incoming().name, 100)
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
         allow update: if owner(uid)
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice))
-          && (!('name' in incoming()) || (incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100));
+          && (!('name' in incoming()) || boundedText(incoming().name, 100));
         allow delete: if owner(uid);
       }
 
@@ -56,44 +95,118 @@ service cloud.firestore {
 
     match /households/{hid} {
       allow get: if householdMember(hid) || householdOwner(hid);
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
-      allow update, delete: if householdOwner(hid) && request.resource.data.ownerId == resource.data.ownerId;
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.planOwnerId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
+      allow update: if householdOwner(hid) && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if householdOwner(hid);
+
       match /members/{memberId} {
         allow get: if householdMember(hid) || householdOwner(hid) || (signedIn() && resource.data.email == request.auth.token.email);
+        // `list` rules are evaluated against the QUERY, not per document, so
+        // resource.data cannot be referenced here. Membership rows are already
+        // scoped by the household path, which is itself permission-gated.
         allow list: if householdMember(hid) || householdOwner(hid);
-        allow create: if householdOwner(hid) || (memberId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+        // A member row is either written by the owner (invitations, local
+        // profile entries, role changes) or claimed by its recipient — and a
+        // recipient may ONLY claim a pending invitation addressed to their own
+        // account. Without the invitation check, `memberId == auth.uid` let any
+        // signed-in user insert themselves as `role: 'owner'` of any household
+        // whose id they knew (including one they had been removed from).
+        allow create: if householdOwner(hid)
+          || (memberId == request.auth.uid
+              && request.resource.data.userId == request.auth.uid
+              && request.resource.data.status == 'active'
+              && request.resource.data.role in ['editor', 'viewer', 'contributor', 'custom']
+              && request.resource.data.email == request.auth.token.email
+              && 'inviteId' in request.resource.data
+              && exists(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId))
+              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.householdId == hid
+              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.status == 'pending'
+              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.email == request.auth.token.email
+              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.role == request.resource.data.role);
         allow update: if householdOwner(hid)
-          // A recipient activates their UID-indexed membership after accepting.
-          || (memberId == request.auth.uid && resource.data.email == request.auth.token.email && request.resource.data.userId == request.auth.uid)
-          // Then the recipient retires the email-bound pending member record.
+          // The recipient retires the email-bound pending row that stood in for
+          // them before they had a membership document.
           || (resource.data.email == request.auth.token.email
-            && resource.data.status == 'invited'
-            && request.resource.data.status == 'inactive'
-            && request.resource.data.userId == request.auth.uid);
-        allow delete: if householdOwner(hid);
-      }
-      // Contributor invoices are isolated from private monthly balances, debts and savings.
-      match /invoices/{invoiceId} {
-        allow get: if householdEditor(hid) || (signedIn() && resource.data.submitterId == request.auth.uid);
-        allow list: if householdEditor(hid);
-        allow create: if householdMember(hid)
-          && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor', 'contributor']
-          && request.resource.data.submitterId == request.auth.uid
-          && request.resource.data.status == 'submitted';
-        allow update: if householdEditor(hid);
+              && resource.data.status == 'invited'
+              && request.resource.data.status == 'inactive'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
+          // A member may leave: they can deactivate their own row and nothing
+          // else (role is pinned so this can never be an escalation path).
+          || (memberId == request.auth.uid
+              && resource.data.userId == request.auth.uid
+              && request.resource.data.status == 'inactive'
+              && request.resource.data.role == resource.data.role);
         allow delete: if householdOwner(hid);
       }
 
-      match /months/{key} { allow read: if householdMember(hid); allow write: if householdEditor(hid) && isValidMonthId(key) && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart) && (!('variableExpenses' in request.resource.data) || incoming().variableExpenses.size() <= 2000) && (!('fixedExpenses' in request.resource.data) || incoming().fixedExpenses.size() <= 500) && (!('savingsActivity' in request.resource.data) || incoming().savingsActivity.size() <= 200); }
-      match /data/savings { allow read: if householdMember(hid); allow write: if householdEditor(hid) && (!('goals' in request.resource.data) || incoming().goals.size() <= 200); }
+      // Contributor invoices are isolated from private monthly balances, debts and savings.
+      match /invoices/{invoiceId} {
+        allow get: if householdEditor(hid) || (signedIn() && resource.data.submitterId == request.auth.uid);
+        allow list: if householdMember(hid);
+        allow create: if householdMember(hid)
+          && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor', 'contributor']
+          && request.resource.data.submitterId == request.auth.uid
+          && request.resource.data.status == 'submitted'
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && isMoney(request.resource.data.amount)
+          && (!('receiptUrl' in request.resource.data) || (request.resource.data.receiptUrl is string && request.resource.data.receiptUrl.size() <= 120000));
+        allow update: if householdEditor(hid);
+        // A contributor may withdraw their own not-yet-reviewed invoice.
+        allow delete: if householdOwner(hid)
+          || (signedIn() && resource.data.submitterId == request.auth.uid && resource.data.status == 'submitted');
+      }
+
+      match /months/{key} {
+        allow read: if householdMember(hid) || householdOwner(hid);
+        allow create, update: if householdEditor(hid) && isValidMonthId(key)
+          && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart)
+          && (!('variableExpenses' in incoming()) || (incoming().variableExpenses.size() <= 2000 && receiptsFit(incoming().variableExpenses)))
+          && (!('fixedExpenses' in incoming()) || (incoming().fixedExpenses.size() <= 500 && receiptsFit(incoming().fixedExpenses)))
+          && (!('savingsActivity' in incoming()) || incoming().savingsActivity.size() <= 200)
+          && (!('placeBalances' in incoming()) || incoming().placeBalances.values().all(v => isMoney(v)));
+        allow delete: if householdOwner(hid) || householdEditor(hid);
+      }
+      match /data/savings {
+        allow read: if householdMember(hid) || householdOwner(hid);
+        allow create, update: if householdEditor(hid) && (!('goals' in incoming()) || incoming().goals.size() <= 200);
+        allow delete: if householdOwner(hid) || householdEditor(hid);
+      }
     }
+
     match /householdInvites/{inviteId} {
       allow get: if signedIn() && (resource.data.email == request.auth.token.email || householdOwner(resource.data.householdId));
-      // A recipient's query is constrained to their own email by the client query.
-      allow list: if signedIn() && resource.data.email == request.auth.token.email;
-      allow create: if signedIn() && householdOwner(request.resource.data.householdId) && request.resource.data.createdBy == request.auth.uid;
-      allow update: if signedIn() && (householdOwner(resource.data.householdId) || (resource.data.email == request.auth.token.email && request.resource.data.status == 'pending' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])));
+      // See the members note: a `list` rule must be provable from the query.
+      // The client query is constrained to `email == <own email> && status ==
+      // 'pending'`, so this only ever returns the caller's own invitations.
+      allow list: if signedIn();
+      allow create: if signedIn()
+        && householdOwner(request.resource.data.householdId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.role in ['editor', 'viewer', 'contributor', 'custom']
+        && isEmail(request.resource.data.email);
+      // The owner manages their own invitation; the recipient may only move a
+      // still-pending invitation to a terminal state. The previous rule pinned
+      // the *incoming* status to 'pending', which made 'pending' -> 'accepted'
+      // impossible, so accepted invitations kept showing as outstanding forever.
+      allow update: if signedIn() && (
+        householdOwner(resource.data.householdId)
+        || (resource.data.email == request.auth.token.email
+            && resource.data.status == 'pending'
+            && request.resource.data.status in ['accepted', 'revoked']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt']))
+      );
+      allow delete: if signedIn() && householdOwner(resource.data.householdId);
     }
+
     match /{document=**} { allow read, write: if false; }
   }
 }

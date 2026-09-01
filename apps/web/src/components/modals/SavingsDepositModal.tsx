@@ -9,6 +9,7 @@ import { CustomSelect } from '../ui/CustomSelect';
 import { MoneyPlace, SavingGoal, SavingsActivityEntry } from '../../lib/store';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
 
 interface SavingsDepositModalProps {
   isOpen: boolean;
@@ -46,6 +47,8 @@ export function SavingsDepositModal({
   onDelete,
 }: SavingsDepositModalProps) {
   const { symbol, format } = useCurrency();
+  const { messages: m, t } = useLanguage();
+  const s = m.modals.savings;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [type, setType] = useState<'deposit' | 'withdraw'>('deposit');
@@ -66,6 +69,9 @@ export function SavingsDepositModal({
       setDate(toDateInput(entry.date));
     }
     setErrors({});
+    // Read when the modal opens to seed the form; depending on it would wipe a
+    // half-typed entry whenever the place list is re-derived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry, isOpen, goals]);
 
   // Balance that will be available in the goal once the original entry is
@@ -89,16 +95,16 @@ export function SavingsDepositModal({
 
     const parsedAmount = Number.parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setErrors({ amount: 'Please enter a valid positive amount' });
+      setErrors({ amount: s.validPositiveAmount });
       return;
     }
     if (!goalId) {
-      setErrors({ goal: 'Please pick a savings goal' });
+      setErrors({ goal: s.selectGoalError });
       return;
     }
     if (type === 'withdraw' && parsedAmount > availableInGoal) {
       setErrors({
-        amount: `Cannot withdraw more than the goal balance (${format(availableInGoal)})`,
+        amount: t(s.withdrawTooMuch, { amount: format(availableInGoal) }),
       });
       return;
     }
@@ -108,9 +114,10 @@ export function SavingsDepositModal({
       parsedAmount > availableInPlace
     ) {
       setErrors({
-        amount: `Only ${format(availableInPlace)} available in ${
-          placeLabel(place)
-        }.`,
+        amount: t(s.availableIn, {
+          amount: format(availableInPlace),
+          place: placeLabel(place),
+        }),
       });
       return;
     }
@@ -129,24 +136,25 @@ export function SavingsDepositModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={type === 'deposit' ? 'Edit Deposit' : 'Edit Withdrawal'}
+      title={type === 'deposit' ? s.editDeposit : s.editWithdrawal}
     >
+      <>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Type */}
         <SegmentedControl
-          ariaLabel="Movement type"
+          ariaLabel={s.movementType}
           value={type}
           onChange={(v) => setType(v === 'withdraw' ? 'withdraw' : 'deposit')}
           options={[
-            { value: 'deposit', label: 'Deposit', icon: 'add_circle' },
-            { value: 'withdraw', label: 'Withdrawal', icon: 'remove_circle' },
+            { value: 'deposit', label: s.deposit, icon: 'add_circle' },
+            { value: 'withdraw', label: s.withdrawal, icon: 'remove_circle' },
           ]}
         />
 
         {/* Amount */}
         <div className="flex flex-col items-center justify-center py-2">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-            {type === 'deposit' ? 'Deposit Amount' : 'Withdrawal Amount'}
+            {type === 'deposit' ? s.fundAmount : s.withdrawAmount}
           </label>
           <div className="flex items-center text-primary font-bold">
             <AmountSymbol symbol={symbol} />
@@ -173,22 +181,22 @@ export function SavingsDepositModal({
         {/* Goal */}
         {goals.length > 0 ? (
           <CustomSelect
-            label="Savings Goal"
+            label={s.savingsGoal}
             value={goalId}
             onChange={(v) => {
               setGoalId(v);
               setErrors((prev) => ({ ...prev, goal: '' }));
             }}
-            placeholder="Select a goal"
+            placeholder={s.selectGoal}
             options={goals.map((g) => ({ value: g.id, label: g.name }))}
           />
         ) : (
           <CustomInput
-            label="Savings Goal"
+            label={s.savingsGoal}
             type="text"
             value={entry?.goalName || ''}
             onChange={() => undefined}
-            error="This goal no longer exists — delete the entry to fix your plan."
+            error={s.missingGoal}
           />
         )}
         {errors.goal && (
@@ -199,7 +207,7 @@ export function SavingsDepositModal({
 
         {/* Money place */}
         <SegmentedControl
-          label={type === 'deposit' ? 'Taken From Account' : 'Returned To Account'}
+          label={type === 'deposit' ? s.takenFrom : s.returnedTo}
           value={place}
           onChange={(v) => setPlace(v as MoneyPlace)}
           options={moneyPlaceOptions}
@@ -207,7 +215,7 @@ export function SavingsDepositModal({
 
         {/* Date */}
         <CustomInput
-          label="Date"
+          label={m.common.date}
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
@@ -215,8 +223,11 @@ export function SavingsDepositModal({
 
         {selectedGoal && (
           <p className="text-[11px] font-medium text-on-surface-variant leading-snug">
-            {selectedGoal.name}: {format(selectedGoal.current)} saved ·{' '}
-            {format(availableInGoal)} available once this entry is re-applied.
+            {t(s.goalReapply, {
+              name: selectedGoal.name,
+              saved: format(selectedGoal.current),
+              available: format(availableInGoal),
+            })}
           </p>
         )}
 
@@ -228,7 +239,7 @@ export function SavingsDepositModal({
               onClick={() => setConfirmDelete(true)}
               className="px-4 py-3 rounded-xl border border-error text-error hover:bg-error-container/20 font-bold text-[14px] transition-colors"
             >
-              Delete
+              {m.common.delete}
             </button>
           )}
           <button
@@ -236,10 +247,24 @@ export function SavingsDepositModal({
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name="check" className="text-[18px]" />
-            <span>Save Changes</span>
+            <span>{m.common.save}</span>
           </button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          if (entry) onDelete?.(entry.id);
+          setConfirmDelete(false);
+          onClose();
+        }}
+        title={s.deleteActivityTitle}
+        message={s.deleteActivityMessage}
+        confirmLabel={m.common.delete}
+        isDestructive
+      />
+      </>
     </Modal>
   );
 }

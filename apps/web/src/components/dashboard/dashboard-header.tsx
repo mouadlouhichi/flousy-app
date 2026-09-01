@@ -6,23 +6,33 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
+import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { useDashboard } from './dashboard-provider';
-import { DASHBOARD_NAV_ITEMS, getProfilePageTitle, getScreenIdFromPath } from './nav-items';
-import { formatDayOfMonth, getSourcePeriod } from '@/lib/utils';
+import { ProfileAvatar } from './profile-avatar';
+import {
+  DASHBOARD_NAV_ITEMS,
+  getLocalizedNavTitle,
+  getLocalizedProfilePageTitle,
+  getScreenIdFromPath,
+} from './nav-items';
+import { getSourcePeriod } from '@/lib/utils';
+import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
+import { useLanguage } from '@/lib/i18n-context';
 
-/** "2026-08-25" → { month: 'Aug', day: 25 } for the custom-period navigator. */
-function formatPeriodParts(iso: string): { month: string; day: number } {
+/** Format a custom budget-period endpoint in the active interface locale. */
+function formatPeriodParts(iso: string, intlLocale: string): { month: string; day: string } {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   return {
-    month: date.toLocaleDateString('en-US', { month: 'short' }),
-    day: date.getDate(),
+    month: date.toLocaleDateString(intlLocale, { month: 'short' }),
+    day: new Intl.NumberFormat(intlLocale).format(date.getDate()),
   };
 }
 
 /** Main header bar: page title, month selector and action tools. */
 export function DashboardHeader() {
   const pathname = usePathname();
+  const { messages: m, language, intlLocale, isRTL } = useLanguage();
   const {
     month,
     user,
@@ -31,6 +41,7 @@ export function DashboardHeader() {
     handlePrevMonth,
     handleNextMonth,
     openExpenseModal,
+    isMounted,
   } = useDashboard();
 
   const { workspace, canEditArea } = useHousehold();
@@ -40,20 +51,28 @@ export function DashboardHeader() {
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
   const isProfileActive = activeScreen === 'profile';
   const userInitial = (profile?.displayName || user?.email)?.[0]?.toUpperCase() || '';
+  const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
-  const monthLabel = (() => {
-    const [y, m] = currentMonthKey.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return d.toLocaleDateString('en-US', { month: 'short' });
-  })();
+  // The whole dashboard is prerendered at build time, so any date-derived
+  // label computed during the first render is the BUILD date on the server and
+  // today on the client — a hydration mismatch that shows the wrong month for
+  // a frame (and, at a month boundary, permanently until the next click).
+  // `isMounted` keeps the server and first client render identical.
+  const monthLabel = !isMounted
+    ? ''
+    : (() => {
+        const [y, m] = currentMonthKey.split('-').map(Number);
+        const d = new Date(y, m - 1, 1);
+        return d.toLocaleDateString(intlLocale, { month: 'short' });
+      })();
 
   // When a monthly start date is configured, the navigator shows the budget
   // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
-  const budgetPeriod = profile?.monthStartDate
+  const budgetPeriod = isMounted && profile?.monthStartDate
     ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
     : null;
-  const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate) : null;
-  const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate) : null;
+  const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
+  const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
 
   return (
     <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
@@ -62,7 +81,7 @@ export function DashboardHeader() {
         <div className="md:hidden flex items-center gap-2">
           <Image
             src="/logo.png"
-            alt="SmartJib logo"
+            alt={m.common.appName}
             width={26}
             height={28}
             className="object-contain"
@@ -75,7 +94,7 @@ export function DashboardHeader() {
 
         {/* Desktop Page Title */}
         <h1 className="hidden md:block font-headline-md text-headline-md font-extrabold text-on-surface capitalize">
-          {getProfilePageTitle(pathname) ?? activeItem?.title ?? 'Dashboard Overview'}
+          {getLocalizedProfilePageTitle(pathname, m) ?? (activeItem ? getLocalizedNavTitle(activeItem, m) : m.navigation.dashboardOverview)}
         </h1>
       </div>
 
@@ -84,16 +103,16 @@ export function DashboardHeader() {
         className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
         title={
           profile?.monthStartDate
-            ? `Custom budget month (starts on the ${formatDayOfMonth(profile.monthStartDate)})`
+            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale)})`
             : undefined
         }
       >
         <button
           onClick={handlePrevMonth}
           className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
-          aria-label="Previous month"
+          aria-label={m.navigation.previousMonth}
         >
-          <AppIcon name="chevron_left" className=" text-[16px] sm:text-[18px]" />
+          <AppIcon name={isRTL ? 'chevron_right' : 'chevron_left'} className=" text-[16px] sm:text-[18px]" />
         </button>
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod && periodStart && periodEnd ? (
@@ -103,7 +122,7 @@ export function DashboardHeader() {
                 <AppIcon
                   name="loop"
                   className="shrink-0 text-[12px] text-primary sm:text-[14px]"
-                  aria-label="Custom budget month"
+                  aria-label={m.navigation.customBudgetMonth}
                 />
                 <span>{periodStart.day}</span>
               </span>
@@ -118,9 +137,9 @@ export function DashboardHeader() {
         <button
           onClick={handleNextMonth}
           className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
-          aria-label="Next month"
+          aria-label={m.navigation.nextMonth}
         >
-          <AppIcon name="chevron_right" className=" text-[16px] sm:text-[18px]" />
+          <AppIcon name={isRTL ? 'chevron_left' : 'chevron_right'} className=" text-[16px] sm:text-[18px]" />
         </button>
       </div>
 
@@ -133,7 +152,7 @@ export function DashboardHeader() {
           className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-accent-foreground shadow-xs transition-all"
         >
           <AppIcon name="add" className=" text-[18px]" />
-          <span>New Transaction</span>
+          <span>{m.navigation.newTransaction}</span>
         </button>}
 
         {/* Profile entry point (mobile). Replaces the old settings gear so the
@@ -141,20 +160,26 @@ export function DashboardHeader() {
         <Link
           href="/dashboard/profile"
           prefetch={true}
-          aria-label="Open profile and account"
-          title="Profile & Account"
+          aria-label={m.navigation.openProfileAccount}
+          title={m.navigation.profileAccount}
           aria-current={isProfileActive ? 'page' : undefined}
-          className={`md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+          className={`group md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
             isProfileActive
               ? 'bg-primary text-on-primary'
               : 'bg-primary/10 text-primary hover:bg-primary/20'
           }`}
         >
-          {userInitial ? (
-            <span>{userInitial}</span>
-          ) : (
-            <AppIcon name="person" className="text-[20px]" />
-          )}
+          <ProfileAvatar
+            src={avatarSrc}
+            initial={userInitial || 'M'}
+            alt=""
+            className="size-full"
+            fallbackClassName={
+              isProfileActive
+                ? 'bg-primary text-on-primary'
+                : 'bg-primary/10 text-primary group-hover:bg-primary/20'
+            }
+          />
         </Link>
       </div>
     </header>

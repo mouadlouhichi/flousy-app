@@ -11,6 +11,8 @@ export interface Household {
   planOwnerId: string;
   createdAt: string;
   updatedAt: string;
+  /** False until the household owner finishes household onboarding. */
+  onboardingComplete?: boolean;
 }
 
 export interface HouseholdMember {
@@ -22,8 +24,16 @@ export interface HouseholdMember {
   status: HouseholdMemberStatus;
   avatarColor: string;
   permissions?: HouseholdPermissions;
+  /**
+   * Invitation this membership was claimed from. Rules require it on a
+   * self-created membership row (it is what proves the claim was invited) and
+   * it lets acceptance retire the owner's pending row.
+   */
+  inviteId?: string;
   invitedAt?: string;
   joinedAt?: string;
+  /** Set when the recipient retires the email-bound pending row. */
+  retiredAt?: string;
 }
 
 export interface HouseholdInvite {

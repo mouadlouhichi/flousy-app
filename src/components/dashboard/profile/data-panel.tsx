@@ -7,13 +7,18 @@ import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { trackEvent } from '@/lib/analytics';
+import { useLanguage } from '@/lib/i18n-context';
+import { AccountDeletionIncompleteError } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
 
 export function DataPanel() {
   const { deleteAllData } = useAuth();
+  const { messages: m, isRTL, t } = useLanguage();
+  const p = m.profile.data;
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const handleExportCsv = () => {
     downloadCsv(
@@ -34,11 +39,11 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
             <AppIcon name="download" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Export this month as CSV</span>
+          <span className="text-sm font-medium text-on-surface">{p.exportThisMonth}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
       <button
@@ -50,11 +55,11 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
             <AppIcon name="upload_file" className="text-[20px] text-primary" />
           </span>
-          <span className="text-sm font-medium text-on-surface">Import CSV</span>
+          <span className="text-sm font-medium text-on-surface">{p.importCsv}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-on-surface-variant transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
       <button
@@ -66,23 +71,43 @@ export function DataPanel() {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-error/10 transition-colors group-hover:bg-error/20">
             <AppIcon name="delete_forever" className="text-[20px] text-error" />
           </span>
-          <span className="text-sm font-medium text-error">Delete All Data</span>
+          <span className="text-sm font-medium text-error">{p.deleteAllData}</span>
         </span>
         <AppIcon
           name="chevron_right"
-          className="text-[20px] text-error/70 transition-transform group-hover:translate-x-0.5"
+          className={`text-[20px] text-error/70 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>
+
+      {deleteError && (
+        <p role="alert" className="px-1 text-xs font-bold text-error">
+          {deleteError}
+        </p>
+      )}
 
       <ConfirmDialog
         isOpen={showDeleteDataConfirm}
         onClose={() => setShowDeleteDataConfirm(false)}
         onConfirm={async () => {
-          await deleteAllData();
+          // A Firestore write batch can fail part-way (offline, a rule
+          // rejection). The local cache is already cleared at that point, so the
+          // cloud copies are the only remaining record — reporting success would
+          // send the user away from a screen whose data still exists remotely and
+          // would come straight back on the next device.
+          try {
+            await deleteAllData();
+            setDeleteError('');
+          } catch (error) {
+            setDeleteError(
+              error instanceof AccountDeletionIncompleteError
+                ? t(m.auth.deletePartialFailure, { items: error.report.failed.join(', ') })
+                : m.auth.networkError,
+            );
+          }
         }}
-        title="Delete All Data"
-        message="This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
-        confirmLabel="Delete All Data"
+        title={p.deleteAllData}
+        message={p.deleteAllDataMessage}
+        confirmLabel={p.deleteAllData}
         isDestructive
       />
     </section>

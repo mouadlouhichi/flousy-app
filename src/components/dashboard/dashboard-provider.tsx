@@ -15,6 +15,7 @@ import {
   MonthBudget,
   SavingGoal,
   SavingsActivityEntry,
+  IncomeSource,
   VariableExpense,
   FixedExpense,
   DebtItem,
@@ -56,6 +57,7 @@ import {
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
+import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -96,11 +98,10 @@ interface DashboardContextType {
   handleEditMoneyPlaces: (values: Record<string, number>) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
-  handleSaveIncomeSources: (sources: any[], total: number) => void;
+  handleSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
 
   // Category handlers
   handleAddCategory: (name: string, color: string, icon: string) => void;
-  handleRemoveCategory: (name: string) => void;
 
   // CSV import handlers
   handleBatchImportVariable: (newExpenses: VariableExpense[]) => void;
@@ -139,10 +140,6 @@ interface DashboardContextType {
   closeSettingsModal: () => void;
   isSettingsModalOpen: boolean;
 
-  openManageCategories: () => void;
-  closeManageCategories: () => void;
-  isManageCategoriesOpen: boolean;
-
   openProModal: () => void;
   closeProModal: () => void;
   isProModalOpen: boolean;
@@ -179,8 +176,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace } = useHousehold();
-  const householdId = household?.id;
+  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess } = useHousehold();
+  const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
@@ -214,8 +211,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading) return;
 
-    const isDemo =
-      typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+    const isDemo = isDemoMode();
 
     if (!user && !isDemo) {
       router.push('/login');
@@ -227,10 +223,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Local fallbacks: the flag written by the onboarding page and any
     // previously saved budget data (covers the Firebase-save timeout path
     // and pre-existing demo data).
-    const onboardingDoneLocally =
-      typeof window !== 'undefined' &&
-      (localStorage.getItem('flousy_onboarding_done') === 'true' ||
-        !!localStorage.getItem(`flousy_month_${defaultMonthKey}`));
+    const onboardingDoneLocally = isOnboardingDoneLocally(defaultMonthKey);
 
     if (isDemo) {
       if (!onboardingDoneLocally) {
@@ -239,7 +232,27 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (user && profile && profile.onboardingComplete === false) {
+    if (workspace === 'household' && householdId) {
+      if (householdLoading) return;
+      // Only a proven loss of membership unlinks the workspace. While the
+      // subscription is still connecting (or the network is down) the
+      // household is simply `null`, and resetting here silently ejected
+      // people from their shared budget on a slow connection.
+      if (!household && householdAccess === 'denied') {
+        updateProfileData({ activeWorkspace: 'personal' }).catch(() => {});
+        return;
+      }
+      if (!household) return;
+      const householdOnboardedLocally =
+        typeof window !== 'undefined' &&
+        localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
+      if (household.onboardingComplete === false && !householdOnboardedLocally) {
+        router.replace('/onboarding?scope=household');
+        return;
+      }
+    }
+
+    if (user && profile && profile.onboardingComplete === false && workspace !== 'household') {
       if (!onboardingDoneLocally) {
         router.replace('/onboarding');
       } else {
@@ -248,8 +261,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         updateProfileData({ onboardingComplete: true }).catch(() => {});
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData]);
+  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading, householdAccess]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -268,13 +280,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       hydratedStartRef.current = true;
       lastStartDateRef.current = nextStart;
       const stored = readStoredMonthKey();
-      if (stored) {
-        setCurrentMonthKey((prev) => (prev === stored ? prev : stored));
-      } else {
-        const resolved = getCurrentMonthKey(nextStart);
-        setCurrentMonthKey((prev) => (prev === resolved ? prev : resolved));
-        writeStoredMonthKey(resolved);
-      }
+      const resolved = getCurrentMonthKey(nextStart);
+      // A stored calendar-month key can be stale when the app is reopened
+      // before payday (for example, Sep 1 with a Sep 27 salary day). Prefer
+      // the active salary period in that case so the previous month's data is
+      // shown instead of an empty new calendar-month document.
+      const [resolvedYear, resolvedMonth] = resolved.split('-').map(Number);
+      const [storedYear, storedMonth] = stored?.split('-').map(Number) || [];
+      const todayCalendarKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const storedIsPrematureCalendarMonth =
+        Boolean(stored) &&
+        stored === todayCalendarKey &&
+        (storedYear !== resolvedYear || storedMonth !== resolvedMonth);
+      const initialKey = stored && !storedIsPrematureCalendarMonth ? stored : resolved;
+      setCurrentMonthKey((prev) => (prev === initialKey ? prev : initialKey));
+      writeStoredMonthKey(initialKey);
       return;
     }
 
@@ -306,7 +326,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [selectedSavingsEntry, setSelectedSavingsEntry] = useState<SavingsActivityEntry | null>(null);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
@@ -377,19 +396,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setMonth(data);
           persist(data);
         } else {
-          // A new household starts from the owner's current personal month so
-          // creating collaboration does not make their visible balance vanish.
-          const personal = user && canEdit ? await getMonthBudget(user.uid, currentMonthKey) : null;
-          if (personal && personal.totalBudget > 0) {
-            const initialSharedMonth = { ...personal, updatedAt: new Date().toISOString(), updatedByUserId: user?.uid };
-            setMonth(initialSharedMonth);
-            persist(initialSharedMonth);
-            saveHouseholdMonthBudget(householdId, currentMonthKey, initialSharedMonth).catch(console.error);
-          } else {
-            const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, await getPreviousMonth(currentMonthKey));
-            setMonth(fresh);
-            persist(fresh);
-          }
+          const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile);
+          setMonth(fresh);
+          persist(fresh);
         }
         setLoading(false);
       });
@@ -413,7 +422,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setMonth(local);
             persist(local);
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+            const clean = normalizeMonth(
+              previousMonth
+                ? {
+                    totalBudget: previousMonth.totalBudget,
+                    incomeSources: previousMonth.incomeSources,
+                    activeCategories: previousMonth.activeCategories,
+                    categoryIcons: previousMonth.categoryIcons,
+                    categoryColors: previousMonth.categoryColors,
+                  }
+                : { totalBudget: 0 },
+              currentMonthKey,
+              activeProfile,
+              previousMonth,
+            );
             setMonth(clean);
             persist(clean);
           }
@@ -424,7 +446,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
-        const next = local ?? normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+        const next = local ?? normalizeMonth(
+          previousMonth
+            ? {
+                totalBudget: previousMonth.totalBudget,
+                incomeSources: previousMonth.incomeSources,
+                activeCategories: previousMonth.activeCategories,
+                categoryIcons: previousMonth.categoryIcons,
+                categoryColors: previousMonth.categoryColors,
+              }
+            : { totalBudget: 0 },
+          currentMonthKey,
+          activeProfile,
+          previousMonth,
+        );
         setMonth(next);
         persist(next);
         setLoading(false);
@@ -457,7 +492,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (newMonth: MonthBudget) => {
       if (householdId && !canEdit) return;
       setMonth(newMonth);
-      localStorage.setItem(householdStorageKey(householdId, currentMonthKey), JSON.stringify(newMonth));
+      // Never let a local write abort the cloud write: a raw setItem here threw
+      // QuotaExceededError (Safari under pressure, blocked/partitioned storage)
+      // straight out of the save callback, so the edit looked applied and was
+      // never sent to Firestore. writeCachedMonth is the swallow-and-continue
+      // wrapper used everywhere else.
+      writeCachedMonth(householdStorageKey(householdId, currentMonthKey), newMonth);
       if (householdId) {
         saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
       } else if (user) {
@@ -472,7 +512,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (newGoals: SavingGoal[]) => {
       if (householdId && !canEdit) return;
       setGoals(newGoals);
-      localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      try {
+        localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      } catch {
+        /* quota / private mode — the Firestore write below still runs */
+      }
       if (householdId) {
         saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
       } else if (user) {
@@ -490,7 +534,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
       if (householdId || user) {
-        const prev = householdId ? await getHouseholdMonthBudget(householdId, prevKey) : await getMonthBudget(user!.uid, prevKey);
+        const prev = householdId
+          ? await getHouseholdMonthBudget(householdId, prevKey)
+          : user
+            ? await getMonthBudget(user.uid, prevKey)
+            : undefined;
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
           if (withCarry.fixedExpenses.length > month.fixedExpenses.length) updateAndSaveMonth(withCarry);
@@ -545,7 +593,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
 
   // Apply a month key immediately: persist it, paint any cached document so
@@ -636,7 +683,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // TOTAL MONTHLY BUDGET = Bank + Wallet + Home
   // Income goes first to Bank, then can be moved to Wallet/Home via Move Money
   const handleSaveIncomeSources = useCallback(
-    (sources: any[], total: number) => {
+    (sources: IncomeSource[], total: number) => {
       const oldTotal = month.totalBudget || 0;
       const difference = total - oldTotal;
       // New income goes first to Bank; if total is reduced, deduct from Bank
@@ -669,18 +716,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         activeCategories: nextCats,
         categoryColors: nextColors,
         categoryIcons: nextIcons,
-      };
-      updateAndSaveMonth(updated);
-    },
-    [month, updateAndSaveMonth],
-  );
-
-  const handleRemoveCategory = useCallback(
-    (name: string) => {
-      const nextCats = (month.activeCategories || []).filter((c) => c !== name);
-      const updated: MonthBudget = {
-        ...month,
-        activeCategories: nextCats,
       };
       updateAndSaveMonth(updated);
     },
@@ -785,9 +820,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
   const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
-  const openManageCategories = useCallback(() => setIsManageCategoriesOpen(true), []);
-  const closeManageCategories = useCallback(() => setIsManageCategoriesOpen(false), []);
-
   const openProModal = useCallback(() => {
     if (workspace === 'household') return;
     setIsProModalOpen(true);
@@ -839,7 +871,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
-      handleRemoveCategory,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -867,9 +898,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
-      openManageCategories,
-      closeManageCategories,
-      isManageCategoriesOpen,
       openProModal,
       closeProModal,
       isProModalOpen,
@@ -913,7 +941,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
-      handleRemoveCategory,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -941,9 +968,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       openSettingsModal,
       closeSettingsModal,
       isSettingsModalOpen,
-      openManageCategories,
-      closeManageCategories,
-      isManageCategoriesOpen,
       openProModal,
       closeProModal,
       isProModalOpen,

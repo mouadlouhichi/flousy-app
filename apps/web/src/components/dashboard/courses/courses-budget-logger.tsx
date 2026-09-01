@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { getMoneyPlaceOptions, SegmentedControl } from '@/components/ui/segmented-control';
 import { formatCurrency } from '@/lib/currency';
 import { useLanguage } from '@/lib/i18n-context';
 import { resolveCourseCategory } from '@/lib/course-session';
-import type { CourseSession } from '@/lib/store';
+import { localizeCategoryName } from '@/lib/localized-labels';
+import type { CourseSession, MoneyPlace } from '@/lib/store';
 
 interface CoursesBudgetLoggerProps {
   /** The finished session whose total can be logged. */
@@ -14,29 +17,41 @@ interface CoursesBudgetLoggerProps {
   categories: string[];
   /** Display label of the month the expense will land in. */
   monthLabel: string;
-  /** Logs the session total as a variable expense under the category. */
-  onLog: (category: string) => void;
+  /** Where the course was paid from (money place the expense debits). */
+  place: MoneyPlace;
+  /** Persists a new paid-from selection and refreshes the receipt. */
+  onPlaceChange: (place: MoneyPlace) => void;
+  /** Logs the session total as a variable expense under the category + place. */
+  onLog: (category: string, place: MoneyPlace) => void;
 }
 
 /**
  * Bill action: log the course total into the budget as one variable expense.
- * The category picker defaults to a grocery-like category when one exists and
- * falls back to the first active category (or the built-in default). Once
- * logged, the session carries `loggedExpenseId` and this card turns into a
- * confirmation — the total can never be logged twice.
+ * The "paid from" money place and the category are chosen here, next to the
+ * "Add as expense" CTA. The category picker defaults to a grocery-like
+ * category when one exists and falls back to the first active category (or
+ * the built-in default). Once logged, the session carries `loggedExpenseId`
+ * and this card turns into a confirmation — the total can never be logged
+ * twice.
  */
 export function CoursesBudgetLogger({
   session,
   categories,
   monthLabel,
+  place,
+  onPlaceChange,
   onLog,
 }: CoursesBudgetLoggerProps) {
-  const { t, messages } = useLanguage();
+  const { t, messages, intlLocale } = useLanguage();
   const c = messages.courses;
   const [category, setCategory] = useState(() => resolveCourseCategory(categories));
 
   const logged = Boolean(session.loggedExpenseId);
   const options = categories.length > 0 ? categories : [category];
+  const categoryOptions = options.map((name) => ({
+    value: name,
+    label: localizeCategoryName(name, messages),
+  }));
 
   return (
     <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5">
@@ -50,47 +65,48 @@ export function CoursesBudgetLogger({
             {logged
               ? c.logDone
               : t(c.logHint, {
-                  amount: formatCurrency(session.total, session.currency),
+                  amount: formatCurrency(session.total, session.currency, intlLocale),
                   month: monthLabel,
                 })}
           </p>
         </div>
 
-        {logged ? (
+        {logged && (
           <span className="ms-auto flex items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-2 font-label-md text-label-md text-primary tabular-nums">
             <AppIcon name="check_circle" className="size-4" />
-            {formatCurrency(session.total, session.currency)}
+            {formatCurrency(session.total, session.currency, intlLocale)}
           </span>
-        ) : (
-          <div className="ms-auto flex flex-wrap items-end gap-2.5">
-            <label className="block">
-              <span className="mb-1 block font-label-sm text-label-sm text-on-surface-variant">
-                {c.logCategory}
-              </span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                aria-label={c.logCategory}
-                className="h-9 w-full min-w-[9rem] cursor-pointer rounded-md border border-input bg-surface px-3 text-sm font-medium text-on-surface shadow-xs outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              >
-                {options.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </label>
+        )}
+      </div>
+
+      {!logged && (
+        <div className="mt-4 flex flex-col gap-3">
+          <SegmentedControl
+            label={c.paidFrom}
+            value={place}
+            onChange={(value) => onPlaceChange(value as MoneyPlace)}
+            options={getMoneyPlaceOptions(messages)}
+          />
+          <div className="flex flex-wrap items-end gap-2.5">
+            <CustomSelect
+              value={category}
+              onChange={setCategory}
+              options={categoryOptions}
+              label={c.logCategory}
+              className="min-w-[9rem]"
+              triggerClassName="!h-9 !rounded-md !px-3 !text-sm"
+            />
             <button
               type="button"
-              onClick={() => onLog(category)}
+              onClick={() => onLog(category, place)}
               className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary transition-opacity hover:opacity-90"
             >
               <AppIcon name="add" className="size-4" />
               {c.logCta}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

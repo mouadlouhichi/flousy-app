@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useId } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { AppIcon } from './app-icon';
+import type { Messages } from '@/lib/i18n-core';
 
 export interface SegmentedOption {
   value: string;
@@ -13,17 +14,14 @@ export interface SegmentedOption {
   title?: string;
 }
 
-/** Money places offered across the app (bank / wallet / home cash). */
-export const MONEY_PLACE_OPTIONS: SegmentedOption[] = [
-  { value: 'bank', label: 'Bank', icon: 'account_balance' },
-  { value: 'wallet', label: 'Wallet', icon: 'account_balance_wallet' },
-  { value: 'home', label: 'Home Cash', icon: 'home' },
-];
-
-/** Display label per money place, kept in sync with MONEY_PLACE_OPTIONS. */
-export const MONEY_PLACE_LABELS: Record<string, string> = Object.fromEntries(
-  MONEY_PLACE_OPTIONS.map((o) => [o.value, o.label]),
-);
+/** Money-place labels supplied by the active locale; values remain persistent IDs. */
+export function getMoneyPlaceOptions(messages: Messages): SegmentedOption[] {
+  return [
+    { value: 'bank', label: messages.places.bank, icon: 'account_balance' },
+    { value: 'wallet', label: messages.places.wallet, icon: 'account_balance_wallet' },
+    { value: 'home', label: messages.places.home, icon: 'home' },
+  ];
+}
 
 interface SegmentedControlProps {
   label?: string;
@@ -33,15 +31,17 @@ interface SegmentedControlProps {
   ariaLabel?: string;
 }
 
+interface PillRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Single-select segmented flex group whose active pill background slides
- * horizontally from the current segment to the tapped one (shared
- * `layoutId` spring, same motion language as the dashboard bottom nav).
- *
- * Each segment is `min-w-0 overflow-hidden` so long labels (e.g. "Home Cash")
- * and currency sublabels never spill out of their box. Three-or-more options,
- * or any option with a sublabel, stack icon / label / amount vertically so
- * the text can truncate inside the segment instead of overflowing it.
+ * Single-select segmented flex group whose active pill glides in layout
+ * space (offsetLeft/Top), the same motion language as the dashboard
+ * bottom nav — a straight slide instead of a layoutId remount hop.
  */
 export function SegmentedControl({
   label,
@@ -50,10 +50,41 @@ export function SegmentedControl({
   options,
   ariaLabel,
 }: SegmentedControlProps) {
-  // Unique per instance so controls never steal each other's sliding pill.
-  const layoutId = useId();
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const [pillRect, setPillRect] = useState<PillRect | null>(null);
   const isStacked =
     options.length >= 3 || options.some((option) => Boolean(option.sublabel));
+
+  useEffect(() => {
+    const measure = () => {
+      const activeBtn = groupRef.current?.querySelector<HTMLElement>(
+        `[data-segment="${value}"]`,
+      );
+      if (activeBtn) {
+        setPillRect({
+          x: activeBtn.offsetLeft,
+          y: activeBtn.offsetTop,
+          width: activeBtn.offsetWidth,
+          height: activeBtn.offsetHeight,
+        });
+      } else {
+        setPillRect(null);
+      }
+    };
+
+    measure();
+    const frame = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    const observer = typeof ResizeObserver !== 'undefined' && groupRef.current
+      ? new ResizeObserver(measure)
+      : null;
+    if (groupRef.current && observer) observer.observe(groupRef.current);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+      observer?.disconnect();
+    };
+  }, [value, options.length, isStacked]);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -63,12 +94,29 @@ export function SegmentedControl({
         </label>
       )}
       <div
+        ref={groupRef}
         role="radiogroup"
         aria-label={ariaLabel || label}
-        className={`flex w-full min-w-0 items-stretch gap-1 border border-outline-variant/70 bg-surface-container-lowest p-1 ${
+        className={`relative flex w-full min-w-0 items-stretch gap-1 border border-outline-variant/70 bg-surface-container-lowest p-1 ${
           isStacked ? 'rounded-[1.25rem]' : 'rounded-full'
         }`}
       >
+        {pillRect && (
+          <motion.span
+            aria-hidden
+            initial={false}
+            animate={{
+              x: pillRect.x,
+              y: pillRect.y,
+              width: pillRect.width,
+              height: pillRect.height,
+            }}
+            transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+            className={`pointer-events-none absolute left-0 top-0 bg-primary shadow-sm ${
+              isStacked ? 'rounded-2xl' : 'rounded-full'
+            }`}
+          />
+        )}
         {options.map(({ value: optionValue, label: optionLabel, icon, sublabel, title }) => {
           const isActive = value === optionValue;
           const tooltip = title || (sublabel ? `${optionLabel} · ${sublabel}` : optionLabel);
@@ -78,23 +126,13 @@ export function SegmentedControl({
               type="button"
               role="radio"
               aria-checked={isActive}
+              data-segment={optionValue}
               title={tooltip}
               onClick={() => onChange(optionValue)}
-              className={`relative min-w-0 flex-1 overflow-hidden px-1.5 py-2.5 transition-colors duration-200 ${
+              className={`relative z-10 min-w-0 flex-1 overflow-hidden px-1.5 py-2.5 transition-colors duration-200 ${
                 isStacked ? 'rounded-2xl' : 'rounded-full'
               } ${isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'}`}
             >
-              {/* Sliding active background — glides horizontally from the
-                  current segment to the tapped one. */}
-              {isActive && (
-                <motion.span
-                  layoutId={layoutId}
-                  className={`absolute inset-0 bg-primary shadow-sm ${
-                    isStacked ? 'rounded-2xl' : 'rounded-full'
-                  }`}
-                  transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
-                />
-              )}
               <span
                 className={`relative z-10 flex min-w-0 w-full items-center justify-center ${
                   isStacked ? 'flex-col gap-0.5' : 'flex-row gap-1.5'

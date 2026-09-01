@@ -7,6 +7,7 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { moveMoneySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
 
 interface MoveMoneyModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ interface MoveMoneyModalProps {
 
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
   const { symbol, format, formatParts } = useCurrency();
+  const { messages: m, t } = useLanguage();
+  const mm = m.modals.moveMoney;
   const { places, icon, label, defaultPlace } = useMoneyPlaces(month);
   const altPlace = places.find((p) => p.id !== defaultPlace)?.id || defaultPlace;
   const [from, setFrom] = useState<MoneyPlace>(defaultPlace);
@@ -56,14 +59,16 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
       const fieldErrors: Record<string, string> = {};
       const issues = validationResult.error.issues || (validationResult.error as any).errors || [];
       issues.forEach((err: any) => {
-        if (err.path[0]) fieldErrors[String(err.path[0])] = err.message;
+        const field = String(err.path[0] || '');
+        if (field === 'amount') fieldErrors.amount = m.errors.validationAmountInvalid;
+        else if (field === 'from' || field === 'to') fieldErrors[field] = mm.samePlaces;
       });
       setErrors(fieldErrors);
       return;
     }
 
     if (parsedAmount > currentFromBalance) {
-      setErrors({ amount: `Insufficient funds in ${label(from)}. Maximum available: ${format(currentFromBalance)}` });
+      setErrors({ amount: t(mm.insufficientFunds, { place: label(from), amount: format(currentFromBalance) }) });
       return;
     }
 
@@ -81,21 +86,21 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
 
   const placeOptions = places.map((p) => ({
     value: p.id,
-    label: p.name,
+    label: label(p.id),
     icon: p.icon,
     sublabel: compactAmount(getPlaceBalance(month, p.id)),
-    title: `${p.name} · ${format(getPlaceBalance(month, p.id))}`,
+    title: `${label(p.id)} · ${format(getPlaceBalance(month, p.id))}`,
   }));
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Move Money">
+    <Modal isOpen={isOpen} onClose={onClose} title={mm.title}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-outline-variant bg-surface-container p-4">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            Transfer Between Accounts
+            {mm.betweenAccounts}
           </span>
           <SegmentedControl
-            label="From"
+            label={mm.from}
             value={from}
             onChange={(newFrom) => {
               setFrom(newFrom as MoneyPlace);
@@ -105,7 +110,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
             options={placeOptions}
           />
           <SegmentedControl
-            label="To"
+            label={mm.to}
             value={to}
             onChange={(newTo) => {
               setTo(newTo as MoneyPlace);
@@ -121,7 +126,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
 
         <div className="flex flex-col items-center justify-center py-1">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
-            Transfer Amount
+            {mm.transferAmount}
           </label>
           <div className="flex items-center text-primary font-bold">
             <AmountSymbol symbol={symbol} />
@@ -150,7 +155,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
                 onClick={() => handleQuickAdd(chip)}
                 className="px-3 py-1.5 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
               >
-                +{symbol}{(chip).toLocaleString()}
+                +{format(chip)}
               </button>
             ))}
           </div>
@@ -158,7 +163,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
 
         <div className="p-3.5 bg-primary-container/10 border border-primary/20 rounded-2xl">
           <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
-            Preview After Transfer
+            {mm.previewAfter}
           </span>
           <div className="mt-2 flex flex-col gap-2">
             <div className="flex min-w-0 items-center justify-between gap-2">
@@ -166,7 +171,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
                 <AppIcon name={icon(from)} className="shrink-0 text-[16px] text-on-surface-variant" />
                 <span className="truncate text-[13px] font-medium text-on-surface-variant">{label(from)}:</span>
               </div>
-              <span className="min-w-0 truncate text-right font-mono text-[13px] font-semibold text-on-surface">
+              <span className="min-w-0 truncate text-end font-mono text-[13px] font-semibold text-on-surface">
                 {format(currentFromBalance)} <span className="text-on-surface-variant">→</span>{' '}
                 <span className="text-tertiary">{format(estimatedFromAfter)}</span>
               </span>
@@ -176,7 +181,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
                 <AppIcon name={icon(to)} className="shrink-0 text-[16px] text-on-surface-variant" />
                 <span className="truncate text-[13px] font-medium text-on-surface-variant">{label(to)}:</span>
               </div>
-              <span className="min-w-0 truncate text-right font-mono text-[13px] font-semibold text-on-surface">
+              <span className="min-w-0 truncate text-end font-mono text-[13px] font-semibold text-on-surface">
                 {format(currentToBalance)} <span className="text-on-surface-variant">→</span>{' '}
                 <span className="text-primary font-bold">{format(estimatedToAfter)}</span>
               </span>
@@ -189,7 +194,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           className="w-full bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
         >
           <AppIcon name="swap_horiz" className=" text-[18px]" />
-          <span>Confirm Transfer</span>
+          <span>{mm.confirmTransfer}</span>
         </button>
       </form>
     </Modal>

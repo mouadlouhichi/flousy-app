@@ -252,20 +252,48 @@ function padStart(value: string, width: number): string {
  * Raw number formatting (toFixed(2)) on purpose — identical in every
  * locale, which matters for shared/copied bills.
  */
-export function renderBillText(session: CourseSession, opts?: { appName?: string }): string {
+export interface CourseBillTextLabels {
+  course?: string;
+  line?: string;
+  lines?: string;
+  item?: string;
+  items?: string;
+  total?: string;
+  paidFrom?: string;
+  place?: string;
+  locale?: string;
+  date?: string;
+}
+
+/**
+ * Deterministic plain-text bill for the Copy action. The default remains
+ * English for callers outside the interface; the UI supplies localized labels.
+ */
+export function renderBillText(
+  session: CourseSession,
+  opts?: { appName?: string; labels?: CourseBillTextLabels },
+): string {
   const appName = (opts?.appName ?? 'SMARTJIB').toUpperCase();
+  const labels = opts?.labels;
+  const unitCount = sessionUnits(session);
+  const lineLabel = session.items.length === 1 ? (labels?.line ?? 'line') : (labels?.lines ?? 'lines');
+  const itemLabel = unitCount === 1 ? (labels?.item ?? 'item') : (labels?.items ?? 'items');
+  const totalLabel = labels?.total ?? 'TOTAL';
+  const paidFrom = labels?.paidFrom ?? 'Paid from';
+  const place = labels?.place ?? session.place;
+  const number = new Intl.NumberFormat(labels?.locale);
   const lines = [
-    padStart(`${appName} — COURSE`, 46),
-    `${session.date} · ${session.items.length} line${session.items.length === 1 ? '' : 's'} · ${sessionUnits(session)} item${sessionUnits(session) === 1 ? '' : 's'} · ${session.currency}`,
+    padStart(`${appName} — ${labels?.course ?? 'COURSE'}`, 46),
+    `${labels?.date ?? session.date} · ${number.format(session.items.length)} ${lineLabel} · ${number.format(unitCount)} ${itemLabel} · ${session.currency}`,
     '-'.repeat(46),
     ...session.items.map((line) =>
       padEnd(line.name, 24) +
-      padStart(`${line.qty} × ${line.unitPrice.toFixed(2)}`, 14) +
+      padStart(`${number.format(line.qty)} × ${line.unitPrice.toFixed(2)}`, 14) +
       padStart(line.lineTotal.toFixed(2), 8),
     ),
     '-'.repeat(46),
-    padStart(`TOTAL (${sessionUnits(session)} items)`, 36) + padStart(session.total.toFixed(2), 10),
-    `Paid from: ${session.place}`,
+    padStart(`${totalLabel} (${number.format(unitCount)} ${itemLabel})`, 36) + padStart(session.total.toFixed(2), 10),
+    `${paidFrom}: ${place}`,
   ];
   return lines.join('\n');
 }
@@ -299,9 +327,14 @@ export type ProductResolution =
       product: { name: string; brand?: string; category?: string; imageUrl?: string };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
-      source: 'catalog' | 'remote';
+      source: 'catalog' | 'seed' | 'remote';
     }
-  | { kind: 'not-found'; barcode: string };
+  | {
+      kind: 'not-found';
+      barcode: string;
+      /** `lookup-failed` = network/timeout (retry-able); `not-found` = no source knew it. */
+      reason: 'not-found' | 'lookup-failed';
+    };
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -322,15 +355,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /**
  * Resolve a barcode to a product:
  *   1. local catalog (instant, offline)
- *   2. remote lookup (Open Food Facts) — only for first-time products
- *   3. not-found → the UI offers manual entry with the code attached
+ *   2. bundled Moroccan seed (instant, offline — common MA products)
+ *   3. remote lookup (Open Food Facts) — only for first-time products
+ *   4. not-found → the UI offers manual entry with the code attached
  *
- * `lookupRemote` is injected so tests can stub the network; any failure
- * (timeout, network, bad payload) degrades to `not-found`, never to an error.
+ * `lookupSeed` and `lookupRemote` are injected so tests can stub them; any
+ * remote failure (timeout, network, bad payload) degrades to `not-found`
+ * with `reason: 'lookup-failed'`, never to a thrown error.
  */
 export async function resolveProduct(opts: {
   barcode: string;
   catalog: Product[];
+  lookupSeed?: (barcode: string) => RemoteProductInfo | null;
   lookupRemote?: (barcode: string) => Promise<RemoteProductInfo | null>;
   remoteTimeoutMs?: number;
 }): Promise<ProductResolution> {
@@ -341,6 +377,20 @@ export async function resolveProduct(opts: {
       product: { name: hit.name, brand: hit.brand, category: hit.category, imageUrl: hit.imageUrl },
       lastPrice: hit.lastPrice,
       source: 'catalog',
+    };
+  }
+
+  const seedHit = opts.lookupSeed?.(opts.barcode);
+  if (seedHit && seedHit.name) {
+    return {
+      kind: 'found',
+      product: {
+        name: seedHit.name,
+        brand: seedHit.brand,
+        category: seedHit.category,
+        imageUrl: seedHit.imageUrl,
+      },
+      source: 'seed',
     };
   }
 
@@ -360,9 +410,10 @@ export async function resolveProduct(opts: {
         };
       }
     } catch {
-      // timeout / network error → manual entry
+      // timeout / network error → surface as a retry-able miss
+      return { kind: 'not-found', barcode: opts.barcode, reason: 'lookup-failed' };
     }
   }
 
-  return { kind: 'not-found', barcode: opts.barcode };
+  return { kind: 'not-found', barcode: opts.barcode, reason: 'not-found' };
 }

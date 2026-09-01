@@ -17,7 +17,7 @@ export function TrendsScreen() {
   // Trends is a PRO feature: bounce users who don't have access back to the overview.
   useEffect(() => {
     if (!authLoading && !proUnlocked) {
-      router.replace('/dashboard');
+      router.replace('/dashboard/profile/workspace');
     }
   }, [authLoading, proUnlocked, router]);
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffix?: string; prefix?: string }) {
+function AnimatedCounter({ end, suffix = "", prefix = "", locale }: { end: number; suffix?: string; prefix?: string; locale: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -40,49 +40,25 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
 
   return (
     <div ref={ref} className="text-6xl lg:text-8xl font-display tracking-tight">
-      {prefix}{count.toLocaleString()}{suffix}
+      {prefix}{new Intl.NumberFormat(locale).format(count)}{suffix}
     </div>
   );
 }
 
-const metrics = [
-  { 
-    value: 4, 
-    suffix: "", 
-    prefix: "",
-    label: "Budgeting styles to choose from",
-  },
-  { 
-    value: 3, 
-    suffix: "", 
-    prefix: "",
-    label: "Places to track your cash",
-  },
-  { 
-    value: 12, 
-    suffix: "", 
-    prefix: "",
-    label: "Currencies supported",
-  },
-  { 
-    value: 2, 
-    suffix: " min", 
-    prefix: "~",
-    label: "To set up your first budget",
-  },
-];
+
 
 export function MetricsSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, intlLocale } = useLightLanguage();
+  const metrics = m.landing.metrics.items;
   const [time, setTime] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setTime(new Date().toLocaleTimeString());
-    const interval = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+    setTime(new Date().toLocaleTimeString(intlLocale));
+    const interval = setInterval(() => setTime(new Date().toLocaleTimeString(intlLocale)), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [intlLocale]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -111,16 +87,14 @@ export function MetricsSection() {
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
-              Budgeting made
+              {m.landing.metrics.titleLine1}
               <br />
-              simple.
+              {m.landing.metrics.titleLine2}
             </h2>
           </div>
           <div className="flex items-center gap-4 font-mono text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Live
-            </span>
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />{m.landing.metrics.live}</span>
             <span className="text-foreground/30">|</span>
             <span suppressHydrationWarning>{time ?? "--:--:--"}</span>
           </div>
@@ -140,6 +114,7 @@ export function MetricsSection() {
                 end={typeof metric.value === 'number' ? metric.value : 0} 
                 suffix={metric.suffix} 
                 prefix={metric.prefix}
+                locale={intlLocale}
               />
               <div className="mt-4 text-lg text-muted-foreground">{metric.label}</div>
             </div>

@@ -14,29 +14,29 @@ const socialLinks = [
 ];
 
 export function FooterSection() {
-  const { messages: { landing: { footer: ft } } } = useLightLanguage();
+  const { messages: { common, landing: { footer: ft } } } = useLightLanguage();
 
   const footerLinks = [
-    { title: ft.product || 'Product', links: [
-      { name: ft.features || 'Features', href: '/#features' },
-      { name: ft.howItWorks || 'How it works', href: '/#how-it-works' },
-      { name: ft.pricing || 'Pricing', href: '/#pricing' },
-      { name: ft.currencies || 'Currencies', href: '/#integrations' },
+    { title: ft.product, links: [
+      { name: ft.features, href: '/#features' },
+      { name: ft.howItWorks, href: '/#how-it-works' },
+      { name: ft.pricing, href: '/#pricing' },
+      { name: ft.currencies, href: '/#integrations' },
     ]},
-    { title: ft.support || 'Support', links: [
-      { name: ft.helpCenter || 'Help center', href: '/help' },
-      { name: ft.contactUs || 'Contact us', href: '/contact' },
-      { name: ft.security || 'Security', href: '/#security' },
+    { title: ft.support, links: [
+      { name: ft.helpCenter, href: '/help' },
+      { name: ft.contactUs, href: '/contact' },
+      { name: ft.security, href: '/#security' },
     ]},
-    { title: ft.company || 'Company', links: [
-      { name: ft.about || 'About', href: '/about' },
-      { name: ft.careers || 'Careers', href: '/careers', badge: ft.hiring || 'Hiring' },
-      { name: ft.blog || 'Blog', href: '/blog' },
+    { title: ft.company, links: [
+      { name: ft.about, href: '/about' },
+      { name: ft.careers, href: '/careers', badge: ft.hiring },
+      { name: ft.blog, href: '/blog' },
     ]},
-    { title: ft.legalCol || 'Legal', links: [
-      { name: ft.privacyPolicy || 'Privacy policy', href: '/privacy' },
-      { name: ft.termsOfService || 'Terms of service', href: '/terms' },
-      { name: ft.cookiePolicy || 'Cookie policy', href: '/cookies' },
+    { title: ft.legalCol, links: [
+      { name: ft.privacyPolicy, href: '/privacy' },
+      { name: ft.termsOfService, href: '/terms' },
+      { name: ft.cookiePolicy, href: '/cookies' },
     ]},
   ];
   return (
@@ -55,7 +55,7 @@ export function FooterSection() {
               <a href="/" className="inline-flex items-center gap-2 mb-6">
                 <Image
                   src="/logo.png"
-                  alt="SmartJib logo"
+                  alt={common.appName}
                   width={30}
                   height={30}
                   className="object-contain"
@@ -66,12 +66,6 @@ export function FooterSection() {
               <p className="text-muted-foreground leading-relaxed mb-6 max-w-xs">
                 {ft.tagline}
               </p>
-
-              {/* Contact Info for Local SEO */}
-              <address className="text-sm text-muted-foreground mb-8 not-italic">
-                <p>123 Budget St, Finance City, FC 12345</p>
-                <p><a href="tel:+15551234567" className="hover:text-foreground">+1 (555) 123-4567</a></p>
-              </address>
 
               {/* Social Links */}
               <div className="flex flex-wrap gap-4">

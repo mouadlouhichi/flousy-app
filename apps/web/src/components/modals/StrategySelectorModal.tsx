@@ -13,6 +13,10 @@ import {
   resolveStrategy,
 } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent, getLocalizedPercentSign } from '@/lib/i18n';
+import { localizeStrategy } from '@/lib/localized-labels';
+import type { Messages } from '@/lib/i18n-core';
 
 interface StrategySelectorModalProps {
   isOpen: boolean;
@@ -34,14 +38,14 @@ const STRATEGY_ICONS: Record<string, string> = {
   custom: 'tune',
 };
 
-const STRATEGY_TAGS: Record<string, { label: string; color: string }> = {
-  '50-30-20': { label: 'Popular', color: 'bg-primary/10 text-primary' },
-  '70-20-10': { label: 'Beginner', color: 'bg-blue-50 text-blue-700' },
-  '80-20': { label: 'Simple', color: 'bg-amber-50 text-amber-700' },
-  'zero-based': { label: 'Detailed', color: 'bg-purple-50 text-purple-700' },
-  'envelope': { label: 'Visual', color: 'bg-orange-50 text-orange-700' },
-  'pay-first': { label: 'Saver', color: 'bg-emerald-50 text-emerald-700' },
-  custom: { label: 'Yours', color: 'bg-primary/10 text-primary' },
+const STRATEGY_TAGS: Record<StrategyId, { labelKey: keyof Messages['strategySelector']['tags']; color: string }> = {
+  '50-30-20': { labelKey: 'popular', color: 'bg-primary/10 text-primary' },
+  '70-20-10': { labelKey: 'beginner', color: 'bg-blue-50 text-blue-700' },
+  '80-20': { labelKey: 'simple', color: 'bg-amber-50 text-amber-700' },
+  'zero-based': { labelKey: 'detailed', color: 'bg-purple-50 text-purple-700' },
+  'envelope': { labelKey: 'visual', color: 'bg-orange-50 text-orange-700' },
+  'pay-first': { labelKey: 'saver', color: 'bg-emerald-50 text-emerald-700' },
+  custom: { labelKey: 'yours', color: 'bg-primary/10 text-primary' },
 };
 
 type PercentSplit = { needs: number; wants: number; savings: number };
@@ -64,6 +68,9 @@ export function StrategySelectorModal({
   onSelect,
 }: StrategySelectorModalProps) {
   const { format } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
+  const percentSign = getLocalizedPercentSign(intlLocale);
   const [hoveredId, setHoveredId] = useState<StrategyId | null>(null);
   const [isCustomOpen, setIsCustomOpen] = useState(currentStrategyId === 'custom');
   const [split, setSplit] = useState<PercentSplit>(() => toPercents(customRatios));
@@ -138,15 +145,15 @@ export function StrategySelectorModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Choose Budget Strategy" className="max-w-lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={m.strategySelector.title} className="max-w-lg">
       <div className="flex flex-col gap-4">
         {/* Live Preview Banner */}
         <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-4 border border-primary/20">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="font-label-sm text-label-sm font-bold text-on-surface-variant uppercase tracking-wider">
-              Preview Allocation
+              {m.strategySelector.previewAllocation}
             </span>
-            <span className="font-label-md text-label-md font-extrabold text-primary font-mono">
+            <span className="ms-auto whitespace-nowrap font-label-md text-label-md font-extrabold text-primary font-mono">
               {format(totalBudget)}
             </span>
           </div>
@@ -167,45 +174,39 @@ export function StrategySelectorModal({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Needs</span>
+          {/* Keep the three allocation cards in one row. Each card is a
+              flex column, so its label and amount remain vertically ordered. */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            {[
+              { label: m.strategySelector.needs, value: preview.needs, color: 'bg-primary' },
+              { label: m.strategySelector.wants, value: preview.wants, color: 'bg-amber-500' },
+              { label: m.strategySelector.savings, value: preview.savings, color: 'bg-slate-600' },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className="flex min-w-0 flex-col items-start gap-0.5 rounded-lg bg-surface/45 px-2 py-1.5 sm:px-3 sm:py-2"
+              >
+                <div className="flex min-w-0 items-center gap-1">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />
+                  <span className="truncate text-[10px] font-bold text-on-surface-variant sm:text-[11px]">{label}</span>
+                </div>
+                <span title={format(value)} className="max-w-full truncate font-mono text-[10px] font-extrabold text-on-surface sm:text-[13px]">
+                  {format(value)}
+                </span>
               </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.needs)}
-              </span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Wants</span>
-              </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.wants)}
-              </span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2 h-2 rounded-full bg-slate-600" />
-                <span className="text-[11px] font-bold text-on-surface-variant">Savings</span>
-              </div>
-              <span className="font-mono text-[13px] font-extrabold text-on-surface">
-                {format(preview.savings)}
-              </span>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Strategy List */}
-        <div className="flex flex-col gap-2.5 max-h-[45vh] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2.5 max-h-[45vh] overflow-y-auto pe-1">
           {strategies.map((strat) => {
             const isSelected = strat.id === currentStrategyId;
             const isHovered = strat.id === hoveredId;
             const tag = STRATEGY_TAGS[strat.id];
             const icon = STRATEGY_ICONS[strat.id] || 'tune';
             const amounts = calculateEnvelopeAmounts(totalBudget, strat.id);
+            const strategyCopy = localizeStrategy(strat.id, m, intlLocale);
 
             return (
               <button
@@ -214,7 +215,7 @@ export function StrategySelectorModal({
                 onClick={() => handleSelect(strat.id)}
                 onMouseEnter={() => setHoveredId(strat.id)}
                 onMouseLeave={() => setHoveredId(null)}
-                className={`w-full text-left p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                className={`w-full text-start p-4 rounded-2xl border-2 transition-all cursor-pointer ${
                   isSelected
                     ? 'border-primary bg-primary/5 shadow-sm'
                     : isHovered
@@ -222,7 +223,7 @@ export function StrategySelectorModal({
                     : 'border-outline-variant/50 bg-surface hover:bg-surface-container'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
                   {/* Icon */}
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
@@ -235,19 +236,19 @@ export function StrategySelectorModal({
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 min-w-0">
+                  <div className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       <h4 className="font-label-lg text-label-lg font-extrabold text-on-surface">
-                        {strat.name}
+                        {strategyCopy.name}
                       </h4>
                       {tag && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tag.color}`}>
-                          {tag.label}
+                          {m.strategySelector.tags[tag.labelKey]}
                         </span>
                       )}
                     </div>
                     <p className="text-[12px] font-medium text-on-surface-variant leading-snug mb-2">
-                      {strat.description}
+                      {strategyCopy.description}
                     </p>
 
                     {/* Mini Ratio Bar */}
@@ -266,22 +267,32 @@ export function StrategySelectorModal({
                       />
                     </div>
 
-                    {/* Ratio Labels */}
-                    <div className="flex justify-between mt-1">
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.needsRatio * 100)}% · {format(amounts.needs)}
-                      </span>
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.wantsRatio * 100)}% · {format(amounts.wants)}
-                      </span>
-                      <span className="text-[10px] font-bold text-on-surface-variant">
-                        {Math.round(strat.savingsRatio * 100)}% · {format(amounts.savings)}
-                      </span>
+                    {/* All three percentage items stay in one row. Their
+                        contents are flex columns to keep the amount below its
+                        percentage label. */}
+                    <div className="mt-1.5 grid grid-cols-3 gap-1 sm:gap-2">
+                      {[
+                        { label: m.strategySelector.needs, percent: strat.needsRatio, value: amounts.needs },
+                        { label: m.strategySelector.wants, percent: strat.wantsRatio, value: amounts.wants },
+                        { label: m.strategySelector.savings, percent: strat.savingsRatio, value: amounts.savings },
+                      ].map(({ label, percent, value }) => (
+                        <span
+                          key={label}
+                          className="flex min-w-0 flex-col items-start gap-0.5 rounded-md bg-surface-container-low px-2 py-1.5 text-[9px] font-bold text-on-surface-variant sm:text-[10px]"
+                        >
+                          <span className="max-w-full truncate">
+                            {label} · {formatPercent(Math.round(percent * 100))}
+                          </span>
+                          <span title={format(value)} className="max-w-full truncate font-mono text-[9px] text-on-surface sm:text-[10px]">
+                            {format(value)}
+                          </span>
+                        </span>
+                      ))}
                     </div>
                   </div>
 
                   {/* Selected indicator */}
-                  <div className="shrink-0 mt-1">
+                  <div className="ms-auto mt-1 shrink-0 sm:ms-0">
                     {isSelected ? (
                       <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                         <AppIcon name="check" className="text-[14px] text-on-primary" />
@@ -309,7 +320,7 @@ export function StrategySelectorModal({
               type="button"
               onClick={() => setIsCustomOpen((open) => !open)}
               aria-expanded={isCustomOpen}
-              className="w-full text-left p-4 cursor-pointer"
+              className="w-full text-start p-4 cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 <div
@@ -325,14 +336,14 @@ export function StrategySelectorModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <h4 className="font-label-lg text-label-lg font-extrabold text-on-surface">
-                      Custom Strategy
+                      {m.strategySelector.customStrategy}
                     </h4>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      Yours
+                      {m.strategySelector.tags.yours}
                     </span>
                   </div>
                   <p className="text-[12px] font-medium text-on-surface-variant leading-snug mb-2">
-                    Set your own Needs / Wants / Savings split.
+                    {m.strategySelector.customDescription}
                   </p>
 
                   <div className="w-full h-2 rounded-full overflow-hidden flex bg-surface-variant/60">
@@ -341,10 +352,19 @@ export function StrategySelectorModal({
                     <div className="h-full bg-slate-600" style={{ width: `${split.savings}%` }} />
                   </div>
 
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.needs}% Needs</span>
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.wants}% Wants</span>
-                    <span className="text-[10px] font-bold text-on-surface-variant">{split.savings}% Savings</span>
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{formatPercent(split.needs)}</span>
+                      <span className="truncate">{m.strategySelector.needs}</span>
+                    </span>
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{formatPercent(split.wants)}</span>
+                      <span className="truncate">{m.strategySelector.wants}</span>
+                    </span>
+                    <span className="flex min-w-0 flex-col text-[9px] font-bold text-on-surface-variant sm:text-[10px]">
+                      <span>{formatPercent(split.savings)}</span>
+                      <span className="truncate">{m.strategySelector.savings}</span>
+                    </span>
                   </div>
                 </div>
 
@@ -367,9 +387,9 @@ export function StrategySelectorModal({
             {isCustomOpen && (
               <div className="px-4 pb-4 flex flex-col gap-3 border-t border-outline-variant/50 pt-3">
                 {([
-                  { key: 'needs' as const, label: 'Needs', color: 'accent-[var(--primary)]', dot: 'bg-primary' },
-                  { key: 'wants' as const, label: 'Wants', color: 'accent-amber-500', dot: 'bg-amber-500' },
-                  { key: 'savings' as const, label: 'Savings', color: 'accent-slate-600', dot: 'bg-slate-600' },
+                  { key: 'needs' as const, label: m.strategySelector.needs, color: 'accent-[var(--primary)]', dot: 'bg-primary' },
+                  { key: 'wants' as const, label: m.strategySelector.wants, color: 'accent-amber-500', dot: 'bg-amber-500' },
+                  { key: 'savings' as const, label: m.strategySelector.savings, color: 'accent-slate-600', dot: 'bg-slate-600' },
                 ]).map(({ key, label, color, dot }) => (
                   <div key={key} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
@@ -384,10 +404,10 @@ export function StrategySelectorModal({
                           max={100}
                           value={split[key]}
                           onChange={(e) => handleSliderChange(key, Number(e.target.value))}
-                          aria-label={`${label} percentage`}
-                          className="w-16 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-right font-mono text-[13px] font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          aria-label={t(m.strategySelector.percentage, { label })}
+                          className="w-16 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-end font-mono text-[13px] font-bold text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
-                        <span className="text-[12px] font-bold text-on-surface-variant">%</span>
+                        <span className="text-[12px] font-bold text-on-surface-variant">{percentSign}</span>
                       </span>
                     </div>
                     <input
@@ -397,7 +417,7 @@ export function StrategySelectorModal({
                       step={1}
                       value={split[key]}
                       onChange={(e) => handleSliderChange(key, Number(e.target.value))}
-                      aria-label={`${label} slider`}
+                      aria-label={t(m.strategySelector.slider, { label })}
                       className={`w-full cursor-pointer ${color}`}
                     />
                     <span className="font-mono text-[11px] font-bold text-on-surface-variant">
@@ -413,13 +433,13 @@ export function StrategySelectorModal({
                       : 'bg-error-container text-on-error-container'
                   }`}
                 >
-                  <span>Total allocated</span>
-                  <span className="font-mono">{splitTotal}%</span>
+                  <span>{m.strategySelector.totalAllocated}</span>
+                  <span className="font-mono">{formatPercent(splitTotal)}</span>
                 </div>
 
                 {!isSplitValid && (
                   <p role="alert" className="text-[11px] font-semibold text-error">
-                    Needs, Wants and Savings must add up to exactly 100%.
+                    {t(m.strategySelector.mustEqual, { total: formatPercent(100) })}
                   </p>
                 )}
 
@@ -429,7 +449,7 @@ export function StrategySelectorModal({
                     onClick={() => setSplit(toPercents(DEFAULT_CUSTOM_RATIOS))}
                     className="px-3 py-2.5 rounded-xl border border-outline-variant text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant/50 transition-colors cursor-pointer"
                   >
-                    Reset
+                    {m.common.reset}
                   </button>
                   <button
                     type="button"
@@ -438,7 +458,7 @@ export function StrategySelectorModal({
                     className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary text-[13px] font-bold shadow-sm hover:bg-accent-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <AppIcon name="check" className="text-[16px]" />
-                    <span>Apply Custom Split</span>
+                    <span>{m.strategySelector.applyCustomSplit}</span>
                   </button>
                 </div>
               </div>

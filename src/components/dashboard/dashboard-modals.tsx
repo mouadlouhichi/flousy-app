@@ -59,10 +59,6 @@ const SettingsModal = dynamic(
   () => import('@/components/modals/SettingsModal').then((m) => m.SettingsModal),
   { ssr: false, loading: () => null },
 );
-const ManageCategoriesModal = dynamic(
-  () => import('@/components/modals/ManageCategoriesModal').then((m) => m.ManageCategoriesModal),
-  { ssr: false, loading: () => null },
-);
 const ProUpgradeModal = dynamic(
   () => import('@/components/modals/ProUpgradeModal').then((m) => m.ProUpgradeModal),
   { ssr: false, loading: () => null },
@@ -100,7 +96,6 @@ export function DashboardModals() {
     updateAndSaveGoals,
     handleEditMoneyPlaces,
     handleAddCategory,
-    handleRemoveCategory,
     handleSaveIncomeSources,
     handleBatchImportVariable,
     handleBatchImportFixed,
@@ -213,6 +208,7 @@ export function DashboardModals() {
           categories={month.activeCategories || []}
           categoryColors={month.categoryColors}
           categoryIcons={month.categoryIcons}
+          onAddCategory={handleAddCategory}
           placeBalances={placeBalances}
         />
       )}
@@ -291,18 +287,6 @@ export function DashboardModals() {
             handleEditMoneyPlaces(values);
             dashboard.closeEditMoneyPlaces();
           }}
-        />
-      )}
-
-      {dashboard.isManageCategoriesOpen && (
-        <ManageCategoriesModal
-          isOpen={dashboard.isManageCategoriesOpen}
-          onClose={dashboard.closeManageCategories}
-          categories={month.activeCategories || []}
-          categoryColors={month.categoryColors || {}}
-          categoryIcons={month.categoryIcons || {}}
-          onAddCategory={handleAddCategory}
-          onRemoveCategory={handleRemoveCategory}
         />
       )}
 

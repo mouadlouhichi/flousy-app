@@ -3,11 +3,15 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
+import Link from 'next/link';
 import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
+import { useLanguage } from '@/lib/i18n-context';
+import { formatLocalizedPercent } from '@/lib/i18n';
+import { localizeCategoryName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -26,6 +30,7 @@ const CHART_COLORS = [
 
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
+  const { messages: m, t, intlLocale, isRTL } = useLanguage();
   const { workspace } = useHousehold();
 
   const isPro = isProUser(profile);
@@ -36,6 +41,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   // ── Current month calculations ──
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
+  const strategyCopy = localizeStrategy(strategy.id, m, intlLocale);
   const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
 
   // ── Income sources analytics ──
@@ -73,7 +79,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       monthKey,
       label: (() => {
         const [y, num] = monthKey.split('-').map(Number);
-        return new Date(y, num - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        return new Date(y, num - 1, 1).toLocaleDateString(intlLocale, { month: 'short', year: '2-digit' });
       })(),
       totalBudget: m.totalBudget,
       totalSpent: s.totalSpent,
@@ -101,57 +107,69 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   return (
     <div className="space-y-6 pb-24">
       {/* ── Header ── */}
-      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <AppIcon name="trending_up" className=" text-primary text-[28px]" />
-          <div>
-            <h2 className="font-headline-md text-headline-md font-extrabold text-on-surface">
-              Trends & Analytics
-            </h2>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              Multi-month spending comparison, income breakdown, and category insights.
-            </p>
-          </div>
+      <div className="flex items-start gap-3">
+        <Link
+          href="/dashboard/profile"
+          prefetch={true}
+          aria-label={m.profile.subpages.backToProfile}
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+        >
+          <AppIcon name="arrow_back" className={`text-[18px] ${isRTL ? 'rotate-180' : ''}`} />
+        </Link>
+        <div className="min-w-0">
+          <h2 className="text-lg font-extrabold text-on-surface">{m.tabs.trends.title}</h2>
+          <p className="mt-0.5 text-sm text-on-surface-variant">{m.tabs.trends.description}</p>
         </div>
       </div>
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Spent This Month</span>
-          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(spent.totalSpent)}</p>
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.spentThisMonth}</span>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(spent.totalSpent)}</p>
           {prevMonth && (
             <span className={`text-[12px] font-bold ${spendChange > 0 ? 'text-error' : 'text-primary'}`}>
-              {spendChange > 0 ? '↑' : '↓'} {Math.abs(spendChange).toFixed(1)}% vs last month
+              {spendChange > 0 ? '↑' : '↓'} {t(m.tabs.trends.percentVsLastMonth, { percent: formatLocalizedPercent(Math.abs(spendChange), intlLocale, 1) })}
             </span>
           )}
         </div>
 
-        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Budget Remaining</span>
-          <p className="text-[22px] font-extrabold text-primary mt-1 font-mono">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.budgetRemaining}</span>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-primary sm:text-[22px]">
             {format(Math.max(0, month.totalBudget - spent.totalSpent))}
           </p>
-          <span className="text-[12px] font-bold text-on-surface-variant">
-            of {format(month.totalBudget)}
+          <span className="block truncate text-[12px] font-bold text-on-surface-variant">
+            {m.tabs.trends.ofLabel} {format(month.totalBudget)}
           </span>
         </div>
 
-        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Total Cash</span>
-          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">{format(totalCash)}</p>
-          <span className="text-[12px] font-bold text-on-surface-variant">
-            Bank {format(month.bankPart || 0)} · Wallet {format(month.walletPart || 0)} · Home {format(month.homePart || 0)}
-          </span>
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(totalCash)}</p>
+          <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
+            <span className="truncate text-primary">
+              {m.places.bank} {format(month.bankPart || 0)}
+            </span>
+            <span className="truncate text-blue-500">
+              {m.places.wallet} {format(month.walletPart || 0)}
+            </span>
+            <span className="truncate text-amber-600">
+              {m.places.home} {format(month.homePart || 0)}
+            </span>
+          </div>
         </div>
 
-        <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">Active Goals</span>
-          <p className="text-[22px] font-extrabold text-on-surface mt-1 font-mono">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.activeGoals}</span>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
             {format(month.monthlySavingsTarget || 0)}
           </p>
-          <span className="text-[12px] font-bold text-on-surface-variant">
-            {strategy.name} · {Math.round(strategy.savingsRatio * 100)}% savings
+          <span className="block break-words text-[12px] font-bold leading-snug text-on-surface-variant">
+            {t(m.tabs.trends.strategySavings, {
+              strategy: strategyCopy.name,
+              percent: formatLocalizedPercent(Math.round(strategy.savingsRatio * 100), intlLocale),
+            })}
           </span>
         </div>
       </div>
@@ -161,21 +179,21 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
-            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Month-Over-Month Spending</h3>
+            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.monthOverMonth}</h3>
           </div>
           {showUpgrade && (
             <button
               onClick={onOpenProModal}
               className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
             >
-              PRO
+              {m.tabs.trends.proLabel}
             </button>
           )}
         </div>
 
         {trendsLoading ? (
           <div className="h-48 bg-surface-variant/30 rounded-2xl animate-pulse flex items-center justify-center">
-            <span className="text-on-surface-variant font-medium">Loading trends...</span>
+            <span className="text-on-surface-variant font-medium">{m.tabs.trends.loadingTrends}</span>
           </div>
         ) : monthOverMonth.length > 1 && proUnlocked ? (
           /* Bar chart with month-over-month comparison */
@@ -186,7 +204,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                 const isCurrent = idx === monthOverMonth.length - 1;
                 return (
                   <div key={m.monthKey} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="text-[10px] font-bold text-on-surface-variant font-mono">{format(m.totalSpent)}</span>
+                    <span className="w-full truncate text-center text-[10px] font-bold font-mono text-on-surface-variant">{format(m.totalSpent)}</span>
                     <div
                       className={`w-full rounded-lg transition-all duration-300 ${
                         isCurrent ? 'bg-primary' : 'bg-primary/40'
@@ -206,22 +224,24 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               <table className="w-full text-[12px]">
                 <thead>
                   <tr className="text-on-surface-variant font-extrabold uppercase tracking-wider border-b border-outline-variant">
-                    <th className="text-left py-2 pr-3">Month</th>
-                    <th className="text-right py-2 px-3">Budget</th>
-                    <th className="text-right py-2 px-3">Spent</th>
-                    <th className="text-right py-2 px-3">Remaining</th>
-                    <th className="text-right py-2 pl-3">Savings %</th>
+                    <th className="text-start py-2 pe-3">{m.tabs.trends.month}</th>
+                    <th className="text-end py-2 px-3">{m.tabs.trends.budget}</th>
+                    <th className="text-end py-2 px-3">{m.tabs.trends.spent}</th>
+                    <th className="text-end py-2 px-3">{m.tabs.trends.remaining}</th>
+                    <th className="text-end py-2 ps-3">{m.tabs.trends.savingsPercent}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {monthOverMonth.map((m) => (
                     <tr key={m.monthKey} className="border-b border-outline-variant/30">
-                      <td className="py-2 pr-3 font-bold text-on-surface">{m.label}</td>
-                      <td className="py-2 px-3 text-right font-mono text-on-surface">{format(m.totalBudget)}</td>
-                      <td className="py-2 px-3 text-right font-mono text-on-surface">{format(m.totalSpent)}</td>
-                      <td className="py-2 px-3 text-right font-mono text-primary">{format(m.remaining)}</td>
-                      <td className="py-2 pl-3 text-right font-mono text-on-surface">
-                        {m.totalBudget > 0 ? `${Math.round((m.savings / m.totalBudget) * 100)}%` : '—'}
+                      <td className="py-2 pe-3 font-bold text-on-surface">{m.label}</td>
+                      <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalBudget)}</td>
+                      <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalSpent)}</td>
+                      <td className="py-2 px-3 text-end font-mono text-primary">{format(m.remaining)}</td>
+                      <td className="py-2 ps-3 text-end font-mono text-on-surface">
+                        {m.totalBudget > 0
+                          ? new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.savings / m.totalBudget)
+                          : '—'}
                       </td>
                     </tr>
                   ))}
@@ -232,8 +252,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         ) : (
           <div className="p-8 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
             <AppIcon name="bar_chart" className=" text-outline text-[36px]" />
-            <p className="font-body-md text-body-md text-on-surface-variant">Not enough month data yet.</p>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">Add expenses across multiple months to see trends.</p>
+            <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.trends.notEnoughData}</p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">{m.tabs.trends.addExpensesForTrends}</p>
           </div>
         )}
       </div>
@@ -242,7 +262,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="payments" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Income Sources</h3>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.incomeSources}</h3>
         </div>
 
         {proUnlocked && incomeSources.length > 0 ? (
@@ -260,7 +280,9 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-bold text-on-surface">{src.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-bold text-on-surface-variant">{pct}%</span>
+                      <span className="text-[12px] font-bold text-on-surface-variant">
+                        {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
+                      </span>
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
                     </div>
                   </div>
@@ -278,14 +300,14 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             })}
 
             <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
-              <span className="font-bold text-on-surface text-[15px]">Total Combined Income</span>
+              <span className="font-bold text-on-surface text-[15px]">{m.tabs.trends.totalCombinedIncome}</span>
               <span className="font-extrabold text-primary font-mono text-[18px]">{format(totalIncome)}</span>
             </div>
           </div>
         ) : (
           <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
-              {proUnlocked ? 'No income sources configured. Add them from the sidebar menu.' : 'Income source analytics are available in Pro.'}
+              {proUnlocked ? m.tabs.trends.noIncomeSources : m.tabs.trends.incomeSourcesPro}
             </p>
           </div>
         )}
@@ -295,7 +317,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="category" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Category Breakdown</h3>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.categoryBreakdown}</h3>
         </div>
 
         {sortedCategories.length > 0 ? (
@@ -310,10 +332,12 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{cat}</span>
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeCategoryName(cat, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-bold text-on-surface-variant">{pct}%</span>
+                      <span className="text-[12px] font-bold text-on-surface-variant">
+                        {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
+                      </span>
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
                     </div>
                   </div>
@@ -331,14 +355,14 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             })}
 
             <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
-              <span className="font-bold text-on-surface text-[15px]">Total Spent</span>
+              <span className="font-bold text-on-surface text-[15px]">{m.tabs.trends.totalSpent}</span>
               <span className="font-extrabold text-on-surface font-mono text-[18px]">{format(spent.totalSpent)}</span>
             </div>
           </div>
         ) : (
           <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
             <p className="font-body-sm text-body-sm text-on-surface-variant">
-              No expenses recorded yet for the current month.
+              {m.tabs.trends.noExpenses}
             </p>
           </div>
         )}
@@ -349,7 +373,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <div className="flex items-center gap-2 mb-4">
             <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
-            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Household Member Spending</h3>
+            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.householdSpending}</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -358,12 +382,14 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
               const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
               return (
-                <div key={person} className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-label-lg text-label-lg font-bold text-on-surface">{person}</span>
-                    <span className="text-[12px] font-bold text-primary">{pct}%</span>
+                <div key={person} className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
+                  <div className="flex justify-between items-center gap-2 min-w-0">
+                    <span className="min-w-0 truncate font-label-lg text-label-lg font-bold text-on-surface">{localizePersonName(person, m)}</span>
+                    <span className="text-[12px] font-bold text-primary">
+                      {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
+                    </span>
                   </div>
-                  <span className="text-[20px] font-extrabold text-on-surface font-mono">{format(total)}</span>
+                  <span className="truncate text-[20px] font-extrabold font-mono text-on-surface">{format(total)}</span>
                   <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
@@ -371,8 +397,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     />
                   </div>
                   <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
-                    <span>Variable: {format(data.variable)}</span>
-                    <span>Fixed: {format(data.fixed)}</span>
+                    <span>{t(m.tabs.trends.variableAmount, { amount: format(data.variable) })}</span>
+                    <span>{t(m.tabs.trends.fixedAmount, { amount: format(data.fixed) })}</span>
                   </div>
                 </div>
               );
@@ -384,7 +410,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {showUpgrade && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.
+            {m.tabs.trends.advancedAnalytics}
           </p>
         </div>
       )}
@@ -393,7 +419,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="health_and_safety" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">Budget Health</h3>
+          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.budgetHealth}</h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -402,7 +428,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                <span className="font-bold text-on-surface">Needs ({Math.round(strategy.needsRatio * 100)}%)</span>
+                <span className="font-bold text-on-surface">{t(m.tabs.trends.needsLabel, { percent: formatLocalizedPercent(Math.round(strategy.needsRatio * 100), intlLocale) })}</span>
               </div>
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.needs)} / {format(spent.needs + spent.wants + spent.savings > 0 ? (spent.needs / (spent.needs + spent.wants + spent.savings)) * 100 : 0).replace(/[0-9.,]/g, '').trim() || format(month.totalBudget)}</span>
             </div>
@@ -425,7 +451,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
-                <span className="font-bold text-on-surface">Wants ({Math.round(strategy.wantsRatio * 100)}%)</span>
+                <span className="font-bold text-on-surface">{t(m.tabs.trends.wantsLabel, { percent: formatLocalizedPercent(Math.round(strategy.wantsRatio * 100), intlLocale) })}</span>
               </div>
               <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.wants)}</span>
             </div>

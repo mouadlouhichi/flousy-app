@@ -322,6 +322,8 @@ export interface UserProfile {
   currency: string;
   onboardingComplete: boolean;
   displayName?: string;
+  /** Persisted custom avatar (small data URL or HTTPS provider image). */
+  avatarUrl?: string;
   theme?: 'light' | 'dark' | 'system';
   language?: 'en' | 'fr' | 'ar';
   householdMembers?: string[]; // legacy local person labels
@@ -410,8 +412,23 @@ export function bucketOf(categoryName: string, kind: ExpenseKind): Envelope {
 
   const name = categoryName.trim().toLowerCase();
 
-  const fixedWants = ['subscription', 'subscriptions', 'netflix', 'spotify', 'entertainment', 'leisure', 'gym', 'hobbies', 'loisirs'];
-  const variableNeeds = ['groceries', 'food', 'food & drink', 'alimentation', 'health', 'santé', 'medical', 'pharmacy', 'transport', 'transportation', 'car', 'fuel', 'utilities', 'housing', 'rent'];
+  // Custom categories are free text typed by the user, so they arrive in the
+  // language the app is used in. The English list alone made a French "Salle de
+  // sport" a want and an Arabic "إيجار" a want as well, which skewed the 50/30/20
+  // split for exactly the households that rename their categories.
+  const fixedWants = [
+    'subscription', 'subscriptions', 'netflix', 'spotify', 'entertainment', 'leisure', 'gym', 'hobbies',
+    'loisirs', 'abonnement', 'abonnements', 'cinéma', 'cinema', 'salle de sport', 'sport', 'vacances',
+    'اشتراك', 'اشتراكات', 'ترفيه', 'رياضة', 'نادي', 'صالة', 'هوايات', 'سينما',
+  ];
+  const variableNeeds = [
+    'groceries', 'food', 'food & drink', 'alimentation', 'health', 'santé', 'medical', 'pharmacy',
+    'transport', 'transportation', 'car', 'fuel', 'utilities', 'housing', 'rent',
+    'courses', 'épicerie', 'medecin', 'médecin', 'pharmacie', 'essence', 'carburant',
+    'loyer', 'électricité', 'eau', 'gaz', 'scolarité', 'école',
+    'بقالة', 'طعام', 'غذاء', 'صحة', 'دواء', 'صيدلية', 'نقل', 'سيارة', 'بنزين', 'وقود',
+    'كهرباء', 'ماء', 'غاز', 'إيجار', 'ايجار', 'سكن', 'مدرسة', 'تعليم',
+  ];
 
   if (kind === 'fixed') {
     if (fixedWants.some((w) => name.includes(w))) {
@@ -1307,9 +1324,12 @@ export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudge
  * Handles rollover from previous month for Pro users.
  */
 export function normalizeMonth(
-  raw: Partial<MonthBudget> | null | undefined, 
+  raw: Partial<MonthBudget> | null | undefined,
   monthKey?: string,
-  userProfile?: UserProfile,
+  // `null` is how the auth context represents "signed out or still loading",
+  // and every caller forwards that value straight through; requiring
+  // `undefined` only forced `profile ?? undefined` at nine call sites.
+  userProfile?: UserProfile | null,
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;

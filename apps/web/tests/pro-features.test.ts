@@ -18,12 +18,21 @@ describe('Pro feature gating', () => {
     assert.equal(isProUser({ plan: 'pro' } as any, storage), true);
   });
 
-  it('honors the demo flag only when no Firebase profile exists', () => {
-    const storage = {
+  it('honors the demo flag only inside an active demo session', () => {
+    const proFlag = {
       getItem: (key: string) => (key === 'flousy_pro_plan' ? 'true' : null),
     } as Storage;
+    const demoSession = {
+      getItem: (key: string) =>
+        key === 'flousy_pro_plan' ? 'true' : key === 'flousy_demo_mode' ? 'true' : null,
+    } as Storage;
 
-    assert.equal(isProUser(null, storage), true);
+    // `profile === null` also means "signed in, profile still loading". Serving
+    // Pro from a leftover `flousy_pro_plan` key in that window handed premium
+    // features to anyone who had once tried the demo, so the flag is only
+    // consulted when the demo session itself is active.
+    assert.equal(isProUser(null, proFlag), false);
+    assert.equal(isProUser(null, demoSession), true);
     assert.equal(isProUser(null), false);
   });
 

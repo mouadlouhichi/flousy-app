@@ -2,40 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { formatLocalizedPercent } from "@/lib/i18n";
 
-const testimonials = [
-  {
-    quote: "I finally stopped guessing where my cash went. SmartJib showed me my wallet was leaking money I thought was still in the bank.",
-    author: "Salma Idrissi",
-    role: "Freelance designer",
-    company: "Casablanca",
-    metric: "20% more saved monthly",
-  },
-  {
-    quote: "The budgeting style SmartJib suggested just clicks. My rent and groceries never eat into my fun money anymore, because the app won't let them.",
-    author: "Yassine Amrani",
-    role: "Software engineer",
-    company: "Rabat",
-    metric: "Switched styles in one tap",
-  },
-  {
-    quote: "I deleted an expense by mistake and the money came right back to my balance, exactly as it should. Small thing, but it earned my trust.",
-    author: "Nadia Ben Slimane",
-    role: "Small business owner",
-    company: "Marrakech",
-    metric: "Zero surprises, every month",
-  },
-  {
-    quote: "I fund my Umrah goal every month straight from my paycheck. Withdrawing when I need it feels honest — nothing vanishes.",
-    author: "Omar Fassi",
-    role: "Product manager",
-    company: "Tangier",
-    metric: "3 savings goals funded",
-  },
-];
+
 
 export function TestimonialsSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, t, intlLocale } = useLightLanguage();
+  const formatIndex = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { minimumIntegerDigits: 2, useGrouping: false }).format(value);
+  const testimonials = m.landing.testimonials.items;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -48,7 +23,7 @@ export function TestimonialsSection() {
       }, 300);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [testimonials.length]);
 
   const activeTestimonial = testimonials[activeIndex];
 
@@ -62,9 +37,19 @@ export function TestimonialsSection() {
           </h2>
           <div className="flex-1 h-px bg-foreground/10" />
           <span className="font-mono text-xs text-muted-foreground">
-            {String(activeIndex + 1).padStart(2, "0")} / {String(testimonials.length).padStart(2, "0")}
+            {formatIndex(activeIndex + 1)} / {formatIndex(testimonials.length)}
           </span>
         </div>
+
+        {/*
+          These quotes are written for the landing page, not collected from
+          users. Presented as customer testimony without a label that is a
+          deceptive commercial practice (UGC/FTC guidance, and the equivalent
+          rules in the EU and France), so the section says what it is.
+        */}
+        <p className="-mt-12 mb-12 text-xs text-muted-foreground">
+          {m.landing.testimonials.illustrative}
+        </p>
 
         {/* Main Quote */}
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-20">
@@ -110,7 +95,7 @@ export function TestimonialsSection() {
                 {m.landing.testimonials.keyResult}
               </span>
               <p className="font-display text-3xl md:text-4xl text-foreground">
-                {activeTestimonial.metric}
+                {t(activeTestimonial.metric, { percent: formatLocalizedPercent(20, intlLocale) })}
               </p>
             </div>
 
@@ -120,7 +105,7 @@ export function TestimonialsSection() {
                 <button
                   key={idx}
                   type="button"
-                  aria-label={`Show testimonial ${idx + 1}`}
+                  aria-label={t(m.landing.testimonials.showTestimonial, { number: new Intl.NumberFormat(intlLocale).format(idx + 1) })}
                   onClick={() => {
                     setIsAnimating(true);
                     setTimeout(() => {

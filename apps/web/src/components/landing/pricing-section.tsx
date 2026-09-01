@@ -1,19 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
+import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
+import { isDemoMode } from '@/lib/demo-mode';
+
+/*
+ * The numbers a visitor is quoted and the numbers the app would charge have to
+ * come from the same place, and they did not: this section hard-coded 29/19
+ * through a `USD` formatter while the in-app checkout used 4.99/39.99 from
+ * `PRO_PRICING`. No payment provider is configured in this deployment, so any
+ * price shown here would be unbuyable and every "Save 34%" toggle would be a
+ * control that changes nothing. Pro is therefore presented as included for free
+ * during the beta, and `BILLING_LIVE` becomes the single switch to flip when a
+ * real provider exists — at which point these figures must be deleted in favour
+ * of the provider's prices.
+ */
+const BILLING_LIVE = false;
 
 const plansBase = [
   { price: { monthly: 0, annual: 0 }, popular: false },
   { price: { monthly: 29, annual: 19 }, popular: true },
 ];
 
+function formatPrice(price: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(price);
+}
+
 export function PricingSection() {
-  const { messages: m } = useLightLanguage();
+  const { messages: m, t, intlLocale, isRTL } = useLightLanguage();
+  const formatPlanNumber = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { minimumIntegerDigits: 2, useGrouping: false }).format(value);
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  // Read after mount: `localStorage` does not exist during prerender, so
+  // resolving it here in render made the CTA differ between the served HTML and
+  // the first client render (a hydration mismatch on a public page).
+  const [isDemo, setIsDemo] = useState(false);
+  useEffect(() => {
+    setIsDemo(isDemoMode());
+  }, []);
   const isLoggedIn = Boolean(user || isDemo);
   const pricingData = m.landing.pricing;
   const [isAnnual, setIsAnnual] = useState(true);
@@ -24,38 +55,38 @@ export function PricingSection() {
         {/* Header */}
         <div className="max-w-3xl mb-20">
           <span className="font-mono text-xs tracking-widest text-muted-foreground uppercase block mb-6">
-            {pricingData?.eyebrow || 'Pricing'}
+            {pricingData.eyebrow}
           </span>
           <h2 className="font-display text-5xl md:text-6xl lg:text-7xl tracking-tight text-foreground mb-6">
-            {pricingData?.titleLine1 || 'Free to start.'}
+            {pricingData.titleLine1}
             <br />
-            <span className="text-stroke">{pricingData?.titleLine2 || "Pro when you're ready."}</span>
+            <span className="text-stroke">{pricingData.titleLine2}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl">
-            {pricingData?.description || 'Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.'}
+            {pricingData.description}
           </p>
         </div>
 
         {/* Billing Toggle */}
-        <div className="flex items-center gap-4 mb-16">
+        <div className={`flex items-center gap-4 ${BILLING_LIVE ? 'mb-16' : 'mb-16 hidden'}`}>
           <span
             className={`text-sm transition-colors ${
               !isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            {pricingData?.monthly || 'Monthly'}
+            {pricingData.monthly}
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={isAnnual}
-            aria-label="Use annual billing"
+            aria-label={pricingData.useAnnualBilling}
             onClick={() => setIsAnnual(!isAnnual)}
             className="relative w-14 h-7 bg-foreground/10 rounded-full p-1 transition-colors hover:bg-foreground/20"
           >
             <div
               className={`w-5 h-5 bg-foreground rounded-full transition-transform duration-300 ${
-                isAnnual ? "translate-x-7" : "translate-x-0"
+                isAnnual ? "translate-x-7 rtl:-translate-x-7" : "translate-x-0"
               }`}
             />
           </button>
@@ -64,18 +95,18 @@ export function PricingSection() {
               isAnnual ? "text-foreground" : "text-muted-foreground"
             }`}
           >
-            {pricingData?.annual || 'Annual'}
+            {pricingData.annual}
           </span>
           {isAnnual && (
-            <span className="ml-2 px-2 py-1 bg-primary text-card  text-xs font-mono">
-              {pricingData?.save34 || 'Save 34%'}
+            <span className="ms-2 px-2 py-1 bg-primary text-card text-xs font-mono">
+              {t(pricingData.save34, { percent: formatLocalizedPercent(34, intlLocale) })}
             </span>
           )}
         </div>
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-px bg-foreground/10 max-w-4xl">
-          {(pricingData?.plans || []).map((planData, idx) => {
+          {pricingData.plans.map((planData, idx) => {
             const priceInfo = plansBase[idx] || { price: { monthly: 0, annual: 0 }, popular: false };
             return (
               <div
@@ -85,15 +116,15 @@ export function PricingSection() {
                 }`}
               >
               {priceInfo.popular && (
-                <span className="absolute -top-3 left-8 px-3 py-1 bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
-                  {pricingData?.mostPopular || 'Most popular'}
+                <span className="absolute -top-3 start-8 px-3 py-1 bg-primary text-primary-foreground text-xs font-mono uppercase tracking-widest">
+                  {pricingData.mostPopular}
                 </span>
               )}
 
               {/* Plan Header */}
               <div className="mb-8">
                 <span className="font-mono text-xs text-muted-foreground">
-                  {String(idx + 1).padStart(2, "0")}
+                  {formatPlanNumber(idx + 1)}
                 </span>
                 <h3 className="font-display text-3xl text-foreground mt-2">{planData.name}</h3>
                 <p className="text-sm text-muted-foreground mt-2">{planData.description}</p>
@@ -103,9 +134,11 @@ export function PricingSection() {
               <div className="mb-8 pb-8 border-b border-foreground/10">
                 <div className="flex items-baseline gap-2">
                   <span className="font-display text-5xl lg:text-6xl text-foreground">
-                    ${isAnnual ? priceInfo.price.annual : priceInfo.price.monthly}
+                    {BILLING_LIVE
+                      ? formatPrice(isAnnual ? priceInfo.price.annual : priceInfo.price.monthly, intlLocale)
+                      : formatPrice(0, intlLocale)}
                   </span>
-                  <span className="text-muted-foreground">{pricingData?.perMonth || '/month'}</span>
+                  <span className="text-muted-foreground">{pricingData.perMonth}</span>
                 </div>
               </div>
 
@@ -128,8 +161,8 @@ export function PricingSection() {
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"
                 }`}
               >
-                {isLoggedIn ? "Go to Dashboard" : planData.cta}
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                {isLoggedIn ? m.landing.nav.goToDashboard : planData.cta}
+                <ArrowRight className={`h-4 w-4 transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'}`} />
               </a>
             </div>
             );
@@ -139,8 +172,13 @@ export function PricingSection() {
 
         {/* Bottom Note */}
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          {pricingData?.bottomNote || 'Your budget stays private, always. No credit card required to start.'}
+          {pricingData.bottomNote}
         </p>
+        {!BILLING_LIVE && (
+          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
+            {m.pro.betaTitle} — {m.pro.betaBody}
+          </p>
+        )}
       </div>
     </section>
   );
