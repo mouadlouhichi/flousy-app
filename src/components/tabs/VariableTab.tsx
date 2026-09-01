@@ -157,7 +157,7 @@ export function VariableTab({
           className="flex w-full items-center gap-3 px-lg py-3.5 text-start"
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <AppIcon name="category" className="text-[22px]" />
+            <AppIcon name="sliders-horizontal" className="text-[22px]" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
