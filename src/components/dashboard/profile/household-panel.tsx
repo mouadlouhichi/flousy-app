@@ -25,7 +25,7 @@ export function HouseholdPanel({
   month,
   initialInviteCode,
 }: HouseholdPanelProps) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { format } = useCurrency();
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
@@ -272,23 +272,49 @@ export function HouseholdPanel({
                         );
                         setLastInviteCode(inviteId);
                         setCopied(false);
-                        if (email) {
+                        if (email && !user) {
+                          // No Firebase session (demo mode, or a deployment whose
+                          // config failed to load) has no ID token to present, and
+                          // the endpoint refuses anonymous callers by design. Not
+                          // worth a doomed round-trip and a confusing "(401)": the
+                          // code below is the working path.
+                          setNotice(h.inviteCodeReady);
+                        } else if (email) {
+                          // The endpoint mails from our own domain, so it only
+                          // accepts a request that proves who is asking: without
+                          // the ID token there is no sender identity to check the
+                          // invitation against, and the request is refused.
+                          const idToken = await user?.getIdToken().catch(() => null);
                           const response = await fetch('/api/household-invitations', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              inviteId,
-                              email,
-                              householdName: household.name,
-                              role,
-                              locale: language,
-                            }),
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+                            },
+                            body: JSON.stringify({ inviteId, locale: language }),
                           });
-                          setNotice(
-                            response.ok
-                              ? t(h.invitationSent, { email })
-                              : h.inviteCodeReady,
-                          );
+                          if (response.ok) {
+                            setNotice(t(h.invitationSent, { email }));
+                          } else {
+                            // The invitation exists and its code works either way,
+                            // so this must not read as a failed invite — but it also
+                            // must not look like an email went out. The endpoint
+                            // answers with a stable `code`, so the reason (missing
+                            // RESEND_API_KEY on this environment, sandbox sender,
+                            // expired session, rate limit) is visible where it can
+                            // be acted on instead of being swallowed here.
+                            const detail = await response
+                              .json()
+                              .catch(() => null) as { code?: string; hint?: string } | null;
+                            if (detail?.code) {
+                              console.warn('[household-invitations] email not sent', {
+                                status: response.status,
+                                code: detail.code,
+                                hint: detail.hint,
+                              });
+                            }
+                            setNotice(t(h.invitationUnavailable, { status: response.status }));
+                          }
                         } else {
                           setNotice(h.inviteCodeReady);
                         }

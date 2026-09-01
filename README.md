@@ -225,10 +225,42 @@ omit them and the app runs in Demo Mode.
 | Variable | Effect |
 | --- | --- |
 | `NEXT_PUBLIC_ANALYTICS` | `plausible` or `ga` activates the telemetry seam in `src/lib/analytics.ts`. Unset = nothing is ever sent. |
+| `RESEND_API_KEY` | Enables household invitation emails. Unset = `/api/household-invitations` answers `503 email_not_configured`; the invitation code is still created and works. |
+| `RESEND_FROM_EMAIL` | Verified sender address in Resend. `onboarding@resend.dev` is Resend's sandbox address: it only delivers to the address verified on the Resend account, and production deployments refuse it outright. |
+| `APP_URL` | Base of the accept link in invitation emails. Falls back to `NEXT_PUBLIC_SITE_URL`, then to the Vercel deployment URL. |
 
-The committed `.env.example` also lists `GEMINI_API_KEY` and `APP_URL`, which
-are injected by the AI Studio host environment. Neither is read by the app
-today.
+### Enabling invitation email on Vercel
+
+Vercel environment variables are **scoped per environment**, and the app reads
+them at build time as well as at request time. A key added only to Production is
+therefore invisible to Preview and Development deployments, which is what makes
+the invite button answer `503`. To cover every environment:
+
+```bash
+vercel env add RESEND_API_KEY          # choose Production, Preview, Development
+vercel env add RESEND_FROM_EMAIL       # e.g. SmartJib <hello@yourdomain.com>
+vercel env add NEXT_PUBLIC_SITE_URL    # Production only: https://flousy.app
+vercel redeploy                          # env vars are baked into the build
+```
+
+`GET /api/household-invitations` reports what this deployment can actually do
+without sending anything, so the state can be checked from a terminal:
+
+Caller identity is checked by verifying the ID token's RS256 signature against
+the certificates Firebase publishes (`src/lib/firebase-id-token.ts`), so the
+route needs **no** server-side secret to know who is calling — only sending mail
+needs `RESEND_API_KEY`.
+
+```bash
+curl -s https://<deployment>/api/household-invitations
+# {"emailConfigured":false,"code":"email_not_configured","sandboxSender":true,"environment":"preview"}
+```
+
+`APP_URL` is read by the household-invitation email route as the base of the
+accept link, falling back to `NEXT_PUBLIC_SITE_URL`. The `GEMINI_API_KEY` entry
+and the `MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API` marker in `metadata.json` were
+removed: no code in this repository calls an AI API, and advertising a capability
+the app does not have is how "the AI feature is broken" tickets get filed.
 
 ---
 

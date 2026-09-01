@@ -11,6 +11,7 @@ import type { Language } from '../../lib/i18n-core';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { localizeCategoryName } from '../../lib/localized-labels';
 import { formatShortDate } from '../../lib/utils';
+import { MONTHLY_VARIABLE_EXPENSE_LIMIT } from '../../lib/validation';
 
 interface ImportCsvModalProps {
   isOpen: boolean;
@@ -92,6 +93,45 @@ function detectCsvDelimiter(headerLine: string): ',' | ';' | '\t' {
   if (semicolons > commas && semicolons >= tabs) return ';';
   if (tabs > commas && tabs > semicolons) return '\t';
   return ',';
+}
+
+/**
+ * Split the file into records first, then parse each record.
+ *
+ * The previous code did `text.split(/\r?\n/)` and ran the (otherwise correct)
+ * quote-aware column parser over each physical line. A quoted field containing a
+ * line break — which Excel and Google Sheets emit for multi-line notes — was cut
+ * in half: the first half became a row whose note was truncated, and the second
+ * half became a row of its own whose first column was the tail of someone's
+ * note, imported as an expense name.
+ */
+function splitCsvRecords(text: string, delimiter: string): string[] {
+  const records: string[] = [];
+  let record = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (inQuotes && text[index + 1] === '"') {
+        record += '"';
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      record += character;
+      continue;
+    }
+    if (!inQuotes && (character === '\n' || character === '\r')) {
+      if (character === '\r' && text[index + 1] === '\n') index += 1;
+      records.push(record);
+      record = '';
+      continue;
+    }
+    record += character;
+  }
+  records.push(record);
+  return records.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
 }
 
 function parseCsvLine(line: string, delimiter: string): string[] {
@@ -246,6 +286,7 @@ export function ImportCsvModal({
   const [targetType, setTargetType] = useState<'variable' | 'fixed'>('variable');
   const [fileText, setFileText] = useState<string>('');
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [truncated, setTruncated] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,13 +315,12 @@ export function ImportCsvModal({
   const parseCsv = (csv: string) => {
     setError(null);
     setParsedRows([]);
+    setTruncated(false);
     setFileText(csv);
 
     try {
-      const lines = csv
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
+      const firstPhysicalLine = csv.split(/\r?\n/)[0] ?? '';
+      const lines = splitCsvRecords(csv, detectCsvDelimiter(firstPhysicalLine));
 
       if (lines.length < 2) {
         setError(copy.invalidRows);
@@ -336,6 +376,12 @@ export function ImportCsvModal({
         });
 
         if (amount > 0) rows.push({ name, amount, date, category, place, note, person });
+        if (rows.length >= MONTHLY_VARIABLE_EXPENSE_LIMIT) {
+          // The rest of the file is not silently discarded: the notice names the
+          // limit, and importing again starts from what is already there.
+          setTruncated(rows.length < lines.length - 1);
+          break;
+        }
       }
 
       if (rows.length === 0) {
@@ -437,6 +483,14 @@ export function ImportCsvModal({
             <AppIcon name="error" className="text-[18px] shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
+        )}
+
+        {truncated && (
+          <p role="alert" className="p-3 rounded-xl bg-tertiary-container text-on-tertiary-container text-[13px] font-medium">
+            {t(m.import.truncated, {
+              limit: new Intl.NumberFormat(intlLocale).format(MONTHLY_VARIABLE_EXPENSE_LIMIT),
+            })}
+          </p>
         )}
 
         {parsedRows.length > 0 && (

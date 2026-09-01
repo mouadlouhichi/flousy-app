@@ -15,6 +15,7 @@ import {
   MonthBudget,
   SavingGoal,
   SavingsActivityEntry,
+  IncomeSource,
   VariableExpense,
   FixedExpense,
   DebtItem,
@@ -97,7 +98,7 @@ interface DashboardContextType {
   handleEditMoneyPlaces: (values: Record<string, number>) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
-  handleSaveIncomeSources: (sources: any[], total: number) => void;
+  handleSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
 
   // Category handlers
   handleAddCategory: (name: string, color: string, icon: string) => void;
@@ -175,7 +176,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace, loading: householdLoading } = useHousehold();
+  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess } = useHousehold();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
 
   // Contributors never load private household month documents. Their invoice
@@ -233,10 +234,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (workspace === 'household' && householdId) {
       if (householdLoading) return;
-      if (!household) {
+      // Only a proven loss of membership unlinks the workspace. While the
+      // subscription is still connecting (or the network is down) the
+      // household is simply `null`, and resetting here silently ejected
+      // people from their shared budget on a slow connection.
+      if (!household && householdAccess === 'denied') {
         updateProfileData({ activeWorkspace: 'personal' }).catch(() => {});
         return;
       }
+      if (!household) return;
       const householdOnboardedLocally =
         typeof window !== 'undefined' &&
         localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
@@ -255,8 +261,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         updateProfileData({ onboardingComplete: true }).catch(() => {});
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading]);
+  }, [user, profile, authLoading, router, defaultMonthKey, updateProfileData, workspace, householdId, household, householdLoading, householdAccess]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -487,7 +492,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (newMonth: MonthBudget) => {
       if (householdId && !canEdit) return;
       setMonth(newMonth);
-      localStorage.setItem(householdStorageKey(householdId, currentMonthKey), JSON.stringify(newMonth));
+      // Never let a local write abort the cloud write: a raw setItem here threw
+      // QuotaExceededError (Safari under pressure, blocked/partitioned storage)
+      // straight out of the save callback, so the edit looked applied and was
+      // never sent to Firestore. writeCachedMonth is the swallow-and-continue
+      // wrapper used everywhere else.
+      writeCachedMonth(householdStorageKey(householdId, currentMonthKey), newMonth);
       if (householdId) {
         saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
       } else if (user) {
@@ -502,7 +512,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (newGoals: SavingGoal[]) => {
       if (householdId && !canEdit) return;
       setGoals(newGoals);
-      localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      try {
+        localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+      } catch {
+        /* quota / private mode — the Firestore write below still runs */
+      }
       if (householdId) {
         saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
       } else if (user) {
@@ -520,7 +534,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
       if (householdId || user) {
-        const prev = householdId ? await getHouseholdMonthBudget(householdId, prevKey) : await getMonthBudget(user!.uid, prevKey);
+        const prev = householdId
+          ? await getHouseholdMonthBudget(householdId, prevKey)
+          : user
+            ? await getMonthBudget(user.uid, prevKey)
+            : undefined;
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
           if (withCarry.fixedExpenses.length > month.fixedExpenses.length) updateAndSaveMonth(withCarry);
@@ -575,7 +593,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
 
   // Apply a month key immediately: persist it, paint any cached document so
@@ -666,7 +683,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // TOTAL MONTHLY BUDGET = Bank + Wallet + Home
   // Income goes first to Bank, then can be moved to Wallet/Home via Move Money
   const handleSaveIncomeSources = useCallback(
-    (sources: any[], total: number) => {
+    (sources: IncomeSource[], total: number) => {
       const oldTotal = month.totalBudget || 0;
       const difference = total - oldTotal;
       // New income goes first to Bank; if total is reduced, deduct from Bank

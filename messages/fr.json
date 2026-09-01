@@ -86,7 +86,8 @@
       "nextSlide": "Diapositive suivante",
       "carousel": "Carrousel",
       "slide": "Diapositive"
-    }
+    },
+    "retry": "Réessayer"
   },
   "auth": {
     "signIn": "Connexion",
@@ -139,7 +140,12 @@
     "signOutConfirmMessage": "Êtes-vous sûr de vouloir vous déconnecter de votre compte SmartJib ?",
     "deleteConfirmTitle": "Supprimer le compte définitivement",
     "deleteConfirmMessage": "Cette action est irréversible. Toutes vos données budgétaires, dépenses et objectifs d'épargne seront définitivement supprimés de Firestore.",
-    "firebaseNotConfigured": "Firebase n'est pas configuré"
+    "firebaseNotConfigured": "Firebase n'est pas configuré",
+    "confirmPasswordTitle": "Confirmez votre mot de passe",
+    "confirmPasswordHint": "Pour votre sécurité, la suppression d'un compte nécessite une connexion récente. Saisissez votre mot de passe pour continuer.",
+    "confirmPasswordAction": "Confirmer et supprimer",
+    "deletePartialFailure": "Certaines données n'ont pas pu être supprimées ({items}). Votre compte est toujours actif, rien n'est perdu — réessayez ou contactez-nous.",
+    "deleteDemoUnsupported": "La suppression du compte est indisponible en mode démo, car aucune donnée n'est enregistrée sur un compte."
   },
   "onboarding": {
     "tagline": "Suivi budgétaire privé et mobile séparant la destination de l'argent de son emplacement.",
@@ -1167,7 +1173,8 @@
           "metric": "Du tableur à l'app en 2 jours"
         }
       ],
-      "showTestimonial": "Afficher le témoignage {number}"
+      "showTestimonial": "Afficher le témoignage {number}",
+      "illustrative": "Exemples illustratifs de l'usage de SmartJib — ce ne sont pas des avis clients."
     },
     "pricing": {
       "eyebrow": "Tarifs",
@@ -1827,5 +1834,48 @@
     "copied": "Copié",
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
     "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre."
+  },
+  "consent": {
+    "title": "Confidentialité",
+    "body": "SmartJib peut envoyer des événements d'utilisation anonymes (quelles fonctions sont ouvertes) pour améliorer l'application. Rien concernant votre argent — montants, catégories ou notes — n'est transmis. Vous pouvez changer cela à tout moment dans les réglages.",
+    "accept": "Autoriser les statistiques",
+    "decline": "Garder l'option désactivée",
+    "enabled": "Les statistiques d'utilisation sont activées",
+    "disabled": "Les statistiques d'utilisation sont désactivées",
+    "changeInSettings": "Modifier dans les réglages",
+    "settingsLabel": "Statistiques d'utilisation",
+    "settingsHint": "Comptage anonyme des fonctions utilisées. Aucune valeur financière n'est incluse."
+  },
+  "receipt": {
+    "tooLarge": "Cette image est trop grande pour être enregistrée avec cette dépense. Choisissez une photo plus légère.",
+    "processing": "Compression de l'image…"
+  },
+  "import": {
+    "truncated": "Seules les {limit} premières lignes ont été importées — un mois ne peut pas en contenir plus."
+  },
+  "pro": {
+    "betaTitle": "Pro est inclus pendant la bêta",
+    "betaBody": "Le paiement n'est pas encore activé, donc Pro est débloqué sur votre compte sans frais. Rien n'est facturé et aucune donnée de carte n'est demandée.",
+    "betaAction": "Débloquer Pro gratuitement",
+    "cardFieldsRemoved": "Aucun formulaire de paiement — SmartJib ne collecte pas de données de carte.",
+    "trialClaimed": "Pro activé sur ce compte.",
+    "alreadyIncluded": "Pro est déjà actif sur votre compte pendant la bêta."
+  },
+  "seo": {
+    "titles": {
+      "home": "SmartJib — Gestionnaire de budget privé et gratuit",
+      "about": "À propos de SmartJib",
+      "help": "Centre d'aide",
+      "careers": "Carrières",
+      "contact": "Contact",
+      "cookies": "Politique de cookies",
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "blog": "Guides de budget",
+      "login": "Connexion",
+      "onboarding": "Configurez votre budget",
+      "notFound": "Page introuvable",
+      "landing": "SmartJib — Suivez votre budget, hors ligne, sans publicité"
+    }
   }
 }

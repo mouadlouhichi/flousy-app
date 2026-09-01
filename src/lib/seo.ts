@@ -1,4 +1,30 @@
-export const SITE_URL = 'https://flousy.app';
+/**
+ * The canonical origin of this deployment.
+ *
+ * It used to be hard-coded to the production host, which meant every preview and
+ * staging build told crawlers that `https://flousy.app/…` was the canonical
+ * version of its own pages — handing the real site the ranking credit, and
+ * pointing `rel="canonical"`, robots and the sitemap at a deployment the
+ * visitor is not on. It now follows `NEXT_PUBLIC_SITE_URL` (set per environment
+ * in hosting or CI) and falls back to production only when nothing is
+ * configured. A value that is not a valid absolute http(s) origin is ignored
+ * instead of being emitted into `rel="canonical"` verbatim.
+ */
+function resolveSiteUrl(): string {
+  const fallback = 'https://flousy.app';
+  const configured = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
+  if (!configured) return fallback;
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return fallback;
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return fallback;
+    return url.origin;
+  } catch {
+    return fallback;
+  }
+}
+
+export const SITE_URL = resolveSiteUrl();
 
 export const SITE_NAME = 'SmartJib';
 
@@ -47,7 +73,7 @@ export const LANDING_FAQS: readonly LandingFaq[] = [
   {
     question: 'Is SmartJib free?',
     answer:
-      'SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade.',
+      'SmartJib is free, including Pro: billing is not connected yet, so Pro is included in the beta at no cost and nothing is charged.',
   },
   {
     question: 'Does SmartJib connect to my bank?',

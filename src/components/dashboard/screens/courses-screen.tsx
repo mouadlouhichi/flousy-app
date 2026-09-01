@@ -602,7 +602,7 @@ function HistoryRow({ session, onOpen }: { session: CourseSession; onOpen: (s: C
             {formatShortDate(session.date, intlLocale)} · {new Intl.NumberFormat(intlLocale).format(session.items.length)} {c.items}
           </span>
           <span className="block font-label-sm text-label-sm text-on-surface-variant">
-            {c.paidFrom}: {m.places[session.place]}
+            {c.paidFrom}: {m.places[session.place as keyof typeof m.places] ?? session.place}
           </span>
         </span>
         <span className="font-body-md text-body-md font-bold text-on-surface tabular-nums">

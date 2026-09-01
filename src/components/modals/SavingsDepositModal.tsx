@@ -69,6 +69,9 @@ export function SavingsDepositModal({
       setDate(toDateInput(entry.date));
     }
     setErrors({});
+    // Read when the modal opens to seed the form; depending on it would wipe a
+    // half-typed entry whenever the place list is re-derived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry, isOpen, goals]);
 
   // Balance that will be available in the goal once the original entry is

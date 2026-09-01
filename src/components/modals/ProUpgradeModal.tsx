@@ -17,6 +17,8 @@ import { trackEvent } from '../../lib/analytics';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { formatShortDate } from '@/lib/utils';
+import { claimProTrial } from '../../lib/db';
+import { isDemoMode } from '../../lib/demo-mode';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,7 +56,9 @@ function formatPrice(amount: number, locale: string): string {
 // ---------------------------------------------------------------------------
 
 export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
-  const { user, profile, updateProfileData } = useAuth();
+  const { user, profile, updateProfileData, retryProfileSync } = useAuth();
+  const [betaClaimPending, setBetaClaimPending] = useState<boolean>(false);
+  const [betaClaimError, setBetaClaimError] = useState<string>('');
   const { messages: m, t, intlLocale } = useLanguage();
   const p = m.modals.pro;
   // Pro state always comes from the `plan` field on the Firebase profile.
@@ -196,13 +200,12 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       return;
     }
 
-    // 5) Show receipt
-    trackEvent('purchase', {
-      value: price,
-      currency: 'USD',
-      transaction_id: receipt.transactionId,
-      billing_cycle: billingCycle,
-    });
+    // 5) Show receipt.
+    //
+    // This used to send a `purchase` event carrying the simulated amount and a
+    // fake transaction id. A conversion event that no money backs is worse than
+    // no event: it is the number stakeholders and pricing decisions get read off.
+    // Demo-mode activity is still visible in the demo UI, just not in analytics.
     await new Promise((r) => setTimeout(r, 500));
     setStep('receipt');
   }, [cardNumber, cardExpiry, cardCvc, cardName, receiptEmail, billingCycle, user?.uid, updateProfileData, p]);
@@ -242,6 +245,73 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
+
+  /*
+   * Everything below this point is a simulated Stripe checkout: a card form, a
+   * test card (4242 4242 4242 4242), a fake 2.5s "processing payment" delay and
+   * a receipt linking to dashboard.stripe.com. No payment provider is configured
+   * in this deployment, so presenting that to a real signed-in account is not a
+   * mock — it collects card details and then charges nothing, while promising a
+   * subscription that will never bill. Real accounts therefore get the honest
+   * path: Pro is included for free during the beta, one non-repeatable claim per
+   * account (the only `plan` transition firestore.rules permits), and no card
+   * field anywhere in the DOM. The simulated checkout stays for demo mode, where
+   * there is no account to charge and the copy already says "demo".
+   */
+  const realAccount = Boolean(user) && !isDemoMode();
+  if (realAccount) {
+    const claim = async () => {
+      setBetaClaimPending(true);
+      setBetaClaimError('');
+      try {
+        await claimProTrial(user!.uid);
+        await retryProfileSync();
+      } catch {
+        setBetaClaimError(m.auth.networkError);
+      } finally {
+        setBetaClaimPending(false);
+      }
+    };
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={isPro ? p.memberTitle : p.title} className="max-w-xl">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 rounded-2xl border border-surface-container-highest bg-surface-container p-4">
+            <AppIcon
+              name={isPro ? 'verified' : 'workspace_premium'}
+              className="mt-0.5 text-[24px] text-primary"
+            />
+            <div className="flex flex-col gap-1">
+              <h3 className="text-base font-extrabold text-on-surface">
+                {isPro ? p.youArePro : m.pro.betaTitle}
+              </h3>
+              <p className="text-sm leading-6 text-on-surface-variant">
+                {isPro ? p.proActiveDescription : m.pro.betaBody}
+              </p>
+              <p className="text-xs font-medium text-on-surface-variant">{m.pro.cardFieldsRemoved}</p>
+            </div>
+          </div>
+
+          {!isPro && (
+            <button
+              type="button"
+              onClick={claim}
+              disabled={betaClaimPending}
+              className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-on-primary transition-all hover:bg-primary/90 disabled:opacity-60"
+            >
+              {betaClaimPending ? m.common.loading : m.pro.betaAction}
+            </button>
+          )}
+          {isPro && <p className="text-xs font-semibold text-primary">{m.pro.alreadyIncluded}</p>}
+          {betaClaimError && (
+            <p role="alert" className="text-xs font-bold text-error">
+              {betaClaimError}
+            </p>
+          )}
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isPro ? p.memberTitle : p.title} className="max-w-2xl">
       <div className="flex flex-col gap-xl">

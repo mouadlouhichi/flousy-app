@@ -7,6 +7,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { AnalyticsConsentToggle } from '../analytics-consent-toggle';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 import { trackEvent } from '@/lib/analytics';
 import { MonthlyStartDateControl } from '../monthly-start-date-control';
@@ -184,6 +185,16 @@ export function PreferencesPanel() {
             { value: 'system', label: m.settings.system, icon: 'desktop_windows' },
           ]}
         />
+      </div>
+
+      {/*
+        The consent prompt in the dashboard shell is one-time; this is where the
+        decision stays changeable, as the prompt promises. It is deliberately a
+        device setting (like the offline cache) rather than a profile field: the
+        flag only decides whether this browser may load a third-party script.
+      */}
+      <div className="p-4">
+        <AnalyticsConsentToggle />
       </div>
 
       <div className="p-4">

@@ -84,6 +84,9 @@ export function CategoryIconPicker({
     );
   // `translate` changes when the locale catalog changes, so Arabic searches
   // are recalculated immediately after a language switch.
+    // `choiceLabel` is a per-render closure over `translate`, which is listed;
+    // depending on the closure itself would invalidate the memo on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, translate]);
 
   return (

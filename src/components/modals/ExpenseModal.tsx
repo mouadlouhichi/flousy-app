@@ -17,6 +17,7 @@ import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { localizeCategoryName } from '../../lib/localized-labels';
+import { createReceiptDataUrl, receiptErrorMessage } from '../../lib/receipt-image';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -75,6 +76,8 @@ export function ExpenseModal({
   const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
+  const [receiptBusy, setReceiptBusy] = useState<boolean>(false);
+  const [receiptError, setReceiptError] = useState<string>('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -92,6 +95,7 @@ export function ExpenseModal({
       setPerson(initialExpense.person || 'Self');
       setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
+      setReceiptError('');
     } else {
       setName('');
       setAmount('');
@@ -102,27 +106,40 @@ export function ExpenseModal({
       setPerson('Self');
       setPayerMemberId('self');
       setReceiptUrl(undefined);
+      setReceiptError('');
     }
     setErrors({});
     setShowCategoryForm(false);
     setCustomCategoryName('');
     setCustomCategoryIcon('shopping_bag');
     setCategoryError('');
-    // `categories` deliberately is not a dependency: creating a category
-    // updates that prop, but must not wipe the expense currently being typed.
+    // `categories` and `defaultPlace` deliberately are not dependencies: creating
+    // a category (or re-deriving the default place) updates those props, but must
+    // not wipe the expense currently being typed. This effect exists to seed the
+    // form when the modal opens, not to track its inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialExpense, isOpen]);
 
-  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  /**
+   * A phone photo is stored as a downscaled JPEG rather than the raw data URL:
+   * the previous `readAsDataURL` put the whole multi-megabyte image on the
+   * expense document, which Firestore refuses, and because the rejection arrived
+   * through the save path it surfaced as a silent failure to save the expense.
+   */
+  const handleReceiptUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Let the same file be picked again after a rejected attempt.
+    event.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setReceiptUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    setReceiptBusy(true);
+    setReceiptError('');
+    try {
+      setReceiptUrl(await createReceiptDataUrl(file));
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : 'receipt_image_too_large');
+    } finally {
+      setReceiptBusy(false);
+    }
   };
 
   const resetCategoryForm = () => {
@@ -437,28 +454,49 @@ export function ExpenseModal({
             {e.receiptOptional}
           </label>
           {isPro ? (
-            receiptUrl ? (
-              <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <img src={receiptUrl} alt={e.receiptPreview} className="w-12 h-12 object-cover rounded-lg" />
-                  <span className="font-body-sm text-body-sm text-on-surface font-bold">{e.receiptAttached}</span>
+            <>
+              {receiptUrl ? (
+                <div className="p-2 bg-surface-container rounded-xl border border-outline-variant flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {/*
+                      A `next/image` optimizer cannot serve this: the source is an
+                      inline data URL produced on this device, which is also what
+                      makes the attachment readable offline.
+                    */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={receiptUrl} alt={e.receiptPreview} className="w-12 h-12 object-cover rounded-lg" />
+                    <span className="font-body-sm text-body-sm text-on-surface font-bold">{e.receiptAttached}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptUrl(undefined)}
+                    className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                    aria-label={e.removeReceipt}
+                  >
+                    <AppIcon name="close" className=" text-[18px]" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setReceiptUrl(undefined)}
-                  className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
-                  aria-label={e.removeReceipt}
-                >
-                  <AppIcon name="close" className=" text-[18px]" />
-                </button>
-              </div>
-            ) : (
-              <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
-                <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
-                <span className="font-label-md text-label-md text-on-surface-variant font-medium">{e.uploadReceipt}</span>
-                <input type="file" accept="image/*" onChange={handleReceiptUpload} className="hidden" />
-              </label>
-            )
+              ) : (
+                <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
+                  <AppIcon name="add_a_photo" className=" text-primary text-[20px]" />
+                  <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+                    {receiptBusy ? m.receipt.processing : e.uploadReceipt}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptUpload}
+                    disabled={receiptBusy}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              {receiptError && (
+                <p role="alert" className="text-xs font-bold text-error">
+                  {receiptErrorMessage(receiptError, m.receipt.tooLarge)}
+                </p>
+              )}
+            </>
           ) : (
             <div className="p-3 rounded-xl border border-dashed border-outline-variant bg-surface-container text-center">
               <p className="font-body-sm text-body-sm text-on-surface-variant">{e.receiptPro}</p>

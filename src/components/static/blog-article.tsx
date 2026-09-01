@@ -24,6 +24,10 @@ export function BlogArticle({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (post) document.title = `${post.title} · ${m.common.appName}`;
+    // `post` is rebuilt from the catalog on every render, so depending on it (or
+    // on the object identity the rule suggests) would re-run this on each paint;
+    // the title only needs to follow the values it actually reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m.common.appName, post?.title]);
 
   // The server page already verifies the slug for static generation. This

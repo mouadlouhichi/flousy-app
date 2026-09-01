@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   User,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -18,7 +20,27 @@ import {
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { setAuthCookie } from './auth-status';
 import { UserProfile } from './store';
-import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData } from './db';
+import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData, type DeletionReport } from './db';
+import { getCurrentMonthKey } from './utils';
+import { isOnboardingDoneLocally } from './demo-mode';
+
+/** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
+export class RequiresRecentLoginError extends Error {
+  code = 'auth/requires-recent-login';
+  constructor() {
+    super('This action needs a recent sign-in. Confirm your password to continue.');
+    this.name = 'RequiresRecentLoginError';
+  }
+}
+
+/** Some documents could not be erased; the account is deliberately kept alive for a retry. */
+export class AccountDeletionIncompleteError extends Error {
+  code = 'account-deletion-incomplete';
+  constructor(public report: DeletionReport) {
+    super(`Could not delete: ${report.failed.join(', ')}`);
+    this.name = 'AccountDeletionIncompleteError';
+  }
+}
 import { trackEvent } from './analytics';
 
 interface AuthContextType {
@@ -33,8 +55,12 @@ interface AuthContextType {
   sendResetEmail: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   updateProfileData: (data: Partial<UserProfile>) => Promise<void>;
-  deleteAccount: () => Promise<void>;
-  deleteAllData: () => Promise<void>;
+  deleteAccount: (password?: string) => Promise<DeletionReport>;
+  deleteAllData: () => Promise<DeletionReport>;
+  profileUnavailable: boolean;
+  retryProfileSync: () => Promise<void>;
+  /** Raw ID token for server endpoints that must know who is calling. */
+  getIdToken: () => Promise<string | null>;
   dismissVerificationBanner: boolean;
   setDismissVerificationBanner: (val: boolean) => void;
 }
@@ -49,11 +75,30 @@ const AuthContext = createContext<AuthContextType | null>(null);
  */
 const PROFILE_CACHE_PREFIX = 'flousy_profile_';
 
+/**
+ * A tampered or half-written cache entry must not be able to hand the app an
+ * object that lies about `plan` (Pro entitlement) or `onboardingComplete`
+ * (which screens are skipped). Everything else is re-fetched from Firestore
+ * immediately, so only the fields the UI acts on before that fetch are pinned.
+ */
+function sanitizeCachedProfile(value: unknown): UserProfile | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.currency !== 'string') return null;
+  return {
+    ...(raw as unknown as UserProfile),
+    plan: raw.plan === 'pro' ? 'pro' : 'free',
+    onboardingComplete: raw.onboardingComplete === true,
+    theme: raw.theme === 'dark' || raw.theme === 'system' ? raw.theme : 'light',
+    activeWorkspace: raw.activeWorkspace === 'household' ? 'household' : 'personal',
+  };
+}
+
 function readCachedProfile(uid: string): UserProfile | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(`${PROFILE_CACHE_PREFIX}${uid}`);
-    return raw ? (JSON.parse(raw) as UserProfile) : null;
+    return raw ? sanitizeCachedProfile(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -90,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [dismissVerificationBanner, setDismissVerificationBanner] = useState<boolean>(false);
+  const [profileUnavailable, setProfileUnavailable] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -171,15 +217,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error fetching/creating profile:', err);
       if (!result) {
-        result = {
-          plan: 'free',
-          currency: 'MAD',
-          onboardingComplete: true,
-          theme: 'system',
-          displayName: displayName || u.displayName || undefined,
-          avatarUrl: u.photoURL || undefined,
-        };
-        setProfile(result);
+        // A transient read failure must not invent an "already onboarded"
+        // profile: that skipped onboarding permanently and could apply the
+        // fallback currency to a real budget. Local data is the only thing
+        // that may short-circuit onboarding, and `profileUnavailable` lets the
+        // UI offer a retry instead of silently proceeding.
+        setProfileUnavailable(true);
+        if (!readCachedProfile(u.uid)) {
+          result = {
+            plan: 'free',
+            currency: 'MAD',
+            onboardingComplete: isOnboardingDoneLocally(getCurrentMonthKey(undefined)),
+            theme: 'system',
+            displayName: displayName || u.displayName || undefined,
+            avatarUrl: u.photoURL || undefined,
+          };
+          setProfile(result);
+        }
       }
     }
     return { profile: result, isNewUser };
@@ -291,13 +345,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const deleteAccount = async () => {
-    if (!user || !auth) return;
+  /**
+   * Prove recent ownership before Firebase allows an erasure, then erase.
+   *
+   * `deleteUser` fails with `auth/requires-recent-login` for any session older
+   * than five minutes — i.e. almost always — and the data wipe used to run
+   * first with every Firestore error swallowed, so a partial failure left
+   * documents owned by nobody (unrecoverable, and contrary to the "everything
+   * is permanently removed" promise in /privacy). Order is now: re-auth, delete
+   * data, verify nothing failed, only then delete the account.
+   */
+  const deleteAccount = async (password?: string): Promise<DeletionReport> => {
+    if (!user || !auth) throw new Error('Not signed in');
     const uid = user.uid;
-    await deleteUserAccountData(uid);
-    await deleteUser(user);
+    const email = user.email;
+
+    if (password !== undefined) {
+      await reauthenticateWithCredential(
+        auth.currentUser!,
+        EmailAuthProvider.credential(email as string, password),
+      );
+    }
+
+    const report = await deleteUserAccountData(uid, {
+      email,
+      householdIds: profile?.householdIds || [],
+    });
+    if (report.failed.length > 0) {
+      // The profile still exists, so the user can retry — say so instead of
+      // half-deleting them.
+      throw new AccountDeletionIncompleteError(report);
+    }
+
+    try {
+      await deleteUser(user);
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/requires-recent-login' || code === 'auth/requires-recent-login') {
+        throw new RequiresRecentLoginError();
+      }
+      throw err;
+    }
+
+    clearLocalData();
     setUser(null);
     setProfile(null);
+    return report;
   };
 
   /**
@@ -306,13 +399,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * account and profile preferences. The live Firestore listeners re-hydrate
    * the dashboard with an empty budget right away.
    */
-  const deleteAllData = async () => {
-    if (!user || !auth) return;
+  const deleteAllData = async (): Promise<DeletionReport> => {
+    if (!user || !auth) return { removed: [], failed: [] };
     const uid = user.uid;
     // Clear the local cache first so the subscriptions never re-hydrate from it.
     clearLocalData();
-    await deleteUserBudgetData(uid);
-    trackEvent('delete_all_data');
+    const report = await deleteUserBudgetData(uid);
+    // Only count it as done when the cloud actually agreed.
+    if (report.failed.length === 0) trackEvent('delete_all_data');
+    else throw new AccountDeletionIncompleteError(report);
+    return report;
   };
 
   return (
@@ -333,6 +429,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deleteAllData,
         dismissVerificationBanner,
         setDismissVerificationBanner,
+        profileUnavailable,
+        retryProfileSync: async () => {
+          if (auth?.currentUser) await syncUserProfile(auth.currentUser);
+        },
+        getIdToken: async () => (auth?.currentUser ? auth.currentUser.getIdToken() : null),
       }}
     >
       {children}

@@ -73,6 +73,9 @@ export function SavingsModal({
     setDeductFromPlace(false);
     setAmount('');
     setErrors({});
+    // Read when the modal opens to seed the form; depending on it would wipe a
+    // half-typed entry whenever the place list is re-derived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goal, mode, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -38,7 +38,7 @@ export function resolveProfileAvatarSource(
   return undefined;
 }
 
-function looksLikeImageFile(file: File): boolean {
+export function looksLikeImageFile(file: File): boolean {
   if (ACCEPTED_IMAGE_TYPES.has(file.type.toLowerCase())) return true;
   // Some mobile browsers (especially iOS camera rolls) omit MIME type.
   if (!file.type) return /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(file.name);
@@ -54,7 +54,7 @@ function loadImage(source: string): Promise<HTMLImageElement> {
   });
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
+export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -84,7 +84,8 @@ function avatarDataUrl(image: CanvasImageSource, width: number, height: number, 
   return canvas.toDataURL('image/jpeg', quality);
 }
 
-async function sourceFromFile(file: File): Promise<{ image: CanvasImageSource; width: number; height: number }> {
+/** Decodes an uploaded file into a drawable image plus its intrinsic size. */
+export async function sourceFromFile(file: File): Promise<{ image: CanvasImageSource; width: number; height: number }> {
   if (typeof createImageBitmap === 'function') {
     try {
       const bitmap = await createImageBitmap(file);

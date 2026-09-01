@@ -26,7 +26,7 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm run test
+        run: npm test
 
       - name: Build
         # Dummy Firebase values: the app reads these at module load, and the
@@ -37,5 +37,35 @@ jobs:
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-project
           NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci.appspot.com
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
-          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:000000000000000000000'
         run: npm run build
+
+  # Firestore rules are the only real trust boundary in this app (the client
+  # owns every read/write), so they must be deployed by CI rather than by
+  # someone remembering to paste them into the Firebase console. The step is
+  # skipped until the two secrets exist, so it never reddens unrelated PRs.
+  deploy-rules:
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.ref == 'refs/heads/main'
+    # A step-level `if: env.X` cannot see an `env:` block declared on that same
+    # step (GitHub evaluates the condition against the job context), so the
+    # secret is published at job level for the guard to work.
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Firestore rules and indexes
+        # firebase-tools honours Application Default Credentials, so a
+        # FIREBASE_SERVICE_ACCOUNT secret holding the service-account JSON is
+        # all that is needed. The step is skipped until that secret exists so
+        # it never reddens unrelated PRs.
+        if: env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx --yes firebase-tools@13 deploy \
+            --only firestore:rules,firestore:indexes \
+            --project "$FIREBASE_PROJECT_ID" --non-interactive

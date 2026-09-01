@@ -52,7 +52,6 @@ export function DueDayPicker({ label, value, onChange }: DueDayPickerProps) {
     if (value === lastEmittedRef.current) return;
     lastEmittedRef.current = null;
     setCustomMode(isCustomValue(value));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const emit = (next: string) => {

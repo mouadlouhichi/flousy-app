@@ -15,7 +15,7 @@ SmartJib is a private budget tracker that separates what money is for—needs, w
 
 ## Pricing
 
-SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade.
+SmartJib is free, including Pro: billing is not connected yet, so Pro is included in the beta at no cost and nothing is charged.
 
 ## Links
 

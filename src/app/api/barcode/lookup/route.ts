@@ -55,11 +55,52 @@ function cacheSet(key: string, body: unknown): void {
   }
 }
 
+/**
+ * Each uncached lookup walks up to five upstream hosts, and an unreachable host
+ * burns the full per-request timeout before the next is tried — so one client can
+ * hold an edge function for tens of seconds at a time. The route is unauthenticated
+ * by design (it returns public product data, no user data), which makes a per-IP
+ * budget plus one shared deadline the only bound on that cost.
+ */
+const LOOKUPS_PER_MINUTE = 60;
+const GLOBAL_DEADLINE_MS = 12_000;
+const hitsByIp = new Map<string, { at: number; count: number }>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = hitsByIp.get(ip);
+  if (!entry || now - entry.at >= 60_000) {
+    hitsByIp.set(ip, { at: now, count: 1 });
+  } else {
+    entry.count += 1;
+  }
+  // Bound the map itself; stale buckets are worthless.
+  if (hitsByIp.size > 10_000) {
+    for (const [key, value] of hitsByIp) {
+      if (now - value.at >= 60_000) hitsByIp.delete(key);
+    }
+  }
+  return hitsByIp.get(ip)!.count > LOOKUPS_PER_MINUTE;
+}
+
 export async function GET(request: Request) {
-  const code = new URL(request.url).searchParams.get('code') ?? '';
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code') ?? '';
   if (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code)) {
     return NextResponse.json({ status: 0, found: false, product: null, error: 'invalid code' }, { status: 400 });
   }
+
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    'local';
+  if (rateLimited(ip)) {
+    return NextResponse.json(
+      { status: 0, found: false, product: null, error: 'too many lookups' },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    );
+  }
+
 
   const cached = cacheGet(code);
   if (cached !== undefined) {
@@ -67,11 +108,15 @@ export async function GET(request: Request) {
   }
 
   let notFound = false;
+  const deadline = AbortSignal.timeout(GLOBAL_DEADLINE_MS);
 
   for (const base of OFF_HOSTS) {
+    if (deadline.aborted) break;
     try {
       const res = await fetch(`${base}${code}.json?fields=${FIELDS}`, {
-        signal: AbortSignal.timeout(6000),
+        // The shorter of the per-host grace and the request-wide deadline, so a
+        // slow host cannot stretch one lookup past five sequential timeouts.
+        signal: AbortSignal.any([AbortSignal.timeout(6000), deadline]),
         headers: { 'User-Agent': 'SmartJib (course session product lookup)' },
       });
       if (!res.ok) continue;

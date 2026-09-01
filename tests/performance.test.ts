@@ -144,7 +144,7 @@ describe('Performance guardrails', () => {
       'navigation must reset scroll so the previous screen offset never glitches',
     );
     // The old page fades in place instead of sliding/scaling back on top.
-    const exitVariant = shell.match(/exit:[\s\S]*?\n  \}\),/)?.[0] ?? '';
+    const exitVariant = shell.match(/exit:[\s\S]*?\n {2}\}\),/)?.[0] ?? '';
     assert.ok(!exitVariant.includes('scale'), 'outgoing screen must not scale');
     // `\bx:` matches the motion transform key and NOT the tail of "zIndex:".
     assert.ok(!/\bx:\s/.test(exitVariant), 'outgoing screen must not slide backwards');
