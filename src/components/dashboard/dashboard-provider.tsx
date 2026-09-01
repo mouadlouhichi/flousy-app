@@ -422,6 +422,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                 ? {
                     totalBudget: previousMonth.totalBudget,
                     incomeSources: previousMonth.incomeSources,
+                    activeCategories: previousMonth.activeCategories,
+                    categoryIcons: previousMonth.categoryIcons,
+                    categoryColors: previousMonth.categoryColors,
                   }
                 : { totalBudget: 0 },
               currentMonthKey,
@@ -443,6 +446,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             ? {
                 totalBudget: previousMonth.totalBudget,
                 incomeSources: previousMonth.incomeSources,
+                activeCategories: previousMonth.activeCategories,
+                categoryIcons: previousMonth.categoryIcons,
+                categoryColors: previousMonth.categoryColors,
               }
             : { totalBudget: 0 },
           currentMonthKey,
