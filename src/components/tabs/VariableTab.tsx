@@ -28,6 +28,10 @@ interface VariableTabProps {
   onUpdateMonth: (month: MonthBudget) => void;
   onUpdateProfile: (profile: UserProfile) => void;
   onOpenProModal: () => void;
+  /** False when the household role may read expenses but not change them. */
+  canEdit?: boolean;
+  /** Category budgets live in `settings`, a separate area from `expenses`. */
+  canEditCategoryBudgets?: boolean;
 }
 
 export function VariableTab({
@@ -37,6 +41,8 @@ export function VariableTab({
   onUpdateMonth,
   onUpdateProfile,
   onOpenProModal,
+  canEdit = true,
+  canEditCategoryBudgets = true,
 }: VariableTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -72,11 +78,14 @@ export function VariableTab({
       return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
     })
     .sort((a, b) => {
-      if (sortBy === 'oldest') return expenseDay(a.date).localeCompare(expenseDay(b.date)) || a.name.localeCompare(b.name);
+      // Dates are ISO timestamps, so comparing the full string orders by date
+      // *and* time (most-recent first for "newest"). Comparing only the day, as
+      // before, left same-day expenses in arbitrary order.
+      if (sortBy === 'oldest') return (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name);
       if (sortBy === 'amountHigh') return b.amount - a.amount;
       if (sortBy === 'amountLow') return a.amount - b.amount;
       if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
-      return expenseDay(b.date).localeCompare(expenseDay(a.date)) || b.name.localeCompare(a.name);
+      return (b.date || '').localeCompare(a.date || '') || b.name.localeCompare(a.name);
     });
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
@@ -99,6 +108,7 @@ export function VariableTab({
   };
 
   const handleStartEdit = (category: string) => {
+    if (!canEditCategoryBudgets) return;
     if (!isProFeatureUnlocked(isPro, workspace)) {
       onOpenProModal();
       return;
@@ -120,13 +130,15 @@ export function VariableTab({
             <FormattedAmount value={totalSpent} />
           </h2>
         </div>
-        <button
-          onClick={onOpenAddModal}
-          className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
-        >
-          <AppIcon name="add" className=" text-[20px]" />
-          <span>{m.tabs.variable.addExpense}</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={onOpenAddModal}
+            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          >
+            <AppIcon name="add" className=" text-[20px]" />
+            <span>{m.tabs.variable.addExpense}</span>
+          </button>
+        )}
       </div>
 
       <button
@@ -370,8 +382,11 @@ export function VariableTab({
           {filteredExpenses.map((exp) => (
             <div
               key={exp.id}
-              onClick={() => onEditExpense(exp)}
-              className="flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant hover:border-primary transition-all cursor-pointer shadow-2xs"
+              role={canEdit ? 'button' : undefined}
+              onClick={canEdit ? () => onEditExpense(exp) : undefined}
+              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
+                canEdit ? 'hover:border-primary cursor-pointer' : ''
+              }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">

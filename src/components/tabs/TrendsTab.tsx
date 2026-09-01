@@ -4,10 +4,11 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
 import Link from 'next/link';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
+import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
@@ -31,7 +32,17 @@ const CHART_COLORS = [
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace } = useHousehold();
+  const { workspace, canViewArea } = useHousehold();
+  // Analytics is a roll-up of the other areas: each card is filtered by the
+  // area that owns its numbers, so an analytics grant on its own does not
+  // expose balances or income sources to a member who lacks those.
+  const canSeeBalances = canViewArea(AMOUNT_AREA.totalCashOnHand);
+  const canSeeIncome = canViewArea(AMOUNT_AREA.incomeSource);
+  const canSeeExpenses = canViewArea(AMOUNT_AREA.variableExpense);
+  const canSeeFixedBills = canViewArea(AMOUNT_AREA.fixedBill);
+  const canSeeSavings = canViewArea(AMOUNT_AREA.savingsGoal);
+  /** Placeholder shown in place of a figure the member may not see. */
+  const redacted = '••••';
 
   const isPro = isProUser(profile);
   const showUpgrade = canShowProUpgrade(isPro, workspace);
@@ -42,7 +53,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
   const strategyCopy = localizeStrategy(strategy.id, m, intlLocale);
-  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  // Same total the Overview shows — custom money places included.
+  const totalCash = totalCashOnHand(month);
 
   // ── Income sources analytics ──
   const incomeSources = month.incomeSources || [];
@@ -124,6 +136,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {canSeeExpenses && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.spentThisMonth}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(spent.totalSpent)}</p>
@@ -133,7 +146,9 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </span>
           )}
         </div>
+        )}
 
+        {canSeeExpenses && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.budgetRemaining}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-primary sm:text-[22px]">
@@ -143,23 +158,33 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             {m.tabs.trends.ofLabel} {format(month.totalBudget)}
           </span>
         </div>
+        )}
 
+        {/* Total cash on hand is a `balances` figure: redacted, never hidden
+            outright, so the card grid keeps its shape. */}
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(totalCash)}</p>
-          <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
-            <span className="truncate text-primary">
-              {m.places.bank} {format(month.bankPart || 0)}
-            </span>
-            <span className="truncate text-blue-500">
-              {m.places.wallet} {format(month.walletPart || 0)}
-            </span>
-            <span className="truncate text-amber-600">
-              {m.places.home} {format(month.homePart || 0)}
-            </span>
-          </div>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
+            {canSeeBalances ? format(totalCash) : redacted}
+          </p>
+          {canSeeBalances ? (
+            <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
+              <span className="truncate text-primary">
+                {m.places.bank} {format(month.bankPart || 0)}
+              </span>
+              <span className="truncate text-blue-500">
+                {m.places.wallet} {format(month.walletPart || 0)}
+              </span>
+              <span className="truncate text-amber-600">
+                {m.places.home} {format(month.homePart || 0)}
+              </span>
+            </div>
+          ) : (
+            <p className="mt-1 text-[11px] font-bold text-on-surface-variant">{m.household.areaRedacted}</p>
+          )}
         </div>
 
+        {canSeeSavings && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.activeGoals}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
@@ -172,9 +197,12 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             })}
           </span>
         </div>
+        )}
       </div>
 
-      {/* ── Multi-Month Trends (Pro feature) ── */}
+      {/* ── Multi-Month Trends (Pro feature) ──
+          Budget / spent / remaining per month are `expenses` figures. */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -258,7 +286,13 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         )}
       </div>
 
-      {/* ── Income Sources Breakdown ── */}
+      )}
+
+      {/* ── Income Sources Breakdown ──
+          Income is its own RBAC area. Without the grant the whole section is
+          dropped — not blurred, not zeroed — because even the source *names*
+          and the combined total are household financial data. */}
+      {canSeeIncome && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="payments" className=" text-primary text-[24px]" />
@@ -312,8 +346,10 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         )}
       </div>
+      )}
 
       {/* ── Category Trend Breakdown ── */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="category" className=" text-primary text-[24px]" />
@@ -367,9 +403,10 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         )}
       </div>
+      )}
 
       {/* ── Household Spending Breakdown ── */}
-      {proUnlocked && Object.keys(personBreakdown).length > 0 && (
+      {proUnlocked && canSeeExpenses && canSeeFixedBills && Object.keys(personBreakdown).length > 0 && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <div className="flex items-center gap-2 mb-4">
             <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
@@ -416,6 +453,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       )}
 
       {/* ── Budget Health Summary ── */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="health_and_safety" className=" text-primary text-[24px]" />
@@ -470,6 +508,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

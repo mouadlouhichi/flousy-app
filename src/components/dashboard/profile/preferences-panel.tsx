@@ -11,6 +11,8 @@ import { AnalyticsConsentToggle } from '../analytics-consent-toggle';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 import { trackEvent } from '@/lib/analytics';
 import { MonthlyStartDateControl } from '../monthly-start-date-control';
+import { useHousehold } from '@/lib/household-context';
+import { monthStartDateFor, monthStartDateField } from '@/lib/household';
 
 type Theme = 'light' | 'dark' | 'system';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -35,6 +37,7 @@ export function PreferencesPanel() {
   const { profile, updateProfileData } = useAuth();
   const { currency } = useCurrency();
   const { language, messages: m, localeNames, setLanguage } = useLanguage();
+  const { workspace } = useHousehold();
   const languageOptions = [
     { value: 'en', label: localeNames.en },
     { value: 'fr', label: localeNames.fr },
@@ -42,7 +45,10 @@ export function PreferencesPanel() {
   ];
   const p = m.profile;
   const savedTheme = profile?.theme || 'system';
-  const savedMonthStartDate = profile?.monthStartDate;
+  // Each workspace keeps its own payday: editing this inside the household
+  // workspace changes the household's start date, not the personal one.
+  const startDateField = monthStartDateField(workspace);
+  const savedMonthStartDate = monthStartDateFor(profile, workspace);
 
   // Preference changes remain local until the user explicitly saves them.
   // This makes the button meaningful and avoids a partial preference update.
@@ -96,7 +102,7 @@ export function PreferencesPanel() {
         ...(currencyChanged ? { currency: draftCurrency } : {}),
         ...(languageChanged ? { language: draftLanguage } : {}),
         ...(themeChanged ? { theme: draftTheme } : {}),
-        ...(monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
+        ...(monthStartDateChanged ? { [startDateField]: draftMonthStartDate } : {}),
       });
 
       if (themeChanged) {
@@ -201,6 +207,9 @@ export function PreferencesPanel() {
         <MonthlyStartDateControl
           compact
           value={draftMonthStartDate}
+          scopeLabel={
+            workspace === 'household' ? p.monthStartDateHouseholdScope : p.monthStartDatePersonalScope
+          }
           onChange={(day) => {
             beginEditing();
             setDraftMonthStartDate(day);

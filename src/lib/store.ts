@@ -239,6 +239,51 @@ export interface FixedCategoryItem {
   icon: string;
 }
 
+/** Icons for the default fixed categories, so list rows match the modal. */
+export const FIXED_TYPE_ICONS: Record<string, string> = {
+  Rent: 'home',
+  Utilities: 'bolt',
+  Housing: 'house',
+  Subscriptions: 'subscriptions',
+  Insurance: 'shield',
+  Internet: 'wifi',
+  Gym: 'fitness_center',
+  Other: 'label',
+};
+
+/** Colors for the default fixed categories. */
+export const FIXED_TYPE_COLORS: Record<string, string> = {
+  Rent: '#8b5cf6',
+  Utilities: '#eab308',
+  Housing: '#f97316',
+  Subscriptions: '#6366f1',
+  Insurance: '#10b981',
+  Internet: '#06b6d4',
+  Gym: '#ec4899',
+  Other: '#6d7a77',
+};
+
+/**
+ * Resolve the icon + colour a fixed bill's category should render with, in the
+ * same precedence the Add/Edit modal uses: a month-level override, then a
+ * user-defined category, then the default map. Shared so list rows and the
+ * modal never disagree (a row used to fall back to a generic receipt icon).
+ */
+export function fixedCategoryVisual(
+  name: string,
+  opts?: {
+    icons?: Record<string, string>;
+    colors?: Record<string, string>;
+    custom?: FixedCategoryItem[];
+  },
+): { icon: string; color: string } {
+  const custom = opts?.custom?.find((c) => c.name === name);
+  return {
+    icon: opts?.icons?.[name] || custom?.icon || FIXED_TYPE_ICONS[name] || 'label',
+    color: opts?.colors?.[name] || custom?.color || FIXED_TYPE_COLORS[name] || '#6d7a77',
+  };
+}
+
 export interface SavingGoal {
   id: string;
   name: string;
@@ -333,9 +378,15 @@ export interface UserProfile {
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
-  /** Global preference for the day of the month a budget month starts.
-   * Mirrors the per-source salary start date used by Income Sources. */
+  /** Day of the month the PERSONAL budget month starts. Mirrors the
+   * per-source salary start date used by Income Sources. */
   monthStartDate?: number;
+  /**
+   * Day of the month the HOUSEHOLD budget month starts. The two workspaces are
+   * paid on different days in real life, so each keeps its own value; read them
+   * through `monthStartDateFor()` rather than touching the fields directly.
+   */
+  householdMonthStartDate?: number;
   /** Cash locations (Bank, Home, Wallet, plus any the user added). */
   moneyPlaces?: MoneyPlaceConfig[];
 }

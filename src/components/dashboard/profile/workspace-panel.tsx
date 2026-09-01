@@ -28,6 +28,9 @@ export function WorkspacePanel() {
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   const hasHousehold = Boolean(profile?.activeHouseholdId || household?.id);
+  // Household management is Pro-only. A free user in their personal workspace
+  // sees no manage-household entry, member roster or invitations at all.
+  const canManageHousehold = isPro || workspace === 'household';
 
   const switchWorkspace = async (next: 'personal' | 'household') => {
     setNotice('');
@@ -95,13 +98,15 @@ export function WorkspacePanel() {
         </div>
       </section>
 
-      <Link href="/dashboard/profile/household" prefetch={true} className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high">
-        <span className="flex items-center gap-3">
-          <AppIcon name="inventory_2" className="text-[20px] text-primary" />
-          <span className="text-sm font-bold text-on-surface">{hasHousehold ? p.manageHousehold : 'Add workspace'}</span>
-        </span>
-        <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
-      </Link>
+      {canManageHousehold && (
+        <Link href="/dashboard/profile/household" prefetch={true} className="flex items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 text-start transition-colors hover:bg-surface-container-high">
+          <span className="flex items-center gap-3">
+            <AppIcon name="inventory_2" className="text-[20px] text-primary" />
+            <span className="text-sm font-bold text-on-surface">{hasHousehold ? p.manageHousehold : 'Add workspace'}</span>
+          </span>
+          <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
+        </Link>
+      )}
 
       {!hasHousehold && (
         <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">

@@ -6,9 +6,10 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
-import { loginSchema } from '../../lib/validation';
+import { loginSchema, signUpSchema } from '../../lib/validation';
 import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
+import { monthStartDateFor } from '@/lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { enableDemoMode, exitDemoMode, isDemoMode, isOnboardingDoneLocally } from '@/lib/demo-mode';
 
@@ -29,7 +30,10 @@ export default function LoginPage() {
     if (loading) return;
 
     const today = new Date();
-    const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
+    const monthKey = getCurrentMonthKey(
+      monthStartDateFor(profile, profile?.activeWorkspace),
+      today,
+    );
     const onboardingDoneLocally = isOnboardingDoneLocally(monthKey);
 
     // Onboarding is always the first screen after signup (or whenever the
@@ -106,11 +110,16 @@ export default function LoginPage() {
       return;
     }
 
-    const valRes = loginSchema.safeParse({ email, password });
+    // Sign-up is held to the stronger policy; sign-in keeps accepting any
+    // password an existing account may already hold (see signUpPasswordSchema).
+    const valRes = (isSignUp ? signUpSchema : loginSchema).safeParse({ email, password });
     if (!valRes.success) {
       // Validation schema messages are English-only; present the localized,
       // actionable account error instead of exposing its implementation text.
-      setError(m.auth.invalidCredentials);
+      // "Invalid email or password" would be wrong on the sign-up form — the
+      // account does not exist yet — so a rejected password says why.
+      const passwordRejected = valRes.error.issues.some((issue) => issue.path[0] === 'password');
+      setError(isSignUp && passwordRejected ? m.auth.weakPassword : m.auth.invalidCredentials);
       return;
     }
 

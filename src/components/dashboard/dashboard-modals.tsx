@@ -26,6 +26,8 @@ import {
   placeBalancesOf,
 } from '@/lib/store';
 import { useMoneyPlaces } from '@/lib/use-money-places';
+import { useHousehold } from '@/lib/household-context';
+import { monthStartDateFor } from '@/lib/household';
 import { trackEvent } from '@/lib/analytics';
 
 /**
@@ -86,6 +88,14 @@ const DebtModal = dynamic(
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
+  const { canEditArea, canViewArea, workspace } = useHousehold();
+  // Income is viewable in read-only mode: the modal shows the sources without
+  // any affordance that would write them.
+  const incomeReadOnly = !canEditArea('income');
+  // Expense / bill / savings editors quote the source place's balance in their
+  // hints and in insufficient-funds errors, so those strings are suppressed for
+  // a member who may edit but not see `balances`.
+  const canSeeBalances = canViewArea('balances');
   const { places } = useMoneyPlaces(dashboard.month);
   const placeBalances = placeBalancesOf(dashboard.month, places);
   const {
@@ -106,18 +116,18 @@ export function DashboardModals() {
     const audited = { ...exp, createdByUserId: dashboard.selectedExpense?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedExpense) {
       const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'expenses');
       trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
     } else {
       const updated = addVariableExpense(month, audited);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'expenses');
       trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
     }
   };
 
   const handleDeleteVariableExpense = (exp: VariableExpense) => {
     const updated = deleteVariableExpense(month, exp);
-    updateAndSaveMonth(updated);
+    updateAndSaveMonth(updated, 'expenses');
     trackEvent('delete_variable_expense', { category: exp.type });
   };
 
@@ -126,31 +136,31 @@ export function DashboardModals() {
     const audited = { ...bill, createdByUserId: dashboard.selectedFixed?.createdByUserId || dashboard.user?.uid, updatedByUserId: dashboard.user?.uid };
     if (dashboard.selectedFixed) {
       const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'fixedBills');
       trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
     } else {
       const updated = addFixedExpense(month, audited);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'fixedBills');
       trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
     }
   };
 
   const handleDeleteFixedBill = (bill: FixedExpense) => {
     const updated = deleteFixedExpense(month, bill);
-    updateAndSaveMonth(updated);
+    updateAndSaveMonth(updated, 'fixedBills');
     trackEvent('delete_fixed_expense', { category: bill.type });
   };
 
   // Retype existing bills when a custom fixed category is renamed
   const handleRenameFixedCategory = (oldName: string, newName: string) => {
     const updated = renameFixedCategory(month, oldName, newName);
-    if (updated !== month) updateAndSaveMonth(updated);
+    if (updated !== month) updateAndSaveMonth(updated, 'fixedBills');
   };
 
   // Move money handler
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     const updated = moveMoney(month, from, to, amount);
-    updateAndSaveMonth(updated);
+    updateAndSaveMonth(updated, 'balances');
     trackEvent('move_money', { from, to, amount });
   };
 
@@ -160,27 +170,27 @@ export function DashboardModals() {
     // when the transfer checkbox was checked, and tracks how much of the
     // balance is real deposited money (vs. bookkeeping "already saved").
     const res = saveGoalWithBalance(month, goals, goal, deductFromPlace ?? null);
-    if (res.month !== month) updateAndSaveMonth(res.month);
+    if (res.month !== month) updateAndSaveMonth(res.month, 'savings');
     updateAndSaveGoals(res.goals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
-    updateAndSaveMonth(res.month);
+    updateAndSaveMonth(res.month, 'savings');
     updateAndSaveGoals(res.goals);
     trackEvent('fund_goal', { amount, sourcePlace });
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
-    updateAndSaveMonth(res.month);
+    updateAndSaveMonth(res.month, 'savings');
     updateAndSaveGoals(res.goals);
     trackEvent('withdraw_goal', { amount, targetPlace });
   };
 
   const handleDeleteGoal = (goalId: string) => {
     const res = deleteFundedGoal(month, goals, goalId);
-    updateAndSaveMonth(res.month);
+    updateAndSaveMonth(res.month, 'savings');
     updateAndSaveGoals(res.goals);
   };
 
@@ -188,12 +198,12 @@ export function DashboardModals() {
   const handleSaveDebt = (debt: DebtItem) => {
     const existingIdx = (month.debts || []).findIndex((d) => d.id === debt.id);
     const next = existingIdx >= 0 ? editDebt(month, debt.id, debt) : addDebt(month, debt);
-    updateAndSaveMonth(next);
+    updateAndSaveMonth(next, 'debts');
   };
 
   const handleDeleteDebt = (debtId: string) => {
     const next = deleteDebt(month, debtId);
-    updateAndSaveMonth(next);
+    updateAndSaveMonth(next, 'debts');
   };
 
   return (
@@ -210,6 +220,7 @@ export function DashboardModals() {
           categoryIcons={month.categoryIcons}
           onAddCategory={handleAddCategory}
           placeBalances={placeBalances}
+          canSeeBalances={canSeeBalances}
         />
       )}
 
@@ -233,6 +244,7 @@ export function DashboardModals() {
           categoryColors={month.categoryColors || {}}
           categoryIcons={month.categoryIcons || {}}
           placeBalances={placeBalances}
+          canSeeBalances={canSeeBalances}
           onRenameCategory={handleRenameFixedCategory}
         />
       )}
@@ -248,6 +260,7 @@ export function DashboardModals() {
           onWithdraw={handleWithdrawGoal}
           onDelete={handleDeleteGoal}
           placeBalances={placeBalances}
+          canSeeBalances={canSeeBalances}
         />
       )}
 
@@ -258,6 +271,7 @@ export function DashboardModals() {
           entry={dashboard.selectedSavingsEntry}
           goals={goals}
           placeBalances={placeBalances}
+          canSeeBalances={canSeeBalances}
           onSave={dashboard.handleSaveSavingsEntry}
           onDelete={dashboard.handleDeleteSavingsEntry}
         />
@@ -308,8 +322,9 @@ export function DashboardModals() {
           onClose={dashboard.closeIncomeModal}
           month={month}
           monthKey={currentMonthKey}
-          defaultPayDay={dashboard.profile?.monthStartDate}
+          defaultPayDay={monthStartDateFor(dashboard.profile, workspace)}
           onSaveIncomeSources={handleSaveIncomeSources}
+          readOnly={incomeReadOnly}
         />
       )}
 

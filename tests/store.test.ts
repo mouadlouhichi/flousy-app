@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { fixedCategoryVisual } from '../src/lib/store';
 import {
   STRATEGIES,
   calculateEnvelopeAmounts,
@@ -326,5 +327,30 @@ describe('Store & Money Math Invariants', () => {
     // Same name / empty name → no-op
     assert.strictEqual(renameFixedCategory(month, 'Daycare', 'Daycare'), month);
     assert.strictEqual(renameFixedCategory(month, 'Daycare', '   '), month);
+  });
+});
+
+
+describe('Fixed category visual resolution', () => {
+  it('uses the default map for built-in categories', () => {
+    assert.deepEqual(fixedCategoryVisual('Rent'), { icon: 'home', color: '#8b5cf6' });
+    assert.deepEqual(fixedCategoryVisual('Internet'), { icon: 'wifi', color: '#06b6d4' });
+  });
+  it('prefers a user-defined category over the default', () => {
+    const visual = fixedCategoryVisual('Water', {
+      custom: [{ name: 'Water', color: '#0000ff', icon: 'water_drop' }],
+    });
+    assert.deepEqual(visual, { icon: 'water_drop', color: '#0000ff' });
+  });
+  it('prefers a month-level override over both', () => {
+    const visual = fixedCategoryVisual('Rent', {
+      icons: { Rent: 'villa' },
+      colors: { Rent: '#123456' },
+      custom: [{ name: 'Rent', color: '#0000ff', icon: 'water_drop' }],
+    });
+    assert.deepEqual(visual, { icon: 'villa', color: '#123456' });
+  });
+  it('falls back to a neutral label for unknown categories', () => {
+    assert.deepEqual(fixedCategoryVisual('Something New'), { icon: 'label', color: '#6d7a77' });
   });
 });

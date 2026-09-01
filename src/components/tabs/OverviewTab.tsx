@@ -18,6 +18,7 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { useHousehold } from '@/lib/household-context';
+import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
@@ -57,9 +58,19 @@ export function OverviewTab({
   const { format, formatParts } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
   const { places } = useMoneyPlaces(month);
-  const { workspace, canViewArea, canEditArea } = useHousehold();
-  const canSeeBalances = workspace === 'personal' || canViewArea('balances');
-  const canEditBalances = workspace === 'personal' || canEditArea('balances');
+  const { canViewArea, canEditArea } = useHousehold();
+  // Every figure on this screen belongs to exactly one RBAC area (AMOUNT_AREA).
+  // Money places, the total monthly budget and TOTAL CASH ON HAND are all
+  // `balances`: without that grant a member sees the redacted placeholder and
+  // no edit affordance,
+  // because an edit button that silently does nothing is a permission leak of
+  // its own (it tells them the number exists and is editable by someone).
+  const canSeeBalances = canViewArea(AMOUNT_AREA.totalCashOnHand);
+  const canEditBalances = canEditArea(AMOUNT_AREA.totalCashOnHand);
+  const canSeeExpenses = canViewArea(AMOUNT_AREA.variableExpense);
+  const canEditExpenses = canEditArea(AMOUNT_AREA.variableExpense, true);
+  const canSeeSavings = canViewArea(AMOUNT_AREA.savingsGoal);
+  const canEditSavings = canEditArea(AMOUNT_AREA.savingsGoal, true);
   const redacted = '••••';
   const budgetInputRef = useRef<HTMLInputElement>(null);
   // Set when Enter/Escape finishes editing so the programmatic blur doesn't re-trigger save
@@ -89,7 +100,10 @@ export function OverviewTab({
   const needsSpentPct = needs > 0 ? Math.min(100, Math.round((spent.needs / needs) * 100)) : 0;
   const wantsSpentPct = wants > 0 ? Math.min(100, Math.round((spent.wants / wants) * 100)) : 0;
 
-  const recentExpenses = (month.variableExpenses || []).slice(0, 5);
+  // Recent Activity is a mix of two areas: each half only appears when the
+  // member may view that area, so a member without `expenses` never sees
+  // someone else's purchases listed here.
+  const recentExpenses = canSeeExpenses ? (month.variableExpenses || []).slice(0, 5) : [];
 
   // The savings plan counts only the deposits logged on THIS month — goals
   // outlive the budget period, so their lifetime balance (including "already
@@ -98,7 +112,9 @@ export function OverviewTab({
 
   // Recent Activity merges logged expenses with savings deposits/withdrawals,
   // newest first.
-  const recentSavings: SavingsActivityEntry[] = (month.savingsActivity || []).slice(0, 5);
+  const recentSavings: SavingsActivityEntry[] = canSeeSavings
+    ? (month.savingsActivity || []).slice(0, 5)
+    : [];
   const recentItems: Array<
     | { kind: 'expense'; id: string; name: string; subtitle: string; amount: number; icon: string; date: Date }
     | { kind: 'savings'; id: string; name: string; subtitle: string; amount: number; isDeposit: boolean; date: Date }
@@ -188,15 +204,17 @@ export function OverviewTab({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={canEditBalances ? onOpenMoveMoneyModal : undefined}
-                  className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
-                >
-                  <span>{m.dashboard.move}</span>
-                  <AppIcon name="swap_horiz" className="text-[14px]" />
-                </button>
-              </div>
+              {canEditBalances && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={onOpenMoveMoneyModal}
+                    className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
+                  >
+                    <span>{m.dashboard.move}</span>
+                    <AppIcon name="swap_horiz" className="text-[14px]" />
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -212,7 +230,7 @@ export function OverviewTab({
               <h3 className="font-bold text-base text-on-surface">
                 {m.dashboard.budgetPlan}
               </h3>
-              {onUpdateStrategy ? (
+              {onUpdateStrategy && canEditBalances ? (
                 <button
                   type="button"
                   onClick={() => setIsStrategyModalOpen(true)}
@@ -276,8 +294,8 @@ export function OverviewTab({
 
             {/* Savings Bar */}
             <div
-              onClick={() => onSelectTab('savings')}
-              className="flex flex-col gap-1.5 hover:opacity-80 transition-all cursor-pointer"
+              onClick={canSeeSavings ? () => onSelectTab('savings') : undefined}
+              className={`flex flex-col gap-1.5 transition-all ${canSeeSavings ? 'hover:opacity-80 cursor-pointer' : ''}`}
             >
               <div className="flex justify-between items-center text-xs">
                 <div className="flex items-center gap-2">
@@ -345,13 +363,22 @@ export function OverviewTab({
                       {budgetParts.currency}
                     </span>
                   </div>
-                ) : (
+                ) : canEditBalances ? (
                   <button
                     type="button"
-                    onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
+                    onClick={() => setIsEditingBudget(true)}
                     title={m.dashboard.editBudgetTooltip}
                     className="-ms-2 flex min-w-0 items-baseline gap-1 rounded-2xl px-2 py-0.5 text-start transition-colors hover:bg-surface-variant/60"
                   >
+                    <span className="text-xl font-bold font-mono text-on-surface">
+                      {budgetParts.amount}
+                    </span>
+                    <span className="text-xs font-semibold text-on-surface-variant">
+                      {budgetParts.currency}
+                    </span>
+                  </button>
+                ) : (
+                  <span className="-ms-2 flex min-w-0 items-baseline gap-1 px-2 py-0.5">
                     <span className="text-xl font-bold font-mono text-on-surface">
                       {canSeeBalances ? budgetParts.amount : redacted}
                     </span>
@@ -360,16 +387,18 @@ export function OverviewTab({
                         {budgetParts.currency}
                       </span>
                     )}
+                  </span>
+                )}
+                {canEditBalances && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingBudget(true)}
+                    aria-label={m.dashboard.editTotalBudget}
+                    className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
+                  >
+                    <AppIcon name="edit" className="text-[14px]" />
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={canEditBalances ? () => setIsEditingBudget(true) : undefined}
-                  aria-label={m.dashboard.editTotalBudget}
-                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
-                >
-                  <AppIcon name="edit" className="text-[14px]" />
-                </button>
               </div>
             </div>
             <div className="min-w-0 border-t border-outline-variant/50 pt-4 sm:border-t-0 sm:border-s sm:ps-8 sm:pt-0">
@@ -387,15 +416,20 @@ export function OverviewTab({
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={onEditMoneyPlaces}
-                  aria-label={m.dashboard.adjustCashBalances}
-                  title={m.dashboard.adjustCashBalances}
-                  className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
-                >
-                  <AppIcon name="tune" className="text-[14px]" />
-                </button>
+                {/* Total cash on hand is a `balances` figure: without the
+                    grant the amount is redacted AND the balance editor is
+                    gone, so there is no way to open it from here. */}
+                {canEditBalances && (
+                  <button
+                    type="button"
+                    onClick={onEditMoneyPlaces}
+                    aria-label={m.dashboard.adjustCashBalances}
+                    title={m.dashboard.adjustCashBalances}
+                    className="flex shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant/50 hover:text-primary"
+                  >
+                    <AppIcon name="tune" className="text-[14px]" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -420,12 +454,14 @@ export function OverviewTab({
               <div className="p-8 bg-surface-container rounded-3xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-3  shadow-2xs">
                 <AppIcon name="receipt_long" className="text-outline text-[40px]" />
                 <p className="text-xs text-on-surface-variant">{m.dashboard.noActivityYet}</p>
-                <button
-                  onClick={onOpenExpenseModal}
-                  className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full shadow-2xs hover:bg-primary/90 transition-all"
-                >
-                  {m.dashboard.addFirstExpense}
-                </button>
+                {canEditExpenses && (
+                  <button
+                    onClick={onOpenExpenseModal}
+                    className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full shadow-2xs hover:bg-primary/90 transition-all"
+                  >
+                    {m.dashboard.addFirstExpense}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="bg-surface-container rounded-3xl border border-outline-variant p-2 shadow-2xs flex flex-col divide-y divide-outline-variant/60">
@@ -433,8 +469,15 @@ export function OverviewTab({
                   item.kind === 'expense' ? (
                     <div
                       key={`exp-${item.id}`}
-                      onClick={() => onOpenEditExpense(recentExpenses.find((exp) => exp.id === item.id))}
-                      className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
+                      role={canEditExpenses ? 'button' : undefined}
+                      onClick={
+                        canEditExpenses
+                          ? () => onOpenEditExpense(recentExpenses.find((exp) => exp.id === item.id))
+                          : undefined
+                      }
+                      className={`p-3 flex items-center justify-between gap-3 transition-colors ${
+                        canEditExpenses ? 'cursor-pointer hover:bg-surface-variant/30' : ''
+                      }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -460,13 +503,15 @@ export function OverviewTab({
                   ) : (
                     <div
                       key={`sav-${item.id}`}
-                      role={onOpenEditSavings ? 'button' : undefined}
+                      role={canEditSavings && onOpenEditSavings ? 'button' : undefined}
                       onClick={() => {
                         const entry = recentSavings.find((evt) => evt.id === item.id);
-                        if (onOpenEditSavings && entry) onOpenEditSavings(entry);
-                        else onSelectTab('savings');
+                        if (canEditSavings && onOpenEditSavings && entry) onOpenEditSavings(entry);
+                        else if (canSeeSavings) onSelectTab('savings');
                       }}
-                      className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-variant/30 transition-colors"
+                      className={`p-3 flex items-center justify-between gap-3 transition-colors ${
+                        canEditSavings || canSeeSavings ? 'cursor-pointer hover:bg-surface-variant/30' : ''
+                      }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.isDeposit ? 'bg-secondary/10 text-secondary' : 'bg-surface-variant text-on-surface-variant'}`}>

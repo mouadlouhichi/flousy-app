@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useCurrency } from '@/lib/currency-context';
 import { useHousehold } from '@/lib/household-context';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName } from '@/lib/localized-labels';
 import { saveHouseholdInvoice, subscribeHouseholdInvoices } from '@/lib/db';
@@ -10,18 +11,21 @@ import type { HouseholdInvoice } from '@/lib/household';
 
 /** Owner/editor review queue. Approval remains separate from private budget recording. */
 export function HouseholdInvoiceReview() {
-  const { household, canEdit, members } = useHousehold();
+  const { household, members, canEditArea } = useHousehold();
   const { format } = useCurrency();
   const { messages: m } = useLanguage();
   const copy = m.household.invoice;
   const [invoices, setInvoices] = useState<HouseholdInvoice[]>([]);
+  // Approving or rejecting a submission is `editAll` on the invoices area, so a
+  // custom role granted only `editOwn` submits but never sees this queue.
+  const canReview = canEditArea(TOOL_AREA.invoices);
 
   useEffect(
-    () => (canEdit && household?.id ? subscribeHouseholdInvoices(household.id, setInvoices) : undefined),
-    [canEdit, household?.id],
+    () => (canReview && household?.id ? subscribeHouseholdInvoices(household.id, setInvoices) : undefined),
+    [canReview, household?.id],
   );
 
-  if (!canEdit || !household?.id) return null;
+  if (!canReview || !household?.id) return null;
 
   const pending = invoices.filter((invoice) => invoice.status === 'submitted');
 

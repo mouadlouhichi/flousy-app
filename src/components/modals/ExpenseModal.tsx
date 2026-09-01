@@ -32,6 +32,12 @@ interface ExpenseModalProps {
   onAddCategory?: (name: string, color: string, icon: string) => void;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+  /**
+   * False when the member may log expenses but not see household balances.
+   * Hides the "available in {place}" hint and skips the insufficient-funds
+   * check, whose message would disclose the exact balance.
+   */
+  canSeeBalances?: boolean;
 }
 
 const ADD_CATEGORY_VALUE = '__add_variable_category__';
@@ -60,6 +66,7 @@ export function ExpenseModal({
   categoryIcons = {},
   onAddCategory,
   placeBalances,
+  canSeeBalances = true,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
@@ -217,7 +224,8 @@ export function ExpenseModal({
 
     // The source place must actually hold the money being spent. Half-a-cent
     // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    // Skipped when balances are hidden: the message quotes the exact figure.
+    if (canSeeBalances && parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(e.insufficientFunds, {
           amount: format(availableInPlace),
@@ -414,9 +422,11 @@ export function ExpenseModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (

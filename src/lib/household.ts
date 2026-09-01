@@ -1,4 +1,4 @@
-import type { MonthBudget } from './store';
+import type { MonthBudget, UserProfile } from './store';
 import type { HouseholdPermissions } from './household-rbac';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
@@ -76,6 +76,51 @@ export interface HouseholdInvoice {
   note?: string;
   status: 'submitted' | 'approved' | 'rejected';
   createdAt: string;
+}
+
+/** Which profile field holds the start date for a workspace. */
+/**
+ * Trims a household name and enforces the Firestore rule contract
+ * (`firestore.rules`: `name.size() > 0 && name.size() <= 100`). Returns the
+ * cleaned name, or `null` when it would be rejected, so the UI and the context
+ * share one definition of "valid".
+ */
+/** Roles an owner may assign to an existing member (never owner/profile). */
+export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor' | 'custom';
+
+/** True when a stored member role can be offered in the edit-member form. */
+export function isAssignableMemberRole(role: string): role is AssignableMemberRole {
+  return role === 'editor' || role === 'viewer' || role === 'contributor' || role === 'custom';
+}
+
+export function normalizeHouseholdName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 100) return null;
+  return trimmed;
+}
+
+export function monthStartDateField(
+  workspace: 'personal' | 'household' | undefined,
+): 'monthStartDate' | 'householdMonthStartDate' {
+  return workspace === 'household' ? 'householdMonthStartDate' : 'monthStartDate';
+}
+
+/**
+ * The monthly start date that applies to the active workspace.
+ *
+ * Personal and household budgets are usually paid on different days, so each
+ * workspace keeps its own value. A household that has not been given one yet
+ * falls back to the personal setting, so switching workspace never leaves the
+ * budget period undefined.
+ */
+export function monthStartDateFor(
+  profile: Pick<UserProfile, 'monthStartDate' | 'householdMonthStartDate'> | null | undefined,
+  workspace: 'personal' | 'household' | undefined,
+): number | undefined {
+  if (!profile) return undefined;
+  return workspace === 'household'
+    ? (profile.householdMonthStartDate ?? profile.monthStartDate)
+    : profile.monthStartDate;
 }
 
 /**

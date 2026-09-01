@@ -1,6 +1,7 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
-import { MonthBudget, FixedExpense } from '../../lib/store';
+import { MonthBudget, FixedExpense, fixedCategoryVisual } from '../../lib/store';
+import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
@@ -10,10 +11,14 @@ interface FixedTabProps {
   month: MonthBudget;
   onOpenAddModal: () => void;
   onEditBill: (bill: FixedExpense) => void;
+  /** False when the household role may read fixed bills but not change them. */
+  canEdit?: boolean;
 }
 
-export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
+export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: FixedTabProps) {
   const { format } = useCurrency();
+  const { profile } = useAuth();
+  const customCategories = profile?.fixedCategories || [];
   const { messages: m, t, language, intlLocale } = useLanguage();
 
   const totalFixed = (month.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
@@ -30,13 +35,15 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
             {format(totalFixed)}
           </h2>
         </div>
-        <button
-          onClick={onOpenAddModal}
-          className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
-        >
-          <AppIcon name="add" className=" text-[20px]" />
-          <span>{m.tabs.fixed.addCharge}</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={onOpenAddModal}
+            className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          >
+            <AppIcon name="add" className=" text-[20px]" />
+            <span>{m.tabs.fixed.addCharge}</span>
+          </button>
+        )}
       </div>
 
       {/* Fixed Bills List */}
@@ -44,12 +51,14 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
         <div className="p-xl bg-surface-container/40 rounded-2xl border border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-sm">
           <AppIcon name="event_repeat" className=" text-outline text-[44px]" />
           <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.fixed.noCharges}</p>
-          <button
-            onClick={onOpenAddModal}
-            className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
-          >
-            {m.tabs.fixed.addRentBills}
-          </button>
+          {canEdit && (
+            <button
+              onClick={onOpenAddModal}
+              className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
+            >
+              {m.tabs.fixed.addRentBills}
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
@@ -58,16 +67,28 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
             const dueLabel = dueDay
               ? formatLocalizedDayOfMonth(dueDay, language, intlLocale)
               : m.tabs.fixed.monthly;
+            // Render the category's own icon + colour (same resolution as the
+            // Add/Edit modal) instead of a generic receipt glyph.
+            const visual = fixedCategoryVisual(bill.type, {
+              icons: month.categoryIcons,
+              colors: month.categoryColors,
+              custom: customCategories,
+            });
 
             return (
             <div
               key={bill.id}
-              onClick={() => onEditBill(bill)}
-              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 hover:border-primary transition-all cursor-pointer shadow-2xs"
+              role={canEdit ? 'button' : undefined}
+              onClick={canEdit ? () => onEditBill(bill) : undefined}
+              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 transition-all shadow-2xs ${
+                canEdit ? 'hover:border-primary cursor-pointer' : ''
+              }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-md">
-                <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0">
-                  <AppIcon name="receipt_long" className=" text-[24px]" />
+                {/* Same icon treatment as variable-expense rows: neutral
+                    container, primary icon, category-specific glyph. */}
+                <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">
+                  <AppIcon name={visual.icon} className=" text-[22px]" />
                 </div>
                 <div className="flex min-w-0 flex-col">
                   <div className="flex min-w-0 items-center gap-xs">
@@ -79,7 +100,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
                         {localizePersonName(bill.person, m)}
                       </span>
                     )}
-                    {bill.recurring && (
+                    {bill.recurring !== false && (
                       <AppIcon name="sync" className="text-[16px] text-primary" title={m.tabs.fixed.recurringMonthly} />
                     )}
                   </div>
@@ -87,8 +108,14 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
                     <span>{localizeCategoryName(bill.type, m)}</span>
                     <span>•</span>
                     <span>{localizePlaceName(bill.place, bill.place, m)}</span>
-                    <span>•</span>
-                    <span>{t(m.tabs.fixed.due, { date: dueLabel })}</span>
+                    {/* A one-off (non-recurring) bill has no repeat-on day, so
+                        "Due {date}" is only shown when the bill recurs. */}
+                    {bill.recurring !== false && (
+                      <>
+                        <span>•</span>
+                        <span>{t(m.tabs.fixed.due, { date: dueLabel })}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

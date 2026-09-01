@@ -21,6 +21,12 @@ interface IncomeSourcesModalProps {
   /** Default monthly start date from settings, pre-filled on new sources. */
   defaultPayDay?: number;
   onSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
+  /**
+   * True when the member's household role may read income but not change it.
+   * The list stays visible (that is what `income: 'view'` grants) while every
+   * affordance that would write is removed.
+   */
+  readOnly?: boolean;
 }
 
 const CHART_COLORS = [
@@ -42,6 +48,7 @@ export function IncomeSourcesModal({
   monthKey,
   defaultPayDay,
   onSaveIncomeSources,
+  readOnly = false,
 }: IncomeSourcesModalProps) {
   const { format, symbol } = useCurrency();
   const { messages: m, t, language, intlLocale } = useLanguage();
@@ -171,6 +178,8 @@ export function IncomeSourcesModal({
 
   // ── Save all ──
   const handleSave = () => {
+    // A view-only member has no save affordance; this stops a programmatic call.
+    if (readOnly) return;
     // If currently editing, apply the pending edit synchronously so it is not
     // lost when the modal closes (setState is async).
     let finalSources = sources;
@@ -366,27 +375,29 @@ export function IncomeSourcesModal({
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => startEdit(src)}
-                          className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-                          aria-label={t(copy.editSource, { name: src.name })}
-                        >
-                          <AppIcon name="edit" className=" text-[18px]" />
-                        </button>
-                        {sources.length > 1 && (
+                      {/* Actions — only for members who may edit income */}
+                      {!readOnly && (
+                        <div className="flex items-center gap-0.5">
                           <button
                             type="button"
-                            onClick={() => handleRemoveSource(src.id)}
-                            className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
-                            aria-label={t(copy.removeSource, { name: src.name })}
+                            onClick={() => startEdit(src)}
+                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                            aria-label={t(copy.editSource, { name: src.name })}
                           >
-                            <AppIcon name="close" className=" text-[18px]" />
+                            <AppIcon name="edit" className=" text-[18px]" />
                           </button>
-                        )}
-                      </div>
+                          {sources.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSource(src.id)}
+                              className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
+                              aria-label={t(copy.removeSource, { name: src.name })}
+                            >
+                              <AppIcon name="close" className=" text-[18px]" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -395,7 +406,15 @@ export function IncomeSourcesModal({
           )}
         </div>
 
+        {readOnly && (
+          <p className="flex items-start gap-2 rounded-2xl border border-outline-variant bg-surface-container p-3 text-[12px] font-bold text-on-surface-variant">
+            <AppIcon name="lock" className="mt-0.5 shrink-0 text-[16px]" />
+            <span>{m.household.incomeReadOnly}</span>
+          </p>
+        )}
+
         {/* ── Add New Source ── */}
+        {!readOnly && (
         <div className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
           <div className="flex flex-col gap-3">
             <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">
@@ -494,16 +513,27 @@ export function IncomeSourcesModal({
             </div>
           </div>
         </div>
+        )}
 
         {/* ── Save Button ── */}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-        >
-          <AppIcon name="check" className=" text-[20px]" />
-          <span>{t(copy.saveIncomeSources, { total: format(totalCalculated) })}</span>
-        </button>
+        {readOnly ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 sm:py-3.5 border border-outline-variant text-on-surface-variant rounded-xl font-bold text-[15px] hover:bg-surface-variant/50 transition-all flex items-center justify-center gap-2"
+          >
+            <span>{m.common.close}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          >
+            <AppIcon name="check" className=" text-[20px]" />
+            <span>{t(copy.saveIncomeSources, { total: format(totalCalculated) })}</span>
+          </button>
+        )}
       </div>
     </Modal>
   );
