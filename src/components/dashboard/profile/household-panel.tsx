@@ -6,14 +6,14 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { isProUser } from '@/lib/pro-features';
-import { useHousehold } from '@/lib/household-context';
+import { useHousehold, type InviteRole } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
+import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import type { MonthBudget } from '@/lib/store';
+import { isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
 import { AreaRestricted } from '../area-restricted';
 import { HOUSEHOLD_AREAS, TOOL_AREA, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
-
-type InviteRole = 'editor' | 'viewer' | 'custom';
 
 interface HouseholdPanelProps {
   onOpenPro?: () => void;
@@ -67,6 +67,21 @@ export function HouseholdPanel({
       setNotice(h.renameSaved);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : h.genericError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
+
+  const saveMember = async (updated: HouseholdMember) => {
+    setBusy(true);
+    try {
+      await updateMember(updated);
+      setEditingMember(null);
+      setNotice(h.memberUpdated);
+    } catch {
+      setNotice(h.genericError);
     } finally {
       setBusy(false);
     }
@@ -271,7 +286,17 @@ export function HouseholdPanel({
             </div>
 
             <div className="space-y-2">
-              {members.map((member) => (
+              {members.map((member) =>
+                editingMember?.id === member.id ? (
+                  <MemberEditor
+                    key={member.id}
+                    member={member}
+                    m={m}
+                    h={h}
+                    onSave={saveMember}
+                    onCancel={() => setEditingMember(null)}
+                  />
+                ) : (
                 <div key={member.id} className="flex items-center gap-3 rounded-xl border border-outline-variant p-3">
                   <span
                     className="flex h-9 w-9 items-center justify-center rounded-full font-bold text-white"
@@ -288,23 +313,34 @@ export function HouseholdPanel({
                     </p>
                   </div>
                   {isOwner && member.role !== 'owner' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        run(() =>
-                          updateMember({
-                            ...member,
-                            status: member.status === 'inactive' ? 'active' : 'inactive',
-                          }),
-                        )
-                      }
-                      className="text-xs font-bold text-primary"
-                    >
-                      {member.status === 'inactive' ? h.restore : h.remove}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditingMember(member)}
+                        aria-label={h.editMember}
+                        className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                      >
+                        <AppIcon name="edit" className="text-[18px]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          run(() =>
+                            updateMember({
+                              ...member,
+                              status: member.status === 'inactive' ? 'active' : 'inactive',
+                            }),
+                          )
+                        }
+                        className="text-xs font-bold text-primary"
+                      >
+                        {member.status === 'inactive' ? h.restore : h.remove}
+                      </button>
+                    </>
                   )}
                 </div>
-              ))}
+                )
+              )}
             </div>
 
             {contributions.length > 0 && (
@@ -492,5 +528,104 @@ export function HouseholdPanel({
           </p>
         )}
       </div>
+  );
+}
+
+/**
+ * Inline owner-only editor for an existing member: display name, role and —
+ * for `custom` — the per-area permission matrix. It reuses the same controls
+ * and labels as the invite form so a member's grant reads the way it was
+ * offered. The write goes through `updateMember`, which the Firestore rules
+ * allow only for the household owner (`firestore.rules` members `allow update`).
+ */
+function MemberEditor({
+  member,
+  m,
+  h,
+  onSave,
+  onCancel,
+}: {
+  member: HouseholdMember;
+  m: Messages;
+  h: Messages['household'];
+  onSave: (updated: HouseholdMember) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(member.displayName);
+  const [role, setRole] = useState<InviteRole>(isAssignableMemberRole(member.role) ? member.role : 'viewer');
+  const [permissions, setPermissions] = useState<HouseholdPermissions>(
+    member.permissions && Object.keys(member.permissions).length ? member.permissions : { expenses: 'view' },
+  );
+  const roleOptions = [
+    { value: 'custom', label: h.customAccess },
+    { value: 'editor', label: h.fullAccess },
+    { value: 'contributor', label: m.householdRoles.contributor },
+    { value: 'viewer', label: h.viewOnly },
+  ];
+  const accessOptions = (editable?: boolean) => [
+    { value: 'none', label: h.noAccess },
+    { value: 'view', label: h.view },
+    ...(editable
+      ? [
+          { value: 'editOwn', label: h.editOwn },
+          { value: 'editAll', label: h.editAll },
+        ]
+      : []),
+  ];
+  return (
+    <div className="space-y-3 rounded-xl border border-primary/40 bg-surface-container p-3">
+      <input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        maxLength={60}
+        aria-label={h.fullName}
+        placeholder={h.fullName}
+        className="w-full rounded-lg border border-outline-variant bg-surface p-2 text-sm text-on-surface"
+      />
+      <CustomSelect
+        value={role}
+        onChange={(value) => setRole(value as InviteRole)}
+        options={roleOptions}
+        ariaLabel={h.customAccess}
+        triggerClassName="!h-10 !text-xs"
+      />
+      {role === 'custom' && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {HOUSEHOLD_AREAS.map((area) => (
+            <CustomSelect
+              key={area.id}
+              value={permissions[area.id] || 'none'}
+              onChange={(value) => setPermissions((current) => ({ ...current, [area.id]: value as AccessLevel }))}
+              options={accessOptions(area.editable)}
+              label={h.areas[area.id]}
+              triggerClassName="!h-10 !text-xs"
+            />
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-3 py-2 text-sm text-on-surface-variant hover:bg-primary/10"
+        >
+          {m.common.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onSave({
+              ...member,
+              displayName: name.trim() || member.displayName,
+              role,
+              ...(role === 'custom' ? { permissions } : {}),
+            })
+          }
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+        >
+          {m.common.save}
+        </button>
+      </div>
+    </div>
   );
 }

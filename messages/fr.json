@@ -1762,6 +1762,8 @@
     "householdNamePlaceholder": "Nom du foyer (ex. la famille Silva)",
     "householdNameRequired": "Saisissez un nom de 1 à 100 caractères.",
     "renameHousehold": "Renommer le foyer",
+    "editMember": "Modifier le membre",
+    "memberUpdated": "Membre mis à jour.",
     "renameSaved": "Nom du foyer mis à jour.",
     "createHousehold": "Créer le foyer",
     "householdCreated": "Foyer créé. Votre budget personnel reste privé ; les nouvelles activités partagées sont enregistrées dans cet espace de travail.",

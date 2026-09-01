@@ -85,6 +85,14 @@ export interface HouseholdInvoice {
  * cleaned name, or `null` when it would be rejected, so the UI and the context
  * share one definition of "valid".
  */
+/** Roles an owner may assign to an existing member (never owner/profile). */
+export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor' | 'custom';
+
+/** True when a stored member role can be offered in the edit-member form. */
+export function isAssignableMemberRole(role: string): role is AssignableMemberRole {
+  return role === 'editor' || role === 'viewer' || role === 'contributor' || role === 'custom';
+}
+
 export function normalizeHouseholdName(name: string): string | null {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 100) return null;

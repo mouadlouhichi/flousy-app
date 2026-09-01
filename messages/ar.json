@@ -1762,6 +1762,8 @@
     "householdNamePlaceholder": "اسم الأسرة (مثل عائلة سيلفا)",
     "householdNameRequired": "أدخل اسمًا يتراوح بين 1 و100 حرف.",
     "renameHousehold": "إعادة تسمية الأسرة",
+    "editMember": "تعديل العضو",
+    "memberUpdated": "تم تحديث العضو.",
     "renameSaved": "تم تحديث اسم الأسرة.",
     "createHousehold": "إنشاء الأسرة",
     "householdCreated": "تم إنشاء الأسرة. تبقى ميزانيتك الشخصية خاصة، ويُحفظ النشاط المشترك الجديد في مساحة العمل هذه.",

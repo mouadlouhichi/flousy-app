@@ -27,6 +27,7 @@ import {
   monthStartDateField,
   monthStartDateFor,
   normalizeHouseholdName,
+  isAssignableMemberRole,
   type HouseholdRole,
 } from '../src/lib/household';
 
@@ -327,5 +328,18 @@ describe('Household storage and audit helpers', () => {
     assert.equal(isProFeatureUnlocked(false, 'household'), true);
     assert.equal(isProFeatureUnlocked(false, 'personal'), false);
     assert.equal(isProFeatureUnlocked(false, undefined), false);
+  });
+});
+
+describe('Assignable member roles (edit member)', () => {
+  it('accepts the four roles an owner may grant', () => {
+    for (const role of ['editor', 'viewer', 'contributor', 'custom']) {
+      assert.strictEqual(isAssignableMemberRole(role), true, role);
+    }
+  });
+  it('refuses owner/profile/unknown so they can never be assigned', () => {
+    for (const role of ['owner', 'profile', '', 'admin']) {
+      assert.strictEqual(isAssignableMemberRole(role), false, role);
+    }
   });
 });

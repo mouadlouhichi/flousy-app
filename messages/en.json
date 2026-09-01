@@ -1762,6 +1762,8 @@
     "householdNamePlaceholder": "Household name (e.g. The Silva family)",
     "householdNameRequired": "Enter a name between 1 and 100 characters.",
     "renameHousehold": "Rename household",
+    "editMember": "Edit member",
+    "memberUpdated": "Member updated.",
     "renameSaved": "Household name updated.",
     "createHousehold": "Create household",
     "householdCreated": "Household created. Your personal budget stays private; new shared activity is stored in this workspace.",
