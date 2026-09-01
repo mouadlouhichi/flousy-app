@@ -23,6 +23,7 @@ import { UserProfile } from './store';
 import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData, type DeletionReport } from './db';
 import { getCurrentMonthKey } from './utils';
 import { isOnboardingDoneLocally } from './demo-mode';
+import { isProPlan } from './pro-features';
 
 /** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
 export class RequiresRecentLoginError extends Error {
@@ -87,7 +88,7 @@ function sanitizeCachedProfile(value: unknown): UserProfile | null {
   if (typeof raw.currency !== 'string') return null;
   return {
     ...(raw as unknown as UserProfile),
-    plan: raw.plan === 'pro' ? 'pro' : 'free',
+    plan: isProPlan(raw.plan) ? 'pro' : 'free',
     onboardingComplete: raw.onboardingComplete === true,
     theme: raw.theme === 'dark' || raw.theme === 'system' ? raw.theme : 'light',
     activeWorkspace: raw.activeWorkspace === 'household' ? 'household' : 'personal',

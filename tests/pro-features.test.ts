@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isProUser } from '../src/lib/pro-features';
+import { isProUser, isProPlan } from '../src/lib/pro-features';
 
 describe('Pro feature gating', () => {
   it('treats a pro profile as premium access', () => {
@@ -37,6 +37,24 @@ describe('Pro feature gating', () => {
   });
 
   it('keeps free users blocked from premium features', () => {
+    assert.equal(isProUser({ plan: 'free' } as any), false);
+  });
+});
+
+
+describe('Pro plan normalisation (isProPlan)', () => {
+  it('accepts pro regardless of casing or stray whitespace', () => {
+    for (const value of ['pro', 'Pro', 'PRO', ' pro ', '\tPRO\n']) {
+      assert.equal(isProPlan(value), true, JSON.stringify(value));
+    }
+  });
+  it('rejects free, empty, null and unrelated strings', () => {
+    for (const value of ['free', '', 'trial', 'premium', null, undefined]) {
+      assert.equal(isProPlan(value as string | null | undefined), false, String(value));
+    }
+  });
+  it('isProUser agrees with isProPlan on a loaded profile', () => {
+    assert.equal(isProUser({ plan: 'Pro' } as any), true);
     assert.equal(isProUser({ plan: 'free' } as any), false);
   });
 });

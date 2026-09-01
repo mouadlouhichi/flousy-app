@@ -11,6 +11,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
+import { isProPlan } from './pro-features';
 import { CourseSession, MonthBudget, Product, SavingGoal, UserProfile, normalizeMonth } from './store';
 
 export enum OperationType {
@@ -408,7 +409,7 @@ export async function claimProTrial(uid: string): Promise<boolean> {
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
   const plan = snapshot.exists() ? (snapshot.data() as { plan?: string }).plan : undefined;
-  if (plan === 'pro') return true;
+  if (isProPlan(plan)) return true;
   if (snapshot.exists() && plan !== 'free') return false;
   await setDoc(ref, {
     plan: 'pro',
