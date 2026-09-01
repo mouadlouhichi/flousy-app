@@ -5,8 +5,9 @@ import { Platform, StyleSheet, Text, TextInput, type TextStyle } from 'react-nat
  * Same faces as web:
  * - Instrument Sans ← apps/web/src/app/fonts/instrument-sans-latin{,-ext}-wght-normal.woff2
  *   (next/font/local, variable wght 400–700), instantiated to static TTFs.
- * - JetBrains Mono ← @fontsource-variable/jetbrains-mono (web layout import),
- *   latin + latin-ext, instantiated at 400/500/700.
+ * - JetBrains Mono 2.304 ← official TTFs from
+ *   https://download-cdn.jetbrains.com/fonts/JetBrainsMono-2.304.zip
+ *   (Regular / Medium / Bold).
  * RN/Android cannot load those WOFF2 variable files, so we ship TTF instances
  * of the exact same outlines under per-weight family names.
  */
