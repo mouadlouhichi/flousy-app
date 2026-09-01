@@ -262,19 +262,19 @@ export default function CoursesScreen() {
 
   if (!active) {
     return (
-      <ScrollView className="flex-1 bg-neutral-100 dark:bg-neutral-900" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView className="flex-1 bg-[#F5FAF8]" contentContainerStyle={{ padding: 16 }}>
         <Pressable onPress={() => router.push('/dashboard')} className="mb-3">
-          <Text className="text-primary font-bold">← Overview</Text>
+          <Text className="font-bold" style={{ color: '#00685f' }}>← Overview</Text>
         </Pressable>
-        <View className="bg-white dark:bg-neutral-800 p-6 rounded-2xl items-center">
-          <Text className="text-xl font-bold text-neutral-900 dark:text-white">
+        <View className="items-center rounded-3xl border border-neutral-200 bg-white p-6">
+          <Text className="text-xl font-bold text-neutral-900">
             {t('courses.emptyTitle', 'Start a course')}
           </Text>
-          <Text className="text-sm text-neutral-500 text-center mt-2">
-            {t('courses.emptyHint', 'Scan groceries as you shop and SmartJib builds the bill.')}
+          <Text className="mt-2 text-center text-sm text-neutral-500">
+            {t('courses.emptyHint', "Start a session, scan each product's barcode and add the price.")}
           </Text>
-          <Pressable onPress={start} className="bg-primary px-6 py-3 rounded-xl mt-5">
-            <Text className="text-white font-bold">{t('courses.start', 'Start Course')}</Text>
+          <Pressable onPress={start} className="mt-5 rounded-xl px-6 py-3" style={{ backgroundColor: '#00685f' }}>
+            <Text className="font-bold text-white">{t('courses.start', 'Start Course')}</Text>
           </Pressable>
         </View>
         <Text className="font-bold text-neutral-900 dark:text-white mt-6 mb-2">

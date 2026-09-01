@@ -1,213 +1,227 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  TextInput,
-  Alert,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, Pressable, TextInput, ScrollView as HScroll } from 'react-native';
 import { DashboardScrollView as ScrollView } from '../../components/DashboardScrollView';
-import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
+import { PlusCircle, ScanLine, Search, ChevronDown, ChevronRight } from 'lucide-react-native';
 import {
   type VariableExpense,
   addVariableExpense,
   editVariableExpense,
   deleteVariableExpense,
-  getDefaultCategoryNames,
+  calculateCategorySpent,
 } from '@flousy/core';
 import { useMobileStore } from '../../lib/store-context';
 import { ExpenseModal } from '../../components/ExpenseModal';
+import { CategoryIcon } from '../../components/CategoryIcon';
+import { formatMoney } from '../../lib/format-money';
+import { FONT } from '../../lib/fonts';
+
+function formatShortDate(iso: string): string {
+  const day = (iso || '').slice(0, 10);
+  const [y, m, d] = day.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const TEAL = '#00685f';
 
 export default function TransactionsScreen() {
-  const { t, i18n } = useTranslation();
-  const { month, updateMonth, currency, canEditArea } = useMobileStore();
+  const router = useRouter();
+  const { month, updateMonth, currency, canEditArea, moneyPlaces } = useMobileStore();
   const canEdit = canEditArea('expenses');
 
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingExpense, setEditingExpense] = useState<VariableExpense | null>(null);
+  const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const expenses = month?.variableExpenses || [];
-  const categories =
-    month?.activeCategories && month.activeCategories.length > 0
-      ? month.activeCategories
-      : getDefaultCategoryNames(i18n.language as any);
+  const categories = ['All', ...(month?.activeCategories || [])];
+  const totalSpent = expenses.reduce((acc, e) => acc + e.amount, 0);
 
   const filteredExpenses = useMemo(() => {
-    return expenses.filter((exp) => {
-      if (selectedCategory && exp.type !== selectedCategory) return false;
-      if (search.trim()) {
-        const query = search.trim().toLowerCase();
-        const matchName = exp.name.toLowerCase().includes(query);
-        const matchNote = exp.note?.toLowerCase().includes(query) || false;
-        if (!matchName && !matchNote) return false;
-      }
-      return true;
-    });
+    const q = search.trim().toLowerCase();
+    return expenses
+      .filter((exp) => {
+        if (selectedCategory !== 'All' && exp.type !== selectedCategory) return false;
+        if (!q) return true;
+        return (
+          exp.name.toLowerCase().includes(q) ||
+          exp.type.toLowerCase().includes(q) ||
+          (exp.note && exp.note.toLowerCase().includes(q))
+        );
+      })
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }, [expenses, search, selectedCategory]);
 
-  const handleOpenAdd = () => {
-    setEditingExpense(null);
-    setModalVisible(true);
-  };
-
-  const handleOpenEdit = (exp: VariableExpense) => {
-    if (!canEdit) return;
-    setEditingExpense(exp);
-    setModalVisible(true);
-  };
+  const placeName = (id: string) => moneyPlaces.find((p) => p.id === id)?.name || id;
 
   const handleSaveExpense = async (expense: VariableExpense) => {
     if (!month) return;
-    if (editingExpense) {
-      const nextMonth = editVariableExpense(month, editingExpense, expense);
-      await updateMonth(nextMonth);
-    } else {
-      const nextMonth = addVariableExpense(month, expense);
-      await updateMonth(nextMonth);
-    }
+    if (editingExpense) await updateMonth(editVariableExpense(month, editingExpense, expense));
+    else await updateMonth(addVariableExpense(month, expense));
   };
-
-  const handleDeleteExpense = async (expense: VariableExpense) => {
-    if (!month) return;
-    const nextMonth = deleteVariableExpense(month, expense);
-    await updateMonth(nextMonth);
-  };
-
-  const totalFiltered = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
 
   return (
-    <View className="flex-1 bg-neutral-100 dark:bg-neutral-900">
-      <View className="p-4 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
-        <View className="flex-row justify-between items-center mb-3">
-          <View>
-            <Text className="text-xl font-bold text-neutral-900 dark:text-white">
-              Variable Expenses
+    <View className="flex-1 bg-[#F5FAF8]">
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }} className="gap-4">
+        <View className="mb-4 flex-row items-center justify-between rounded-3xl border border-neutral-200 bg-white p-4">
+          <View className="min-w-0 flex-1 pr-3">
+            <Text className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+              Total variable spent
             </Text>
-            <Text className="text-xs text-neutral-500 dark:text-neutral-400">
-              Total: {totalFiltered} {currency} ({filteredExpenses.length} items)
-            </Text>
+            <View className="mt-0.5 flex-row items-baseline">
+              <Text className="text-[24px] font-extrabold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold }}>
+                {formatMoney(totalSpent)}
+              </Text>
+              <Text className="ml-1 text-xs font-semibold text-neutral-500">{currency}</Text>
+            </View>
           </View>
           {canEdit ? (
             <Pressable
-              onPress={handleOpenAdd}
-              className="bg-primary px-4 py-2.5 rounded-xl shadow-sm"
+              onPress={() => {
+                setEditingExpense(null);
+                setModalVisible(true);
+              }}
+              className="shrink-0 flex-row items-center rounded-xl px-4 py-3"
+              style={{ backgroundColor: TEAL }}
             >
-              <Text className="text-white font-bold text-sm">+ Expense</Text>
+              <PlusCircle size={20} color="#fff" />
+              <Text className="ml-1.5 text-xs font-bold text-white">Add Expense</Text>
             </Pressable>
           ) : null}
         </View>
 
-        {/* Search Input */}
-        <TextInput
-          className="w-full bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-600 mb-3 text-sm"
-          placeholder="Search by name or note..."
-          placeholderTextColor="#9ca3af"
-          value={search}
-          onChangeText={setSearch}
-        />
-
-        {/* Category Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="flex-row"
+        <Pressable
+          onPress={() => router.push('/dashboard/courses')}
+          className="mb-4 flex-row items-center rounded-3xl border border-neutral-200 bg-white px-4 py-3.5"
         >
-          <Pressable
-            onPress={() => setSelectedCategory(null)}
-            className={`px-3 py-1.5 rounded-full mr-2 border ${
-              selectedCategory === null
-                ? 'bg-primary border-primary'
-                : 'bg-neutral-100 dark:bg-neutral-700 border-neutral-200 dark:border-neutral-600'
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold ${
-                selectedCategory === null ? 'text-white' : 'text-neutral-700 dark:text-neutral-300'
-              }`}
-            >
-              All Categories
+          <View className="h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: 'rgba(0,104,95,0.1)' }}>
+            <ScanLine size={22} color={TEAL} />
+          </View>
+          <View className="mx-3 min-w-0 flex-1">
+            <Text className="text-base font-bold text-neutral-900">New course</Text>
+            <Text className="text-[11px] text-neutral-500" numberOfLines={1}>
+              Start a session, scan each product&apos;s barcode and add the …
             </Text>
+          </View>
+          <ChevronRight size={20} color="#6B7280" />
+        </Pressable>
+
+        <View className="mb-4 rounded-3xl border border-neutral-200 bg-white">
+          <Pressable onPress={() => setBudgetsOpen((v) => !v)} className="flex-row items-center px-4 py-3.5">
+            <Text className="flex-1 text-base font-bold text-neutral-900">Category Budgets</Text>
+            <ChevronDown size={28} color="#6B7280" style={{ transform: [{ rotate: budgetsOpen ? '180deg' : '0deg' }] }} />
           </Pressable>
+          {budgetsOpen && month
+            ? (month.activeCategories || []).map((category) => {
+                const budget = month.categoryBudgets?.[category] || 0;
+                const spent = calculateCategorySpent(month, category);
+                const progress = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+                return (
+                  <View key={category} className="px-4 pb-3">
+                    <View className="mb-1 flex-row items-center justify-between">
+                      <View className="flex-row items-center">
+                        <View className="mr-2 h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'rgba(0,104,95,0.1)' }}>
+                          <CategoryIcon name={month.categoryIcons?.[category]} size={18} color={TEAL} />
+                        </View>
+                        <Text className="text-sm font-bold text-neutral-900">{category}</Text>
+                      </View>
+                      <Text className="font-mono text-sm font-bold text-neutral-500" style={{ fontFamily: FONT.monoBold }}>
+                        {formatMoney(spent)}
+                        {budget > 0 ? ` / ${formatMoney(budget)}` : ''}
+                      </Text>
+                    </View>
+                    {budget > 0 ? (
+                      <View className="h-2 overflow-hidden rounded-full bg-neutral-200">
+                        <View className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: TEAL }} />
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })
+            : null}
+        </View>
+
+        <View className="mb-3 flex-row items-center rounded-xl border border-neutral-200 bg-white px-3" style={{ height: 48 }}>
+          <Search size={20} color="#6B7280" />
+          <TextInput
+            className="ml-2 flex-1 text-sm text-neutral-900"
+            placeholder="Search expenses or notes..."
+            placeholderTextColor="#9CA3AF"
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        <HScroll horizontal showsHorizontalScrollIndicator={false} className="mb-4" contentContainerStyle={{ paddingRight: 16 }}>
           {categories.map((cat) => {
             const active = selectedCategory === cat;
             return (
               <Pressable
                 key={cat}
-                onPress={() => setSelectedCategory(active ? null : cat)}
-                className={`px-3 py-1.5 rounded-full mr-2 border ${
-                  active
-                    ? 'bg-primary border-primary'
-                    : 'bg-neutral-100 dark:bg-neutral-700 border-neutral-200 dark:border-neutral-600'
-                }`}
+                onPress={() => setSelectedCategory(cat)}
+                className="mr-1.5 rounded-full px-3.5 py-1.5"
+                style={{
+                  backgroundColor: active ? TEAL : '#fff',
+                  borderWidth: active ? 0 : 1,
+                  borderColor: '#E5E7EB',
+                }}
               >
-                <Text
-                  className={`text-xs font-semibold ${
-                    active ? 'text-white' : 'text-neutral-700 dark:text-neutral-300'
-                  }`}
-                >
+                <Text className={`text-xs ${active ? 'font-bold text-white' : 'font-semibold text-neutral-500'}`}>
                   {cat}
                 </Text>
               </Pressable>
             );
           })}
-        </ScrollView>
-      </View>
+        </HScroll>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
         {filteredExpenses.length === 0 ? (
-          <View className="bg-white dark:bg-neutral-800 p-8 rounded-2xl items-center justify-center border border-neutral-200 dark:border-neutral-700">
-            <Text className="text-neutral-500 dark:text-neutral-400 font-semibold mb-1">
-              No variable expenses found
-            </Text>
-            <Text className="text-xs text-neutral-400 text-center">
-              {search || selectedCategory
-                ? 'Try clearing filters or searching another term.'
-                : 'Tap "+ Expense" to record your first variable purchase.'}
-            </Text>
-          </View>
+          <Text className="py-8 text-center text-sm text-neutral-400">No matching expenses.</Text>
         ) : (
           filteredExpenses.map((exp) => (
             <Pressable
               key={exp.id}
-              onPress={() => handleOpenEdit(exp)}
-              className="bg-white dark:bg-neutral-800 p-4 rounded-2xl mb-2.5 border border-neutral-200 dark:border-neutral-700 flex-row justify-between items-center shadow-xs"
+              onPress={() => {
+                if (!canEdit) return;
+                setEditingExpense(exp);
+                setModalVisible(true);
+              }}
+              className="mb-2 flex-row items-center rounded-2xl border border-neutral-200 bg-white p-3"
             >
-              <View className="flex-1 mr-3">
-                <View className="flex-row items-center space-x-2 mb-0.5">
-                  <Text className="font-bold text-base text-neutral-900 dark:text-white">
+              <View className="mr-3 h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: 'rgba(0,104,95,0.08)' }}>
+                <CategoryIcon name={month?.categoryIcons?.[exp.type]} size={22} color={TEAL} />
+              </View>
+              <View className="min-w-0 flex-1">
+                <View className="flex-row items-center">
+                  <Text className="min-w-0 flex-1 text-base font-semibold text-neutral-900" numberOfLines={1}>
                     {exp.name}
                   </Text>
-                  <View className="bg-primary/10 px-2 py-0.5 rounded-md">
-                    <Text className="text-xs font-bold text-primary">
-                      {exp.type}
-                    </Text>
-                  </View>
+                  {exp.person && exp.person !== 'Self' ? (
+                    <View className="ml-1.5 rounded-full bg-[#d9dff5] px-2 py-0.5">
+                      <Text className="text-[10px] font-bold text-[#404758]">{exp.person}</Text>
+                    </View>
+                  ) : null}
                 </View>
-                <Text className="text-xs text-neutral-400">
-                  Paid from: <Text className="font-semibold capitalize">{exp.place}</Text> • {exp.date}
-                  {exp.person ? ` • ${exp.person}` : ''}
+                <Text className="mt-0.5 text-[11px] text-neutral-500" numberOfLines={1}>
+                  {exp.type} • {placeName(exp.place)} • {formatShortDate(exp.date)}
                 </Text>
-                {exp.note ? (
-                  <Text className="text-xs text-neutral-500 italic mt-1" numberOfLines={1}>
-                    "{exp.note}"
-                  </Text>
-                ) : null}
               </View>
-
-              <View className="items-end">
-                <Text className="font-extrabold text-lg text-neutral-900 dark:text-white">
-                  -{exp.amount} {currency}
+              <View className="ml-2 shrink-0 flex-row items-baseline">
+                <Text className="text-base font-extrabold font-mono text-neutral-900" style={{ fontFamily: FONT.monoBold }}>
+                  -{formatMoney(exp.amount)}
                 </Text>
-                <Text className="text-xs text-primary font-semibold">Tap to edit</Text>
+                <Text className="ml-0.5 font-semibold text-neutral-500" style={{ fontSize: 10 }}>
+                  {currency}
+                </Text>
               </View>
             </Pressable>
           ))
         )}
       </ScrollView>
 
-      {month && (
+      {month ? (
         <ExpenseModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
@@ -215,9 +229,11 @@ export default function TransactionsScreen() {
           currency={currency}
           expenseToEdit={editingExpense}
           onSave={handleSaveExpense}
-          onDelete={handleDeleteExpense}
+          onDelete={async (expense) => {
+            await updateMonth(deleteVariableExpense(month, expense));
+          }}
         />
-      )}
+      ) : null}
     </View>
   );
 }

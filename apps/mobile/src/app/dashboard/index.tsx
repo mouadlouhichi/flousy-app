@@ -23,10 +23,10 @@ import {
 import {
   addFixedExpense,
   addVariableExpense,
+  editVariableExpense,
   calculateEnvelopeAmounts,
   calculateEnvelopeSpent,
   calculateMonthlyDepositedSavings,
-  formatShortDate,
   getPlaceBalance,
   moveMoney,
   resolveMonthStrategy,
@@ -84,6 +84,7 @@ export default function DashboardOverviewScreen() {
   const [moveFrom, setMoveFrom] = useState<MoneyPlace | undefined>();
   const [editingBudget, setEditingBudget] = useState(false);
   const [draftBudget, setDraftBudget] = useState('');
+  const [editingExpense, setEditingExpense] = useState<VariableExpense | null>(null);
 
   useBudgetNotifications(month, currency);
 
@@ -108,7 +109,7 @@ export default function DashboardOverviewScreen() {
       kind: 'expense' as const,
       id: e.id,
       name: e.name,
-      meta: `${formatShortDate(e.date)} · ${e.type}`,
+      meta: `${formatActivityDate(e.date)} • ${e.type}`,
       amount: e.amount,
       icon: month.categoryIcons?.[e.type] || 'shopping_bag',
       isDeposit: false,
@@ -366,27 +367,61 @@ export default function DashboardOverviewScreen() {
           </Pressable>
         </View>
 
-        <View className="mb-6 rounded-[22px] border border-neutral-100 bg-white px-3 py-1">
+        <View className="mb-6 rounded-[22px] border border-neutral-100 bg-white px-2 py-1">
           {activity.length === 0 ? (
             <Text className="py-6 text-center text-sm text-neutral-400">No activity yet this month.</Text>
           ) : (
-            activity.map((item) => (
-              <View key={item.id} className="flex-row items-center border-b border-neutral-100 py-3 last:border-b-0">
-                <View className="mr-3 h-10 w-10 items-center justify-center rounded-2xl bg-[#E7F3F1]">
-                  <Wallet size={16} color={TEAL} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-neutral-900">{item.name}</Text>
-                  <Text className="text-xs text-neutral-400">{item.meta}</Text>
-                </View>
-                <Text
-                  className="text-sm font-bold"
-                  style={{ color: item.amount >= 0 ? TEAL : '#111827' }}
+            activity.map((item, index) => (
+              <Pressable
+                key={`${item.kind}-${item.id}`}
+                onPress={() => {
+                  if (item.kind === 'expense') {
+                    const exp = (month.variableExpenses || []).find((e) => e.id === item.id);
+                    if (exp && canEditArea('expenses')) {
+                      setEditingExpense(exp);
+                      setExpenseVisible(true);
+                    }
+                  } else {
+                    router.push('/dashboard/savings');
+                  }
+                }}
+                className="flex-row items-center px-1 py-3"
+                style={index < activity.length - 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(229,231,235,0.8)' } : undefined}
+              >
+                <View
+                  className="mr-3 h-10 w-10 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: item.kind === 'savings' && item.isDeposit ? 'rgba(0,104,123,0.1)' : 'rgba(0,104,95,0.1)',
+                  }}
                 >
-                  {item.amount >= 0 ? '+' : ''}
-                  {formatMoney(item.amount)} {currency}
-                </Text>
-              </View>
+                  <CategoryIcon
+                    name={item.icon}
+                    size={20}
+                    color={item.kind === 'savings' && item.isDeposit ? '#00687b' : TEAL}
+                  />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <Text className="text-sm font-bold text-neutral-900" numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-neutral-500">{item.meta}</Text>
+                </View>
+                <View className="ml-2 shrink-0 flex-row items-baseline">
+                  <Text
+                    className="text-sm font-bold font-mono"
+                    style={{
+                      fontFamily: FONT.monoBold,
+                      color: item.isDeposit ? '#00687b' : '#171d1c',
+                    }}
+                  >
+                    {item.isDeposit ? '+' : '-'}
+                    {formatMoney(item.amount)}
+                  </Text>
+                  <Text className="ml-0.5 font-semibold text-neutral-500" style={{ fontSize: 10 }}>
+                    {currency}
+                  </Text>
+                </View>
+              </Pressable>
             ))
           )}
         </View>
@@ -422,11 +457,19 @@ export default function DashboardOverviewScreen() {
       />
       <ExpenseModal
         visible={expenseVisible}
-        onClose={() => setExpenseVisible(false)}
+        onClose={() => {
+          setExpenseVisible(false);
+          setEditingExpense(null);
+        }}
         month={month}
         currency={currency}
+        expenseToEdit={editingExpense}
         onSave={async (expense: VariableExpense) => {
-          await updateMonth(addVariableExpense(month, expense));
+          if (editingExpense) {
+            await updateMonth(editVariableExpense(month, editingExpense, expense));
+          } else {
+            await updateMonth(addVariableExpense(month, expense));
+          }
         }}
       />
       <FixedModal

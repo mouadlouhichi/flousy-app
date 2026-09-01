@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import auth, { type FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { isDemoMode, setDemoMode as saveDemoMode, clearDemoData } from './storage';
 import { configureGoogleSignIn } from './firebase';
 

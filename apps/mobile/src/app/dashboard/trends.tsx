@@ -177,7 +177,7 @@ export default function TrendsScreen() {
 
   if (!scanUnlocked) {
     return (
-      <View className="flex-1 bg-neutral-100 dark:bg-neutral-900 items-center justify-center px-6">
+      <View className="flex-1 bg-[#F5FAF8] items-center justify-center px-6">
         <Text className="text-xl font-bold text-neutral-900 dark:text-white text-center">
           Trends is a Pro feature
         </Text>
@@ -198,8 +198,8 @@ export default function TrendsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-neutral-100 dark:bg-neutral-900">
-      <View className="p-4 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+    <View className="flex-1 bg-[#F5FAF8]">
+      <View className="p-4">
         <Pressable onPress={() => router.push('/dashboard/settings')} className="mb-2">
           <Text className="text-primary font-bold">← Profile</Text>
         </Pressable>

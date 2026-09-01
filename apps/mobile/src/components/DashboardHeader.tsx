@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { Bell, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react-native';
 import { useMobileAuth } from '../lib/auth-context';
 import { useMobileStore } from '../lib/store-context';
 import { AppLogo } from './AppLogo';
@@ -19,6 +19,7 @@ export function DashboardHeader() {
   const { user, demoMode } = useMobileAuth();
   const { currentMonthKey, switchMonth, profile } = useMobileStore();
   const initial = (profile?.displayName || user?.displayName || user?.email || 'S')[0]?.toUpperCase() || 'S';
+  const avatarSrc = user?.photoURL || null;
   const onProfile = pathname?.includes('/settings') || pathname?.includes('/profile');
   const cycleDay = profile?.monthStartDate || 1;
 
@@ -49,8 +50,8 @@ export function DashboardHeader() {
         <Text className="px-1 text-xs font-extrabold tracking-wide text-neutral-800">
           {monthLabel(currentMonthKey)}
         </Text>
-        <View className="mx-0.5 flex-row items-center rounded-full bg-[#E7F3F1] px-1.5 py-0.5">
-          <CalendarDays size={12} color={TEAL} />
+        <View className="mx-0.5 flex-row items-center rounded-full border border-primary/40 bg-[#E7F3F1] px-1.5 py-0.5">
+          <RefreshCw size={12} color={TEAL} />
           <Text className="ml-0.5 text-[11px] font-bold" style={{ color: TEAL }}>
             {cycleDay}
           </Text>

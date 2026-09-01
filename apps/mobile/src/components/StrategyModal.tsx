@@ -22,6 +22,7 @@ import {
 } from '@flousy/core';
 import { Sheet } from './Sheet';
 import { formatMoney } from '../lib/format-money';
+import { useMobileStore } from '../lib/store-context';
 
 const TEAL = '#026462';
 
@@ -58,6 +59,7 @@ export function StrategyModal({
   month: MonthBudget;
   onUpdateMonth: (month: MonthBudget) => Promise<void>;
 }) {
+  const { currency } = useMobileStore();
   const [previewId, setPreviewId] = useState<StrategyId>(month.strategyId);
   const [split, setSplit] = useState({ needs: 50, wants: 30, savings: 20 });
   const [customOpen, setCustomOpen] = useState(month.strategyId === 'custom');
@@ -109,8 +111,8 @@ export function StrategyModal({
             <Text className="text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">
               Preview allocation
             </Text>
-            <Text className="text-sm font-extrabold" style={{ color: TEAL }}>
-              {formatMoney(month.totalBudget)}
+            <Text className="text-sm font-extrabold font-mono" style={{ color: TEAL }}>
+              {currency} {formatMoney(month.totalBudget)}
             </Text>
           </View>
           <View className="mb-3 h-3 flex-row overflow-hidden rounded-full bg-neutral-200">
@@ -129,7 +131,9 @@ export function StrategyModal({
                   <View className="mr-1 h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
                   <Text className="text-[10px] font-bold text-neutral-500">{item.label}</Text>
                 </View>
-                <Text className="text-[12px] font-extrabold text-neutral-900">{formatMoney(item.value)}</Text>
+                <Text className="text-[12px] font-extrabold font-mono text-neutral-900">
+                  {currency} {formatMoney(item.value)}
+                </Text>
               </View>
             ))}
           </View>
