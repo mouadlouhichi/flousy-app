@@ -85,11 +85,10 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
               }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-md">
-                <div
-                  className="p-3 rounded-xl shrink-0"
-                  style={{ backgroundColor: `${visual.color}1a`, color: visual.color }}
-                >
-                  <AppIcon name={visual.icon} className=" text-[24px]" />
+                {/* Same icon treatment as variable-expense rows: neutral
+                    container, primary icon, category-specific glyph. */}
+                <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">
+                  <AppIcon name={visual.icon} className=" text-[22px]" />
                 </div>
                 <div className="flex min-w-0 flex-col">
                   <div className="flex min-w-0 items-center gap-xs">
