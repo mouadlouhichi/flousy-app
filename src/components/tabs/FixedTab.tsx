@@ -88,7 +88,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
                         {localizePersonName(bill.person, m)}
                       </span>
                     )}
-                    {bill.recurring && (
+                    {bill.recurring !== false && (
                       <AppIcon name="sync" className="text-[16px] text-primary" title={m.tabs.fixed.recurringMonthly} />
                     )}
                   </div>
@@ -96,8 +96,14 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
                     <span>{localizeCategoryName(bill.type, m)}</span>
                     <span>•</span>
                     <span>{localizePlaceName(bill.place, bill.place, m)}</span>
-                    <span>•</span>
-                    <span>{t(m.tabs.fixed.due, { date: dueLabel })}</span>
+                    {/* A one-off (non-recurring) bill has no repeat-on day, so
+                        "Due {date}" is only shown when the bill recurs. */}
+                    {bill.recurring !== false && (
+                      <>
+                        <span>•</span>
+                        <span>{t(m.tabs.fixed.due, { date: dueLabel })}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

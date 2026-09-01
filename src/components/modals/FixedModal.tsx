@@ -450,8 +450,10 @@ export function FixedModal({
           </AnimatePresence>
         </div>
 
-        {/* ── Due Day — day-picker card (solid bg) ── */}
-        <DueDayPicker value={date} onChange={setDate} />
+        {/* ── Due Day — day-picker card (solid bg). Only meaningful for a bill
+            that repeats every month; a one-off bill has no "repeat-on day", so
+            the picker is hidden unless the recurring toggle is on. ── */}
+        {recurring && <DueDayPicker value={date} onChange={setDate} />}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
