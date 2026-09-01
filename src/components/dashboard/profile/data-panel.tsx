@@ -9,6 +9,8 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { trackEvent } from '@/lib/analytics';
 import { useLanguage } from '@/lib/i18n-context';
 import { AccountDeletionIncompleteError } from '@/lib/auth-context';
+import { useHousehold } from '@/lib/household-context';
+import { canExportAnything } from '@/lib/household-rbac';
 import { useDashboard } from '../dashboard-provider';
 
 export function DataPanel() {
@@ -17,20 +19,26 @@ export function DataPanel() {
   const p = m.profile.data;
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
+  // The CSV contains balances, fixed bills, expenses and savings: in a
+  // household each section is filtered by the member's RBAC area, so a
+  // download can never reveal a figure that is hidden on screen.
+  const { exportSections } = useHousehold();
+  const canExport = canExportAnything(exportSections);
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
   const handleExportCsv = () => {
+    if (!canExport) return;
     downloadCsv(
       `flousy-budget-${currentMonthKey}.csv`,
-      exportMonthToCsv(month, goals, currentMonthKey, currency),
+      exportMonthToCsv(month, goals, currentMonthKey, currency, exportSections),
     );
     trackEvent('export_csv');
   };
 
   return (
     <section className="flex flex-col gap-3">
-      <button
+      {canExport && <button
         type="button"
         onClick={handleExportCsv}
         className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high"
@@ -45,7 +53,7 @@ export function DataPanel() {
           name="chevron_right"
           className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
-      </button>
+      </button>}
       <button
         type="button"
         onClick={openCsvModal}

@@ -12,6 +12,8 @@ import { formatCurrency } from '@/lib/currency';
 import { formatShortDate } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
+import { AreaRestricted } from '../area-restricted';
+import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
@@ -30,6 +32,18 @@ interface PendingProduct {
   source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
   ma: boolean;
+}
+
+/**
+ * A course session ends by writing its items into the month as variable
+ * expenses, so the whole screen belongs to the `expenses` area — a member
+ * without that grant must not be able to scan a bill into the shared budget.
+ */
+export function CoursesScreen() {
+  const { canViewArea } = useHousehold();
+  const area = SCREEN_AREA.courses!;
+  if (!canViewArea(area)) return <AreaRestricted area={area} icon="scan_barcode" />;
+  return <CoursesScreenInner />;
 }
 
 function parsePrice(raw: string): number | null {
@@ -88,7 +102,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
   );
 }
 
-export function CoursesScreen() {
+function CoursesScreenInner() {
   const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
   const { t, messages: m, intlLocale } = useLanguage();
   const c = m.courses;

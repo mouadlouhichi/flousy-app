@@ -37,6 +37,12 @@ interface FixedModalProps {
   categoryIcons?: Record<string, string>;
   /** Live balance per money place, so a bill cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+  /**
+   * False when the member may edit bills but not see household balances.
+   * Hides the "available in {place}" hint and skips the insufficient-funds
+   * check, whose message would disclose the exact balance.
+   */
+  canSeeBalances?: boolean;
   /** Called when a custom fixed category is renamed, to retype existing bills. */
   onRenameCategory?: (oldName: string, newName: string) => void;
 }
@@ -93,6 +99,7 @@ export function FixedModal({
   categoryColors = {},
   categoryIcons = {},
   placeBalances,
+  canSeeBalances = true,
   onRenameCategory,
 }: FixedModalProps) {
   const { symbol, currency, format } = useCurrency();
@@ -260,7 +267,8 @@ export function FixedModal({
 
     // The source place must actually hold the money for the charge. Half-a-cent
     // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    // Skipped when balances are hidden: the message quotes the exact figure.
+    if (canSeeBalances && parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(f.insufficientFunds, {
           amount: format(availableInPlace),
@@ -464,9 +472,11 @@ export function FixedModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">

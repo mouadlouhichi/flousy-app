@@ -9,7 +9,8 @@ import { useHousehold } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import type { MonthBudget } from '@/lib/store';
-import { HOUSEHOLD_AREAS, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
+import { AreaRestricted } from '../area-restricted';
+import { HOUSEHOLD_AREAS, TOOL_AREA, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
 
 type InviteRole = 'editor' | 'viewer' | 'custom';
 
@@ -30,7 +31,12 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, create, invite, acceptInvite, updateMember } = useHousehold();
+  const { household, members, isOwner, create, invite, acceptInvite, updateMember, canViewArea } =
+    useHousehold();
+  // The roster, per-member contribution totals and the invite form are all
+  // `members` data. Someone with an invitation code still has no membership
+  // row (personal workspace), so the join form below stays reachable.
+  const canSeeMembers = canViewArea(TOOL_AREA.household);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
@@ -160,6 +166,8 @@ export function HouseholdPanel({
               </div>
             </div>
           </>
+        ) : !canSeeMembers ? (
+          <AreaRestricted area={TOOL_AREA.household} icon="family_restroom" />
         ) : (
           <>
             <div className="rounded-xl bg-primary/10 p-4">

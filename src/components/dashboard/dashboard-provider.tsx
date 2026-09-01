@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
+import { canExportAnything, TOOL_AREA, type HouseholdArea } from '../../lib/household-rbac';
 import {
   MonthBudget,
   SavingGoal,
@@ -90,7 +91,7 @@ interface DashboardContextType {
   trendsLoading: boolean;
 
   // Persistence helpers
-  updateAndSaveMonth: (month: MonthBudget) => void;
+  updateAndSaveMonth: (month: MonthBudget, area?: HouseholdArea) => void;
   updateAndSaveGoals: (goals: SavingGoal[]) => void;
 
   // Budget handlers
@@ -176,7 +177,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess } = useHousehold();
+  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess, canEditArea, canViewArea, exportSections } = useHousehold();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
 
   // Contributors never load private household month documents. Their invoice
@@ -487,10 +488,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, authLoading, profile, householdId, isContributor]);
 
+  /**
+   * Area-aware write gate. Every screen already hides the affordances a member
+   * is not granted; this is the backstop for a stale handler, a modal that
+   * outlived a permission change, or an import path that skips the UI.
+   * `canEdit` is the coarse role check that mirrors the Firestore rule on
+   * `/households/{hid}/months/{key}`; `canEditArea` is the fine-grained matrix.
+   */
+  const mayWriteArea = useCallback(
+    (area: HouseholdArea) => !householdId || (canEdit && canEditArea(area, true)),
+    [householdId, canEdit, canEditArea],
+  );
+
   // Helper to persist month updates locally + cloud
   const updateAndSaveMonth = useCallback(
-    (newMonth: MonthBudget) => {
+    (newMonth: MonthBudget, area?: HouseholdArea) => {
       if (householdId && !canEdit) return;
+      if (area && !mayWriteArea(area)) return;
       setMonth(newMonth);
       // Never let a local write abort the cloud write: a raw setItem here threw
       // QuotaExceededError (Safari under pressure, blocked/partitioned storage)
@@ -504,7 +518,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         saveMonthBudget(user.uid, currentMonthKey, newMonth).catch((e) => console.error(e));
       }
     },
-    [currentMonthKey, user, householdId, canEdit],
+    [currentMonthKey, user, householdId, canEdit, mayWriteArea],
   );
 
   // Helper to persist goals updates locally + cloud
@@ -633,6 +647,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Budget handlers
   const handleUpdateTotalBudget = useCallback(
     (newTotalBudget: number) => {
+      if (!mayWriteArea('balances')) return;
       const safeBudget = Math.max(
         0,
         Number.isFinite(newTotalBudget) ? newTotalBudget : month.totalBudget || 0,
@@ -650,27 +665,29 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         profile,
       );
 
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'balances');
       trackEvent('update_total_budget', { amount: safeBudget });
     },
-    [month, currentMonthKey, profile, updateAndSaveMonth],
+    [month, currentMonthKey, profile, updateAndSaveMonth, mayWriteArea],
   );
 
   const handleEditMoneyPlaces = useCallback(
     (values: Record<string, number>) => {
+      if (!mayWriteArea('balances')) return;
       const updated = updateMoneyPlaces(month, values);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'balances');
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, mayWriteArea],
   );
 
   const handleUpdateStrategy = useCallback(
     (strategyId: StrategyId) => {
+      if (!mayWriteArea('balances')) return;
       const updated = updateBudgetStrategy(month, strategyId);
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'balances');
       trackEvent('change_strategy', { strategyId });
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, mayWriteArea],
   );
 
   const handleUpdateProfile = useCallback(
@@ -684,6 +701,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Income goes first to Bank, then can be moved to Wallet/Home via Move Money
   const handleSaveIncomeSources = useCallback(
     (sources: IncomeSource[], total: number) => {
+      // Income is its own RBAC area: an `editAll` grant on expenses must not
+      // let a member rewrite the household's income sources or total budget.
+      if (!mayWriteArea('income')) return;
       const oldTotal = month.totalBudget || 0;
       const difference = total - oldTotal;
       // New income goes first to Bank; if total is reduced, deduct from Bank
@@ -699,9 +719,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         currentMonthKey,
         profile,
       );
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'income');
     },
-    [month, currentMonthKey, profile, updateAndSaveMonth],
+    [month, currentMonthKey, profile, updateAndSaveMonth, mayWriteArea],
   );
 
   // Categories Handlers
@@ -717,7 +737,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         categoryColors: nextColors,
         categoryIcons: nextIcons,
       };
-      updateAndSaveMonth(updated);
+      updateAndSaveMonth(updated, 'settings');
     },
     [month, updateAndSaveMonth],
   );
@@ -725,24 +745,26 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // CSV Import Handlers
   const handleBatchImportVariable = useCallback(
     (newExpenses: VariableExpense[]) => {
+      if (!mayWriteArea('expenses')) return;
       let current = month;
       newExpenses.forEach((exp) => {
         current = addVariableExpense(current, exp);
       });
-      updateAndSaveMonth(current);
+      updateAndSaveMonth(current, 'expenses');
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, mayWriteArea],
   );
 
   const handleBatchImportFixed = useCallback(
     (newBills: FixedExpense[]) => {
+      if (!mayWriteArea('fixedBills')) return;
       let current = month;
       newBills.forEach((bill) => {
         current = addFixedExpense(current, bill);
       });
-      updateAndSaveMonth(current);
+      updateAndSaveMonth(current, 'fixedBills');
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, mayWriteArea],
   );
 
   const sendVerification = useCallback(async () => {
@@ -754,42 +776,54 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [sendVerificationEmail]);
 
-  // Modal openers / closers
+  // Modal openers / closers.
+  //
+  // Every opener checks the member's RBAC area before it opens. Hiding the
+  // button is the friendly layer; this is what actually stops a write, so a
+  // stale handler, a keyboard shortcut or a deep-linked entry point can never
+  // reach an editor for an area the member does not hold.
   const openExpenseModal = useCallback((expense: VariableExpense | null = null) => {
+    if (!mayWriteArea('expenses')) return;
     setSelectedExpense(expense);
     setIsExpenseModalOpen(true);
-  }, []);
+  }, [mayWriteArea]);
   const closeExpenseModal = useCallback(() => {
     setIsExpenseModalOpen(false);
     setSelectedExpense(null);
   }, []);
 
   const openFixedModal = useCallback((bill: FixedExpense | null = null) => {
+    if (!mayWriteArea('fixedBills')) return;
     setSelectedFixed(bill);
     setIsFixedModalOpen(true);
-  }, []);
+  }, [mayWriteArea]);
   const closeFixedModal = useCallback(() => {
     setIsFixedModalOpen(false);
     setSelectedFixed(null);
   }, []);
 
-  const openMoveMoneyModal = useCallback(() => setIsMoveMoneyModalOpen(true), []);
+  const openMoveMoneyModal = useCallback(() => {
+    if (!mayWriteArea('balances')) return;
+    setIsMoveMoneyModalOpen(true);
+  }, [mayWriteArea]);
   const closeMoveMoneyModal = useCallback(() => setIsMoveMoneyModalOpen(false), []);
 
   const openSavingsModal = useCallback((mode: SavingsModalMode, goal: SavingGoal | null = null) => {
+    if (!mayWriteArea('savings')) return;
     setSavingsModalMode(mode);
     setSelectedGoal(goal);
     setIsSavingsModalOpen(true);
-  }, []);
+  }, [mayWriteArea]);
   const closeSavingsModal = useCallback(() => {
     setIsSavingsModalOpen(false);
     setSelectedGoal(null);
   }, []);
 
   const openSavingsEntryModal = useCallback((entry: SavingsActivityEntry) => {
+    if (!mayWriteArea('savings')) return;
     setSelectedSavingsEntry(entry);
     setIsSavingsEntryModalOpen(true);
-  }, []);
+  }, [mayWriteArea]);
   const closeSavingsEntryModal = useCallback(() => {
     setIsSavingsEntryModalOpen(false);
     setSelectedSavingsEntry(null);
@@ -799,25 +833,30 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // replays the edited one, so the month's savings plan follows along.
   const handleSaveSavingsEntry = useCallback(
     (entryId: string, patch: Partial<SavingsActivityEntry>) => {
+      if (!mayWriteArea('savings')) return;
       const res = updateSavingsActivityEntry(month, goals, entryId, patch);
-      updateAndSaveMonth(res.month);
+      updateAndSaveMonth(res.month, 'savings');
       updateAndSaveGoals(res.goals);
       trackEvent('edit_savings_entry', { type: patch.type });
     },
-    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals, mayWriteArea],
   );
 
   const handleDeleteSavingsEntry = useCallback(
     (entryId: string) => {
+      if (!mayWriteArea('savings')) return;
       const res = deleteSavingsActivityEntry(month, goals, entryId);
-      updateAndSaveMonth(res.month);
+      updateAndSaveMonth(res.month, 'savings');
       updateAndSaveGoals(res.goals);
       trackEvent('delete_savings_entry', {});
     },
-    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+    [month, goals, updateAndSaveMonth, updateAndSaveGoals, mayWriteArea],
   );
 
-  const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
+  const openSettingsModal = useCallback(() => {
+    if (!mayWriteArea(TOOL_AREA.settings)) return;
+    setIsSettingsModalOpen(true);
+  }, [mayWriteArea]);
   const closeSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
 
   const openProModal = useCallback(() => {
@@ -826,19 +865,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [workspace]);
   const closeProModal = useCallback(() => setIsProModalOpen(false), []);
 
-  const openCsvModal = useCallback(() => setIsCsvModalOpen(true), []);
+  const openCsvModal = useCallback(() => {
+    // Import writes to several areas at once; export reads them. Require view
+    // on at least one exported section, and edit on the ones being imported.
+    if (householdId && !canExportAnything(exportSections)) return;
+    setIsCsvModalOpen(true);
+  }, [householdId, exportSections]);
   const closeCsvModal = useCallback(() => setIsCsvModalOpen(false), []);
 
-  const openIncomeModal = useCallback(() => setIsIncomeModalOpen(true), []);
+  // Income is readable in view-only mode, so the gate here is `canViewArea`;
+  // the modal itself renders read-only unless the member may edit income.
+  const openIncomeModal = useCallback(() => {
+    if (!canViewArea('income')) return;
+    setIsIncomeModalOpen(true);
+  }, [canViewArea]);
   const closeIncomeModal = useCallback(() => setIsIncomeModalOpen(false), []);
 
-  const openEditMoneyPlaces = useCallback(() => setIsEditMoneyPlacesOpen(true), []);
+  const openEditMoneyPlaces = useCallback(() => {
+    if (!mayWriteArea('balances')) return;
+    setIsEditMoneyPlacesOpen(true);
+  }, [mayWriteArea]);
   const closeEditMoneyPlaces = useCallback(() => setIsEditMoneyPlacesOpen(false), []);
 
   const openDebtModal = useCallback((debt: DebtItem | null = null) => {
+    if (!mayWriteArea('debts')) return;
     setSelectedDebt(debt);
     setIsDebtModalOpen(true);
-  }, []);
+  }, [mayWriteArea]);
   const closeDebtModal = useCallback(() => {
     setIsDebtModalOpen(false);
     setSelectedDebt(null);

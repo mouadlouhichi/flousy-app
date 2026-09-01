@@ -10,6 +10,7 @@ import { getLocalizedNavLabel, getScreenIdFromPath, getVisibleNavItems } from '.
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { canExportAnything, TOOL_AREA } from '@/lib/household-rbac';
 import { ProfileAvatar } from './profile-avatar';
 import { useLanguage } from '@/lib/i18n-context';
 
@@ -24,8 +25,13 @@ export function Sidebar() {
   const pathname = usePathname();
   const { messages: m, t } = useLanguage();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
-  const { workspace } = useHousehold();
+  const { workspace, canViewArea, exportSections } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  // Quick tools are entry points into RBAC areas: income sources open the
+  // income editor and CSV import/export reads or writes several money areas.
+  // A member without the area never sees the button at all.
+  const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
+  const canUseCsv = workspace === 'personal' || canExportAnything(exportSections);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
@@ -84,33 +90,37 @@ export function Sidebar() {
         <div className="my-2 border-t border-surface-variant/40" />
 
         {/* Quick Tools */}
-        <button
-          onClick={() => {
-            if (!proUnlocked) {
-              openProModal();
-              return;
-            }
-            openIncomeModal();
-          }}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
-        >
-          <AppIcon name="payments" className=" text-[20px]" />
-          <span>{m.navigation.incomeSources}</span>
-        </button>
+        {canSeeIncome && (
+          <button
+            onClick={() => {
+              if (!proUnlocked) {
+                openProModal();
+                return;
+              }
+              openIncomeModal();
+            }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
+          >
+            <AppIcon name="payments" className=" text-[20px]" />
+            <span>{m.navigation.incomeSources}</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => {
-            if (!proUnlocked) {
-              openProModal();
-              return;
-            }
-            openCsvModal();
-          }}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
-        >
-          <AppIcon name="upload_file" className=" text-[20px]" />
-          <span>{m.navigation.importExportCsv}</span>
-        </button>
+        {canUseCsv && (
+          <button
+            onClick={() => {
+              if (!proUnlocked) {
+                openProModal();
+                return;
+              }
+              openCsvModal();
+            }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
+          >
+            <AppIcon name="upload_file" className=" text-[20px]" />
+            <span>{m.navigation.importExportCsv}</span>
+          </button>
+        )}
       </nav>
 
       {/* Bottom Profile Footer — whole row opens the profile page. Shares

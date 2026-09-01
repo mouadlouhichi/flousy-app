@@ -4,7 +4,7 @@ import { useAuth } from './auth-context';
 import { isProUser } from './pro-features';
 import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold, type HouseholdAccess } from './db';
 import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
-import { canEdit as canEditAreaRule, canView, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
+import { resolveAreaAccess, type AccessLevel, type ExportSections, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
 import { useLanguage } from './i18n-context';
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
@@ -12,6 +12,10 @@ const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'
 export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor' | 'custom'>;
 type HouseholdContextValue = {
   household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean; workspace: 'personal' | 'household'; selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>; canViewArea: (area: HouseholdArea) => boolean; canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
+  /** Raw matrix level for an area ('none' | 'view' | 'editOwn' | 'editAll'). */
+  areaLevel: (area: HouseholdArea) => AccessLevel;
+  /** CSV sections this member may download; always complete outside a household. */
+  exportSections: ExportSections;
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
   payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>;
@@ -65,17 +69,21 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     household?.planOwnerId === user?.uid ||
     myMember?.role === 'owner';
   const canEdit = isOwner || myMember?.role === 'editor';
-  const canViewArea = useCallback(
-    (area: HouseholdArea) =>
-      workspace === 'personal' || isOwner || canView(myMember?.role, area, myMember?.permissions),
-    [workspace, isOwner, myMember],
-  );
-  const canEditArea = useCallback(
-    (area: HouseholdArea, own = false) =>
-      workspace === 'personal' || isOwner || canEditAreaRule(myMember?.role, area, myMember?.permissions, own),
-    [workspace, isOwner, myMember],
-  );
+  // Outside a household (or as its owner) the member owns every area outright.
+  const unrestricted = workspace === 'personal' || isOwner;
   const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
+  const memberPermissions = isOwner ? undefined : myMember?.permissions;
+  /**
+   * The single gate every dashboard surface resolves through. All four values
+   * come from one pure resolver (see `resolveAreaAccess`) so a screen cannot
+   * end up with a visibility rule that disagrees with its edit rule, and the
+   * derivation stays testable without Firebase or a DOM.
+   */
+  const areaAccess = useMemo(
+    () => resolveAreaAccess({ unrestricted, role: memberRole, permissions: memberPermissions }),
+    [unrestricted, memberRole, memberPermissions],
+  );
+  const { level: areaLevel, canView: canViewArea, canEdit: canEditArea, exportSections } = areaAccess;
   const isContributor = !isOwner && memberRole === 'contributor';
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) return [{ id: 'self', label: m.household.me }, { id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
@@ -144,6 +152,6 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setHousehold(null);
     setMembers([]);
   }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, areaLevel, exportSections, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
 }
 export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }

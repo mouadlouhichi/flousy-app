@@ -5,13 +5,14 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { saveHouseholdInvoice } from '@/lib/db';
 
 /** Restricted submission form: it never loads or writes the private month budget. */
 export function ContributorInvoiceForm() {
   const { user } = useAuth();
-  const { household, payers, isContributor } = useHousehold();
+  const { household, payers, canEditArea } = useHousehold();
   const { messages: m } = useLanguage();
   const copy = m.household.invoice;
   const [name, setName] = useState('');
@@ -21,7 +22,9 @@ export function ContributorInvoiceForm() {
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
 
-  if (!isContributor || !household || !user) return null;
+  // Submitting is `editOwn` on the invoices area: a contributor gets it from
+  // the role, and so does any custom role granted that level.
+  if (!canEditArea(TOOL_AREA.invoices, true) || !household || !user) return null;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
