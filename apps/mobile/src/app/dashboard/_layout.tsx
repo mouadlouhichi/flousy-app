@@ -11,7 +11,10 @@ import { QuickAddFab } from '../../components/QuickAddFab';
 export default function DashboardLayout() {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const hideFab = /trends|debts|settings|courses|profile/.test(pathname || '');
+  const hideFab =
+    /trends|debts|settings|courses|profile|preferences|money-sources|workspace|pro|data|account/.test(
+      pathname || '',
+    );
 
   return (
     <MobileStoreProvider>
@@ -34,6 +37,12 @@ export default function DashboardLayout() {
               <Tabs.Screen name="courses" options={{ href: null, title: t('courses.title', 'Course') }} />
               <Tabs.Screen name="trends" options={{ href: null, title: t('tabs.trends', 'Trends') }} />
               <Tabs.Screen name="settings" options={{ href: null, title: t('tabs.settings', 'Profile') }} />
+              <Tabs.Screen name="preferences" options={{ href: null, title: 'Preferences' }} />
+              <Tabs.Screen name="money-sources" options={{ href: null, title: 'Money sources' }} />
+              <Tabs.Screen name="workspace" options={{ href: null, title: 'Workspace' }} />
+              <Tabs.Screen name="pro" options={{ href: null, title: 'Pro' }} />
+              <Tabs.Screen name="data" options={{ href: null, title: 'Data' }} />
+              <Tabs.Screen name="account" options={{ href: null, title: 'Account' }} />
             </Tabs>
             {hideFab ? null : <QuickAddFab />}
           </View>

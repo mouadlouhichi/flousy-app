@@ -20,7 +20,9 @@ export function DashboardHeader() {
   const { currentMonthKey, switchMonth, profile } = useMobileStore();
   const initial = (profile?.displayName || user?.displayName || user?.email || 'S')[0]?.toUpperCase() || 'S';
   const avatarSrc = user?.photoURL || null;
-  const onProfile = pathname?.includes('/settings') || pathname?.includes('/profile');
+  const onProfile = /settings|preferences|money-sources|workspace|\/pro|\/data|account|profile/.test(
+    pathname || '',
+  );
   const cycleDay = profile?.monthStartDate || 1;
 
   const prev = () => {
@@ -76,9 +78,13 @@ export function DashboardHeader() {
           style={{ backgroundColor: onProfile ? TEAL : 'rgba(2,100,98,0.15)' }}
           accessibilityLabel="Open profile"
         >
-          <Text className="text-xs font-bold" style={{ color: onProfile ? '#fff' : TEAL }}>
-            {initial}
-          </Text>
+          {avatarSrc ? (
+            <Image source={{ uri: avatarSrc }} className="h-full w-full" />
+          ) : (
+            <Text className="text-xs font-bold" style={{ color: onProfile ? '#fff' : TEAL }}>
+              {initial}
+            </Text>
+          )}
         </Pressable>
       </View>
     </View>

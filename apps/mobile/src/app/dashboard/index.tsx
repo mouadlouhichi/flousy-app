@@ -53,6 +53,13 @@ import { FONT } from '../../lib/fonts';
 import { CategoryIcon } from '../../components/CategoryIcon';
 
 const TEAL = '#00685f';
+
+function formatActivityDate(iso: string): string {
+  const [year, month, day] = (iso || '').slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return iso;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 const PLACE_STYLE: Record<string, { bg: string; accent: string; Icon: typeof Landmark }> = {
   bank: { bg: '#026462', accent: '#026462', Icon: Landmark },
   home: { bg: '#8B5A3C', accent: '#8B5A3C', Icon: Home },
