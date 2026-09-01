@@ -120,7 +120,7 @@
     "networkError": "Erreur réseau. Vérifiez votre connexion et réessayez.",
     "signInMethodDisabled": "Cette méthode de connexion est désactivée dans Firebase.",
     "emailAlreadyInUse": "Un compte utilise déjà cette adresse e-mail. Connectez-vous plutôt.",
-    "weakPassword": "Le mot de passe doit contenir au moins 6 caractères.",
+    "weakPassword": "Le mot de passe doit contenir au moins 10 caractères.",
     "apiKeyReferrerBlocked": "Firebase a bloqué ce domaine de prévisualisation. Ajoutez-le aux référents HTTP de la clé API, ou utilisez le site publié.",
     "googleSignInFailed": "Échec de la connexion Google",
     "demoMode": "Mode Démo Disponible",
