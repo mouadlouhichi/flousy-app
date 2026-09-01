@@ -149,16 +149,24 @@ export function VariableTab({
       </button>
 
       {/* Category Budgets (Pro Feature) */}
-      <div className="bg-surface-container rounded-3xl border border-outline-variant p-lg shadow-2xs">
+      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-2xs">
         <button
           type="button"
           onClick={() => setBudgetsOpen((open) => !open)}
           aria-expanded={budgetsOpen}
-          className="flex w-full items-center gap-2 text-start"
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-start"
         >
-          <h3 className="min-w-0 flex-1 font-headline-md text-headline-md text-on-surface font-extrabold">
-            {m.tabs.variable.categoryBudgets}
-          </h3>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <AppIcon name="sliders-horizontal" className="text-[22px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-headline-sm text-headline-sm font-bold text-on-surface">
+              {m.tabs.variable.categoryBudgets}
+            </span>
+            <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">
+              {m.tabs.variable.categoryBudgetsHint}
+            </span>
+          </span>
           {canShowProUpgrade(isPro, workspace) && (
             <span
               role="button"
@@ -185,7 +193,7 @@ export function VariableTab({
           />
         </button>
         
-        {budgetsOpen && <div className="mt-md flex flex-col gap-md">
+        {budgetsOpen && <div className="mt-md flex flex-col gap-md px-4 pb-4">
           {(month.activeCategories || []).map((category) => {
             const budget = month.categoryBudgets?.[category] || 0;
             const spent = calculateCategorySpent(month, category);

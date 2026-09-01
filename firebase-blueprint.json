@@ -1056,6 +1056,14 @@
     "/households/{householdId}/invoices/{invoice.id}": {
       "schema": "HouseholdInvoice",
       "description": "Contributor invoice submissions isolated from private budgets"
+    },
+    "/households/{hid}": {
+      "schema": "Household",
+      "description": "Shared household workspace"
+    },
+    "/households/{hid}/data/savings": {
+      "schema": "SavingsData",
+      "description": "Shared savings goals"
     }
   }
 }

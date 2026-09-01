@@ -275,13 +275,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       hydratedStartRef.current = true;
       lastStartDateRef.current = nextStart;
       const stored = readStoredMonthKey();
-      if (stored) {
-        setCurrentMonthKey((prev) => (prev === stored ? prev : stored));
-      } else {
-        const resolved = getCurrentMonthKey(nextStart);
-        setCurrentMonthKey((prev) => (prev === resolved ? prev : resolved));
-        writeStoredMonthKey(resolved);
-      }
+      const resolved = getCurrentMonthKey(nextStart);
+      // A stored calendar-month key can be stale when the app is reopened
+      // before payday (for example, Sep 1 with a Sep 27 salary day). Prefer
+      // the active salary period in that case so the previous month's data is
+      // shown instead of an empty new calendar-month document.
+      const [resolvedYear, resolvedMonth] = resolved.split('-').map(Number);
+      const [storedYear, storedMonth] = stored?.split('-').map(Number) || [];
+      const todayCalendarKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const storedIsPrematureCalendarMonth =
+        Boolean(stored) &&
+        stored === todayCalendarKey &&
+        (storedYear !== resolvedYear || storedMonth !== resolvedMonth);
+      const initialKey = stored && !storedIsPrematureCalendarMonth ? stored : resolved;
+      setCurrentMonthKey((prev) => (prev === initialKey ? prev : initialKey));
+      writeStoredMonthKey(initialKey);
       return;
     }
 
@@ -409,7 +417,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setMonth(local);
             persist(local);
           } else {
-            const clean = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+            const clean = normalizeMonth(
+              previousMonth
+                ? {
+                    totalBudget: previousMonth.totalBudget,
+                    incomeSources: previousMonth.incomeSources,
+                    activeCategories: previousMonth.activeCategories,
+                    categoryIcons: previousMonth.categoryIcons,
+                    categoryColors: previousMonth.categoryColors,
+                  }
+                : { totalBudget: 0 },
+              currentMonthKey,
+              activeProfile,
+              previousMonth,
+            );
             setMonth(clean);
             persist(clean);
           }
@@ -420,7 +441,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
-        const next = local ?? normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile, previousMonth);
+        const next = local ?? normalizeMonth(
+          previousMonth
+            ? {
+                totalBudget: previousMonth.totalBudget,
+                incomeSources: previousMonth.incomeSources,
+                activeCategories: previousMonth.activeCategories,
+                categoryIcons: previousMonth.categoryIcons,
+                categoryColors: previousMonth.categoryColors,
+              }
+            : { totalBudget: 0 },
+          currentMonthKey,
+          activeProfile,
+          previousMonth,
+        );
         setMonth(next);
         persist(next);
         setLoading(false);

@@ -584,7 +584,8 @@
       "sortAmountHigh": "المبلغ: من الأعلى",
       "sortAmountLow": "المبلغ: من الأدنى",
       "sortName": "الاسم أ–ي",
-      "clearDates": "مسح التواريخ"
+      "clearDates": "مسح التواريخ",
+      "categoryBudgetsHint": "حدّد حدود الإنفاق لكل فئة."
     },
     "fixed": {
       "totalCommitments": "الالتزامات الثابتة الشهرية",
