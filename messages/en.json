@@ -1476,7 +1476,9 @@
     "emailVerificationPrompt": "Please verify your email address to secure your account.",
     "verificationSent": "Verification email sent!",
     "resendEmail": "Resend email",
-    "dismissBanner": "Dismiss banner"
+    "dismissBanner": "Dismiss banner",
+    "newPeriodTitle": "A new salary period has started",
+    "newPeriodBody": "Your {month} budget is ready: recurring income and bills were reset to their full planned amounts. Mark your salary as received when it lands."
   },
   "quickActions": {
     "close": "Close quick actions",

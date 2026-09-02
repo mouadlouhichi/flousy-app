@@ -52,6 +52,7 @@ import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
 import { getCurrentMonthKey } from '../../lib/utils';
 import {
+  detectPeriodRollover,
   readCachedMonth,
   readStoredMonthKey,
   writeCachedMonth,
@@ -88,6 +89,10 @@ interface DashboardContextType {
   sendVerification: () => void;
   dismissVerificationBanner: boolean;
   setDismissVerificationBanner: (val: boolean) => void;
+
+  // New salary period announcement (set when a payday passed since last visit)
+  newPeriodNoticeKey: string | null;
+  dismissNewPeriodNotice: () => void;
 
   // Active month
   currentMonthKey: string;
@@ -252,6 +257,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const today = new Date();
   const defaultMonthKey = getCurrentMonthKey(budgetStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
+  // Set when a new salary period started since the last visit (or while the
+  // app was backgrounded); the shell shows a dismissible announcement banner.
+  const [newPeriodNoticeKey, setNewPeriodNoticeKey] = useState<string | null>(null);
+  const dismissNewPeriodNotice = useCallback(() => setNewPeriodNoticeKey(null), []);
   const profileRef = useRef<MonthConfiguration | null>(budgetProfile);
   profileRef.current = budgetProfile;
   const profileReady = Boolean(profile);
@@ -309,7 +318,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Local fallbacks: the flag written by the onboarding page and any
     // previously saved budget data (covers the Firebase-save timeout path
     // and pre-existing demo data).
-    const onboardingDoneLocally = isOnboardingDoneLocally(defaultMonthKey);
+    // uid-scoped for real accounts: a demo session's global flag or cached
+    // months must never satisfy this check (the self-heal below would then
+    // mark a brand-new account as onboarded and onboarding would never fire).
+    const onboardingDoneLocally = isOnboardingDoneLocally(defaultMonthKey, user?.uid);
 
     if (isDemo) {
       if (!onboardingDoneLocally) {
@@ -426,6 +438,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       lastPeriodContextRef.current = periodContextKey;
       const stored = readStoredMonthKey();
       const resolved = getCurrentMonthKey(nextStart);
+      // A NEW salary period may have started since the app last ran (payday
+      // passed while it was closed). The last-viewed month must not win in
+      // that case: the fresh period — with income and bills reset to their
+      // full planned amounts — is what has to open, with an announcement.
+      const rolledOver = detectPeriodRollover(periodContextKey, resolved);
       // A stored calendar-month key can be stale when the app is reopened
       // before payday (for example, Sep 1 with a Sep 27 salary day). Prefer
       // the active salary period in that case so the previous month's data is
@@ -437,9 +454,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         Boolean(stored) &&
         stored === todayCalendarKey &&
         (storedYear !== resolvedYear || storedMonth !== resolvedMonth);
-      const initialKey = stored && !storedIsPrematureCalendarMonth ? stored : resolved;
+      const initialKey =
+        !rolledOver && stored && !storedIsPrematureCalendarMonth ? stored : resolved;
       setCurrentMonthKey((prev) => (prev === initialKey ? prev : initialKey));
       writeStoredMonthKey(initialKey);
+      if (rolledOver) setNewPeriodNoticeKey(resolved);
       return;
     }
 
@@ -449,9 +468,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (lastPeriodContextRef.current === periodContextKey) return;
     lastPeriodContextRef.current = periodContextKey;
     const resolved = getCurrentMonthKey(nextStart);
+    if (detectPeriodRollover(periodContextKey, resolved)) setNewPeriodNoticeKey(resolved);
     setCurrentMonthKey(resolved);
     writeStoredMonthKey(resolved);
   }, [authLoading, user, profileReady, budgetStartDate, periodContextKey]);
+
+  // Rollover while the app stays open (a PWA resumed days later, a tab left in
+  // the background over payday): re-resolve the active period when the app
+  // becomes visible again — plus a slow safety interval — and jump to the new
+  // period the moment it starts.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const check = () => {
+      if (document.visibilityState === 'hidden') return;
+      const resolved = getCurrentMonthKey(budgetStartDate);
+      if (detectPeriodRollover(periodContextKey, resolved)) {
+        setCurrentMonthKey(resolved);
+        writeStoredMonthKey(resolved);
+        setNewPeriodNoticeKey(resolved);
+      }
+    };
+    document.addEventListener('visibilitychange', check);
+    const interval = setInterval(check, 5 * 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      clearInterval(interval);
+    };
+  }, [budgetStartDate, periodContextKey]);
 
   useEffect(() => {
     writeStoredMonthKey(currentMonthKey);
@@ -1349,6 +1392,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       sendVerification,
       dismissVerificationBanner,
       setDismissVerificationBanner,
+      newPeriodNoticeKey,
+      dismissNewPeriodNotice,
       currentMonthKey,
       handlePrevMonth,
       handleNextMonth,
@@ -1427,6 +1472,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       sendVerification,
       dismissVerificationBanner,
       setDismissVerificationBanner,
+      newPeriodNoticeKey,
+      dismissNewPeriodNotice,
       currentMonthKey,
       handlePrevMonth,
       handleNextMonth,

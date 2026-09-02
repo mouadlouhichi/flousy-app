@@ -21,7 +21,7 @@ import {
 } from '../../lib/store';
 import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
-import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
+import { isDemoMode, isOnboardingDoneLocally, markOnboardingDoneLocally } from '../../lib/demo-mode';
 import { parseAmountInput } from '../../lib/parse-amount';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -282,7 +282,7 @@ function OnboardingFlow() {
         || household?.onboardingComplete !== false
         || localDone;
     }
-    if (profile) return profile.onboardingComplete !== false || isOnboardingDoneLocally();
+    if (profile) return profile.onboardingComplete !== false || isOnboardingDoneLocally(undefined, user?.uid);
     // An authenticated account without a loaded profile is not safe to bootstrap:
     // wait for profile recovery instead of guessing that its data is empty.
     if (user) return true;
@@ -366,7 +366,7 @@ function OnboardingFlow() {
         if (localStorage.getItem(monthStorageKey) === null) {
           localStorage.setItem(monthStorageKey, JSON.stringify(newMonth));
         }
-        localStorage.setItem('flousy_onboarding_done', 'true');
+        markOnboardingDoneLocally(user?.uid);
       }
       localStorage.setItem('flousy_currency', currency);
     } catch (e) {

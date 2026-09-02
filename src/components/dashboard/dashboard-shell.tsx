@@ -13,6 +13,7 @@ import { QuickActions } from './quick-actions';
 import { DashboardModals } from './dashboard-modals';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { useLanguage } from '@/lib/i18n-context';
+import { interpolate } from '@/lib/i18n-core';
 import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
 import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth-context';
@@ -61,6 +62,47 @@ const pageVariants: Variants = {
     },
   }),
 };
+
+/**
+ * Announces that a new salary period has started (payday passed since the
+ * last visit, or while the app sat in the background). The provider already
+ * jumped to the fresh period — whose recurring income and bills are reset to
+ * their full planned amounts — this banner just tells the user why the
+ * numbers changed and what to do next.
+ */
+function NewPeriodBanner() {
+  const { messages: m, language } = useLanguage();
+  const { newPeriodNoticeKey, dismissNewPeriodNotice } = useDashboard();
+
+  if (!newPeriodNoticeKey) return null;
+
+  const [year, month] = newPeriodNoticeKey.split('-').map(Number);
+  const monthLabel = new Date(year, (month || 1) - 1, 1)
+    .toLocaleDateString(language === 'ar' ? 'ar-MA' : language, { month: 'long', year: 'numeric' });
+
+  return (
+    <div
+      role="status"
+      className="bg-primary-container text-on-primary-container px-margin-mobile py-2.5 flex items-center justify-between gap-2 font-label-md text-label-md"
+    >
+      <div className="flex items-center gap-xs min-w-0">
+        <AppIcon name="celebration" className=" text-[20px] shrink-0" />
+        <span className="min-w-0">
+          <span className="font-bold">{m.notifications.newPeriodTitle}</span>
+          {' — '}
+          {interpolate(m.notifications.newPeriodBody, { month: monthLabel })}
+        </span>
+      </div>
+      <button
+        onClick={dismissNewPeriodNotice}
+        className="tap-target p-1 hover:bg-primary/20 rounded-full shrink-0"
+        aria-label={m.notifications.dismissBanner}
+      >
+        <AppIcon name="close" className=" text-[18px]" />
+      </button>
+    </div>
+  );
+}
 
 function EmailVerificationBanner() {
   const { messages: m } = useLanguage();
@@ -344,6 +386,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <ProfileSyncBanner />
         <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
+        <NewPeriodBanner />
         <SyncIssueBanner />
         <ClosedMonthBanner />
         <DashboardHeader />

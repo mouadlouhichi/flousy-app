@@ -1476,7 +1476,9 @@
     "emailVerificationPrompt": "Veuillez vérifier votre adresse e-mail pour sécuriser votre compte.",
     "verificationSent": "E-mail de vérification envoyé !",
     "resendEmail": "Renvoyer l’e-mail",
-    "dismissBanner": "Fermer la bannière"
+    "dismissBanner": "Fermer la bannière",
+    "newPeriodTitle": "Une nouvelle période de salaire a commencé",
+    "newPeriodBody": "Votre budget de {month} est prêt : les revenus et factures récurrents ont été réinitialisés à leurs montants prévus. Marquez votre salaire comme reçu dès son arrivée."
   },
   "quickActions": {
     "close": "Fermer les actions rapides",

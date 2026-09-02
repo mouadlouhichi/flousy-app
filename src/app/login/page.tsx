@@ -32,7 +32,9 @@ export default function LoginPage() {
     // Household configuration is loaded only inside the dashboard provider;
     // the login route uses the personal fallback solely for local onboarding detection.
     const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
-    const onboardingDoneLocally = isOnboardingDoneLocally(monthKey);
+    // Real accounts only trust their own uid-scoped completion flag; demo
+    // leftovers on the same browser must not skip a new user's onboarding.
+    const onboardingDoneLocally = isOnboardingDoneLocally(monthKey, user?.uid);
 
     // Onboarding is always the first screen after signup (or whenever the
     // profile still has onboardingComplete === false).
