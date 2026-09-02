@@ -15,6 +15,7 @@ import { DashboardSkeleton } from './dashboard-skeleton';
 import { useLanguage } from '@/lib/i18n-context';
 import { interpolate } from '@/lib/i18n-core';
 import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
+import { CARRYOVER_INCOME_ID_PREFIX } from '@/lib/store';
 import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
@@ -66,19 +67,25 @@ const pageVariants: Variants = {
 /**
  * Announces that a new salary period has started (payday passed since the
  * last visit, or while the app sat in the background). The provider already
- * jumped to the fresh period — whose recurring income and bills are reset to
- * their full planned amounts — this banner just tells the user why the
- * numbers changed and what to do next.
+ * jumped to the fresh period — bank opens at the full salary, plus the
+ * previous period's remainder as a "Carried over" income line on Pro — this
+ * banner just tells the user why the numbers changed.
  */
 function NewPeriodBanner() {
   const { messages: m, language } = useLanguage();
-  const { newPeriodNoticeKey, dismissNewPeriodNotice } = useDashboard();
+  const { newPeriodNoticeKey, dismissNewPeriodNotice, month } = useDashboard();
 
   if (!newPeriodNoticeKey) return null;
 
-  const [year, month] = newPeriodNoticeKey.split('-').map(Number);
-  const monthLabel = new Date(year, (month || 1) - 1, 1)
+  const [year, monthNum] = newPeriodNoticeKey.split('-').map(Number);
+  const monthLabel = new Date(year, (monthNum || 1) - 1, 1)
     .toLocaleDateString(language === 'ar' ? 'ar-MA' : language, { month: 'long', year: 'numeric' });
+  const hasCarryover = (month.incomeSources || []).some(
+    (source) => source.id.startsWith(CARRYOVER_INCOME_ID_PREFIX) && (source.amount || 0) > 0,
+  );
+  const body = hasCarryover
+    ? m.notifications.newPeriodBodyCarryover
+    : m.notifications.newPeriodBody;
 
   return (
     <div
@@ -90,7 +97,7 @@ function NewPeriodBanner() {
         <span className="min-w-0">
           <span className="font-bold">{m.notifications.newPeriodTitle}</span>
           {' — '}
-          {interpolate(m.notifications.newPeriodBody, { month: monthLabel })}
+          {interpolate(body, { month: monthLabel })}
         </span>
       </div>
       <button

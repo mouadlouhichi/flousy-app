@@ -500,7 +500,8 @@
       "lifecycleStatus": "Statut de réception",
       "receivedAmount": "Montant reçu",
       "receivedShort": "Reçu",
-      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire."
+      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
+      "carriedOver": "Solde reporté"
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -1478,7 +1479,8 @@
     "resendEmail": "Renvoyer l’e-mail",
     "dismissBanner": "Fermer la bannière",
     "newPeriodTitle": "Une nouvelle période de salaire a commencé",
-    "newPeriodBody": "Votre budget de {month} est prêt : les revenus et factures récurrents ont été réinitialisés à leurs montants prévus. Marquez votre salaire comme reçu dès son arrivée."
+    "newPeriodBody": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet.",
+    "newPeriodBodyCarryover": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet plus le reste de la période précédente."
   },
   "quickActions": {
     "close": "Fermer les actions rapides",

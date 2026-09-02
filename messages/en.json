@@ -500,7 +500,8 @@
       "lifecycleStatus": "Receipt status",
       "receivedAmount": "Amount received",
       "receivedShort": "Received",
-      "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first."
+      "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
+      "carriedOver": "Carried over"
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -1478,7 +1479,8 @@
     "resendEmail": "Resend email",
     "dismissBanner": "Dismiss banner",
     "newPeriodTitle": "A new salary period has started",
-    "newPeriodBody": "Your {month} budget is ready: recurring income and bills were reset to their full planned amounts. Mark your salary as received when it lands."
+    "newPeriodBody": "Your {month} budget is ready — your bank starts with your full salary.",
+    "newPeriodBodyCarryover": "Your {month} budget is ready — your bank starts with your full salary plus what was left from last period."
   },
   "quickActions": {
     "close": "Close quick actions",

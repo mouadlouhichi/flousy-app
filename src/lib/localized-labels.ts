@@ -73,6 +73,13 @@ export function localizeDefaultBillName(name: string, messages: Messages): strin
   return name;
 }
 
+/** Translate built-in income-source names while preserving user-created ones. */
+export function localizeIncomeSourceName(name: string, messages: Messages): string {
+  if (name === 'Primary Income') return messages.modals.incomeSources.primaryIncome;
+  if (name === 'Carried over') return messages.modals.incomeSources.carriedOver;
+  return name;
+}
+
 /** Translate built-in fixed-bill category values used during onboarding. */
 export function localizeBillCategory(name: string, messages: Messages): string {
   const options = messages.onboarding.billCategoryOptions;

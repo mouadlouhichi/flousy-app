@@ -1982,7 +1982,15 @@ export function normalizeMonth(
   };
 }
 
-/** Materialize recurring expected income without crediting cash before receipt. */
+/**
+ * Materialize recurring income for a new salary period, RECEIVED IN FULL.
+ *
+ * Product decision (2026-09): a new salary period opens with the full salary
+ * already in the bank — the dashboard's first paint of a fresh period shows
+ * "bank = full salary", not an empty bank waiting for a manual "mark as
+ * received". Users whose salary is actually late can edit the occurrence back
+ * to planned/partial; deterministic IDs keep retries idempotent.
+ */
 export function carryOverIncomeSources(
   previousMonth: Pick<MonthBudget, 'incomeSources'>,
   periodKey: string,
@@ -1991,15 +1999,78 @@ export function carryOverIncomeSources(
     .filter((source) => source.recurring !== false)
     .map((source) => {
       const templateId = source.templateId || source.id;
+      const amount = money(source.amount);
       return {
         ...source,
         id: `income-occurrence-${templateId}-${periodKey}`,
         templateId,
-        status: 'planned',
-        receivedAmount: 0,
-        receivedAt: undefined,
+        amount,
+        status: 'paid',
+        receivedAmount: amount,
+        receivedAt: new Date().toISOString(),
       };
     });
+}
+
+/** Income sources whose id starts with this prefix are Pro balance carry-overs. */
+export const CARRYOVER_INCOME_ID_PREFIX = 'carryover-';
+
+/** Canonical (English) name of the carry-over line; localized at render time. */
+export const CARRYOVER_INCOME_NAME = 'Carried over';
+
+/**
+ * Pro feature: turn the previous period's remaining bank balance into an
+ * explicit, already-received income line of the new period. Modeled as a
+ * non-recurring income source (rather than a hidden opening balance) so the
+ * math stays auditable in the UI and the line never propagates to the period
+ * after next (`recurring: false` is filtered by carryOverIncomeSources).
+ */
+export function carryOverRemainingBalance(
+  previousMonth: Pick<MonthBudget, 'bankPart'>,
+  periodKey: string,
+): IncomeSource | null {
+  const raw = previousMonth.bankPart;
+  // Overdrawn or empty periods carry nothing; debts are not "negative income".
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return null;
+  const remaining = money(raw);
+  if (remaining <= 0) return null;
+  return {
+    id: `${CARRYOVER_INCOME_ID_PREFIX}${periodKey}`,
+    name: CARRYOVER_INCOME_NAME,
+    amount: remaining,
+    status: 'paid',
+    receivedAmount: remaining,
+    receivedAt: new Date().toISOString(),
+    recurring: false,
+  };
+}
+
+/**
+ * Seed for a brand-new salary period bootstrapped from the previous one.
+ *
+ * Free plan: bank opens at the full salary (recurring income received in
+ * full). Pro plan (`carryRemainingBalance`): additionally carries what was
+ * left in the bank at the end of the previous period as a "Carried over"
+ * income line, so bank = full salary + previous remainder. `totalBudget`
+ * stays the planned salary in both cases: strategy envelopes are computed
+ * from expected income, not inflated by leftovers.
+ */
+export function buildRolloverSeed(
+  previousMonth: MonthBudget,
+  periodKey: string,
+  options: { carryRemainingBalance: boolean },
+): Partial<MonthBudget> {
+  const carried = carryOverIncomeSources(previousMonth, periodKey);
+  const carryover = options.carryRemainingBalance
+    ? carryOverRemainingBalance(previousMonth, periodKey)
+    : null;
+  return {
+    totalBudget: previousMonth.totalBudget,
+    incomeSources: carryover ? [carryover, ...carried] : carried,
+    activeCategories: previousMonth.activeCategories,
+    categoryIcons: previousMonth.categoryIcons,
+    categoryColors: previousMonth.categoryColors,
+  };
 }
 
 /**

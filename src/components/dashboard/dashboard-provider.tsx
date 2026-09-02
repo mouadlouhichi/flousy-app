@@ -32,7 +32,7 @@ import {
   updateMoneyPlaces,
   updateBudgetStrategy,
   carryOverFixedExpenses,
-  carryOverIncomeSources,
+  buildRolloverSeed,
   calculateReceivedIncome,
   adjustPlaceBalance,
 } from '../../lib/store';
@@ -575,6 +575,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const activeProfile = profileRef.current;
     const loadTarget = `${workspace}:${workspaceId || 'local'}:${currentMonthKey}`;
     const loadStillActive = () => activeTargetRef.current === loadTarget;
+    // Pro (and household, itself a Pro feature) opens a new period with the
+    // previous period's remaining bank balance carried over as an explicit
+    // "Carried over" income line; Free starts fresh at the full salary.
+    const carryRemaining = workspace === 'household' || isPro;
     const storageKey = householdStorageKey(householdId, currentMonthKey);
     const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
     if (cached) {
@@ -609,13 +613,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           }
           const fresh = normalizeMonth(
             previousMonth
-              ? {
-                  totalBudget: previousMonth.totalBudget,
-                  incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
-                  activeCategories: previousMonth.activeCategories,
-                  categoryIcons: previousMonth.categoryIcons,
-                  categoryColors: previousMonth.categoryColors,
-                }
+              ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
               : { totalBudget: 0 },
             currentMonthKey,
             activeProfile,
@@ -657,13 +655,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           } else {
             const clean = normalizeMonth(
               previousMonth
-                ? {
-                    totalBudget: previousMonth.totalBudget,
-                    incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
-                    activeCategories: previousMonth.activeCategories,
-                    categoryIcons: previousMonth.categoryIcons,
-                    categoryColors: previousMonth.categoryColors,
-                  }
+                ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
                 : { totalBudget: 0 },
               currentMonthKey,
               activeProfile,
@@ -682,13 +674,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
         const next = local ?? normalizeMonth(
           previousMonth
-            ? {
-                totalBudget: previousMonth.totalBudget,
-                incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
-                activeCategories: previousMonth.activeCategories,
-                categoryIcons: previousMonth.categoryIcons,
-                categoryColors: previousMonth.categoryColors,
-              }
+            ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
             : { totalBudget: 0 },
           currentMonthKey,
           activeProfile,
@@ -711,6 +697,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     profileReady,
     outboxHydrated,
     budgetProfile,
+    isPro,
   ]);
 
   // 2. Subscribe or load savings goals

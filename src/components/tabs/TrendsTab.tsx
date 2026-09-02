@@ -12,7 +12,7 @@ import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -316,7 +316,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{src.name}</span>
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[12px] font-bold text-on-surface-variant">

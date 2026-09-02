@@ -11,7 +11,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { getSourcePeriod } from '../../lib/utils';
 import { useLanguage } from '../../lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { formatLocalizedDayOfMonth } from '../../lib/localized-labels';
+import { formatLocalizedDayOfMonth, localizeIncomeSourceName } from '../../lib/localized-labels';
 
 interface IncomeSourcesModalProps {
   isOpen: boolean;
@@ -435,7 +435,7 @@ export function IncomeSourcesModal({
                       {/* Source info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-[15px] text-on-surface truncate">{src.name}</span>
+                          <span className="font-bold text-[15px] text-on-surface truncate">{localizeIncomeSourceName(src.name, m)}</span>
                           {src.category && (
                             <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full truncate max-w-[80px]">
                               {src.category}
