@@ -75,19 +75,18 @@ rebuilt with the production public Firebase configuration.
 | ESLint (zero warnings) | Pass — includes authoritative `firestore.rules` syntax parsing | 2026-09-02 local candidate |
 | Normal TypeScript | Pass | 2026-09-02 local candidate |
 | Strict TypeScript | Pass | 2026-09-02 local candidate |
-| Unit/regression suites | Pass — 314 tests, 74 suites (incl. custom-role matrix coverage) | 2026-09-02 local candidate, commit `21e9426` |
-| Firestore emulator Rules suite | **Pending / release blocked** — Java 21 and official emulator unavailable in the local sandbox | Assign to activated CI or release operator |
+| Unit/regression suites | Pass — 314 tests, 74 suites (incl. custom-role matrix coverage); also green in CI | 2026-09-02, commit `186d464` |
+| Firestore emulator Rules suite | Pass — 16/16 in CI (run 33672579376, commit `186d464`); first run surfaced and fixed a 1000-expression-cap denial in custom month updates | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
 | Production build | Pass — 37 static pages generated | 2026-09-02 local candidate, commit `21e9426` |
-| PR checks | Pending | Save required-check URL after the workflow is activated |
+| PR checks | Workflow active on branch pushes (check + e2e green); enable branch protection on `main` to make them required | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
 
 If any gate cannot run, mark the release **blocked**—do not silently reinterpret
 “not run” as “passed.”
 
 ## 2. GitHub and CI — BLOCKER
 
-- [ ] `[EXTERNAL]` Grant the connected GitHub App workflow-write permission, or
-      have an authorized maintainer move `ci/github-actions-ci.yml` to
-      `.github/workflows/ci.yml`.
+- [x] `[EXTERNAL]` CI activated 2026-09-02: `.github/workflows/ci.yml` is live;
+      check + e2e jobs green on branch pushes (run 33672579376).
 - [ ] `[EXTERNAL]` Configure repository secret `FIREBASE_SERVICE_ACCOUNT` with a
       least-privilege deployment service account.
 - [ ] `[EXTERNAL]` Configure repository variable
