@@ -134,9 +134,10 @@ describe('server endpoint abuse limits', () => {
     assert.ok(codeStoredBeforeMail > -1 && mailAttempt > codeStoredBeforeMail);
   });
 
-  it('rate limits sends per user', () => {
+  it('rate limits sends per user and deduplicates provider retries', () => {
     assert.match(invitations, /rateLimited\(/);
     assert.match(invitations, /status: 429/);
+    assert.match(invitations, /idempotencyKey: `household-invite-\$\{inviteId\}`/);
   });
 
   it('validates the barcode argument and bounds the outbound fan-out', () => {

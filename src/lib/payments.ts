@@ -1,205 +1,96 @@
 /**
- * Mock Stripe Payment Processing
+ * Provider-neutral billing contract for the post-launch integration.
  *
- * Simulates Stripe Checkout for development/demo purposes.
- * In production, replace this with a real Stripe integration:
- *   - Create a Checkout Session via the backend API
- *   - Redirect to Stripe hosted checkout page
- *   - Listen for the webhook (Firebase Extension or custom endpoint)
- *   - The webhook updates the user's plan via Admin SDK (bypassing rules)
+ * Billing is deliberately disabled today. SmartJib never renders card fields;
+ * Stripe Checkout or a CMI-hosted payment page must collect payment details.
+ * A server adapter verifies provider signatures, deduplicates webhook event IDs,
+ * and writes only the entitlement projection with Firebase Admin SDK.
  */
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import type { EntitlementSource, EntitlementStatus } from './pro-features';
 
+export const BILLING_LIVE = false;
+export type BillingProvider = Extract<EntitlementSource, 'stripe' | 'cmi'>;
 export type BillingCycle = 'monthly' | 'annual';
 
-export interface PlanPricing {
-  monthly: number;
-  annual: number;
-  annualSavingsPercent: number;
-}
-
-export interface CheckoutSession {
-  id: string;
-  status: 'open' | 'complete' | 'expired' | 'failed';
-  planTier: 'pro';
+export interface HostedCheckoutRequest {
+  uid: string;
+  provider: BillingProvider;
   billingCycle: BillingCycle;
-  amount: number;
-  currency: string;
-  createdAt: string;
-  completedAt?: string;
-  receiptUrl?: string;
-  paymentIntent?: string;
+  successUrl: string;
+  cancelUrl: string;
+  idempotencyKey: string;
 }
 
-export interface PaymentReceipt {
-  id: string;
-  planTier: 'pro';
-  billingCycle: BillingCycle;
-  amount: number;
-  currency: string;
-  status: 'succeeded' | 'failed';
-  paymentMethod: string;
-  receiptUrl: string;
-  paidAt: string;
-  nextBillingDate: string;
-  transactionId: string;
+export interface HostedCheckoutSession {
+  provider: BillingProvider;
+  sessionId: string;
+  /** HTTPS provider-hosted URL; never a page that asks for PAN/CVC in this app. */
+  checkoutUrl: string;
+  expiresAt: string;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-export const PRO_PRICING: PlanPricing = {
-  monthly: 4.99,
-  annual: 39.99,
-  annualSavingsPercent: 33,
-};
-
-// ---------------------------------------------------------------------------
-// Mock helpers
-// ---------------------------------------------------------------------------
-
-function generateId(prefix: string): string {
-  const rand = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
-  return `${prefix}_${rand}`;
+export interface VerifiedBillingEvent {
+  provider: BillingProvider;
+  eventId: string;
+  customerId: string;
+  uid: string;
+  status: Extract<EntitlementStatus, 'active' | 'grace_period' | 'past_due' | 'canceled' | 'expired'>;
+  periodStartedAtMs: number;
+  periodEndsAtMs: number;
+  receivedAtMs: number;
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/** Data a verified webhook may project onto `users/{uid}` via Admin SDK. */
+export interface BillingEntitlementProjection {
+  plan: 'free' | 'pro';
+  entitlementSource: BillingProvider;
+  entitlementStatus: VerifiedBillingEvent['status'];
+  entitlementStartedAtMs: number;
+  entitlementEndsAtMs: number;
 }
 
 /**
- * Formats cents to display price (Stripe stores amounts in cents).
+ * Server-only adapter boundary. Implementations own provider SDKs and secrets;
+ * UI code receives only the hosted redirect URL.
  */
-export function formatCents(cents: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(cents / 100);
+export interface BillingAdapter<RawWebhook = unknown> {
+  readonly provider: BillingProvider;
+  createHostedCheckout(request: HostedCheckoutRequest): Promise<HostedCheckoutSession>;
+  verifyWebhook(rawBody: string, signature: string): Promise<RawWebhook>;
+  normalizeWebhook(payload: RawWebhook, receivedAtMs: number): VerifiedBillingEvent;
 }
 
-/**
- * Calculates the next billing date based on cycle.
- */
-export function getNextBillingDate(cycle: BillingCycle): string {
-  const now = new Date();
-  if (cycle === 'monthly') {
-    now.setMonth(now.getMonth() + 1);
-  } else {
-    now.setFullYear(now.getFullYear() + 1);
-  }
-  return now.toISOString().split('T')[0];
-}
-
-// ---------------------------------------------------------------------------
-// Mock Stripe API
-// ---------------------------------------------------------------------------
-
-/** Simulated Stripe Checkout Session creation */
-export async function createCheckoutSession(
-  billingCycle: BillingCycle,
-  uid?: string,
-): Promise<CheckoutSession> {
-  await delay(800);
-
-  const amount = billingCycle === 'annual'
-    ? PRO_PRICING.annual
-    : PRO_PRICING.monthly;
-
+/** Convert a signature-verified, idempotent event into the public profile view. */
+export function entitlementProjectionForBillingEvent(
+  event: VerifiedBillingEvent,
+): BillingEntitlementProjection {
+  const active = event.status === 'active'
+    || event.status === 'grace_period'
+    || event.status === 'canceled';
   return {
-    id: generateId('cs'),
-    status: 'open',
-    planTier: 'pro',
-    billingCycle,
-    amount,
-    currency: 'USD',
-    createdAt: new Date().toISOString(),
-    paymentIntent: generateId('pi'),
+    plan: active ? 'pro' : 'free',
+    entitlementSource: event.provider,
+    entitlementStatus: event.status,
+    entitlementStartedAtMs: event.periodStartedAtMs,
+    entitlementEndsAtMs: event.periodEndsAtMs,
   };
 }
 
-/** Simulated payment processing — mimics Stripe's 3D Secure / bank processing delay */
-export async function processPayment(
-  session: CheckoutSession,
-): Promise<{ receipt: PaymentReceipt; session: CheckoutSession }> {
-  // Simulate 3D Secure / bank processing (2–3 seconds)
-  await delay(2500);
-
-  const completedSession: CheckoutSession = {
-    ...session,
-    status: 'complete',
-    completedAt: new Date().toISOString(),
-    receiptUrl: `https://dashboard.stripe.com/test/payments/${session.paymentIntent}`,
-  };
-
-  const receipt: PaymentReceipt = {
-    id: generateId('rcpt'),
-    planTier: 'pro',
-    billingCycle: session.billingCycle,
-    amount: session.amount,
-    currency: 'USD',
-    status: 'succeeded',
-    paymentMethod: 'Visa ending in 4242',
-    receiptUrl: completedSession.receiptUrl!,
-    paidAt: completedSession.completedAt!,
-    nextBillingDate: getNextBillingDate(session.billingCycle),
-    transactionId: session.paymentIntent!,
-  };
-
-  return { receipt, session: completedSession };
-}
-
-/** Simulated payment failure for testing error states */
-export async function failPayment(
-  session: CheckoutSession,
-): Promise<CheckoutSession> {
-  await delay(1500);
-
-  return {
-    ...session,
-    status: 'failed',
-    completedAt: new Date().toISOString(),
-  };
-}
-
-/**
- * Upgrade the user's plan.
- *
- * The `plan` on the Firebase user profile (`users/{uid}.plan`) is the single
- * source of truth: for a signed-in user this always writes to Firestore, so
- * Pro access follows the account across devices. The localStorage callback is
- * only used in demo mode, where no Firebase session (and therefore no Firebase
- * profile) exists.
- */
-export async function upgradeUserPlan(
-  uid: string | undefined,
-  billingCycle: BillingCycle,
-  updateProfile: (data: {
-    plan: 'pro';
-    planBillingCycle: BillingCycle;
-    planNextBillingDate: string;
-  }) => Promise<void>,
-  setDemoPlan?: (data: { billingCycle: BillingCycle; nextBillingDate: string }) => void,
-): Promise<void> {
-  const nextBillingDate = getNextBillingDate(billingCycle);
-
-  // Demo mode (no Firebase session): keep the local demo state so the mock
-  // checkout still works without a Firebase profile.
-  if (!uid) {
-    setDemoPlan?.({ billingCycle, nextBillingDate });
-    return;
+/** Reject accidental redirects to arbitrary or insecure origins. */
+export function isAllowedHostedCheckoutUrl(
+  provider: BillingProvider,
+  value: string,
+  configuredCmiHosts: readonly string[] = [],
+): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    if (provider === 'stripe') return url.hostname === 'checkout.stripe.com';
+    // CMI supplies the merchant/test endpoint during onboarding. Do not guess
+    // or wildcard a payment domain: deployment config must pin exact hosts.
+    return configuredCmiHosts.some((host) => url.hostname === host.toLowerCase());
+  } catch {
+    return false;
   }
-
-  // Signed-in: persist the upgrade on the Firebase profile. Failures surface
-  // to the caller (the upgrade modal shows its error step) instead of being
-  // silently swapped for a local-only flag.
-  await updateProfile({
-    plan: 'pro',
-    planBillingCycle: billingCycle,
-    planNextBillingDate: nextBillingDate,
-  });
 }

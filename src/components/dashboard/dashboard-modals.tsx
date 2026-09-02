@@ -116,18 +116,18 @@ export function DashboardModals() {
     if (dashboard.selectedExpense) {
       const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
       updateAndSaveMonth(updated, 'expenses');
-      trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
+      trackEvent('edit_variable_expense');
     } else {
       const updated = addVariableExpense(month, audited);
       updateAndSaveMonth(updated, 'expenses');
-      trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
+      trackEvent('add_variable_expense');
     }
   };
 
   const handleDeleteVariableExpense = (exp: VariableExpense) => {
     const updated = deleteVariableExpense(month, exp);
     updateAndSaveMonth(updated, 'expenses');
-    trackEvent('delete_variable_expense', { category: exp.type });
+    trackEvent('delete_variable_expense');
   };
 
   // Fixed bills handlers
@@ -136,18 +136,18 @@ export function DashboardModals() {
     if (dashboard.selectedFixed) {
       const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
       updateAndSaveMonth(updated, 'fixedBills');
-      trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
+      trackEvent('edit_fixed_expense');
     } else {
       const updated = addFixedExpense(month, audited);
       updateAndSaveMonth(updated, 'fixedBills');
-      trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
+      trackEvent('add_fixed_expense');
     }
   };
 
   const handleDeleteFixedBill = (bill: FixedExpense) => {
     const updated = deleteFixedExpense(month, bill);
     updateAndSaveMonth(updated, 'fixedBills');
-    trackEvent('delete_fixed_expense', { category: bill.type });
+    trackEvent('delete_fixed_expense');
   };
 
   // Retype existing bills when a custom fixed category is renamed
@@ -160,7 +160,7 @@ export function DashboardModals() {
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
     const updated = moveMoney(month, from, to, amount, dashboard.user?.uid);
     updateAndSaveMonth(updated, 'balances');
-    trackEvent('move_money', { from, to, amount });
+    trackEvent('move_money');
   };
 
   // Savings handlers
@@ -175,13 +175,13 @@ export function DashboardModals() {
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
     updateAndSaveFinance(res.month, res.goals);
-    trackEvent('fund_goal', { amount, sourcePlace });
+    trackEvent('fund_goal');
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
     updateAndSaveFinance(res.month, res.goals);
-    trackEvent('withdraw_goal', { amount, targetPlace });
+    trackEvent('withdraw_goal');
   };
 
   const handleDeleteGoal = (goalId: string) => {

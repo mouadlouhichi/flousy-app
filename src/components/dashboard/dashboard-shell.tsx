@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
 import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth-context';
+import { useHousehold } from '@/lib/household-context';
 
 /**
  * Instagram-style push transition: the incoming screen slides in from the
@@ -108,7 +109,7 @@ function EmailVerificationBanner() {
  */
 function SyncIssueBanner() {
   const { messages: m } = useLanguage();
-  const { syncState, pendingMutations, retrySync, discardPendingChanges } = useDashboard();
+  const { syncState, syncError, pendingMutations, retrySync, discardPendingChanges } = useDashboard();
   const [discarding, setDiscarding] = useState(false);
   if (syncState !== 'failed' && syncState !== 'conflict') return null;
 
@@ -119,7 +120,7 @@ function SyncIssueBanner() {
         <div>
           <p className="text-sm font-bold">{m.sync[syncState]}</p>
           <p className="text-xs">
-            {syncState === 'conflict' ? m.sync.conflictDetail : m.sync.queuedLocally}
+            {syncError || (syncState === 'conflict' ? m.sync.conflictDetail : m.sync.queuedLocally)}
             {pendingMutations > 0 ? ` (${pendingMutations})` : ''}
           </p>
         </div>
@@ -142,6 +143,37 @@ function SyncIssueBanner() {
           {m.sync.useCloudCopy}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ClosedMonthBanner() {
+  const { messages: m } = useLanguage();
+  const { month, reopenCurrentMonth } = useDashboard();
+  const { workspace, isOwner } = useHousehold();
+  if (month.periodStatus !== 'closed') return null;
+  const mayReopen = workspace === 'personal' || isOwner;
+
+  return (
+    <div role="status" className="flex items-center justify-between gap-3 bg-tertiary-container px-margin-mobile py-2.5 text-on-tertiary-container">
+      <div className="flex min-w-0 items-center gap-2">
+        <AppIcon name="lock" className="shrink-0 text-[18px]" />
+        <div className="min-w-0">
+          <p className="text-sm font-bold">{m.monthLock.closed}</p>
+          <p className="truncate text-xs">{m.monthLock.closedDetail}</p>
+        </div>
+      </div>
+      {mayReopen && (
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(m.monthLock.reopenConfirm)) reopenCurrentMonth();
+          }}
+          className="shrink-0 rounded-full border border-current px-3 py-1.5 text-xs font-bold hover:bg-on-tertiary-container/10"
+        >
+          {m.monthLock.reopen}
+        </button>
+      )}
     </div>
   );
 }
@@ -313,6 +345,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
         <SyncIssueBanner />
+        <ClosedMonthBanner />
         <DashboardHeader />
 
         <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">

@@ -13,8 +13,8 @@ export function TrendsScreen() {
   const router = useRouter();
   const { month, trendsMonths, trendsLoading, profile, isPro, authLoading, openProModal } =
     useDashboard();
-  const { workspace, canViewArea } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household, canViewArea } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const area = SCREEN_AREA.trends!;
   // Analytics is an RBAC area of its own: the individual cards inside the tab
   // are additionally filtered by the area that owns their numbers.

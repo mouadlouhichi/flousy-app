@@ -1,6 +1,6 @@
 {
   "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
-  "description": "Every persisted document lives under /users/{uid}. Money is tracked in three places (bank, home, wallet) and budgeted through one strategy per month. Saving goals are global, not per-month.",
+  "description": "SmartJib stores private finance records under /users/{uid}, shared workspaces under /households/{householdId}, and verified-email invitations at /householdInvites/{inviteId}. Monthly and savings documents are revisioned and paired with immutable ledger entries.",
   "definitions": {
     "IncomeSource": {
       "title": "IncomeSource",
@@ -606,7 +606,33 @@
             "free",
             "pro"
           ],
-          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'. No payment provider is wired up, so firestore.rules allows exactly one other transition: free -> pro, once per account, carrying proTrialClaimedAt (the beta claim). When real billing lands, the webhook writes plan with the Admin SDK instead."
+          "description": "Coarse plan projection. Effective Pro access also requires an unexpired entitlement. Browser clients may perform exactly one rules-validated free -> pro launch-trial transition lasting 90 days; future Stripe/CMI webhooks update the provider-neutral entitlement fields through Firebase Admin SDK."
+        },
+        "entitlementSource": {
+          "type": "string",
+          "enum": [
+            "launch_trial",
+            "stripe",
+            "cmi",
+            "admin"
+          ]
+        },
+        "entitlementStatus": {
+          "type": "string",
+          "enum": [
+            "trialing",
+            "active",
+            "grace_period",
+            "past_due",
+            "canceled",
+            "expired"
+          ]
+        },
+        "entitlementStartedAtMs": {
+          "type": "number"
+        },
+        "entitlementEndsAtMs": {
+          "type": "number"
         },
         "proTrialClaimedAt": {
           "type": "string"
@@ -658,7 +684,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Legacy local profile labels retained for backward compatibility; not authoritative membership."
         },
         "activeHouseholdId": {
           "type": "string"
@@ -747,6 +774,20 @@
           "type": "string"
         },
         "currency": {
+          "type": "string"
+        },
+        "periodStatus": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed"
+          ],
+          "description": "Closed periods are read-only until an explicit owner reopen."
+        },
+        "closedAt": {
+          "type": "string"
+        },
+        "closedByUserId": {
           "type": "string"
         },
         "totalBudget": {
@@ -954,13 +995,99 @@
       "type": "object",
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 100
         },
         "ownerId": {
           "type": "string"
         },
         "planOwnerId": {
           "type": "string"
+        },
+        "entitlementOwnerId": {
+          "type": "string"
+        },
+        "entitlementSource": {
+          "type": "string",
+          "enum": [
+            "launch_trial",
+            "stripe",
+            "cmi",
+            "admin"
+          ]
+        },
+        "entitlementStatus": {
+          "type": "string",
+          "enum": [
+            "trialing",
+            "active",
+            "grace_period",
+            "past_due",
+            "canceled",
+            "expired"
+          ]
+        },
+        "entitlementEndsAtMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "onboardingComplete": {
+          "type": "boolean"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 8
+        },
+        "monthStartDate": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31
+        },
+        "moneyPlaces": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "$ref": "#/definitions/MoneyPlaceConfig"
+          }
+        },
+        "activeCategories": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string"
+          }
+        },
+        "categoryColors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "categoryIcons": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fixedCategories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FixedCategoryItem"
+          }
+        },
+        "defaultCategoryBudgets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "enableRollover": {
+          "type": "boolean"
+        },
+        "schemaVersion": {
+          "type": "integer"
         },
         "createdAt": {
           "type": "string"
@@ -973,42 +1100,95 @@
         "name",
         "ownerId",
         "planOwnerId",
+        "entitlementOwnerId",
+        "currency",
+        "moneyPlaces",
+        "activeCategories",
         "createdAt",
         "updatedAt"
-      ]
+      ],
+      "description": "Authoritative shared-workspace configuration and immutable projection of the owner entitlement."
     },
     "HouseholdMember": {
       "type": "object",
       "properties": {
-        "displayName": {
+        "id": {
           "type": "string"
         },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
         "email": {
-          "type": "string"
+          "type": "string",
+          "format": "email"
         },
         "userId": {
           "type": "string"
         },
         "role": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "owner",
+            "editor",
+            "contributor",
+            "viewer",
+            "custom",
+            "profile"
+          ]
         },
         "status": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "active",
+            "invited",
+            "inactive"
+          ]
         },
         "avatarColor": {
+          "type": "string"
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "none",
+              "view",
+              "editOwn",
+              "editAll"
+            ]
+          },
+          "description": "Legacy-only custom permission map; authorization maps stored roles to rules-enforceable document access."
+        },
+        "inviteId": {
+          "type": "string"
+        },
+        "invitedAt": {
+          "type": "string"
+        },
+        "joinedAt": {
+          "type": "string"
+        },
+        "retiredAt": {
           "type": "string"
         }
       },
       "required": [
+        "id",
         "displayName",
         "role",
         "status",
         "avatarColor"
-      ]
+      ],
+      "description": "UID-indexed active membership or pending/profile row. Firestore Rules enforce role-level document access."
     },
     "HouseholdInvite": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "householdId": {
           "type": "string"
         },
@@ -1016,10 +1196,30 @@
           "type": "string"
         },
         "email": {
-          "type": "string"
+          "type": "string",
+          "format": "email"
         },
         "role": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "editor",
+            "contributor",
+            "viewer",
+            "custom"
+          ]
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "none",
+              "view",
+              "editOwn",
+              "editAll"
+            ]
+          },
+          "description": "Legacy-only custom permission map; authorization maps stored roles to rules-enforceable document access."
         },
         "createdBy": {
           "type": "string"
@@ -1030,11 +1230,31 @@
         "expiresAt": {
           "type": "string"
         },
+        "expiresAtMs": {
+          "type": "integer",
+          "minimum": 1
+        },
         "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "accepted",
+            "revoked"
+          ]
+        },
+        "acceptedByUserId": {
+          "type": "string"
+        },
+        "acceptedEmail": {
+          "type": "string",
+          "format": "email"
+        },
+        "acceptedAt": {
           "type": "string"
         }
       },
       "required": [
+        "id",
         "householdId",
         "memberId",
         "email",
@@ -1042,17 +1262,25 @@
         "createdBy",
         "createdAt",
         "expiresAt",
+        "expiresAtMs",
         "status"
-      ]
+      ],
+      "description": "Verified-email invitation with a numeric Rules-enforced expiry and auditable acceptance projection."
     },
     "HouseholdInvoice": {
       "type": "object",
       "properties": {
-        "name": {
+        "id": {
           "type": "string"
         },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
         "amount": {
-          "type": "number"
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000000
         },
         "category": {
           "type": "string"
@@ -1066,11 +1294,18 @@
         "submitterId": {
           "type": "string"
         },
+        "place": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
         "receiptUrl": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 120000
         },
         "note": {
-          "type": "string"
+          "type": "string",
+          "maxLength": 250
         },
         "status": {
           "type": "string",
@@ -1082,18 +1317,34 @@
         },
         "createdAt": {
           "type": "string"
+        },
+        "reviewedAt": {
+          "type": "string"
+        },
+        "reviewedByUserId": {
+          "type": "string"
+        },
+        "postedExpenseId": {
+          "type": "string"
+        },
+        "postedMonthKey": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
         }
       },
       "required": [
+        "id",
         "name",
         "amount",
         "category",
         "date",
         "payerMemberId",
         "submitterId",
+        "place",
         "status",
         "createdAt"
-      ]
+      ],
+      "description": "Contributor-owned submission. Approval atomically posts a deterministic expense and immutable ledger entry."
     },
     "Product": {
       "title": "Product",
@@ -1271,7 +1522,18 @@
           "type": "string"
         },
         "kind": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "bootstrap",
+            "savings-bootstrap",
+            "savings",
+            "month",
+            "month-and-savings",
+            "month-close",
+            "month-reopen",
+            "course-post",
+            "invoice-approval"
+          ]
         },
         "sourceId": {
           "type": "string"

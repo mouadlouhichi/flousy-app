@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { CustomInput } from '../ui/CustomInput';
-import { SavingGoal, MoneyPlace } from '../../lib/store';
+import { entityId, type SavingGoal, type MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
@@ -130,7 +130,7 @@ export function SavingsModal({
       }
 
       const newGoal: SavingGoal = {
-        id: goal ? goal.id : Math.random().toString(36).substring(2, 9),
+        id: goal ? goal.id : entityId('goal'),
         name: name.trim(),
         target: parsedTarget,
         current: Math.max(0, parsedCurrent),

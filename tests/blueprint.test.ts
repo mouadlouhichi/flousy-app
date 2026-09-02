@@ -310,34 +310,33 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     }
   });
 
-  it('keeps plan Firebase-only in both the rules and the blueprint note', () => {
-    // New profiles always start on the free plan…
+  it('keeps the launch trial finite and future billing server-authoritative', () => {
+    // New profiles always start free. The sole browser-side elevation is a
+    // server-time-bounded launch trial whose end is exactly 90 days later.
     assert.match(rulesSource, /incoming\(\)\.plan == 'free'/);
-    // …and an update may not hand out Pro on its own: the only permitted
-    // free -> pro transition is the single, stamped beta claim. A plain
-    // `plan in ['free','pro']` whitelist is what let any account self-grant.
-    assert.match(rulesSource, /incoming\(\)\.plan == 'pro'/);
     assert.match(rulesSource, /existing\(\)\.plan == 'free'/);
-    assert.match(rulesSource, /!\('proTrialClaimedAt' in existing\(\)\)/);
-    assert.match(rulesSource, /incoming\(\)\.proTrialClaimedAt is string/);
-    // The client side of that claim must exist too, or the rules describe a
-    // transition nothing can perform.
+    assert.match(rulesSource, /incoming\(\)\.entitlementSource == 'launch_trial'/);
+    assert.match(rulesSource, /incoming\(\)\.entitlementEndsAtMs\s*\n\s*== incoming\(\)\.entitlementStartedAtMs \+ 7776000000/);
+    assert.match(rulesSource, /!entitlementFieldsChanged\(\) \|\| validLaunchTrialClaim\(\)/);
+
     const dbSource = readRepoFile('src/lib/db.ts');
     assert.match(dbSource, /export async function claimProTrial/);
-    assert.match(dbSource, /proTrialClaimedAt: new Date\(\)\.toISOString\(\)/);
-    // The mock checkout must not pretend to charge anyone: no card field may be
-    // reachable for a real signed-in account.
+    assert.match(dbSource, /entitlementSource: 'launch_trial'/);
+    assert.match(dbSource, /entitlementEndsAtMs: startedAtMs \+ PRO_TRIAL_DURATION_MS/);
+
+    // Production UI contains no PAN/CVC form, simulated charge, or purchase event.
     const upgradeModal = readRepoFile('src/components/modals/ProUpgradeModal.tsx');
-    assert.match(upgradeModal, /const realAccount = Boolean\(user\) && !isDemoMode\(\)/);
-    assert.match(upgradeModal, /m\.pro\.betaTitle/);
+    assert.doesNotMatch(upgradeModal, /pro-card-number|cardCvc|processPayment|createCheckoutSession/);
     assert.doesNotMatch(upgradeModal, /trackEvent\(\s*'purchase'/);
+    assert.match(upgradeModal, /claimProTrial/);
+
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,
-      /single source of truth/i,
+      /90 days/i,
     );
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,
-      /proTrialClaimedAt/,
+      /Admin SDK/i,
     );
   });
 });

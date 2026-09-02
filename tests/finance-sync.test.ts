@@ -8,6 +8,7 @@ import {
   mergeMonthMutation,
   putFinanceMutation,
   removeFinanceMutation,
+  resolvePeriodMutation,
   type FinanceMutation,
 } from '../src/lib/finance-sync';
 import { normalizeMonth, type MonthBudget, type SavingGoal } from '../src/lib/store';
@@ -75,6 +76,18 @@ test('three-way month merge rejects a composed overdraft', () => {
     (error: unknown) => error instanceof FinanceConflictError
       && error.conflicts.some((conflict) => conflict.path === 'bankPart' && conflict.reason === 'insufficient-funds'),
   );
+});
+
+test('closed periods reject ordinary edits and make close/reopen idempotent', () => {
+  assert.throws(
+    () => resolvePeriodMutation({ periodStatus: 'closed' }, 'finance'),
+    (error: unknown) => error instanceof FinanceConflictError
+      && error.conflicts[0]?.reason === 'period-closed',
+  );
+  assert.equal(resolvePeriodMutation({ periodStatus: 'closed' }, 'close-period'), 'already-satisfied');
+  assert.equal(resolvePeriodMutation({ periodStatus: 'closed' }, 'reopen-period'), 'proceed');
+  assert.equal(resolvePeriodMutation({ periodStatus: 'open' }, 'reopen-period'), 'already-satisfied');
+  assert.equal(resolvePeriodMutation({ periodStatus: 'open' }, 'close-period'), 'proceed');
 });
 
 test('goal merge composes independent edits and conflicts on the same goal', () => {

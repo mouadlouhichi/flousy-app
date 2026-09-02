@@ -60,8 +60,10 @@ import {
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
+import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-access';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
+import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
   listFinanceMutations,
@@ -111,6 +113,8 @@ interface DashboardContextType {
   pendingMutations: number;
   retrySync: () => void;
   discardPendingChanges: () => Promise<void>;
+  closeCurrentMonth: () => void;
+  reopenCurrentMonth: () => void;
 
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
@@ -207,6 +211,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     canViewArea,
   } = useHousehold();
   const { configuredCurrency, setPeriodCurrency } = useCurrency();
+  const { messages: m } = useLanguage();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
   const budgetStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
   const budgetProfile: MonthConfiguration | null = useMemo(() => (
@@ -525,6 +530,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
 
     const activeProfile = profileRef.current;
+    const loadTarget = `${workspace}:${workspaceId || 'local'}:${currentMonthKey}`;
+    const loadStillActive = () => activeTargetRef.current === loadTarget;
     const storageKey = householdStorageKey(householdId, currentMonthKey);
     const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
     if (cached) {
@@ -540,6 +547,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (householdId && !isContributor) {
       const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
+        if (!loadStillActive()) return;
         if (pendingCurrentTargetRef.current > 0) {
           setLoading(false);
           return;
@@ -548,7 +556,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setMonth(data);
           persist(data);
         } else {
-          const fresh = normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile);
+          // Household periods use the same deterministic recurring-income and
+          // rollover initialization as personal periods. Nothing is written
+          // until an authorized member makes a change.
+          const previousMonth = await getPreviousMonth(currentMonthKey);
+          if (!loadStillActive() || pendingCurrentTargetRef.current > 0) {
+            if (loadStillActive()) setLoading(false);
+            return;
+          }
+          const fresh = normalizeMonth(
+            previousMonth
+              ? {
+                  totalBudget: previousMonth.totalBudget,
+                  incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
+                  activeCategories: previousMonth.activeCategories,
+                  categoryIcons: previousMonth.categoryIcons,
+                  categoryColors: previousMonth.categoryColors,
+                }
+              : { totalBudget: 0 },
+            currentMonthKey,
+            activeProfile,
+            previousMonth,
+          );
           setMonth(fresh);
           persist(fresh);
         }
@@ -561,6 +590,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
+        if (!loadStillActive()) return;
         if (pendingCurrentTargetRef.current > 0) {
           setLoading(false);
           return;
@@ -571,6 +601,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         } else {
           // Fetch previous month for rollover
           const previousMonth = await getPreviousMonth(currentMonthKey);
+          if (!loadStillActive() || pendingCurrentTargetRef.current > 0) {
+            if (loadStillActive()) setLoading(false);
+            return;
+          }
 
           // If no month document exists in Firestore, check local storage or initialize clean default
           const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
@@ -601,6 +635,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return () => unsub();
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
+        if (!loadStillActive()) return;
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
         const next = local ?? normalizeMonth(
           previousMonth
@@ -777,13 +812,31 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [householdId, canEdit, canEditArea],
   );
 
+  const currentBulkImportAccess = useCallback(
+    () => resolveBulkImportAccess({
+      profile,
+      workspace,
+      household,
+      canWriteArea: (area: BulkImportArea) => mayWriteArea(area),
+    }),
+    [profile, workspace, household, mayWriteArea],
+  );
+
   const enqueueFinanceUpdate = useCallback((
     newMonth: MonthBudget,
     newGoals?: SavingGoal[],
     area?: HouseholdArea,
+    intent: FinanceMutation['intent'] = 'finance',
   ) => {
     if (householdId && (!canEdit || (area && !mayWriteArea(area)))) return;
+    if (householdId && intent !== 'finance' && !isOwner) return;
     const baseMonth = monthRef.current;
+    if (baseMonth.periodStatus === 'closed' && intent !== 'reopen-period') {
+      setSyncState('conflict');
+      setSyncError(m.monthLock.editBlocked);
+      return;
+    }
+    if (baseMonth.periodStatus !== 'closed' && intent === 'reopen-period') return;
     const baseGoals = goalsRef.current;
     monthRef.current = newMonth;
     setMonth(newMonth);
@@ -815,6 +868,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       baseMonth,
       nextMonth: newMonth,
       ...(newGoals ? { baseGoals, nextGoals: newGoals } : {}),
+      ...(intent !== 'finance' ? { intent } : {}),
       createdAt: new Date().toISOString(),
       attempts: 0,
     };
@@ -832,7 +886,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         setSyncState('failed');
         setSyncError(error instanceof Error ? error.message : String(error));
       });
-  }, [householdId, canEdit, mayWriteArea, currentMonthKey, user, workspaceId, workspace, flushOutbox]);
+  }, [householdId, canEdit, mayWriteArea, isOwner, currentMonthKey, user, workspaceId, workspace, flushOutbox, m.monthLock.editBlocked]);
 
   const updateAndSaveMonth = useCallback(
     (newMonth: MonthBudget, area?: HouseholdArea) => enqueueFinanceUpdate(newMonth, undefined, area),
@@ -846,6 +900,27 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     (newMonth: MonthBudget, newGoals: SavingGoal[]) => enqueueFinanceUpdate(newMonth, newGoals, 'savings'),
     [enqueueFinanceUpdate],
   );
+  const closeCurrentMonth = useCallback(() => {
+    const current = monthRef.current;
+    if (current.periodStatus === 'closed') return;
+    enqueueFinanceUpdate({
+      ...current,
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      ...(user?.uid ? { closedByUserId: user.uid } : {}),
+    }, undefined, 'settings', 'close-period');
+  }, [enqueueFinanceUpdate, user?.uid]);
+  const reopenCurrentMonth = useCallback(() => {
+    const current = monthRef.current;
+    if (current.periodStatus !== 'closed') return;
+    const openMonth = { ...current };
+    delete openMonth.closedAt;
+    delete openMonth.closedByUserId;
+    enqueueFinanceUpdate({
+      ...openMonth,
+      periodStatus: 'open',
+    }, undefined, 'settings', 'reopen-period');
+  }, [enqueueFinanceUpdate]);
   const retrySync = useCallback(() => {
     setSyncState('pending');
     setSyncError(null);
@@ -1025,7 +1100,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       );
 
       updateAndSaveMonth(updated, 'balances');
-      trackEvent('update_total_budget', { amount: safeBudget });
+      trackEvent('update_total_budget');
     },
     [month, currentMonthKey, budgetProfile, updateAndSaveMonth, mayWriteArea],
   );
@@ -1105,26 +1180,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // CSV Import Handlers
   const handleBatchImportVariable = useCallback(
     (newExpenses: VariableExpense[]) => {
-      if (!mayWriteArea('expenses')) return;
+      // Re-resolve time-sensitive entitlement and RBAC at the mutation boundary.
+      // An importer opened before trial expiry must not retain write access.
+      if (!currentBulkImportAccess().areas.expenses) return;
       let current = month;
       newExpenses.forEach((exp) => {
         current = addVariableExpense(current, exp);
       });
       updateAndSaveMonth(current, 'expenses');
     },
-    [month, updateAndSaveMonth, mayWriteArea],
+    [month, updateAndSaveMonth, currentBulkImportAccess],
   );
 
   const handleBatchImportFixed = useCallback(
     (newBills: FixedExpense[]) => {
-      if (!mayWriteArea('fixedBills')) return;
+      if (!currentBulkImportAccess().areas.fixedBills) return;
       let current = month;
       newBills.forEach((bill) => {
         current = addFixedExpense(current, bill);
       });
       updateAndSaveMonth(current, 'fixedBills');
     },
-    [month, updateAndSaveMonth, mayWriteArea],
+    [month, updateAndSaveMonth, currentBulkImportAccess],
   );
 
   const sendVerification = useCallback(async () => {
@@ -1224,11 +1301,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const closeProModal = useCallback(() => setIsProModalOpen(false), []);
 
   const openCsvModal = useCallback(() => {
-    // CSV import can write either expense collection, so a read-only role must
+    // CSV export and JSON portability stay available from Profile. Bulk import
+    // is the Pro feature, so resolve access afresh whenever its modal opens.
+    const access = currentBulkImportAccess();
+    if (!access.entitled) {
+      if (workspace === 'personal') setIsProModalOpen(true);
+      return;
+    }
+    // Import can write either expense collection, so a read-only role must
     // never reach the importer even though it may separately export data.
-    if (householdId && !canEditArea('expenses') && !canEditArea('fixedBills')) return;
+    if (!access.areas.expenses && !access.areas.fixedBills) return;
     setIsCsvModalOpen(true);
-  }, [householdId, canEditArea]);
+  }, [currentBulkImportAccess, workspace]);
   const closeCsvModal = useCallback(() => setIsCsvModalOpen(false), []);
 
   // Income is readable in view-only mode, so the gate here is `canViewArea`;
@@ -1282,6 +1366,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       pendingMutations,
       retrySync,
       discardPendingChanges,
+      closeCurrentMonth,
+      reopenCurrentMonth,
       handleUpdateTotalBudget,
       handleEditMoneyPlaces,
       handleUpdateStrategy,
@@ -1358,6 +1444,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       pendingMutations,
       retrySync,
       discardPendingChanges,
+      closeCurrentMonth,
+      reopenCurrentMonth,
       handleUpdateTotalBudget,
       handleEditMoneyPlaces,
       handleUpdateStrategy,

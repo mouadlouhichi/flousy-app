@@ -15,7 +15,7 @@ export function QuickActions() {
   const pathname = usePathname();
   const router = useRouter();
   const { messages: m } = useLanguage();
-  const { openExpenseModal, openFixedModal, openSavingsModal } = useDashboard();
+  const { month, openExpenseModal, openFixedModal, openSavingsModal } = useDashboard();
   const { canEditArea } = useHousehold();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
@@ -24,6 +24,7 @@ export function QuickActions() {
   // them too: the session screen has its own entry forms and a pinned
   // total/finish bar, and the floating button overlapped both.
   if (
+    month.periodStatus === 'closed' ||
     activeScreen === 'trends' ||
     activeScreen === 'debts' ||
     activeScreen === 'profile' ||

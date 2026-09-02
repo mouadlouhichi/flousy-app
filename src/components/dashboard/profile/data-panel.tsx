@@ -101,7 +101,7 @@ export function DataPanel() {
       const result = await restoreFinanceBackup(user.uid, financeTarget, pendingRestore, financeConfiguration);
       setBackupNotice(t(p.restoreComplete, { months: result.restoredMonths, goals: result.restoredGoals }));
       setPendingRestore(null);
-      trackEvent('restore_json_backup', { workspace, months: result.restoredMonths });
+      trackEvent('restore_json_backup', { workspace });
     } catch (error) {
       console.error('Backup restore failed:', error);
       setBackupNotice(error instanceof FinanceRestoreIncompleteError ? p.restorePartial : p.restoreFailed);

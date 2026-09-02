@@ -1,8 +1,8 @@
 # MVP Todo & Implementation Audit
 
-> Last updated: 2026-07-28
+> Last updated: 2026-09-02
 >
-> Legend: ✅ Done · ⬜ Not started · 🔧 Partial / needs polish
+> Legend: ✅ Done · ⏭️ Deliberately deferred · 🔧 Partial / needs polish
 
 ---
 
@@ -75,12 +75,12 @@
 |---|---------|--------|-------|
 | 39 | Currency selection (12 currencies) | ✅ | `SUPPORTED_CURRENCIES` in `currency.ts` |
 | 40 | Locale-aware formatting | ✅ | `Intl.NumberFormat` per currency locale |
-| 41 | Dark mode / light mode / system | ✅ | Theme toggle in Settings modal |
-| 42 | CSV export | ✅ | `export.ts` with formula-injection protection |
-| 43 | CSV import | ✅ | `ImportCsvModal` with header-matching parser |
-| 44 | One-click account deletion | ✅ | `deleteAccount()` + `deleteUserAccountData()` |
+| 41 | Dark mode / light mode / system | ✅ | Theme control under Profile → Preferences |
+| 42 | CSV export | ✅ | Free data-portability action in Profile → Data; `export.ts` neutralizes formula injection |
+| 43 | CSV import | ✅ | Pro bulk importer with localized header mapping, duplicate detection, caps, and exact-expiry/RBAC re-checks at modal-open and mutation time |
+| 44 | Truthful in-app account deletion | ✅ | `deleteAccount()` + `deleteUserAccountData()` with recent-login and partial-failure recovery |
 | 45 | Sign out | ✅ | Clears localStorage + sessionStorage |
-| 46 | Pro upgrade modal (Stripe mock checkout) | ✅ | Full 4-step mock checkout flow (`payments.ts`) |
+| 46 | Pro launch entitlement | ✅ | One no-card, exact 90-day launch trial; provider-neutral CMI/Stripe boundary is disabled until live billing is approved |
 
 ## 🏗 Categories
 
@@ -119,12 +119,12 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 65 | Firestore security rules | ✅ | Ownership, field whitelists, numeric ranges, array caps, 400KB ceiling, Firebase-only plan (validated free↔pro flips) |
-| 66 | Content Security Policy (CSP) middleware | ✅ | Nonce-based, strict-dynamic, per-request nonce |
+| 65 | Firestore security rules | ✅ | Ownership/RBAC, entitlement expiry, immutable trial claims, revision+ledger coupling, month locks, money bounds and bounded collections |
+| 66 | Content Security Policy (CSP) proxy | ✅ | `src/proxy.ts` applies origin-based CSP and cache policy to pages and APIs without forcing dynamic rendering |
 | 67 | Zod validation on all forms | ✅ | `validation.ts` — expense, fixed bill, move money, goal, auth, category schemas |
 | 68 | CSV injection neutralisation | ✅ | `escapeCsvCell()` prepends `'` to formula triggers |
 | 69 | Demo mode fallback when Firebase unconfigured | ✅ | Graceful degradation throughout |
-| 70 | Error boundaries (route + global) | ✅ | `error.tsx` + `global-error.tsx` |
+| 70 | Route error boundary | ✅ | `src/app/error.tsx` |
 | 71 | 404 page | ✅ | `not-found.tsx` |
 | 72 | Loading states / skeletons | ✅ | `loading.tsx` + skeleton loaders in dashboard |
 
@@ -135,7 +135,7 @@
 | 73 | i18n framework (en, fr, ar) | ✅ | `translations.ts`, `i18n.ts`, `i18n-light.tsx`, `i18n-context.tsx` |
 | 74 | Message files for all 3 locales | ✅ | `messages/en.json`, `messages/fr.json`, `messages/ar.json` |
 | 75 | RTL support (Arabic) | ✅ | `dir` attribute, RTL locale detection |
-| 76 | ICU plural resolution | ✅ | `resolvePlural()` in `translations.ts` |
+| 76 | ICU plural resolution | ✅ | `resolvePlural()` in `i18n-core.ts` |
 | 77 | Locale-aware number formatting | ✅ | `getIntlLocale()` maps language to Intl locale |
 | 78 | Language cookie + localStorage persistence | ✅ | `setLanguageCookie()` + `LANG_STORAGE_KEY` |
 | **79** | **UI strings actually translated to FR/AR** | ✅ | All three locale files fully populated with localized translations. New keys added for trends, alerts, recurring bills, income source analytics, and debts/credits. |
@@ -145,7 +145,7 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | 80 | Landing page with multiple sections | ✅ | Hero, Features, How It Works, Pricing, FAQ, etc. |
-| 81 | JSON-LD structured data (SoftwareApplication, Organization, FAQ) | ✅ | `json-ld.tsx` component |
+| 81 | JSON-LD structured data (SoftwareApplication, Organization, WebSite, FAQ) | ✅ | Factual Free/90-day-trial offers rendered through `json-ld.tsx` |
 | 82 | Sitemap | ✅ | `sitemap.ts` excludes private routes |
 | 83 | Robots.txt | ✅ | `robots.ts` |
 | 84 | Open Graph / Twitter card metadata | ✅ | Per-page metadata |
@@ -160,7 +160,7 @@
 |---|---------|--------|-------|
 | 89 | Live Firestore subscription for month budget | ✅ | `subscribeMonthBudget()` with `onSnapshot` |
 | 90 | Live Firestore subscription for savings goals | ✅ | `subscribeSavingsGoals()` |
-| 91 | Optimistic writes with fallback | ✅ | `updateAndSaveMonth()` + `updateAndSaveGoals()` |
+| 91 | Durable optimistic writes and conflict handling | ✅ | IndexedDB outbox, transactional three-way merge, revisions, immutable ledger and truthful retry/discard UI |
 | 92 | localStorage fallback for offline/demo | ✅ | `flousy_month_${monthKey}` local caching |
 | 93 | Normalize legacy documents on read | ✅ | `normalizeMonth()` backfills missing fields |
 | 94 | `cleanUndefined()` utility for Firestore | ✅ | Prevents `undefined` field errors |
@@ -181,29 +181,29 @@
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| P1 | **Stripe mock payment integration** | ✅ | Realistic mock Checkout flow: plan selection → card form → 3D-secure simulation → receipt with transaction ID. See `payments.ts` and `ProUpgradeModal.tsx` |
-| P2 | **Recurring fixed charges (auto-carry bills between months)** | ✅ | `carryOverFixedExpenses()` in `store.ts` copies recurring bills on month rollover, plus `carryOverRecurring` in dashboard auto-loads from previous month when entering a fresh month |
+| P1 | **Launch Pro access / future billing seam** | ✅ | No card collection or simulation. One exact 90-day trial is Rules-enforced; later CMI/Stripe uses provider-hosted checkout, verified webhooks and Admin SDK entitlement projection |
+| P2 | **Recurring income and fixed charges** | ✅ | Deterministic planned occurrences carry into fresh personal and household periods without debiting cash or duplicating concurrent retries |
 | P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
 | P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
 | P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
-| P6 | **Shared / household budgets** | ✅ | Multi-user household workspaces (`/households/{hid}`) with 5-role RBAC (`owner`, `editor`, `contributor`, `viewer`, `custom`), contributor invoice submission/review workflow, member invitation links via Resend, and dual personal/household workspace switching |
-| P7 | **Bank sync (Plaid / Tink)** | ⬜ | Post-MVP; no API integrations exist |
-| P8 | **Receipt OCR / smart scanning** | ⬜ | Receipt upload works (base64 data URL); no OCR processing |
+| P6 | **Shared / household budgets** | ✅ | Rules-enforceable owner/editor/viewer/contributor access, legacy custom compatibility, entitlement-gated writes, contributor invoice workflow, Resend invitations, exports and workspace switching |
+| P7 | **Bank sync (Plaid / Tink)** | ⏭️ | Deliberately post-launch: requires provider/compliance selection and is not needed for safe manual budgeting |
+| P8 | **Receipt OCR / smart scanning** | ⏭️ | Deliberately post-launch; compressed/bounded receipt attachment works without claiming OCR |
 | P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
-| P10 | **Push notifications** | ⬜ | No push notification infrastructure |
-| P11 | **Data export — JSON backup** | ⬜ | CSV export only |
-| P12 | **Month locking / archiving** | ⬜ | No concept of "closed" months |
+| P10 | **Push notifications** | ⏭️ | Deliberately post-launch; requires a separate consent and delivery design |
+| P11 | **Data export — JSON backup** | ✅ | Full-workspace JSON export plus schema-validated, confirmation-gated restore with partial-failure reporting |
+| P12 | **Month locking / archiving** | ✅ | Owner close/reopen, read-only UI, offline conflict protection, ledger audit, and Rules enforcement across edits, invoices and course posting |
 
 ## 🐞 Known Issues / Tech Debt
 
 | # | Issue | Severity | Notes |
 |---|-------|----------|-------|
-| K1 | Whole-document writes per month (not subcollection) | Medium | Fine to ~2,000 transactions; a `transactions` subcollection would scale better |
-| K2 | Rules validate shape/size but don't rate-limit writes | Low | No write-frequency caps |
+| K1 | Whole-document monthly aggregate | Medium | Bounded to 2,000 variable expenses; revisioned transactions prevent lost updates, but a future subcollection migration will be needed at larger scale |
+| K2 | Firestore write-frequency abuse controls | Low | Rules enforce authorization/shape but cannot rate-limit; enable Firebase App Check and budget alerts in production |
 | K3 | Styling mixes Tailwind utilities with inline styles and CSS variables | Low | Cosmetic tech debt |
-| K4 | `npm run lint` → `tsc --noEmit` (not ESLint) | Low | package.json has `lint` aliased to `typecheck`; ESLint config exists but isn't wired |
-| K5 | Receipts stored as base64 data URLs (not Firebase Storage) | Medium | Will bloat Firestore doc size; should move to Firebase Storage |
-| K6 | `Math.random()` used for ID generation | Medium | Should use `crypto.randomUUID()` or Firestore auto-IDs for production |
+| K4 | Lint command wiring | Resolved | `npm run lint` runs ESLint with zero warnings and the authoritative Firebase Rules syntax parser; normal/strict TypeScript and emulator behavior remain separate gates |
+| K5 | Receipts stored inline rather than Firebase Storage | Low | Images are resized/compressed and capped at 100k characters; Storage remains a scale optimization |
+| K6 | Randomness fallbacks | Low | Persisted modern-browser IDs use `crypto.randomUUID()`; `Math.random()` remains only for cosmetic choices, deterministic test hooks, or obsolete-runtime fallback |
 | K7 | No rate limiting on Firestore writes | Low | Could hit Firestore write limits under heavy usage |
 | K8 | No email rate limiting for auth flows | Low | Password reset / verification emails could be spammed |
 
@@ -220,45 +220,28 @@
 | C1 | Barcode normalization (EAN-8/13, UPC-A→13, checksum) | ✅ | `normalizeBarcode()` + `barcodeChecksumValid()` in `course-session.ts` |
 | C2 | Self-learning product catalog (per user) | ✅ | `users/{uid}/products/{barcode}`; demo mode uses `localStorage` |
 | C3 | Product resolution cascade (catalog → OFF → manual) | ✅ | `resolveProduct()`; 4 s timeout degrades to manual entry |
-| C4 | Open Food Facts lookup (direct + server proxy fallback) | ✅ | `product-lookup.ts` + `/api/barcode/lookup` (5 min LRU); MA data ≈ 22.8k products |
+| C4 | Open Food Facts lookup (direct + server proxy fallback) | ✅ | `product-lookup.ts` + bounded `/api/barcode/lookup` cache; failures degrade to manual entry |
 | C5 | Moroccan detection (GS1 prefix 611) + "Made in Morocco" badge | ✅ | `isMoroccanBarcode()` |
 | C6 | Camera scanning (BarcodeDetector → zxing fallback) | ✅ | `use-barcode-scanner.ts`; 1.5 s re-detect debounce |
 | C7 | Hardware scanner (keyboard wedge) + manual code field | ✅ | Digit-burst + Enter; manual field always available |
-| C8 | Active session: re-scan = qty +1, one-field price step (never prefilled — price varies per market) | ✅ | `createSessionItem`/`addItemToSession`; last price recorded in catalog for future price history, not shown |
+| C8 | Active session: re-scan = qty +1 and user-confirmed price step | ✅ | Prices are not guessed from stale catalog data; valid variable-measure EAN-13 embedded prices may be prefilled for confirmation |
 | C9 | Bill on finish (receipt text, share/copy/.txt/.csv) | ✅ | `renderBillText()`/`renderBillCsv()` — deterministic 46-col layout |
 | C10 | Session history (completed courses → reopen bill) | ✅ | `users/{uid}/sessions`, 100 latest |
 | C11 | Firestore rules (barcode id pattern, money bounds, 500-line cap) | ✅ | `firestore.rules`; blueprint kept in sync |
 | C12 | i18n (EN/FR/AR incl. RTL bill rendering) | ✅ | `messages/*.json` → `courses` section |
 | C13 | Entry point (quick action "Start Course") + screen routing | ✅ | `/dashboard/courses`, hidden from the 5-destination nav |
-| C14 | Unit tests (normalize/reducer/totals/bill/resolve) | ✅ | `tests/course-session.test.ts` (34 cases) |
+| C14 | Unit tests (normalize/reducer/totals/bill/resolve) | ✅ | `tests/course-session.test.ts` |
 | C15 | Log bill to budget (variable expense) | ✅ | `courses-budget-logger.tsx` — one variable expense for the trip total; grocery-like category by default, first active category as fallback (`resolveCourseCategory`); idempotent via `loggedExpenseId` |
-| C16 | Static MA seed shard (CI-built OFF snapshot, offline 0 ms) | ⬜ | P2 — `/api/catalog/shard/611.json` + IndexedDB |
-| C17 | Opt-in "share product with Open Food Facts" | ⬜ | P2 |
-| C18 | Last-price suggestions / price history | ⬜ | P3 — Open Prices MA if data volume justifies |
-| C19 | Per-category bill splitting, household sessions (Pro) | ⬜ | P3 |
+| C16 | Static MA seed shard (CI-built OFF snapshot, offline 0 ms) | ⏭️ | Post-launch optimization; live lookup and manual fallback are complete |
+| C17 | Opt-in "share product with Open Food Facts" | ⏭️ | Post-launch contribution feature requiring separate consent |
+| C18 | Last-price suggestions / price history | ⏭️ | Post-launch; deliberately avoids presenting stale market prices at launch |
+| C19 | Per-category bill splitting, household sessions (Pro) | ⏭️ | Post-launch enhancement; atomic whole-session posting is complete |
 | C20 | Barcode scan gated to the Pro plan | ✅ | `courses-scan-upsell.tsx` replaces the scanner panel on free plans; unlocked via `isProFeatureUnlocked` (household members included), name + price entry stays free |
 
 ---
 
 ## Summary
 
-| Category | Total | ✅ Done | 🔧 Partial | ⬜ Not started |
-|----------|-------|---------|------------|----------------|
-| Core Budgeting | 7 | 7 | 0 | 0 |
-| Money Places & Expenses | 13 | 13 | 0 | 0 |
-| Savings Goals | 6 | 6 | 0 | 0 |
-| Debts & Credits | 5 | 5 | 0 | 0 |
-| Onboarding & Auth | 7 | 7 | 0 | 0 |
-| Settings & Data | 8 | 8 | 0 | 0 |
-| Categories | 5 | 5 | 0 | 0 |
-| Household / Person | 3 | 3 | 0 | 0 |
-| PWA & Installability | 10 | 10 | 0 | 0 |
-| Security & Infra | 8 | 8 | 0 | 0 |
-| i18n | 6 | 6 | 0 | 0 |
-| Landing & SEO | 9 | 9 | 0 | 0 |
-| Firestore & Persistence | 7 | 7 | 0 | 0 |
-| Testing | 6 | 6 | 0 | 0 |
-| Course Session | 20 | 16 | 0 | 4 |
-| **Post-MVP / Remaining** | **12** | **7** | **0** | **5** |
-| **Known Issues / Tech Debt** | **8** | — | — | — |
-| **Grand Total (core + post-MVP)** | **131** | **121** | **0** | **10** |
+Repository implementation is complete for the intended launch scope: manual budgeting, savings, debt, recurring lifecycle, durable synchronization, Household collaboration, course capture, localization, backup/restore, month locking, and the no-card 90-day Pro trial. This statement does not replace clean release-gate evidence. Bank aggregation, OCR, push delivery, catalog seed sharing, and advanced course analytics are explicitly post-launch integrations—not hidden launch blockers.
+
+Production operations and final validation are owned by [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md): Rules-emulator/build evidence, verified domains/senders, secrets, App Check/monitoring, DNS email authentication, workflow permissions, legal approval, backup/rollback, and deployment smoke tests.

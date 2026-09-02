@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { StaticPageShell } from "@/components/static/page-shell";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { Mail } from "lucide-react";
@@ -17,7 +18,7 @@ export default function CareersPage() {
       </div>
       <div className="border border-foreground/10 p-8 flex items-start gap-4">
         <Mail className="w-5 h-5 text-foreground mt-0.5 shrink-0" />
-        <div><h3 className="font-medium text-foreground mb-1">{s.getOnRadar}</h3><p className="text-muted-foreground leading-relaxed">{s.getOnRadarDescription}{" "}<span className="text-foreground">careers@flousy.app</span>{s.getOnRadarSuffix}</p></div>
+        <div><h3 className="font-medium text-foreground mb-1">{s.getOnRadar}</h3><p className="text-muted-foreground leading-relaxed">{s.getOnRadarDescription}{" "}<Link href="/contact" className="text-foreground underline underline-offset-4">{m.landing.footer.contactUs}</Link>{s.getOnRadarSuffix}</p></div>
       </div>
     </StaticPageShell>
   );

@@ -77,11 +77,11 @@ export function ExpenseModal({
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
-  const { workspace } = useHousehold();
+  const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
   const e = m.modals.expense;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProFeatureUnlocked(isProUser(profile), workspace);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace, household);
   const today = todayLocalIso();
   const defaultDate = periodStartDate && today < periodStartDate
     ? periodStartDate

@@ -34,8 +34,8 @@ export function ProfileScreen() {
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
   const { month, isPro, openIncomeModal, openProModal } = useDashboard();
-  const { workspace, canViewArea } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household, canViewArea } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   // Profile is the member's own account page, so it is never blocked wholesale.
   // Individual entries that lead into a household area are gated instead.
   const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);

@@ -24,6 +24,7 @@ import {
   actorForMonth,
   canShowProUpgrade,
   isProFeatureUnlocked,
+  isHouseholdEntitlementActive,
   monthStartDateFor,
   normalizeHouseholdName,
   isAssignableMemberRole,
@@ -202,13 +203,26 @@ describe('Household storage and audit helpers', () => {
     assert.equal(actorForMonth(baseMonth).updatedByUserId, undefined);
   });
 
-  it('keeps Pro upgrades personal and unlocks features through a household entitlement', () => {
+  it('keeps upgrades personal and expires projected household trial access', () => {
+    const now = Date.UTC(2026, 8, 2);
+    const active = {
+      entitlementSource: 'launch_trial' as const,
+      entitlementStatus: 'trialing' as const,
+      entitlementEndsAtMs: now + 1,
+    };
+    const expired = { ...active, entitlementEndsAtMs: now };
+
     assert.equal(canShowProUpgrade(false, 'personal'), true);
     assert.equal(canShowProUpgrade(false, 'household'), false);
     assert.equal(canShowProUpgrade(true, 'personal'), false);
     assert.equal(isProFeatureUnlocked(true, 'personal'), true);
-    assert.equal(isProFeatureUnlocked(false, 'household'), true);
-    assert.equal(isProFeatureUnlocked(false, 'personal'), false);
+    assert.equal(isHouseholdEntitlementActive(active, now), true);
+    assert.equal(isHouseholdEntitlementActive(expired, now), false);
+    assert.equal(isProFeatureUnlocked(false, 'household', active, now), true);
+    assert.equal(isProFeatureUnlocked(false, 'household', expired, now), false);
+    assert.equal(isProFeatureUnlocked(false, 'personal', active, now), false);
+    // Legacy households have no projection and retain access/data.
+    assert.equal(isHouseholdEntitlementActive({}, now), true);
   });
 });
 

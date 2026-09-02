@@ -9,6 +9,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   setDoc,
@@ -101,6 +102,72 @@ describe('revisioned personal finance rules', () => {
     second.update(monthRef, { bankPart: 900, revision: 2, lastMutationId: 'update-2' });
     await assertSucceeds(second.commit());
     await assertFails(updateDoc(doc(db, 'users/alice/ledger/update-2'), { kind: 'rewritten' }));
+
+    // Onboarding/bootstrap is create-only: re-entering the flow cannot replace
+    // an established month even when it attempts a valid revision + ledger.
+    const bootstrapOverwrite = writeBatch(db);
+    bootstrapOverwrite.set(
+      doc(db, 'users/alice/ledger/bootstrap-overwrite'),
+      ledger('bootstrap-overwrite', 'alice', 'personal', 'alice', 2, 3, 'bootstrap'),
+    );
+    bootstrapOverwrite.update(monthRef, {
+      totalBudget: 1,
+      revision: 3,
+      lastMutationId: 'bootstrap-overwrite',
+    });
+    await assertFails(bootstrapOverwrite.commit());
+  });
+
+  it('freezes a closed month until a state-only reopen is ledgered', async () => {
+    const db = firestore(environment.authenticatedContext('alice', { email_verified: true }));
+    const monthRef = doc(db, 'users/alice/months/2026-09');
+
+    const create = writeBatch(db);
+    create.set(doc(db, 'users/alice/ledger/lock-create'), ledger('lock-create', 'alice', 'personal', 'alice', 0, 1));
+    create.set(monthRef, validMonth(1, 'lock-create'));
+    await assertSucceeds(create.commit());
+
+    const close = writeBatch(db);
+    close.set(doc(db, 'users/alice/ledger/lock-close'), ledger('lock-close', 'alice', 'personal', 'alice', 1, 2, 'month-close'));
+    close.update(monthRef, {
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'alice',
+      revision: 2,
+      lastMutationId: 'lock-close',
+    });
+    await assertSucceeds(close.commit());
+
+    const editClosed = writeBatch(db);
+    editClosed.set(doc(db, 'users/alice/ledger/locked-edit'), ledger('locked-edit', 'alice', 'personal', 'alice', 2, 3));
+    editClosed.update(monthRef, { bankPart: 900, revision: 3, lastMutationId: 'locked-edit' });
+    await assertFails(editClosed.commit());
+
+    const unsafeReopen = writeBatch(db);
+    unsafeReopen.set(doc(db, 'users/alice/ledger/unsafe-reopen'), ledger('unsafe-reopen', 'alice', 'personal', 'alice', 2, 3, 'month-reopen'));
+    unsafeReopen.update(monthRef, {
+      periodStatus: 'open',
+      bankPart: 900,
+      revision: 3,
+      lastMutationId: 'unsafe-reopen',
+    });
+    await assertFails(unsafeReopen.commit());
+
+    const reopen = writeBatch(db);
+    reopen.set(doc(db, 'users/alice/ledger/lock-reopen'), ledger('lock-reopen', 'alice', 'personal', 'alice', 2, 3, 'month-reopen'));
+    reopen.update(monthRef, {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'lock-reopen',
+    });
+    await assertSucceeds(reopen.commit());
+
+    const editOpen = writeBatch(db);
+    editOpen.set(doc(db, 'users/alice/ledger/open-edit'), ledger('open-edit', 'alice', 'personal', 'alice', 3, 4));
+    editOpen.update(monthRef, { bankPart: 900, revision: 4, lastMutationId: 'open-edit' });
+    await assertSucceeds(editOpen.commit());
   });
 
   it('requires savings revisions to be coupled to a ledger row', async () => {
@@ -109,11 +176,87 @@ describe('revisioned personal finance rules', () => {
     await assertFails(setDoc(savingsRef, { goals: [], revision: 1, lastMutationId: 'none' }));
     const batch = writeBatch(db);
     batch.set(doc(db, 'users/alice/ledger/savings-1'), {
-      ...ledger('savings-1', 'alice', 'personal', 'alice', 0, 1, 'savings'),
+      ...ledger('savings-1', 'alice', 'personal', 'alice', 0, 1, 'savings-bootstrap'),
       monthKey: 'savings',
     });
     batch.set(savingsRef, { goals: [], revision: 1, lastMutationId: 'savings-1' });
     await assertSucceeds(batch.commit());
+
+    const bootstrapOverwrite = writeBatch(db);
+    bootstrapOverwrite.set(doc(db, 'users/alice/ledger/savings-bootstrap-overwrite'), {
+      ...ledger('savings-bootstrap-overwrite', 'alice', 'personal', 'alice', 1, 2, 'savings-bootstrap'),
+      monthKey: 'savings',
+    });
+    bootstrapOverwrite.update(savingsRef, { goals: [], revision: 2, lastMutationId: 'savings-bootstrap-overwrite' });
+    await assertFails(bootstrapOverwrite.commit());
+
+    const update = writeBatch(db);
+    update.set(doc(db, 'users/alice/ledger/savings-update'), {
+      ...ledger('savings-update', 'alice', 'personal', 'alice', 1, 2, 'savings'),
+      monthKey: 'savings',
+    });
+    update.update(savingsRef, { goals: [], revision: 2, lastMutationId: 'savings-update' });
+    await assertSucceeds(update.commit());
+  });
+});
+
+describe('launch-trial entitlement rules', () => {
+  it('allows one server-time-bounded 90-day claim and makes it immutable', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/trial-user'), {
+        plan: 'free', currency: 'MAD', onboardingComplete: true,
+      });
+    });
+    const db = firestore(environment.authenticatedContext('trial-user', { email_verified: true }));
+
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      plan: 'pro', proTrialClaimedAt: new Date().toISOString(),
+    }));
+
+    const startedAtMs = Date.now();
+    const endsAtMs = startedAtMs + 90 * 24 * 60 * 60 * 1000;
+    await assertSucceeds(updateDoc(doc(db, 'users/trial-user'), {
+      plan: 'pro',
+      entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing',
+      entitlementStartedAtMs: startedAtMs,
+      entitlementEndsAtMs: endsAtMs,
+    }));
+
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      entitlementEndsAtMs: endsAtMs + 1,
+    }));
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      entitlementStatus: 'active',
+    }));
+
+    await assertSucceeds(setDoc(doc(db, 'households/trial-home'), {
+      name: 'Trial Home', ownerId: 'trial-user', planOwnerId: 'trial-user',
+      entitlementOwnerId: 'trial-user', entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing', entitlementEndsAtMs: endsAtMs,
+      currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }));
+  });
+
+  it('rejects household creation for an expired trial projection', async () => {
+    const expiredAtMs = Date.now() - 1;
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/expired-user'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+        entitlementStartedAtMs: expiredAtMs - 90 * 24 * 60 * 60 * 1000,
+        entitlementEndsAtMs: expiredAtMs,
+      });
+    });
+    const db = firestore(environment.authenticatedContext('expired-user', { email_verified: true }));
+    await assertFails(setDoc(doc(db, 'households/expired-home'), {
+      name: 'Expired Home', ownerId: 'expired-user', planOwnerId: 'expired-user',
+      entitlementOwnerId: 'expired-user', entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing', entitlementEndsAtMs: expiredAtMs,
+      currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }));
   });
 });
 
@@ -133,6 +276,10 @@ describe('household invitations and RBAC rules', () => {
 
   async function seedHousehold() {
     await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'admin', entitlementStatus: 'active',
+      });
       await setDoc(doc(db, 'households/home'), household);
       for (const [uid, role] of [['owner', 'owner'], ['editor', 'editor'], ['viewer', 'viewer'], ['contributor', 'contributor']] as const) {
         await setDoc(doc(db, `households/home/members/${uid}`), {
@@ -151,6 +298,46 @@ describe('household invitations and RBAC rules', () => {
     await assertSucceeds(getDoc(doc(viewer, 'households/home/months/2026-09')));
     await assertFails(updateDoc(doc(viewer, 'households/home/months/2026-09'), { bankPart: 1 }));
     await assertFails(getDoc(doc(contributor, 'households/home/months/2026-09')));
+  });
+
+  it('lets only the household owner close or reopen a shared period', async () => {
+    await seedHousehold();
+    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const editor = firestore(environment.authenticatedContext('editor', { email_verified: true }));
+    const monthPath = 'households/home/months/2026-09';
+
+    const close = writeBatch(owner);
+    close.set(doc(owner, 'households/home/ledger/shared-close'), ledger('shared-close', 'owner', 'household', 'home', 1, 2, 'month-close'));
+    close.update(doc(owner, monthPath), {
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'owner',
+      revision: 2,
+      lastMutationId: 'shared-close',
+    });
+    await assertSucceeds(close.commit());
+
+    const editorReopen = writeBatch(editor);
+    editorReopen.set(doc(editor, 'households/home/ledger/editor-reopen'), ledger('editor-reopen', 'editor', 'household', 'home', 2, 3, 'month-reopen'));
+    editorReopen.update(doc(editor, monthPath), {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'editor-reopen',
+    });
+    await assertFails(editorReopen.commit());
+
+    const ownerReopen = writeBatch(owner);
+    ownerReopen.set(doc(owner, 'households/home/ledger/shared-reopen'), ledger('shared-reopen', 'owner', 'household', 'home', 2, 3, 'month-reopen'));
+    ownerReopen.update(doc(owner, monthPath), {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'shared-reopen',
+    });
+    await assertSucceeds(ownerReopen.commit());
   });
 
   it('accepts only an unexpired, verified-email invitation in the same atomic batch', async () => {
@@ -213,6 +400,10 @@ describe('household invitations and RBAC rules', () => {
 describe('atomic household invoice approval rules', () => {
   beforeEach(async () => {
     await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'admin', entitlementStatus: 'active',
+      });
       await setDoc(doc(db, 'households/home'), {
         name: 'Home', ownerId: 'owner', planOwnerId: 'owner', entitlementOwnerId: 'owner',
         currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],

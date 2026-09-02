@@ -31,7 +31,7 @@ function positiveMoney(value: number): number {
   return rounded;
 }
 
-function entityId(prefix: string): string {
+export function entityId(prefix: string): string {
   const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -426,6 +426,10 @@ export interface MonthBudget {
   periodEndDate?: string;
   /** Immutable display snapshot for this period; configuration changes affect future periods. */
   currency?: string;
+  /** Closed periods are read-only until their owner explicitly reopens them. */
+  periodStatus?: 'open' | 'closed';
+  closedAt?: string;
+  closedByUserId?: string;
   totalBudget: number; // total expected income
   incomeSources?: IncomeSource[];
   bankPart: number;
@@ -457,11 +461,15 @@ export interface MonthBudget {
 
 export interface UserProfile {
   plan: 'free' | 'pro';
-  /** Immutable marker for the one-time beta Pro claim allowed by Firestore rules. */
+  /** Provider-neutral projection used by launch trials and future billing webhooks. */
+  entitlementSource?: 'launch_trial' | 'stripe' | 'cmi' | 'admin';
+  entitlementStatus?: 'trialing' | 'active' | 'grace_period' | 'past_due' | 'canceled' | 'expired';
+  entitlementStartedAtMs?: number;
+  entitlementEndsAtMs?: number;
+  /** Legacy beta marker retained so pre-launch claims remain one-time and expire safely. */
   proTrialClaimedAt?: string;
-  /** Billing cycle selected at checkout (Firebase-backed, mirrors `plan`). */
+  /** Legacy mock-checkout fields retained only for backward-compatible reads. */
   planBillingCycle?: 'monthly' | 'annual';
-  /** Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades. */
   planNextBillingDate?: string;
   currency: string;
   onboardingComplete: boolean;
@@ -1218,7 +1226,7 @@ function withSavingsActivity(
 ): MonthBudget {
   const logged: SavingsActivityEntry = {
     ...entry,
-    id: `sav-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: entityId('sav'),
   };
 
   return {
@@ -1894,6 +1902,7 @@ export function normalizeMonth(
     periodStartDate: raw?.periodStartDate || bounds.startDate,
     periodEndDate: raw?.periodEndDate || bounds.endDate,
     currency: raw?.currency || userProfile?.currency || 'MAD',
+    periodStatus: raw?.periodStatus === 'closed' ? 'closed' : 'open',
     totalBudget,
     incomeSources,
     bankPart,
