@@ -12,7 +12,15 @@ import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { fixedPaidAmount, type MonthBudget } from '@/lib/store';
 import { isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
-import { TOOL_AREA } from '@/lib/household-rbac';
+import {
+  AREA_LEVEL_OPTIONS,
+  DEFAULT_CUSTOM_PERMISSIONS,
+  HOUSEHOLD_AREAS,
+  LEGACY_CUSTOM_FALLBACK,
+  TOOL_AREA,
+  type AccessLevel,
+  type HouseholdPermissions,
+} from '@/lib/household-rbac';
 import { AreaRestricted } from '../area-restricted';
 
 interface HouseholdPanelProps {
@@ -47,6 +55,7 @@ export function HouseholdPanel({
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
   const [role, setRole] = useState<InviteRole>('contributor');
+  const [permissions, setPermissions] = useState<HouseholdPermissions>(DEFAULT_CUSTOM_PERMISSIONS);
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -119,6 +128,7 @@ export function HouseholdPanel({
     { value: 'contributor', label: h.contributor },
     { value: 'editor', label: h.fullAccess },
     { value: 'viewer', label: h.viewOnly },
+    { value: 'custom', label: m.householdRoles.custom },
   ];
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
@@ -398,7 +408,12 @@ export function HouseholdPanel({
                     disabled={!memberName || busy}
                     onClick={() =>
                       run(async () => {
-                        const inviteId = await invite(memberName, email, role);
+                        const inviteId = await invite(
+                          memberName,
+                          email,
+                          role,
+                          role === 'custom' ? permissions : undefined,
+                        );
                         setLastInviteCode(inviteId);
                         setCopied(false);
                         if (email && !user) {
@@ -457,6 +472,14 @@ export function HouseholdPanel({
                   </button>
                 </div>
 
+                {role === 'custom' && (
+                  <PermissionMatrixEditor
+                    value={permissions}
+                    onChange={setPermissions}
+                    h={h}
+                  />
+                )}
+
                 {lastInviteCode && (
                   <div className="rounded-xl border border-outline-variant bg-surface-container p-3 space-y-2">
                     <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
@@ -500,10 +523,57 @@ export function HouseholdPanel({
 }
 
 /**
+ * Per-area access matrix for the `custom` role. Each area only offers the
+ * levels `AREA_LEVEL_OPTIONS` allows — the same sets `firestore.rules`
+ * validates — so the editor can never author a map the backend rejects.
+ */
+function PermissionMatrixEditor({
+  value,
+  onChange,
+  h,
+}: {
+  value: HouseholdPermissions;
+  onChange: (next: HouseholdPermissions) => void;
+  h: Messages['household'];
+}) {
+  const levelLabel = (level: AccessLevel) => {
+    if (level === 'none') return h.noAccess;
+    if (level === 'view') return h.view;
+    if (level === 'editOwn') return h.editOwn;
+    return h.editAll;
+  };
+  return (
+    <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+        {h.customAccess}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {HOUSEHOLD_AREAS.map((area) => (
+          <div key={area.id} className="min-w-0">
+            <CustomSelect
+              value={value[area.id] || 'none'}
+              onChange={(next) =>
+                onChange({ ...value, [area.id]: next as AccessLevel })
+              }
+              options={AREA_LEVEL_OPTIONS[area.id].map((level) => ({
+                value: level,
+                label: levelLabel(level),
+              }))}
+              label={h.areas[area.id]}
+              triggerClassName="!h-10 !text-xs"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Inline owner-only editor for a member's display name and enforceable role.
- * Legacy custom members can be migrated to editor, viewer, or contributor;
- * field-level custom maps are never offered because Firestore cannot enforce
- * them on the shared month document.
+ * The `custom` role exposes the per-area matrix; every grant it can express
+ * is enforced by `firestore.rules` (month writes are checked key-group by
+ * key-group against the stored map).
  */
 function MemberEditor({
   member,
@@ -522,10 +592,15 @@ function MemberEditor({
   const [role, setRole] = useState<InviteRole>(
     isAssignableMemberRole(member.role) ? member.role : 'contributor',
   );
+  const [permissions, setPermissions] = useState<HouseholdPermissions>(
+    member.permissions
+      ?? (member.role === 'custom' ? LEGACY_CUSTOM_FALLBACK : DEFAULT_CUSTOM_PERMISSIONS),
+  );
   const roleOptions = [
     { value: 'editor', label: h.fullAccess },
     { value: 'contributor', label: m.householdRoles.contributor },
     { value: 'viewer', label: h.viewOnly },
+    { value: 'custom', label: m.householdRoles.custom },
   ];
   return (
     <div className="space-y-3 rounded-xl border border-primary/40 bg-surface-container p-3">
@@ -544,6 +619,9 @@ function MemberEditor({
         ariaLabel={h.customAccess}
         triggerClassName="!h-10 !text-xs"
       />
+      {role === 'custom' && (
+        <PermissionMatrixEditor value={permissions} onChange={setPermissions} h={h} />
+      )}
       <div className="flex justify-end gap-2">
         <button
           type="button"
@@ -559,7 +637,7 @@ function MemberEditor({
               ...member,
               displayName: name.trim() || member.displayName,
               role,
-              permissions: undefined,
+              permissions: role === 'custom' ? permissions : undefined,
             })
           }
           className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary"

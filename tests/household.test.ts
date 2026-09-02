@@ -1,8 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AREA_LEVEL_OPTIONS,
   HOUSEHOLD_AREAS,
+  LEGACY_CUSTOM_FALLBACK,
+  hasFinanceView,
+  hasMonthEditGrant,
   permissionsFor,
+  sanitizePermissions,
   accessLevel,
   canView,
   canEdit,
@@ -95,16 +100,54 @@ describe('Household RBAC permissions', () => {
     }
   });
 
-  it('ignores legacy custom maps that Firestore cannot enforce', () => {
+  it('honors the custom matrix, clamped to enforceable levels', () => {
     const attempted: HouseholdPermissions = {
-      dashboard: 'editAll',
+      dashboard: 'editAll', // read surface: clamps to view
       balances: 'view',
       savings: 'editAll',
     };
-    assert.equal(canView('custom', 'dashboard', attempted), false);
-    assert.equal(canView('custom', 'balances', attempted), false);
-    assert.equal(canEdit('custom', 'savings', attempted), false);
-    assert.equal(canEdit('custom', 'invoices', attempted, true), true);
+    assert.equal(canView('custom', 'dashboard', attempted), true);
+    assert.equal(canEdit('custom', 'dashboard', attempted), false);
+    assert.equal(canView('custom', 'balances', attempted), true);
+    assert.equal(canEdit('custom', 'balances', attempted), false);
+    assert.equal(canEdit('custom', 'savings', attempted), true);
+    // A stored map is exhaustive: areas it omits are denied, including invoices.
+    assert.equal(canEdit('custom', 'invoices', attempted, true), false);
+  });
+
+  it('keeps legacy custom members on the contributor-equivalent fallback', () => {
+    // Documents created before the matrix editor returned stored no map.
+    assert.equal(canEdit('custom', 'invoices', undefined, true), true);
+    assert.equal(canView('custom', 'expenses', undefined), false);
+    assert.deepEqual(permissionsFor('custom'), permissionsFor('custom', LEGACY_CUSTOM_FALLBACK));
+  });
+
+  it('clamps every requested level onto AREA_LEVEL_OPTIONS', () => {
+    const sanitized = sanitizePermissions({
+      members: 'editAll', // management stays owner-only: clamps to view
+      settings: 'editOwn', // clamps to view
+      expenses: 'editOwn', // rules cannot attribute month rows: clamps to view
+      invoices: 'editAll', // approval stays owner/editor: clamps to editOwn
+      income: 'editAll', // allowed as-is
+      debts: 'view', // allowed as-is
+    });
+    assert.equal(sanitized.members, 'view');
+    assert.equal(sanitized.settings, 'view');
+    assert.equal(sanitized.expenses, 'view');
+    assert.equal(sanitized.invoices, 'editOwn');
+    assert.equal(sanitized.income, 'editAll');
+    assert.equal(sanitized.debts, 'view');
+    assert.equal(sanitized.balances, 'none');
+    for (const { id } of HOUSEHOLD_AREAS) {
+      assert.ok(AREA_LEVEL_OPTIONS[id].includes(sanitized[id]), id);
+    }
+  });
+
+  it('derives writer and finance-view predicates from the sanitized matrix', () => {
+    assert.equal(hasMonthEditGrant(sanitizePermissions({ expenses: 'editAll' })), true);
+    assert.equal(hasMonthEditGrant(sanitizePermissions({ expenses: 'view', invoices: 'editOwn' })), false);
+    assert.equal(hasFinanceView(sanitizePermissions({ dashboard: 'view' })), true);
+    assert.equal(hasFinanceView(sanitizePermissions({ invoices: 'editOwn', members: 'view' })), false);
   });
 
   it('fails closed while the membership row is unavailable', () => {
@@ -137,15 +180,21 @@ describe('resolveAreaAccess', () => {
     assert.equal(contributor.canEdit('expenses', true), false);
   });
 
-  it('does not elevate a custom role through its stored map', () => {
+  it('resolves custom gates from the stored map without elevation paths', () => {
     const access = resolveAreaAccess({
       unrestricted: false,
       role: 'custom',
-      permissions: { income: 'view', balances: 'editAll' },
+      permissions: { income: 'view', balances: 'editAll', members: 'editAll' },
     });
-    assert.equal(access.canView('income'), false);
-    assert.equal(access.canEdit('balances'), false);
-    assert.equal(access.canEdit('invoices', true), true);
+    assert.equal(access.canView('income'), true);
+    assert.equal(access.canEdit('income'), false);
+    assert.equal(access.canEdit('balances'), true);
+    // Management surfaces clamp to view no matter what the document says.
+    assert.equal(access.canEdit('members'), false);
+    assert.equal(access.canView('members'), true);
+    // Areas the map omits stay closed, including the invoice queue.
+    assert.equal(access.canEdit('invoices', true), false);
+    assert.equal(access.canView('expenses'), false);
   });
 });
 
@@ -181,7 +230,11 @@ describe('Household RBAC export filtering', () => {
     assert.deepEqual(exportSectionsFor('viewer'), ALL_EXPORT_SECTIONS);
     const none = { balances: false, fixedBills: false, expenses: false, savings: false };
     assert.deepEqual(exportSectionsFor('contributor'), none);
-    assert.deepEqual(exportSectionsFor('custom', { savings: 'editAll' }), none);
+    assert.deepEqual(
+      exportSectionsFor('custom', { savings: 'editAll' }),
+      { ...none, savings: true },
+    );
+    assert.deepEqual(exportSectionsFor('custom'), none);
     assert.deepEqual(exportSectionsFor(undefined), none);
     assert.equal(canExportAnything(none), false);
   });
@@ -228,10 +281,10 @@ describe('Household storage and audit helpers', () => {
 
 describe('Assignable member roles', () => {
   it('offers only roles backed by Firestore rules', () => {
-    for (const role of ['editor', 'viewer', 'contributor']) {
+    for (const role of ['editor', 'viewer', 'contributor', 'custom']) {
       assert.equal(isAssignableMemberRole(role), true, role);
     }
-    for (const role of ['owner', 'profile', 'custom', '', 'admin']) {
+    for (const role of ['owner', 'profile', '', 'admin']) {
       assert.equal(isAssignableMemberRole(role), false, role);
     }
   });

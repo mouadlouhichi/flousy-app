@@ -152,6 +152,118 @@ service cloud.firestore {
     function householdFinanceReader(hid) {
       return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
     }
+
+    /* ----------------------- custom role (per-area grants) ----------------------- */
+    // A `custom` member carries a `permissions` map on their member document
+    // (area -> level). The map is only ever written by the household owner
+    // (member create/update below validate its shape), so these helpers can
+    // trust it as the authoritative grant source. The client mirrors the same
+    // semantics in src/lib/household-rbac.ts.
+    function customMember(hid) {
+      return householdMember(hid) && memberRole(hid) == 'custom';
+    }
+    function customLevel(hid, area) {
+      return get(memberPath(hid, request.auth.uid)).data.get('permissions', {}).get(area, 'none');
+    }
+    function customCanEditArea(hid, area) {
+      return customMember(hid) && householdEntitled(hid) && customLevel(hid, area) == 'editAll';
+    }
+    // Reading finance documents (months, ledger) is all-or-nothing per
+    // document, so any finance-surface grant opens them; hiding individual
+    // areas within a shared month document is client-side presentation.
+    function customFinanceViewer(hid) {
+      return customMember(hid)
+        && (customLevel(hid, 'dashboard') != 'none'
+          || customLevel(hid, 'balances') != 'none'
+          || customLevel(hid, 'income') != 'none'
+          || customLevel(hid, 'expenses') != 'none'
+          || customLevel(hid, 'fixedBills') != 'none'
+          || customLevel(hid, 'savings') != 'none'
+          || customLevel(hid, 'debts') != 'none'
+          || customLevel(hid, 'analytics') != 'none');
+    }
+    // A custom member counts as a month writer when at least one month area is
+    // granted editAll; which keys they may actually change is checked by
+    // customMonthChangesAllowed().
+    function customMonthWriter(hid) {
+      return customMember(hid)
+        && householdEntitled(hid)
+        && (customLevel(hid, 'balances') == 'editAll'
+          || customLevel(hid, 'income') == 'editAll'
+          || customLevel(hid, 'expenses') == 'editAll'
+          || customLevel(hid, 'fixedBills') == 'editAll'
+          || customLevel(hid, 'savings') == 'editAll'
+          || customLevel(hid, 'debts') == 'editAll');
+    }
+    // Mirrors AREA_LEVEL_OPTIONS in src/lib/household-rbac.ts: month areas may
+    // reach editAll (enforceable via affectedKeys), invoices tops out at
+    // editOwn (approval posts into the month document and stays with
+    // owner/editor), read surfaces and members/settings never exceed view.
+    function validCustomPermissions(p) {
+      return p.keys().hasOnly([
+          'dashboard', 'balances', 'income', 'expenses', 'fixedBills', 'savings',
+          'debts', 'analytics', 'invoices', 'members', 'settings'
+        ])
+        && p.get('dashboard', 'none') in ['none', 'view']
+        && p.get('balances', 'none') in ['none', 'view', 'editAll']
+        && p.get('income', 'none') in ['none', 'view', 'editAll']
+        && p.get('expenses', 'none') in ['none', 'view', 'editAll']
+        && p.get('fixedBills', 'none') in ['none', 'view', 'editAll']
+        && p.get('savings', 'none') in ['none', 'view', 'editAll']
+        && p.get('debts', 'none') in ['none', 'view', 'editAll']
+        && p.get('analytics', 'none') in ['none', 'view']
+        && p.get('invoices', 'none') in ['none', 'view', 'editOwn']
+        && p.get('members', 'none') in ['none', 'view']
+        && p.get('settings', 'none') in ['none', 'view'];
+    }
+    // Member documents may only carry a permissions map that the custom-role
+    // helpers can safely interpret. Non-custom roles ignore the map, but a
+    // stored one must still be well-formed so a later switch to `custom`
+    // cannot resurrect grants the rules never accepted.
+    function memberDocPermissionsValid() {
+      return !('permissions' in incoming()) || validCustomPermissions(incoming().permissions);
+    }
+    // Field-group enforcement for custom month updates. Every changed key must
+    // belong to a granted area (or be sync bookkeeping). Recording money
+    // movement necessarily updates the bank/home/wallet split, so those
+    // derived keys ride along with any month-area grant (customMonthWriter is
+    // already required on this path); direct budget/transfer/adjustment edits
+    // additionally demand the balances grant, and totalBudget follows income
+    // because it is the sum of income sources. Period close/reopen, strategy
+    // and configuration keys are absent from the whitelist on purpose: they
+    // remain owner/editor operations.
+    function customMonthChangesAllowed() {
+      let changed = incoming().diff(existing()).affectedKeys();
+      return changed.hasOnly([
+          'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId',
+          'bankPart', 'homePart', 'walletPart', 'placeBalances',
+          'totalBudget', 'transfers', 'balanceAdjustments',
+          'incomeSources',
+          'variableExpenses', 'variableCategoryBases', 'categoryBudgets', 'rolloverFromPrevious',
+          'fixedExpenses', 'fixedCategoryBases',
+          'activeCategories', 'categoryColors', 'categoryIcons',
+          'savingsActivity', 'monthlySavingsTarget',
+          'debts'
+        ]);
+    }
+    function customMonthAreasGranted(hid) {
+      let changed = incoming().diff(existing()).affectedKeys();
+      return (customCanEditArea(hid, 'balances')
+          || !changed.hasAny(['transfers', 'balanceAdjustments']))
+        && (customCanEditArea(hid, 'balances') || customCanEditArea(hid, 'income')
+          || !changed.hasAny(['totalBudget']))
+        && (customCanEditArea(hid, 'income') || !changed.hasAny(['incomeSources']))
+        && (customCanEditArea(hid, 'expenses')
+          || !changed.hasAny(['variableExpenses', 'variableCategoryBases', 'categoryBudgets', 'rolloverFromPrevious']))
+        && (customCanEditArea(hid, 'fixedBills')
+          || !changed.hasAny(['fixedExpenses', 'fixedCategoryBases']))
+        && (customCanEditArea(hid, 'expenses') || customCanEditArea(hid, 'fixedBills')
+          || !changed.hasAny(['activeCategories', 'categoryColors', 'categoryIcons']))
+        && (customCanEditArea(hid, 'savings')
+          || !changed.hasAny(['savingsActivity', 'monthlySavingsTarget']))
+        && (customCanEditArea(hid, 'debts') || !changed.hasAny(['debts']));
+    }
+
     function validHouseholdConfig(data) {
       return data.currency is string
         && data.currency.size() >= 3
@@ -336,14 +448,16 @@ service cloud.firestore {
           || (householdOwner(hid)
             && householdEntitled(hid)
             && memberId != request.auth.uid
-            && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
+            && incoming().role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+            && memberDocPermissionsValid()
             && incoming().status in ['invited', 'active'])
           || (verifiedEmail()
             && householdEntitled(hid)
             && memberId == request.auth.uid
             && incoming().userId == request.auth.uid
             && incoming().status == 'active'
-            && incoming().role in ['editor', 'viewer', 'contributor']
+            && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
+            && memberDocPermissionsValid()
             && incoming().email == request.auth.token.email
             && 'inviteId' in incoming()
             && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
@@ -351,6 +465,9 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'pending'
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.email == request.auth.token.email
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.role == incoming().role
+            // A custom member may only join with exactly the grants the owner
+            // put on the invitation - never a self-authored variation.
+            && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
@@ -358,7 +475,8 @@ service cloud.firestore {
         allow update: if (householdOwner(hid)
             && householdEntitled(hid)
             && resource.data.role != 'owner'
-            && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
+            && incoming().role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+            && (incoming().role != 'custom' || memberDocPermissionsValid())
             && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
           || (verifiedEmail()
             && resource.data.email == request.auth.token.email
@@ -375,12 +493,15 @@ service cloud.firestore {
 
       match /invoices/{invoiceId} {
         allow get: if householdEditor(hid)
+          || (customMember(hid) && customLevel(hid, 'invoices') == 'view')
           || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
         allow list: if householdEditor(hid)
+          || (customMember(hid) && customLevel(hid, 'invoices') == 'view')
           || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
         allow create: if householdEntitled(hid)
           && householdMember(hid)
-          && memberRole(hid) in ['owner', 'editor', 'contributor']
+          && (memberRole(hid) in ['owner', 'editor', 'contributor']
+            || (memberRole(hid) == 'custom' && customLevel(hid, 'invoices') == 'editOwn'))
           && incoming().id == invoiceId
           && incoming().submitterId == request.auth.uid
           && incoming().status == 'submitted'
@@ -417,14 +538,21 @@ service cloud.firestore {
       }
 
       match /months/{key} {
-        allow read: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdWriter(hid)
+        allow read: if householdFinanceReader(hid) || householdOwner(hid) || customFinanceViewer(hid);
+        // A custom month writer may create (bootstrap) a missing month
+        // document: a valid month document structurally carries every area's
+        // keys, so creation cannot be split per grant. Ongoing edits are the
+        // enforced surface - see the update rule.
+        allow create: if (householdWriter(hid) || customMonthWriter(hid))
           && isValidMonthId(key)
           && validMonthDocument()
           && !periodClosed(incoming())
           && incoming().revision == 1
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
-        allow update: if householdWriter(hid)
+        allow update: if (householdWriter(hid)
+            || (customMonthWriter(hid)
+              && customMonthChangesAllowed()
+              && customMonthAreasGranted(hid)))
           && isValidMonthId(key)
           && validMonthDocument()
           && validPeriodStateTransition()
@@ -443,15 +571,17 @@ service cloud.firestore {
       }
 
       match /data/savings {
-        allow read: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdWriter(hid)
+        allow read: if householdFinanceReader(hid)
+          || householdOwner(hid)
+          || (customMember(hid) && customLevel(hid, 'savings') != 'none');
+        allow create: if (householdWriter(hid) || customCanEditArea(hid, 'savings'))
           && incoming().revision == 1
           && incoming().lastMutationId is string
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
-        allow update: if householdWriter(hid)
+        allow update: if (householdWriter(hid) || customCanEditArea(hid, 'savings'))
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
           && incoming().lastMutationId is string
@@ -464,8 +594,14 @@ service cloud.firestore {
       }
 
       match /ledger/{mutationId} {
-        allow get, list: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdWriter(hid)
+        allow get, list: if householdFinanceReader(hid) || householdOwner(hid) || customFinanceViewer(hid);
+        // Custom writers record ordinary finance mutations; closing/reopening
+        // a period and approving invoices remain owner/editor ledger kinds.
+        // The month/savings documents named by the mutation enforce the
+        // per-area grants - the ledger row is bookkeeping for sync.
+        allow create: if (householdWriter(hid)
+            || (customMonthWriter(hid)
+              && incoming().kind in ['bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post']))
           && incoming().mutationId == mutationId
           && incoming().actorId == request.auth.uid
           && incoming().workspace == 'household'
@@ -506,7 +642,8 @@ service cloud.firestore {
         && householdEntitled(incoming().householdId)
         && incoming().createdBy == request.auth.uid
         && incoming().status == 'pending'
-        && incoming().role in ['editor', 'viewer', 'contributor']
+        && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
+        && (incoming().role != 'custom' || validCustomPermissions(incoming().get('permissions', {})))
         && isEmail(incoming().email)
         && incoming().expiresAtMs is number
         && incoming().expiresAtMs > request.time.toMillis()

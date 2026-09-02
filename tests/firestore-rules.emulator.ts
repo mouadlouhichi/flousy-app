@@ -451,3 +451,194 @@ describe('atomic household invoice approval rules', () => {
   });
 });
 
+
+describe('custom role per-area grant rules', () => {
+  const memberDoc = (uid: string, extra: Record<string, unknown> = {}) => ({
+    id: uid, userId: uid, email: `${uid}@example.com`, displayName: uid,
+    role: 'custom', status: 'active', joinedAt: new Date().toISOString(), ...extra,
+  });
+
+  beforeEach(async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'admin', entitlementStatus: 'active',
+      });
+      await setDoc(doc(db, 'households/home'), {
+        name: 'Home', ownerId: 'owner', planOwnerId: 'owner', entitlementOwnerId: 'owner',
+        currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+        activeCategories: ['Groceries'], createdAt: new Date().toISOString(),
+      });
+      await setDoc(doc(db, 'households/home/members/owner'), {
+        id: 'owner', userId: 'owner', email: 'owner@example.com',
+        displayName: 'Owner', role: 'owner', status: 'active',
+      });
+      // Expense clerk: may record spending (and the balance movement it causes)
+      // but must not touch budgets, transfers, savings, or debts.
+      await setDoc(doc(db, 'households/home/members/clerk'), memberDoc('clerk', {
+        permissions: { dashboard: 'view', expenses: 'editAll', invoices: 'editOwn' },
+      }));
+      // Savings-only member.
+      await setDoc(doc(db, 'households/home/members/saver'), memberDoc('saver', {
+        permissions: { savings: 'editAll' },
+      }));
+      // Invoice-only member: no finance grant at all.
+      await setDoc(doc(db, 'households/home/members/runner'), memberDoc('runner', {
+        permissions: { invoices: 'editOwn' },
+      }));
+      // Legacy custom member whose document never stored a matrix.
+      await setDoc(doc(db, 'households/home/members/legacy'), memberDoc('legacy'));
+      await setDoc(doc(db, 'households/home/months/2026-09'), validMonth());
+    });
+  });
+
+  it('opens finance reads only to custom members holding a finance grant', async () => {
+    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const runner = firestore(environment.authenticatedContext('runner', { email_verified: true }));
+    const legacy = firestore(environment.authenticatedContext('legacy', { email_verified: true }));
+    await assertSucceeds(getDoc(doc(clerk, 'households/home/months/2026-09')));
+    await assertFails(getDoc(doc(runner, 'households/home/months/2026-09')));
+    await assertFails(getDoc(doc(legacy, 'households/home/months/2026-09')));
+  });
+
+  it('lets an expenses grant record spending with its balance movement, and nothing else', async () => {
+    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const monthRef = doc(clerk, 'households/home/months/2026-09');
+    const expense = {
+      id: 'exp-1', name: 'Groceries', amount: 100, type: 'Groceries',
+      date: '2026-09-02', place: 'bank',
+    };
+
+    // Granted: variableExpenses + derived balance split + sync bookkeeping.
+    const spend = writeBatch(clerk);
+    spend.set(doc(clerk, 'households/home/ledger/clerk-spend'), ledger('clerk-spend', 'clerk', 'household', 'home', 1, 2));
+    spend.set(monthRef, { ...validMonth(2, 'clerk-spend'), bankPart: 900, variableExpenses: [expense] });
+    await assertSucceeds(spend.commit());
+
+    // Not granted: rewriting the budget (balances area).
+    const budget = writeBatch(clerk);
+    budget.set(doc(clerk, 'households/home/ledger/clerk-budget'), ledger('clerk-budget', 'clerk', 'household', 'home', 2, 3));
+    budget.set(monthRef, { ...validMonth(3, 'clerk-budget'), bankPart: 900, variableExpenses: [expense], totalBudget: 9999 });
+    await assertFails(budget.commit());
+
+    // Not granted: debts.
+    const debts = writeBatch(clerk);
+    debts.set(doc(clerk, 'households/home/ledger/clerk-debts'), ledger('clerk-debts', 'clerk', 'household', 'home', 2, 3));
+    debts.set(monthRef, {
+      ...validMonth(3, 'clerk-debts'), bankPart: 900, variableExpenses: [expense],
+      debts: [{ id: 'd1', name: 'Loan', amount: 50 }],
+    });
+    await assertFails(debts.commit());
+
+    // Not granted: closing the period (owner/editor ledger kind + state keys).
+    const close = writeBatch(clerk);
+    close.set(doc(clerk, 'households/home/ledger/clerk-close'), ledger('clerk-close', 'clerk', 'household', 'home', 2, 3, 'month-close'));
+    close.update(monthRef, {
+      periodStatus: 'closed', closedAt: new Date().toISOString(), closedByUserId: 'clerk',
+      revision: 3, lastMutationId: 'clerk-close',
+    });
+    await assertFails(close.commit());
+  });
+
+  it('scopes the savings grant to savings keys and the savings document', async () => {
+    const saver = firestore(environment.authenticatedContext('saver', { email_verified: true }));
+    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const monthRef = doc(saver, 'households/home/months/2026-09');
+
+    // Granted: a savings deposit moves money out of the wallet split.
+    const deposit = writeBatch(saver);
+    deposit.set(doc(saver, 'households/home/ledger/saver-deposit'), ledger('saver-deposit', 'saver', 'household', 'home', 1, 2));
+    deposit.set(monthRef, {
+      ...validMonth(2, 'saver-deposit'), bankPart: 900,
+      savingsActivity: [{ id: 's1', amount: 100, date: '2026-09-02', kind: 'deposit' }],
+    });
+    await assertSucceeds(deposit.commit());
+
+    // Not granted: expense rows.
+    const spend = writeBatch(saver);
+    spend.set(doc(saver, 'households/home/ledger/saver-spend'), ledger('saver-spend', 'saver', 'household', 'home', 2, 3));
+    spend.set(monthRef, {
+      ...validMonth(3, 'saver-spend'), bankPart: 800,
+      savingsActivity: [{ id: 's1', amount: 100, date: '2026-09-02', kind: 'deposit' }],
+      variableExpenses: [{ id: 'exp-2', name: 'Cafe', amount: 20, type: 'Groceries', date: '2026-09-02', place: 'bank' }],
+    });
+    await assertFails(spend.commit());
+
+    // The savings goals document follows the same grant.
+    const goals = writeBatch(saver);
+    goals.set(doc(saver, 'households/home/ledger/saver-goals'), {
+      ...ledger('saver-goals', 'saver', 'household', 'home', 0, 1, 'savings-bootstrap'), monthKey: 'savings',
+    });
+    goals.set(doc(saver, 'households/home/data/savings'), { goals: [], revision: 1, lastMutationId: 'saver-goals' });
+    await assertSucceeds(goals.commit());
+
+    const clerkGoals = writeBatch(clerk);
+    clerkGoals.set(doc(clerk, 'households/home/ledger/clerk-goals'), {
+      ...ledger('clerk-goals', 'clerk', 'household', 'home', 1, 2, 'savings'), monthKey: 'savings',
+    });
+    clerkGoals.set(doc(clerk, 'households/home/data/savings'), { goals: [], revision: 2, lastMutationId: 'clerk-goals' });
+    await assertFails(clerkGoals.commit());
+  });
+
+  it('gates invoice submission on the invoices grant', async () => {
+    const invoice = (id: string, submitterId: string) => ({
+      id, name: 'Groceries', amount: 50, category: 'Groceries', date: '2026-09-02',
+      place: 'bank', submitterId, status: 'submitted', createdAt: new Date().toISOString(),
+    });
+    const runner = firestore(environment.authenticatedContext('runner', { email_verified: true }));
+    await assertSucceeds(setDoc(doc(runner, 'households/home/invoices/inv-runner'), invoice('inv-runner', 'runner')));
+    // No invoices grant on the saver matrix.
+    const saver = firestore(environment.authenticatedContext('saver', { email_verified: true }));
+    await assertFails(setDoc(doc(saver, 'households/home/invoices/inv-saver'), invoice('inv-saver', 'saver')));
+    // Legacy custom member without a stored map gets nothing server-side.
+    const legacy = firestore(environment.authenticatedContext('legacy', { email_verified: true }));
+    await assertFails(setDoc(doc(legacy, 'households/home/invoices/inv-legacy'), invoice('inv-legacy', 'legacy')));
+  });
+
+  it('accepts only well-formed permission maps written by the owner', async () => {
+    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const memberRef = doc(owner, 'households/home/members/clerk');
+    await assertSucceeds(updateDoc(memberRef, { permissions: { expenses: 'editAll', invoices: 'editOwn' } }));
+    // Unknown level, unknown area, and over-broad management grants all fail.
+    await assertFails(updateDoc(memberRef, { permissions: { expenses: 'superuser' } }));
+    await assertFails(updateDoc(memberRef, { permissions: { vault: 'editAll' } }));
+    await assertFails(updateDoc(memberRef, { permissions: { members: 'editAll' } }));
+    await assertFails(updateDoc(memberRef, { permissions: { invoices: 'editAll' } }));
+    // A custom member cannot rewrite their own grants.
+    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    await assertFails(updateDoc(doc(clerk, 'households/home/members/clerk'), {
+      permissions: { expenses: 'editAll', balances: 'editAll' },
+    }));
+  });
+
+  it('binds invitation acceptance to the exact invited permission map', async () => {
+    const invitePermissions = { expenses: 'editAll', invoices: 'editOwn' };
+    await seed(async (db) => {
+      await setDoc(doc(db, 'householdInvites/invite-custom'), {
+        id: 'invite-custom', householdId: 'home', memberId: 'pending-custom',
+        email: 'joiner@example.com', role: 'custom', permissions: invitePermissions,
+        status: 'pending', createdBy: 'owner', createdAt: new Date().toISOString(),
+        expiresAtMs: Date.now() + 60_000,
+      });
+    });
+    const joiner = firestore(environment.authenticatedContext('joiner', {
+      email: 'joiner@example.com', email_verified: true,
+    }));
+    const accept = (permissions: Record<string, string>) => {
+      const batch = writeBatch(joiner);
+      batch.set(doc(joiner, 'households/home/members/joiner'), {
+        id: 'joiner', userId: 'joiner', displayName: 'Joiner', email: 'joiner@example.com',
+        role: 'custom', permissions, status: 'active', inviteId: 'invite-custom',
+        joinedAt: new Date().toISOString(),
+      });
+      batch.update(doc(joiner, 'householdInvites/invite-custom'), {
+        status: 'accepted', acceptedAt: new Date().toISOString(),
+        acceptedByUserId: 'joiner', acceptedEmail: 'joiner@example.com',
+      });
+      return batch.commit();
+    };
+    // Self-elevated variation of the invited grants is rejected.
+    await assertFails(accept({ ...invitePermissions, balances: 'editAll' }));
+    await assertSucceeds(accept(invitePermissions));
+  });
+});

@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 const EMAIL_MESSAGES: Record<Language, Messages> = { en, fr, ar };
 
 /** Roles a signed-in member may be invited with; mirrors `householdInvites` in firestore.rules. */
-const INVITABLE_ROLES = ['editor', 'viewer', 'contributor'] as const;
+const INVITABLE_ROLES = ['editor', 'viewer', 'contributor', 'custom'] as const;
 
 /**
  * Only domains the sender is expected to control. Resend's own sandbox domain is

@@ -105,12 +105,12 @@ export interface HouseholdInvoice {
   postedMonthKey?: string;
 }
 
-/** Roles an owner may assign to an existing member (never owner/profile/custom). */
-export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor';
+/** Roles an owner may assign to an existing member (never owner/profile). */
+export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor' | 'custom';
 
 /** True when a stored member role maps to enforceable Firestore access. */
 export function isAssignableMemberRole(role: string): role is AssignableMemberRole {
-  return role === 'editor' || role === 'viewer' || role === 'contributor';
+  return role === 'editor' || role === 'viewer' || role === 'contributor' || role === 'custom';
 }
 
 /** Normalize a household name against the Firestore rule contract. */
