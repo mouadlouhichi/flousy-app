@@ -75,9 +75,9 @@ rebuilt with the production public Firebase configuration.
 | ESLint (zero warnings) | Pass — includes authoritative `firestore.rules` syntax parsing | 2026-09-02 local candidate |
 | Normal TypeScript | Pass | 2026-09-02 local candidate |
 | Strict TypeScript | Pass | 2026-09-02 local candidate |
-| Unit/regression suites | Pass — 304 tests, 72 suites | 2026-09-02 local candidate |
+| Unit/regression suites | Pass — 314 tests, 74 suites (incl. custom-role matrix coverage) | 2026-09-02 local candidate, commit `21e9426` |
 | Firestore emulator Rules suite | **Pending / release blocked** — Java 21 and official emulator unavailable in the local sandbox | Assign to activated CI or release operator |
-| Production build | Pass — 36 static pages generated | 2026-09-02 local candidate |
+| Production build | Pass — 37 static pages generated | 2026-09-02 local candidate, commit `21e9426` |
 | PR checks | Pending | Save required-check URL after the workflow is activated |
 
 If any gate cannot run, mark the release **blocked**—do not silently reinterpret
@@ -332,8 +332,12 @@ Chrome where available.
 - [ ] Free user is blocked from trends, income-source management, bulk CSV import,
       category-cap editing, rollover and Household creation.
 - [ ] Data export/JSON backup remains available to a Free user.
-- [ ] Create Household; invite editor/viewer/contributor; accept each role.
-- [ ] Verify owner/editor/viewer/contributor read/write matrix on separate accounts.
+- [ ] Create Household; invite editor/viewer/contributor/custom; accept each role.
+- [ ] Invite a custom member with a narrow matrix (e.g. expenses edit-all +
+      invoices submit); verify they can record spending but cannot change the
+      budget, transfers, savings, debts or period state, and that the areas
+      their matrix omits stay hidden.
+- [ ] Verify owner/editor/viewer/contributor/custom read/write matrix on separate accounts.
 - [ ] Contributor submits invoice; owner approves exactly once into an open month.
 - [ ] Household recurring income/fixed items roll over exactly once.
 - [ ] Owner closes/reopens Household month; non-owner cannot do so.
@@ -466,3 +470,28 @@ merged. On top of everything above, this build also ships:
   permission (re-verified 2026-09-02, third rejection) — move
   `ci/github-actions-ci.yml` → `.github/workflows/ci.yml` from a maintainer
   account or the GitHub web UI.
+
+## 15. Addendum — 2026-09-02 (custom role reinstated, commit `21e9426`)
+
+The `custom` member role is a first-class assignable role again — no longer a
+legacy contributor alias:
+
+- **Rules-enforced per-area matrix.** Month updates by custom members are
+  validated key-group by key-group via `diff().affectedKeys()`; savings,
+  ledger, invoices and reads follow the same stored grants. Permission maps
+  are shape-validated at every write point, invitations are tamper-proof and
+  acceptance must copy the invited map exactly.
+- **Client mirrors rules.** `sanitizePermissions` clamps any stored map to the
+  enforceable levels; legacy custom documents without a map keep
+  contributor-equivalent access.
+- **Known residual (documented, accepted):** Firestore reads are
+  per-document, so a custom member with any finance-view grant can technically
+  read the whole shared month document; per-area hiding on *read* is client
+  presentation. All *writes* are genuinely enforced per grant.
+- **New evidence:** `tests/firestore-rules.emulator.ts` gained a
+  `custom role per-area grant rules` suite (finance-read gating, granted vs
+  denied month key groups, savings scoping, invoice gating, map validation,
+  invite-acceptance binding). It runs where the Firestore emulator is
+  available — i.e. in CI once the workflow is activated; the local sandbox
+  still cannot run Java 21, so the emulator gate in section 1 remains
+  assigned to CI or the release operator.
