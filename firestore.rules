@@ -17,13 +17,6 @@ service cloud.firestore {
     function boundedText(value, maxBytes) {
       return value is string && value.size() > 0 && value.size() <= maxBytes;
     }
-    function receiptsFit(items) {
-      return items.all(item => !('receiptUrl' in item)
-        || (item.receiptUrl is string && item.receiptUrl.size() <= 120000));
-    }
-    function validLifecycle(value) {
-      return value in ['planned', 'partial', 'paid', 'skipped'];
-    }
     function validMonthDocument() {
       return isMoney(incoming().totalBudget)
         && isMoney(incoming().bankPart)
@@ -36,33 +29,22 @@ service cloud.firestore {
         && incoming().lastMutationId.size() <= 160
         && (!('currency' in incoming())
           || (incoming().currency is string && incoming().currency.size() >= 3 && incoming().currency.size() <= 8))
+        // Firestore Rules cannot iterate arbitrary list/map values. The client
+        // schema validates each entry; rules enforce collection shape and
+        // bounded cardinality before accepting the document.
         && (!('variableExpenses' in incoming())
           || (incoming().variableExpenses is list
-            && incoming().variableExpenses.size() <= 2000
-            && receiptsFit(incoming().variableExpenses)
-            && incoming().variableExpenses.all(item =>
-              boundedText(item.id, 180)
-              && isPositiveMoney(item.amount)
-              && item.place is string
-              && item.date is string)))
+            && incoming().variableExpenses.size() <= 2000))
         && (!('fixedExpenses' in incoming())
           || (incoming().fixedExpenses is list
-            && incoming().fixedExpenses.size() <= 500
-            && receiptsFit(incoming().fixedExpenses)
-            && incoming().fixedExpenses.all(item =>
-              boundedText(item.id, 180)
-              && isPositiveMoney(item.amount)
-              && item.place is string
-              && (!('status' in item) || validLifecycle(item.status))
-              && (!('paidAmount' in item) || isMoney(item.paidAmount)))))
+            && incoming().fixedExpenses.size() <= 500))
         && (!('savingsActivity' in incoming())
           || (incoming().savingsActivity is list && incoming().savingsActivity.size() <= 200))
         && (!('debts' in incoming()) || (incoming().debts is list && incoming().debts.size() <= 500))
         && (!('transfers' in incoming()) || (incoming().transfers is list && incoming().transfers.size() <= 500))
         && (!('balanceAdjustments' in incoming())
           || (incoming().balanceAdjustments is list && incoming().balanceAdjustments.size() <= 500))
-        && (!('placeBalances' in incoming())
-          || (incoming().placeBalances is map && incoming().placeBalances.values().all(value => isMoney(value))));
+        && (!('placeBalances' in incoming()) || incoming().placeBalances is map);
     }
 
     function householdPath(hid) {
