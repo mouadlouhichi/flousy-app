@@ -241,6 +241,7 @@ export function Navigation() {
                 <button
                   key={lang}
                   onClick={() => setLanguage(lang)}
+                  aria-label={localeNames[lang]}
                   className={`px-3 py-2 rounded-full text-xs font-bold uppercase border transition-colors ${language === lang ? 'bg-primary text-on-primary border-primary' : 'border-foreground/10 text-foreground/70 hover:text-foreground'}`}
                 >
                   {lang}

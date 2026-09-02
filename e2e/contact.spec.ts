@@ -17,8 +17,10 @@ test.describe('contact form', () => {
     await page.getByLabel('Message').fill('Checking the honest fallback path.');
     await page.getByRole('button', { name: 'Send message' }).click();
     // No RESEND_API_KEY/CONTACT_TO_EMAIL in CI => 503 => support address shown,
-    // and no fake "Message sent" screen.
-    await expect(page.getByRole('alert')).toContainText('hello@flousy.app');
+    // and no fake "Message sent" screen. Next.js keeps an always-empty
+    // `role="alert"` route announcer in the DOM, so scope to the alert that
+    // actually carries text.
+    await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toContainText('hello@flousy.app');
     await expect(page.getByText('Message sent')).toHaveCount(0);
   });
 });

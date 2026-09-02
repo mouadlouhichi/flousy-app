@@ -409,7 +409,7 @@ function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <main id="main-content" className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -1263,6 +1263,6 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
