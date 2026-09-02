@@ -172,28 +172,29 @@ service cloud.firestore {
     // document, so any finance-surface grant opens them; hiding individual
     // areas within a shared month document is client-side presentation.
     function customFinanceViewer(hid) {
+      // Bound once via `let`: Firestore rules cap evaluation at 1000
+      // expressions per request, so helpers must not re-expand the member
+      // lookup per area (this cap is what CI's emulator suite enforces).
+      let p = get(memberPath(hid, request.auth.uid)).data.get('permissions', {});
       return customMember(hid)
-        && (customLevel(hid, 'dashboard') != 'none'
-          || customLevel(hid, 'balances') != 'none'
-          || customLevel(hid, 'income') != 'none'
-          || customLevel(hid, 'expenses') != 'none'
-          || customLevel(hid, 'fixedBills') != 'none'
-          || customLevel(hid, 'savings') != 'none'
-          || customLevel(hid, 'debts') != 'none'
-          || customLevel(hid, 'analytics') != 'none');
+        && (p.get('dashboard', 'none') != 'none'
+          || p.get('balances', 'none') != 'none'
+          || p.get('income', 'none') != 'none'
+          || p.get('expenses', 'none') != 'none'
+          || p.get('fixedBills', 'none') != 'none'
+          || p.get('savings', 'none') != 'none'
+          || p.get('debts', 'none') != 'none'
+          || p.get('analytics', 'none') != 'none');
     }
     // A custom member counts as a month writer when at least one month area is
     // granted editAll; which keys they may actually change is checked by
-    // customMonthChangesAllowed().
+    // customMonthChangesGranted().
     function customMonthWriter(hid) {
+      // validCustomPermissions() caps every non-month area below editAll, so
+      // any editAll value in the stored map is necessarily a month-area grant.
       return customMember(hid)
         && householdEntitled(hid)
-        && (customLevel(hid, 'balances') == 'editAll'
-          || customLevel(hid, 'income') == 'editAll'
-          || customLevel(hid, 'expenses') == 'editAll'
-          || customLevel(hid, 'fixedBills') == 'editAll'
-          || customLevel(hid, 'savings') == 'editAll'
-          || customLevel(hid, 'debts') == 'editAll');
+        && 'editAll' in get(memberPath(hid, request.auth.uid)).data.get('permissions', {}).values();
     }
     // Mirrors AREA_LEVEL_OPTIONS in src/lib/household-rbac.ts: month areas may
     // reach editAll (enforceable via affectedKeys), invoices tops out at
@@ -223,16 +224,18 @@ service cloud.firestore {
     function memberDocPermissionsValid() {
       return !('permissions' in incoming()) || validCustomPermissions(incoming().permissions);
     }
-    // Field-group enforcement for custom month updates. Every changed key must
-    // belong to a granted area (or be sync bookkeeping). Recording money
+    // Field-group enforcement for custom month updates. Every changed key
+    // must belong to a granted area (or be sync bookkeeping). Recording money
     // movement necessarily updates the bank/home/wallet split, so those
     // derived keys ride along with any month-area grant (customMonthWriter is
     // already required on this path); direct budget/transfer/adjustment edits
     // additionally demand the balances grant, and totalBudget follows income
     // because it is the sum of income sources. Period close/reopen, strategy
     // and configuration keys are absent from the whitelist on purpose: they
-    // remain owner/editor operations.
-    function customMonthChangesAllowed() {
+    // remain owner/editor operations. The permission map and change set are
+    // each bound once (`let`) to stay far below the 1000-expression cap.
+    function customMonthChangesGranted(hid) {
+      let p = get(memberPath(hid, request.auth.uid)).data.get('permissions', {});
       let changed = incoming().diff(existing()).affectedKeys();
       return changed.hasOnly([
           'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId',
@@ -244,24 +247,21 @@ service cloud.firestore {
           'activeCategories', 'categoryColors', 'categoryIcons',
           'savingsActivity', 'monthlySavingsTarget',
           'debts'
-        ]);
-    }
-    function customMonthAreasGranted(hid) {
-      let changed = incoming().diff(existing()).affectedKeys();
-      return (customCanEditArea(hid, 'balances')
+        ])
+        && (p.get('balances', 'none') == 'editAll'
           || !changed.hasAny(['transfers', 'balanceAdjustments']))
-        && (customCanEditArea(hid, 'balances') || customCanEditArea(hid, 'income')
+        && (p.get('balances', 'none') == 'editAll' || p.get('income', 'none') == 'editAll'
           || !changed.hasAny(['totalBudget']))
-        && (customCanEditArea(hid, 'income') || !changed.hasAny(['incomeSources']))
-        && (customCanEditArea(hid, 'expenses')
+        && (p.get('income', 'none') == 'editAll' || !changed.hasAny(['incomeSources']))
+        && (p.get('expenses', 'none') == 'editAll'
           || !changed.hasAny(['variableExpenses', 'variableCategoryBases', 'categoryBudgets', 'rolloverFromPrevious']))
-        && (customCanEditArea(hid, 'fixedBills')
+        && (p.get('fixedBills', 'none') == 'editAll'
           || !changed.hasAny(['fixedExpenses', 'fixedCategoryBases']))
-        && (customCanEditArea(hid, 'expenses') || customCanEditArea(hid, 'fixedBills')
+        && (p.get('expenses', 'none') == 'editAll' || p.get('fixedBills', 'none') == 'editAll'
           || !changed.hasAny(['activeCategories', 'categoryColors', 'categoryIcons']))
-        && (customCanEditArea(hid, 'savings')
+        && (p.get('savings', 'none') == 'editAll'
           || !changed.hasAny(['savingsActivity', 'monthlySavingsTarget']))
-        && (customCanEditArea(hid, 'debts') || !changed.hasAny(['debts']));
+        && (p.get('debts', 'none') == 'editAll' || !changed.hasAny(['debts']));
     }
 
     function validHouseholdConfig(data) {
@@ -550,9 +550,7 @@ service cloud.firestore {
           && incoming().revision == 1
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
         allow update: if (householdWriter(hid)
-            || (customMonthWriter(hid)
-              && customMonthChangesAllowed()
-              && customMonthAreasGranted(hid)))
+            || (customMonthWriter(hid) && customMonthChangesGranted(hid)))
           && isValidMonthId(key)
           && validMonthDocument()
           && validPeriodStateTransition()
