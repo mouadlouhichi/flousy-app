@@ -10,10 +10,10 @@ import { useHousehold, type InviteRole } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
 import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
-import type { MonthBudget } from '@/lib/store';
+import { fixedPaidAmount, type MonthBudget } from '@/lib/store';
 import { isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { AreaRestricted } from '../area-restricted';
-import { HOUSEHOLD_AREAS, TOOL_AREA, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
 
 interface HouseholdPanelProps {
   onOpenPro?: () => void;
@@ -32,7 +32,7 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
+  const { household, members, isOwner, entitlementActive, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
     useHousehold();
   // The roster, per-member contribution totals and the invite form are all
   // `members` data. Someone with an invitation code still has no membership
@@ -46,11 +46,7 @@ export function HouseholdPanel({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
-  const [role, setRole] = useState<InviteRole>('custom');
-  const [permissions, setPermissions] = useState<HouseholdPermissions>({
-    expenses: 'editOwn',
-    invoices: 'editOwn',
-  });
+  const [role, setRole] = useState<InviteRole>('contributor');
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,26 +105,20 @@ export function HouseholdPanel({
     .filter((member) => member.status === 'active' && member.role !== 'profile')
     .map((member) => ({
       member,
-      total: [...(month?.variableExpenses || []), ...(month?.fixedExpenses || [])]
-        .filter((expense) => expense.payerMemberId === member.id)
-        .reduce((sum, expense) => sum + expense.amount, 0),
+      total:
+        (month?.variableExpenses || [])
+          .filter((expense) => expense.payerMemberId === member.id)
+          .reduce((sum, expense) => sum + expense.amount, 0)
+        + (month?.fixedExpenses || [])
+          .filter((expense) => expense.payerMemberId === member.id)
+          .reduce((sum, expense) => sum + fixedPaidAmount(expense), 0),
     }));
   const paidTotal = contributions.reduce((sum, item) => sum + item.total, 0);
   const equalShare = contributions.length ? paidTotal / contributions.length : 0;
   const roleOptions = [
-    { value: 'custom', label: h.customAccess },
+    { value: 'contributor', label: h.contributor },
     { value: 'editor', label: h.fullAccess },
     { value: 'viewer', label: h.viewOnly },
-  ];
-  const accessOptions = (editable?: boolean) => [
-    { value: 'none', label: h.noAccess },
-    { value: 'view', label: h.view },
-    ...(editable
-      ? [
-          { value: 'editOwn', label: h.editOwn },
-          { value: 'editAll', label: h.editAll },
-        ]
-      : []),
   ];
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
@@ -227,6 +217,12 @@ export function HouseholdPanel({
           <AreaRestricted area={TOOL_AREA.household} icon="family_restroom" />
         ) : (
           <>
+            {!entitlementActive && (
+              <div role="status" className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                <p className="text-sm font-bold text-on-surface">{m.pro.trialExpiredTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-on-surface-variant">{m.pro.trialExpiredBody}</p>
+              </div>
+            )}
             <div className="rounded-xl bg-primary/10 p-4">
               {renameOpen ? (
                 <form
@@ -264,7 +260,7 @@ export function HouseholdPanel({
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-bold text-on-surface">{household.name}</p>
-                  {isOwner && (
+                  {isOwner && entitlementActive && (
                     <button
                       type="button"
                       onClick={() => {
@@ -312,16 +308,18 @@ export function HouseholdPanel({
                       {member.email ? ` · ${member.email}` : ''}
                     </p>
                   </div>
-                  {isOwner && member.role !== 'owner' && (
+                  {isOwner && entitlementActive && member.role !== 'owner' && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setEditingMember(member)}
-                        aria-label={h.editMember}
-                        className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
-                      >
-                        <AppIcon name="edit" className="text-[18px]" />
-                      </button>
+                      {member.role !== 'profile' && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMember(member)}
+                          aria-label={h.editMember}
+                          className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                        >
+                          <AppIcon name="edit" className="text-[18px]" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() =>
@@ -366,7 +364,7 @@ export function HouseholdPanel({
               </div>
             )}
 
-            {isOwner && (
+            {isOwner && entitlementActive && (
               <div className="space-y-3 border-t border-outline-variant pt-4">
                 <div>
                   <p className="font-bold">{h.inviteMember}</p>
@@ -400,12 +398,7 @@ export function HouseholdPanel({
                     disabled={!memberName || busy}
                     onClick={() =>
                       run(async () => {
-                        const inviteId = await invite(
-                          memberName,
-                          email,
-                          role,
-                          role === 'custom' ? permissions : undefined,
-                        );
+                        const inviteId = await invite(memberName, email, role);
                         setLastInviteCode(inviteId);
                         setCopied(false);
                         if (email && !user) {
@@ -492,31 +485,6 @@ export function HouseholdPanel({
                   </div>
                 )}
 
-                {role === 'custom' && (
-                  <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      {h.customAccess}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {HOUSEHOLD_AREAS.map((area) => (
-                        <div key={area.id} className="min-w-0">
-                          <CustomSelect
-                            value={permissions[area.id] || 'none'}
-                            onChange={(value) =>
-                              setPermissions((current) => ({
-                                ...current,
-                                [area.id]: value as AccessLevel,
-                              }))
-                            }
-                            options={accessOptions(area.editable)}
-                            label={h.areas[area.id]}
-                            triggerClassName="!h-10 !text-xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </>
@@ -532,11 +500,10 @@ export function HouseholdPanel({
 }
 
 /**
- * Inline owner-only editor for an existing member: display name, role and —
- * for `custom` — the per-area permission matrix. It reuses the same controls
- * and labels as the invite form so a member's grant reads the way it was
- * offered. The write goes through `updateMember`, which the Firestore rules
- * allow only for the household owner (`firestore.rules` members `allow update`).
+ * Inline owner-only editor for a member's display name and enforceable role.
+ * Legacy custom members can be migrated to editor, viewer, or contributor;
+ * field-level custom maps are never offered because Firestore cannot enforce
+ * them on the shared month document.
  */
 function MemberEditor({
   member,
@@ -552,25 +519,13 @@ function MemberEditor({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(member.displayName);
-  const [role, setRole] = useState<InviteRole>(isAssignableMemberRole(member.role) ? member.role : 'viewer');
-  const [permissions, setPermissions] = useState<HouseholdPermissions>(
-    member.permissions && Object.keys(member.permissions).length ? member.permissions : { expenses: 'view' },
+  const [role, setRole] = useState<InviteRole>(
+    isAssignableMemberRole(member.role) ? member.role : 'contributor',
   );
   const roleOptions = [
-    { value: 'custom', label: h.customAccess },
     { value: 'editor', label: h.fullAccess },
     { value: 'contributor', label: m.householdRoles.contributor },
     { value: 'viewer', label: h.viewOnly },
-  ];
-  const accessOptions = (editable?: boolean) => [
-    { value: 'none', label: h.noAccess },
-    { value: 'view', label: h.view },
-    ...(editable
-      ? [
-          { value: 'editOwn', label: h.editOwn },
-          { value: 'editAll', label: h.editAll },
-        ]
-      : []),
   ];
   return (
     <div className="space-y-3 rounded-xl border border-primary/40 bg-surface-container p-3">
@@ -589,20 +544,6 @@ function MemberEditor({
         ariaLabel={h.customAccess}
         triggerClassName="!h-10 !text-xs"
       />
-      {role === 'custom' && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {HOUSEHOLD_AREAS.map((area) => (
-            <CustomSelect
-              key={area.id}
-              value={permissions[area.id] || 'none'}
-              onChange={(value) => setPermissions((current) => ({ ...current, [area.id]: value as AccessLevel }))}
-              options={accessOptions(area.editable)}
-              label={h.areas[area.id]}
-              triggerClassName="!h-10 !text-xs"
-            />
-          ))}
-        </div>
-      )}
       <div className="flex justify-end gap-2">
         <button
           type="button"
@@ -618,7 +559,7 @@ function MemberEditor({
               ...member,
               displayName: name.trim() || member.displayName,
               role,
-              ...(role === 'custom' ? { permissions } : {}),
+              permissions: undefined,
             })
           }
           className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary"

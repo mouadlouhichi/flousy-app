@@ -1,17 +1,19 @@
 'use client';
 
 import { AppIcon } from '@/components/ui/app-icon';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
-import { VariableExpense, FixedExpense, MoneyPlace, MonthBudget } from '../../lib/store';
+import { VariableExpense, FixedExpense, MoneyPlace, MonthBudget, getPlaceBalance } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 import type { Language } from '../../lib/i18n-core';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { localizeCategoryName } from '../../lib/localized-labels';
 import { formatShortDate } from '../../lib/utils';
-import { MONTHLY_VARIABLE_EXPENSE_LIMIT } from '../../lib/validation';
+import { csvImportFingerprint, csvImportId, fixedExpenseFingerprint, variableExpenseFingerprint } from '../../lib/csv-import';
+import { MONTHLY_FIXED_EXPENSE_LIMIT, MONTHLY_VARIABLE_EXPENSE_LIMIT } from '../../lib/validation';
 
 interface ImportCsvModalProps {
   isOpen: boolean;
@@ -29,9 +31,15 @@ interface ParsedRow {
   place: MoneyPlace;
   person?: string;
   note?: string;
+  fingerprint: string;
 }
 
 type CsvHeaderKind = 'name' | 'amount' | 'date' | 'category' | 'place' | 'note' | 'person';
+type CsvColumnMapping = CsvHeaderKind | 'ignore';
+interface CsvColumn {
+  label: string;
+  mapping: CsvColumnMapping;
+}
 
 /**
  * CSV exports use the language configured by the bank or spreadsheet. These
@@ -287,6 +295,9 @@ export function ImportCsvModal({
   const [fileText, setFileText] = useState<string>('');
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [truncated, setTruncated] = useState<boolean>(false);
+  const [invalidCount, setInvalidCount] = useState(0);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [columns, setColumns] = useState<CsvColumn[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -312,10 +323,16 @@ export function ImportCsvModal({
     reader.readAsText(file);
   };
 
-  const parseCsv = (csv: string) => {
+  const parseCsv = (
+    csv: string,
+    overrideColumns?: CsvColumn[],
+    target: 'variable' | 'fixed' = targetType,
+  ) => {
     setError(null);
     setParsedRows([]);
     setTruncated(false);
+    setInvalidCount(0);
+    setDuplicateCount(0);
     setFileText(csv);
 
     try {
@@ -328,68 +345,127 @@ export function ImportCsvModal({
       }
 
       const delimiter = detectCsvDelimiter(lines[0]);
-      const headers = parseCsvLine(lines[0], delimiter).map(getCsvHeaderKind);
+      const headerLabels = parseCsvLine(lines[0], delimiter);
+      const mappedColumns = overrideColumns && overrideColumns.length === headerLabels.length
+        ? overrideColumns
+        : headerLabels.map((label): CsvColumn => ({ label, mapping: getCsvHeaderKind(label) ?? 'ignore' }));
+      setColumns(mappedColumns);
+
+      if (!mappedColumns.some((column) => column.mapping === 'amount')) {
+        setError(copy.mapAmountRequired);
+        return;
+      }
+
+      const existingFingerprints = new Set(
+        target === 'variable'
+          ? (month.variableExpenses || []).map(variableExpenseFingerprint)
+          : (month.fixedExpenses || []).map(fixedExpenseFingerprint),
+      );
+      const stagedFingerprints = new Set<string>();
+      const remainingByPlace = new Map(
+        places.map((moneyPlace) => [moneyPlace.id, getPlaceBalance(month, moneyPlace.id)]),
+      );
       const rows: ParsedRow[] = [];
+      let rejected = 0;
+      let duplicates = 0;
+      const maxRows = target === 'variable'
+        ? Math.max(0, MONTHLY_VARIABLE_EXPENSE_LIMIT - (month.variableExpenses || []).length)
+        : Math.max(0, MONTHLY_FIXED_EXPENSE_LIMIT - (month.fixedExpenses || []).length);
 
       for (let index = 1; index < lines.length; index += 1) {
-        const columns = parseCsvLine(lines[index], delimiter);
-        if (columns.length < 2) continue;
+        const values = parseCsvLine(lines[index], delimiter);
+        if (values.length < 2) {
+          rejected += 1;
+          continue;
+        }
 
-        let name = columns[0] || copy.importedExpense;
-        let amount = 0;
-        let date = todayLocalIso();
-        // Built-in fallbacks intentionally use canonical stored values. Their display
-        // labels are translated later by localizeCategoryName/localizePersonName.
+        let name = '';
+        let amount: number | null = null;
+        let date = month.periodStartDate || todayLocalIso();
         let category = month.activeCategories?.[0] || 'Groceries';
         let place: MoneyPlace = 'bank';
         let note = '';
         let person = 'Self';
+        let invalidDate = false;
 
-        columns.forEach((column, columnIndex) => {
-          switch (headers[columnIndex]) {
+        values.forEach((value, columnIndex) => {
+          switch (mappedColumns[columnIndex]?.mapping) {
             case 'name':
-              name = column || name;
+              name = value.trim();
               break;
-            case 'amount': {
-              const parsedAmount = parseLocalizedAmount(column, language);
-              if (parsedAmount !== null) amount = parsedAmount;
+            case 'amount':
+              amount = parseLocalizedAmount(value, language);
+              break;
+            case 'date': {
+              const parsedDate = parseLocalizedDate(value, language);
+              if (value.trim() && !parsedDate) invalidDate = true;
+              if (parsedDate) date = parsedDate;
               break;
             }
-            case 'date':
-              date = parseLocalizedDate(column, language) || date;
-              break;
             case 'category':
-              if (column) category = column;
+              if (value.trim()) category = value.trim();
               break;
             case 'place':
-              place = resolveCsvPlace(column, places, placeLabel);
+              place = resolveCsvPlace(value, places, placeLabel);
               break;
             case 'note':
-              note = column;
+              note = value.trim();
               break;
             case 'person':
-              person = column;
+              person = value.trim() || 'Self';
               break;
             default:
               break;
           }
         });
 
-        if (amount > 0) rows.push({ name, amount, date, category, place, note, person });
-        if (rows.length >= MONTHLY_VARIABLE_EXPENSE_LIMIT) {
-          // The rest of the file is not silently discarded: the notice names the
-          // limit, and importing again starts from what is already there.
-          setTruncated(rows.length < lines.length - 1);
+        const outsidePeriod = Boolean(
+          (month.periodStartDate && date < month.periodStartDate)
+          || (month.periodEndDate && date > month.periodEndDate),
+        );
+        if (!name) name = copy.importedExpense;
+        if (invalidDate || outsidePeriod || amount === null || !Number.isFinite(amount) || amount <= 0) {
+          rejected += 1;
+          continue;
+        }
+
+        const fingerprint = csvImportFingerprint({
+          kind: target,
+          date,
+          name,
+          amount,
+          category,
+          place,
+          note,
+          person,
+        });
+        if (existingFingerprints.has(fingerprint) || stagedFingerprints.has(fingerprint)) {
+          duplicates += 1;
+          continue;
+        }
+        const remaining = remainingByPlace.get(place) ?? getPlaceBalance(month, place);
+        if (amount > remaining) {
+          rejected += 1;
+          continue;
+        }
+        if (rows.length >= maxRows) {
+          setTruncated(true);
           break;
         }
+        stagedFingerprints.add(fingerprint);
+        remainingByPlace.set(place, Math.round((remaining - amount) * 100) / 100);
+        rows.push({ name, amount, date, category, place, note, person, fingerprint });
       }
 
+      setInvalidCount(rejected);
+      setDuplicateCount(duplicates);
       if (rows.length === 0) {
-        setError(copy.noNumericAmounts);
+        setError(duplicates > 0 && rejected === 0 ? copy.allDuplicates : copy.noValidRows);
       } else {
         setParsedRows(rows);
       }
-    } catch {
+    } catch (reason) {
+      console.error('CSV parsing failed:', reason);
       setError(copy.parseFailed);
     }
   };
@@ -398,8 +474,8 @@ export function ImportCsvModal({
     if (parsedRows.length === 0) return;
 
     if (targetType === 'variable') {
-      const expenses: VariableExpense[] = parsedRows.map((row, index) => ({
-        id: `csv-var-${Date.now()}-${index}`,
+      const expenses: VariableExpense[] = parsedRows.map((row) => ({
+        id: csvImportId('variable', row.fingerprint),
         name: row.name,
         amount: row.amount,
         type: row.category,
@@ -407,24 +483,36 @@ export function ImportCsvModal({
         place: row.place,
         note: row.note,
         person: row.person,
+        sourceType: 'csv',
+        sourceId: row.fingerprint,
+        importFingerprint: row.fingerprint,
       }));
       onImportVariable(expenses);
     } else {
-      const bills: FixedExpense[] = parsedRows.map((row, index) => ({
-        id: `csv-fix-${Date.now()}-${index}`,
+      const bills: FixedExpense[] = parsedRows.map((row) => ({
+        id: csvImportId('fixed', row.fingerprint),
         name: row.name,
         amount: row.amount,
         type: row.category,
-        date: '1st',
+        date: row.date,
         place: row.place,
         person: row.person,
-        recurring: true,
+        recurring: false,
+        status: 'paid',
+        paidAmount: row.amount,
+        paidAt: row.date,
+        sourceType: 'csv',
+        sourceId: row.fingerprint,
+        importFingerprint: row.fingerprint,
       }));
       onImportFixed(bills);
     }
 
     setParsedRows([]);
     setFileText('');
+    setColumns([]);
+    setInvalidCount(0);
+    setDuplicateCount(0);
     setError(null);
     onClose();
   };
@@ -435,7 +523,10 @@ export function ImportCsvModal({
         <div className="flex bg-surface-container-high rounded-xl p-1" role="group">
           <button
             type="button"
-            onClick={() => setTargetType('variable')}
+            onClick={() => {
+              setTargetType('variable');
+              if (fileText) parseCsv(fileText, columns, 'variable');
+            }}
             aria-pressed={targetType === 'variable'}
             className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               targetType === 'variable'
@@ -447,7 +538,10 @@ export function ImportCsvModal({
           </button>
           <button
             type="button"
-            onClick={() => setTargetType('fixed')}
+            onClick={() => {
+              setTargetType('fixed');
+              if (fileText) parseCsv(fileText, columns, 'fixed');
+            }}
             aria-pressed={targetType === 'fixed'}
             className={`flex-1 py-2.5 rounded-lg text-[14px] font-bold transition-all ${
               targetType === 'fixed'
@@ -478,11 +572,52 @@ export function ImportCsvModal({
           </label>
         </div>
 
+        {fileText && columns.length > 0 && (
+          <section className="rounded-2xl border border-outline-variant bg-surface-container p-3">
+            <h3 className="mb-2 text-sm font-bold text-on-surface">{copy.mappingTitle}</h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {columns.map((column, index) => (
+                <CustomSelect
+                  key={`${column.label}-${index}`}
+                  label={column.label || `${copy.column} ${index + 1}`}
+                  value={column.mapping}
+                  onChange={(mapping) => {
+                    const next = columns.map((item, itemIndex) => (
+                      itemIndex === index ? { ...item, mapping: mapping as CsvColumnMapping } : item
+                    ));
+                    setColumns(next);
+                    parseCsv(fileText, next);
+                  }}
+                  options={[
+                    { value: 'ignore', label: copy.mapIgnore },
+                    { value: 'name', label: copy.mapName },
+                    { value: 'amount', label: copy.mapAmount },
+                    { value: 'date', label: copy.mapDate },
+                    { value: 'category', label: copy.mapCategory },
+                    { value: 'place', label: copy.mapPlace },
+                    { value: 'note', label: copy.mapNote },
+                    { value: 'person', label: copy.mapPerson },
+                  ]}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {error && (
           <div role="alert" className="p-3 bg-error-container text-on-error-container rounded-xl text-[13px] font-medium flex items-start gap-2">
             <AppIcon name="error" className="text-[18px] shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
+        )}
+
+        {(invalidCount > 0 || duplicateCount > 0) && (
+          <p role="status" className="rounded-xl bg-secondary-container p-3 text-[13px] font-medium text-on-secondary-container">
+            {t(copy.skippedRows, {
+              invalid: new Intl.NumberFormat(intlLocale).format(invalidCount),
+              duplicates: new Intl.NumberFormat(intlLocale).format(duplicateCount),
+            })}
+          </p>
         )}
 
         {truncated && (

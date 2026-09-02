@@ -24,147 +24,99 @@ import {
   actorForMonth,
   canShowProUpgrade,
   isProFeatureUnlocked,
-  monthStartDateField,
+  isHouseholdEntitlementActive,
   monthStartDateFor,
   normalizeHouseholdName,
   isAssignableMemberRole,
-  type HouseholdRole,
 } from '../src/lib/household';
 
-describe('Household name validation (rename workspace)', () => {
-  it('trims surrounding whitespace', () => {
-    assert.strictEqual(normalizeHouseholdName('  The Silva family  '), 'The Silva family');
-  });
-  it('rejects empty or whitespace-only names', () => {
-    assert.strictEqual(normalizeHouseholdName(''), null);
-    assert.strictEqual(normalizeHouseholdName('   '), null);
-  });
-  it('accepts up to 100 characters and rejects 101', () => {
-    assert.strictEqual(normalizeHouseholdName('a'.repeat(100)), 'a'.repeat(100));
-    assert.strictEqual(normalizeHouseholdName('a'.repeat(101)), null);
+describe('Household name validation', () => {
+  it('trims valid names and enforces the Firestore size boundary', () => {
+    assert.equal(normalizeHouseholdName('  The Silva family  '), 'The Silva family');
+    assert.equal(normalizeHouseholdName(''), null);
+    assert.equal(normalizeHouseholdName('   '), null);
+    assert.equal(normalizeHouseholdName('a'.repeat(100)), 'a'.repeat(100));
+    assert.equal(normalizeHouseholdName('a'.repeat(101)), null);
   });
 });
 
-describe('Per-workspace month start date', () => {
-  it('maps each workspace to its own profile field', () => {
-    assert.strictEqual(monthStartDateField('personal'), 'monthStartDate');
-    assert.strictEqual(monthStartDateField('household'), 'householdMonthStartDate');
-    assert.strictEqual(monthStartDateField(undefined), 'monthStartDate');
+describe('Authoritative workspace month start date', () => {
+  it('reads personal periods from the profile and household periods from household configuration', () => {
+    const profile = { monthStartDate: 15 };
+    const household = { monthStartDate: 2 };
+    assert.equal(monthStartDateFor(profile, 'personal', household), 15);
+    assert.equal(monthStartDateFor(profile, 'household', household), 2);
   });
 
-  it('reads a separate payday per workspace', () => {
-    const profile = { monthStartDate: 15, householdMonthStartDate: 2 };
-    assert.strictEqual(monthStartDateFor(profile, 'personal'), 15);
-    assert.strictEqual(monthStartDateFor(profile, 'household'), 2);
+  it('never leaks a personal or legacy profile value into household configuration', () => {
+    const profile = { monthStartDate: 15, householdMonthStartDate: 7 };
+    assert.equal(monthStartDateFor(profile, 'household'), undefined);
+    assert.equal(monthStartDateFor(profile, 'household', {}), undefined);
   });
 
-  it('falls back to the personal payday while the household one is unset', () => {
-    const profile = { monthStartDate: 15, householdMonthStartDate: undefined };
-    assert.strictEqual(monthStartDateFor(profile, 'household'), 15);
-  });
-
-  it('never lets the household payday leak into the personal period', () => {
-    const profile = { monthStartDate: 15, householdMonthStartDate: 2 };
-    assert.notStrictEqual(
-      monthStartDateFor(profile, 'personal'),
-      monthStartDateFor(profile, 'household'),
-    );
-  });
-
-  it('handles a missing or empty profile without throwing', () => {
-    assert.strictEqual(monthStartDateFor(null, 'personal'), undefined);
-    assert.strictEqual(monthStartDateFor(undefined, 'household'), undefined);
-    assert.strictEqual(monthStartDateFor({}, 'personal'), undefined);
+  it('handles missing data without throwing', () => {
+    assert.equal(monthStartDateFor(null, 'personal'), undefined);
+    assert.equal(monthStartDateFor(undefined, 'household'), undefined);
+    assert.equal(monthStartDateFor({}, 'personal'), undefined);
   });
 });
 
 describe('Household RBAC permissions', () => {
-  it('grants full editAll permissions to owner and editor roles across all 11 areas', () => {
-    const ownerPerms = permissionsFor('owner');
-    const editorPerms = permissionsFor('editor');
-
-    for (const area of HOUSEHOLD_AREAS) {
-      assert.equal(ownerPerms[area.id], 'editAll');
-      assert.equal(editorPerms[area.id], 'editAll');
-      assert.equal(canView('owner', area.id), true);
-      assert.equal(canEdit('owner', area.id), true);
-      assert.equal(canView('editor', area.id), true);
-      assert.equal(canEdit('editor', area.id), true);
+  it('grants owners every area and keeps owner-only configuration out of editor writes', () => {
+    const owner = permissionsFor('owner');
+    const editor = permissionsFor('editor');
+    for (const { id } of HOUSEHOLD_AREAS) {
+      assert.equal(owner[id], 'editAll');
+      assert.equal(canEdit('owner', id), true);
+      assert.equal(canView('editor', id), true);
     }
+    assert.equal(editor.members, 'view');
+    assert.equal(editor.settings, 'view');
+    assert.equal(canEdit('editor', 'members'), false);
+    assert.equal(canEdit('editor', 'settings'), false);
+    assert.equal(canEdit('editor', 'expenses'), true);
   });
 
-  it('grants read-only view permissions to viewer role across all 11 areas', () => {
-    const viewerPerms = permissionsFor('viewer');
-
-    for (const area of HOUSEHOLD_AREAS) {
-      assert.equal(viewerPerms[area.id], 'view');
-      assert.equal(canView('viewer', area.id), true);
-      assert.equal(canEdit('viewer', area.id), false);
-      assert.equal(canEdit('viewer', area.id, undefined, true), false);
+  it('keeps viewers read-only and excludes the editor-only invoice queue', () => {
+    for (const { id } of HOUSEHOLD_AREAS) {
+      assert.equal(canEdit('viewer', id, undefined, true), false);
     }
+    assert.equal(canView('viewer', 'dashboard'), true);
+    assert.equal(canView('viewer', 'balances'), true);
+    assert.equal(canView('viewer', 'invoices'), false);
   });
 
-  it('grants editOwn permissions only on invoices and expenses to contributor role', () => {
-    const contributorPerms = permissionsFor('contributor');
-    assert.deepEqual(contributorPerms, { invoices: 'editOwn', expenses: 'editOwn' });
-
+  it('restricts contributors to their own invoice boundary', () => {
     assert.equal(canView('contributor', 'invoices'), true);
-    assert.equal(canView('contributor', 'expenses'), true);
-    assert.equal(canView('contributor', 'dashboard'), false);
-    assert.equal(canView('contributor', 'balances'), false);
-
     assert.equal(canEdit('contributor', 'invoices', undefined, false), false);
     assert.equal(canEdit('contributor', 'invoices', undefined, true), true);
-    assert.equal(canEdit('contributor', 'expenses', undefined, true), true);
-    assert.equal(canEdit('contributor', 'fixedBills', undefined, true), false);
+    for (const { id } of HOUSEHOLD_AREAS.filter(({ id }) => id !== 'invoices')) {
+      assert.equal(accessLevel('contributor', id), 'none');
+    }
   });
 
-  it('respects custom permissions maps for custom role', () => {
-    const customPerms: HouseholdPermissions = {
-      dashboard: 'view',
+  it('ignores legacy custom maps that Firestore cannot enforce', () => {
+    const attempted: HouseholdPermissions = {
+      dashboard: 'editAll',
+      balances: 'view',
       savings: 'editAll',
-      invoices: 'editOwn',
     };
-
-    assert.equal(canView('custom', 'dashboard', customPerms), true);
-    assert.equal(canEdit('custom', 'dashboard', customPerms), false);
-
-    assert.equal(canView('custom', 'savings', customPerms), true);
-    assert.equal(canEdit('custom', 'savings', customPerms), true);
-
-    assert.equal(canView('custom', 'invoices', customPerms), true);
-    assert.equal(canEdit('custom', 'invoices', customPerms, false), false);
-    assert.equal(canEdit('custom', 'invoices', customPerms, true), true);
-
-    assert.equal(canView('custom', 'debts', customPerms), false);
+    assert.equal(canView('custom', 'dashboard', attempted), false);
+    assert.equal(canView('custom', 'balances', attempted), false);
+    assert.equal(canEdit('custom', 'savings', attempted), false);
+    assert.equal(canEdit('custom', 'invoices', attempted, true), true);
   });
 
-  it('maps UI screens to expected RBAC areas', () => {
-    assert.equal(SCREEN_AREA.overview, 'dashboard');
-    assert.equal(SCREEN_AREA.variable, 'expenses');
-    assert.equal(SCREEN_AREA.fixed, 'fixedBills');
-    assert.equal(SCREEN_AREA.savings, 'savings');
-    assert.equal(SCREEN_AREA.debts, 'debts');
-    assert.equal(SCREEN_AREA.trends, 'analytics');
-    // A course session ends as variable expenses, so it is the `expenses` area.
-    assert.equal(SCREEN_AREA.courses, 'expenses');
-  });
-
-  it('resolves the raw access level behind canView/canEdit', () => {
-    assert.equal(accessLevel('owner', 'income'), 'editAll');
-    assert.equal(accessLevel('editor', 'balances'), 'editAll');
-    assert.equal(accessLevel('viewer', 'income'), 'view');
-    assert.equal(accessLevel('contributor', 'expenses'), 'editOwn');
-    assert.equal(accessLevel('contributor', 'balances'), 'none');
-    // No role at all (membership row missing) must fail closed.
-    assert.equal(accessLevel(undefined, 'income'), 'none');
-    assert.equal(accessLevel(undefined, 'balances'), 'none');
+  it('fails closed while the membership row is unavailable', () => {
+    for (const { id } of HOUSEHOLD_AREAS) {
+      assert.equal(accessLevel(undefined, id), 'none');
+    }
   });
 });
 
-describe('resolveAreaAccess — the gates every screen renders from', () => {
-  it('grants everything in the personal workspace regardless of stored role', () => {
-    const access = resolveAreaAccess({ unrestricted: true, role: undefined, permissions: undefined });
+describe('resolveAreaAccess', () => {
+  it('grants every surface in a personal workspace', () => {
+    const access = resolveAreaAccess({ unrestricted: true, role: undefined });
     for (const { id } of HOUSEHOLD_AREAS) {
       assert.equal(access.level(id), 'editAll');
       assert.equal(access.canView(id), true);
@@ -173,54 +125,32 @@ describe('resolveAreaAccess — the gates every screen renders from', () => {
     assert.deepEqual(access.exportSections, ALL_EXPORT_SECTIONS);
   });
 
-  it('hides income sources and total cash on hand from a viewer', () => {
-    const access = resolveAreaAccess({ unrestricted: false, role: 'viewer', permissions: undefined });
-    // Overview: TOTAL CASH ON HAND + money places + budget editor
-    assert.equal(access.canView('balances'), true);
-    assert.equal(access.canEdit('balances'), false);
-    // Sidebar / profile "Income sources" entry and the Trends income breakdown
-    assert.equal(access.canView('income'), true);
-    assert.equal(access.canEdit('income'), false);
+  it('derives read-only viewer and restricted contributor gates from roles', () => {
+    const viewer = resolveAreaAccess({ unrestricted: false, role: 'viewer' });
+    assert.equal(viewer.canView('income'), true);
+    assert.equal(viewer.canEdit('income'), false);
+
+    const contributor = resolveAreaAccess({ unrestricted: false, role: 'contributor' });
+    assert.equal(contributor.canView('income'), false);
+    assert.equal(contributor.canView('balances'), false);
+    assert.equal(contributor.canEdit('invoices', true), true);
+    assert.equal(contributor.canEdit('expenses', true), false);
   });
 
-  it('keeps income sources and total cash on hand away from a contributor', () => {
-    const access = resolveAreaAccess({ unrestricted: false, role: 'contributor', permissions: undefined });
-    assert.equal(access.canView('income'), false);
-    assert.equal(access.canEdit('income'), false);
-    assert.equal(access.canView('balances'), false);
-    assert.equal(access.canEdit('balances'), false);
-    // ...while their own expense entry still works.
-    assert.equal(access.canView('expenses'), true);
-    assert.equal(access.canEdit('expenses', true), true);
-    assert.equal(access.canEdit('expenses', false), false);
-  });
-
-  it('lets a custom role see income without being able to change it', () => {
+  it('does not elevate a custom role through its stored map', () => {
     const access = resolveAreaAccess({
       unrestricted: false,
       role: 'custom',
-      permissions: { income: 'view', balances: 'none' },
+      permissions: { income: 'view', balances: 'editAll' },
     });
-    assert.equal(access.level('income'), 'view');
-    assert.equal(access.canView('income'), true);
-    assert.equal(access.canEdit('income'), false);
-    assert.equal(access.canView('balances'), false);
-    assert.equal(access.exportSections.balances, false);
-  });
-
-  it('fails closed for a household member whose row has not loaded yet', () => {
-    const access = resolveAreaAccess({ unrestricted: false, role: undefined, permissions: undefined });
-    for (const { id } of HOUSEHOLD_AREAS) {
-      assert.equal(access.canView(id), false);
-      assert.equal(access.canEdit(id), false);
-    }
-    assert.equal(canExportAnything(access.exportSections), false);
+    assert.equal(access.canView('income'), false);
+    assert.equal(access.canEdit('balances'), false);
+    assert.equal(access.canEdit('invoices', true), true);
   });
 });
 
 describe('Household RBAC surface coverage', () => {
-  const SURFACE_AREAS: HouseholdArea[] = [
-    // SCREEN_AREA is a partial record, so its values are optional.
+  const surfaceAreas: HouseholdArea[] = [
     ...Object.values(SCREEN_AREA),
     ...Object.values(TOOL_AREA),
     ...Object.values(AMOUNT_AREA),
@@ -229,117 +159,80 @@ describe('Household RBAC surface coverage', () => {
   ].filter((area): area is HouseholdArea => area !== undefined);
 
   it('owns every area with at least one gated UI surface', () => {
-    // Guards against the original bug: an area defined in the matrix but never
-    // consulted by any screen, so its figures rendered for everyone.
     for (const { id } of HOUSEHOLD_AREAS) {
-      assert.ok(SURFACE_AREAS.includes(id), `no gated surface for area "${id}"`);
+      assert.ok(surfaceAreas.includes(id), `no gated surface for area "${id}"`);
     }
   });
 
-  it('assigns income sources and total cash on hand to their own areas', () => {
+  it('assigns money figures and quick actions to their write boundaries', () => {
     assert.equal(AMOUNT_AREA.incomeSource, 'income');
     assert.equal(AMOUNT_AREA.totalCashOnHand, 'balances');
-    assert.equal(AMOUNT_AREA.totalBudget, 'balances');
-    assert.equal(AMOUNT_AREA.moneyPlace, 'balances');
     assert.equal(TOOL_AREA.incomeSources, 'income');
-  });
-
-  it('maps every mobile quick action to the area it writes to', () => {
     for (const action of getMobileQuickActions()) {
       assert.ok(QUICK_ACTION_AREA[action.id], `quick action "${action.id}" has no RBAC area`);
     }
-    assert.equal(QUICK_ACTION_AREA.expense, 'expenses');
-    assert.equal(QUICK_ACTION_AREA.charge, 'fixedBills');
-    assert.equal(QUICK_ACTION_AREA.savings, 'savings');
-    assert.equal(QUICK_ACTION_AREA.courses, 'expenses');
   });
 });
 
 describe('Household RBAC export filtering', () => {
-  it('lets owner and editor export every section', () => {
+  it('allows finance readers and rejects invoice-only roles', () => {
     assert.deepEqual(exportSectionsFor('owner'), ALL_EXPORT_SECTIONS);
     assert.deepEqual(exportSectionsFor('editor'), ALL_EXPORT_SECTIONS);
-    assert.equal(canExportAnything(ALL_EXPORT_SECTIONS), true);
-  });
-
-  it('lets a viewer export every section (view includes download)', () => {
     assert.deepEqual(exportSectionsFor('viewer'), ALL_EXPORT_SECTIONS);
-  });
-
-  it('drops balances and savings from a contributor export', () => {
-    const sections = exportSectionsFor('contributor');
-    assert.deepEqual(sections, {
-      balances: false,
-      fixedBills: false,
-      expenses: true,
-      savings: false,
-    });
-    assert.equal(canExportAnything(sections), true);
-  });
-
-  it('exports nothing for a custom member with no viewable area', () => {
-    const none = exportSectionsFor('custom', { income: 'view' });
-    assert.deepEqual(none, { balances: false, fixedBills: false, expenses: false, savings: false });
+    const none = { balances: false, fixedBills: false, expenses: false, savings: false };
+    assert.deepEqual(exportSectionsFor('contributor'), none);
+    assert.deepEqual(exportSectionsFor('custom', { savings: 'editAll' }), none);
+    assert.deepEqual(exportSectionsFor(undefined), none);
     assert.equal(canExportAnything(none), false);
-  });
-
-  it('keeps only the granted sections for a custom member', () => {
-    const sections = exportSectionsFor('custom', { balances: 'view', savings: 'editAll' });
-    assert.deepEqual(sections, { balances: true, fixedBills: false, expenses: false, savings: true });
-  });
-
-  it('fails closed when the membership row is missing', () => {
-    const sections = exportSectionsFor(undefined);
-    assert.deepEqual(sections, { balances: false, fixedBills: false, expenses: false, savings: false });
-    assert.equal(canExportAnything(sections), false);
   });
 });
 
 describe('Household storage and audit helpers', () => {
-  it('householdStorageKey generates correct namespaced keys for personal vs household budgets', () => {
+  it('namespaces personal and household month caches', () => {
     assert.equal(householdStorageKey(undefined, '2026-07'), 'flousy_month_2026-07');
     assert.equal(householdStorageKey('house-123', '2026-07'), 'flousy_household_house-123_month_2026-07');
   });
 
-  it('actorForMonth attaches updatedAt timestamp and optional updatedByUserId audit trail', () => {
+  it('attaches audit metadata without mutating month fields', () => {
     const baseMonth: any = { month: '2026-07', totalBudget: 5000 };
-    const auditedWithUser = actorForMonth(baseMonth, 'user-xyz');
-
-    assert.equal(auditedWithUser.month, '2026-07');
-    assert.equal(auditedWithUser.totalBudget, 5000);
-    assert.equal(auditedWithUser.updatedByUserId, 'user-xyz');
-    assert.ok(typeof auditedWithUser.updatedAt === 'string');
-
-    const auditedNoUser = actorForMonth(baseMonth);
-    assert.equal(auditedNoUser.updatedByUserId, undefined);
-    assert.ok(typeof auditedNoUser.updatedAt === 'string');
+    const audited = actorForMonth(baseMonth, 'user-xyz');
+    assert.equal(audited.month, '2026-07');
+    assert.equal(audited.totalBudget, 5000);
+    assert.equal(audited.updatedByUserId, 'user-xyz');
+    assert.equal(typeof audited.updatedAt, 'string');
+    assert.equal(actorForMonth(baseMonth).updatedByUserId, undefined);
   });
 
-  it('canShowProUpgrade displays upgrade CTA only on private workspace and never on household workspace', () => {
+  it('keeps upgrades personal and expires projected household trial access', () => {
+    const now = Date.UTC(2026, 8, 2);
+    const active = {
+      entitlementSource: 'launch_trial' as const,
+      entitlementStatus: 'trialing' as const,
+      entitlementEndsAtMs: now + 1,
+    };
+    const expired = { ...active, entitlementEndsAtMs: now };
+
     assert.equal(canShowProUpgrade(false, 'personal'), true);
-    assert.equal(canShowProUpgrade(false, undefined), true);
     assert.equal(canShowProUpgrade(false, 'household'), false);
     assert.equal(canShowProUpgrade(true, 'personal'), false);
-    assert.equal(canShowProUpgrade(true, 'household'), false);
-  });
-
-  it('isProFeatureUnlocked unlocks Pro features when in a household workspace even for free members', () => {
     assert.equal(isProFeatureUnlocked(true, 'personal'), true);
-    assert.equal(isProFeatureUnlocked(false, 'household'), true);
-    assert.equal(isProFeatureUnlocked(false, 'personal'), false);
-    assert.equal(isProFeatureUnlocked(false, undefined), false);
+    assert.equal(isHouseholdEntitlementActive(active, now), true);
+    assert.equal(isHouseholdEntitlementActive(expired, now), false);
+    assert.equal(isProFeatureUnlocked(false, 'household', active, now), true);
+    assert.equal(isProFeatureUnlocked(false, 'household', expired, now), false);
+    assert.equal(isProFeatureUnlocked(false, 'personal', active, now), false);
+    // Legacy households have no projection and retain access/data.
+    assert.equal(isHouseholdEntitlementActive({}, now), true);
   });
 });
 
-describe('Assignable member roles (edit member)', () => {
-  it('accepts the four roles an owner may grant', () => {
-    for (const role of ['editor', 'viewer', 'contributor', 'custom']) {
-      assert.strictEqual(isAssignableMemberRole(role), true, role);
+describe('Assignable member roles', () => {
+  it('offers only roles backed by Firestore rules', () => {
+    for (const role of ['editor', 'viewer', 'contributor']) {
+      assert.equal(isAssignableMemberRole(role), true, role);
     }
-  });
-  it('refuses owner/profile/unknown so they can never be assigned', () => {
-    for (const role of ['owner', 'profile', '', 'admin']) {
-      assert.strictEqual(isAssignableMemberRole(role), false, role);
+    for (const role of ['owner', 'profile', 'custom', '', 'admin']) {
+      assert.equal(isAssignableMemberRole(role), false, role);
     }
   });
 });

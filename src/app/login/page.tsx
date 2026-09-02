@@ -9,7 +9,6 @@ import { useAuth } from '../../lib/auth-context';
 import { loginSchema, signUpSchema } from '../../lib/validation';
 import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
-import { monthStartDateFor } from '@/lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { enableDemoMode, exitDemoMode, isDemoMode, isOnboardingDoneLocally } from '@/lib/demo-mode';
 
@@ -30,10 +29,9 @@ export default function LoginPage() {
     if (loading) return;
 
     const today = new Date();
-    const monthKey = getCurrentMonthKey(
-      monthStartDateFor(profile, profile?.activeWorkspace),
-      today,
-    );
+    // Household configuration is loaded only inside the dashboard provider;
+    // the login route uses the personal fallback solely for local onboarding detection.
+    const monthKey = getCurrentMonthKey(profile?.monthStartDate, today);
     const onboardingDoneLocally = isOnboardingDoneLocally(monthKey);
 
     // Onboarding is always the first screen after signup (or whenever the

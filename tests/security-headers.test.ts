@@ -15,7 +15,7 @@ const read = (path: string) => readFileSync(new URL(path, new URL('../', import.
 
 describe('response headers', () => {
   const config = read('next.config.mjs');
-  const middleware = read('src/middleware.ts');
+  const middleware = read('src/proxy.ts');
 
   it('keeps the clickjacking and sniffing defaults on every route', () => {
     assert.match(config, /X-Content-Type-Options', value: 'nosniff'/);
@@ -134,9 +134,10 @@ describe('server endpoint abuse limits', () => {
     assert.ok(codeStoredBeforeMail > -1 && mailAttempt > codeStoredBeforeMail);
   });
 
-  it('rate limits sends per user', () => {
+  it('rate limits sends per user and deduplicates provider retries', () => {
     assert.match(invitations, /rateLimited\(/);
     assert.match(invitations, /status: 429/);
+    assert.match(invitations, /idempotencyKey: `household-invite-\$\{inviteId\}`/);
   });
 
   it('validates the barcode argument and bounds the outbound fan-out', () => {
@@ -191,8 +192,11 @@ describe('destructive account operations', () => {
     // Deleting the Firebase user before the data is gone would orphan whatever
     // failed: nothing else could reach those documents again.
     const deleteOrder = auth.indexOf('AccountDeletionIncompleteError(report)');
-    const userDelete = auth.indexOf('await deleteUser(user)');
+    const userDelete = auth.indexOf('await deleteUser(currentUser)');
     assert.ok(deleteOrder > -1 && userDelete > deleteOrder, 'data must be erased before the account');
+    const retryGuard = db.indexOf('if (report.failed.length > 0) return report');
+    const profileDelete = db.indexOf("await deleteDoc(doc(db, 'users', uid))");
+    assert.ok(retryGuard > -1 && profileDelete > retryGuard, 'the retry manifest must survive any partial erasure');
   });
 
   it('keeps household data reachable while its owner account still exists', () => {

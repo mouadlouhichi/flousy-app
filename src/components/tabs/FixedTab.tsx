@@ -1,7 +1,8 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
-import { MonthBudget, FixedExpense, fixedCategoryVisual } from '../../lib/store';
+import { MonthBudget, FixedExpense, fixedCategoryVisual, fixedPaidAmount } from '../../lib/store';
 import { useAuth } from '../../lib/auth-context';
+import { useHousehold } from '../../lib/household-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
@@ -18,10 +19,14 @@ interface FixedTabProps {
 export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: FixedTabProps) {
   const { format } = useCurrency();
   const { profile } = useAuth();
-  const customCategories = profile?.fixedCategories || [];
+  const { workspace, household } = useHousehold();
+  const customCategories = workspace === 'household'
+    ? (household?.fixedCategories || [])
+    : (profile?.fixedCategories || []);
   const { messages: m, t, language, intlLocale } = useLanguage();
 
-  const totalFixed = (month.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
+  const totalFixed = (month.fixedExpenses || []).reduce((acc, bill) => acc + bill.amount, 0);
+  const totalPaid = (month.fixedExpenses || []).reduce((acc, bill) => acc + fixedPaidAmount(bill), 0);
 
   return (
     <div className="flex flex-col gap-lg pb-24">
@@ -34,6 +39,9 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
             {format(totalFixed)}
           </h2>
+          <p className="mt-1 text-xs font-bold text-primary">
+            {t(m.tabs.fixed.paidSummary, { amount: format(totalPaid) })}
+          </p>
         </div>
         {canEdit && (
           <button
@@ -76,12 +84,13 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
             });
 
             return (
-            <div
+            <button
+              type="button"
               key={bill.id}
-              role={canEdit ? 'button' : undefined}
               onClick={canEdit ? () => onEditBill(bill) : undefined}
-              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 transition-all shadow-2xs ${
-                canEdit ? 'hover:border-primary cursor-pointer' : ''
+              disabled={!canEdit}
+              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start transition-all shadow-2xs ${
+                canEdit ? 'hover:border-primary cursor-pointer' : 'cursor-default'
               }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-md">
@@ -103,6 +112,9 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
                     {bill.recurring !== false && (
                       <AppIcon name="sync" className="text-[16px] text-primary" title={m.tabs.fixed.recurringMonthly} />
                     )}
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      {m.tabs.fixed.status[bill.status || 'paid']}
+                    </span>
                   </div>
                   <div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">
                     <span>{localizeCategoryName(bill.type, m)}</span>
@@ -120,10 +132,17 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
                 </div>
               </div>
 
-              <span className="font-mono font-extrabold text-headline-sm text-on-surface">
-                {format(bill.amount)}
+              <span className="text-end">
+                <span className="block font-mono font-extrabold text-headline-sm text-on-surface">
+                  {format(bill.amount)}
+                </span>
+                {fixedPaidAmount(bill) !== bill.amount && (
+                  <span className="block text-[10px] font-bold text-primary">
+                    {t(m.tabs.fixed.paidShort, { amount: format(fixedPaidAmount(bill)) })}
+                  </span>
+                )}
               </span>
-            </div>
+            </button>
             );
           })}
         </div>

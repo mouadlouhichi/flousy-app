@@ -27,7 +27,6 @@ import {
 } from '@/lib/store';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useHousehold } from '@/lib/household-context';
-import { monthStartDateFor } from '@/lib/household';
 import { trackEvent } from '@/lib/analytics';
 
 /**
@@ -88,7 +87,7 @@ const DebtModal = dynamic(
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
-  const { canEditArea, canViewArea, workspace } = useHousehold();
+  const { canEditArea, canViewArea } = useHousehold();
   // Income is viewable in read-only mode: the modal shows the sources without
   // any affordance that would write them.
   const incomeReadOnly = !canEditArea('income');
@@ -103,7 +102,7 @@ export function DashboardModals() {
     goals,
     currentMonthKey,
     updateAndSaveMonth,
-    updateAndSaveGoals,
+    updateAndSaveFinance,
     handleEditMoneyPlaces,
     handleAddCategory,
     handleSaveIncomeSources,
@@ -117,18 +116,18 @@ export function DashboardModals() {
     if (dashboard.selectedExpense) {
       const updated = editVariableExpense(month, dashboard.selectedExpense, audited);
       updateAndSaveMonth(updated, 'expenses');
-      trackEvent('edit_variable_expense', { category: exp.type, amount: exp.amount });
+      trackEvent('edit_variable_expense');
     } else {
       const updated = addVariableExpense(month, audited);
       updateAndSaveMonth(updated, 'expenses');
-      trackEvent('add_variable_expense', { category: exp.type, amount: exp.amount });
+      trackEvent('add_variable_expense');
     }
   };
 
   const handleDeleteVariableExpense = (exp: VariableExpense) => {
     const updated = deleteVariableExpense(month, exp);
     updateAndSaveMonth(updated, 'expenses');
-    trackEvent('delete_variable_expense', { category: exp.type });
+    trackEvent('delete_variable_expense');
   };
 
   // Fixed bills handlers
@@ -137,18 +136,18 @@ export function DashboardModals() {
     if (dashboard.selectedFixed) {
       const updated = editFixedExpense(month, dashboard.selectedFixed, audited);
       updateAndSaveMonth(updated, 'fixedBills');
-      trackEvent('edit_fixed_expense', { category: bill.type, amount: bill.amount });
+      trackEvent('edit_fixed_expense');
     } else {
       const updated = addFixedExpense(month, audited);
       updateAndSaveMonth(updated, 'fixedBills');
-      trackEvent('add_fixed_expense', { category: bill.type, amount: bill.amount });
+      trackEvent('add_fixed_expense');
     }
   };
 
   const handleDeleteFixedBill = (bill: FixedExpense) => {
     const updated = deleteFixedExpense(month, bill);
     updateAndSaveMonth(updated, 'fixedBills');
-    trackEvent('delete_fixed_expense', { category: bill.type });
+    trackEvent('delete_fixed_expense');
   };
 
   // Retype existing bills when a custom fixed category is renamed
@@ -159,9 +158,9 @@ export function DashboardModals() {
 
   // Move money handler
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
-    const updated = moveMoney(month, from, to, amount);
+    const updated = moveMoney(month, from, to, amount, dashboard.user?.uid);
     updateAndSaveMonth(updated, 'balances');
-    trackEvent('move_money', { from, to, amount });
+    trackEvent('move_money');
   };
 
   // Savings handlers
@@ -170,28 +169,24 @@ export function DashboardModals() {
     // when the transfer checkbox was checked, and tracks how much of the
     // balance is real deposited money (vs. bookkeeping "already saved").
     const res = saveGoalWithBalance(month, goals, goal, deductFromPlace ?? null);
-    if (res.month !== month) updateAndSaveMonth(res.month, 'savings');
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
-    updateAndSaveMonth(res.month, 'savings');
-    updateAndSaveGoals(res.goals);
-    trackEvent('fund_goal', { amount, sourcePlace });
+    updateAndSaveFinance(res.month, res.goals);
+    trackEvent('fund_goal');
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
-    updateAndSaveMonth(res.month, 'savings');
-    updateAndSaveGoals(res.goals);
-    trackEvent('withdraw_goal', { amount, targetPlace });
+    updateAndSaveFinance(res.month, res.goals);
+    trackEvent('withdraw_goal');
   };
 
   const handleDeleteGoal = (goalId: string) => {
     const res = deleteFundedGoal(month, goals, goalId);
-    updateAndSaveMonth(res.month, 'savings');
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
   };
 
   // Debt handlers
@@ -218,8 +213,10 @@ export function DashboardModals() {
           categories={month.activeCategories || []}
           categoryColors={month.categoryColors}
           categoryIcons={month.categoryIcons}
-          onAddCategory={handleAddCategory}
+          onAddCategory={canEditArea('settings') ? handleAddCategory : undefined}
           placeBalances={placeBalances}
+          periodStartDate={month.periodStartDate}
+          periodEndDate={month.periodEndDate}
           canSeeBalances={canSeeBalances}
         />
       )}
@@ -297,8 +294,8 @@ export function DashboardModals() {
           onClose={dashboard.closeEditMoneyPlaces}
           initialValues={placeBalances}
           totalBudget={month.totalBudget || 0}
-          onSave={(values) => {
-            handleEditMoneyPlaces(values);
+          onSave={(values, note) => {
+            handleEditMoneyPlaces(values, note);
             dashboard.closeEditMoneyPlaces();
           }}
         />
@@ -322,7 +319,7 @@ export function DashboardModals() {
           onClose={dashboard.closeIncomeModal}
           month={month}
           monthKey={currentMonthKey}
-          defaultPayDay={monthStartDateFor(dashboard.profile, workspace)}
+          defaultPayDay={month.periodStartDay}
           onSaveIncomeSources={handleSaveIncomeSources}
           readOnly={incomeReadOnly}
         />

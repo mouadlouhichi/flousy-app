@@ -1,5 +1,6 @@
-import type { MonthBudget, UserProfile } from './store';
+import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget, UserProfile } from './store';
 import type { HouseholdPermissions } from './household-rbac';
+import { resolveProEntitlement } from './pro-features';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
@@ -13,6 +14,22 @@ export interface Household {
   updatedAt: string;
   /** False until the household owner finishes household onboarding. */
   onboardingComplete?: boolean;
+  /** Authoritative workspace configuration. Personal profile preferences never leak in. */
+  currency: string;
+  monthStartDate?: number;
+  moneyPlaces: MoneyPlaceConfig[];
+  activeCategories: string[];
+  categoryColors?: Record<string, string>;
+  categoryIcons?: Record<string, string>;
+  fixedCategories?: FixedCategoryItem[];
+  defaultCategoryBudgets?: Record<string, number>;
+  enableRollover?: boolean;
+  entitlementOwnerId: string;
+  /** Readable projection of the owner's entitlement for member-side feature gates. */
+  entitlementSource?: 'launch_trial' | 'stripe' | 'cmi' | 'admin';
+  entitlementStatus?: 'trialing' | 'active' | 'grace_period' | 'past_due' | 'canceled' | 'expired';
+  entitlementEndsAtMs?: number;
+  schemaVersion?: number;
 }
 
 export interface HouseholdMember {
@@ -46,7 +63,12 @@ export interface HouseholdInvite {
   createdBy: string;
   createdAt: string;
   expiresAt: string;
+  /** Numeric expiry is enforceable in Firestore Rules (legacy string-only invites cannot be claimed). */
+  expiresAtMs: number;
   status: 'pending' | 'accepted' | 'revoked';
+  acceptedByUserId?: string;
+  acceptedEmail?: string;
+  acceptedAt?: string;
 }
 
 export interface HouseholdPayer {
@@ -72,55 +94,42 @@ export interface HouseholdInvoice {
   date: string;
   payerMemberId: string;
   submitterId: string;
+  place: MoneyPlace;
   receiptUrl?: string;
   note?: string;
   status: 'submitted' | 'approved' | 'rejected';
   createdAt: string;
+  reviewedAt?: string;
+  reviewedByUserId?: string;
+  postedExpenseId?: string;
+  postedMonthKey?: string;
 }
 
-/** Which profile field holds the start date for a workspace. */
-/**
- * Trims a household name and enforces the Firestore rule contract
- * (`firestore.rules`: `name.size() > 0 && name.size() <= 100`). Returns the
- * cleaned name, or `null` when it would be rejected, so the UI and the context
- * share one definition of "valid".
- */
-/** Roles an owner may assign to an existing member (never owner/profile). */
-export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor' | 'custom';
+/** Roles an owner may assign to an existing member (never owner/profile/custom). */
+export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor';
 
-/** True when a stored member role can be offered in the edit-member form. */
+/** True when a stored member role maps to enforceable Firestore access. */
 export function isAssignableMemberRole(role: string): role is AssignableMemberRole {
-  return role === 'editor' || role === 'viewer' || role === 'contributor' || role === 'custom';
+  return role === 'editor' || role === 'viewer' || role === 'contributor';
 }
 
+/** Normalize a household name against the Firestore rule contract. */
 export function normalizeHouseholdName(name: string): string | null {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 100) return null;
   return trimmed;
 }
 
-export function monthStartDateField(
-  workspace: 'personal' | 'household' | undefined,
-): 'monthStartDate' | 'householdMonthStartDate' {
-  return workspace === 'household' ? 'householdMonthStartDate' : 'monthStartDate';
-}
-
 /**
- * The monthly start date that applies to the active workspace.
- *
- * Personal and household budgets are usually paid on different days, so each
- * workspace keeps its own value. A household that has not been given one yet
- * falls back to the personal setting, so switching workspace never leaves the
- * budget period undefined.
+ * Resolve the authoritative period start. Household configuration is stored on
+ * the household document; a member's personal profile must never override it.
  */
 export function monthStartDateFor(
-  profile: Pick<UserProfile, 'monthStartDate' | 'householdMonthStartDate'> | null | undefined,
+  profile: Pick<UserProfile, 'monthStartDate'> | null | undefined,
   workspace: 'personal' | 'household' | undefined,
+  household?: Pick<Household, 'monthStartDate'> | null,
 ): number | undefined {
-  if (!profile) return undefined;
-  return workspace === 'household'
-    ? (profile.householdMonthStartDate ?? profile.monthStartDate)
-    : profile.monthStartDate;
+  return workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
 }
 
 /**
@@ -134,14 +143,33 @@ export function canShowProUpgrade(
   return !isProUser && (workspace === undefined || workspace === 'personal');
 }
 
+/** Resolve the provider-neutral entitlement projection stored on a household. */
+export function isHouseholdEntitlementActive(
+  household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
+  nowMs = Date.now(),
+): boolean {
+  if (!household) return false;
+  // Households created before expiry-aware launch trials have no projection.
+  // Preserve their data and access; all new households carry the immutable one.
+  if (!household.entitlementSource && !household.entitlementEndsAtMs) return true;
+  return resolveProEntitlement({
+    plan: 'pro',
+    entitlementSource: household.entitlementSource,
+    entitlementStatus: household.entitlementStatus,
+    entitlementEndsAtMs: household.entitlementEndsAtMs,
+  }, nowMs).isPro;
+}
+
 /**
- * Within a household workspace, Pro features (such as Trends, Category Budgets, CSV import/export)
- * are unlocked for active household members.
+ * Household Pro features follow the owner's projected entitlement. Data stays
+ * readable after expiry, while mutation controls fall back to the free tier.
  */
 export function isProFeatureUnlocked(
   isProUser: boolean,
   workspace: 'personal' | 'household' | undefined,
+  household?: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null,
+  nowMs = Date.now(),
 ): boolean {
-  return isProUser || workspace === 'household';
+  return isProUser || (workspace === 'household' && isHouseholdEntitlementActive(household, nowMs));
 }
 

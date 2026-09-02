@@ -72,7 +72,7 @@ describe('Performance guardrails', () => {
   });
 
   it('serves cache and CSP headers from middleware', () => {
-    const middleware = read('src/middleware.ts');
+    const middleware = read('src/proxy.ts');
     assert.ok(middleware.includes('max-age=31536000'), 'static assets should be immutable');
     assert.ok(middleware.includes("no-store"), 'private routes should never be cached');
     assert.ok(middleware.includes('s-maxage'), 'public HTML should be CDN-cacheable');

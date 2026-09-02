@@ -1,47 +1,120 @@
 'use client';
+
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth-context';
-import { isProUser } from './pro-features';
-import { createHousehold, createHouseholdInvite, getHouseholdInvite, subscribePendingHouseholdInvites, acceptHouseholdInvite, saveHouseholdMember, subscribeHousehold, subscribeHouseholdMembers, deleteHouseholdWorkspace, saveHousehold, type HouseholdAccess } from './db';
-import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
-import { normalizeHouseholdName } from './household';
-import { resolveAreaAccess, type AccessLevel, type ExportSections, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
+import { isProUser, resolveProEntitlement } from './pro-features';
+import {
+  acceptHouseholdInvite,
+  createHousehold,
+  createHouseholdInvite,
+  deleteHouseholdWorkspace,
+  getHouseholdInvite,
+  saveHousehold,
+  saveHouseholdMember,
+  subscribeHousehold,
+  subscribeHouseholdMembers,
+  subscribePendingHouseholdInvites,
+  type HouseholdAccess,
+} from './db';
+import {
+  isHouseholdEntitlementActive,
+  normalizeHouseholdName,
+  type Household,
+  type HouseholdInvite,
+  type HouseholdMember,
+  type HouseholdPayer,
+  type HouseholdRole,
+} from './household';
+import {
+  resolveAreaAccess,
+  type AccessLevel,
+  type ExportSections,
+  type HouseholdArea,
+} from './household-rbac';
+import { DEFAULT_MONEY_PLACES } from './store';
 import { useLanguage } from './i18n-context';
 
 const COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
-/** Roles a household may be invited with. `custom` carries a permission matrix. */
-export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor' | 'custom'>;
+const DEFAULT_CATEGORIES = [
+  'Groceries', 'Transport', 'Rent', 'Entertainment', 'Health',
+  'Utilities', 'Dining Out', 'Shopping', 'Subscriptions',
+];
+
+/** Only roles that map to enforceable document-level Firestore access are invitational. */
+export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor'>;
+export type HouseholdConfigurationPatch = Pick<
+  Household,
+  | 'currency'
+  | 'monthStartDate'
+  | 'moneyPlaces'
+  | 'activeCategories'
+  | 'categoryColors'
+  | 'categoryIcons'
+  | 'fixedCategories'
+  | 'defaultCategoryBudgets'
+  | 'enableRollover'
+>;
+
 type HouseholdContextValue = {
-  household: Household | null; members: HouseholdMember[]; loading: boolean; isOwner: boolean; canEdit: boolean; memberRole?: HouseholdRole; isContributor: boolean; workspace: 'personal' | 'household'; selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>; canViewArea: (area: HouseholdArea) => boolean; canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
-  /** Raw matrix level for an area ('none' | 'view' | 'editOwn' | 'editAll'). */
+  household: Household | null;
+  members: HouseholdMember[];
+  loading: boolean;
+  isOwner: boolean;
+  canEdit: boolean;
+  /** False after the household owner's trial/subscription period ends. */
+  entitlementActive: boolean;
+  memberRole?: HouseholdRole;
+  isContributor: boolean;
+  workspace: 'personal' | 'household';
+  selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>;
+  canViewArea: (area: HouseholdArea) => boolean;
+  canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
   areaLevel: (area: HouseholdArea) => AccessLevel;
-  /** CSV sections this member may download; always complete outside a household. */
   exportSections: ExportSections;
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
-  payers: HouseholdPayer[]; pendingInvites: HouseholdInvite[]; create: (name: string) => Promise<void>; addProfile: (name: string) => Promise<void>; renameHousehold: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
-  acceptInvite: (code: string) => Promise<void>; updateMember: (member: HouseholdMember) => Promise<void>;
+  payers: HouseholdPayer[];
+  pendingInvites: HouseholdInvite[];
+  create: (name: string) => Promise<void>;
+  addProfile: (name: string) => Promise<void>;
+  renameHousehold: (name: string) => Promise<void>;
+  invite: (name: string, email: string, role: InviteRole) => Promise<string>;
+  acceptInvite: (code: string) => Promise<void>;
+  updateMember: (member: HouseholdMember) => Promise<void>;
+  updateConfiguration: (patch: Partial<HouseholdConfigurationPatch>) => Promise<void>;
   markHouseholdOnboarded: () => Promise<void>;
   removeHouseholdWorkspace: () => Promise<void>;
 };
+
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, updateProfileData } = useAuth();
   const { messages: m } = useLanguage();
-  const workspace = profile?.activeWorkspace === 'household' && profile.activeHouseholdId ? 'household' : 'personal';
+  const workspace = profile?.activeWorkspace === 'household' && profile.activeHouseholdId
+    ? 'household'
+    : 'personal';
   const trackedHouseholdId = profile?.activeHouseholdId;
   const householdId = workspace === 'household' ? trackedHouseholdId : undefined;
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
-  // 'denied' is the only state that may unlink a workspace; 'unavailable'
-  // (offline, slow network, Firestore timeout) must never do that. A fixed
-  // timeout used to declare the household missing after 5s and silently drop
-  // people out of their shared budget on a slow connection.
   const [access, setAccess] = useState<HouseholdAccess>('ok');
+  const [entitlementTick, setEntitlementTick] = useState(0);
+
+  useEffect(() => {
+    const endsAtMs = household?.entitlementEndsAtMs;
+    if (!endsAtMs) return;
+    const remaining = endsAtMs - Date.now();
+    if (remaining <= 0) return;
+    const timer = window.setTimeout(
+      () => setEntitlementTick((value) => value + 1),
+      Math.min(remaining + 1_000, 2_147_000_000),
+    );
+    return () => window.clearTimeout(timer);
+  }, [household?.entitlementEndsAtMs, entitlementTick]);
+
   useEffect(() => {
     if (!trackedHouseholdId) {
       setHousehold(null);
@@ -50,106 +123,258 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setLoading(true);
-    const unsub = subscribeHousehold(
+    const unsubscribe = subscribeHousehold(
       trackedHouseholdId,
-      (h) => {
-        setHousehold(h);
+      (nextHousehold) => {
+        setHousehold(nextHousehold);
         setLoading(false);
       },
-      setAccess,
+      (nextAccess) => {
+        setAccess(nextAccess);
+        if (nextAccess !== 'ok') setLoading(false);
+      },
     );
-    return () => {
-      unsub();
-    };
+    return unsubscribe;
   }, [trackedHouseholdId]);
-  useEffect(() => subscribeHouseholdMembers(trackedHouseholdId, setMembers), [trackedHouseholdId]);
-  useEffect(() => subscribePendingHouseholdInvites(user?.email, setPendingInvites), [user?.email]);
-  const myMember = members.find((m) => m.userId === user?.uid);
-  const isOwner =
-    household?.ownerId === user?.uid ||
-    household?.planOwnerId === user?.uid ||
-    myMember?.role === 'owner';
-  const canEdit = isOwner || myMember?.role === 'editor';
-  // Outside a household (or as its owner) the member owns every area outright.
-  const unrestricted = workspace === 'personal' || isOwner;
-  const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
-  const memberPermissions = isOwner ? undefined : myMember?.permissions;
-  /**
-   * The single gate every dashboard surface resolves through. All four values
-   * come from one pure resolver (see `resolveAreaAccess`) so a screen cannot
-   * end up with a visibility rule that disagrees with its edit rule, and the
-   * derivation stays testable without Firebase or a DOM.
-   */
-  const areaAccess = useMemo(
-    () => resolveAreaAccess({ unrestricted, role: memberRole, permissions: memberPermissions }),
-    [unrestricted, memberRole, memberPermissions],
+
+  useEffect(
+    () => subscribeHouseholdMembers(trackedHouseholdId, setMembers),
+    [trackedHouseholdId],
   );
-  const { level: areaLevel, canView: canViewArea, canEdit: canEditArea, exportSections } = areaAccess;
-  const isContributor = !isOwner && memberRole === 'contributor';
+
+  useEffect(() => {
+    // Invitation discovery itself is protected by verified-email rules. Avoid
+    // a doomed query and never present an invite before Firebase confirms the address.
+    if (!user?.emailVerified) {
+      setPendingInvites([]);
+      return () => {};
+    }
+    return subscribePendingHouseholdInvites(user.email, setPendingInvites);
+  }, [user?.email, user?.emailVerified]);
+
+  const myMember = members.find((member) => member.userId === user?.uid || member.id === user?.uid);
+  const isOwner = Boolean(
+    household?.ownerId === user?.uid
+      || household?.planOwnerId === user?.uid
+      || myMember?.role === 'owner',
+  );
+  const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
+  const entitlementActive = workspace === 'personal' || isHouseholdEntitlementActive(household);
+  // The coarse edit flag mirrors month-document rules. Expiry never hides or
+  // deletes data, but it makes a household read-only until a future provider
+  // renews the owner's entitlement.
+  const canEdit = entitlementActive && (isOwner || memberRole === 'editor');
+  const isContributor = !isOwner && (memberRole === 'contributor' || memberRole === 'custom');
+  const areaAccess = useMemo(() => {
+    const base = resolveAreaAccess({
+      unrestricted: workspace === 'personal' || isOwner,
+      role: memberRole,
+      // Legacy custom maps are deliberately not passed: Firestore cannot
+      // enforce field-level grants on the shared month document.
+    });
+    if (workspace !== 'household' || entitlementActive) return base;
+    const level = (area: HouseholdArea): AccessLevel => {
+      const current = base.level(area);
+      return current === 'none' ? 'none' : 'view';
+    };
+    return {
+      level,
+      canView: (area: HouseholdArea) => level(area) !== 'none',
+      canEdit: () => false,
+      // Export remains available so expiry can never hold user data hostage.
+      exportSections: base.exportSections,
+    };
+  }, [workspace, isOwner, memberRole, entitlementActive]);
+  const {
+    level: areaLevel,
+    canView: canViewArea,
+    canEdit: canEditArea,
+    exportSections,
+  } = areaAccess;
+
   const payers = useMemo<HouseholdPayer[]>(() => {
-    if (household) return [{ id: 'self', label: m.household.me }, { id: 'household', label: m.household.funds }, ...members.filter(m => m.status !== 'inactive').map(m => ({ id: m.id, label: m.displayName, color: m.avatarColor }))];
+    if (household) {
+      return [
+        { id: 'self', label: m.household.me },
+        { id: 'household', label: m.household.funds },
+        ...members
+          .filter((member) => member.status === 'active')
+          .map((member) => ({ id: member.id, label: member.displayName, color: member.avatarColor })),
+      ];
+    }
     const legacy = profile?.householdMembers || [];
-    return [{ id: 'self', label: m.household.me }, ...legacy.map((label, i) => ({ id: `legacy-${i}`, label, color: COLORS[i % COLORS.length] }))];
+    return [
+      { id: 'self', label: m.household.me },
+      ...legacy.map((label, index) => ({ id: `legacy-${index}`, label, color: COLORS[index % COLORS.length] })),
+    ];
   }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
+
   const create = useCallback(async (name: string) => {
     if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
-    const now = new Date().toISOString(), memberId = user.uid;
-    const id = await createHousehold(user.uid, { name: name.trim() || m.profile.household, ownerId: user.uid, planOwnerId: user.uid, createdAt: now, updatedAt: now }, { id: memberId, displayName: profile.displayName || user.email?.split('@')[0] || m.household.me, email: user.email || undefined, userId: user.uid, role: 'owner', status: 'active', avatarColor: COLORS[0], joinedAt: now });
-    await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: id, householdIds: [...new Set([...(profile.householdIds || []), id])] });
+    const entitlement = resolveProEntitlement(profile);
+    const entitlementSource = entitlement.source === 'launch_trial'
+      || entitlement.source === 'stripe'
+      || entitlement.source === 'cmi'
+      || entitlement.source === 'admin'
+      ? entitlement.source
+      : undefined;
+    const now = new Date().toISOString();
+    const id = await createHousehold(
+      user.uid,
+      {
+        name: name.trim() || m.profile.household,
+        ownerId: user.uid,
+        planOwnerId: user.uid,
+        entitlementOwnerId: user.uid,
+        ...(entitlementSource ? { entitlementSource } : {}),
+        ...(entitlement.status !== 'free' && entitlement.status !== 'expired'
+          ? { entitlementStatus: entitlement.status }
+          : {}),
+        ...(entitlement.endsAtMs ? { entitlementEndsAtMs: entitlement.endsAtMs } : {}),
+        currency: profile.currency || 'MAD',
+        monthStartDate: profile.monthStartDate,
+        moneyPlaces: (profile.moneyPlaces || DEFAULT_MONEY_PLACES).map((place) => ({ ...place })),
+        activeCategories: [...DEFAULT_CATEGORIES],
+        fixedCategories: profile.fixedCategories || [],
+        defaultCategoryBudgets: profile.defaultCategoryBudgets || {},
+        enableRollover: profile.enableRollover || false,
+        schemaVersion: 2,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: user.uid,
+        displayName: profile.displayName || user.email?.split('@')[0] || m.household.me,
+        email: user.email || undefined,
+        userId: user.uid,
+        role: 'owner',
+        status: 'active',
+        avatarColor: COLORS[0],
+        joinedAt: now,
+      },
+    );
+    await updateProfileData({
+      activeWorkspace: 'household',
+      activeHouseholdId: id,
+      householdIds: [...new Set([...(profile.householdIds || []), id])],
+    });
   }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
+
   const addProfile = useCallback(async (name: string) => {
-    if (!householdId) throw new Error(m.household.genericError);
-    await saveHouseholdMember(householdId, { id: crypto.randomUUID(), displayName: name.trim(), role: 'profile', status: 'active', avatarColor: COLORS[members.length % COLORS.length] });
-  }, [householdId, members.length, m.household.genericError]);
-  const invite = useCallback(async (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => {
-    if (!householdId || !user) throw new Error(m.household.genericError);
-    const memberId = crypto.randomUUID(), id = crypto.randomUUID(), now = new Date().toISOString();
-    await saveHouseholdMember(householdId, { id: memberId, displayName: name.trim() || email.split('@')[0], email: email.trim().toLowerCase(), role, permissions, status: 'invited', avatarColor: COLORS[members.length % COLORS.length], invitedAt: now });
-    await createHouseholdInvite({ id, householdId, memberId, email: email.trim().toLowerCase(), role, permissions, createdBy: user.uid, createdAt: now, expiresAt: new Date(Date.now() + 14 * 864e5).toISOString(), status: 'pending' });
+    if (!householdId || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
+    await saveHouseholdMember(householdId, {
+      id: crypto.randomUUID(),
+      displayName: name.trim(),
+      role: 'profile',
+      status: 'active',
+      avatarColor: COLORS[members.length % COLORS.length],
+    });
+  }, [householdId, isOwner, entitlementActive, members.length, m.household.genericError]);
+
+  const invite = useCallback(async (name: string, email: string, role: InviteRole) => {
+    if (!householdId || !user || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
+    const normalizedEmail = email.trim().toLowerCase();
+    const memberId = crypto.randomUUID();
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const expiresAtMs = Date.now() + 14 * 86_400_000;
+    const pendingMember: HouseholdMember = {
+      id: memberId,
+      displayName: name.trim() || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
+      role,
+      status: 'invited',
+      avatarColor: COLORS[members.length % COLORS.length],
+      invitedAt: now,
+    };
+    await createHouseholdInvite({
+      id,
+      householdId,
+      memberId,
+      email: normalizedEmail,
+      role,
+      createdBy: user.uid,
+      createdAt: now,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      expiresAtMs,
+      status: 'pending',
+    }, pendingMember);
     return id;
-  }, [householdId, user, members.length, m.household.genericError]);
+  }, [householdId, user, isOwner, entitlementActive, members.length, m.household.genericError]);
+
   const acceptInvite = useCallback(async (code: string) => {
     if (!user || !profile) throw new Error(m.household.genericError);
+    await user.reload();
+    if (!user.emailVerified || !user.email) throw new Error(m.household.genericError);
     const invite = await getHouseholdInvite(code.trim());
-    if (!invite || invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now() || invite.email !== user.email?.toLowerCase()) {
+    const expiry = invite?.expiresAtMs || Date.parse(invite?.expiresAt || '');
+    if (
+      !invite
+      || invite.status !== 'pending'
+      || !Number.isFinite(expiry)
+      || expiry <= Date.now()
+      || invite.email !== user.email.toLowerCase()
+    ) {
       throw new Error(m.household.genericError);
     }
-    await acceptHouseholdInvite(invite, user.uid, profile.displayName || user.email?.split('@')[0] || m.household.member);
-    setPendingInvites(current => current.filter(item => item.id !== invite.id));
-    await updateProfileData({ activeWorkspace: 'household', activeHouseholdId: invite.householdId, householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])] });
+    await acceptHouseholdInvite(
+      invite,
+      user.uid,
+      profile.displayName || user.email.split('@')[0] || m.household.member,
+    );
+    setPendingInvites((current) => current.filter((item) => item.id !== invite.id));
+    await updateProfileData({
+      activeWorkspace: 'household',
+      activeHouseholdId: invite.householdId,
+      householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])],
+    });
   }, [user, profile, updateProfileData, m.household.genericError, m.household.member]);
+
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
-    const householdTarget = profile?.activeHouseholdId || profile?.householdIds?.[0];
-    if (next === 'household' && !householdTarget) throw new Error(m.household.genericError);
+    const target = profile?.activeHouseholdId || profile?.householdIds?.[0];
+    if (next === 'household' && !target) throw new Error(m.household.genericError);
     await updateProfileData({
       activeWorkspace: next,
-      ...(next === 'household' ? { activeHouseholdId: householdTarget } : {}),
+      ...(next === 'household' ? { activeHouseholdId: target } : {}),
     });
   }, [profile?.activeHouseholdId, profile?.householdIds, updateProfileData, m.household.genericError]);
-  const updateMember = useCallback(async (member: HouseholdMember) => { if (!trackedHouseholdId) return; await saveHouseholdMember(trackedHouseholdId, member); }, [trackedHouseholdId]);
+
+  const updateMember = useCallback(async (member: HouseholdMember) => {
+    if (!trackedHouseholdId || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
+    if (member.role === 'owner') throw new Error(m.household.genericError);
+    await saveHouseholdMember(trackedHouseholdId, member);
+  }, [trackedHouseholdId, isOwner, entitlementActive, m.household.genericError]);
+
+  const updateConfiguration = useCallback(async (patch: Partial<HouseholdConfigurationPatch>) => {
+    if (!trackedHouseholdId || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
+    await saveHousehold(trackedHouseholdId, patch);
+    setHousehold((current) => current ? { ...current, ...patch, updatedAt: new Date().toISOString() } : current);
+  }, [trackedHouseholdId, isOwner, entitlementActive, m.household.genericError]);
+
   const markHouseholdOnboarded = useCallback(async () => {
-    if (!trackedHouseholdId) return;
+    if (!trackedHouseholdId || !isOwner || !entitlementActive) return;
     await saveHousehold(trackedHouseholdId, { onboardingComplete: true });
-    setHousehold((current) => (current ? { ...current, onboardingComplete: true } : current));
-  }, [trackedHouseholdId]);
+    setHousehold((current) => current ? { ...current, onboardingComplete: true } : current);
+  }, [trackedHouseholdId, isOwner, entitlementActive]);
+
   const renameHousehold = useCallback(async (name: string) => {
-    const trimmed = name.trim();
-    // Mirrors firestore.rules:96-105 (owner-only update; name 1–100 chars).
-    if (!trackedHouseholdId || !trimmed || trimmed.length > 100) {
+    const normalized = normalizeHouseholdName(name);
+    if (!trackedHouseholdId || !isOwner || !entitlementActive || !normalized) {
       throw new Error(m.household.householdNameRequired);
     }
-    await saveHousehold(trackedHouseholdId, { name: trimmed });
-    setHousehold((current) => (current ? { ...current, name: trimmed } : current));
-  }, [trackedHouseholdId, m.household.householdNameRequired]);
+    await saveHousehold(trackedHouseholdId, { name: normalized });
+    setHousehold((current) => current
+      ? { ...current, name: normalized, updatedAt: new Date().toISOString() }
+      : current);
+  }, [trackedHouseholdId, isOwner, entitlementActive, m.household.householdNameRequired]);
+
   const removeHouseholdWorkspace = useCallback(async () => {
     const targetId = householdId || profile?.activeHouseholdId;
     if (!user || !profile || !targetId) throw new Error(m.household.genericError);
     if (isOwner || household?.ownerId === user.uid) {
-      try {
-        await deleteHouseholdWorkspace(targetId);
-      } catch {
-        /* Still unlink the workspace from this profile so the user is not stuck. */
-      }
+      // Do not unlink after an incomplete deletion. Keeping the workspace
+      // reachable is what makes teardown retryable and truthful.
+      await deleteHouseholdWorkspace(targetId);
     } else if (myMember) {
       await saveHouseholdMember(targetId, { ...myMember, status: 'inactive' });
     }
@@ -162,6 +387,46 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setHousehold(null);
     setMembers([]);
   }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);
-  return <HouseholdContext.Provider value={{ household, members, loading, isOwner, canEdit, memberRole, isContributor, workspace, selectWorkspace, canViewArea, canEditArea, areaLevel, exportSections, householdAccess: access, payers, pendingInvites, create, addProfile, invite, acceptInvite, updateMember, markHouseholdOnboarded, renameHousehold, removeHouseholdWorkspace }}>{children}</HouseholdContext.Provider>;
+
+  const value: HouseholdContextValue = {
+    household,
+    members,
+    loading,
+    isOwner,
+    canEdit,
+    entitlementActive,
+    memberRole,
+    isContributor,
+    workspace,
+    selectWorkspace,
+    canViewArea,
+    canEditArea,
+    areaLevel,
+    exportSections,
+    householdAccess: access,
+    payers,
+    pendingInvites,
+    create,
+    addProfile,
+    renameHousehold,
+    invite,
+    acceptInvite,
+    updateMember,
+    updateConfiguration,
+    markHouseholdOnboarded,
+    removeHouseholdWorkspace,
+  };
+
+  return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;
 }
-export function useHousehold() { const value = useContext(HouseholdContext); if (!value) throw new Error('useHousehold must be used inside HouseholdProvider'); return value; }
+
+export function useHousehold() {
+  const value = useContext(HouseholdContext);
+  if (!value) throw new Error('useHousehold must be used inside HouseholdProvider');
+  return value;
+}
+
+/** Currency/auth providers are also used on login routes where no household provider exists. */
+export function useOptionalHousehold() {
+  return useContext(HouseholdContext);
+}

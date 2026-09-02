@@ -1,19 +1,21 @@
 'use client';
 
 import { AppIcon } from '@/components/ui/app-icon';
-import { PRO_FEATURES } from '@/lib/pro-features';
+import { PRO_FEATURES, resolveProEntitlement } from '@/lib/pro-features';
+import { formatShortDate } from '@/lib/utils';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '@/lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 
 export function ProPanel() {
-  const { isPro, openProModal } = useDashboard();
-  const { workspace, selectWorkspace } = useHousehold();
-  const { messages: m } = useLanguage();
+  const { isPro, profile, openProModal } = useDashboard();
+  const { workspace, household, selectWorkspace } = useHousehold();
+  const { messages: m, t, intlLocale } = useLanguage();
   const p = m.profile.pro;
+  const entitlement = resolveProEntitlement(profile);
   const showUpgrade = canShowProUpgrade(isPro, workspace);
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
 
   return (
     <section className="flex flex-col gap-3">
@@ -28,6 +30,15 @@ export function ProPanel() {
           </span>
         )}
       </div>
+
+      {workspace === 'personal' && entitlement.status === 'trialing' && entitlement.endsAtMs && (
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary">
+          {t(m.pro.trialEnds, {
+            date: formatShortDate(new Date(entitlement.endsAtMs).toISOString().slice(0, 10), intlLocale),
+            days: entitlement.daysRemaining,
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {PRO_FEATURES.map((feature) => (

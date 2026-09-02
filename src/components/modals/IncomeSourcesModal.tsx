@@ -5,7 +5,8 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { MonthDayPicker } from '../ui/month-day-picker';
-import { MonthBudget, IncomeSource } from '../../lib/store';
+import { MonthBudget, IncomeSource, type LifecycleStatus, incomeReceivedAmount } from '../../lib/store';
+import { CustomSelect } from '../ui/CustomSelect';
 import { useCurrency } from '../../lib/currency-context';
 import { getSourcePeriod } from '../../lib/utils';
 import { useLanguage } from '../../lib/i18n-context';
@@ -53,6 +54,12 @@ export function IncomeSourcesModal({
   const { format, symbol } = useCurrency();
   const { messages: m, t, language, intlLocale } = useLanguage();
   const copy = m.modals.incomeSources;
+  const statusOptions = [
+    { value: 'planned', label: copy.statusPlanned },
+    { value: 'partial', label: copy.statusPartial },
+    { value: 'paid', label: copy.statusReceived },
+    { value: 'skipped', label: copy.statusSkipped },
+  ];
   const monthKeyRef = React.useRef(monthKey);
   monthKeyRef.current = monthKey;
 
@@ -60,6 +67,8 @@ export function IncomeSourcesModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editStatus, setEditStatus] = useState<LifecycleStatus>('paid');
+  const [editReceivedAmount, setEditReceivedAmount] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // New source form
@@ -67,6 +76,8 @@ export function IncomeSourcesModal({
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newPayDay, setNewPayDay] = useState<number | ''>('');
+  const [newStatus, setNewStatus] = useState<LifecycleStatus>('planned');
+  const [newReceivedAmount, setNewReceivedAmount] = useState('');
 
   // Edit form
   const [editPayDay, setEditPayDay] = useState<number | ''>('');
@@ -77,13 +88,22 @@ export function IncomeSourcesModal({
       setSources(
         month.incomeSources && month.incomeSources.length > 0
           ? month.incomeSources
-          : [{ id: 'src-1', name: copy.primaryIncome, amount: month.totalBudget || 15000 }]
+          : [{
+              id: 'src-1',
+              name: copy.primaryIncome,
+              amount: month.totalBudget || 15000,
+              status: 'paid',
+              receivedAmount: month.totalBudget || 15000,
+              recurring: true,
+            }]
       );
       setEditingId(null);
       setNewName('');
       setNewAmount('');
       setNewCategory('');
       setNewPayDay(defaultPayDay ?? '');
+      setNewStatus('planned');
+      setNewReceivedAmount('');
       setFieldErrors({});
     }
     // `copy.primaryIncome` only seeds a newly opened form; depending on the
@@ -92,13 +112,16 @@ export function IncomeSourcesModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, month.totalBudget, month.incomeSources, defaultPayDay]);
 
-  const totalCalculated = sources.reduce((acc, s) => acc + (s.amount || 0), 0);
+  const totalCalculated = sources.reduce((acc, source) => acc + (source.amount || 0), 0);
+  const receivedCalculated = sources.reduce((acc, source) => acc + incomeReceivedAmount(source), 0);
 
   // ── Cancel editing ──
   const cancelEdit = useCallback(() => {
     setEditingId(null);
     setEditName('');
     setEditAmount('');
+    setEditStatus('paid');
+    setEditReceivedAmount('');
     setEditPayDay('');
     setFieldErrors({});
   }, []);
@@ -108,6 +131,8 @@ export function IncomeSourcesModal({
     setEditingId(src.id);
     setEditName(src.name);
     setEditAmount(String(src.amount));
+    setEditStatus(src.status || 'paid');
+    setEditReceivedAmount(String(incomeReceivedAmount(src)));
     setEditPayDay(src.payDay ?? '');
     setFieldErrors({});
   };
@@ -121,6 +146,10 @@ export function IncomeSourcesModal({
     if (!trimmedName) errors.editName = copy.nameRequired;
     if (isNaN(parsedAmount) || parsedAmount <= 0) errors.editAmount = copy.validAmount;
     if (parsedAmount > 1000000000) errors.editAmount = copy.amountExceedsLimit;
+    const parsedReceived = editStatus === 'partial' ? parseFloat(editReceivedAmount) : editStatus === 'paid' ? parsedAmount : 0;
+    if (editStatus === 'partial' && (!Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount)) {
+      errors.editReceivedAmount = copy.partialAmountError;
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -129,7 +158,17 @@ export function IncomeSourcesModal({
     setSources((prev) =>
       prev.map((s) =>
         s.id === editingId
-          ? { ...s, name: trimmedName, amount: parsedAmount, payDay: editPayDay === '' ? undefined : Number(editPayDay) }
+          ? {
+              ...s,
+              name: trimmedName,
+              amount: parsedAmount,
+              status: editStatus,
+              receivedAmount: parsedReceived,
+              receivedAt: parsedReceived > 0 ? s.receivedAt || new Date().toISOString() : undefined,
+              recurring: s.recurring ?? true,
+              templateId: s.templateId || s.id,
+              payDay: editPayDay === '' ? undefined : Number(editPayDay),
+            }
           : s
       )
     );
@@ -145,6 +184,10 @@ export function IncomeSourcesModal({
     if (!trimmedName) errors.newName = copy.required;
     if (isNaN(parsedAmount) || parsedAmount <= 0) errors.newAmount = copy.validAmount;
     if (parsedAmount > 1000000000) errors.newAmount = copy.amountExceedsLimit;
+    const parsedReceived = newStatus === 'partial' ? parseFloat(newReceivedAmount) : newStatus === 'paid' ? parsedAmount : 0;
+    if (newStatus === 'partial' && (!Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount)) {
+      errors.newReceivedAmount = copy.partialAmountError;
+    }
     if (newPayDay !== '' && (Number(newPayDay) < 1 || Number(newPayDay) > 31)) {
       errors.newPayDay = copy.dayRange;
     }
@@ -158,6 +201,10 @@ export function IncomeSourcesModal({
       name: trimmedName,
       amount: parsedAmount,
       category: newCategory.trim() || undefined,
+      status: newStatus,
+      receivedAmount: parsedReceived,
+      receivedAt: parsedReceived > 0 ? new Date().toISOString() : undefined,
+      recurring: true,
       payDay: newPayDay === '' ? undefined : Number(newPayDay),
     };
 
@@ -166,6 +213,8 @@ export function IncomeSourcesModal({
     setNewAmount('');
     setNewCategory('');
     setNewPayDay('');
+    setNewStatus('planned');
+    setNewReceivedAmount('');
     setFieldErrors({});
   };
 
@@ -178,35 +227,60 @@ export function IncomeSourcesModal({
 
   // ── Save all ──
   const handleSave = () => {
-    // A view-only member has no save affordance; this stops a programmatic call.
+    // The UI is read-only for viewers; this also blocks stale/programmatic calls.
     if (readOnly) return;
-    // If currently editing, apply the pending edit synchronously so it is not
-    // lost when the modal closes (setState is async).
+    // If currently editing, validate and apply the pending edit synchronously
+    // so React's async state update cannot drop it when the modal closes.
     let finalSources = sources;
     if (editingId) {
       const trimmedName = editName.trim();
       const parsedAmount = parseFloat(editAmount);
-      finalSources = sources.map((s) =>
-        s.id === editingId
-          ? { ...s, name: trimmedName, amount: parsedAmount, payDay: editPayDay === '' ? undefined : Number(editPayDay) }
-          : s
+      const parsedReceived = editStatus === 'partial'
+        ? parseFloat(editReceivedAmount)
+        : editStatus === 'paid'
+          ? parsedAmount
+          : 0;
+      if (
+        !trimmedName
+        || !Number.isFinite(parsedAmount)
+        || parsedAmount <= 0
+        || (editStatus === 'partial' && (
+          !Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount
+        ))
+      ) {
+        saveEdit();
+        return;
+      }
+      finalSources = sources.map((source) =>
+        source.id === editingId
+          ? {
+              ...source,
+              name: trimmedName,
+              amount: parsedAmount,
+              status: editStatus,
+              receivedAmount: parsedReceived,
+              receivedAt: parsedReceived > 0 ? source.receivedAt || new Date().toISOString() : undefined,
+              recurring: source.recurring ?? true,
+              templateId: source.templateId || source.id,
+              payDay: editPayDay === '' ? undefined : Number(editPayDay),
+            }
+          : source,
       );
     }
-    const finalTotal = finalSources.reduce((acc, s) => acc + (s.amount || 0), 0);
-    onSaveIncomeSources(finalSources, finalTotal);
-    onClose();
+    const finalTotal = finalSources.reduce((acc, source) => acc + (source.amount || 0), 0);
+    try {
+      onSaveIncomeSources(finalSources, finalTotal);
+      onClose();
+    } catch {
+      // Reclassifying previously received income can require taking cash back
+      // out of the bank balance. Keep the modal open when that cash was already
+      // spent instead of closing and pretending the lifecycle edit succeeded.
+      setFieldErrors((previous) => ({ ...previous, form: copy.cashAdjustmentError }));
+    }
   };
 
   // ── Quick amount chips for new source ──
   const quickAmounts = [5000, 10000, 15000, 20000];
-
-  // ── Key handler ──
-  const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      action();
-    }
-  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={copy.title}>
@@ -227,6 +301,9 @@ export function IncomeSourcesModal({
                 {format(totalCalculated)}
               </span>
             </div>
+            <p className="mt-1 text-xs font-bold text-primary">
+              {t(copy.receivedSummary, { amount: format(receivedCalculated) })}
+            </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <AppIcon name="payments" className=" text-primary text-[24px]" />
@@ -299,6 +376,28 @@ export function IncomeSourcesModal({
                           )}
                         </div>
                       </div>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <CustomSelect
+                          label={copy.lifecycleStatus}
+                          value={editStatus}
+                          onChange={(value) => setEditStatus(value as LifecycleStatus)}
+                          options={statusOptions}
+                        />
+                        {editStatus === 'partial' && (
+                          <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
+                            {copy.receivedAmount}
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editReceivedAmount}
+                              onChange={(event) => setEditReceivedAmount(event.target.value)}
+                              className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
+                            />
+                            {fieldErrors.editReceivedAmount && <span className="text-error">{fieldErrors.editReceivedAmount}</span>}
+                          </label>
+                        )}
+                      </div>
                       <MonthDayPicker
                         value={editPayDay === '' ? undefined : Number(editPayDay)}
                         onChange={(d) => setEditPayDay(d === undefined ? '' : d)}
@@ -342,12 +441,20 @@ export function IncomeSourcesModal({
                               {src.category}
                             </span>
                           )}
+                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                            {statusOptions.find((option) => option.value === (src.status || 'paid'))?.label}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-extrabold text-[15px] text-on-surface">
                             {format(src.amount || 0)}
                           </span>
                           <span className="text-[11px] font-bold text-on-surface-variant">{t(copy.shareOfTotal, { pct: formatLocalizedPercent(pct, intlLocale) })}</span>
+                          {incomeReceivedAmount(src) !== src.amount && (
+                            <span className="text-[11px] font-bold text-primary">
+                              {t(copy.receivedShort, { amount: format(incomeReceivedAmount(src)) })}
+                            </span>
+                          )}
                         </div>
                         {src.payDay &&
                           (() => {
@@ -493,6 +600,29 @@ export function IncomeSourcesModal({
               ))}
             </div>
 
+            <div className="grid grid-cols-1 gap-2 border-t border-outline-variant/40 pt-3 sm:grid-cols-2">
+              <CustomSelect
+                label={copy.lifecycleStatus}
+                value={newStatus}
+                onChange={(value) => setNewStatus(value as LifecycleStatus)}
+                options={statusOptions}
+              />
+              {newStatus === 'partial' && (
+                <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
+                  {copy.receivedAmount}
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newReceivedAmount}
+                    onChange={(event) => setNewReceivedAmount(event.target.value)}
+                    className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
+                  />
+                  {fieldErrors.newReceivedAmount && <span className="text-error">{fieldErrors.newReceivedAmount}</span>}
+                </label>
+              )}
+            </div>
+
             {/* Monthly start date (payday) */}
             <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/40">
               <MonthDayPicker
@@ -513,6 +643,12 @@ export function IncomeSourcesModal({
             </div>
           </div>
         </div>
+        )}
+
+        {fieldErrors.form && (
+          <p role="alert" className="rounded-xl bg-error-container px-3 py-2 text-sm font-semibold text-on-error-container">
+            {fieldErrors.form}
+          </p>
         )}
 
         {/* ── Save Button ── */}

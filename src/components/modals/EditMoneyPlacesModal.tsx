@@ -9,7 +9,7 @@ import { useLanguage } from '../../lib/i18n-context';
 interface EditMoneyPlacesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (values: Record<string, number>) => void;
+  onSave: (values: Record<string, number>, note?: string) => void;
   initialValues: Record<string, number>;
   totalBudget?: number;
   places?: MoneyPlaceConfig[];
@@ -32,6 +32,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
   const copy = m.modals.moneyPlaces;
   const { places, label } = useMoneyPlaces();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
       const next: Record<string, string> = {};
       for (const p of places) next[p.id] = String(initialValues[p.id] ?? 0);
       setDrafts(next);
+      setNote('');
       setErrors({});
     }
   }, [isOpen, initialValues, places]);
@@ -66,7 +68,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    onSave(values);
+    onSave(values, note.trim() || undefined);
     onClose();
   };
 
@@ -108,8 +110,28 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
               />
             </div>
             {errors[id] && <p className="mt-1 text-[11px] font-medium text-error">{errors[id]}</p>}
+            {!errors[id] && Number.isFinite(parseAmount(drafts[id] ?? '')) && parseAmount(drafts[id] ?? '') !== (initialValues[id] ?? 0) && (
+              <p className="mt-1 text-[11px] font-bold text-primary">
+                {t(copy.adjustmentPreview, {
+                  from: format(initialValues[id] ?? 0),
+                  to: format(parseAmount(drafts[id] ?? '')),
+                })}
+              </p>
+            )}
           </div>
         ))}
+
+        <label className="text-xs font-bold text-on-surface-variant">
+          {copy.reconciliationNote}
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            rows={2}
+            maxLength={240}
+            placeholder={copy.reconciliationNotePlaceholder}
+            className="mt-1 w-full rounded-xl border border-outline-variant bg-surface-container p-3 text-sm font-normal text-on-surface outline-none focus:border-primary"
+          />
+        </label>
 
         <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <div className="flex flex-col">

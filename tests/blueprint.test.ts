@@ -230,12 +230,15 @@ describe('firebase-blueprint.json stays in sync with the code', () => {
     }
   });
 
-  it('describes the SavingsData wrapper written by saveSavingsGoals()', () => {
+  it('describes the revisioned SavingsData wrapper written by finance commits', () => {
     const savingsData = blueprint.entities.SavingsData;
-    assert.deepStrictEqual(Object.keys(savingsData.properties), ['goals']);
+    assert.deepStrictEqual(
+      sorted(Object.keys(savingsData.properties)),
+      sorted(['goals', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId']),
+    );
     assert.deepStrictEqual(savingsData.required, ['goals']);
     assert.strictEqual(savingsData.properties.goals.items.$ref, '#/definitions/SavingGoal');
-    assert.match(dbSource, /cleanUndefined\(\{ goals \}\)/);
+    assert.match(dbSource, /goals:\s*nextGoals[\s\S]*revision:\s*goalsRevision \+ 1/);
   });
 });
 
@@ -246,13 +249,21 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     const docCallPattern = /doc\(\s*db\s*,\s*([^)]+)\)/g;
     for (const [, rawArgs] of dbSource.matchAll(docCallPattern)) {
       const segments = rawArgs.split(',').map((segment) => segment.trim());
+      const literalSegments = segments.map((segment) => segment.match(/^'([^']+)'$/)?.[1] ?? null);
       const path = segments
-        .map((segment) => {
-          const literal = segment.match(/^'([^']+)'$/);
-          if (literal) return literal[1];
-          // Variable segments keep their name ({uid}, {monthKey},
-          // {householdId}, {product.barcode}…) so blueprint paths stay readable.
-          return `{${segment}}`;
+        .map((segment, index) => {
+          const literal = literalSegments[index];
+          if (literal) return literal;
+          // Variable names differ by call site (`id`, `target.householdId`,
+          // `mutation.workspaceId`), while the Firestore document shape does
+          // not. Canonicalize by the collection segment.
+          const collectionName = literalSegments[index - 1];
+          const canonical: Record<string, string> = {
+            users: 'uid', households: 'householdId', householdInvites: 'inviteId',
+            months: 'monthKey', ledger: 'mutationId', products: 'barcode',
+            sessions: 'sessionId', members: 'memberId', invoices: 'invoiceId',
+          };
+          return `{${canonical[collectionName || ''] || segment}}`;
         })
         .join('/');
       documentPaths.add(`/${path}`);
@@ -288,7 +299,7 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
   });
 
   it('reuses the money bounds enforced by firestore.rules', () => {
-    const bounds = rulesSource.match(/val >= (\d+) && val <= (\d+)/);
+    const bounds = rulesSource.match(/function isMoney\([^)]*\) \{[^}]*>= (\d+) &&[^}]*<= (\d+)/);
     assert.ok(bounds, 'firestore.rules should bound money values');
     const [, min, max] = bounds;
 
@@ -299,34 +310,33 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     }
   });
 
-  it('keeps plan Firebase-only in both the rules and the blueprint note', () => {
-    // New profiles always start on the free plan…
-    assert.match(rulesSource, /request\.resource\.data\.plan == 'free'/);
-    // …and an update may not hand out Pro on its own: the only permitted
-    // free -> pro transition is the single, stamped beta claim. A plain
-    // `plan in ['free','pro']` whitelist is what let any account self-grant.
-    assert.match(rulesSource, /incoming\(\)\.plan == 'pro'/);
+  it('keeps the launch trial finite and future billing server-authoritative', () => {
+    // New profiles always start free. The sole browser-side elevation is a
+    // server-time-bounded launch trial whose end is exactly 90 days later.
+    assert.match(rulesSource, /incoming\(\)\.plan == 'free'/);
     assert.match(rulesSource, /existing\(\)\.plan == 'free'/);
-    assert.match(rulesSource, /!\('proTrialClaimedAt' in existing\(\)\)/);
-    assert.match(rulesSource, /incoming\(\)\.proTrialClaimedAt is string/);
-    // The client side of that claim must exist too, or the rules describe a
-    // transition nothing can perform.
+    assert.match(rulesSource, /incoming\(\)\.entitlementSource == 'launch_trial'/);
+    assert.match(rulesSource, /incoming\(\)\.entitlementEndsAtMs\s*\n\s*== incoming\(\)\.entitlementStartedAtMs \+ 7776000000/);
+    assert.match(rulesSource, /!entitlementFieldsChanged\(\) \|\| validLaunchTrialClaim\(\)/);
+
     const dbSource = readRepoFile('src/lib/db.ts');
     assert.match(dbSource, /export async function claimProTrial/);
-    assert.match(dbSource, /proTrialClaimedAt: new Date\(\)\.toISOString\(\)/);
-    // The mock checkout must not pretend to charge anyone: no card field may be
-    // reachable for a real signed-in account.
+    assert.match(dbSource, /entitlementSource: 'launch_trial'/);
+    assert.match(dbSource, /entitlementEndsAtMs: startedAtMs \+ PRO_TRIAL_DURATION_MS/);
+
+    // Production UI contains no PAN/CVC form, simulated charge, or purchase event.
     const upgradeModal = readRepoFile('src/components/modals/ProUpgradeModal.tsx');
-    assert.match(upgradeModal, /const realAccount = Boolean\(user\) && !isDemoMode\(\)/);
-    assert.match(upgradeModal, /m\.pro\.betaTitle/);
+    assert.doesNotMatch(upgradeModal, /pro-card-number|cardCvc|processPayment|createCheckoutSession/);
     assert.doesNotMatch(upgradeModal, /trackEvent\(\s*'purchase'/);
+    assert.match(upgradeModal, /claimProTrial/);
+
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,
-      /single source of truth/i,
+      /90 days/i,
     );
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,
-      /proTrialClaimedAt/,
+      /Admin SDK/i,
     );
   });
 });

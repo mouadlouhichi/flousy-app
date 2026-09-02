@@ -2,68 +2,274 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function verifiedEmail() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
+    }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
-    function isMoney(val) { return val is number && val >= 0 && val <= 1000000000; }
+    function isMoney(value) { return value is number && value >= 0 && value <= 1000000000; }
+    function isPositiveMoney(value) { return isMoney(value) && value > 0; }
     function isValidMonthId(id) { return id.matches('^[0-9]{4}-[0-9]{2}$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function householdMember(hid) { return signedIn() && exists(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)) && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.status == 'active'; }
-    function householdEditor(hid) { return householdMember(hid) && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor']; }
-    function householdOwner(hid) { return signedIn() && get(/databases/$(database)/documents/households/$(hid)).data.ownerId == request.auth.uid; }
     function isEmail(value) { return value is string && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
-    function boundedText(value, maxBytes) { return value is string && value.size() > 0 && value.size() <= maxBytes; }
-    // A receipt stored as a data URL inside a month document is the one field
-    // that has actually blown past Firestore's 1 MiB document limit — and a
-    // too-large document is then permanently unwritable, locking the user out
-    // of the whole month. Enforce the cap server-side, not just in the UI.
-    function receiptsFit(list) { return list.all(item => !('receiptUrl' in item) || (item.receiptUrl is string && item.receiptUrl.size() <= 120000)); }
+    function boundedText(value, maxBytes) {
+      return value is string && value.size() > 0 && value.size() <= maxBytes;
+    }
+    function entitlementFieldsChanged() {
+      return incoming().diff(existing()).affectedKeys().hasAny([
+        'plan', 'entitlementSource', 'entitlementStatus',
+        'entitlementStartedAtMs', 'entitlementEndsAtMs',
+        'proTrialClaimedAt', 'planBillingCycle', 'planNextBillingDate'
+      ]);
+    }
+    function validLaunchTrialClaim() {
+      return existing().plan == 'free'
+        && incoming().plan == 'pro'
+        && !('entitlementSource' in existing())
+        && !('proTrialClaimedAt' in existing())
+        && incoming().entitlementSource == 'launch_trial'
+        && incoming().entitlementStatus == 'trialing'
+        && incoming().entitlementStartedAtMs is int
+        && incoming().entitlementStartedAtMs >= request.time.toMillis() - 300000
+        && incoming().entitlementStartedAtMs <= request.time.toMillis() + 300000
+        && incoming().entitlementEndsAtMs
+          == incoming().entitlementStartedAtMs + 7776000000
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'plan', 'entitlementSource', 'entitlementStatus',
+          'entitlementStartedAtMs', 'entitlementEndsAtMs'
+        ]);
+    }
+    function activeProEntitlement(uid) {
+      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
+      return profile.plan == 'pro'
+        && (!('entitlementStatus' in profile)
+          || profile.entitlementStatus in ['trialing', 'active', 'grace_period', 'canceled'])
+        && (!('entitlementEndsAtMs' in profile)
+          || profile.entitlementEndsAtMs > request.time.toMillis());
+    }
+    function householdEntitled(hid) {
+      return exists(householdPath(hid))
+        && activeProEntitlement(get(householdPath(hid)).data.entitlementOwnerId);
+    }
+    function validHouseholdEntitlementProjection(data, uid) {
+      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
+      return data.entitlementOwnerId == uid
+        && activeProEntitlement(uid)
+        && (!('entitlementSource' in profile)
+          || data.entitlementSource == profile.entitlementSource)
+        && (!('entitlementStatus' in profile)
+          || data.entitlementStatus == profile.entitlementStatus)
+        && (!('entitlementEndsAtMs' in profile)
+          || data.entitlementEndsAtMs == profile.entitlementEndsAtMs);
+    }
+    function validMonthDocument() {
+      return isMoney(incoming().totalBudget)
+        && isMoney(incoming().bankPart)
+        && isMoney(incoming().homePart)
+        && isMoney(incoming().walletPart)
+        && incoming().revision is int
+        && incoming().revision >= 1
+        && incoming().lastMutationId is string
+        && incoming().lastMutationId.size() > 0
+        && incoming().lastMutationId.size() <= 160
+        && (!('periodStatus' in incoming()) || incoming().periodStatus in ['open', 'closed'])
+        && (!('periodStatus' in incoming())
+          || incoming().periodStatus != 'closed'
+          || (incoming().closedAt is string
+            && incoming().closedByUserId is string
+            && incoming().closedByUserId.size() > 0))
+        && (!('currency' in incoming())
+          || (incoming().currency is string && incoming().currency.size() >= 3 && incoming().currency.size() <= 8))
+        // Firestore Rules cannot iterate arbitrary list/map values. The client
+        // schema validates each entry; rules enforce collection shape and
+        // bounded cardinality before accepting the document.
+        && (!('variableExpenses' in incoming())
+          || (incoming().variableExpenses is list
+            && incoming().variableExpenses.size() <= 2000))
+        && (!('fixedExpenses' in incoming())
+          || (incoming().fixedExpenses is list
+            && incoming().fixedExpenses.size() <= 500))
+        && (!('savingsActivity' in incoming())
+          || (incoming().savingsActivity is list && incoming().savingsActivity.size() <= 200))
+        && (!('debts' in incoming()) || (incoming().debts is list && incoming().debts.size() <= 500))
+        && (!('transfers' in incoming()) || (incoming().transfers is list && incoming().transfers.size() <= 500))
+        && (!('balanceAdjustments' in incoming())
+          || (incoming().balanceAdjustments is list && incoming().balanceAdjustments.size() <= 500))
+        && (!('placeBalances' in incoming()) || incoming().placeBalances is map);
+    }
+
+    function periodClosed(data) {
+      return 'periodStatus' in data && data.periodStatus == 'closed';
+    }
+    function validPeriodStateTransition() {
+      let wasClosed = periodClosed(existing());
+      let willBeClosed = periodClosed(incoming());
+      let stateOnly = incoming().diff(existing()).affectedKeys().hasOnly([
+        'periodStatus', 'closedAt', 'closedByUserId', 'schemaVersion',
+        'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId'
+      ]);
+      // Open periods accept ordinary finance writes. Closing is allowed to
+      // normalize a legacy document, but reopening a frozen snapshot may alter
+      // state/audit metadata only; finance edits require a later transaction.
+      return (!wasClosed && !willBeClosed)
+        || (!wasClosed && willBeClosed
+          && incoming().closedByUserId == request.auth.uid)
+        || (wasClosed && !willBeClosed
+          && 'periodStatus' in incoming()
+          && incoming().periodStatus == 'open'
+          && stateOnly);
+    }
+
+    function householdPath(hid) {
+      return /databases/$(database)/documents/households/$(hid);
+    }
+    function memberPath(hid, uid) {
+      return /databases/$(database)/documents/households/$(hid)/members/$(uid);
+    }
+    function householdMember(hid) {
+      return signedIn()
+        && exists(memberPath(hid, request.auth.uid))
+        && get(memberPath(hid, request.auth.uid)).data.status == 'active';
+    }
+    function memberRole(hid) {
+      return get(memberPath(hid, request.auth.uid)).data.role;
+    }
+    function householdOwner(hid) {
+      return signedIn()
+        && ((exists(householdPath(hid))
+            && get(householdPath(hid)).data.ownerId == request.auth.uid)
+          || (existsAfter(householdPath(hid))
+            && getAfter(householdPath(hid)).data.ownerId == request.auth.uid));
+    }
+    function householdEditor(hid) {
+      return householdMember(hid) && memberRole(hid) in ['owner', 'editor'];
+    }
+    function householdWriter(hid) {
+      return householdEditor(hid) && householdEntitled(hid);
+    }
+    function householdFinanceReader(hid) {
+      return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
+    }
+    function validHouseholdConfig(data) {
+      return data.currency is string
+        && data.currency.size() >= 3
+        && data.currency.size() <= 8
+        && data.moneyPlaces is list
+        && data.moneyPlaces.size() > 0
+        && data.moneyPlaces.size() <= 30
+        && data.activeCategories is list
+        && data.activeCategories.size() <= 100
+        && (!('monthStartDate' in data)
+          || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
+        && (!('entitlementSource' in data)
+          || data.entitlementSource in ['launch_trial', 'stripe', 'cmi', 'admin'])
+        && (!('entitlementStatus' in data)
+          || data.entitlementStatus in ['trialing', 'active', 'grace_period', 'past_due', 'canceled', 'expired'])
+        && (!('entitlementEndsAtMs' in data)
+          || (data.entitlementEndsAtMs is int && data.entitlementEndsAtMs > 0));
+    }
 
     match /users/{uid} {
       allow get: if owner(uid);
-      allow create: if owner(uid) && request.resource.data.plan == 'free' && request.resource.data.currency is string && request.resource.data.onboardingComplete is bool;
-      // The profile `plan` field is the single source of truth for Pro access,
-      // so it must not be self-assignable: an account that can grant itself Pro
-      // is an account that never pays. Until a payment provider exists, the
-      // only permitted transition is a single, non-repeatable beta trial claim
-      // (free -> pro, stamped once with `proTrialClaimedAt`). With real
-      // payments, keep this shape and write `plan` from an Admin SDK webhook
-      // (which bypasses rules) instead of allowing the claim.
+      allow create: if owner(uid)
+        && incoming().plan == 'free'
+        && !incoming().keys().hasAny([
+          'entitlementSource', 'entitlementStatus', 'entitlementStartedAtMs',
+          'entitlementEndsAtMs', 'proTrialClaimedAt',
+          'planBillingCycle', 'planNextBillingDate'
+        ])
+        && incoming().currency is string
+        && incoming().onboardingComplete is bool;
       allow update: if owner(uid)
-        && (!('plan' in incoming())
-            || incoming().plan == existing().plan
-            || (incoming().plan == 'pro'
-                && existing().plan == 'free'
-                && !('proTrialClaimedAt' in existing())
-                && 'proTrialClaimedAt' in incoming()
-                && incoming().proTrialClaimedAt is string))
+        && (!entitlementFieldsChanged() || validLaunchTrialClaim())
         && (!('currency' in incoming()) || incoming().currency is string)
         && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool)
-        && (!('displayName' in incoming()) || incoming().displayName == null || (incoming().displayName is string && incoming().displayName.size() <= 120))
+        && (!('displayName' in incoming()) || incoming().displayName == null
+          || (incoming().displayName is string && incoming().displayName.size() <= 120))
         && (!('activeWorkspace' in incoming()) || incoming().activeWorkspace in ['personal', 'household'])
-        && (!('householdIds' in incoming()) || (incoming().householdIds is list && incoming().householdIds.size() <= 50));
-      // Owner-only and unconstrained. The previous `allow write` validated the
-      // pre-delete snapshot's budget fields, so a legacy month document missing
-      // totalBudget/bankPart could never be deleted — it stayed orphaned after
-      // the account itself was erased, which silently breaks "delete my data".
+        && (!('householdIds' in incoming())
+          || (incoming().householdIds is list && incoming().householdIds.size() <= 50));
       allow delete: if owner(uid);
 
       match /months/{key} {
         allow read: if owner(uid);
-        allow create, update: if owner(uid) && isValidMonthId(key)
-          && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart)
-          && (!('variableExpenses' in incoming()) || (incoming().variableExpenses.size() <= 2000 && receiptsFit(incoming().variableExpenses)))
-          && (!('fixedExpenses' in incoming()) || (incoming().fixedExpenses.size() <= 500 && receiptsFit(incoming().fixedExpenses)))
-          && (!('savingsActivity' in incoming()) || incoming().savingsActivity.size() <= 200)
-          && (!('placeBalances' in incoming()) || incoming().placeBalances.values().all(v => isMoney(v)));
-        allow delete: if owner(uid);
-      }
-      match /data/savings {
-        allow read: if owner(uid);
-        allow create, update: if owner(uid) && (!('goals' in incoming()) || incoming().goals.size() <= 200);
+        allow create: if owner(uid)
+          && isValidMonthId(key)
+          && validMonthDocument()
+          && !periodClosed(incoming())
+          && incoming().revision == 1
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId));
+        allow update: if owner(uid)
+          && isValidMonthId(key)
+          && validMonthDocument()
+          && validPeriodStateTransition()
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || (existing().revision is int && incoming().revision == existing().revision + 1))
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || (!periodClosed(existing()) && periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
+            || (periodClosed(existing()) && !periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
         allow delete: if owner(uid);
       }
 
-      // Course session catalog: one document per normalized barcode (8/13 digits).
+      match /data/savings {
+        allow read: if owner(uid);
+        allow create: if owner(uid)
+          && incoming().revision == 1
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
+          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+        allow update: if owner(uid)
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || (existing().revision is int && incoming().revision == existing().revision + 1))
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
+          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+        allow delete: if owner(uid);
+      }
+
+      match /ledger/{mutationId} {
+        allow get, list: if owner(uid);
+        allow create: if owner(uid)
+          && incoming().mutationId == mutationId
+          && incoming().actorId == request.auth.uid
+          && incoming().workspace == 'personal'
+          && incoming().workspaceId == uid
+          && incoming().monthKey is string
+          && incoming().baseRevision is int
+          && incoming().baseRevision >= 0
+          && incoming().nextRevision == incoming().baseRevision + 1
+          && incoming().createdAt is string
+          && incoming().kind in [
+            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+          ]
+          && ((incoming().monthKey == 'savings'
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings)
+              && getAfter(/databases/$(database)/documents/users/$(uid)/data/savings).data.lastMutationId == mutationId)
+            || (isValidMonthId(incoming().monthKey)
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey))
+              && getAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey)).data.lastMutationId == mutationId));
+        allow update: if false;
+        // Audit records remain immutable while their financial record exists,
+        // but can still be erased after an account/budget teardown.
+        allow delete: if owner(uid)
+          && ((existing().monthKey == 'savings'
+              && !existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings))
+            || (isValidMonthId(existing().monthKey)
+              && !existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(existing().monthKey))));
+      }
+
       match /products/{barcode} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
@@ -76,17 +282,19 @@ service cloud.firestore {
         allow delete: if owner(uid);
       }
 
-      // Course sessions: one active at a time per user (app-enforced); a
-      // completed session is its bill.
       match /sessions/{sessionId} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && incoming().status == 'active'
-          && incoming().place in ['bank', 'home', 'wallet']
+          && incoming().status in ['active', 'completed']
+          && incoming().place is string
+          && incoming().place.size() > 0
+          && incoming().place.size() <= 80
           && isMoney(incoming().total)
+          && incoming().items is list
           && incoming().items.size() <= 500;
         allow update: if owner(uid)
           && isMoney(incoming().total)
+          && incoming().items is list
           && incoming().items.size() <= 500
           && (!('status' in incoming()) || incoming().status in ['active', 'completed']);
         allow delete: if owner(uid);
@@ -96,117 +304,260 @@ service cloud.firestore {
     match /households/{hid} {
       allow get: if householdMember(hid) || householdOwner(hid);
       allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.planOwnerId == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 100
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
-      allow update: if householdOwner(hid) && request.resource.data.ownerId == resource.data.ownerId;
+        && incoming().ownerId == request.auth.uid
+        && incoming().planOwnerId == request.auth.uid
+        && incoming().entitlementOwnerId == request.auth.uid
+        && boundedText(incoming().name, 100)
+        && validHouseholdConfig(incoming())
+        && validHouseholdEntitlementProjection(incoming(), request.auth.uid);
+      allow update: if householdOwner(hid)
+        && householdEntitled(hid)
+        && incoming().ownerId == existing().ownerId
+        && incoming().planOwnerId == existing().planOwnerId
+        && incoming().entitlementOwnerId == existing().entitlementOwnerId
+        && !incoming().diff(existing()).affectedKeys().hasAny([
+          'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
+        ])
+        && incoming().createdAt == existing().createdAt
+        && validHouseholdConfig(incoming());
       allow delete: if householdOwner(hid);
 
       match /members/{memberId} {
-        allow get: if householdMember(hid) || householdOwner(hid) || (signedIn() && resource.data.email == request.auth.token.email);
-        // `list` rules are evaluated against the QUERY, not per document, so
-        // resource.data cannot be referenced here. Membership rows are already
-        // scoped by the household path, which is itself permission-gated.
-        allow list: if householdMember(hid) || householdOwner(hid);
-        // A member row is either written by the owner (invitations, local
-        // profile entries, role changes) or claimed by its recipient — and a
-        // recipient may ONLY claim a pending invitation addressed to their own
-        // account. Without the invitation check, `memberId == auth.uid` let any
-        // signed-in user insert themselves as `role: 'owner'` of any household
-        // whose id they knew (including one they had been removed from).
-        allow create: if householdOwner(hid)
+        allow get: if householdFinanceReader(hid)
+          || householdOwner(hid)
+          || (signedIn() && (memberId == request.auth.uid || resource.data.email == request.auth.token.email));
+        allow list: if householdFinanceReader(hid) || householdOwner(hid);
+
+        allow create: if (householdOwner(hid)
+            && memberId == request.auth.uid
+            && incoming().userId == request.auth.uid
+            && incoming().role == 'owner'
+            && incoming().status == 'active')
+          || (householdOwner(hid)
+            && householdEntitled(hid)
+            && memberId != request.auth.uid
+            && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
+            && incoming().status in ['invited', 'active'])
+          || (verifiedEmail()
+            && householdEntitled(hid)
+            && memberId == request.auth.uid
+            && incoming().userId == request.auth.uid
+            && incoming().status == 'active'
+            && incoming().role in ['editor', 'viewer', 'contributor']
+            && incoming().email == request.auth.token.email
+            && 'inviteId' in incoming()
+            && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.householdId == hid
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'pending'
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.email == request.auth.token.email
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.role == incoming().role
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
+
+        allow update: if (householdOwner(hid)
+            && householdEntitled(hid)
+            && resource.data.role != 'owner'
+            && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
+            && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
+          || (verifiedEmail()
+            && resource.data.email == request.auth.token.email
+            && resource.data.status == 'invited'
+            && incoming().status == 'inactive'
+            && incoming().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
           || (memberId == request.auth.uid
-              && request.resource.data.userId == request.auth.uid
-              && request.resource.data.status == 'active'
-              && request.resource.data.role in ['editor', 'viewer', 'contributor', 'custom']
-              && request.resource.data.email == request.auth.token.email
-              && 'inviteId' in request.resource.data
-              && exists(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId))
-              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.householdId == hid
-              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.status == 'pending'
-              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.email == request.auth.token.email
-              && get(/databases/$(database)/documents/householdInvites/$(request.resource.data.inviteId)).data.role == request.resource.data.role);
-        allow update: if householdOwner(hid)
-          // The recipient retires the email-bound pending row that stood in for
-          // them before they had a membership document.
-          || (resource.data.email == request.auth.token.email
-              && resource.data.status == 'invited'
-              && request.resource.data.status == 'inactive'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
-          // A member may leave: they can deactivate their own row and nothing
-          // else (role is pinned so this can never be an escalation path).
-          || (memberId == request.auth.uid
-              && resource.data.userId == request.auth.uid
-              && request.resource.data.status == 'inactive'
-              && request.resource.data.role == resource.data.role);
-        allow delete: if householdOwner(hid);
+            && resource.data.userId == request.auth.uid
+            && incoming().status == 'inactive'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'retiredAt']));
+        allow delete: if householdOwner(hid) && resource.data.role != 'owner';
       }
 
-      // Contributor invoices are isolated from private monthly balances, debts and savings.
       match /invoices/{invoiceId} {
-        allow get: if householdEditor(hid) || (signedIn() && resource.data.submitterId == request.auth.uid);
-        allow list: if householdMember(hid);
-        allow create: if householdMember(hid)
-          && get(/databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid)).data.role in ['owner', 'editor', 'contributor']
-          && request.resource.data.submitterId == request.auth.uid
-          && request.resource.data.status == 'submitted'
-          && request.resource.data.name is string
-          && request.resource.data.name.size() > 0
-          && request.resource.data.name.size() <= 100
-          && isMoney(request.resource.data.amount)
-          && (!('receiptUrl' in request.resource.data) || (request.resource.data.receiptUrl is string && request.resource.data.receiptUrl.size() <= 120000));
-        allow update: if householdEditor(hid);
-        // A contributor may withdraw their own not-yet-reviewed invoice.
+        allow get: if householdEditor(hid)
+          || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
+        allow list: if householdEditor(hid)
+          || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
+        allow create: if householdEntitled(hid)
+          && householdMember(hid)
+          && memberRole(hid) in ['owner', 'editor', 'contributor']
+          && incoming().id == invoiceId
+          && incoming().submitterId == request.auth.uid
+          && incoming().status == 'submitted'
+          && boundedText(incoming().name, 100)
+          && isPositiveMoney(incoming().amount)
+          && incoming().date is string
+          && incoming().place is string
+          && incoming().place.size() > 0
+          && incoming().place.size() <= 80
+          && (!('receiptUrl' in incoming())
+            || (incoming().receiptUrl is string && incoming().receiptUrl.size() <= 120000));
+        allow update: if householdWriter(hid)
+          && existing().status == 'submitted'
+          && incoming().status in ['approved', 'rejected']
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'reviewedAt', 'reviewedByUserId', 'postedExpenseId', 'postedMonthKey'
+          ])
+          && incoming().reviewedByUserId == request.auth.uid
+          && (incoming().status == 'rejected'
+            || (incoming().postedExpenseId == 'invoice-' + invoiceId
+              && incoming().postedMonthKey is string
+              && isValidMonthId(incoming().postedMonthKey)
+              && existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
+              && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.lastMutationId == 'invoice-approval-' + invoiceId
+              && ((!exists(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
+                  && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision == 1)
+                || (exists(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
+                  && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision
+                    == get(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision + 1))));
         allow delete: if householdOwner(hid)
-          || (signedIn() && resource.data.submitterId == request.auth.uid && resource.data.status == 'submitted');
+          || (householdMember(hid)
+            && existing().submitterId == request.auth.uid
+            && existing().status == 'submitted');
       }
 
       match /months/{key} {
-        allow read: if householdMember(hid) || householdOwner(hid);
-        allow create, update: if householdEditor(hid) && isValidMonthId(key)
-          && isMoney(incoming().totalBudget) && isMoney(incoming().bankPart) && isMoney(incoming().homePart) && isMoney(incoming().walletPart)
-          && (!('variableExpenses' in incoming()) || (incoming().variableExpenses.size() <= 2000 && receiptsFit(incoming().variableExpenses)))
-          && (!('fixedExpenses' in incoming()) || (incoming().fixedExpenses.size() <= 500 && receiptsFit(incoming().fixedExpenses)))
-          && (!('savingsActivity' in incoming()) || incoming().savingsActivity.size() <= 200)
-          && (!('placeBalances' in incoming()) || incoming().placeBalances.values().all(v => isMoney(v)));
-        allow delete: if householdOwner(hid) || householdEditor(hid);
+        allow read: if householdFinanceReader(hid) || householdOwner(hid);
+        allow create: if householdWriter(hid)
+          && isValidMonthId(key)
+          && validMonthDocument()
+          && !periodClosed(incoming())
+          && incoming().revision == 1
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
+        allow update: if householdWriter(hid)
+          && isValidMonthId(key)
+          && validMonthDocument()
+          && validPeriodStateTransition()
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || householdOwner(hid))
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || (existing().revision is int && incoming().revision == existing().revision + 1))
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || (!periodClosed(existing()) && periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
+            || (periodClosed(existing()) && !periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
+        allow delete: if householdOwner(hid);
       }
+
       match /data/savings {
-        allow read: if householdMember(hid) || householdOwner(hid);
-        allow create, update: if householdEditor(hid) && (!('goals' in incoming()) || incoming().goals.size() <= 200);
-        allow delete: if householdOwner(hid) || householdEditor(hid);
+        allow read: if householdFinanceReader(hid) || householdOwner(hid);
+        allow create: if householdWriter(hid)
+          && incoming().revision == 1
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+        allow update: if householdWriter(hid)
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || (existing().revision is int && incoming().revision == existing().revision + 1))
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
+          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+        allow delete: if householdOwner(hid);
+      }
+
+      match /ledger/{mutationId} {
+        allow get, list: if householdFinanceReader(hid) || householdOwner(hid);
+        allow create: if householdWriter(hid)
+          && incoming().mutationId == mutationId
+          && incoming().actorId == request.auth.uid
+          && incoming().workspace == 'household'
+          && incoming().workspaceId == hid
+          && incoming().monthKey is string
+          && incoming().baseRevision is int
+          && incoming().baseRevision >= 0
+          && incoming().nextRevision == incoming().baseRevision + 1
+          && incoming().createdAt is string
+          && incoming().kind in [
+            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+          ]
+          && ((incoming().monthKey == 'savings'
+              && existsAfter(/databases/$(database)/documents/households/$(hid)/data/savings)
+              && getAfter(/databases/$(database)/documents/households/$(hid)/data/savings).data.lastMutationId == mutationId)
+            || (isValidMonthId(incoming().monthKey)
+              && existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().monthKey))
+              && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().monthKey)).data.lastMutationId == mutationId));
+        allow update: if false;
+        allow delete: if householdOwner(hid)
+          && ((existing().monthKey == 'savings'
+              && !existsAfter(/databases/$(database)/documents/households/$(hid)/data/savings))
+            || (isValidMonthId(existing().monthKey)
+              && !existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(existing().monthKey))));
       }
     }
 
     match /householdInvites/{inviteId} {
-      allow get: if signedIn() && (resource.data.email == request.auth.token.email || householdOwner(resource.data.householdId));
-      // See the members note: a `list` rule must be provable from the query.
-      // The client query is constrained to `email == <own email> && status ==
-      // 'pending'`, so this only ever returns the caller's own invitations.
-      allow list: if signedIn();
+      allow get: if verifiedEmail()
+        && (resource.data.email == request.auth.token.email
+          || householdOwner(resource.data.householdId));
+      allow list: if signedIn()
+        && (resource.data.createdBy == request.auth.uid
+          || (verifiedEmail() && resource.data.email == request.auth.token.email));
       allow create: if signedIn()
-        && householdOwner(request.resource.data.householdId)
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.status == 'pending'
-        && request.resource.data.role in ['editor', 'viewer', 'contributor', 'custom']
-        && isEmail(request.resource.data.email);
-      // The owner manages their own invitation; the recipient may only move a
-      // still-pending invitation to a terminal state. The previous rule pinned
-      // the *incoming* status to 'pending', which made 'pending' -> 'accepted'
-      // impossible, so accepted invitations kept showing as outstanding forever.
-      allow update: if signedIn() && (
-        householdOwner(resource.data.householdId)
-        || (resource.data.email == request.auth.token.email
-            && resource.data.status == 'pending'
-            && request.resource.data.status in ['accepted', 'revoked']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt']))
-      );
-      allow delete: if signedIn() && householdOwner(resource.data.householdId);
+        && householdOwner(incoming().householdId)
+        && householdEntitled(incoming().householdId)
+        && incoming().createdBy == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().role in ['editor', 'viewer', 'contributor']
+        && isEmail(incoming().email)
+        && incoming().expiresAtMs is number
+        && incoming().expiresAtMs > request.time.toMillis()
+        && incoming().expiresAtMs <= request.time.toMillis() + 1296000000;
+      allow update: if (householdOwner(existing().householdId)
+          && incoming().householdId == existing().householdId
+          && incoming().memberId == existing().memberId
+          && incoming().email == existing().email
+          && incoming().role == existing().role
+          && incoming().createdBy == existing().createdBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().expiresAtMs == existing().expiresAtMs
+          && incoming().status == 'revoked'
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']))
+        || (verifiedEmail()
+          && existing().email == request.auth.token.email
+          && existing().status == 'pending'
+          && existing().expiresAtMs > request.time.toMillis()
+          && incoming().householdId == existing().householdId
+          && incoming().memberId == existing().memberId
+          && incoming().email == existing().email
+          && incoming().role == existing().role
+          && incoming().createdBy == existing().createdBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().expiresAtMs == existing().expiresAtMs
+          && incoming().status == 'accepted'
+          && incoming().acceptedByUserId == request.auth.uid
+          && incoming().acceptedEmail == request.auth.token.email
+          && existsAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid))
+          && getAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid)).data.inviteId == inviteId
+          && getAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid)).data.role == existing().role
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'acceptedAt', 'acceptedByUserId', 'acceptedEmail'
+          ]))
+        || (verifiedEmail()
+          && existing().email == request.auth.token.email
+          && existing().status == 'pending'
+          && incoming().householdId == existing().householdId
+          && incoming().memberId == existing().memberId
+          && incoming().email == existing().email
+          && incoming().role == existing().role
+          && incoming().createdBy == existing().createdBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().expiresAtMs == existing().expiresAtMs
+          && incoming().status == 'revoked'
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));
+      allow delete: if householdOwner(existing().householdId);
     }
 
-    match /{document=**} { allow read, write: if false; }
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

@@ -49,7 +49,7 @@ export function VariableTab({
   const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
-  const { workspace } = useHousehold();
+  const { workspace, household } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -109,7 +109,7 @@ export function VariableTab({
 
   const handleStartEdit = (category: string) => {
     if (!canEditCategoryBudgets) return;
-    if (!isProFeatureUnlocked(isPro, workspace)) {
+    if (!isProFeatureUnlocked(isPro, workspace, household)) {
       onOpenProModal();
       return;
     }

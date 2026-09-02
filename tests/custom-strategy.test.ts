@@ -165,12 +165,13 @@ describe('Savings goals with an existing balance', () => {
     assert.strictEqual(wealth, month.bankPart + month.homePart + month.walletPart);
   });
 
-  it('never lets a goal pull more than the money place holds', () => {
+  it('rejects a goal opening balance that exceeds its money source', () => {
     const month = { ...baseMonth(), walletPart: 300 };
-    const res = saveGoalWithBalance(month, [], goal({ current: 5000, source: 'wallet' }), 'wallet');
-
-    assert.strictEqual(res.goals[0].current, 300);
-    assert.strictEqual(res.month.walletPart, 0);
+    assert.throws(
+      () => saveGoalWithBalance(month, [], goal({ current: 5000, source: 'wallet' }), 'wallet'),
+      (error: any) => error?.code === 'insufficient-funds',
+    );
+    assert.strictEqual(month.walletPart, 300);
   });
 
   it('only transfers the difference when editing an existing balance', () => {

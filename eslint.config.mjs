@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules';
 import tsParser from '@typescript-eslint/parser';
 import nextPlugin from '@next/eslint-plugin-next';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -18,6 +19,9 @@ export default [
     ignores: ['node_modules/**', '.next/**', 'dist/**', 'coverage/**', 'src/app/fonts/**'],
   },
   js.configs.recommended,
+  // Uses Firebase's authoritative ANTLR grammar, so Rules syntax is checked
+  // even on developer machines where the Java-backed emulator is unavailable.
+  firebaseRulesPlugin.configs['flat/recommended'],
   {
     files: ['src/**/*.{ts,tsx}', 'tests/**/*.ts', '*.mjs'],
     languageOptions: {

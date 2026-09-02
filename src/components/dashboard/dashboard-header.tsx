@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
-import { monthStartDateFor } from '@/lib/household';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { useDashboard } from './dashboard-provider';
 import { ProfileAvatar } from './profile-avatar';
@@ -43,10 +42,16 @@ export function DashboardHeader() {
     handleNextMonth,
     openExpenseModal,
     isMounted,
+    syncState,
+    pendingMutations,
+    retrySync,
+    closeCurrentMonth,
   } = useDashboard();
 
-  const { workspace, canEditArea } = useHousehold();
-  const canAddExpense = !!profile && (workspace === 'personal' || canEditArea('expenses', true));
+  const { workspace, isOwner, canEditArea } = useHousehold();
+  const monthIsClosed = month.periodStatus === 'closed';
+  const canManageMonth = workspace === 'personal' || isOwner;
+  const canAddExpense = !monthIsClosed && !!profile && (workspace === 'personal' || canEditArea('expenses', true));
 
   const activeScreen = getScreenIdFromPath(pathname);
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
@@ -69,10 +74,9 @@ export function DashboardHeader() {
 
   // When a monthly start date is configured, the navigator shows the budget
   // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
-  // The period label follows the ACTIVE workspace's start date.
-  const monthStartDate = monthStartDateFor(profile, workspace);
-  const budgetPeriod = isMounted && monthStartDate
-    ? getSourcePeriod(currentMonthKey, monthStartDate)
+  const budgetStartDay = month.periodStartDay;
+  const budgetPeriod = isMounted && budgetStartDay && budgetStartDay > 1
+    ? getSourcePeriod(currentMonthKey, budgetStartDay)
     : null;
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
   const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
@@ -105,8 +109,8 @@ export function DashboardHeader() {
       <div
         className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
         title={
-          monthStartDate
-            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(monthStartDate, language, intlLocale)})`
+          budgetStartDay && budgetStartDay > 1
+            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(budgetStartDay, language, intlLocale)})`
             : undefined
         }
       >
@@ -148,6 +152,40 @@ export function DashboardHeader() {
 
       {/* Header Action Tools */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={syncState === 'failed' ? retrySync : undefined}
+          disabled={syncState !== 'failed'}
+          className={`hidden items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold sm:flex ${
+            syncState === 'saved' || syncState === 'local'
+              ? 'bg-primary/10 text-primary'
+              : syncState === 'pending'
+                ? 'bg-tertiary-container text-on-tertiary-container'
+                : 'bg-error/10 text-error'
+          }`}
+          title={syncState === 'failed' ? m.sync.retry : m.sync[syncState]}
+        >
+          <AppIcon
+            name={syncState === 'saved' ? 'cloud_done' : syncState === 'pending' ? 'cloud_upload' : syncState === 'local' ? 'devices' : 'cloud_off'}
+            className={`text-[14px] ${syncState === 'pending' ? 'animate-pulse' : ''}`}
+          />
+          <span>{m.sync[syncState]}</span>
+          {pendingMutations > 0 && <span>({pendingMutations})</span>}
+        </button>
+        {canManageMonth && !monthIsClosed && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(m.monthLock.closeConfirm)) closeCurrentMonth();
+            }}
+            disabled={!isMounted || syncState === 'failed' || syncState === 'conflict'}
+            className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={m.monthLock.close}
+            title={m.monthLock.close}
+          >
+            <AppIcon name="lock_open" className="text-[18px]" />
+          </button>
+        )}
         <BudgetAlerts month={month} />
 
         {canAddExpense && <button

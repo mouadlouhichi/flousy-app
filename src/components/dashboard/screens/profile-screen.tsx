@@ -8,7 +8,7 @@ import { ProfileIdentity } from '../profile/profile-identity';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
-import { isProFeatureUnlocked, monthStartDateFor } from '@/lib/household';
+import { isProFeatureUnlocked } from '@/lib/household';
 import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
@@ -34,8 +34,8 @@ export function ProfileScreen() {
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
   const { month, isPro, openIncomeModal, openProModal } = useDashboard();
-  const { workspace, canViewArea } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household, canViewArea } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   // Profile is the member's own account page, so it is never blocked wholesale.
   // Individual entries that lead into a household area are gated instead.
   const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
@@ -59,7 +59,7 @@ export function ProfileScreen() {
     hidden?: boolean;
   };
 
-  const monthStartDate = monthStartDateFor(profile, workspace);
+  const monthStartDate = month.periodStartDay;
   const preferenceHint = [
     currency,
     localeNames[language],

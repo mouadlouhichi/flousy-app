@@ -73,16 +73,42 @@ async function ensureAnalytics(): Promise<Analytics | null> {
   return analyticsPromise;
 }
 
-export async function trackEvent(eventName: string, params?: Record<string, any>) {
+type AnalyticsParam = string | number | boolean;
+const ALLOWED_ANALYTICS_PARAMS = new Set([
+  'page_path', 'page_location', 'page_title', 'has_query',
+  'method', 'workspace', 'theme', 'currency', 'language', 'strategyId',
+  'type', 'active', 'duration_days',
+]);
+
+/** Defense in depth: only reviewed, non-financial dimensions may leave the app. */
+export function sanitizeAnalyticsParams(
+  params?: Record<string, unknown>,
+): Record<string, AnalyticsParam> | undefined {
+  if (!params) return undefined;
+  const safe: Record<string, AnalyticsParam> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (!ALLOWED_ANALYTICS_PARAMS.has(key)) continue;
+    if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
+      safe[key] = value;
+    } else if (typeof value === 'string' && value.length <= 160) {
+      safe[key] = value;
+    }
+  }
+  return Object.keys(safe).length > 0 ? safe : undefined;
+}
+
+export async function trackEvent(eventName: string, params?: Record<string, unknown>) {
   if (typeof window === 'undefined') return;
   // Nothing is measured, and nothing is loaded, until the user has said yes.
   if (!analyticsConsented()) return;
+
+  const safeParams = sanitizeAnalyticsParams(params);
 
   // Firebase Analytics tracking (chunk loaded on demand)
   const instance = await ensureAnalytics();
   if (instance && analyticsLogEvent) {
     try {
-      analyticsLogEvent(instance, eventName, params);
+      analyticsLogEvent(instance, eventName, safeParams);
     } catch {
       // Ignore analytics errors
     }
@@ -96,9 +122,9 @@ export async function trackEvent(eventName: string, params?: Record<string, any>
 
   try {
     if (provider === 'plausible' && (window as any).plausible) {
-      (window as any).plausible(eventName, { props: params });
+      (window as any).plausible(eventName, { props: safeParams });
     } else if (provider === 'ga' && (window as any).gtag) {
-      (window as any).gtag('event', eventName, params);
+      (window as any).gtag('event', eventName, safeParams);
     }
   } catch {
     // Ignore telemetry errors

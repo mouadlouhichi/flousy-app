@@ -14,6 +14,8 @@ import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
+import { isProFeatureUnlocked } from '../../lib/household';
+import { useHousehold } from '../../lib/household-context';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { localizeCategoryName } from '../../lib/localized-labels';
@@ -32,11 +34,9 @@ interface ExpenseModalProps {
   onAddCategory?: (name: string, color: string, icon: string) => void;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
-  /**
-   * False when the member may log expenses but not see household balances.
-   * Hides the "available in {place}" hint and skips the insufficient-funds
-   * check, whose message would disclose the exact balance.
-   */
+  periodStartDate?: string;
+  periodEndDate?: string;
+  /** Hide balance-derived hints when the role cannot read household balances. */
   canSeeBalances?: boolean;
 }
 
@@ -47,6 +47,11 @@ const VARIABLE_CATEGORY_COLORS = [
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
 ];
+
+function todayLocalIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 function pickUnusedCategoryColor(existingColors: Record<string, string>): string {
   const used = new Set(Object.values(existingColors));
@@ -66,19 +71,28 @@ export function ExpenseModal({
   categoryIcons = {},
   onAddCategory,
   placeBalances,
+  periodStartDate,
+  periodEndDate,
   canSeeBalances = true,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
   const e = m.modals.expense;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProUser(profile);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace, household);
+  const today = todayLocalIso();
+  const defaultDate = periodStartDate && today < periodStartDate
+    ? periodStartDate
+    : periodEndDate && today > periodEndDate
+      ? periodEndDate
+      : today;
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState(categories[0] || 'Groceries');
   const [place, setPlace] = useState<MoneyPlace>('bank');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(defaultDate);
   const [note, setNote] = useState('');
   const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
@@ -97,7 +111,7 @@ export function ExpenseModal({
       setAmount(String(initialExpense.amount));
       setType(initialExpense.type);
       setPlace(initialExpense.place || defaultPlace);
-      setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
+      setDate(initialExpense.date || defaultDate);
       setNote(initialExpense.note || '');
       setPerson(initialExpense.person || 'Self');
       setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
@@ -108,7 +122,7 @@ export function ExpenseModal({
       setAmount('');
       setType(categories[0] || 'Groceries');
       setPlace(defaultPlace);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(defaultDate);
       setNote('');
       setPerson('Self');
       setPayerMemberId('self');
@@ -222,6 +236,16 @@ export function ExpenseModal({
       return;
     }
 
+    if ((periodStartDate && date < periodStartDate) || (periodEndDate && date > periodEndDate)) {
+      setErrors({
+        date: t(e.dateOutsidePeriod, {
+          start: periodStartDate || '—',
+          end: periodEndDate || '—',
+        }),
+      });
+      return;
+    }
+
     // The source place must actually hold the money being spent. Half-a-cent
     // tolerance absorbs float noise from prior refund/debit arithmetic.
     // Skipped when balances are hidden: the message quotes the exact figure.
@@ -236,7 +260,7 @@ export function ExpenseModal({
     }
 
     const newExpense: VariableExpense = {
-      id: initialExpense ? initialExpense.id : Math.random().toString(36).substring(2, 9),
+      id: initialExpense ? initialExpense.id : `expense-${crypto.randomUUID()}`,
       name: name.trim() || type,
       amount: parsedAmount,
       type,

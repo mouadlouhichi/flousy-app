@@ -1,4 +1,4 @@
-import { MonthBudget, UserProfile, normalizeMonth } from './store';
+import { MonthBudget, normalizeMonth, type MonthConfiguration } from './store';
 
 /** Last budget month the user was viewing (YYYY-MM). */
 export const CURRENT_MONTH_STORAGE_KEY = 'flousy_current_month';
@@ -44,7 +44,7 @@ export function writeStoredMonthKey(key: string, storage?: StorageLike | null): 
 export function readCachedMonth(
   storageKey: string,
   monthKey: string,
-  profile?: UserProfile | null,
+  profile?: MonthConfiguration | null,
   storage?: StorageLike | null,
 ): MonthBudget | null {
   const store = resolveStorage(storage);

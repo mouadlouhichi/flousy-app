@@ -5,6 +5,7 @@ import {
   User,
   EmailAuthProvider,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -21,10 +22,7 @@ import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { setAuthCookie } from './auth-status';
 import { UserProfile } from './store';
 import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData, type DeletionReport } from './db';
-import { getCurrentMonthKey } from './utils';
-import { isOnboardingDoneLocally } from './demo-mode';
-import { isProPlan } from './pro-features';
-import { CONSENT_STORAGE_KEY } from './analytics';
+import { resolveProEntitlement } from './pro-features';
 
 /** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
 export class RequiresRecentLoginError extends Error {
@@ -43,7 +41,8 @@ export class AccountDeletionIncompleteError extends Error {
     this.name = 'AccountDeletionIncompleteError';
   }
 }
-import { trackEvent } from './analytics';
+import { CONSENT_STORAGE_KEY, trackEvent } from './analytics';
+import { clearFinanceOutbox } from './finance-sync';
 
 interface AuthContextType {
   user: User | null;
@@ -89,7 +88,9 @@ function sanitizeCachedProfile(value: unknown): UserProfile | null {
   if (typeof raw.currency !== 'string') return null;
   return {
     ...(raw as unknown as UserProfile),
-    plan: isProPlan(raw.plan) ? 'pro' : 'free',
+    // localStorage has no integrity protection. A cache may make the shell paint
+    // faster, but only the fresh Firestore profile may grant paid entitlement.
+    plan: 'free',
     onboardingComplete: raw.onboardingComplete === true,
     theme: raw.theme === 'dark' || raw.theme === 'system' ? raw.theme : 'light',
     activeWorkspace: raw.activeWorkspace === 'household' ? 'household' : 'personal',
@@ -118,8 +119,9 @@ function writeCachedProfile(uid: string, profile: UserProfile) {
 /** Wipe every device-local `flousy_*` cache key (budget months, goals, pro
  * flags, onboarding state) plus session storage. Used on sign-out and when
  * deleting account data so the UI never re-hydrates from a stale cache. */
-function clearLocalData() {
+async function clearLocalData() {
   if (typeof window === 'undefined') return;
+  await clearFinanceOutbox().catch((error) => console.warn('Error clearing finance outbox:', error));
   try {
     Object.keys(localStorage).forEach((key) => {
       // The analytics-consent answer is a device preference, not user budget
@@ -141,6 +143,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [dismissVerificationBanner, setDismissVerificationBanner] = useState<boolean>(false);
   const [profileUnavailable, setProfileUnavailable] = useState<boolean>(false);
+  const [entitlementTick, setEntitlementTick] = useState(0);
+
+  // Re-render the provider at the exact entitlement boundary. A 90-day timeout
+  // exceeds browsers' maximum timer delay, so long waits are safely chunked.
+  useEffect(() => {
+    const endsAtMs = resolveProEntitlement(profile).endsAtMs;
+    if (!endsAtMs) return;
+    const remaining = endsAtMs - Date.now();
+    if (remaining <= 0) return;
+    const timer = window.setTimeout(
+      () => setEntitlementTick((value) => value + 1),
+      Math.min(remaining + 1_000, 2_147_000_000),
+    );
+    return () => window.clearTimeout(timer);
+  }, [profile, entitlementTick]);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -179,68 +196,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName?: string,
   ): Promise<{ profile: UserProfile | null; isNewUser: boolean }> => {
     let isNewUser = false;
-    let result: UserProfile | null = null;
-    try {
-      let p = await getUserProfile(u.uid);
-      if (!p) {
-        isNewUser = true;
-        p = {
-          plan: 'free',
-          currency: 'MAD',
-          onboardingComplete: false,
-          theme: 'system',
-          displayName: displayName || u.displayName || undefined,
-          // Store the provider image with the rest of the profile the first
-          // time we see it. That keeps the avatar stable across reloads even
-          // when an identity provider refreshes its photo URL later.
-          avatarUrl: u.photoURL || undefined,
-        };
-        try {
-          await setUserProfile(u.uid, p);
-        } catch (writeErr) {
-          console.error('Error creating profile:', writeErr);
-        }
-      } else {
-        const patch: Partial<UserProfile> = {};
-        if (displayName && !p.displayName) patch.displayName = displayName;
-        // `undefined` means this older profile has never chosen/saved an
-        // avatar. An intentionally blank string is left alone as a user's
-        // explicit choice to fall back to their account photo/initials.
-        if (p.avatarUrl === undefined && u.photoURL) patch.avatarUrl = u.photoURL;
-        if (Object.keys(patch).length > 0) {
-          p = { ...p, ...patch };
-          try {
-            await setUserProfile(u.uid, patch);
-          } catch (writeErr) {
-            console.error('Error updating profile:', writeErr);
-          }
-        }
-      }
-      result = p;
-      setProfile(p);
-      writeCachedProfile(u.uid, p);
-    } catch (err) {
-      console.error('Error fetching/creating profile:', err);
-      if (!result) {
-        // A transient read failure must not invent an "already onboarded"
-        // profile: that skipped onboarding permanently and could apply the
-        // fallback currency to a real budget. Local data is the only thing
-        // that may short-circuit onboarding, and `profileUnavailable` lets the
-        // UI offer a retry instead of silently proceeding.
+    const read = await getUserProfile(u.uid);
+    if (read.status === 'unavailable') {
+      // Keep a previously verified cache visible, but never synthesize defaults
+      // and never write while the existence of a cloud profile is unknown.
+      const cached = readCachedProfile(u.uid);
+      if (cached) setProfile(cached);
+      setProfileUnavailable(true);
+      return { profile: cached, isNewUser: false };
+    }
+
+    let result: UserProfile;
+    let optionalProfileWriteFailed = false;
+    if (read.status === 'missing') {
+      isNewUser = true;
+      result = {
+        plan: 'free',
+        currency: 'MAD',
+        onboardingComplete: false,
+        theme: 'system',
+        displayName: displayName || u.displayName || undefined,
+        avatarUrl: u.photoURL || undefined,
+      };
+      try {
+        await setUserProfile(u.uid, result);
+      } catch (error) {
+        console.error('Error creating profile:', error);
         setProfileUnavailable(true);
-        if (!readCachedProfile(u.uid)) {
-          result = {
-            plan: 'free',
-            currency: 'MAD',
-            onboardingComplete: isOnboardingDoneLocally(getCurrentMonthKey(undefined)),
-            theme: 'system',
-            displayName: displayName || u.displayName || undefined,
-            avatarUrl: u.photoURL || undefined,
-          };
-          setProfile(result);
+        return { profile: null, isNewUser: true };
+      }
+    } else {
+      result = read.profile;
+      const patch: Partial<UserProfile> = {};
+      if (displayName && !result.displayName) patch.displayName = displayName;
+      // `undefined` means this older profile has never chosen/saved an avatar.
+      if (result.avatarUrl === undefined && u.photoURL) patch.avatarUrl = u.photoURL;
+      if (Object.keys(patch).length > 0) {
+        try {
+          await setUserProfile(u.uid, patch);
+          result = { ...result, ...patch };
+        } catch (error) {
+          // The read succeeded, so retaining the cloud snapshot is safe; only
+          // the optional enrichment remains pending.
+          console.error('Error updating profile:', error);
+          optionalProfileWriteFailed = true;
         }
       }
     }
+
+    setProfileUnavailable(optionalProfileWriteFailed);
+    setProfile(result);
+    writeCachedProfile(u.uid, result);
     return { profile: result, isNewUser };
   };
 
@@ -320,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    clearLocalData();
+    await clearLocalData();
     if (auth) {
       await firebaseSignOut(auth);
     }
@@ -362,14 +368,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const deleteAccount = async (password?: string): Promise<DeletionReport> => {
     if (!user || !auth) throw new Error('Not signed in');
-    const uid = user.uid;
-    const email = user.email;
+    const currentUser = auth.currentUser;
+    if (!currentUser || currentUser.uid !== user.uid) throw new Error('Not signed in');
+    const uid = currentUser.uid;
+    const email = currentUser.email;
+    const providers = new Set(currentUser.providerData.map((provider) => provider.providerId));
 
-    if (password !== undefined) {
-      await reauthenticateWithCredential(
-        auth.currentUser!,
-        EmailAuthProvider.credential(email as string, password),
-      );
+    // Reauthenticate *before* touching Firestore. Previously the app erased all
+    // finance data and only then discovered that Firebase Auth considered the
+    // session stale, leaving an empty but still-live account.
+    try {
+      if (password !== undefined && providers.has('password') && email) {
+        await reauthenticateWithCredential(
+          currentUser,
+          EmailAuthProvider.credential(email, password),
+        );
+      } else if (providers.has('google.com') && googleProvider) {
+        await reauthenticateWithPopup(currentUser, googleProvider);
+      } else {
+        // Email/password and unsupported providers need an explicit credential
+        // from the account panel before deletion can begin.
+        throw new RequiresRecentLoginError();
+      }
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (error instanceof RequiresRecentLoginError || code === 'auth/requires-recent-login') {
+        throw new RequiresRecentLoginError();
+      }
+      throw error;
     }
 
     const report = await deleteUserAccountData(uid, {
@@ -383,16 +409,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      await deleteUser(user);
+      await deleteUser(currentUser);
     } catch (err) {
       const code = (err as { code?: string })?.code;
-      if (code === 'auth/requires-recent-login' || code === 'auth/requires-recent-login') {
+      if (code === 'auth/requires-recent-login') {
         throw new RequiresRecentLoginError();
       }
       throw err;
     }
 
-    clearLocalData();
+    await clearLocalData();
     setUser(null);
     setProfile(null);
     return report;
@@ -407,12 +433,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAllData = async (): Promise<DeletionReport> => {
     if (!user || !auth) return { removed: [], failed: [] };
     const uid = user.uid;
-    // Clear the local cache first so the subscriptions never re-hydrate from it.
-    clearLocalData();
     const report = await deleteUserBudgetData(uid);
-    // Only count it as done when the cloud actually agreed.
-    if (report.failed.length === 0) trackEvent('delete_all_data');
-    else throw new AccountDeletionIncompleteError(report);
+    // Keep the local recovery copy until the cloud has confirmed every delete.
+    if (report.failed.length === 0) {
+      await clearLocalData();
+      trackEvent('delete_all_data');
+    } else {
+      throw new AccountDeletionIncompleteError(report);
+    }
     return report;
   };
 

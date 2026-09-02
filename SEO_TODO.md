@@ -1,24 +1,82 @@
-# SEO Action Items (SEOptimer Audit)
+# SEO and External Presence Checklist
 
-Here is the to-do list for the remaining tasks from the SEOptimer audit. These are items that require action outside of the app's codebase (such as DNS configuration, external account creation, or off-page strategy).
+> Last reconciled: 2026-09-02
+>
+> Repository SEO work is implemented and regression-tested. The unchecked items
+> below require control of DNS, hosting, search or social accounts. They must not
+> be represented as complete by application code.
 
-## 🌐 Domain & DNS Configuration (High / Low Priority)
-*These tasks require logging into your domain registrar (e.g., Namecheap, GoDaddy, Cloudflare).*
-- [ ] **Add an SPF Mail Record:** Create a TXT record in your DNS settings to authorize your email provider (like Google Workspace or Outlook) to send emails on behalf of `flousy.app`. This improves email deliverability and prevents your emails from going to spam.
-- [ ] **Add a DMARC Mail Record:** Once SPF is set up, add a DMARC TXT record to your DNS to protect your domain from email spoofing.
+The release/operator source of truth is
+[`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md). This file contains only
+SEO, email-domain and public-presence follow-up.
 
-## 📱 Social Media & Third-Party Accounts (Low Priority)
-*I have already added the links to the website's footer, but you need to actually create and configure these profiles.*
-- [ ] **Create a Facebook Page:** Set up a business page for SmartJib and ensure the handle matches `facebook.com/flousyapp`.
-- [ ] **Create an X (Twitter) Profile:** Claim the `@flousyapp` handle.
-- [ ] **Create an Instagram Profile:** Claim the `@flousyapp` handle.
-- [ ] **Create a LinkedIn Company Page:** Set up a company page for SmartJib.
-- [ ] **Create a YouTube Channel:** Claim the `@flousyapp` handle.
-- [ ] **Install a Facebook Pixel (Optional):** If you plan on running Meta/Facebook Ads in the future, you will need to generate a Facebook Pixel ID from your Meta Business Manager. Once you have it, we can easily add it to the website's code alongside the Vercel Analytics.
+## Domain and search — external
 
-## 🚀 Off-Page Strategy (High Priority)
-- [ ] **Execute a Link Building Strategy:** The audit flagged this as "High Priority". You need to get other reputable websites, finance blogs, or directory listings to link back to `https://flousy.app`. This signals authority to Google and will significantly boost your rankings.
+- [ ] Point the intended production domain to the recorded production deployment
+      and verify HTTPS/redirect behavior.
+- [ ] Set production `NEXT_PUBLIC_SITE_URL` to that exact origin and rebuild.
+- [ ] Verify that canonical links, Open Graph URLs, `robots.txt`, `sitemap.xml`
+      and `llms.txt` resolve on the production origin.
+- [ ] Add the site to Google Search Console and any other chosen webmaster tools;
+      verify ownership through an operator-controlled method.
+- [ ] Submit `/sitemap.xml` only after DNS is stable and inspect indexing/coverage
+      reports for real errors.
+- [ ] Run Lighthouse/PageSpeed and real-device Core Web Vitals checks against the
+      deployed production build. Framework defaults are not evidence of a passing
+      result.
+- [ ] Define a factual content/partnership strategy. Do not buy links or publish
+      misleading directory listings.
 
-## ℹ️ Safe to Ignore (False Positives)
-- [x] **Remove Inline Styles:** The report flagged inline styles as a negative. In modern frameworks like React and Next.js (which SmartJib uses), inline styles are standard practice for handling dynamic widths, progress bars, and animations. This is a false positive from SEOptimer and will not harm your actual Google ranking. 
-- [x] **Optimize for Mobile PageSpeed:** Next.js and Vercel natively optimize mobile loading out of the box. SEOptimer sometimes runs its mobile test from a distant US server causing a slight delay. Your core metrics (like Core Web Vitals) will naturally perform well in production.
+## Locale routing decision
+
+At launch, SmartJib intentionally has one URL per page. English, French and Arabic
+are client preferences; `/en`, `/fr` and `/ar` routes do not exist. The app
+therefore publishes self-canonical URLs and no fabricated hreflang cluster.
+
+Post-launch, if localized search acquisition is a priority:
+
+- [ ] Implement real locale-prefixed routes and server-rendered localized
+      metadata/content.
+- [ ] Add reciprocal hreflang (including an intentional `x-default`) only after
+      every advertised URL returns localized indexable content.
+- [ ] Generate locale-aware sitemap entries and structured data, then add crawler
+      regressions.
+
+## Sending-domain authentication — external launch gate
+
+Resend supplies the exact records for the configured sender domain:
+
+- [ ] Publish and validate Resend DKIM records.
+- [ ] Publish one valid SPF record that includes every legitimate sender; do not
+      create conflicting SPF TXT records.
+- [ ] Publish DMARC with an owned report mailbox, start in monitoring mode and
+      move to quarantine/reject only after reports are understood.
+- [ ] Verify production `RESEND_FROM_EMAIL` is on that domain and is not
+      `@resend.dev`.
+- [ ] Test contact and invitation delivery, links and Reply-To behavior across
+      several mailbox providers.
+
+## Social and organization identity — external, non-blocking unless advertised
+
+No social profile is linked from the app until an operator confirms it is owned,
+branded and monitored.
+
+- [ ] Decide which networks SmartJib will actually operate.
+- [ ] Reserve and verify official handles; do not assume `flousyapp` or another
+      handle is available or owned.
+- [ ] Enable MFA, record primary/backup owners and define a response policy.
+- [ ] Add footer links and `Organization.sameAs` only for verified live profiles.
+- [ ] Keep social-ad pixels out of scope unless a separate consent, privacy,
+      retention and payload review is completed.
+
+## Repository status
+
+Implemented in code:
+
+- validated environment-owned canonical origin;
+- public route metadata and generated Open Graph image;
+- sitemap/robots exclusions for authenticated routes;
+- factual SoftwareApplication, Organization, WebSite and FAQ JSON-LD;
+- factual `public/llms.txt`;
+- no invalid locale alternates;
+- SEO tests aligning currency, strategy, pricing FAQ and public routes.

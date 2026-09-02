@@ -9,7 +9,9 @@ import { useHousehold } from '@/lib/household-context';
 import { trackEvent } from '@/lib/analytics';
 import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
-import { formatShortDate } from '@/lib/utils';
+import { postCourseSession } from '@/lib/db';
+import { isFirebaseConfigured } from '@/lib/firebase';
+import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
 import { AreaRestricted } from '../area-restricted';
@@ -107,7 +109,7 @@ function CoursesScreenInner() {
   const { t, messages: m, intlLocale } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
-  const { workspace } = useHousehold();
+  const { workspace, household, canEdit } = useHousehold();
 
   const currency = profile?.currency ?? 'MAD';
 
@@ -116,7 +118,7 @@ function CoursesScreenInner() {
   // always-free fallback: adding items by name. (The upsell card only ever
   // renders outside a household workspace, so the upgrade CTA is always
   // allowed there.)
-  const scanUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const scanUnlocked = isProFeatureUnlocked(isPro, workspace, household);
 
   // ---- view state -------------------------------------------------------------
   const [viewingBill, setViewingBill] = useState<CourseSession | null>(null);
@@ -129,6 +131,8 @@ function CoursesScreenInner() {
   const [manualName, setManualName] = useState('');
   const [manualQty, setManualQty] = useState(1);
   const [manualPrice, setManualPrice] = useState('');
+  const [postingBill, setPostingBill] = useState(false);
+  const [postingError, setPostingError] = useState<string | null>(null);
 
   const active = store.active;
   const billSession = viewingBill;
@@ -270,26 +274,74 @@ function CoursesScreenInner() {
   };
 
   // ---- log the finished course into the budget ---------------------------------
-  // One variable expense for the whole trip, under a user-picked category and
-  // paid-from place (both chosen in the "Add to budget" card). `loggedExpenseId`
-  // on the session makes it idempotent — the bill shows a confirmation instead
-  // of the button once logged.
-  const logBillToBudget = (category: string, place: MoneyPlace) => {
-    if (!billSession || billSession.loggedExpenseId) return;
-    const expense: VariableExpense = {
-      id: Math.random().toString(36).substring(2, 9),
-      name: `${c.title} · ${billSession.date}`,
-      amount: billSession.total,
-      type: category,
-      date: billSession.date,
-      place,
-      note: `${billSession.items.length} ${c.items}`,
-      person: 'Self',
-      createdByUserId: user?.uid,
-    };
-    updateAndSaveMonth(addVariableExpense(month, expense));
-    store.markLogged(billSession.id, expense.id);
-    trackEvent('course_logged_to_budget', { amount: billSession.total, category, place });
+  // Firestore mode posts the expense, ledger entry, and session marker in one
+  // transaction. The deterministic expense ID also makes lost-ack retries safe.
+  const logBillToBudget = async (category: string, place: MoneyPlace) => {
+    if (!billSession || billSession.loggedExpenseId || postingBill) return;
+    if (workspace === 'household' && !canEdit) {
+      setPostingError(c.logPermissionDenied);
+      return;
+    }
+    const [year, monthNumber, day] = billSession.date.split('-').map(Number);
+    const destinationMonth = getCurrentMonthKey(month.periodStartDay, new Date(year, monthNumber - 1, day));
+    setPostingBill(true);
+    setPostingError(null);
+    try {
+      const expenseId = `course-${billSession.id}`;
+      if (isFirebaseConfigured && user) {
+        const target = workspace === 'household' && household?.id
+          ? { workspace: 'household' as const, householdId: household.id }
+          : { workspace: 'personal' as const, uid: user.uid };
+        await postCourseSession({
+          uid: user.uid,
+          sessionId: billSession.id,
+          target,
+          monthKey: destinationMonth,
+          category,
+          place,
+          configuration: workspace === 'household' && household
+            ? {
+                currency: household.currency,
+                monthStartDate: household.monthStartDate,
+                defaultCategoryBudgets: household.defaultCategoryBudgets,
+                enableRollover: household.enableRollover,
+              }
+            : profile,
+        });
+      } else {
+        if (destinationMonth !== currentMonthKey) throw new Error('Select the destination period before posting.');
+        const expense: VariableExpense = {
+          id: expenseId,
+          name: `${c.title} · ${billSession.date}`,
+          amount: billSession.total,
+          type: category,
+          date: billSession.date,
+          place,
+          note: `${billSession.items.length} ${c.items}`,
+          person: 'Self',
+          createdByUserId: user?.uid,
+          sourceType: 'course',
+          sourceId: billSession.id,
+        };
+        updateAndSaveMonth(addVariableExpense(month, expense), 'expenses');
+        store.markLogged(billSession.id, expenseId);
+      }
+      setViewingBill({
+        ...billSession,
+        loggedExpenseId: expenseId,
+        loggedMonthKey: destinationMonth,
+        loggedWorkspace: workspace,
+        loggedWorkspaceId: workspace === 'household' ? household?.id : user?.uid,
+      });
+      // Telemetry records feature adoption only—never prices, categories,
+      // account/place names, or the user's financial period.
+      trackEvent('course_logged_to_budget', { workspace });
+    } catch (reason) {
+      console.error('Course posting failed:', reason);
+      setPostingError(c.logFailed);
+    } finally {
+      setPostingBill(false);
+    }
   };
 
   /** Persist the paid-from selection on the completed bill and keep the
@@ -300,11 +352,17 @@ function CoursesScreenInner() {
     setViewingBill({ ...billSession, place });
   };
 
-  const [monthYear, monthNum] = currentMonthKey.split('-').map(Number);
-  const monthLabel = new Date(monthYear, monthNum - 1, 1).toLocaleDateString(intlLocale, {
+  const destinationMonthKey = (() => {
+    if (!billSession) return currentMonthKey;
+    const [year, monthNumber, day] = billSession.date.split('-').map(Number);
+    return getCurrentMonthKey(month.periodStartDay, new Date(year, monthNumber - 1, day));
+  })();
+  const [monthYear, monthNum] = destinationMonthKey.split('-').map(Number);
+  const periodLabel = new Date(monthYear, monthNum - 1, 1).toLocaleDateString(intlLocale, {
     month: 'long',
     year: 'numeric',
   });
+  const monthLabel = `${workspace === 'household' ? household?.name || m.household.title : c.personalWorkspace} · ${periodLabel}`;
 
   const totalLabel = active
     ? formatCurrency(active.total, active.currency, intlLocale)
@@ -329,6 +387,9 @@ function CoursesScreenInner() {
             place={billSession.place}
             onPlaceChange={handleBillPlaceChange}
             onLog={logBillToBudget}
+            posting={postingBill}
+            error={postingError}
+            canPost={workspace !== 'household' || canEdit}
           />
         </>
       ) : !active ? (

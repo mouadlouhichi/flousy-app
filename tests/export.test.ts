@@ -74,7 +74,7 @@ describe('CSV Export Utilities', () => {
     assert.ok(csv.includes('"1000","200","300","2000"'));
   });
 
-  it('omits sections the household role may not view', () => {
+  it('exports no shared month sections for an invoice-only contributor', () => {
     const month = normalizeMonth({
       bankPart: 1000,
       fixedExpenses: [{ id: 'f1', name: 'Rent', amount: 3000, type: 'Housing', date: '1st', place: 'bank' }],
@@ -84,16 +84,17 @@ describe('CSV Export Utilities', () => {
       { id: 'g1', name: 'New Car', target: 50000, current: 12000, source: 'bank', active: true },
     ];
 
-    // A contributor may only see expenses: no balances, fixed bills or savings.
+    // Contributors submit their own invoices in a separate collection. The
+    // shared month document is not readable under Firestore Rules.
     const csv = exportMonthToCsv(month, goals, '2026-07', 'MAD', exportSectionsFor('contributor'));
 
     assert.equal(csv.includes('MONEY PLACES BALANCES'), false);
     assert.equal(csv.includes('FIXED CHARGES'), false);
+    assert.equal(csv.includes('VARIABLE EXPENSES'), false);
     assert.equal(csv.includes('SAVINGS GOALS'), false);
     assert.equal(csv.includes('"Rent"'), false);
+    assert.equal(csv.includes('"Marjane"'), false);
     assert.equal(csv.includes('"New Car"'), false);
-    assert.ok(csv.includes('VARIABLE EXPENSES'));
-    assert.ok(csv.includes('"Marjane"'));
   });
 
   it('keeps every section for an owner export', () => {

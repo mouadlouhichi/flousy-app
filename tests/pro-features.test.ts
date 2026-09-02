@@ -1,60 +1,100 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isProUser, isProPlan } from '../src/lib/pro-features';
+import {
+  PRO_TRIAL_DURATION_MS,
+  claimDemoProTrial,
+  isProPlan,
+  isProUser,
+  resolveProEntitlement,
+} from '../src/lib/pro-features';
+
+function memoryStorage(seed: Record<string, string> = {}) {
+  const values = new Map(Object.entries(seed));
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  };
+}
 
 describe('Pro feature gating', () => {
-  it('treats a pro profile as premium access', () => {
-    assert.equal(isProUser({ plan: 'pro' } as any), true);
+  it('treats a legacy/admin pro profile as premium access', () => {
+    assert.equal(isProUser({ plan: 'pro' }), true);
   });
 
-  it('resolves Pro from the Firebase profile plan, not a local flag', () => {
-    const storage = {
-      getItem: (key: string) => (key === 'flousy_pro_plan' ? 'true' : null),
-    } as Storage;
+  it('expires a launch trial at its immutable end boundary', () => {
+    const start = Date.UTC(2026, 8, 2);
+    const profile = {
+      plan: 'pro',
+      entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing',
+      entitlementStartedAtMs: start,
+      entitlementEndsAtMs: start + PRO_TRIAL_DURATION_MS,
+    } as const;
 
-    // A Firebase profile always wins — a stale local demo flag cannot
-    // promote a profile whose plan is 'free'.
-    assert.equal(isProUser({ plan: 'free' } as any, storage), false);
-    assert.equal(isProUser({ plan: 'pro' } as any, storage), true);
+    const active = resolveProEntitlement(profile, start + 1);
+    assert.equal(active.isPro, true);
+    assert.equal(active.status, 'trialing');
+    assert.equal(active.daysRemaining, 90);
+    assert.equal(active.hasUsedTrial, true);
+
+    const expired = resolveProEntitlement(profile, profile.entitlementEndsAtMs);
+    assert.equal(expired.isPro, false);
+    assert.equal(expired.status, 'expired');
+    assert.equal(expired.daysRemaining, 0);
   });
 
-  it('honors the demo flag only inside an active demo session', () => {
-    const proFlag = {
-      getItem: (key: string) => (key === 'flousy_pro_plan' ? 'true' : null),
-    } as Storage;
-    const demoSession = {
-      getItem: (key: string) =>
-        key === 'flousy_pro_plan' ? 'true' : key === 'flousy_demo_mode' ? 'true' : null,
-    } as Storage;
+  it('expires legacy beta claims after the same 90-day window', () => {
+    const start = Date.UTC(2026, 8, 2);
+    const profile = { plan: 'pro', proTrialClaimedAt: new Date(start).toISOString() } as const;
+    assert.equal(isProUser(profile, null, start + PRO_TRIAL_DURATION_MS - 1), true);
+    assert.equal(isProUser(profile, null, start + PRO_TRIAL_DURATION_MS), false);
+  });
 
-    // `profile === null` also means "signed in, profile still loading". Serving
-    // Pro from a leftover `flousy_pro_plan` key in that window handed premium
-    // features to anyone who had once tried the demo, so the flag is only
-    // consulted when the demo session itself is active.
-    assert.equal(isProUser(null, proFlag), false);
-    assert.equal(isProUser(null, demoSession), true);
+  it('does not let paid past-due or expired projections unlock Pro', () => {
+    const now = Date.UTC(2026, 8, 2);
+    assert.equal(isProUser({
+      plan: 'pro', entitlementSource: 'stripe', entitlementStatus: 'past_due', entitlementEndsAtMs: now + 1,
+    }, null, now), false);
+    assert.equal(isProUser({
+      plan: 'pro', entitlementSource: 'cmi', entitlementStatus: 'active', entitlementEndsAtMs: now,
+    }, null, now), false);
+    assert.equal(isProUser({
+      plan: 'pro', entitlementSource: 'stripe', entitlementStatus: 'canceled', entitlementEndsAtMs: now + 1,
+    }, null, now), true);
+  });
+
+  it('resolves Firebase profiles before any local demo flag', () => {
+    const storage = memoryStorage({ flousy_pro_plan: 'true', flousy_demo_mode: 'true' });
+    assert.equal(isProUser({ plan: 'free' }, storage), false);
+    assert.equal(isProUser({ plan: 'pro' }, storage), true);
+  });
+
+  it('starts one expiry-aware demo trial only in local demo storage', () => {
+    const now = Date.UTC(2026, 8, 2);
+    const storage = memoryStorage({ flousy_demo_mode: 'true' });
+    assert.equal(claimDemoProTrial(storage, now), true);
+    assert.equal(claimDemoProTrial(storage, now + 1), false);
+    assert.equal(isProUser(null, storage, now + PRO_TRIAL_DURATION_MS - 1), true);
+    assert.equal(isProUser(null, storage, now + PRO_TRIAL_DURATION_MS), false);
+  });
+
+  it('never treats a leftover demo plan flag as authenticated entitlement', () => {
+    const planOnly = memoryStorage({ flousy_pro_plan: 'true' });
+    assert.equal(isProUser(null, planOnly), false);
     assert.equal(isProUser(null), false);
-  });
-
-  it('keeps free users blocked from premium features', () => {
-    assert.equal(isProUser({ plan: 'free' } as any), false);
   });
 });
 
-
-describe('Pro plan normalisation (isProPlan)', () => {
+describe('Pro plan normalisation', () => {
   it('accepts pro regardless of casing or stray whitespace', () => {
     for (const value of ['pro', 'Pro', 'PRO', ' pro ', '\tPRO\n']) {
       assert.equal(isProPlan(value), true, JSON.stringify(value));
     }
   });
+
   it('rejects free, empty, null and unrelated strings', () => {
     for (const value of ['free', '', 'trial', 'premium', null, undefined]) {
-      assert.equal(isProPlan(value as string | null | undefined), false, String(value));
+      assert.equal(isProPlan(value), false, String(value));
     }
-  });
-  it('isProUser agrees with isProPlan on a loaded profile', () => {
-    assert.equal(isProUser({ plan: 'Pro' } as any), true);
-    assert.equal(isProUser({ plan: 'free' } as any), false);
   });
 });

@@ -23,6 +23,7 @@ interface MonthDayPickerProps {
   hint?: string;
   /** Show the selected-day chip with a clear button (default true). */
   allowClear?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -37,6 +38,7 @@ export function MonthDayPicker({
   label,
   hint,
   allowClear = true,
+  disabled = false,
 }: MonthDayPickerProps) {
   const { messages: m, language, intlLocale } = useLanguage();
   const visibleLabel = label || m.monthDayPicker.monthlyStartDate;
@@ -57,6 +59,7 @@ export function MonthDayPicker({
               {localizedDay(value)}
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => onChange(undefined)}
                 aria-label={m.monthDayPicker.clearMonthlyStartDate}
                 className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
@@ -88,10 +91,11 @@ export function MonthDayPicker({
               <button
                 key={d}
                 type="button"
+                disabled={disabled}
                 aria-pressed={selected}
                 aria-label={localizedDay(d)}
                 onClick={() => onChange(d)}
-                className={`flex aspect-square items-center justify-center rounded-lg text-[13px] font-bold transition-all active:scale-90 ${
+                className={`flex aspect-square items-center justify-center rounded-lg text-[13px] font-bold transition-all active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 ${
                   selected
                     ? 'bg-primary text-on-primary shadow-sm'
                     : 'text-on-surface hover:bg-primary/10 hover:text-primary'

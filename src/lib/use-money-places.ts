@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useAuth } from './auth-context';
 import { useLanguage } from './i18n-context';
+import { useOptionalHousehold } from './household-context';
 import { localizePlaceName } from './localized-labels';
 import {
   MoneyPlaceConfig,
@@ -27,8 +28,16 @@ export function moneyPlaceSegmentOptions(
 /** Current cash locations from the signed-in profile (defaults to Bank / Home / Wallet). */
 export function useMoneyPlaces(month?: PlaceMonth | null) {
   const { profile } = useAuth();
+  const householdContext = useOptionalHousehold();
   const { messages } = useLanguage();
-  const places = useMemo(() => resolveMoneyPlaces(profile), [profile]);
+  const places = useMemo(
+    () => resolveMoneyPlaces(
+      householdContext?.workspace === 'household'
+        ? { moneyPlaces: householdContext.household?.moneyPlaces }
+        : profile,
+    ),
+    [householdContext?.workspace, householdContext?.household?.moneyPlaces, profile],
+  );
   const localizedLabel = (id: string, fallbackName: string) => localizePlaceName(id, fallbackName, messages);
   const options = useMemo(
     () => moneyPlaceSegmentOptions(places, localizedLabel),

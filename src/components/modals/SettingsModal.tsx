@@ -18,8 +18,8 @@ import { trackEvent } from '../../lib/analytics';
 import { useHousehold } from '../../lib/household-context';
 import { resolveProfileAvatarSource } from '../../lib/profile-avatar';
 import { ProfileAvatar } from '../dashboard/profile-avatar';
-import { canShowProUpgrade, monthStartDateFor, monthStartDateField } from '../../lib/household';
-import { isProPlan } from '../../lib/pro-features';
+import { canShowProUpgrade } from '../../lib/household';
+import { isProUser } from '../../lib/pro-features';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,15 +32,17 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
   const router = useRouter();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, configuredCurrency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
-  const { workspace } = useHousehold();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   // Demo (no-Firebase) sessions have no `user` but still need a sign-out path.
   const demoMode = !user && isDemoMode();
   const { language, setLanguage, messages: m, localeNames, t } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [pendingCurrency, setPendingCurrency] = useState<string | null>(null);
+  const [pendingStartDay, setPendingStartDay] = useState<number | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
 
@@ -162,9 +164,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                       {user?.email || m.auth.anonymousUser}
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2 rounded-full bg-primary/10 text-primary">
-                      <AppIcon name={isProPlan(profile?.plan) ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                      <AppIcon name={isProUser(profile) ? 'workspace_premium' : 'person'} className="text-[14px]" />
                       <span className="font-label-sm text-label-sm font-bold">
-                        {t(m.auth.planLabel, { plan: isProPlan(profile?.plan) ? m.profile.links.pro : m.profile.free })}
+                        {t(m.auth.planLabel, { plan: isProUser(profile) ? m.profile.links.pro : m.profile.free })}
                       </span>
                     </div>
                   </>
@@ -174,7 +176,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* ── Upgrade CTA ── */}
-          {onOpenProModal && canShowProUpgrade(isProPlan(profile?.plan), workspace) && (
+          {onOpenProModal && canShowProUpgrade(isProUser(profile), workspace) && (
             <button
               type="button"
               onClick={onOpenProModal}
@@ -199,13 +201,21 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 </div>
                 <CustomSelect
                   ariaLabel={m.settings.preferredCurrency}
-                  value={currency}
-                  onChange={setCurrency}
+                  value={configuredCurrency}
+                  disabled={workspace === 'household' && !isOwner}
+                  onChange={(value) => {
+                    if (value !== configuredCurrency) setPendingCurrency(value);
+                  }}
                   options={currencyOptions}
                   className="w-32 shrink-0"
                   triggerClassName="!h-10 !rounded-lg !border-0 !bg-surface-variant !px-3"
                 />
               </div>
+              {currency !== configuredCurrency && (
+                <p className="px-4 py-2 text-xs text-on-surface-variant">
+                  {t(m.settings.historicalCurrencyActive, { currency })}
+                </p>
+              )}
 
               {/* Language */}
               <div className="flex items-center justify-between p-4 gap-3">
@@ -257,15 +267,14 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <div className="bg-surface-container rounded-xl border border-outline-variant/50 p-4">
               <MonthlyStartDateControl
                 compact
-                value={monthStartDateFor(profile, workspace)}
+                value={workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate}
+                disabled={workspace === 'household' && !isOwner}
                 scopeLabel={
                   workspace === 'household'
                     ? m.profile.monthStartDateHouseholdScope
                     : m.profile.monthStartDatePersonalScope
                 }
-                onChange={(day) =>
-                  updateProfileData({ [monthStartDateField(workspace)]: day })
-                }
+                onChange={(day) => setPendingStartDay(day || 1)}
               />
             </div>
           </div>
@@ -339,6 +348,36 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingCurrency)}
+        onClose={() => setPendingCurrency(null)}
+        onConfirm={() => {
+          if (pendingCurrency) void setCurrency(pendingCurrency);
+          setPendingCurrency(null);
+        }}
+        title={m.settings.currencyChangeTitle}
+        message={pendingCurrency ? t(m.settings.currencyChangeFutureOnly, {
+          current: configuredCurrency,
+          next: pendingCurrency,
+        }) : ''}
+        confirmLabel={m.settings.useForFuturePeriods}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingStartDay !== null}
+        onClose={() => setPendingStartDay(null)}
+        onConfirm={() => {
+          if (pendingStartDay !== null) {
+            if (workspace === 'household') void updateConfiguration({ monthStartDate: pendingStartDay });
+            else void updateProfileData({ monthStartDate: pendingStartDay });
+          }
+          setPendingStartDay(null);
+        }}
+        title={m.settings.periodChangeTitle}
+        message={pendingStartDay !== null ? t(m.settings.periodChangeFutureOnly, { day: pendingStartDay }) : ''}
+        confirmLabel={m.settings.useForFuturePeriods}
+      />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}

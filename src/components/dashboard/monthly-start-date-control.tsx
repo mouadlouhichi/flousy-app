@@ -10,11 +10,8 @@ interface MonthlyStartDateControlProps {
   onChange: (day: number | undefined) => void;
   /** Compact variant for modals (no outer heading). */
   compact?: boolean;
-  /**
-   * Names the workspace the date applies to. The start date is stored per
-   * workspace, so without this the user cannot tell which budget they are
-   * editing when they switch between personal and household.
-   */
+  disabled?: boolean;
+  /** Identifies whether the personal or household period is being edited. */
   scopeLabel?: string;
 }
 
@@ -28,6 +25,7 @@ export function MonthlyStartDateControl({
   value,
   onChange,
   compact = false,
+  disabled = false,
   scopeLabel,
 }: MonthlyStartDateControlProps) {
   const { messages: m, t, language, intlLocale } = useLanguage();
@@ -51,6 +49,7 @@ export function MonthlyStartDateControl({
             value={value}
             onChange={onChange}
             label={null}
+            disabled={disabled}
             hint={
               value
                 ? t(m.onboarding.monthlyStartHint, { day: localizedDay(value) })

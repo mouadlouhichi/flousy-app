@@ -4,7 +4,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
 import Link from 'next/link';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
@@ -32,7 +32,7 @@ const CHART_COLORS = [
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace, canViewArea } = useHousehold();
+  const { workspace, household, canViewArea } = useHousehold();
   // Analytics is a roll-up of the other areas: each card is filtered by the
   // area that owns its numbers, so an analytics grant on its own does not
   // expose balances or income sources to a member who lacks those.
@@ -46,7 +46,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
   const isPro = isProUser(profile);
   const showUpgrade = canShowProUpgrade(isPro, workspace);
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const hasMultiMonth = trendsMonths.length > 0;
 
   // ── Current month calculations ──
@@ -66,7 +66,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
     categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
   });
   (month.fixedExpenses || []).forEach((exp) => {
-    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + fixedPaidAmount(exp);
   });
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
 
@@ -80,7 +80,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   (month.fixedExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
     if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
-    personBreakdown[person].fixed += exp.amount;
+    personBreakdown[person].fixed += fixedPaidAmount(exp);
   });
 
   // ── Multi-month trend calculations ──

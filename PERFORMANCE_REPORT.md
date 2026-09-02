@@ -1,5 +1,12 @@
 # Performance Investigation & Fixes — SmartJib / Flousy
 
+> **Historical measurement note (2026-09-02):** this report preserves results
+> from the named 2026-08-30 snapshot; bundle sizes, route symbols and local TTFB
+> are not release evidence for the current Next.js 16 tree. The former
+> `src/middleware.ts` policy now lives in `src/proxy.ts`. Re-run production
+> Lighthouse/real-device checks and record them in
+> [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md) before launch.
+
 Date: 2026-08-30 · Branch: `arena/01a0504b-flousy-app`
 
 Goal: find why navigation/loading felt slow and make the app score green on
