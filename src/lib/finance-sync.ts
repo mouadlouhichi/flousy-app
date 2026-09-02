@@ -14,6 +14,8 @@ export interface FinanceMutation {
   nextMonth: MonthBudget;
   baseGoals?: SavingGoal[];
   nextGoals?: SavingGoal[];
+  /** Explicit period-state operations are distinguished from ordinary edits. */
+  intent?: 'finance' | 'close-period' | 'reopen-period';
   createdAt: string;
   attempts: number;
   lastError?: string;
@@ -21,7 +23,7 @@ export interface FinanceMutation {
 
 export interface MergeConflict {
   path: string;
-  reason: 'changed-remotely' | 'insufficient-funds';
+  reason: 'changed-remotely' | 'insufficient-funds' | 'period-closed';
 }
 
 export class FinanceConflictError extends Error {
@@ -29,6 +31,22 @@ export class FinanceConflictError extends Error {
     super(`Finance data changed elsewhere (${conflicts.map((item) => item.path).join(', ')}).`);
     this.name = 'FinanceConflictError';
   }
+}
+
+/** Decide whether an outbox operation may run against the latest period state. */
+export function resolvePeriodMutation(
+  remoteMonth: Pick<MonthBudget, 'periodStatus'>,
+  intent: FinanceMutation['intent'] = 'finance',
+): 'proceed' | 'already-satisfied' {
+  if (remoteMonth.periodStatus === 'closed') {
+    if (intent === 'close-period') return 'already-satisfied';
+    if (intent !== 'reopen-period') {
+      throw new FinanceConflictError([{ path: 'periodStatus', reason: 'period-closed' }]);
+    }
+  } else if (intent === 'reopen-period') {
+    return 'already-satisfied';
+  }
+  return 'proceed';
 }
 
 const ARRAY_FIELDS = new Set([

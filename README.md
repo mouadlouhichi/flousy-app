@@ -2,770 +2,509 @@
 
 # 💰 SmartJib
 
-**A private, mobile-first budget tracker that knows the difference between
-what your money is _for_ and where it actually _is_.**
+**A private, mobile-first budget tracker that separates what money is for from where it is held.**
 
-[![CI](https://img.shields.io/badge/CI-typecheck%20%7C%20lint%20%7C%20test%20%7C%20build-2ea44f)](ci/github-actions-ci.yml)
-[![Tests](https://img.shields.io/badge/tests-86%20passing-2ea44f)](#-testing)
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs)](https://nextjs.org)
+[![CI definition](https://img.shields.io/badge/CI-definition_available-2ea44f)](ci/github-actions-ci.yml)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
-[![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#-progressive-web-app)
 
 </div>
 
----
+> **Release status:** repository work for the production candidate is tracked in
+> [`MVP_TODO.md`](MVP_TODO.md). Deployment credentials, DNS/email verification,
+> monitoring, App Check and live smoke tests are operator-owned gates in
+> [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md).
 
-## Table of contents
+## Contents
 
-- [Why SmartJib](#-why-flousy)
-- [Features](#-features)
-- [Tech stack](#-tech-stack)
-- [Quick start](#-quick-start)
-- [Firebase setup](#-firebase-setup)
-- [Environment variables](#-environment-variables)
-- [Scripts](#-scripts)
-- [Project structure](#-project-structure)
-- [Core concepts](#-core-concepts)
-- [Data model](#-data-model)
-- [Internationalisation](#-internationalisation)
-- [Security](#-security)
-- [Testing](#-testing)
-- [Progressive Web App](#-progressive-web-app)
-- [SEO & discoverability](#-seo--discoverability)
-- [Deployment](#-deployment)
-- [Continuous integration](#-continuous-integration)
-- [Privacy & your data](#-privacy--your-data)
-- [Roadmap & known limitations](#-roadmap--known-limitations)
-- [Troubleshooting](#-troubleshooting)
+- [Why SmartJib](#why-smartjib)
+- [Launch plans](#launch-plans)
+- [Features](#features)
+- [Architecture and trust boundaries](#architecture-and-trust-boundaries)
+- [Quick start](#quick-start)
+- [Firebase setup](#firebase-setup)
+- [Environment variables](#environment-variables)
+- [Commands and validation](#commands-and-validation)
+- [Data model](#data-model)
+- [Internationalisation](#internationalisation)
+- [Privacy and security](#privacy-and-security)
+- [Deployment](#deployment)
+- [Continuous integration](#continuous-integration)
+- [Known constraints and post-launch work](#known-constraints-and-post-launch-work)
 
----
+## Why SmartJib
 
-## 🎯 Why SmartJib
+Most budget apps conflate two independent questions:
 
-Most budget apps conflate two different questions:
-
-| Question | Example | SmartJib calls it |
+| Question | Example | SmartJib concept |
 | --- | --- | --- |
-| What is this money **for**? | Rent is a *need*, dinner out is a *want* | **Budget envelope** |
-| Where is this money **sitting**? | In the bank, in a drawer, in my wallet | **Money place** |
+| What is this money **for**? | Rent is a need; dinner out is a want | Budget envelope |
+| Where is this money **held**? | Bank, home or wallet | Money place |
 
-Mixing them produces nonsense — like a budgeting rule deciding how much cash
-you keep at home. SmartJib keeps the two axes strictly separate, and the
-accounting honours it: **every dirham is conserved**. Log an expense and the
-money leaves a real place. Delete it and it comes back. Fund a savings goal
-and it moves out of your account; withdraw and it returns.
+SmartJib keeps those axes separate. Expense edits, transfers, savings deposits,
+withdrawals and deletion flows are built around conservation of money rather
+than silently changing the total. SmartJib does **not** connect to bank accounts:
+transactions are entered manually and no bank credentials or account numbers
+are requested.
 
-That invariant — money is never silently created or destroyed — is enforced by
-the [test suite](#-testing).
+## Launch plans
 
-SmartJib **never connects to your bank**. You enter transactions yourself, which
-is the whole point: no credentials, no third-party aggregator, no card numbers.
+### Free
 
----
+The core budget is free with no time limit. It includes manual income and expense
+tracking, money places and transfers, fixed charges, saving goals, debts and
+credits, month navigation, data export/backup and account deletion.
 
-## ✨ Features
+### Pro launch trial
 
-### Budgeting
+An eligible account can start **one 90-day Pro trial**:
 
-- **Four strategies** — 50/30/20, Zero-Based, Envelope, Pay-Yourself-First.
-  Each splits income into **needs / wants / savings** envelopes whose shares
-  always sum to exactly 100%.
-- **Auto-scaled category budgets.** Active categories are distributed across
-  their envelope down to the last currency unit, with the remainder spread one
-  unit at a time so nothing is left unallocated.
-- **Guided 5-step onboarding** — income → categories → bills → strategy → review.
-- **Multiple income sources** — name and track each stream separately; the
-  month's total budget is their sum.
-- **Budget alerts** — a notification tray flags envelopes at 80% / 100% of
-  their cap, plus any single category eating >60% of variable spending.
+- no card or payment details are collected;
+- there is no paid checkout at launch;
+- the trial does not renew automatically;
+- access expires exactly 90 days after the recorded start time;
+- core data remains available when Pro editing expires.
 
-### Money tracking
+Pro currently unlocks:
 
-- **Three money places** — Bank, Home, Wallet. All income starts in the bank;
-  **Move money** transfers between them, always conserving the total.
-- Every expense records **which place it was paid from** and debits it.
-  Add, edit and delete all reconcile correctly — including when an edit moves
-  an expense to a different place.
-- **Variable expenses** and **fixed monthly bills** with full create / edit /
-  delete, search, and category + person filtering.
-- **Recurring bills** carry over automatically when you open a fresh month.
-- **Saving goals** are global — they survive month rollover — with deposit
-  *and* withdraw. Deleting a funded goal **returns its balance** rather than
-  vaporising it.
-- **Debts & credits** ledger — track what you owe and what's owed to you, and
-  toggle each entry between open and settled.
-- **Trends** — month-over-month spending comparison, category breakdown,
-  per-person (household) breakdown, income-source analytics, and budget health,
-  over the last 6 months.
-- Month-to-month navigation; a new month inherits your plan with a clean slate
-  of transactions.
+- barcode-assisted shopping-course entry;
+- six-month trends and analytics views;
+- multiple income-source management;
+- bulk CSV import;
+- category caps and budget rollover;
+- shared Household workspaces.
+
+CSV export and complete JSON backup remain available from **Profile → Data** as
+data-portability features; they are not paywalled.
+
+`src/lib/pro-features.ts` resolves expiry-aware access. Firestore Rules permit a
+client account to claim only the one exact launch-trial window and prevent it
+from rewriting entitlement fields afterward. Household access is projected from
+an actively entitled owner and enforced in Rules.
+
+### Future billing (disabled)
+
+`src/lib/payments.ts` is a provider-neutral contract for a later **Moroccan CMI
+or Stripe** integration. `BILLING_LIVE` is `false`; there are no provider
+credentials, live payment endpoints, recurring offers or in-app card fields.
+The future implementation must use provider-hosted checkout, signature-verified
+and idempotent webhooks, and Firebase Admin SDK entitlement projection. Browser
+code must never grant a paid entitlement.
+
+## Features
+
+### Budgeting and accounting
+
+- Four strategies: 50/30/20, zero-based, envelope and pay-yourself-first.
+- Needs, wants and savings envelopes with exact remainder handling.
+- Configurable variable and fixed categories, icons and colours.
+- Bank, home, wallet and custom money places.
+- Add, edit and delete variable expenses and fixed charges.
+- Place-to-place transfers, balance adjustments and immutable audit entries.
+- Global saving goals with deposit, withdrawal and safe funded-goal deletion.
+- Debts and credits with open/settled lifecycle.
+- Recurring income and fixed-charge materialisation without duplicate retries.
+- Configurable budget-month start day and historical currency snapshots.
+- Personal and owner-controlled Household month close/reopen; closed periods are
+  read-only across ordinary edits, course posting and invoice approval.
+
+### Household collaboration
+
+- Owner, editor, viewer and contributor roles enforced by Firestore Rules.
+- Area-aware navigation, reads, edits and exports.
+- Secure invitation documents with expiring codes.
+- Optional Resend delivery; a valid code remains usable if email delivery is not
+  configured.
+- Contributor invoice submission and transactional owner approval/rejection.
+- Member attribution, audit metadata and owner-only lifecycle controls.
+
+### Shopping-course capture
+
+- Manual product entry is always available.
+- Pro barcode scan path: native `BarcodeDetector`, then ZXing fallback.
+- Product resolution: private catalog, Open Food Facts, then manual fallback.
+- Quantity and price capture, deterministic bill text/CSV, sharing and history.
+- Idempotent posting of a completed course into an open budget month.
+- Barcode lookup failures degrade to manual entry rather than blocking a trip.
+
+See [`COURSE_SESSION_DESIGN.md`](COURSE_SESSION_DESIGN.md) for the design and
+privacy decisions.
+
+### Data ownership and resilience
+
+- Current-month CSV export with spreadsheet-injection neutralisation.
+- Localised CSV import with delimiter/header mapping, duplicate detection and
+  bounded batch sizes (Pro).
+- Complete, versioned JSON workspace backup and confirmation-gated restore.
+- Personal deletion, account deletion and Household leave/delete flows that
+  report partial failure instead of claiming success.
+- Local month cache plus an IndexedDB-backed mutation outbox.
+- Transactional Firestore revisions, stable mutation IDs and conflict recovery.
+- Backward-compatible normalisation for legacy month/profile documents.
 
 ### Platform
 
-- Email/password and Google sign-in, with **redirect fallback** for in-app
-  browsers that block popups, plus password reset and email verification.
-- **Demo mode** — the app runs entirely on `localStorage` when Firebase isn't
-  configured, so you can explore it without a backend.
-- **12 currencies** (MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD,
-  XOF) with locale-aware `Intl` formatting.
-- **3 languages** — English, French and Arabic, including **RTL** layout.
-- **Custom categories** with colour and icon pickers.
-- **CSV export** of everything, **CSV import** of transactions, and
-  **one-click account deletion**.
-- Live Firestore sync with a local cache, so the UI stays responsive and
-  survives a reload.
-- **Light / dark / system** theme, and an installable PWA with an offline shell.
-- Marketing site included: landing page, blog, help, about, contact, careers
-  and legal pages, with JSON-LD, sitemap, robots and `llms.txt`.
+- Firebase email/password and Google sign-in, password reset and email
+  verification.
+- Local-only demo mode when Firebase is absent or explicitly selected.
+- 12 currencies: MAD, EUR, USD, GBP, CAD, CHF, AED, SAR, EGP, TND, DZD and XOF.
+- English, French and Arabic UI, including RTL layout.
+- Responsive dashboard, light/dark/system theme and installable PWA shell.
+- Public landing, blog, about, help, contact, careers and legal pages.
+- Sitemap, robots, Open Graph image, factual `llms.txt` and JSON-LD.
 
----
+## Architecture and trust boundaries
 
-## 🧰 Tech stack
-
-| Layer | Choice |
+| Layer | Implementation |
 | --- | --- |
-| Framework | **Next.js 15** (App Router, React 19, TypeScript) |
-| Styling | **Tailwind CSS v4** (`@tailwindcss/postcss`) + CSS-variable design tokens |
-| UI primitives | **shadcn/ui** (new-york) on Radix, **lucide-react** icons |
-| Backend | **Firebase** Auth + Firestore (client SDK only — no server) |
-| Validation | **Zod** |
-| Charts | **Recharts** |
-| Tests | **`node:test`** via **tsx** (no test framework dependency) |
+| Web | Next.js 16 App Router, React 19, TypeScript 5.8 |
+| Styling | Tailwind CSS 4, CSS design tokens, Radix/shadcn primitives |
+| Identity/data | Firebase Authentication and Cloud Firestore |
+| Server routes | Next.js Node runtime for contact, invitation email and barcode proxy |
+| Email | Resend, configured only with server-side variables |
+| Validation | Zod plus domain validation and Firestore Rules |
+| Charts | Responsive semantic HTML/CSS trend and breakdown visualizations |
+| Tests | Node test runner through `tsx`; Firebase Rules Unit Testing for emulator cases |
 
-> [!NOTE]
-> There is no custom server and no API routes. Firestore security rules are the
-> authorisation layer, which is why [deploying them](#-firebase-setup) is not
-> optional.
+The browser is not trusted as an authorisation boundary. Firestore Rules enforce
+ownership, active Household membership/role, entitlement projection, create-only
+onboarding bootstraps, period state, monotonic revisions and matching immutable
+ledger entries. Multi-document finance transitions use Firestore transactions.
+Friendly UI gates are defense in depth, not the source of authority.
 
----
+The three server routes have intentionally narrow responsibilities:
 
-## 🚀 Quick start
+- `GET/POST /api/contact`: readiness plus validated, same-origin, rate-limited,
+  idempotent contact submission with truthful provider-acceptance status;
+- `GET/POST /api/household-invitations`: no-secret readiness plus authenticated
+  delivery of an invitation already authorised by Firestore Rules;
+- `GET /api/barcode/lookup`: bounded Open Food Facts proxy/fallback.
 
-> **Prerequisites:** Node.js 20+ (CI pins 20) and — optionally — a free
-> [Firebase](https://console.firebase.google.com) project.
+Financial records are read and written directly through Firebase; they are not
+sent through the email or barcode routes.
+
+## Quick start
+
+### Prerequisites
+
+- **Node.js 24** recommended (matches CI and the current ZXing dependency engine).
+- npm (lockfile is committed).
+- For Rules tests/deployment: Java 21 and Firebase CLI 15.
+- Optional Firebase project; without Firebase configuration the app can run in
+  local demo mode.
 
 ```bash
 git clone https://github.com/mouadlouhichi/flousy-app.git
 cd flousy-app
-npm install
-
-cp .env.example .env.local   # then add your Firebase values (see below)
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000>. `npm run dev` binds to `0.0.0.0:3000`.
 
-> [!TIP]
-> **No Firebase? No problem.** Without credentials the app falls back to
-> **Demo Mode**: `/login` offers a "Continue in Demo Mode" button and all data
-> is kept in `localStorage`. Nothing crashes, nothing syncs.
+## Firebase setup
 
----
-
-## 🔥 Firebase setup
-
-<details>
-<summary><strong>Step-by-step (click to expand)</strong></summary>
-
-1. **Create a project** at <https://console.firebase.google.com>.
-
-2. **Enable authentication**
-   Authentication → Sign-in method → enable **Email/Password** and **Google**.
-
-3. **Create the database**
-   Firestore Database → Create database. Production mode is correct — the
-   rules in this repo replace the defaults.
-
-4. **Register a web app**
-   Project settings → General → *Your apps* → add a **Web app**, then copy the
-   six config values into `.env.local`.
-
-5. **Deploy the security rules** ← *don't skip this*
-
-   ```bash
-   npm install -g firebase-tools
-   firebase login
-   firebase use --add          # pick your project
-   firebase deploy --only firestore:rules
-   ```
-
-</details>
-
-> [!WARNING]
-> **Always deploy `firestore.rules`.** Without it, Firestore either blocks
-> every read/write (the app looks broken) or — if you picked *test mode* —
-> lets **anyone read and write anyone's financial data**. See
-> [Security](#-security) for what the rules enforce.
-
----
-
-## 🔑 Environment variables
-
-The six Firebase values are what the app actually reads at runtime. They're
-`NEXT_PUBLIC_*` because the Firebase Web SDK runs in the browser; this is
-expected, and access is controlled by security rules rather than by hiding the
-config. Each also accepts a non-prefixed fallback (e.g. `FIREBASE_API_KEY`).
-
-| Variable | Where to find it |
-| --- | --- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Project settings → Your apps → Web app |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `<project>.firebaseapp.com` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Project settings → General |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `<project>.appspot.com` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Cloud Messaging sender ID |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Web app ID (`1:…:web:…`) |
-
-Only `apiKey` and `projectId` are strictly required for Firebase to initialise;
-omit them and the app runs in Demo Mode.
-
-**Optional**
-
-| Variable | Effect |
-| --- | --- |
-| `NEXT_PUBLIC_ANALYTICS` | `plausible` or `ga` activates the telemetry seam in `src/lib/analytics.ts`. Unset = nothing is ever sent. |
-| `RESEND_API_KEY` | Enables household invitation emails. Unset = `/api/household-invitations` answers `503 email_not_configured`; the invitation code is still created and works. |
-| `RESEND_FROM_EMAIL` | Verified sender address in Resend. `onboarding@resend.dev` is Resend's sandbox address: it only delivers to the address verified on the Resend account, and production deployments refuse it outright. |
-| `APP_URL` | Base of the accept link in invitation emails. Falls back to `NEXT_PUBLIC_SITE_URL`, then to the Vercel deployment URL. |
-
-### Enabling invitation email on Vercel
-
-Vercel environment variables are **scoped per environment**, and the app reads
-them at build time as well as at request time. A key added only to Production is
-therefore invisible to Preview and Development deployments, which is what makes
-the invite button answer `503`. To cover every environment:
+1. Create a Firebase project.
+2. Enable **Email/Password** and **Google** under Authentication providers.
+3. Register a Web app and set the Firebase variables listed below.
+4. Create Cloud Firestore in production mode.
+5. Add each deployed hostname under **Authentication → Settings → Authorized
+   domains**.
+6. Deploy the committed Rules and indexes:
 
 ```bash
-vercel env add RESEND_API_KEY          # choose Production, Preview, Development
-vercel env add RESEND_FROM_EMAIL       # e.g. SmartJib <hello@yourdomain.com>
-vercel env add NEXT_PUBLIC_SITE_URL    # Production only: https://flousy.app
-vercel redeploy                          # env vars are baked into the build
+npx firebase-tools@15 login
+npx firebase-tools@15 use --add
+npx firebase-tools@15 deploy --only firestore:rules,firestore:indexes
 ```
 
-`GET /api/household-invitations` reports what this deployment can actually do
-without sending anything, so the state can be checked from a terminal:
+Never launch with Firestore test-mode Rules. `firestore.rules` is the main data
+authorisation layer, not optional application configuration.
 
-Caller identity is checked by verifying the ID token's RS256 signature against
-the certificates Firebase publishes (`src/lib/firebase-id-token.ts`), so the
-route needs **no** server-side secret to know who is calling — only sending mail
-needs `RESEND_API_KEY`.
+## Environment variables
 
-```bash
-curl -s https://<deployment>/api/household-invitations
-# {"emailConfigured":false,"code":"email_not_configured","sandboxSender":true,"environment":"preview"}
-```
+Copy `.env.example` to `.env.local` for development. Put production values in
+the deployment platform; never commit `.env.local` or server secrets.
 
-`APP_URL` is read by the household-invitation email route as the base of the
-accept link, falling back to `NEXT_PUBLIC_SITE_URL`. The `GEMINI_API_KEY` entry
-and the `MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API` marker in `metadata.json` were
-removed: no code in this repository calls an AI API, and advertising a capability
-the app does not have is how "the AI feature is broken" tickets get filed.
+### Firebase browser configuration
 
----
+These values identify a Firebase Web app. They are public by design; security
+comes from Authentication, App Check when enabled, and Firestore Rules.
 
-## 📜 Scripts
+| Variable | Required for cloud mode | Purpose |
+| --- | ---: | --- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Yes | Firebase Web API key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Recommended | Auth redirect/popup domain |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Yes | Firestore project and token audience |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | No at launch | Reserved Firebase config field |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | No at launch | Firebase app config field |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Recommended | Firebase Web app ID |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` | Optional | Firebase Analytics measurement ID |
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Dev server on `0.0.0.0:3000` (via `scripts/dev.js`) |
-| `npm run build` | Production build |
-| `npm start` | Serve the production build |
-| `npm run clean` | Remove `.next` and `dist` |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | Currently an alias of `typecheck` — see [known limitations](#-roadmap--known-limitations) |
-| `npm run test` | `tsx --test tests/*.test.ts` |
-| **`npm run check`** | **typecheck + lint + test — run before pushing** |
+Non-prefixed Firebase fallbacks exist for non-browser build environments, but a
+browser deployment should use the documented `NEXT_PUBLIC_*` names.
 
----
+### URL and email configuration
 
-## 🏗 Project structure
-
-```
-src/
-├── app/                        # Next.js App Router
-│   ├── page.tsx                # Marketing landing page
-│   ├── login/                  # Auth: sign in / sign up / reset / demo
-│   ├── onboarding/             # 5-step budget setup
-│   ├── dashboard/              # Main app shell + state orchestration
-│   ├── blog/  help/  about/    # Content & support pages
-│   ├── contact/  careers/
-│   ├── privacy/  terms/ cookies/
-│   ├── opengraph-image.tsx     # Generated OG image
-│   ├── sitemap.ts  robots.ts   # SEO route handlers
-│   ├── error.tsx               # Route error boundary
-│   ├── not-found.tsx           # 404
-│   └── loading.tsx             # Route loading state
-│
-├── components/
-│   ├── ui/                     # shadcn/ui primitives + Modal, ConfirmDialog…
-│   ├── modals/                 # Expense, Fixed, Savings, MoveMoney, Debt,
-│   │                           #   Settings, Categories, ImportCsv, Income, Pro
-│   ├── tabs/                   # Overview, Variable, Fixed, Savings, Trends, Debts
-│   ├── landing/                # Marketing sections
-│   ├── pwa/                    # Install prompt, banner, SW registrar
-│   └── seo/                    # JSON-LD helper
-│
-├── lib/
-│   ├── store.ts                # ⭐ Domain model + all money math (pure)
-│   ├── db.ts                   # Firestore read/write/subscribe
-│   ├── auth-context.tsx        # Auth state, sign-in, account deletion
-│   ├── currency.ts / -context  # 12 currencies + formatting
-│   ├── i18n*.ts(x)             # en/fr/ar, RTL, ICU plurals
-│   ├── validation.ts           # Zod schemas for every form
-│   ├── export.ts               # CSV generation
-│   ├── payments.ts             # Mock Stripe checkout
-│   ├── blog.ts  seo.ts         # Content + SEO constants
-│   └── analytics.ts            # Telemetry seam (no-op by default)
-│
-├── hooks/                      # use-pwa-install, use-mobile, use-toast
-└── middleware.ts               # Origin-based CSP + CDN cache headers (static-friendly)
-
-messages/                       # en.json · fr.json · ar.json
-tests/                          # node:test suites
-ci/                             # GitHub Actions workflow (see CI section)
-firestore.rules                 # Authorisation layer
-```
-
-**Design notes**
-
-- **`store.ts` holds all money math as pure functions** — zero imports, no
-  React, no Firebase. That's why the invariants are cheap to test exhaustively.
-- **The dashboard orchestrates; components render.** Writes go through
-  `updateAndSaveMonth()` / `updateAndSaveGoals()`, which update React state,
-  mirror to `localStorage`, then persist to Firestore when signed in.
-- **Design tokens live in CSS variables** (`src/index.css`, documented in
-  [`DESIGN.md`](DESIGN.md)). Dark mode is a token override, so components
-  needed no changes.
-
----
-
-## 🧠 Core concepts
-
-### Envelopes vs money places
-
-```
-INCOME  ─┬─► envelopes  (what it's FOR)    needs · wants · savings
-         └─► places     (where it IS)      bank  · home  · wallet
-```
-
-These are **independent**. A strategy sets envelope *shares*; it never decides
-placement. All income starts in the **bank**, and you move cash out explicitly.
-
-### Strategies
-
-| Strategy | Needs | Wants | Savings |
-| --- | --- | --- | --- |
-| 50/30/20 Rule *(default)* | 50% | 30% | 20% |
-| Zero-Based Budgeting | 60% | 25% | 15% |
-| Envelope System | 55% | 35% | 10% |
-| Pay-Yourself-First | 45% | 25% | 30% |
-
-Shares always total 100%, and envelope amounts always sum to your exact
-income — the savings envelope absorbs any rounding remainder.
-
-### Category buckets
-
-Each category resolves to `needs` or `wants`. Because a name can mean different
-things in different contexts, buckets are resolved **per kind**:
-
-```ts
-bucketOf('Autre', 'variable')  // → 'wants'  (a miscellaneous purchase)
-bucketOf('Autre', 'fixed')     // → 'needs'  (a miscellaneous recurring bill)
-```
-
-Unknown custom categories default to `wants` for variable spending and `needs`
-for fixed bills, so a user-invented category can never quietly inflate the
-essentials envelope.
-
-### Money conservation
-
-Every operation that touches money is reversible and balanced:
-
-| Action | Effect |
-| --- | --- |
-| Add expense | Debit its money place |
-| Edit amount | Apply only the **difference** |
-| Edit place | Refund the old place, debit the new one |
-| Delete expense | Refund in full |
-| Fund goal | Debit place → increase goal |
-| Withdraw goal | Decrease goal → credit place |
-| Delete funded goal | **Return the balance** to its place |
-| Move money | Debit source, credit destination (capped at the source balance) |
-
-Places clamp at zero and never display a negative balance.
-
----
-
-## 🗄 Data model
-
-```
-users/{uid}                     UserProfile
-  ├── plan: 'free' | 'pro'      (single source of truth for Pro access)
-  ├── planBillingCycle?         ('monthly' | 'annual', set at checkout)
-  ├── planNextBillingDate?      (YYYY-MM-DD, set at checkout)
-  ├── currency: string
-  ├── onboardingComplete: bool
-  ├── displayName?, avatarUrl?, theme?
-  ├── language?: 'en' | 'fr' | 'ar'
-  └── householdMembers?: string[]
-
-users/{uid}/months/{YYYY-MM}    MonthBudget
-  ├── totalBudget, incomeSources[]
-  ├── bankPart, homePart, walletPart
-  ├── strategyId, monthlySavingsTarget
-  ├── variableExpenses[]        { id, name, amount, type, date, place,
-  │                               note?, person?, tags?, receiptUrl? }
-  ├── fixedExpenses[]           { …, base?, recurring?, person? }
-  ├── debts[]                   { id, name, amount, type, status, date, note? }
-  ├── variable/fixedCategoryBases
-  ├── activeCategories, categoryColors, categoryIcons
-  └── updatedAt
-
-users/{uid}/data/savings        SavingsData
-  └── goals[]                   { id, name, target, current, source, active }
-```
-
-> [!NOTE]
-> **Saving goals are global, not per-month.** Money set aside in April is
-> still saved in May. Months only ever move money *into* or *out of* a goal —
-> they never own it, so nothing resets at rollover.
-
-Documents written by older versions are upgraded on read by `normalizeMonth()`,
-which backfills missing fields (including defaulting a legacy expense's `place`
-to `bank`). A machine-readable schema lives in
-[`firebase-blueprint.json`](firebase-blueprint.json) — it covers every entity
-plus the nested item shapes (expenses, goals, debts, income sources).
-
-Nothing reads that file at runtime, so [`tests/blueprint.test.ts`](tests/blueprint.test.ts)
-keeps it honest: it parses `src/lib/store.ts` with the TypeScript compiler and
-fails the build if the blueprint's fields, `required` list, string-literal enums
-or array element types drift from the interfaces. It also cross-checks the
-document paths against `src/lib/db.ts` and the month-ID pattern, array caps and
-money bounds against `firestore.rules`. **Change a type — update the blueprint.**
-
----
-
-## 🌍 Internationalisation
-
-Three locales ship fully translated: **English**, **French**, **Arabic**.
-
-- Messages live in [`messages/`](messages) as flat JSON, typed from `en.json`
-  so a missing key in a translation is a type error.
-- `formatMessage()` supports `{token}` interpolation and **ICU plurals**
-  (`=0 / one / two / few / many / other`), which matters for Arabic.
-- Arabic sets `dir="rtl"` on `<html>`; the locale is resolved server-side from
-  the `flousy_language` cookie so the first paint is already correct.
-- Language choice persists to the cookie, `localStorage`, **and** the user
-  profile in Firestore.
-- Default category names are localised per language.
-
----
-
-## 🔒 Security
-
-`firestore.rules` enforces ownership and basic document shape:
-
-- ✅ Only `request.auth.uid == uid` can read or write a user's documents
-- ✅ Everything else **denied by default** (`match /{document=**}`)
-- ✅ Money fields validated as numbers in `0 … 1e9`
-- ✅ Array caps: 2,000 variable expenses, 500 fixed, 200 goals
-- ✅ Month IDs must match `^[0-9]{4}-[0-9]{2}$`
-- ✅ **`plan` is Firebase-only** — Pro access is always resolved from the
-  profile's `plan` field on Firestore, never a local flag
-- ✅ Profile creation requires `plan == 'free'`; updates may only flip it
-  between `'free'` and `'pro'` (validated in rules)
-
-While payments are mocked, the signed-in owner flips `plan` client-side after
-checkout. With a real payment provider, re-pin the field and move the write
-into an Admin SDK payment webhook (which bypasses rules).
-
-**Other measures**
-
-- **Origin-based CSP** on every route (`script-src 'self' 'unsafe-inline'`
-  plus the Google auth/analytics allow-list; `object-src 'none'`,
-  `base-uri 'self'`, `frame-ancestors 'none'`, strict connect/frame lists).
-  A per-request nonce was deliberately dropped: it forces per-request
-  rendering, which is what made in-app navigation wait for the server. Every
-  page is now prerendered and navigation is a client-side route change.
-- Hardened response headers in `next.config.mjs`: HSTS, `nosniff`,
-  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and
-  `COOP: same-origin-allow-popups` so Google sign-in popups still work.
-- **Zod validation** on every form.
-- **CSV-injection neutralisation** on export (`=`, `+`, `-`, `@`, tab, CR are
-  prefixed with `'`).
-- No bank connections, and card details are never collected — the Pro checkout
-  is a [mock](#-roadmap--known-limitations).
-
----
-
-## 🧪 Testing
-
-```bash
-npm run test
-```
-
-**86 tests across 18 suites**, run by Node's built-in test runner through `tsx`:
-
-| Suite | Tests | Covers |
+| Variable | Scope | Purpose |
 | --- | --- | --- |
-| `store.test.ts` | 8 | Strategy shares, envelope conservation, bucket resolution, category distribution, expense/goal lifecycles, normalisation |
-| `pwa.test.ts` | 16 | Manifest fields, icons on disk, maskable separation, service-worker behaviour, install-prompt wiring |
-| `validation.test.ts` | 6 | Rejection of empty / `NaN` / `Infinity` / negative / absurd input |
-| `export.test.ts` | 3 | CSV escaping, injection safety, ordering, empty accounts |
-| `seo.test.ts` | 3 | Currency/strategy facts stay aligned across `seo.ts`, `llms.txt` and the sitemap |
-| `flows.test.ts` | 1 | A full monthly journey asserting total wealth is conserved end to end |
-| `household.test.ts` | 11 | Household RBAC permissions (`owner`, `editor`, `contributor`, `viewer`, `custom`), Pro upgrade visibility gating, storage key namespacing, and audit trail helpers |
+| `NEXT_PUBLIC_SITE_URL` | Build/public | Absolute canonical origin, e.g. `https://flousy.app` |
+| `APP_URL` | Server | Trusted base for invitation accept links; falls back to the canonical/platform URL |
+| `RESEND_API_KEY` | Server secret | Enables invitation and contact delivery |
+| `RESEND_FROM_EMAIL` | Server | SPF/DKIM-verified sender, e.g. `SmartJib <hello@flousy.app>` |
+| `CONTACT_TO_EMAIL` | Server | Fixed recipient for public contact messages |
 
-Money math is tested against **all 4 strategies × 5 incomes**, including
-rounding-hostile values (`1`, `7`, `12345`, `1000001`), verifying that:
+Production refuses Resend's `@resend.dev` sandbox sender. Vercel variables are
+scoped independently to Production, Preview and Development, and a redeploy is
+required after changes.
 
-- envelope shares sum to exactly `1`
-- envelope amounts sum to exactly the income — no rounding leak
-- category budgets fill their envelope **to the last unit**
-- add → edit → delete returns to the **exact** starting balance
-- fund → withdraw → delete conserves total cash
-
----
-
-## 📱 Progressive Web App
-
-Installable on iOS and Android with a manifest, maskable icons and a service
-worker that serves an offline page when the network is gone.
-
-**How the install flow works**
-
-| Piece | File | Why it's needed |
-| --- | --- | --- |
-| Manifest | `public/manifest.json` | Name, `start_url: /dashboard`, `display: standalone`, 192/512 icons |
-| Icons | `public/icon-{192,512}.png`, `icon-maskable-{192,512}.png` | `any` and `maskable` are **separate** entries so Android doesn't crop the logo |
-| Service worker | `public/sw.js` | Chrome only offers an install prompt once a worker with a `fetch` handler is active |
-| Registration | `src/components/pwa/service-worker-registrar.tsx` | Registers `/sw.js` after `load`, production only |
-| Prompt capture | `src/components/pwa/install-prompt-capture.tsx` | Inline `<head>` script that catches `beforeinstallprompt` before React hydrates |
-| Install UI | `install-button.tsx`, `install-banner.tsx`, `ios-install-sheet.tsx` | Header button, auto banner, and manual iOS instructions |
-
-Anything that needs install state can use the `usePwaInstall()` hook:
-
-```ts
-const { canInstall, isInstalled, isIos, isPrompting, promptInstall, dismiss } =
-  usePwaInstall();
-```
-
-A dismissed banner stays hidden for two weeks.
-
-> [!IMPORTANT]
-> The service worker **deliberately never caches Firestore or Auth traffic**,
-> nor anything cross-origin or non-`GET`. Showing stale financial data would be
-> worse than an honest offline state, and the Firebase SDK has its own offline
-> persistence. Navigations are network-first with an offline fallback; static
-> assets are stale-while-revalidate.
-
-> [!NOTE]
-> `beforeinstallprompt` only fires over **HTTPS** (or `localhost`), and never in
-> Firefox or on iOS. iOS Safari users get the "Add to Home Screen" sheet instead.
-> Chrome also won't re-prompt an app that is already installed.
-
----
-
-## 🔎 SEO & discoverability
-
-- Per-page `metadata` with Open Graph and Twitter cards, plus a generated
-  `/opengraph-image`.
-- **JSON-LD** for `SoftwareApplication`, `Organization` and the landing FAQ.
-- `sitemap.ts` publishes public routes and **excludes** `/dashboard`,
-  `/onboarding` and `/login`; `robots.ts` disallows the same.
-- `public/llms.txt` gives AI crawlers a factual summary — and `seo.test.ts`
-  fails the build if it drifts from the app's real currency and strategy lists.
-- Three long-form budgeting guides under `/blog`.
-
----
-
-## 🚢 Deployment
-
-Standard Next.js app — deploy to [Vercel](https://vercel.com) (recommended),
-Netlify, or any Node host.
+Readiness probes send no mail and reveal no secrets:
 
 ```bash
+curl -fsS https://<deployment>/api/contact
+curl -fsS https://<deployment>/api/household-invitations
+```
+
+### Optional analytics
+
+Analytics remains off until a user explicitly grants consent. When a Firebase
+measurement ID is configured, Firebase Analytics loads lazily after consent.
+`NEXT_PUBLIC_ANALYTICS=plausible` or `ga` can select an additional pre-installed
+provider bridge; this repository does not inject those third-party scripts for
+you. All providers receive only centrally allowlisted parameters—never amounts,
+balances, categories, names, notes, receipts, invitation query values or
+arbitrary free text.
+
+## Commands and validation
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Development server on `0.0.0.0:3000` |
+| `npm run build` | Production Next.js build |
+| `npm start` | Serve the production build on `0.0.0.0:3000` |
+| `npm run lint` | ESLint over `src`/`tests` plus authoritative Firebase Rules syntax parsing, zero warnings allowed |
+| `npm run typecheck` | Normal TypeScript check |
+| `npm run typecheck:strict` | Strict TypeScript check |
+| `npm test` | All non-emulator unit/regression suites |
+| `npm run test:rules` | Firestore Rules suite; requires a running Firestore emulator |
+| `npm run check` | Lint + normal/strict typecheck + unit tests |
+| `npm audit --omit=dev` | Production dependency vulnerability gate |
+
+Run the complete local release sequence as follows:
+
+```bash
+npm ci
+npm audit --omit=dev
+npm run check
+npx firebase-tools@15 emulators:exec --only firestore \
+  --project smartjib-rules-test "npm run test:rules"
+npm run build
+```
+
+The test suites cover money invariants, complete finance journeys, conflict and
+outbox behavior, entitlement expiry, Household RBAC, onboarding, month locking,
+CSV/backup safety, mutation-time import entitlement/RBAC, contact acceptance/retry,
+token verification, analytics sanitisation, i18n catalog parity, schema/Rules drift,
+security headers, PWA behavior, SEO and shopping-course capture. `npm run lint`
+also parses `firestore.rules` with Firebase's authoritative ANTLR grammar; behavioral
+Rules authorization still requires the official Java-backed emulator suite.
+
+## Data model
+
+The canonical machine-readable contract is
+[`firebase-blueprint.json`](firebase-blueprint.json). Tests compare it with
+TypeScript interfaces, database paths and selected Rules bounds.
+
+Key paths include:
+
+```text
+users/{uid}                         profile + entitlement projection
+users/{uid}/months/{YYYY-MM}        revisioned personal month aggregate
+users/{uid}/data/savings            global personal goals
+users/{uid}/ledger/{mutationId}     immutable personal mutation audit
+users/{uid}/products/{barcode}      private product catalog
+users/{uid}/sessions/{sessionId}    completed shopping sessions
+
+households/{householdId}            owner/config/entitlement projection
+households/{householdId}/members/*  active membership and role
+households/{householdId}/months/*   revisioned shared month aggregate
+households/{householdId}/savings/*  shared goals
+households/{householdId}/ledger/*   immutable shared mutation audit
+households/{householdId}/invoices/* contributor invoice workflow
+
+householdInvites/{inviteId}         expiring invitation grant
+```
+
+Modern persisted IDs use `crypto.randomUUID()` when available. Legacy records
+remain readable through normalisers; production changes must preserve that
+compatibility.
+
+## Internationalisation
+
+`messages/en.json`, `messages/fr.json` and `messages/ar.json` have identical key
+shapes, checked by tests. Arabic uses RTL direction; language preference is
+applied before first paint from browser storage and then synchronized with the
+profile when signed in.
+
+The app intentionally has **one URL per page** today. Language is a client
+preference, not `/en`, `/fr` or `/ar` routing, so metadata declares only real
+canonical URLs and does not publish broken locale alternates. Locale-prefixed
+routing and server-rendered localized metadata are a post-launch SEO refactor.
+
+## Privacy and security
+
+- Personal data is private to its owner; Household data is visible only to
+  active members according to Rules-enforced roles.
+- No bank connection, bank credential collection or in-app payment-card form.
+- Optional analytics is consent-gated and parameter-allowlisted.
+- Contact content goes only to the configured support recipient through Resend.
+- Barcode text may be sent to Open Food Facts only when a lookup is requested.
+- CSV and JSON exports are available from Profile; deletion failures stay
+  visible and retryable.
+- Security headers include CSP, HSTS, `nosniff`, referrer/permissions policy,
+  frame protection and popup-compatible COOP.
+- Receipt attachments are resized, compressed and bounded before persistence.
+- API responses and authenticated app shells use no-store/private cache policy;
+  hashed static assets use immutable caching.
+
+The running application serves its Privacy Policy at `/privacy`, Terms at
+`/terms`, and Cookie Policy at `/cookies`. Legal copy must be reviewed
+by the operating entity before launch; repository text is not a substitute for
+jurisdiction-specific legal advice.
+
+## Progressive Web App
+
+The manifest, icons, install flow, service worker and offline fallback are under
+`public/` and `src/components/pwa/`. The worker never caches Firebase/Auth,
+cross-origin or non-GET traffic. Navigations are network-first; Firebase and the
+finance outbox own data resilience.
+
+PWA installation requires HTTPS (except localhost). iOS uses an explicit Add to
+Home Screen guide because it does not expose `beforeinstallprompt`.
+
+## SEO and public content
+
+- Public per-page metadata, generated Open Graph image and canonical URLs.
+- `SoftwareApplication`, `Organization`, `WebSite` and FAQ JSON-LD.
+- Sitemap includes public routes and blog posts, excluding login/onboarding/app
+  routes; robots applies matching private exclusions.
+- `public/llms.txt` contains a factual feature/pricing summary.
+- SEO tests keep currency, budgeting strategy, public FAQ and route facts aligned.
+
+Set `NEXT_PUBLIC_SITE_URL` separately for production and previews. Do not create
+hreflang entries until corresponding locale URLs actually exist.
+
+## Deployment
+
+Vercel is the primary supported target because this application includes Node
+API routes as well as prerendered pages.
+
+```bash
+npm i -g vercel
 vercel
 ```
 
-**Pre-flight checklist**
+At minimum, a production operator must:
 
-- [ ] Set the six `NEXT_PUBLIC_FIREBASE_*` variables in your host's dashboard
-- [ ] `firebase deploy --only firestore:rules`
-- [ ] Add your production domain to **Firebase → Authentication → Settings →
-      Authorized domains** (otherwise sign-in is rejected)
-- [ ] Point `SITE_URL` in `src/lib/seo.ts` at your domain
-- [ ] Fill in the operating entity and governing jurisdiction placeholders in
-      `/privacy` and `/terms`
-- [ ] Optionally set `NEXT_PUBLIC_ANALYTICS` and add the provider script
+1. configure Firebase and server email variables;
+2. deploy Rules and indexes from the same release commit;
+3. authorize the production and preview auth domains;
+4. verify the Resend sender domain and contact recipient;
+5. run readiness probes and authenticated smoke journeys;
+6. enable monitoring, budgets/alerts and Firebase App Check deliberately;
+7. confirm backup/restore and account-deletion behavior against production;
+8. complete every blocking item in [`PRODUCTION_CHECKLIST.md`](PRODUCTION_CHECKLIST.md).
 
-> [!NOTE]
-> **Rendering model (performance):** every page — including `/dashboard`,
-> `/login` and `/onboarding` — is **statically generated at build time**, so
-> in-app navigation is a pure client-side route change with a cached payload
-> (no server round-trip, no spinner). The private app routes are still marked
-> `private, no-store` in `src/middleware.ts` so the CDN never caches them, and
-> public HTML gets `public, s-maxage=300, stale-while-revalidate=86400`.
+The public pages are prerendered. Authenticated app HTML contains no user data,
+is marked private/no-store, and hydrates data client-side from Firebase/local
+cache. `src/proxy.ts` owns CSP and cache policy; `next.config.mjs` owns the other
+security headers.
 
----
+## Continuous integration
 
-## ⚡ Performance
+[`ci/github-actions-ci.yml`](ci/github-actions-ci.yml) defines the intended gate
+on Node 24 and Java 21:
 
-This repo is tuned for green PageSpeed Insights / Lighthouse results:
+1. locked install;
+2. production dependency audit;
+3. ESLint, normal and strict TypeScript, and unit tests;
+4. Firestore emulator Rules regressions;
+5. production build;
+6. Rules/index deployment on `main` when deployment credentials are present.
 
-| Area | What's in place |
-| --- | --- |
-| **Static pages everywhere** | Root layout does not read cookies/headers; **all** routes (incl. `/dashboard/*`) are prerendered. App routes stay `no-store`, and navigation is client-side with prefetched screens — instant, like a native app |
-| **CDN caching** | Public HTML `s-maxage=300` + SWR; `/_next/static/*`, fonts and images `immutable` for a year (`src/middleware.ts`, `next.config.mjs`) |
-| **Bundle size** | Firebase SDK + analytics are **not** loaded on public pages (marketing CTAs use a tiny `flousy_authed` cookie hook, `src/lib/auth-status.ts`); analytics is code-split (`firebase/analytics` loads on first event) |
-| **Translations** | Only `en.json` is bundled; `fr`/`ar` are lazy-loaded chunks (`src/lib/messages.ts`) — previously all three (~136 KB) shipped on every page |
-| **Dashboard** | All 12 modals are code-split and mount only when opened (`src/components/dashboard/dashboard-modals.tsx`); month data hydrates from local cache; profile loads from a local cache while Firestore revalidates |
-| **Fonts** | Self-hosted variable fonts (`next/font/local` + `@fontsource-variable/*`) — no Google Fonts request, no build-time font fetch, `font-display: swap` |
-| **Animations** | All canvas hero effects pause off-screen, cap device-pixel-ratio and render a single static frame for `prefers-reduced-motion` users |
+It is intentionally stored under `ci/` because the currently connected GitHub
+App cannot write `.github/workflows/`. CI is **not active merely because this
+file exists**. A repository administrator with workflow permission must move it
+to `.github/workflows/ci.yml`, require the check, and configure:
 
-### Cloudflare (or any CDN in front)
+- secret `FIREBASE_SERVICE_ACCOUNT`;
+- repository variable `NEXT_PUBLIC_FIREBASE_PROJECT_ID`.
 
-The app is already Cloudflare-friendly — no code change is needed:
-statically generated pages are cacheable at the edge, and `src/middleware.ts`
-emits explicit `Cache-Control` headers that Cloudflare's cache rules can honor
-directly (`public, s-maxage=300, stale-while-revalidate=86400` for HTML,
-`immutable` for `/_next/static/*` and hashed assets).
+See [`ci/README.md`](ci/README.md) and the production checklist. Do not merge a
+release on the assumption that the inactive workflow has run.
 
-If you host on **Cloudflare Workers** instead of Vercel/Node, use
-[`@opennextjs/cloudflare`](https://open-next.js.org/cloudflare) to build and
-deploy the Next.js standalone output (`wrangler deploy`), and keep the
-`NEXT_PUBLIC_FIREBASE_*` env vars in the Worker's environment. The static
-routes plus the middleware cache/CSP headers work as a Cloudflare Worker
-as-is.
+## Known constraints and post-launch work
 
----
+Launch intentionally does **not** pretend these provider-heavy capabilities are
+implemented:
 
-## 🔄 Continuous integration
+- live CMI/Stripe billing;
+- bank aggregation/sync;
+- receipt OCR;
+- push notifications;
+- Open Food Facts contribution and static Morocco catalog ingestion;
+- per-category splitting of a shopping course;
+- locale-prefixed SEO routes.
 
-The workflow runs **typecheck → lint → test → build** on every push and PR,
-using Node 20 and dummy Firebase values so the build never needs real
-credentials.
+Current scale/operations constraints:
 
-It ships at [`ci/github-actions-ci.yml`](ci/github-actions-ci.yml) rather than
-in `.github/workflows/` because the GitHub App used to push this branch lacks
-the `workflows` permission. To activate:
+- A month is a bounded aggregate document (up to the Rules-defined limits), so a
+  future transaction-subcollection migration is needed at larger scale.
+- Contact/invitation in-memory abuse counters are per server instance; production
+  should add platform/WAF-level distributed controls and alerts.
+- Receipt images are bounded inline data rather than Firebase Storage objects.
+- Firestore Rules cannot rate-limit document writes; App Check, quotas and cost
+  alerts are deployment responsibilities.
+- Demo/local mode is for evaluation, not a substitute for authenticated cloud
+  backup.
 
-```bash
-mkdir -p .github/workflows
-git mv ci/github-actions-ci.yml .github/workflows/ci.yml
-git commit -m "ci: enable GitHub Actions workflow"
-git push
-```
+The full implementation matrix is in [`MVP_TODO.md`](MVP_TODO.md); historical
+findings and resolution evidence are in [`AUDIT_2026-08-31.md`](AUDIT_2026-08-31.md).
 
----
+## Troubleshooting
 
-## 🛡 Privacy & your data
+### The app opens in Demo Mode
 
-- Your budget data is **private to your account** and is never sold or shared
-- **No bank connections.** Card and account numbers are never requested
-- **No third-party tracking** — analytics are opt-in and off by default
-- **Export** everything as CSV from Settings at any time
-- **Delete** your account and all data from Settings; this clears every
-  subcollection, the profile document and the auth record
+Firebase did not initialize. Verify at least
+`NEXT_PUBLIC_FIREBASE_API_KEY` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, then
+restart the dev server or redeploy (public variables are compiled into the
+bundle).
 
----
+### Firestore reads/writes are denied
 
-## 🗺 Roadmap & known limitations
+Confirm that the signed-in account owns or belongs to the selected workspace,
+that the period is open, and that current `firestore.rules` and indexes were
+deployed. Browser logs include structured Firestore operation/path details.
 
-**Shipped** — money-place accounting · edit everywhere · goal withdrawals ·
-debts & credits · multi-month trends · recurring bills · budget alerts ·
-income sources · CSV export *and* import · household/person tracking ·
-shared household workspaces & RBAC · 12 currencies · en/fr/ar with RTL ·
-light/dark themes · offline shell · origin CSP · hardened rules ·
-marketing site & blog · CI · 84 tests · mock Pro checkout
+### Google sign-in fails
 
-**Next**
+Add the exact deployment hostname to Firebase Authorized domains. In-app
+browsers may block popups; SmartJib falls back to redirect authentication.
 
-| Feature | Effort | Notes |
-| --- | --- | --- |
-| Real payments (Stripe / Lemon Squeezy) | L | Mock checkout UI is complete in `payments.ts` and already persists `plan` to the Firebase profile; needs live Checkout + an Admin SDK webhook to take over that write |
-| Move receipts to Firebase Storage | M | Currently stored as base64 data URLs inside the month document |
-| JSON backup export | S | CSV only right now |
-| Month locking / archiving | M | No concept of a "closed" month |
-| Push notifications | M | No infrastructure yet |
-| Bank sync (Plaid / Tink) | XL | Post-MVP, and at odds with the no-connection promise |
+### Contact/invitation email is unavailable
 
-**Known limitations**
+Run both readiness GETs. Configure `RESEND_API_KEY`, a verified non-sandbox
+`RESEND_FROM_EMAIL`, `CONTACT_TO_EMAIL`, and trusted URL variables for the same
+Vercel environment, then redeploy.
 
-- Whole-document writes per month — fine to ~2,000 transactions/month
-  (rule-enforced); a `transactions` subcollection is the fix if needed
-- `npm run lint` is aliased to `tsc --noEmit`; **ESLint is not wired up**
-- Rules validate shape and size but don't rate-limit writes, and auth emails
-  aren't rate-limited either
-- IDs are generated with `Math.random()`; `crypto.randomUUID()` would be safer
-- Styling mixes Tailwind utilities with inline styles and CSS variables
-- Accessibility is partial: dialogs set `role="dialog"` / `aria-modal`, move
-  focus in and restore it on close, lock scroll and close on Escape, and
-  inline errors use `role="alert"` — but there's no focus trap, no
-  `prefers-reduced-motion` handling, and icon-only controls are only partly
-  labelled
+### Account deletion requests recent login
 
-See [`MVP_TODO.md`](MVP_TODO.md) for the full feature-by-feature audit.
+Firebase requires a recent credential for destructive authentication actions.
+Sign out, sign back in and retry; SmartJib preserves the incomplete-state report.
 
 ---
 
-## 🔧 Troubleshooting
-
-<details>
-<summary><strong>The app says "Demo Mode" and nothing syncs</strong></summary>
-
-Firebase didn't initialise — at minimum `NEXT_PUBLIC_FIREBASE_API_KEY` and
-`NEXT_PUBLIC_FIREBASE_PROJECT_ID` must be set. Check `.env.local` and
-**restart the dev server**; Next.js only reads env files at startup.
-</details>
-
-<details>
-<summary><strong>Data won't load, or writes silently fail</strong></summary>
-
-Almost always undeployed security rules:
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-Otherwise check the browser console — `db.ts` logs a detailed
-`Firestore Error Details` object including the path and operation.
-</details>
-
-<details>
-<summary><strong>Google sign-in does nothing</strong></summary>
-
-- Add your domain under **Authentication → Settings → Authorized domains**
-- In in-app browsers (Instagram, LinkedIn) popups are blocked; the app detects
-  this and falls back to redirect automatically
-</details>
-
-<details>
-<summary><strong>"requires-recent-login" when deleting an account</strong></summary>
-
-Firebase requires a fresh credential for destructive actions. Sign out, sign
-back in, and retry.
-</details>
-
-<details>
-<summary><strong>Build fails fetching fonts</strong></summary>
-
-Fonts are self-hosted now: Instrument Sans via `next/font/local`
-(`src/app/fonts/`) and JetBrains Mono / Cairo via `@fontsource-variable/*`.
-No Google Fonts request happens at build **or** runtime, so builds work on
-air-gapped networks and no third-party font domain appears in the CSP.
-</details>
-
-<details>
-<summary><strong>A style change isn't showing up</strong></summary>
-
-Three CSS files exist but only `src/index.css` is imported by the root layout.
-`src/app/globals.css` and `src/styles/globals.css` are currently unused.
-</details>
-
----
-
-<div align="center">
-<sub>Built with Next.js, Firebase and TypeScript.</sub>
-</div>
+<div align="center"><sub>Built with Next.js, Firebase and TypeScript.</sub></div>

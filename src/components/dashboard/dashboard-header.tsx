@@ -45,10 +45,13 @@ export function DashboardHeader() {
     syncState,
     pendingMutations,
     retrySync,
+    closeCurrentMonth,
   } = useDashboard();
 
-  const { workspace, canEditArea } = useHousehold();
-  const canAddExpense = !!profile && (workspace === 'personal' || canEditArea('expenses', true));
+  const { workspace, isOwner, canEditArea } = useHousehold();
+  const monthIsClosed = month.periodStatus === 'closed';
+  const canManageMonth = workspace === 'personal' || isOwner;
+  const canAddExpense = !monthIsClosed && !!profile && (workspace === 'personal' || canEditArea('expenses', true));
 
   const activeScreen = getScreenIdFromPath(pathname);
   const activeItem = DASHBOARD_NAV_ITEMS.find((item) => item.id === activeScreen);
@@ -169,6 +172,20 @@ export function DashboardHeader() {
           <span>{m.sync[syncState]}</span>
           {pendingMutations > 0 && <span>({pendingMutations})</span>}
         </button>
+        {canManageMonth && !monthIsClosed && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(m.monthLock.closeConfirm)) closeCurrentMonth();
+            }}
+            disabled={!isMounted || syncState === 'failed' || syncState === 'conflict'}
+            className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={m.monthLock.close}
+            title={m.monthLock.close}
+          >
+            <AppIcon name="lock_open" className="text-[18px]" />
+          </button>
+        )}
         <BudgetAlerts month={month} />
 
         {canAddExpense && <button

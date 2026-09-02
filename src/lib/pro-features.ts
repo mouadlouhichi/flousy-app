@@ -1,66 +1,134 @@
+export const PRO_TRIAL_DAYS = 90;
+export const PRO_TRIAL_DURATION_MS = PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+
+export type EntitlementSource = 'launch_trial' | 'stripe' | 'cmi' | 'admin';
+export type EntitlementStatus =
+  | 'trialing'
+  | 'active'
+  | 'grace_period'
+  | 'past_due'
+  | 'canceled'
+  | 'expired';
+
 export type ProUserLike = {
   plan?: string | null;
-  proTrialEndsAtMs?: number | null;
-  planSource?: string | null;
+  entitlementSource?: EntitlementSource | string | null;
+  entitlementStatus?: EntitlementStatus | string | null;
+  entitlementStartedAtMs?: number | null;
+  entitlementEndsAtMs?: number | null;
+  /** Legacy beta marker retained so an old claim cannot be repeated. */
+  proTrialClaimedAt?: string | null;
 } | null;
 
-/** Launch-trial length: exactly 90 days, the value Firestore rules enforce. */
-export const PRO_TRIAL_DURATION_MS = 7_776_000_000;
+export interface ProEntitlement {
+  isPro: boolean;
+  source: EntitlementSource | 'legacy' | null;
+  status: EntitlementStatus | 'free';
+  startedAtMs: number | null;
+  endsAtMs: number | null;
+  daysRemaining: number;
+  hasUsedTrial: boolean;
+}
 
 /**
- * Single definition of "this account is Pro".
- *
- * Tolerant of casing/whitespace (`'Pro'`, `'PRO'`, `' pro '` written by an old
- * client or a manual console edit all count) so a Firestore value that reads as
- * Pro can never render as Free through a strict `=== 'pro'` mismatch. Every
- * Pro decision — badge, feature gates, cache sanitiser, trial claim — must go
- * through here rather than comparing the raw string.
+ * Tolerant of casing/whitespace written by old clients or manual migrations.
+ * Feature decisions must still go through `resolveProEntitlement`/`isProUser`,
+ * because a launch-trial profile keeps `plan: 'pro'` after its access expires.
  */
 export function isProPlan(plan: unknown): boolean {
   return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro';
 }
 
-export interface ProEntitlement {
-  /** Effective entitlement — the ONLY value feature gates may consult. */
-  isPro: boolean;
-  /** True while a launch trial is the source of the entitlement. */
-  isTrialActive: boolean;
-  /** True when a trial existed and has ended (plan may still read 'pro'). */
-  isTrialExpired: boolean;
-  /** Whole days left in an active trial (ceil), 0 otherwise. */
-  trialDaysRemaining: number;
-  /** Trial end instant (epoch ms) when one exists. */
-  trialEndsAtMs?: number;
+function finiteMillis(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : null;
+}
+
+function legacyTrialWindow(profile: NonNullable<ProUserLike>): {
+  startedAtMs: number;
+  endsAtMs: number;
+} | null {
+  if (typeof profile.proTrialClaimedAt !== 'string') return null;
+  const startedAtMs = Date.parse(profile.proTrialClaimedAt);
+  if (!Number.isFinite(startedAtMs)) return null;
+  return { startedAtMs, endsAtMs: startedAtMs + PRO_TRIAL_DURATION_MS };
 }
 
 /**
- * Expiry-aware entitlement resolution.
+ * Resolve the account's effective entitlement without trusting `plan` alone.
  *
- * `plan: 'pro'` alone is not enough: the 90-day launch trial leaves `plan`
- * untouched at expiry (clients cannot be trusted to downgrade themselves and
- * rules forbid editing the trial stamps), so the END TIMESTAMP is what decides.
- * An entitlement with `planSource: 'billing'` (written by the future CMI/Stripe
- * webhook through the Admin SDK) has no trial window and never expires here.
+ * Launch trials have an explicit, immutable server-rules-validated end time.
+ * Stripe/CMI will later project their signed webhook state into the same fields
+ * through the Admin SDK. A canceled paid period remains usable until its end;
+ * past-due/expired periods do not unlock features.
  */
-export function resolveProEntitlement(profile: ProUserLike, nowMs: number = Date.now()): ProEntitlement {
-  const none: ProEntitlement = { isPro: false, isTrialActive: false, isTrialExpired: false, trialDaysRemaining: 0 };
-  if (!profile || !isProPlan(profile.plan)) return none;
-  const endsAt = profile.proTrialEndsAtMs;
-  if (typeof endsAt !== 'number' || !Number.isFinite(endsAt)) {
-    // Pro with no trial window: either a billing-sourced entitlement or a
-    // legacy beta claim made before the window existed. Both stay Pro.
-    return { isPro: true, isTrialActive: false, isTrialExpired: false, trialDaysRemaining: 0 };
-  }
-  if (nowMs < endsAt) {
+export function resolveProEntitlement(
+  profile: ProUserLike,
+  nowMs = Date.now(),
+): ProEntitlement {
+  const free: ProEntitlement = {
+    isPro: false,
+    source: null,
+    status: 'free',
+    startedAtMs: null,
+    endsAtMs: null,
+    daysRemaining: 0,
+    hasUsedTrial: false,
+  };
+  if (!profile) return free;
+
+  const legacyTrial = legacyTrialWindow(profile);
+  const source = profile.entitlementSource;
+  const hasUsedTrial = source === 'launch_trial' || Boolean(legacyTrial);
+  if (!isProPlan(profile.plan)) return { ...free, hasUsedTrial };
+
+  const startedAtMs = finiteMillis(profile.entitlementStartedAtMs)
+    ?? legacyTrial?.startedAtMs
+    ?? null;
+  const endsAtMs = finiteMillis(profile.entitlementEndsAtMs)
+    ?? legacyTrial?.endsAtMs
+    ?? null;
+  const daysRemaining = endsAtMs && endsAtMs > nowMs
+    ? Math.max(1, Math.ceil((endsAtMs - nowMs) / (24 * 60 * 60 * 1000)))
+    : 0;
+
+  if (source === 'launch_trial' || legacyTrial) {
+    const active = Boolean(endsAtMs && endsAtMs > nowMs);
     return {
-      isPro: true,
-      isTrialActive: true,
-      isTrialExpired: false,
-      trialDaysRemaining: Math.max(1, Math.ceil((endsAt - nowMs) / 86_400_000)),
-      trialEndsAtMs: endsAt,
+      isPro: active,
+      source: source === 'launch_trial' ? 'launch_trial' : 'legacy',
+      status: active ? 'trialing' : 'expired',
+      startedAtMs,
+      endsAtMs,
+      daysRemaining,
+      hasUsedTrial: true,
     };
   }
-  return { isPro: false, isTrialActive: false, isTrialExpired: true, trialDaysRemaining: 0, trialEndsAtMs: endsAt };
+
+  const normalizedStatus = profile.entitlementStatus;
+  const statusAllowsAccess = normalizedStatus === undefined
+    || normalizedStatus === null
+    || normalizedStatus === 'active'
+    || normalizedStatus === 'trialing'
+    || normalizedStatus === 'grace_period'
+    || normalizedStatus === 'canceled';
+  const periodAllowsAccess = endsAtMs === null || endsAtMs > nowMs;
+  const isPro = statusAllowsAccess && periodAllowsAccess;
+
+  return {
+    isPro,
+    source: source === 'stripe' || source === 'cmi' || source === 'admin' ? source : 'legacy',
+    status: isPro
+      ? (normalizedStatus === 'trialing' || normalizedStatus === 'grace_period' || normalizedStatus === 'canceled'
+        ? normalizedStatus
+        : 'active')
+      : 'expired',
+    startedAtMs,
+    endsAtMs,
+    daysRemaining,
+    hasUsedTrial,
+  };
 }
 
 export type ProFeatureId =
@@ -78,10 +146,6 @@ export interface ProFeature {
   icon: string;
 }
 
-/**
- * Everything the Pro plan unlocks. Display copy lives in the locale catalog,
- * while these stable IDs and icons stay independent of the interface language.
- */
 export const PRO_FEATURES: ProFeature[] = [
   { id: 'courseScan', icon: 'scan_barcode' },
   { id: 'trends', icon: 'trending_up' },
@@ -93,27 +157,37 @@ export const PRO_FEATURES: ProFeature[] = [
 ];
 
 /**
- * Pro access is always resolved from the `plan` field stored on the Firebase
- * user profile (`users/{uid}.plan`) — never from a local flag. The localStorage
- * demo flag only applies in pure demo mode, where no Firebase profile exists.
+ * Pro access comes from the Firebase profile's effective entitlement. The
+ * localStorage path exists only for explicit demo mode and is expiry-aware too.
  */
 export function isProUser(
   profile: ProUserLike,
   storage: Pick<Storage, 'getItem'> | null = typeof window !== 'undefined' ? window.localStorage : null,
+  nowMs = Date.now(),
 ): boolean {
-  if (!profile) {
-    // A Firebase user whose profile has not resolved yet is NOT a demo user, so
-    // it must not be granted anything from local storage — that window (sign-in
-    // → profile load) is exactly when a stale `flousy_pro_plan` flag from an
-    // earlier demo session used to unlock Pro for a paying-tier feature set.
-    // Only an explicitly active demo session may consult the flag.
-    let demo = false;
-    try {
-      demo = storage?.getItem('flousy_demo_mode') === 'true';
-    } catch {
-      demo = false;
-    }
-    return demo && storage?.getItem('flousy_pro_plan') === 'true';
+  if (profile) return resolveProEntitlement(profile, nowMs).isPro;
+
+  let demo = false;
+  try {
+    demo = storage?.getItem('flousy_demo_mode') === 'true';
+    if (!demo || storage?.getItem('flousy_pro_plan') !== 'true') return false;
+    const endsAt = Number(storage?.getItem('flousy_pro_trial_ends_at'));
+    // Preserve old demo sessions that predate expiry-aware trial storage.
+    return !Number.isFinite(endsAt) || endsAt <= 0 || endsAt > nowMs;
+  } catch {
+    return false;
   }
-  return resolveProEntitlement(profile).isPro;
+}
+
+/** Start the same one-time 90-day experience in local-only demo mode. */
+export function claimDemoProTrial(
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
+  nowMs = Date.now(),
+): boolean {
+  if (storage.getItem('flousy_pro_trial_started_at')) return false;
+  storage.setItem('flousy_pro_plan', 'true');
+  storage.setItem('flousy_pro_entitlement_source', 'launch_trial');
+  storage.setItem('flousy_pro_trial_started_at', String(nowMs));
+  storage.setItem('flousy_pro_trial_ends_at', String(nowMs + PRO_TRIAL_DURATION_MS));
+  return true;
 }

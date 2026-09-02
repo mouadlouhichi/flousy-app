@@ -1,26 +1,11 @@
 # SmartJib Production Checklist
 
-> **Release candidate date:** 2026-09-02
-> **Scope:** first production launch with the core Free plan and a no-card Pro
-> beta claim. Live CMI/Stripe billing is explicitly out of scope.
+> **Release candidate date:** 2026-09-02  
+> **Scope:** first production launch with the core Free plan and one exact
+> 90-day, no-card Pro trial. Live CMI/Stripe billing is explicitly out of scope.
 >
 > This is an operator checklist, not a claim that external systems are already
 > configured. Check an item only after collecting the evidence named beside it.
->
-> **Provenance note:** this file was reconstructed from a draft written in a
-> prior (now inaccessible) working session. That draft referenced work that was
-> **never pushed** and is **not present in this branch** — those items are
-> marked `[NOT IN THIS BUILD]` below and listed in §13 so they are recreated
-> deliberately instead of being assumed to exist:
->
-> - ~~a `BILLING_LIVE` flag~~ — **now shipped** in `src/lib/payments.ts`
-> - ~~a 90-day trial entitlement~~ — **now shipped**: `planSource: 'launch_trial'`,
->   `proTrialEndsAtMs` exactly 7,776,000,000 ms after the claim, rules-enforced
-> - ~~a working `/api/contact`~~ — **now shipped** (+ `CONTACT_TO_EMAIL` in env)
-> - ESLint parsing `firestore.rules` with Firebase's ANTLR grammar — still not
->   done here; covered by blueprint invariants + the CI emulator run
-> - evidence counts: this branch is now at **307 tests / 73 suites** (draft
->   cited 304/72)
 
 ## Status and ownership
 
@@ -46,22 +31,17 @@ Record the release identifiers before testing:
 ## 1. Repository release gates — BLOCKER
 
 - [ ] `[REPO]` Working tree contains only reviewed release changes.
-- [x] `[REPO]` Locale catalogs have identical key shapes (parity test green,
-      2026-09-02).
+- [ ] `[REPO]` Locale catalogs have identical key shapes.
 - [ ] `[REPO]` No guessed paid price, simulated payment, card form, fake receipt,
-      or automatic-renewal claim is exposed **to real signed-in accounts**.
-      Current state: real accounts get the no-card beta claim only; the
-      simulated Stripe checkout is confined to demo mode. Re-verify on the
-      release SHA.
+      or automatic-renewal claim is exposed.
+- [ ] `[REPO]` `BILLING_LIVE` remains `false` in `src/lib/payments.ts`.
 - [ ] `[REPO]` Free and Pro marketing copy matches `src/lib/pro-features.ts` and
       runtime gates.
 - [ ] `[REPO]` Legal, FAQ, `public/llms.txt` and structured-data pricing statements
-      all describe the same no-card beta claim (no invented prices or cycles).
-- [x] `[REPO]` Schema/type/Rules drift tests pass against
-      `firebase-blueprint.json` (2026-09-02).
+      all describe the same 90-day no-card trial.
+- [ ] `[REPO]` Schema/type/Rules drift tests pass against
+      `firebase-blueprint.json`.
 - [ ] `[REPO]` Review dependency changes and licenses before the locked install.
-- [ ] `[NOT IN THIS BUILD]` `BILLING_LIVE` flag — recreate per §13 or drop from
-      scope explicitly.
 
 Run from a clean checkout of the release SHA:
 
@@ -71,7 +51,7 @@ npm ci
 npm audit --omit=dev
 npm run lint
 npm run typecheck
-npx tsc --noEmit --strict
+npm run typecheck:strict
 npm test
 npx --yes firebase-tools@15 emulators:exec \
   --only firestore \
@@ -80,36 +60,34 @@ npx --yes firebase-tools@15 emulators:exec \
 NEXT_TELEMETRY_DISABLED=1 npm run build
 ```
 
-`npm run lint` covers `src/` and `tests/` (including `jsx-a11y` at zero
-warnings); it does **not** parse `firestore.rules`. Authorization behavior is
-covered only by `npm run test:rules`, which requires Java 21 and the official
-Firestore emulator. A local build can use empty Firebase values and run in demo
-mode, but the release deployment must be rebuilt with the production public
-Firebase configuration.
+`npm run lint` parses `firestore.rules` with Firebase's authoritative ANTLR
+grammar, but that is not a substitute for authorization behavior tests. Those
+still require Java 21 and the official Firestore emulator. A local build can use
+empty Firebase values and run in demo mode, but the release deployment must be
+rebuilt with the production public Firebase configuration.
 
 ### Release evidence
 
 | Gate | Result | Date / log or check URL |
 | --- | --- | --- |
-| `npm ci` | Local candidate pass; repeat on release SHA with Node 24 | 2026-09-02 (sandbox Node emitted the expected ZXing Node-24 engine warning; final baseline remains Node 24) |
+| `npm ci` | Local candidate pass; repeat on release SHA with Node 24 | 2026-09-02 (Node 22.22.3 emitted the expected ZXing Node-24 engine warning; final baseline remains Node 24) |
 | `npm audit --omit=dev` | Pass — 0 production vulnerabilities | 2026-09-02 local candidate |
-| ESLint (zero warnings, incl. jsx-a11y) | Pass | 2026-09-02 local candidate |
+| ESLint (zero warnings) | Pass — includes authoritative `firestore.rules` syntax parsing | 2026-09-02 local candidate |
 | Normal TypeScript | Pass | 2026-09-02 local candidate |
 | Strict TypeScript | Pass | 2026-09-02 local candidate |
-| Unit/regression suites | Pass — 292 tests, 70 suites | 2026-09-02 local candidate |
-| Firestore emulator Rules suite (12 tests) | **Pending / release blocked** — Java 21 and official emulator unavailable in the local sandbox | Assign to activated CI or release operator |
+| Unit/regression suites | Pass — 304 tests, 72 suites | 2026-09-02 local candidate |
+| Firestore emulator Rules suite | **Pending / release blocked** — Java 21 and official emulator unavailable in the local sandbox | Assign to activated CI or release operator |
 | Production build | Pass — 36 static pages generated | 2026-09-02 local candidate |
 | PR checks | Pending | Save required-check URL after the workflow is activated |
 
-If any gate cannot run, mark the release **blocked** — do not silently
-reinterpret "not run" as "passed."
+If any gate cannot run, mark the release **blocked**—do not silently reinterpret
+“not run” as “passed.”
 
 ## 2. GitHub and CI — BLOCKER
 
 - [ ] `[EXTERNAL]` Grant the connected GitHub App workflow-write permission, or
       have an authorized maintainer move `ci/github-actions-ci.yml` to
-      `.github/workflows/ci.yml`. (Retested 2026-09-02: push still rejected
-      without the permission — see `ci/README.md`.)
+      `.github/workflows/ci.yml`.
 - [ ] `[EXTERNAL]` Configure repository secret `FIREBASE_SERVICE_ACCOUNT` with a
       least-privilege deployment service account.
 - [ ] `[EXTERNAL]` Configure repository variable
@@ -122,8 +100,8 @@ reinterpret "not run" as "passed."
       the intended Firebase project, not a test project.
 - [ ] `[EXTERNAL]` Save the successful workflow URL in the release evidence table.
 
-The file under `ci/` is only a workflow **definition**. GitHub does not execute
-it until it is under `.github/workflows/`.
+The file under `ci/` is only a workflow **definition**. GitHub does not execute it
+until it is under `.github/workflows/`.
 
 ## 3. Production Firebase — BLOCKER
 
@@ -145,7 +123,7 @@ it until it is under `.github/workflows/`.
 - [ ] `[EXTERNAL]` Create Firestore in the intended production region. Confirm the
       data-residency choice with the operating entity before data is stored.
 - [ ] `[REPO]` Firestore emulator regressions pass with `firestore.rules` from the
-      release SHA (blocked locally — no Java; run in CI/release machine).
+      release SHA.
 - [ ] `[EXTERNAL]` Deploy Rules **and indexes** from that same SHA:
 
 ```bash
@@ -213,10 +191,9 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
       compiled into the client bundle.
 - [ ] `[EXTERNAL]` Pin the production deployment to the recorded release SHA.
 - [ ] `[MANUAL]` Inspect `/`, `/login`, `/onboarding`, `/dashboard`, all legal
-      pages, blog posts and the deployed APIs on the deployed origin.
+      pages, blog posts and all three APIs on the deployed origin.
 - [ ] `[MANUAL]` Confirm private routes and API responses return no-store/private
       cache policy; confirm the production CSP and security headers are present.
-      Note: CSP still allows `'unsafe-inline'` scripts (open audit item S4).
 - [ ] `[MANUAL]` Confirm no private account data appears in served HTML, CDN cache
       inspection or another browser session.
 
@@ -231,22 +208,23 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
 - [ ] `[EXTERNAL]` Publish DMARC first in monitored mode (`p=none`) with an owned
       report mailbox; move to quarantine/reject only after reports are clean.
 - [ ] `[EXTERNAL]` Set `RESEND_FROM_EMAIL` to the verified domain. Production must
-      not contain `@resend.dev` (the invitation API refuses the sandbox sender).
-- [ ] `[MANUAL]` Test invitation delivery to at least Gmail, Outlook and one
-      custom-domain mailbox; inspect spam placement, From/Reply-To, encoding and
-      links.
+      not contain `@resend.dev`.
+- [ ] `[EXTERNAL]` Confirm `CONTACT_TO_EMAIL` is monitored and has an owner/response
+      process.
+- [ ] `[MANUAL]` Test invitation and contact delivery to at least Gmail, Outlook
+      and one custom-domain mailbox; inspect spam placement, From/Reply-To,
+      encoding and links.
+- [ ] `[MANUAL]` Retry one contact submission with the same request ID and verify
+      it does not produce duplicate mail.
 - [ ] `[MANUAL]` Verify an invitation code remains visible/copyable when Resend is
       unavailable.
-- [x] `[REPO]` **Resolved 2026-09-02** — `/api/contact` is live in this build
-      (validated, per-IP rate-limited, honeypot, requestId dedupe, readiness
-      GET) and `contact-form.tsx` reports every failure truthfully with the
-      support address as fallback. Remaining external step: set
-      `RESEND_API_KEY` + verified `RESEND_FROM_EMAIL` + `CONTACT_TO_EMAIL`
-      per environment, then check `GET /api/contact` → `{"ready":true}`.
 
-Invitation readiness check (sends nothing and reveals no secret):
+Readiness checks (they send nothing and reveal no secret):
 
 ```bash
+curl -i https://<production>/api/contact
+# Expect HTTP 200 and: {"ready":true,"code":"ready","sandboxSender":false,...}
+
 curl -i https://<production>/api/household-invitations
 # Expect HTTP 200 and: {"emailConfigured":true,"sandboxSender":false,"code":"ready",...}
 ```
@@ -256,35 +234,30 @@ rate limits, Resend quotas and alerts for distributed abuse.
 
 ## 6. Billing-disabled launch — BLOCKER
 
-Current model in this branch: Pro is a **one-time, no-card beta claim**. The
-only `plan` transition `firestore.rules` permits is `free → pro` stamped with a
-non-repeatable `proTrialClaimedAt`. There is no expiry. The simulated Stripe
-checkout renders only in demo mode.
-
+- [ ] `[REPO]` `BILLING_LIVE === false`.
 - [ ] `[MANUAL]` Search every public/app surface in English, French and Arabic:
       no paid amount, recurring offer, billing cycle, checkout simulation or card
-      input is shown to a real signed-in account.
+      input is shown.
 - [ ] `[MANUAL]` Network inspection shows no request to Stripe, CMI or another
       payment processor.
 - [ ] `[EXTERNAL]` No Stripe/CMI production secret is configured for this release.
 - [ ] `[MANUAL]` A new disposable account can claim Pro once without a card.
-- [ ] `[MANUAL]` A second claim and any attempt to re-write `proTrialClaimedAt`
-      are rejected by Firestore Rules.
-- [ ] `[MANUAL]` Household access follows the owner's entitlement rather than a
-      stale local flag.
-- [ ] `[NOT IN THIS BUILD]` 90-day trial semantics (`launch_trial` source,
-      `trialing` status, exact 7,776,000,000 ms end timestamp, expiry-driven
-      downgrade with data still exportable). If the launch requires a bounded
-      trial, recreate per §13 **before** launch; otherwise document the
-      unbounded beta claim in legal/FAQ copy.
+- [ ] `[MANUAL]` The entitlement has source `launch_trial`, status `trialing`, and
+      an end timestamp exactly `7,776,000,000` ms after its start timestamp.
+- [ ] `[MANUAL]` A second claim and any attempt to extend/change entitlement
+      timestamps are rejected by Firestore Rules.
+- [ ] `[MANUAL]` An expired test fixture loses Pro editing while core records and
+      exports remain available.
+- [ ] `[MANUAL]` Household access follows the owner's active expiry-aware
+      entitlement rather than a stale local flag.
 
-Use disposable test accounts. Claiming a production beta Pro is intentionally
-one-time and should not be "reset" manually to make a test pass.
+Use disposable test accounts. Claiming a production trial is intentionally
+one-time and should not be “reset” manually to make a test pass.
 
 ## 7. Privacy, legal and consent — BLOCKER
 
 - [ ] `[EXTERNAL]` The operating entity and qualified local counsel review the
-      current Privacy Policy, Terms and Cookie Policy.
+      September 2026 Privacy Policy, Terms and Cookie Policy.
 - [ ] `[EXTERNAL]` Confirm entity name, legal contact, governing law, minimum age,
       retention periods and data-subject request process for the actual launch
       jurisdiction(s).
@@ -297,14 +270,13 @@ one-time and should not be "reset" manually to make a test pass.
 - [ ] `[MANUAL]` Grant and withdrawal work from Profile.
 - [ ] `[MANUAL]` Inspect analytics payloads: no amount, balance, category, person,
       name, note, receipt, contact body, invitation code/query or arbitrary text.
-      (Open audit item: privacy copy ↔ payload reconciliation not yet done.)
 - [ ] `[MANUAL]` Verify CSV export, complete JSON backup/restore, data deletion and
       account deletion from **Profile**, including partial-failure messaging.
 - [ ] `[EXTERNAL]` Define support handling for access/deletion requests that cannot
       be completed in-app.
 
 Do not advertise deletion as erasing provider security/delivery logs outside
-SmartJib's control.
+SmartJib's control; the shipped copy states that operational retention may apply.
 
 ## 8. Monitoring, security operations and incident readiness — BLOCKER
 
@@ -312,13 +284,13 @@ SmartJib's control.
       retention period and access controls.
 - [ ] `[EXTERNAL]` Enable Firebase Auth/Firestore monitoring, quota alerts and
       billing-budget alerts.
-- [ ] `[EXTERNAL]` Configure uptime checks for `/`, `/login` and
+- [ ] `[EXTERNAL]` Configure uptime checks for `/`, `/login`, `/api/contact` and
       `/api/household-invitations` (GET only; do not generate mail).
 - [ ] `[EXTERNAL]` Alert on elevated 5xx/429 rates, Auth failures, Firestore denied
       writes, Resend delivery failures and cost anomalies.
 - [ ] `[EXTERNAL]` Choose an error-monitoring provider or document the deliberate
       host/Firebase-log-only decision; apply consent and redaction rules before
-      adding any SDK. (No error-monitoring SDK is present in this build.)
+      adding any SDK.
 - [ ] `[EXTERNAL]` Create an incident channel, primary/backup owner and severity
       definitions.
 - [ ] `[EXTERNAL]` Document credential rotation for Firebase deploy credentials,
@@ -327,7 +299,7 @@ SmartJib's control.
 - [ ] `[EXTERNAL]` Review production access under least privilege and enable MFA
       for GitHub, Firebase/Google, Vercel, DNS and Resend administrators.
 - [ ] `[MANUAL]` Check logs from a smoke test and confirm they do not contain
-      financial payloads, bearer tokens or invitation codes.
+      financial payloads, contact bodies, bearer tokens or invitation codes.
 
 ## 9. Manual release journeys — BLOCKER
 
@@ -338,10 +310,6 @@ Chrome where available.
 ### Authentication and onboarding
 
 - [ ] New email account → verification → five-step personal onboarding.
-- [ ] Onboarding starts with **empty** income and **no** pre-seeded bills; the
-      Rent/Electricity chips only prefill the form (2026-09-02 change).
-- [ ] French decimal-comma and Arabic-digit amounts parse correctly in
-      onboarding, course prices and money-places editing (2026-09-02 change).
 - [ ] Reload/back/re-entry does not overwrite an existing month or savings data.
 - [ ] Existing onboarded account skips onboarding safely.
 - [ ] Google popup and blocked-popup redirect fallback.
@@ -352,7 +320,7 @@ Chrome where available.
 - [ ] Add/edit/delete variable expense and fixed charge; verify place balances.
 - [ ] Move money and adjust a balance; verify conservation and audit behavior.
 - [ ] Create/fund/withdraw/edit/delete a saving goal.
-- [ ] Add/edit/settle/delete debt and credit, including installment payments.
+- [ ] Add/edit/settle/delete debt and credit.
 - [ ] Create a future month; verify recurring income/fixed items materialise once.
 - [ ] Simulate offline write/reload/reconnect; verify pending state and no duplicate.
 - [ ] Generate a conflict from two sessions; verify retry/discard is truthful.
@@ -360,8 +328,9 @@ Chrome where available.
 
 ### Pro and Household
 
-- [ ] Claim the one no-card beta Pro and check all Pro navigation/features.
-- [ ] Free user is blocked from gated features per `pro-features.ts`.
+- [ ] Claim the one 90-day trial and check all Pro navigation/features.
+- [ ] Free user is blocked from trends, income-source management, bulk CSV import,
+      category-cap editing, rollover and Household creation.
 - [ ] Data export/JSON backup remains available to a Free user.
 - [ ] Create Household; invite editor/viewer/contributor; accept each role.
 - [ ] Verify owner/editor/viewer/contributor read/write matrix on separate accounts.
@@ -376,7 +345,6 @@ Chrome where available.
 - [ ] Camera permission grant/deny/retry on iOS and Android.
 - [ ] Native barcode and ZXing fallback where supported.
 - [ ] Catalog → Open Food Facts → manual fallback, including timeout/failure.
-- [ ] Price-embedded (prefix-2) scale barcodes prefill the price and skip lookup.
 - [ ] Quantity/price edit, bill text/CSV/share and history.
 - [ ] Posting is idempotent and refuses a closed target month.
 
@@ -384,14 +352,11 @@ Chrome where available.
 
 - [ ] English, French and Arabic catalog rendering; Arabic RTL before first paint.
 - [ ] Currency/date/number formatting in all three locales.
-- [ ] Keyboard-only navigation, focus order, dialog focus trap, topmost-only
-      Escape, and visible focus (2026-09-02 changes).
-- [ ] Skip-to-content link appears on first Tab and moves focus into `<main>`.
+- [ ] Keyboard-only navigation, focus order, dialog focus/escape and visible focus.
 - [ ] Screen-reader labels and error/status announcements on critical flows.
-- [ ] 200% zoom/reflow (pinch zoom is no longer disabled) and reduced-motion
-      behavior.
+- [ ] 200% zoom/reflow and reduced-motion behavior.
 - [ ] PWA install, standalone launch, update and offline fallback on real devices.
-- [ ] Contact surface: see §5 blocker — do not ship the fake-success form.
+- [ ] Contact form provider-accepted, validation, rate-limit and delivery-failure states; do not interpret API acceptance as proof of mailbox delivery.
 - [ ] Canonical, sitemap, robots, Open Graph and JSON-LD point to production.
 - [ ] No `/en`, `/fr` or `/ar` alternate URL is advertised or expected at launch.
 - [ ] Run Lighthouse/PageSpeed against production and record mobile/desktop output.
@@ -430,11 +395,11 @@ Suggested rollback sequence:
 - [ ] Deployment and Rules SHA match.
 - [ ] DNS cutover/production promotion has a rollback owner online.
 - [ ] Run the short smoke set immediately after promotion: home, login, existing
-      account load, one reversible finance edit, the invitation readiness GET
-      and logout.
+      account load, one reversible finance edit, both readiness GETs and logout.
 - [ ] Watch errors, denied writes, email delivery, Auth, latency and spend closely
       for at least the first 24 hours.
-- [ ] Review beta-Pro claims without inspecting users' financial content.
+- [ ] Review one-time-trial starts and expiration timestamps without inspecting
+      users' financial content.
 - [ ] Publish a support path and incident/status communication channel.
 
 ### Go/no-go sign-off
@@ -448,7 +413,7 @@ Suggested rollback sequence:
 
 ## 12. Explicitly separate post-launch/external work
 
-These are not fake "implemented" launch features:
+These are not fake “implemented” launch features:
 
 - **Live payments:** select Moroccan CMI or Stripe only after commercial/legal
   onboarding. Implement provider-hosted checkout and verified idempotent
@@ -462,38 +427,42 @@ These are not fake "implemented" launch features:
   adding hreflang.
 - **Social accounts:** `[EXTERNAL]` reserve/verify official SmartJib handles,
   enable MFA, define owners and publish only links to accounts actually operated.
+  Social-account creation is not repository code and is not a technical launch
+  claim.
 - **Search/merchant presence:** `[EXTERNAL]` submit sitemap/Search Console and
   verify public profiles after DNS stabilizes.
 
 Any item promoted into launch scope must receive an owner, acceptance tests,
 privacy/security review and rollback plan before it becomes a blocker.
 
-## 13. Work referenced by the prior draft that must be recreated
+---
 
-> **Recreated 2026-09-02** on `arena/01a062c5-flousy-app` — status per item:
+## 14. Post-merge addendum — 2026-09-02 (branches reconciled)
 
-1. **`/api/contact`** — ✅ DONE. Validated + per-IP rate-limited + honeypot +
-   requestId-deduplicated Resend send, readiness GET, sandbox-sender guard;
-   `contact-form.tsx` wired with truthful sending/failed/rate-limited/
-   not-configured states (fallback names `hello@flousy.app`). Set
-   `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (verified domain) and
-   `CONTACT_TO_EMAIL` in production, then confirm `GET /api/contact` answers
-   `{"ready":true}`.
-2. **`BILLING_LIVE` kill-switch** — ✅ DONE in `src/lib/payments.ts` (single
-   switch, consumed by the landing pricing section; documents the CMI/Stripe
-   integration contract: provider-hosted checkout, Admin-SDK webhook writing
-   `planSource: 'billing'`).
-3. **Bounded 90-day trial** — ✅ DONE and stricter than the draft:
-   `proTrialClaimedAt` (ISO) + `proTrialClaimedAtMs` + `proTrialEndsAtMs`
-   (= claimed + 7,776,000,000 ms exactly, rules-verified against
-   `request.time` ±5 min), stamps immutable, `resolveProEntitlement()` is the
-   single expiry-aware entitlement (lapsed trial ⇒ Free with all data/exports
-   intact), `activePro()` gates household creation server-side. UI shows
-   days-remaining and an expired state in en/fr/ar.
-4. **Rules-syntax lint** — ⚠️ NOT run here (needs the emulator toolchain /
-   Java, unavailable in the sandbox). Covered structurally by
-   `tests/blueprint.test.ts` invariants and behaviorally by the emulator
-   suite (now 15 tests) in the CI `check` job.
-5. **Additional tests** — ✅ 307 unit tests / 73 suites now pass (was 292/70),
-   plus 3 new emulator rules cases and a 4-spec Playwright scaffold
-   (`npm run test:e2e`, CI-run — browser CDN unreachable in the sandbox).
+The parallel branches `arena/01a05eeb` (entitlement schema, rules lint, modal
+rewrite) and `arena/01a062c5` (a11y, observability, E2E, CSP, contact UX) were
+merged. On top of everything above, this build also ships:
+
+- **CSP hardening (S4 partial)** — `script-src-attr 'none'`, `worker-src 'self'`,
+  `manifest-src 'self'`; remaining `'unsafe-inline'` for inline `<script>` is a
+  documented accepted residual (`src/proxy.ts`), guard-tested.
+- **Touch targets** — `.tap-target` utility (44 px hit area, no layout shift)
+  on all small icon buttons.
+- **Chart text alternative** — Trends bar chart is `aria-hidden` behind an
+  sr-only summary + its data table; decorative graphics hidden from AT.
+- **Observability** — `/api/client-errors` beacon sink (rate-limited, capped,
+  logs `[client-error]` for platform alerting); `ObservabilityReporter` wires
+  window errors, unhandled rejections, boundary reports (`error.tsx`,
+  `global-error.tsx`) and consent-gated Web Vitals through `trackEvent`.
+- **Contact UX** — the form distinguishes rate-limited / not-configured /
+  failed states truthfully and names the support inbox as fallback
+  (`static.contact.sendFailed|rateLimited|notConfigured` in en/fr/ar).
+- **Browser E2E** — Playwright scaffold (`playwright.config.ts`, `e2e/`,
+  `npm run test:e2e`) + CI job in `ci/github-actions-ci.yml`. Browsers cannot
+  download in the dev sandbox; the suite runs in CI.
+- **Privacy copy** — §3 household sharing and §5 on-device offline copy
+  disclosures retained in all three locales.
+- **CI activation** remains external-only: the GitHub App lacks `workflows`
+  permission (re-verified 2026-09-02, third rejection) — move
+  `ci/github-actions-ci.yml` → `.github/workflows/ci.yml` from a maintainer
+  account or the GitHub web UI.

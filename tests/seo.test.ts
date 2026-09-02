@@ -13,6 +13,15 @@ import {
 } from '../src/lib/seo';
 
 const llmsText = readFileSync(new URL('../public/llms.txt', import.meta.url), 'utf8');
+const englishMessages = JSON.parse(
+  readFileSync(new URL('../messages/en.json', import.meta.url), 'utf8'),
+) as {
+  landing: {
+    faq: {
+      items: Array<{ question: string; answer: string; link?: { label: string; href: string } }>;
+    };
+  };
+};
 
 describe('SEO and GEO configuration', () => {
   it('keeps published currency and strategy facts aligned with the application', () => {
@@ -28,7 +37,9 @@ describe('SEO and GEO configuration', () => {
     }
   });
 
-  it('keeps the free-plan description identical in the FAQ and llms.txt', () => {
+  it('keeps visible English FAQs, structured data, and llms.txt aligned', () => {
+    assert.deepStrictEqual(englishMessages.landing.faq.items, LANDING_FAQS);
+
     const pricingAnswer = LANDING_FAQS.find((faq) => faq.question === 'Is SmartJib free?')?.answer;
     assert.ok(pricingAnswer);
     assert.ok(llmsText.includes(pricingAnswer));

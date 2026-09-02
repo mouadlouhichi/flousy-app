@@ -73,7 +73,7 @@ export const LANDING_FAQS: readonly LandingFaq[] = [
   {
     question: 'Is SmartJib free?',
     answer:
-      'SmartJib is free to use. SmartJib Pro is included free for your first 90 days — a one-time launch trial, no card required. When the trial ends your account returns to the free plan and all of your data stays available; paid Pro plans arrive when billing launches.',
+      'SmartJib’s core budget is free with no time limit. Eligible accounts can start one 90-day Pro trial without a card; it does not renew automatically, and billing is not currently enabled.',
   },
   {
     question: 'Does SmartJib connect to my bank?',
@@ -101,11 +101,11 @@ export const LANDING_FAQS: readonly LandingFaq[] = [
   },
   {
     question: 'Can I export my data?',
-    answer: 'Yes. You can export your budgeting data as a CSV file from Settings.',
+    answer: 'Yes. From Profile you can export CSV files or a complete, restorable JSON backup.',
   },
   {
     question: 'How do I delete my account?',
     answer:
-      'You can permanently delete your account and its associated budgeting data from Settings.',
+      'You can permanently delete your account and its associated budgeting data from Profile. SmartJib reports any incomplete deletion step so you can retry.',
   },
 ] as const;

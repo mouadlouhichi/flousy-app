@@ -9,13 +9,13 @@ SmartJib is a private budget tracker that separates what money is for—needs, w
 - **4 budgeting strategies**: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first.
 - **Separate budget envelopes and money places**: Needs, wants, and savings describe what money is for; bank, home, and wallet describe where it is held.
 - **Private accounts**: Account data is cached locally and synced to Firebase when a user signs in. Financial data is not sold to third parties or used to build advertising profiles.
-- **CSV export**: Budgeting data can be exported from Settings.
-- **Account deletion**: An account and its associated budgeting data can be permanently deleted from Settings.
+- **Data portability**: From Profile, users can export CSV files or a complete, restorable JSON backup.
+- **Account deletion**: An account and its associated budgeting data can be permanently deleted from Profile; incomplete deletion steps are reported for retry.
 - **PWA**: SmartJib is installable as a web app.
 
 ## Pricing
 
-SmartJib is free to use. SmartJib Pro is included free for your first 90 days — a one-time launch trial, no card required. When the trial ends your account returns to the free plan and all of your data stays available; paid Pro plans arrive when billing launches.
+SmartJib’s core budget is free with no time limit. Eligible accounts can start one 90-day Pro trial without a card; it does not renew automatically, and billing is not currently enabled.
 
 ## Links
 

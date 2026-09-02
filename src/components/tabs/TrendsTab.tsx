@@ -32,7 +32,7 @@ const CHART_COLORS = [
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace, canViewArea } = useHousehold();
+  const { workspace, household, canViewArea } = useHousehold();
   // Analytics is a roll-up of the other areas: each card is filtered by the
   // area that owns its numbers, so an analytics grant on its own does not
   // expose balances or income sources to a member who lacks those.
@@ -46,7 +46,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
   const isPro = isProUser(profile);
   const showUpgrade = canShowProUpgrade(isPro, workspace);
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const hasMultiMonth = trendsMonths.length > 0;
 
   // ── Current month calculations ──

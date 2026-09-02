@@ -102,6 +102,72 @@ describe('revisioned personal finance rules', () => {
     second.update(monthRef, { bankPart: 900, revision: 2, lastMutationId: 'update-2' });
     await assertSucceeds(second.commit());
     await assertFails(updateDoc(doc(db, 'users/alice/ledger/update-2'), { kind: 'rewritten' }));
+
+    // Onboarding/bootstrap is create-only: re-entering the flow cannot replace
+    // an established month even when it attempts a valid revision + ledger.
+    const bootstrapOverwrite = writeBatch(db);
+    bootstrapOverwrite.set(
+      doc(db, 'users/alice/ledger/bootstrap-overwrite'),
+      ledger('bootstrap-overwrite', 'alice', 'personal', 'alice', 2, 3, 'bootstrap'),
+    );
+    bootstrapOverwrite.update(monthRef, {
+      totalBudget: 1,
+      revision: 3,
+      lastMutationId: 'bootstrap-overwrite',
+    });
+    await assertFails(bootstrapOverwrite.commit());
+  });
+
+  it('freezes a closed month until a state-only reopen is ledgered', async () => {
+    const db = firestore(environment.authenticatedContext('alice', { email_verified: true }));
+    const monthRef = doc(db, 'users/alice/months/2026-09');
+
+    const create = writeBatch(db);
+    create.set(doc(db, 'users/alice/ledger/lock-create'), ledger('lock-create', 'alice', 'personal', 'alice', 0, 1));
+    create.set(monthRef, validMonth(1, 'lock-create'));
+    await assertSucceeds(create.commit());
+
+    const close = writeBatch(db);
+    close.set(doc(db, 'users/alice/ledger/lock-close'), ledger('lock-close', 'alice', 'personal', 'alice', 1, 2, 'month-close'));
+    close.update(monthRef, {
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'alice',
+      revision: 2,
+      lastMutationId: 'lock-close',
+    });
+    await assertSucceeds(close.commit());
+
+    const editClosed = writeBatch(db);
+    editClosed.set(doc(db, 'users/alice/ledger/locked-edit'), ledger('locked-edit', 'alice', 'personal', 'alice', 2, 3));
+    editClosed.update(monthRef, { bankPart: 900, revision: 3, lastMutationId: 'locked-edit' });
+    await assertFails(editClosed.commit());
+
+    const unsafeReopen = writeBatch(db);
+    unsafeReopen.set(doc(db, 'users/alice/ledger/unsafe-reopen'), ledger('unsafe-reopen', 'alice', 'personal', 'alice', 2, 3, 'month-reopen'));
+    unsafeReopen.update(monthRef, {
+      periodStatus: 'open',
+      bankPart: 900,
+      revision: 3,
+      lastMutationId: 'unsafe-reopen',
+    });
+    await assertFails(unsafeReopen.commit());
+
+    const reopen = writeBatch(db);
+    reopen.set(doc(db, 'users/alice/ledger/lock-reopen'), ledger('lock-reopen', 'alice', 'personal', 'alice', 2, 3, 'month-reopen'));
+    reopen.update(monthRef, {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'lock-reopen',
+    });
+    await assertSucceeds(reopen.commit());
+
+    const editOpen = writeBatch(db);
+    editOpen.set(doc(db, 'users/alice/ledger/open-edit'), ledger('open-edit', 'alice', 'personal', 'alice', 3, 4));
+    editOpen.update(monthRef, { bankPart: 900, revision: 4, lastMutationId: 'open-edit' });
+    await assertSucceeds(editOpen.commit());
   });
 
   it('requires savings revisions to be coupled to a ledger row', async () => {
@@ -110,11 +176,87 @@ describe('revisioned personal finance rules', () => {
     await assertFails(setDoc(savingsRef, { goals: [], revision: 1, lastMutationId: 'none' }));
     const batch = writeBatch(db);
     batch.set(doc(db, 'users/alice/ledger/savings-1'), {
-      ...ledger('savings-1', 'alice', 'personal', 'alice', 0, 1, 'savings'),
+      ...ledger('savings-1', 'alice', 'personal', 'alice', 0, 1, 'savings-bootstrap'),
       monthKey: 'savings',
     });
     batch.set(savingsRef, { goals: [], revision: 1, lastMutationId: 'savings-1' });
     await assertSucceeds(batch.commit());
+
+    const bootstrapOverwrite = writeBatch(db);
+    bootstrapOverwrite.set(doc(db, 'users/alice/ledger/savings-bootstrap-overwrite'), {
+      ...ledger('savings-bootstrap-overwrite', 'alice', 'personal', 'alice', 1, 2, 'savings-bootstrap'),
+      monthKey: 'savings',
+    });
+    bootstrapOverwrite.update(savingsRef, { goals: [], revision: 2, lastMutationId: 'savings-bootstrap-overwrite' });
+    await assertFails(bootstrapOverwrite.commit());
+
+    const update = writeBatch(db);
+    update.set(doc(db, 'users/alice/ledger/savings-update'), {
+      ...ledger('savings-update', 'alice', 'personal', 'alice', 1, 2, 'savings'),
+      monthKey: 'savings',
+    });
+    update.update(savingsRef, { goals: [], revision: 2, lastMutationId: 'savings-update' });
+    await assertSucceeds(update.commit());
+  });
+});
+
+describe('launch-trial entitlement rules', () => {
+  it('allows one server-time-bounded 90-day claim and makes it immutable', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/trial-user'), {
+        plan: 'free', currency: 'MAD', onboardingComplete: true,
+      });
+    });
+    const db = firestore(environment.authenticatedContext('trial-user', { email_verified: true }));
+
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      plan: 'pro', proTrialClaimedAt: new Date().toISOString(),
+    }));
+
+    const startedAtMs = Date.now();
+    const endsAtMs = startedAtMs + 90 * 24 * 60 * 60 * 1000;
+    await assertSucceeds(updateDoc(doc(db, 'users/trial-user'), {
+      plan: 'pro',
+      entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing',
+      entitlementStartedAtMs: startedAtMs,
+      entitlementEndsAtMs: endsAtMs,
+    }));
+
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      entitlementEndsAtMs: endsAtMs + 1,
+    }));
+    await assertFails(updateDoc(doc(db, 'users/trial-user'), {
+      entitlementStatus: 'active',
+    }));
+
+    await assertSucceeds(setDoc(doc(db, 'households/trial-home'), {
+      name: 'Trial Home', ownerId: 'trial-user', planOwnerId: 'trial-user',
+      entitlementOwnerId: 'trial-user', entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing', entitlementEndsAtMs: endsAtMs,
+      currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }));
+  });
+
+  it('rejects household creation for an expired trial projection', async () => {
+    const expiredAtMs = Date.now() - 1;
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/expired-user'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+        entitlementStartedAtMs: expiredAtMs - 90 * 24 * 60 * 60 * 1000,
+        entitlementEndsAtMs: expiredAtMs,
+      });
+    });
+    const db = firestore(environment.authenticatedContext('expired-user', { email_verified: true }));
+    await assertFails(setDoc(doc(db, 'households/expired-home'), {
+      name: 'Expired Home', ownerId: 'expired-user', planOwnerId: 'expired-user',
+      entitlementOwnerId: 'expired-user', entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing', entitlementEndsAtMs: expiredAtMs,
+      currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }));
   });
 });
 
@@ -134,6 +276,10 @@ describe('household invitations and RBAC rules', () => {
 
   async function seedHousehold() {
     await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'admin', entitlementStatus: 'active',
+      });
       await setDoc(doc(db, 'households/home'), household);
       for (const [uid, role] of [['owner', 'owner'], ['editor', 'editor'], ['viewer', 'viewer'], ['contributor', 'contributor']] as const) {
         await setDoc(doc(db, `households/home/members/${uid}`), {
@@ -152,6 +298,46 @@ describe('household invitations and RBAC rules', () => {
     await assertSucceeds(getDoc(doc(viewer, 'households/home/months/2026-09')));
     await assertFails(updateDoc(doc(viewer, 'households/home/months/2026-09'), { bankPart: 1 }));
     await assertFails(getDoc(doc(contributor, 'households/home/months/2026-09')));
+  });
+
+  it('lets only the household owner close or reopen a shared period', async () => {
+    await seedHousehold();
+    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const editor = firestore(environment.authenticatedContext('editor', { email_verified: true }));
+    const monthPath = 'households/home/months/2026-09';
+
+    const close = writeBatch(owner);
+    close.set(doc(owner, 'households/home/ledger/shared-close'), ledger('shared-close', 'owner', 'household', 'home', 1, 2, 'month-close'));
+    close.update(doc(owner, monthPath), {
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'owner',
+      revision: 2,
+      lastMutationId: 'shared-close',
+    });
+    await assertSucceeds(close.commit());
+
+    const editorReopen = writeBatch(editor);
+    editorReopen.set(doc(editor, 'households/home/ledger/editor-reopen'), ledger('editor-reopen', 'editor', 'household', 'home', 2, 3, 'month-reopen'));
+    editorReopen.update(doc(editor, monthPath), {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'editor-reopen',
+    });
+    await assertFails(editorReopen.commit());
+
+    const ownerReopen = writeBatch(owner);
+    ownerReopen.set(doc(owner, 'households/home/ledger/shared-reopen'), ledger('shared-reopen', 'owner', 'household', 'home', 2, 3, 'month-reopen'));
+    ownerReopen.update(doc(owner, monthPath), {
+      periodStatus: 'open',
+      closedAt: deleteField(),
+      closedByUserId: deleteField(),
+      revision: 3,
+      lastMutationId: 'shared-reopen',
+    });
+    await assertSucceeds(ownerReopen.commit());
   });
 
   it('accepts only an unexpired, verified-email invitation in the same atomic batch', async () => {
@@ -214,6 +400,10 @@ describe('household invitations and RBAC rules', () => {
 describe('atomic household invoice approval rules', () => {
   beforeEach(async () => {
     await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'admin', entitlementStatus: 'active',
+      });
       await setDoc(doc(db, 'households/home'), {
         name: 'Home', ownerId: 'owner', planOwnerId: 'owner', entitlementOwnerId: 'owner',
         currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
@@ -261,88 +451,3 @@ describe('atomic household invoice approval rules', () => {
   });
 });
 
-describe('90-day launch-trial claim rules', () => {
-  const DAY_MS = 86_400_000;
-  const TRIAL_MS = 90 * DAY_MS;
-
-  const freeProfile = () => ({
-    plan: 'free',
-    currency: 'MAD',
-    onboardingComplete: true,
-  });
-
-  const claim = (claimedAtMs: number) => ({
-    plan: 'pro',
-    planSource: 'launch_trial',
-    proTrialClaimedAt: new Date(claimedAtMs).toISOString(),
-    proTrialClaimedAtMs: claimedAtMs,
-    proTrialEndsAtMs: claimedAtMs + TRIAL_MS,
-  });
-
-  const household = (ownerId: string) => ({
-    name: 'Home', ownerId, planOwnerId: ownerId, entitlementOwnerId: ownerId,
-    currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
-    activeCategories: ['Groceries'], createdAt: new Date().toISOString(),
-  });
-
-  it('accepts exactly the shaped claim and rejects every distortion of it', async () => {
-    await seed(async (db) => setDoc(doc(db, 'users/tess'), freeProfile()));
-    const db = firestore(environment.authenticatedContext('tess', { email: 'tess@example.com', email_verified: true }));
-    const ref = doc(db, 'users/tess');
-    const now = Date.now();
-
-    // Wrong end stamp: 91 days instead of 90 — the client cannot buy itself time.
-    await assertFails(updateDoc(ref, { ...claim(now), proTrialEndsAtMs: now + TRIAL_MS + DAY_MS }));
-    // Backdated/forward-dated claim instant outside the 5-minute window.
-    await assertFails(updateDoc(ref, claim(now - 6 * 60_000)));
-    await assertFails(updateDoc(ref, claim(now + 6 * 60_000)));
-    // Self-declared billing entitlement is not a thing a client can write.
-    await assertFails(updateDoc(ref, { ...claim(now), planSource: 'billing' }));
-    // Bare plan flip without the stamps stays forbidden.
-    await assertFails(updateDoc(ref, { plan: 'pro' }));
-    // Missing the ms twin.
-    await assertFails(updateDoc(ref, {
-      plan: 'pro', planSource: 'launch_trial',
-      proTrialClaimedAt: new Date(now).toISOString(), proTrialEndsAtMs: now + TRIAL_MS,
-    }));
-    // The exact claim shape near server time succeeds.
-    await assertSucceeds(updateDoc(ref, claim(Date.now())));
-  });
-
-  it('freezes the trial stamps after the claim — no extension, no re-claim', async () => {
-    const claimedAtMs = Date.now() - 10 * DAY_MS;
-    await seed(async (db) => setDoc(doc(db, 'users/tess'), { ...freeProfile(), ...claim(claimedAtMs) }));
-    const db = firestore(environment.authenticatedContext('tess', { email: 'tess@example.com', email_verified: true }));
-    const ref = doc(db, 'users/tess');
-
-    // Any attempt to move the window is refused…
-    await assertFails(updateDoc(ref, { proTrialEndsAtMs: claimedAtMs + 2 * TRIAL_MS }));
-    await assertFails(updateDoc(ref, { proTrialClaimedAtMs: Date.now() }));
-    await assertFails(updateDoc(ref, { planSource: 'billing' }));
-    // …including erasing the stamps to claim again.
-    await assertFails(updateDoc(ref, { proTrialEndsAtMs: deleteField() }));
-    // Unrelated profile edits still work while the stamps ride along unchanged.
-    await assertSucceeds(updateDoc(ref, { onboardingComplete: true }));
-  });
-
-  it('lets an active trial create a household and blocks a lapsed one', async () => {
-    const activeClaim = claim(Date.now() - DAY_MS);
-    const lapsedClaim = claim(Date.now() - 91 * DAY_MS);
-    await seed(async (db) => {
-      await setDoc(doc(db, 'users/active-triallist'), { ...freeProfile(), ...activeClaim });
-      await setDoc(doc(db, 'users/lapsed-triallist'), { ...freeProfile(), ...lapsedClaim });
-      await setDoc(doc(db, 'users/billing-pro'), { ...freeProfile(), plan: 'pro', planSource: 'billing' });
-    });
-
-    const active = firestore(environment.authenticatedContext('active-triallist', { email_verified: true }));
-    await assertSucceeds(setDoc(doc(active, 'households/active-home'), household('active-triallist')));
-
-    // plan still reads 'pro', but the window has passed: entitlement is gone.
-    const lapsed = firestore(environment.authenticatedContext('lapsed-triallist', { email_verified: true }));
-    await assertFails(setDoc(doc(lapsed, 'households/lapsed-home'), household('lapsed-triallist')));
-
-    // A billing-sourced entitlement (Admin SDK write, no window) never lapses.
-    const billing = firestore(environment.authenticatedContext('billing-pro', { email_verified: true }));
-    await assertSucceeds(setDoc(doc(billing, 'households/billing-home'), household('billing-pro')));
-  });
-});

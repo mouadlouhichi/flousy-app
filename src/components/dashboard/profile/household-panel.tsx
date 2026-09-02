@@ -32,7 +32,7 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
+  const { household, members, isOwner, entitlementActive, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
     useHousehold();
   // The roster, per-member contribution totals and the invite form are all
   // `members` data. Someone with an invitation code still has no membership
@@ -217,6 +217,12 @@ export function HouseholdPanel({
           <AreaRestricted area={TOOL_AREA.household} icon="family_restroom" />
         ) : (
           <>
+            {!entitlementActive && (
+              <div role="status" className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                <p className="text-sm font-bold text-on-surface">{m.pro.trialExpiredTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-on-surface-variant">{m.pro.trialExpiredBody}</p>
+              </div>
+            )}
             <div className="rounded-xl bg-primary/10 p-4">
               {renameOpen ? (
                 <form
@@ -254,7 +260,7 @@ export function HouseholdPanel({
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-bold text-on-surface">{household.name}</p>
-                  {isOwner && (
+                  {isOwner && entitlementActive && (
                     <button
                       type="button"
                       onClick={() => {
@@ -302,7 +308,7 @@ export function HouseholdPanel({
                       {member.email ? ` · ${member.email}` : ''}
                     </p>
                   </div>
-                  {isOwner && member.role !== 'owner' && (
+                  {isOwner && entitlementActive && member.role !== 'owner' && (
                     <>
                       {member.role !== 'profile' && (
                         <button
@@ -358,7 +364,7 @@ export function HouseholdPanel({
               </div>
             )}
 
-            {isOwner && (
+            {isOwner && entitlementActive && (
               <div className="space-y-3 border-t border-outline-variant pt-4">
                 <div>
                   <p className="font-bold">{h.inviteMember}</p>

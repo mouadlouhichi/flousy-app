@@ -1,7 +1,6 @@
 {
   "common": {
     "appName": "SmartJib",
-    "skipToContent": "Skip to main content",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -88,7 +87,8 @@
       "carousel": "Carousel",
       "slide": "Slide"
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "skipToContent": "Skip to main content"
   },
   "auth": {
     "signIn": "Log in",
@@ -196,7 +196,6 @@
     "skipForNow": "Skip for now",
     "categoryNamePlaceholder": "Category name (e.g. Gym)",
     "billNamePlaceholder": "e.g. Rent, Netflix, Electricity",
-    "suggestedBills": "Quick add:",
     "addedBills": "Added bills",
     "billCategoryOptions": {
       "housing": "Housing / Rent",
@@ -220,7 +219,8 @@
     "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then.",
     "importPersonalTitle": "Import my personal budget",
     "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household.",
-    "importPersonalLoading": "Copying your personal budget…"
+    "importPersonalLoading": "Copying your personal budget…",
+    "suggestedBills": "Quick add:"
   },
   "dashboard": {
     "overview": "Overview",
@@ -505,80 +505,8 @@
     "pro": {
       "title": "Upgrade to SmartJib Pro",
       "memberTitle": "SmartJib Pro Membership",
-      "youArePro": "You are a Pro Member!",
-      "unlockPower": "Unlock Full Budgeting Power",
       "proActiveDescription": "Thank you for supporting SmartJib. All premium features, multi-month analytics, CSV import, and household tools are active.",
-      "upgradeDescription": "Take total control of your money with multi-month trends, CSV imports, receipt attachments, and household budgeting.",
-      "monthly": "Monthly ($4.99/mo)",
-      "annual": "Annual ($39.99/yr)",
-      "save33": "SAVE 33%",
-      "multiMonthTrends": "Multi-Month Trends",
-      "multiMonthDesc": "Compare spending trends across months and forecast savings.",
-      "csvImport": "CSV Data Import",
-      "csvImportDesc": "Import transactions directly from bank statements or CSV files.",
-      "receiptAttachments": "Receipt Attachments",
-      "receiptAttachmentsDesc": "Attach receipt photos and notes to any variable or fixed bill.",
-      "householdBudgeting": "Household Budgeting",
-      "householdBudgetingDesc": "Assign expenses to household members (Self, Partner, Family).",
-      "activatePro": "Activate Pro ({price})",
-      "proActivated": "Pro Activated!",
-      "instantActivation": "Instant activation. Cancel or downgrade anytime in Settings.",
-      "proStatusActive": "Your Pro status is active on this account.",
-      "switchToFree": "Switch back to Free Plan",
-      "goToPremium": "Go to Premium",
-      "proMembership": "Pro Membership",
-      "planActive": "Pro plan is active",
-      "nextBilling": "Next billing: {date}",
-      "allPremiumUnlocked": "All premium features unlocked.",
-      "backToDashboard": "Back to dashboard",
-      "perPeriod": "/{period}",
-      "annualValue": "{price} per month — save {savings}",
-      "monthlyValue": "Billed monthly. Switch to annual anytime to save {percent}.",
-      "courseScanning": "Barcode Course Scanning",
-      "courseScanningDesc": "Scan groceries as you shop — SmartJib builds the bill for you.",
-      "advancedReports": "Advanced Reports",
-      "advancedReportsDesc": "Category-level breakdowns and per-person spending insights.",
-      "prioritySync": "Priority Sync",
-      "prioritySyncDesc": "Faster Firestore sync and priority support.",
-      "continueCheckout": "Continue to checkout",
-      "secureCheckout": "Secure checkout",
-      "cancelAnytime": "Cancel anytime",
-      "annualPlan": "Annual Pro Plan",
-      "monthlyPlan": "Monthly Pro Plan",
-      "annualDiscount": "{percent} OFF",
-      "flexible": "Flexible",
-      "fillDemoTestCard": "Fill demo test card",
-      "cardNumber": "Card number",
-      "cardNumberPlaceholder": "4242 4242 4242 4242",
-      "expiry": "Expiry",
-      "expiryPlaceholder": "MM/YY",
-      "cvc": "CVC",
-      "cardholderName": "Name on card",
-      "cardholderPlaceholder": "Jane Doe",
-      "receiptEmail": "Receipt email",
-      "emailPlaceholder": "you@example.com",
-      "validCardNumber": "Enter a valid card number.",
-      "validExpiry": "Enter a valid expiry date (MM/YY).",
-      "validCvc": "Enter a valid CVC.",
-      "validCardholder": "Enter the name on the card.",
-      "validReceiptEmail": "Enter a receipt email.",
-      "creatingCheckout": "Creating secure checkout session…",
-      "validatingCard": "Validating card with issuing bank…",
-      "processingPayment": "Processing payment…",
-      "activatingFeatures": "Activating Pro features…",
-      "processingTitle": "Processing payment",
-      "pay": "Pay {price}",
-      "encryptedTestPayment": "Encrypted test payment · No real funds charged",
-      "paymentSuccessful": "Payment successful!",
-      "proNowActive": "SmartJib Pro is now active on your account.",
-      "receipt": "Receipt",
-      "plan": "Plan",
-      "paymentMethod": "Payment method",
-      "nextBillingLabel": "Next billing",
-      "totalPaid": "Total paid",
-      "startUsingPro": "Start using Pro",
-      "paymentFailed": "Payment failed",
-      "paymentFailedDescription": "Your payment could not be completed. Please check your card details."
+      "backToDashboard": "Back to dashboard"
     },
     "moneyPlaces": {
       "title": "Edit Money Balances",
@@ -853,23 +781,23 @@
   "legal": {
     "eyebrow": "Legal",
     "privacyTitle": "Privacy Policy",
-    "privacySubtitle": "Last updated July 2026. Plain-language version below — the short of it: your budget is yours, and it stays that way.",
+    "privacySubtitle": "Last updated September 2026. Plain-language version below — the short of it: your budget is yours, and it stays that way.",
     "termsTitle": "Terms of Service",
-    "termsSubtitle": "Last updated July 2026. These terms cover how you can use SmartJib, and what you can expect from us.",
+    "termsSubtitle": "Last updated September 2026. These terms cover how you can use SmartJib, and what you can expect from us.",
     "authoritativeNotice": "Note: The English version of this document is the legally authoritative version.",
     "privacy": {
       "s1Title": "1. What we collect",
-      "s1Body": "We collect the information you give us directly: your email address, the income, expenses, categories and goals you enter, and basic account preferences like your currency and display settings. We do not ask for bank logins, card numbers, or account numbers of any kind.",
+      "s1Body": "We collect the information you give us directly: your email address, the income, expenses, receipt attachments, categories and goals you enter, and account preferences such as currency, language and display settings. The app also keeps authentication state and working copies in browser storage for sign-in, offline use and pending synchronization. We do not ask for bank logins, card numbers, or account numbers.",
       "s2Title": "2. How we use it",
       "s2Body": "Your budgeting data is used to power the app itself — to show your balances, calculate your budget, and sync your information across your devices. We do not use your financial data to build advertising profiles, and we do not sell it to third parties.",
       "s3Title": "3. Who can see your data",
-      "s3Body": "Your personal workspace is visible only to you: our systems isolate each account's data, and our team accesses individual data only when needed to fix a problem you've reported. If you create or join a shared household (a Pro feature), the budgets, expenses and goals of that household workspace are shared with its members according to the role each member was given — your personal workspace stays private.",
+      "s3Body": "Your personal workspace is accessible only to your account. A Household workspace is shared only with active members according to their Rules-enforced roles. We use Firebase for authentication, database hosting and optional analytics; our hosting provider to serve the app; Resend to deliver invitations and contact messages; and Open Food Facts when you request a barcode lookup. Each processor receives only the data needed for that operation. We do not sell your data.",
       "s4Title": "4. Analytics",
-      "s4Body": "We may use limited, privacy-respecting analytics to understand how the app is used overall (for example, which features are popular). This is aggregated and anonymized, and is off by default until you agree to it.",
+      "s4Body": "Optional analytics is off until you agree. If enabled, SmartJib records limited product-usage events and page paths. A strict allowlist removes financial amounts, balances, categories, receipt data, contact text and other free-form financial content before an event can leave the app. You can withdraw consent from Profile settings.",
       "s5Title": "5. Data retention",
-      "s5Body": "We keep your data for as long as your account is active. The app also keeps a copy of your recent budgeting data on your device so it can work offline; that local copy is removed when you sign out. If you delete your account, your profile, budgets, and goals are permanently removed from our systems.",
+      "s5Body": "We keep your workspace data while your account is active. When you request deletion, SmartJib removes the data it can verify and reports any incomplete step instead of claiming success. Household data is deleted by its owner; other members can leave without deleting household-owned data. Delivery, security and hosting providers may retain limited operational logs under their own retention policies. The app also keeps a copy of your recent budgeting data on your device so it can work offline; that local copy is removed when you sign out.",
       "s6Title": "6. Your choices",
-      "s6Body": "You can export your budgeting history as a spreadsheet at any time from Settings. You can also delete your account and all associated data permanently, whenever you like — no need to contact support.",
+      "s6Body": "You can export your budgeting history as CSV or a complete, restorable JSON backup from Profile at any time. You can also delete your data or account from Profile; destructive actions report partial failures and remain retryable.",
       "s7Title": "7. Changes to this policy",
       "s7Body": "If we make meaningful changes to how we handle your data, we'll let you know in the app before the changes take effect.",
       "s8Title": "8. Contact us",
@@ -879,15 +807,15 @@
       "s1Title": "1. Using SmartJib",
       "s1Body": "By creating an account, you agree to use SmartJib for its intended purpose — tracking your personal budget. You're responsible for keeping your login details secure and for the accuracy of the information you enter.",
       "s2Title": "2. Your account",
-      "s2Body": "You must be able to legally enter into these terms to use SmartJib. One account is for one person's budget; if you need a shared or household budget, look out for that feature on our roadmap.",
+      "s2Body": "You must be able to legally enter into these terms to use SmartJib. Personal workspaces are private to their account owner; Household workspaces can be shared with members you invite, according to the role you assign.",
       "s3Title": "3. Free and Pro plans",
-      "s3Body": "SmartJib's core features are free to use, with no time limit. SmartJib Pro is an optional paid upgrade that unlocks additional features. Pro subscriptions renew automatically until cancelled, and you can cancel anytime from Settings.",
+      "s3Body": "SmartJib’s core features are free with no time limit. Each eligible account may start one 90-day Pro trial without a payment card. Billing is not currently enabled, the trial does not renew automatically, and SmartJib will not charge you. If paid plans launch later, pricing and billing terms will be shown for your explicit agreement before any payment.",
       "s4Title": "4. What SmartJib is not",
       "s4Body": "SmartJib is a budgeting and tracking tool. It is not a bank, does not move real money on your behalf, and does not provide financial, investment, or tax advice. Decisions about your finances remain entirely your own.",
       "s5Title": "5. Acceptable use",
       "s5Body": "Please don't use SmartJib to store information that isn't yours, to attempt to access other users' accounts, or to interfere with the normal operation of the app.",
       "s6Title": "6. Cancelling or deleting your account",
-      "s6Body": "You can cancel a Pro subscription or delete your account entirely at any time from Settings. Deleting your account permanently removes your data from our systems.",
+      "s6Body": "There is currently no paid subscription to cancel. You can leave or delete a Household workspace according to your role, export your data, or delete your account from Profile. If an erasure cannot be completed, SmartJib keeps the account available and reports the remaining steps so you can retry.",
       "s7Title": "7. Changes to the service",
       "s7Body": "We may add, change, or remove features over time as SmartJib improves. We'll do our best to communicate meaningful changes in advance.",
       "s8Title": "8. Limitation of liability",
@@ -984,7 +912,7 @@
         "plan",
         "grow"
       ],
-      "description": "Your money answers two questions: what it's for, and where it is. SmartJib keeps them separate — every dirham accounted for, always.",
+      "description": "Track what each logged amount is for and which money place holds it — two separate views that stay reconciled through completed changes.",
       "ctaPrimary": "Start budgeting free",
       "ctaSecondary": "See how it works",
       "stats": [
@@ -995,7 +923,7 @@
         },
         {
           "value": "3",
-          "label": "places to track your cash",
+          "label": "Default money places",
           "detail": "BANK · HOME · WALLET"
         },
         {
@@ -1004,9 +932,9 @@
           "detail": "MAD · EUR · USD"
         },
         {
-          "value": "100%",
-          "label": "of your money accounted for",
-          "detail": "NEVER LOST"
+          "value": "2",
+          "label": "money questions kept separate",
+          "detail": "PURPOSE · PLACE"
         }
       ]
     },
@@ -1021,19 +949,19 @@
       "items": [
         {
           "title": "Know what it's for",
-          "description": "Every dirham gets a job — needs, wants, or savings — so you always know why you're spending, not just what you spent."
+          "description": "Each logged amount is assigned to needs, wants, or savings, so purpose stays separate from the place holding the money."
         },
         {
           "title": "Pick a style that fits you",
-          "description": "Choose from a few proven budgeting styles, or let SmartJib suggest one. Your income splits itself automatically, no spreadsheets required."
+          "description": "Choose from four budgeting styles. SmartJib calculates the needs, wants and savings split automatically, with no spreadsheet required."
         },
         {
           "title": "See where it actually is",
-          "description": "Bank, home, or wallet — track your cash wherever it sits. Move money between them and your budget updates instantly."
+          "description": "Bank, home, or wallet — track manually entered money where it sits. Successful transfers update both places together."
         },
         {
           "title": "Nothing ever gets lost",
-          "description": "Delete an expense and the money comes right back. Save toward a goal, then dip into it when you need to — it's always exactly where you left it."
+          "description": "A successful expense deletion reverses its balance effect. Saving-goal deposits and withdrawals update the selected money place together."
         }
       ]
     },
@@ -1106,42 +1034,54 @@
       "eyebrow": "Free, with room to grow",
       "titleLine1": "Start free.",
       "titleLine2": "Upgrade when ready.",
-      "description": "Everything you need to budget well is free, forever. When you want deeper insight into your habits and a little help staying on track, SmartJib Pro is right there.",
+      "description": "The core budget is free with no time limit. Eligible accounts can use one 90-day Pro trial for deeper insights and collaboration, without a card.",
       "statFree": "Free",
       "statFreeLabel": "Core budgeting",
       "stat3": "3",
-      "stat3Label": "Places to track cash",
+      "stat3Label": "Default money places",
       "statPro": "Pro",
       "statProLabel": "Smarter insights",
       "whatYouGet": "What you get",
       "freeToStart": "Free to start",
       "perks": [
         {
-          "name": "Track spending across bank, wallet & home",
+          "name": "Track logged spending across bank, wallet and home",
           "pro": false
         },
         {
-          "name": "4 budgeting styles to choose from",
+          "name": "Choose from 4 budgeting styles",
           "pro": false
         },
         {
-          "name": "Unlimited savings goals",
+          "name": "Create and fund saving goals",
           "pro": false
         },
         {
-          "name": "See exactly where every dirham went",
+          "name": "Export your data from Profile",
           "pro": false
         },
         {
-          "name": "Spot spending trends over months",
+          "name": "Scan barcodes while shopping",
           "pro": true
         },
         {
-          "name": "Get notified before you overspend",
+          "name": "Review six-month spending trends",
           "pro": true
         },
         {
-          "name": "Automatic recurring bills",
+          "name": "Manage multiple income sources",
+          "pro": true
+        },
+        {
+          "name": "Import expenses in bulk from CSV",
+          "pro": true
+        },
+        {
+          "name": "Set category caps and rollover",
+          "pro": true
+        },
+        {
+          "name": "Collaborate in a Household workspace",
           "pro": true
         }
       ]
@@ -1162,7 +1102,7 @@
           "value": 3,
           "suffix": "",
           "prefix": "",
-          "label": "Places to track your cash"
+          "label": "Default money places"
         },
         {
           "value": 12,
@@ -1171,10 +1111,10 @@
           "label": "Currencies supported"
         },
         {
-          "value": 2,
-          "suffix": " min",
-          "prefix": "~",
-          "label": "To set up your first budget"
+          "value": 5,
+          "suffix": "",
+          "prefix": "",
+          "label": "Guided onboarding steps"
         }
       ]
     },
@@ -1182,17 +1122,17 @@
       "eyebrow": "Currencies",
       "titleLine1": "Wherever your money",
       "titleLine2": "lives, we speak it.",
-      "description": "12 currencies, formatted the way you're used to seeing them. Switch anytime in Settings."
+      "description": "12 currencies, formatted for the selected locale. Change your display currency from Profile → Preferences."
     },
     "security": {
       "eyebrow": "Privacy",
       "titleLine1": "Your money,",
       "titleLine2": "your business.",
-      "description": "Budgeting means sharing personal details about your life. We take that seriously — your information stays private, protected, and always under your control.",
+      "description": "Personal workspaces are isolated by Firestore Rules. Household data is shared only with active members by role, and export and deletion controls stay in Profile.",
       "features": [
         {
           "title": "Private by default",
-          "description": "Firestore security rules isolate each account so signed-in users can access only their own budget."
+          "description": "Firestore Rules isolate personal workspaces and limit Household data to active members according to role."
         },
         {
           "title": "No bank connections",
@@ -1204,58 +1144,24 @@
         },
         {
           "title": "Export or delete anytime",
-          "description": "Download everything as a spreadsheet, or erase your account completely, whenever you like."
+          "description": "Export CSV files or a complete JSON backup from Profile. Deletion reports any incomplete step so it can be retried."
         }
       ],
       "badges": [
-        "Private accounts",
+        "Rules-enforced access",
         "No bank sync required",
-        "Data export",
-        "Easy account deletion",
-        "No ad tracking"
+        "CSV and JSON export",
+        "Retryable account deletion",
+        "No advertising profiles"
       ]
-    },
-    "testimonials": {
-      "eyebrow": "What people say",
-      "keyResult": "Key Result",
-      "trustedBy": "Trusted by people who budget in",
-      "items": [
-        {
-          "quote": "I finally know where my money goes each month. It's not a fancy finance app — it's exactly what I needed.",
-          "author": "Youssef B.",
-          "role": "Freelance designer",
-          "company": "Casablanca",
-          "metric": "Saved {percent} more in 3 months"
-        },
-        {
-          "quote": "The wallet vs bank split is genius. I used to lose track of cash completely.",
-          "author": "Amina K.",
-          "role": "Teacher",
-          "company": "Rabat",
-          "metric": "Zero surprise overdrafts"
-        },
-        {
-          "quote": "Switched from a spreadsheet I'd been maintaining for years. SmartJib replaced it in a weekend.",
-          "author": "Karim M.",
-          "role": "Software engineer",
-          "company": "Marrakech",
-          "metric": "From spreadsheet to app in 2 days"
-        }
-      ],
-      "showTestimonial": "Show testimonial {number}",
-      "illustrative": "Illustrative examples of how people use SmartJib — not customer reviews."
     },
     "pricing": {
       "eyebrow": "Pricing",
       "titleLine1": "Free to start.",
       "titleLine2": "Pro when you're ready.",
-      "description": "Budget with confidence at no cost. Upgrade anytime for deeper insight into your habits and a little extra help staying on track.",
-      "monthly": "Monthly",
-      "annual": "Annual",
-      "save34": "Save {percent}",
-      "perMonth": "/month",
-      "mostPopular": "Most popular",
-      "bottomNote": "Your budget stays private, always. No credit card required to start.",
+      "description": "Use the core budget for free, then try every Pro feature for 3 months. No card and no automatic renewal.",
+      "mostPopular": "90-day launch trial",
+      "bottomNote": "Your budget stays private. The 90-day Pro trial requires no card and never renews automatically.",
       "plans": [
         {
           "name": "Free",
@@ -1263,28 +1169,31 @@
           "features": [
             "Choose from 4 budgeting styles",
             "Track cash across bank, home & wallet",
-            "Unlimited savings goals",
+            "Create and fund saving goals",
             "12 currencies supported",
             "Export your data anytime",
-            "Works on your phone, offline"
+            "Installable PWA with an offline shell"
           ],
           "cta": "Start free"
         },
         {
           "name": "Pro",
-          "description": "For anyone ready to take budgeting further",
+          "description": "Every advanced feature, free for your first 90 days",
           "features": [
             "Everything in Free",
-            "See your spending trends over time",
-            "Set up bills to repeat automatically",
-            "Get alerts before you overspend",
-            "Import past spending in one go",
-            "Priority support"
+            "Barcode scanning while shopping",
+            "Six-month spending trends",
+            "Multiple income sources and CSV import",
+            "Category caps and budget rollover",
+            "Shared household collaboration"
           ],
-          "cta": "Upgrade to Pro"
+          "cta": "Start 3-month trial"
         }
       ],
-      "useAnnualBilling": "Use annual billing"
+      "trialPriceLabel": "3 months free",
+      "trialPeriod": "one-time trial",
+      "freePriceLabel": "Free",
+      "freePeriod": "no time limit"
     },
     "faq": {
       "eyebrow": "SmartJib facts",
@@ -1292,7 +1201,7 @@
       "items": [
         {
           "question": "Is SmartJib free?",
-          "answer": "SmartJib is free to use. SmartJib Pro is included free for your first 90 days — a one-time launch trial, no card required. When the trial ends your account returns to the free plan and all of your data stays available; paid Pro plans arrive when billing launches."
+          "answer": "SmartJib’s core budget is free with no time limit. Eligible accounts can start one 90-day Pro trial without a card; it does not renew automatically, and billing is not currently enabled."
         },
         {
           "question": "Does SmartJib connect to my bank?",
@@ -1316,18 +1225,18 @@
         },
         {
           "question": "Can I export my data?",
-          "answer": "Yes. You can export your budgeting data as a CSV file from Settings."
+          "answer": "Yes. From Profile you can export CSV files or a complete, restorable JSON backup."
         },
         {
           "question": "How do I delete my account?",
-          "answer": "You can permanently delete your account and its associated budgeting data from Settings."
+          "answer": "You can permanently delete your account and its associated budgeting data from Profile. SmartJib reports any incomplete deletion step so you can retry."
         }
       ]
     },
     "cta": {
       "titleLine1": "Ready to know",
       "titleLine2": "where your money is?",
-      "description": "Join people who stopped guessing. Start free, no credit card needed — upgrade to Pro whenever you want more.",
+      "description": "Start with the Free plan. Eligible accounts can also try Pro once for 90 days, with no card and no automatic renewal.",
       "ctaPrimary": "Start budgeting free",
       "ctaSecondary": "See Pro features",
       "noCreditCard": "No credit card required"
@@ -1347,13 +1256,11 @@
       "security": "Security",
       "about": "About",
       "careers": "Careers",
-      "hiring": "Hiring",
       "blog": "Blog",
       "privacyPolicy": "Privacy policy",
       "termsOfService": "Terms of service",
       "cookiePolicy": "Cookie policy",
-      "copyright": "2026 SmartJib. All rights reserved.",
-      "allSystems": "All systems operational"
+      "copyright": "2026 SmartJib. All rights reserved."
     }
   },
   "static": {
@@ -1366,9 +1273,9 @@
       "s2Title": "Built for everyday life",
       "s2Body": "We designed SmartJib for real budgets — the cash in your wallet, the money sitting at home, and whatever's left in the bank. No bank connections required, no complicated setup. Just add your income, pick a style that fits how you think about money, and start logging as you go.",
       "s3Title": "Free to start, honest about the rest",
-      "s3Body": "The core of SmartJib — tracking, budgeting styles, savings goals — is free, and always will be. SmartJib Pro exists for people who want a deeper look at their habits over time. We'll never hide basic budgeting behind a paywall.",
+      "s3Body": "At launch, SmartJib’s core tracking, budgeting styles and savings goals are free with no time limit. Eligible accounts can also try Pro once for 90 days without a card.",
       "s4Title": "Your business stays yours",
-      "s4Body": "Budgeting means sharing personal details about your life. We take that seriously: your data is private to your account, never sold, and yours to export or delete whenever you choose."
+      "s4Body": "Budgeting means sharing personal details about your life. We take that seriously: personal workspaces stay private to their owner, Household workspaces are shared only with active members, your data is never sold, and you can export or delete it."
     },
     "help": {
       "eyebrow": "Help center",
@@ -1391,30 +1298,30 @@
         },
         {
           "question": "Can I use more than one currency?",
-          "answer": "Yes. SmartJib supports 12 currencies, and you can switch your display currency anytime from Settings."
+          "answer": "Yes. SmartJib supports 12 currencies. Change the display currency from Profile → Preferences; historical months keep their saved currency."
         },
         {
           "question": "What happens if I delete an expense by mistake?",
-          "answer": "The money is returned to wherever it came from, instantly and exactly. Nothing about your balances is ever left out of sync."
+          "answer": "When an expense deletion succeeds, SmartJib reverses its effect on the relevant balances. If synchronization fails, the app reports the problem instead of claiming the deletion completed."
         },
         {
           "question": "What do I get with SmartJib Pro?",
-          "answer": "Pro adds spending trends over time, automatic recurring bills, overspending alerts, and the ability to import your past spending in one go — on top of everything in the free plan. Pro is included free for your first 90 days."
+          "answer": "Pro adds barcode-assisted course entry, multi-month trends, income-source management, bulk CSV import, category caps and rollover, and Household collaboration. Pro is included free for your first 90 days."
         },
         {
           "question": "Can I export my data?",
-          "answer": "Yes, anytime. Head to Settings to download your full budgeting history as a spreadsheet."
+          "answer": "Yes. From Profile you can export CSV files or a complete, restorable JSON backup."
         },
         {
           "question": "How do I delete my account?",
-          "answer": "You can permanently delete your account and all of your data from Settings, with no need to contact support."
+          "answer": "You can permanently delete your account and its associated budgeting data from Profile. SmartJib reports any incomplete deletion step so you can retry."
         }
       ]
     },
     "contact": {
       "eyebrow": "Contact",
       "title": "Let's talk.",
-      "subtitle": "Questions about your account, SmartJib Pro, or just want to say hi? Send us a message and we'll get back to you soon.",
+      "subtitle": "Questions about your account, SmartJib Pro, bugs or feedback? Send a message to the configured support inbox.",
       "emailNote": "Prefer email? Reach us at hello@flousy.app",
       "yourName": "Your name",
       "emailAddress": "Email address",
@@ -1423,17 +1330,19 @@
       "message": "Message",
       "messagePlaceholder": "Tell us a bit more...",
       "send": "Send message",
-      "sentTitle": "Message sent",
-      "sentDescription": "Thanks for reaching out. We usually reply within a day or two.",
+      "sentTitle": "Message accepted for delivery",
+      "sentDescription": "The email provider accepted your message. This does not guarantee mailbox delivery or a response; keep the request ID if you need to retry or follow up.",
       "sending": "Sending…",
+      "sendError": "Your message was not sent. Please try again or email hello@flousy.app.",
+      "requestId": "Request ID",
       "sendFailed": "Your message could not be sent. Please try again, or email us directly at {email}.",
       "rateLimited": "Too many messages were sent from your connection. Please wait a few minutes and try again.",
       "notConfigured": "The contact form is not available right now. Email us directly at {email} and we'll get back to you."
     },
     "careers": {
       "eyebrow": "Careers",
-      "title": "We're not hiring right now — but we'd still love to hear from you.",
-      "subtitle": "SmartJib is a small team building a budgeting app people actually enjoy using. There are no open roles at the moment, but we keep every introduction on file for when that changes.",
+      "title": "No open roles right now.",
+      "subtitle": "SmartJib is not accepting job applications at this time. Any future opening will be published on this page with its scope and application process.",
       "valuesTitle": "What we care about",
       "values": [
         {
@@ -1449,34 +1358,34 @@
           "description": "Everyone here shapes the product directly — no layers between an idea and the people using it."
         }
       ],
-      "getOnRadar": "Get on our radar",
-      "getOnRadarDescription": "Send a short note and whatever you'd like us to see to",
-      "getOnRadarSuffix": ". We read everything, even without an open role to point you to."
+      "getOnRadar": "Contact SmartJib",
+      "getOnRadarDescription": "For general product or support questions, use our",
+      "getOnRadarSuffix": "."
     },
     "cookies": {
       "eyebrow": "Legal",
       "title": "Cookie Policy",
-      "subtitle": "Last updated July 2026. A short, honest explanation of the handful of cookies SmartJib uses.",
+      "subtitle": "Last updated September 2026. A short, honest explanation of the browser storage SmartJib uses.",
       "sections": [
         {
-          "title": "1. What cookies we use",
-          "body": "SmartJib uses a small number of cookies and local storage entries to keep you signed in, remember your preferences (like currency and dark mode), and keep the app working smoothly between visits."
+          "title": "1. Browser storage we use",
+          "body": "SmartJib uses cookies, localStorage and IndexedDB to keep you signed in, remember language/theme and workspace choices, cache budget data for fast and offline use, and hold pending edits until they safely synchronize."
         },
         {
-          "title": "2. Essential cookies",
-          "body": "These are required for the app to function — for example, staying logged into your account. You can't opt out of these without losing the ability to use SmartJib."
+          "title": "2. Essential storage",
+          "body": "Authentication state, security/session data, preferences, offline cache and the finance outbox are required for the service you request. Blocking or clearing them may sign you out, reset preferences, or remove device-only demo and unsynchronized data."
         },
         {
           "title": "3. Optional analytics",
-          "body": "If enabled, we may use privacy-respecting analytics cookies to understand overall usage patterns, like which pages or features are most used. These don't track you across other websites, and are off unless you've agreed to them."
+          "body": "Firebase Analytics and any configured analytics provider stay unloaded and send nothing unless you explicitly agree. When enabled, only allowlisted product-usage dimensions are sent; financial amounts and free-form budget content are blocked."
         },
         {
           "title": "4. No advertising cookies",
-          "body": "SmartJib does not use advertising or cross-site tracking cookies. We're not in the business of selling attention or data."
+          "body": "SmartJib does not use advertising cookies, cross-site tracking, or sell profiles. Analytics consent is separate from the storage needed to run your budget."
         },
         {
-          "title": "5. Managing cookies",
-          "body": "You can control or clear cookies through your browser settings at any time. Note that blocking essential cookies may prevent SmartJib from working properly."
+          "title": "5. Managing your choice",
+          "body": "You can grant or withdraw analytics consent in Profile settings and clear browser storage through your browser. Withdrawing analytics consent stops future analytics events; blocking essential storage may prevent SmartJib from working or synchronizing correctly."
         }
       ]
     },
@@ -1554,7 +1463,7 @@
     "data": "Data",
     "account": "Account",
     "incomeSources": "Income Sources",
-    "importExportCsv": "Import / Export CSV",
+    "importExportCsv": "Import CSV",
     "newTransaction": "New Transaction",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
@@ -1796,7 +1705,7 @@
       "unlockWithPro": "Unlock with Pro",
       "allActive": "All active",
       "manageIncomeSources": "Manage Income Sources",
-      "importExportCsv": "Import / Export CSV",
+      "importExportCsv": "Import CSV",
       "manageHousehold": "Manage Household",
       "analyticsInsights": "Analytics & Insights",
       "privateWorkspaceHint": "Pro upgrades apply to your private workspace. Switch to {workspace} to manage or upgrade your personal plan.",
@@ -1814,8 +1723,8 @@
           "description": "Track salary, freelance and side income separately in one budget."
         },
         "csv": {
-          "title": "CSV Import & Export",
-          "description": "Bulk-import statements and export your full history any time."
+          "title": "Bulk CSV Import",
+          "description": "Import variable expenses or fixed charges in bulk with localized column mapping."
         },
         "categoryBudgets": {
           "title": "Category Budgets",
@@ -1835,7 +1744,7 @@
     },
     "free": "Free",
     "avatarSaveError": "Unable to save this profile photo.",
-    "upgradeToPro": "Upgrade to Pro",
+    "upgradeToPro": "View SmartJib Pro",
     "monthStartDatePersonalScope": "Personal",
     "monthStartDateHouseholdScope": "Household"
   },
@@ -1957,14 +1866,22 @@
     "truncated": "Only the first {limit} rows were imported — a single month cannot hold more."
   },
   "pro": {
-    "trialTitle": "Pro is free for your first 90 days",
-    "trialBody": "Claim a one-time 90-day Pro trial — no card required and nothing is charged. When it ends, your account returns to the Free plan automatically and every record and export stays available.",
-    "trialAction": "Start my free 90 days",
-    "cardFieldsRemoved": "No payment form — SmartJib does not collect card details.",
-    "trialClaimed": "Pro unlocked on this account.",
-    "trialActiveNote": "{days} days left in your free Pro trial.",
-    "trialExpiredTitle": "Your free Pro trial has ended",
-    "trialExpiredBody": "The 90-day trial is over, so Pro features are locked again. All of your data, history and exports remain fully available on the Free plan. Paid upgrades are coming soon."
+    "betaTitle": "Try Pro free for 3 months",
+    "betaBody": "Start one 90-day Pro trial at no cost. Billing is not connected, nothing is charged, and no card details are requested.",
+    "betaAction": "Start free 3-month trial",
+    "cardFieldsRemoved": "No payment form — SmartJib never collects card details.",
+    "trialClaimed": "Your 90-day Pro trial is active.",
+    "alreadyIncluded": "Your free Pro trial is active.",
+    "trialTitle": "Try SmartJib Pro free for 3 months",
+    "trialBody": "Start one 90-day Pro trial and unlock every Pro feature. No card is required and the trial never renews automatically.",
+    "trialAction": "Start my free 3-month trial",
+    "trialActiveTitle": "Your Pro trial is active",
+    "trialEnds": "Free trial ends {date} · {days} days remaining.",
+    "trialExpiredTitle": "Your Pro trial has ended",
+    "trialExpiredBody": "Your data is safe and remains available. Pro-only editing is paused, while the core free plan continues to work.",
+    "billingNotAvailable": "Paid upgrades are not available yet. You will never be charged without explicitly choosing a plan after billing launches.",
+    "noCardRequired": "No card required · no automatic renewal · one trial per account",
+    "trialError": "The trial could not be started. Check your connection and try again."
   },
   "seo": {
     "titles": {
@@ -1995,5 +1912,14 @@
     "useCloudCopy": "Discard local changes",
     "pending": "Pending",
     "local": "Saved on this device"
+  },
+  "monthLock": {
+    "closed": "Month closed",
+    "close": "Close month",
+    "reopen": "Reopen month",
+    "closeConfirm": "Close this month? Transactions, balances, invoices, and savings activity will be read-only until you reopen it.",
+    "reopenConfirm": "Reopen this month and allow changes again?",
+    "closedDetail": "This month is closed and its financial records are read-only.",
+    "editBlocked": "This month was closed. Reopen it before making changes."
   }
 }

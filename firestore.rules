@@ -14,34 +14,55 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isEmail(value) { return value is string && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
-    // 90-day launch trial (7,776,000,000 ms). The claim must stamp an
-    // end-instant EXACTLY this far after a claim instant near server time,
-    // and both stamps are immutable afterwards — no client can extend a trial.
-    function validTrialClaim() {
-      return incoming().proTrialClaimedAt is string
-        && incoming().proTrialClaimedAtMs is number
-        && incoming().proTrialClaimedAtMs >= request.time.toMillis() - 300000
-        && incoming().proTrialClaimedAtMs <= request.time.toMillis() + 300000
-        && incoming().proTrialEndsAtMs is number
-        && incoming().proTrialEndsAtMs == incoming().proTrialClaimedAtMs + 7776000000
-        && incoming().planSource == 'launch_trial';
-    }
-    function trialStampsUnchanged() {
-      return (!('proTrialClaimedAt' in existing()) || incoming().proTrialClaimedAt == existing().proTrialClaimedAt)
-        && (!('proTrialClaimedAtMs' in existing()) || incoming().proTrialClaimedAtMs == existing().proTrialClaimedAtMs)
-        && (!('proTrialEndsAtMs' in existing()) || incoming().proTrialEndsAtMs == existing().proTrialEndsAtMs)
-        && (!('planSource' in existing()) || incoming().planSource == existing().planSource);
-    }
-    // Expiry-aware Pro: `plan == 'pro'` alone is not entitlement — a lapsed
-    // launch trial keeps the plan string but loses Pro. Billing-sourced
-    // entitlements (Admin SDK writes, no trial window) never lapse here.
-    function activePro(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.plan == 'pro'
-        && (!('proTrialEndsAtMs' in get(/databases/$(database)/documents/users/$(uid)).data)
-          || get(/databases/$(database)/documents/users/$(uid)).data.proTrialEndsAtMs > request.time.toMillis());
-    }
     function boundedText(value, maxBytes) {
       return value is string && value.size() > 0 && value.size() <= maxBytes;
+    }
+    function entitlementFieldsChanged() {
+      return incoming().diff(existing()).affectedKeys().hasAny([
+        'plan', 'entitlementSource', 'entitlementStatus',
+        'entitlementStartedAtMs', 'entitlementEndsAtMs',
+        'proTrialClaimedAt', 'planBillingCycle', 'planNextBillingDate'
+      ]);
+    }
+    function validLaunchTrialClaim() {
+      return existing().plan == 'free'
+        && incoming().plan == 'pro'
+        && !('entitlementSource' in existing())
+        && !('proTrialClaimedAt' in existing())
+        && incoming().entitlementSource == 'launch_trial'
+        && incoming().entitlementStatus == 'trialing'
+        && incoming().entitlementStartedAtMs is int
+        && incoming().entitlementStartedAtMs >= request.time.toMillis() - 300000
+        && incoming().entitlementStartedAtMs <= request.time.toMillis() + 300000
+        && incoming().entitlementEndsAtMs
+          == incoming().entitlementStartedAtMs + 7776000000
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'plan', 'entitlementSource', 'entitlementStatus',
+          'entitlementStartedAtMs', 'entitlementEndsAtMs'
+        ]);
+    }
+    function activeProEntitlement(uid) {
+      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
+      return profile.plan == 'pro'
+        && (!('entitlementStatus' in profile)
+          || profile.entitlementStatus in ['trialing', 'active', 'grace_period', 'canceled'])
+        && (!('entitlementEndsAtMs' in profile)
+          || profile.entitlementEndsAtMs > request.time.toMillis());
+    }
+    function householdEntitled(hid) {
+      return exists(householdPath(hid))
+        && activeProEntitlement(get(householdPath(hid)).data.entitlementOwnerId);
+    }
+    function validHouseholdEntitlementProjection(data, uid) {
+      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
+      return data.entitlementOwnerId == uid
+        && activeProEntitlement(uid)
+        && (!('entitlementSource' in profile)
+          || data.entitlementSource == profile.entitlementSource)
+        && (!('entitlementStatus' in profile)
+          || data.entitlementStatus == profile.entitlementStatus)
+        && (!('entitlementEndsAtMs' in profile)
+          || data.entitlementEndsAtMs == profile.entitlementEndsAtMs);
     }
     function validMonthDocument() {
       return isMoney(incoming().totalBudget)
@@ -53,6 +74,12 @@ service cloud.firestore {
         && incoming().lastMutationId is string
         && incoming().lastMutationId.size() > 0
         && incoming().lastMutationId.size() <= 160
+        && (!('periodStatus' in incoming()) || incoming().periodStatus in ['open', 'closed'])
+        && (!('periodStatus' in incoming())
+          || incoming().periodStatus != 'closed'
+          || (incoming().closedAt is string
+            && incoming().closedByUserId is string
+            && incoming().closedByUserId.size() > 0))
         && (!('currency' in incoming())
           || (incoming().currency is string && incoming().currency.size() >= 3 && incoming().currency.size() <= 8))
         // Firestore Rules cannot iterate arbitrary list/map values. The client
@@ -71,6 +98,28 @@ service cloud.firestore {
         && (!('balanceAdjustments' in incoming())
           || (incoming().balanceAdjustments is list && incoming().balanceAdjustments.size() <= 500))
         && (!('placeBalances' in incoming()) || incoming().placeBalances is map);
+    }
+
+    function periodClosed(data) {
+      return 'periodStatus' in data && data.periodStatus == 'closed';
+    }
+    function validPeriodStateTransition() {
+      let wasClosed = periodClosed(existing());
+      let willBeClosed = periodClosed(incoming());
+      let stateOnly = incoming().diff(existing()).affectedKeys().hasOnly([
+        'periodStatus', 'closedAt', 'closedByUserId', 'schemaVersion',
+        'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId'
+      ]);
+      // Open periods accept ordinary finance writes. Closing is allowed to
+      // normalize a legacy document, but reopening a frozen snapshot may alter
+      // state/audit metadata only; finance edits require a later transaction.
+      return (!wasClosed && !willBeClosed)
+        || (!wasClosed && willBeClosed
+          && incoming().closedByUserId == request.auth.uid)
+        || (wasClosed && !willBeClosed
+          && 'periodStatus' in incoming()
+          && incoming().periodStatus == 'open'
+          && stateOnly);
     }
 
     function householdPath(hid) {
@@ -97,6 +146,9 @@ service cloud.firestore {
     function householdEditor(hid) {
       return householdMember(hid) && memberRole(hid) in ['owner', 'editor'];
     }
+    function householdWriter(hid) {
+      return householdEditor(hid) && householdEntitled(hid);
+    }
     function householdFinanceReader(hid) {
       return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
     }
@@ -110,25 +162,28 @@ service cloud.firestore {
         && data.activeCategories is list
         && data.activeCategories.size() <= 100
         && (!('monthStartDate' in data)
-          || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31));
+          || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
+        && (!('entitlementSource' in data)
+          || data.entitlementSource in ['launch_trial', 'stripe', 'cmi', 'admin'])
+        && (!('entitlementStatus' in data)
+          || data.entitlementStatus in ['trialing', 'active', 'grace_period', 'past_due', 'canceled', 'expired'])
+        && (!('entitlementEndsAtMs' in data)
+          || (data.entitlementEndsAtMs is int && data.entitlementEndsAtMs > 0));
     }
 
     match /users/{uid} {
       allow get: if owner(uid);
       allow create: if owner(uid)
         && incoming().plan == 'free'
+        && !incoming().keys().hasAny([
+          'entitlementSource', 'entitlementStatus', 'entitlementStartedAtMs',
+          'entitlementEndsAtMs', 'proTrialClaimedAt',
+          'planBillingCycle', 'planNextBillingDate'
+        ])
         && incoming().currency is string
         && incoming().onboardingComplete is bool;
       allow update: if owner(uid)
-        && (!('plan' in incoming())
-          || incoming().plan == existing().plan
-          || (incoming().plan == 'pro'
-            && existing().plan == 'free'
-            && !('proTrialClaimedAt' in existing())
-            && !('proTrialClaimedAtMs' in existing())
-            && !('proTrialEndsAtMs' in existing())
-            && validTrialClaim()))
-        && trialStampsUnchanged()
+        && (!entitlementFieldsChanged() || validLaunchTrialClaim())
         && (!('currency' in incoming()) || incoming().currency is string)
         && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool)
         && (!('displayName' in incoming()) || incoming().displayName == null
@@ -143,14 +198,22 @@ service cloud.firestore {
         allow create: if owner(uid)
           && isValidMonthId(key)
           && validMonthDocument()
+          && !periodClosed(incoming())
           && incoming().revision == 1
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId));
         allow update: if owner(uid)
           && isValidMonthId(key)
           && validMonthDocument()
+          && validPeriodStateTransition()
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
-          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId));
+          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || (!periodClosed(existing()) && periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
+            || (periodClosed(existing()) && !periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
         allow delete: if owner(uid);
       }
 
@@ -170,6 +233,7 @@ service cloud.firestore {
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if owner(uid);
       }
@@ -186,6 +250,10 @@ service cloud.firestore {
           && incoming().baseRevision >= 0
           && incoming().nextRevision == incoming().baseRevision + 1
           && incoming().createdAt is string
+          && incoming().kind in [
+            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+          ]
           && ((incoming().monthKey == 'savings'
               && existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings)
               && getAfter(/databases/$(database)/documents/users/$(uid)/data/savings).data.lastMutationId == mutationId)
@@ -241,11 +309,15 @@ service cloud.firestore {
         && incoming().entitlementOwnerId == request.auth.uid
         && boundedText(incoming().name, 100)
         && validHouseholdConfig(incoming())
-        && activePro(request.auth.uid);
+        && validHouseholdEntitlementProjection(incoming(), request.auth.uid);
       allow update: if householdOwner(hid)
+        && householdEntitled(hid)
         && incoming().ownerId == existing().ownerId
         && incoming().planOwnerId == existing().planOwnerId
         && incoming().entitlementOwnerId == existing().entitlementOwnerId
+        && !incoming().diff(existing()).affectedKeys().hasAny([
+          'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
+        ])
         && incoming().createdAt == existing().createdAt
         && validHouseholdConfig(incoming());
       allow delete: if householdOwner(hid);
@@ -262,10 +334,12 @@ service cloud.firestore {
             && incoming().role == 'owner'
             && incoming().status == 'active')
           || (householdOwner(hid)
+            && householdEntitled(hid)
             && memberId != request.auth.uid
             && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
             && incoming().status in ['invited', 'active'])
           || (verifiedEmail()
+            && householdEntitled(hid)
             && memberId == request.auth.uid
             && incoming().userId == request.auth.uid
             && incoming().status == 'active'
@@ -282,6 +356,7 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
 
         allow update: if (householdOwner(hid)
+            && householdEntitled(hid)
             && resource.data.role != 'owner'
             && incoming().role in ['editor', 'viewer', 'contributor', 'profile']
             && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
@@ -303,7 +378,8 @@ service cloud.firestore {
           || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
         allow list: if householdEditor(hid)
           || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
-        allow create: if householdMember(hid)
+        allow create: if householdEntitled(hid)
+          && householdMember(hid)
           && memberRole(hid) in ['owner', 'editor', 'contributor']
           && incoming().id == invoiceId
           && incoming().submitterId == request.auth.uid
@@ -316,7 +392,7 @@ service cloud.firestore {
           && incoming().place.size() <= 80
           && (!('receiptUrl' in incoming())
             || (incoming().receiptUrl is string && incoming().receiptUrl.size() <= 120000));
-        allow update: if householdEditor(hid)
+        allow update: if householdWriter(hid)
           && existing().status == 'submitted'
           && incoming().status in ['approved', 'rejected']
           && incoming().diff(existing()).affectedKeys().hasOnly([
@@ -342,43 +418,54 @@ service cloud.firestore {
 
       match /months/{key} {
         allow read: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdEditor(hid)
+        allow create: if householdWriter(hid)
           && isValidMonthId(key)
           && validMonthDocument()
+          && !periodClosed(incoming())
           && incoming().revision == 1
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
-        allow update: if householdEditor(hid)
+        allow update: if householdWriter(hid)
           && isValidMonthId(key)
           && validMonthDocument()
+          && validPeriodStateTransition()
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || householdOwner(hid))
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
-          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
+          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
+          && ((!periodClosed(existing()) && !periodClosed(incoming()))
+            || (!periodClosed(existing()) && periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
+            || (periodClosed(existing()) && !periodClosed(incoming())
+              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
         allow delete: if householdOwner(hid);
       }
 
       match /data/savings {
         allow read: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdEditor(hid)
+        allow create: if householdWriter(hid)
           && incoming().revision == 1
           && incoming().lastMutationId is string
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
-        allow update: if householdEditor(hid)
+        allow update: if householdWriter(hid)
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
           && incoming().lastMutationId is string
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if householdOwner(hid);
       }
 
       match /ledger/{mutationId} {
         allow get, list: if householdFinanceReader(hid) || householdOwner(hid);
-        allow create: if householdEditor(hid)
+        allow create: if householdWriter(hid)
           && incoming().mutationId == mutationId
           && incoming().actorId == request.auth.uid
           && incoming().workspace == 'household'
@@ -388,6 +475,10 @@ service cloud.firestore {
           && incoming().baseRevision >= 0
           && incoming().nextRevision == incoming().baseRevision + 1
           && incoming().createdAt is string
+          && incoming().kind in [
+            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+          ]
           && ((incoming().monthKey == 'savings'
               && existsAfter(/databases/$(database)/documents/households/$(hid)/data/savings)
               && getAfter(/databases/$(database)/documents/households/$(hid)/data/savings).data.lastMutationId == mutationId)
@@ -412,6 +503,7 @@ service cloud.firestore {
           || (verifiedEmail() && resource.data.email == request.auth.token.email));
       allow create: if signedIn()
         && householdOwner(incoming().householdId)
+        && householdEntitled(incoming().householdId)
         && incoming().createdBy == request.auth.uid
         && incoming().status == 'pending'
         && incoming().role in ['editor', 'viewer', 'contributor']

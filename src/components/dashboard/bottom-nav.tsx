@@ -36,8 +36,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const { messages: m } = useLanguage();
   const { isPro } = useDashboard();
-  const { workspace } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
   const [isCompact, setIsCompact] = useState(false);

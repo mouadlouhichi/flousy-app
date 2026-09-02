@@ -90,7 +90,7 @@ export function FixedModal({
   const { messages: m, t } = useLanguage();
   const f = m.modals.fixed;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProFeatureUnlocked(isProUser(profile), workspace);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace, household);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Rent');

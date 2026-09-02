@@ -337,6 +337,11 @@ export async function POST(request: NextRequest) {
         `${emailCopy.emailAccept}: ${acceptUrl}`,
         emailCopy.emailExpires,
       ].join('\n\n'),
+    }, {
+      // The invite document ID is stable across a client retry. Provider-level
+      // idempotency protects against duplicate mail across serverless instances
+      // and after an ambiguous network timeout.
+      idempotencyKey: `household-invite-${inviteId}`,
     });
     if (delivery.error) {
       // Resend answers with the real reason (unverified domain, test key,

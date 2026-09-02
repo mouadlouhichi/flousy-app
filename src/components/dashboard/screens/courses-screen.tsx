@@ -119,7 +119,7 @@ function CoursesScreenInner() {
   // always-free fallback: adding items by name. (The upsell card only ever
   // renders outside a household workspace, so the upgrade CTA is always
   // allowed there.)
-  const scanUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const scanUnlocked = isProFeatureUnlocked(isPro, workspace, household);
 
   // ---- view state -------------------------------------------------------------
   const [viewingBill, setViewingBill] = useState<CourseSession | null>(null);
@@ -334,13 +334,9 @@ function CoursesScreenInner() {
         loggedWorkspace: workspace,
         loggedWorkspaceId: workspace === 'household' ? household?.id : user?.uid,
       });
-      trackEvent('course_logged_to_budget', {
-        amount: billSession.total,
-        category,
-        place,
-        destination_month: destinationMonth,
-        workspace,
-      });
+      // Telemetry records feature adoption only—never prices, categories,
+      // account/place names, or the user's financial period.
+      trackEvent('course_logged_to_budget', { workspace });
     } catch (reason) {
       console.error('Course posting failed:', reason);
       setPostingError(c.logFailed);

@@ -67,8 +67,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { messages: m, t } = useLanguage();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
-  const { workspace, canViewArea, exportSections } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household, canViewArea, exportSections } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   // Quick tools are entry points into RBAC areas: income sources open the
   // income editor and CSV import/export reads or writes several money areas.
   // A member without the area never sees the button at all.

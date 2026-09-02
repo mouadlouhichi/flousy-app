@@ -17,6 +17,7 @@ import {
   FinanceConflictError,
   mergeGoalsMutation,
   mergeMonthMutation,
+  resolvePeriodMutation,
   type FinanceMutation,
 } from './finance-sync';
 import {
@@ -152,19 +153,21 @@ export function subscribeMonthBudget(
   );
 }
 
-export async function saveMonthBudget(uid: string, monthKey: string, month: MonthBudget): Promise<void> {
-  if (!isFirebaseConfigured || !db) return;
+/** Create an onboarding/bootstrap month without ever replacing existing finance data. */
+export async function saveMonthBudget(uid: string, monthKey: string, month: MonthBudget): Promise<boolean> {
+  if (!isFirebaseConfigured || !db) return false;
   const mutationId = `bootstrap-${crypto.randomUUID()}`;
   const firestore = db;
   const monthRef = doc(firestore, 'users', uid, 'months', monthKey);
   const ledgerRef = doc(firestore, 'users', uid, 'ledger', mutationId);
   try {
-    await runTransaction(firestore, async (transaction) => {
+    return await runTransaction(firestore, async (transaction) => {
       const snapshot = await transaction.get(monthRef);
-      const baseRevision = snapshot.exists() ? Math.max(0, Number(snapshot.data().revision) || 0) : 0;
+      if (snapshot.exists()) return false;
+      const baseRevision = 0;
       const next = {
         ...normalizeMonth(month, monthKey),
-        revision: baseRevision + 1,
+        revision: 1,
         lastMutationId: mutationId,
         updatedByUserId: uid,
         updatedAt: new Date().toISOString(),
@@ -181,6 +184,7 @@ export async function saveMonthBudget(uid: string, monthKey: string, month: Mont
         nextRevision: baseRevision + 1,
         createdAt: next.updatedAt,
       });
+      return true;
     });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `users/${uid}/months/${monthKey}`);
@@ -268,6 +272,12 @@ export async function commitFinanceMutation(
     const remoteMonth = monthSnapshot.exists()
       ? normalizeMonth(monthSnapshot.data() as MonthBudget, mutation.monthKey, configuration)
       : normalizeMonth(mutation.baseMonth, mutation.monthKey, configuration);
+    const intent = mutation.intent || 'finance';
+    // Repeated close/reopen operations are idempotent. A stale ordinary edit
+    // never merges into a month another device has already frozen.
+    if (resolvePeriodMutation(remoteMonth, intent) === 'already-satisfied') {
+      return { month: remoteMonth };
+    }
     const mergedMonth = mergeMonthMutation(mutation.baseMonth, mutation.nextMonth, remoteMonth);
     const baseRevision = monthSnapshot.exists()
       ? Math.max(0, Number(monthSnapshot.data().revision) || 0)
@@ -309,7 +319,11 @@ export async function commitFinanceMutation(
       workspace: mutation.workspace,
       workspaceId: mutation.workspaceId,
       monthKey: mutation.monthKey,
-      kind: mutation.nextGoals ? 'month-and-savings' : 'month',
+      kind: intent === 'close-period'
+        ? 'month-close'
+        : intent === 'reopen-period'
+          ? 'month-reopen'
+          : mutation.nextGoals ? 'month-and-savings' : 'month',
       baseRevision,
       nextRevision: baseRevision + 1,
       balanceDelta,
@@ -547,7 +561,7 @@ export async function saveSavingsGoals(uid: string, goals: SavingGoal[]): Promis
         workspace: 'personal',
         workspaceId: uid,
         monthKey: 'savings',
-        kind: 'savings-bootstrap',
+        kind: snapshot.exists() ? 'savings' : 'savings-bootstrap',
         baseRevision: revision,
         nextRevision: revision + 1,
         createdAt: now,
@@ -823,6 +837,9 @@ export async function postCourseSession(input: {
       }
       return { month: remote, expenseId };
     }
+    if (remote.periodStatus === 'closed') {
+      throw new FinanceConflictError([{ path: 'periodStatus', reason: 'period-closed' }]);
+    }
     if (session.status !== 'completed') throw new Error('Finish the shopping session before posting it.');
     if (ledgerSnapshot.exists()) {
       throw new Error('This shopping-session posting ID is already reserved by another transaction.');
@@ -887,44 +904,39 @@ async function deleteUserCourseData(uid: string): Promise<void> {
   await deleteCollection('users', uid, 'sessions');
 }
 
-/** Per-collection outcome of an erasure so the UI can be truthful about it. */
+/** Result of the one-time, rules-enforced launch trial claim. */
+export type ProTrialClaimResult = 'claimed' | 'active' | 'already_used' | 'unavailable';
+
 /**
- * Claim the single free 90-day Pro launch trial for this account.
+ * Start one 90-day Pro launch trial without collecting payment details.
  *
- * There is no payment provider wired up, and Firestore rules refuse a
- * self-assigned `plan: 'pro'` for exactly that reason: an account that can grant
- * itself Pro is an account that never pays. The rules allow one exception — the
- * free -> pro transition stamped with `proTrialClaimedAt(-Ms)` and a
- * `proTrialEndsAtMs` exactly 90 days (7,776,000,000 ms) later. Both stamps are
- * immutable once present, so the trial can neither be re-claimed nor extended
- * from a client. Expiry is enforced by `resolveProEntitlement` on the client
- * and by `activePro()` inside firestore.rules for server-checked surfaces
- * (household creation). When CMI/Stripe billing arrives, its webhook writes
- * `plan: 'pro'` + `planSource: 'billing'` through the Admin SDK instead.
+ * Firestore Rules validate the start against server request time, require the
+ * end to be exactly 90 days later, and make all entitlement fields immutable to
+ * browser clients after this free -> pro transition. A future Stripe or CMI
+ * webhook will update the same provider-neutral projection through Admin SDK.
  */
-export async function claimProTrial(uid: string): Promise<boolean> {
-  if (!db) return false;
+export async function claimProTrial(uid: string): Promise<ProTrialClaimResult> {
+  if (!db) return 'unavailable';
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
-  const data = snapshot.exists() ? (snapshot.data() as Partial<UserProfile>) : undefined;
-  if (data && resolveProEntitlement({
-    plan: data.plan,
-    proTrialEndsAtMs: data.proTrialEndsAtMs,
-    planSource: data.planSource,
-  }).isPro) return true;
-  // A previously claimed (possibly expired) trial cannot be claimed again —
-  // the rules would reject the write; fail honestly instead of racing it.
-  if (data && (data.proTrialClaimedAt !== undefined || data.proTrialEndsAtMs !== undefined)) return false;
-  if (data && data.plan !== 'free') return false;
-  const claimedAtMs = Date.now();
+  if (!snapshot.exists()) return 'unavailable';
+
+  const profile = snapshot.data() as UserProfile;
+  const entitlement = resolveProEntitlement(profile);
+  if (entitlement.isPro) return 'active';
+  if (entitlement.hasUsedTrial || profile.entitlementSource || profile.plan !== 'free') {
+    return 'already_used';
+  }
+
+  const startedAtMs = Date.now();
   await setDoc(ref, {
     plan: 'pro',
-    planSource: 'launch_trial',
-    proTrialClaimedAt: new Date(claimedAtMs).toISOString(),
-    proTrialClaimedAtMs: claimedAtMs,
-    proTrialEndsAtMs: claimedAtMs + PRO_TRIAL_DURATION_MS,
+    entitlementSource: 'launch_trial',
+    entitlementStatus: 'trialing',
+    entitlementStartedAtMs: startedAtMs,
+    entitlementEndsAtMs: startedAtMs + PRO_TRIAL_DURATION_MS,
   } satisfies Partial<UserProfile>, { merge: true });
-  return true;
+  return 'claimed';
 }
 
 export interface DeletionReport {
@@ -1265,19 +1277,25 @@ export function subscribeHouseholdMonthBudget(
     },
   );
 }
-export async function saveHouseholdMonthBudget(householdId: string, monthKey: string, month: MonthBudget) {
-  if (!isFirebaseConfigured || !db || !auth?.currentUser) return;
+/** Create a household bootstrap/import month; retries never overwrite shared data. */
+export async function saveHouseholdMonthBudget(
+  householdId: string,
+  monthKey: string,
+  month: MonthBudget,
+): Promise<boolean> {
+  if (!isFirebaseConfigured || !db || !auth?.currentUser) return false;
   const firestore = db;
   const actorId = auth.currentUser.uid;
   const monthRef = doc(firestore, 'households', householdId, 'months', monthKey);
   const mutationId = `bootstrap-${crypto.randomUUID()}`;
   const ledgerRef = doc(firestore, 'households', householdId, 'ledger', mutationId);
-  await runTransaction(firestore, async (transaction) => {
+  return runTransaction(firestore, async (transaction) => {
     const snapshot = await transaction.get(monthRef);
-    const revision = snapshot.exists() ? Math.max(0, Number(snapshot.data().revision) || 0) : 0;
+    if (snapshot.exists()) return false;
+    const revision = 0;
     const next = {
       ...normalizeMonth(month, monthKey),
-      revision: revision + 1,
+      revision: 1,
       lastMutationId: mutationId,
       updatedByUserId: actorId,
       updatedAt: new Date().toISOString(),
@@ -1294,6 +1312,7 @@ export async function saveHouseholdMonthBudget(householdId: string, monthKey: st
       nextRevision: revision + 1,
       createdAt: next.updatedAt,
     });
+    return true;
   });
 }
 export async function getHouseholdMonthBudget(
@@ -1312,16 +1331,17 @@ export function subscribeHouseholdSavingsGoals(householdId: string, onData: (goa
     onData([]);
   });
 }
-export async function saveHouseholdSavingsGoals(householdId: string, goals: SavingGoal[]) {
-  if (!isFirebaseConfigured || !db || !auth?.currentUser) return;
+async function saveHouseholdSavingsGoals(householdId: string, goals: SavingGoal[]): Promise<boolean> {
+  if (!isFirebaseConfigured || !db || !auth?.currentUser) return false;
   const firestore = db;
   const actorId = auth.currentUser.uid;
   const mutationId = `savings-bootstrap-${crypto.randomUUID()}`;
   const ref = doc(firestore, 'households', householdId, 'data', 'savings');
   const ledgerRef = doc(firestore, 'households', householdId, 'ledger', mutationId);
-  await runTransaction(firestore, async (transaction) => {
+  return runTransaction(firestore, async (transaction) => {
     const snapshot = await transaction.get(ref);
-    const revision = snapshot.exists() ? Math.max(0, Number(snapshot.data().revision) || 0) : 0;
+    if (snapshot.exists()) return false;
+    const revision = 0;
     const now = new Date().toISOString();
     transaction.set(ref, cleanUndefined({
       goals,
@@ -1341,6 +1361,7 @@ export async function saveHouseholdSavingsGoals(householdId: string, goals: Savi
       nextRevision: revision + 1,
       createdAt: now,
     });
+    return true;
   });
 }
 export async function fetchHouseholdMonthsForTrends(
@@ -1425,6 +1446,9 @@ export async function approveHouseholdInvoice(
     const remote = monthSnapshot.exists()
       ? normalizeMonth(monthSnapshot.data() as MonthBudget, monthKey, configuration)
       : normalizeMonth({ totalBudget: 0 }, monthKey, configuration);
+    if (remote.periodStatus === 'closed') {
+      throw new FinanceConflictError([{ path: 'periodStatus', reason: 'period-closed' }]);
+    }
     const expenseId = `invoice-${invoiceId}`;
     const withExpense = addVariableExpense(remote, {
       id: expenseId,

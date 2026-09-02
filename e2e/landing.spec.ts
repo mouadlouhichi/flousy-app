@@ -12,13 +12,13 @@ test.describe('landing and static pages', () => {
 
   test('pricing surfaces advertise the 90-day trial, not stale beta wording', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('free for your first 90 days').first()).toBeVisible();
+    await expect(page.getByText('90-day Pro trial').first()).toBeVisible();
     await expect(page.getByText('included in the beta')).toHaveCount(0);
 
     const llms = await page.request.get('/llms.txt');
     expect(llms.ok()).toBeTruthy();
     const body = await llms.text();
-    expect(body).toContain('free for your first 90 days');
+    expect(body).toContain('90-day Pro trial');
     expect(body).not.toContain('beta');
   });
 

@@ -8,7 +8,6 @@ import { InfrastructureSection } from '@/components/landing/infrastructure-secti
 import { MetricsSection } from '@/components/landing/metrics-section';
 import { IntegrationsSection } from '@/components/landing/integrations-section';
 import { SecuritySection } from '@/components/landing/security-section';
-import { TestimonialsSection } from '@/components/landing/testimonials-section';
 import { PricingSection } from '@/components/landing/pricing-section';
 import { FaqSection } from '@/components/landing/faq-section';
 import { CtaSection } from '@/components/landing/cta-section';
@@ -65,12 +64,25 @@ const softwareApplicationSchema = {
   name: SITE_NAME,
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Web, iOS (PWA), Android (PWA)',
-  offers: {
-    '@type': 'Offer',
-    name: 'SmartJib Free',
-    price: '0',
-    priceCurrency: 'USD',
-  },
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'SmartJib Free',
+      price: '0',
+      priceCurrency: 'MAD',
+      availability: 'https://schema.org/InStock',
+      description: 'Core budgeting with no time limit.',
+    },
+    {
+      '@type': 'Offer',
+      name: 'SmartJib Pro 90-day launch trial',
+      price: '0',
+      priceCurrency: 'MAD',
+      availability: 'https://schema.org/InStock',
+      description: 'One no-card 90-day trial. It does not renew and billing is not enabled.',
+    },
+  ],
+  isAccessibleForFree: true,
   description: FLOUSY_FACTUAL_DESCRIPTION,
   url: SITE_URL,
   image: `${SITE_URL}${OG_IMAGE.url}`,
@@ -80,8 +92,25 @@ const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: SITE_NAME,
+  alternateName: 'Flousy',
   url: SITE_URL,
   logo: `${SITE_URL}/web-app-manifest-512x512.png`,
+  email: 'hello@flousy.app',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'hello@flousy.app',
+    availableLanguage: ['English', 'French', 'Arabic'],
+  },
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  alternateName: 'Flousy',
+  url: SITE_URL,
+  inLanguage: ['en', 'fr', 'ar'],
 };
 
 const faqSchema = {
@@ -102,6 +131,7 @@ export default function Home() {
     <>
       <JsonLd id="software-application-json-ld" data={softwareApplicationSchema} />
       <JsonLd id="organization-json-ld" data={organizationSchema} />
+      <JsonLd id="website-json-ld" data={websiteSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
       <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
@@ -114,7 +144,6 @@ export default function Home() {
         <MetricsSection />
         <IntegrationsSection />
         <SecuritySection />
-        <TestimonialsSection />
         <PricingSection />
         <FaqSection />
         <CtaSection />

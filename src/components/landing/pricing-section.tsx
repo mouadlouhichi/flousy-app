@@ -3,38 +3,22 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
-import { formatLocalizedPercent } from "@/lib/i18n";
 import { useAuthStatus } from '@/lib/auth-status';
 import { isDemoMode } from '@/lib/demo-mode';
 
 /*
- * The numbers a visitor is quoted and the numbers the app would charge have to
- * come from the same place, and they did not: this section hard-coded 29/19
- * through a `USD` formatter while the in-app checkout used 4.99/39.99 from
- * `PRO_PRICING`. No payment provider is configured in this deployment, so any
- * price shown here would be unbuyable and every "Save 34%" toggle would be a
- * control that changes nothing. Pro is therefore presented as included for free
- * during the launch period, and `BILLING_LIVE` (imported from `lib/payments`,
- * the single billing switch) flips when a real provider exists — at which
- * point these figures must be deleted in favour of the provider's prices.
+ * Launch pricing intentionally contains no guessed paid price or billing
+ * toggle. The later CMI/Stripe adapter will provide server-owned offers; until
+ * then the only Pro offer is the one-time, no-card 90-day trial.
  */
-import { BILLING_LIVE } from '@/lib/payments';
 
 const plansBase = [
-  { price: { monthly: 0, annual: 0 }, popular: false },
-  { price: { monthly: 29, annual: 19 }, popular: true },
+  { popular: false },
+  { popular: true },
 ];
 
-function formatPrice(price: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(price);
-}
-
 export function PricingSection() {
-  const { messages: m, t, intlLocale, isRTL } = useLightLanguage();
+  const { messages: m, intlLocale, isRTL } = useLightLanguage();
   const formatPlanNumber = (value: number) =>
     new Intl.NumberFormat(intlLocale, { minimumIntegerDigits: 2, useGrouping: false }).format(value);
   const { signedIn: user } = useAuthStatus();
@@ -47,7 +31,6 @@ export function PricingSection() {
   }, []);
   const isLoggedIn = Boolean(user || isDemo);
   const pricingData = m.landing.pricing;
-  const [isAnnual, setIsAnnual] = useState(true);
 
   return (
     <section id="pricing" className="relative py-32 lg:py-40 border-t border-foreground/10 overflow-x-clip">
@@ -67,47 +50,10 @@ export function PricingSection() {
           </p>
         </div>
 
-        {/* Billing Toggle */}
-        <div className={`flex items-center gap-4 ${BILLING_LIVE ? 'mb-16' : 'mb-16 hidden'}`}>
-          <span
-            className={`text-sm transition-colors ${
-              !isAnnual ? "text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            {pricingData.monthly}
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isAnnual}
-            aria-label={pricingData.useAnnualBilling}
-            onClick={() => setIsAnnual(!isAnnual)}
-            className="relative w-14 h-7 bg-foreground/10 rounded-full p-1 transition-colors hover:bg-foreground/20"
-          >
-            <div
-              className={`w-5 h-5 bg-foreground rounded-full transition-transform duration-300 ${
-                isAnnual ? "translate-x-7 rtl:-translate-x-7" : "translate-x-0"
-              }`}
-            />
-          </button>
-          <span
-            className={`text-sm transition-colors ${
-              isAnnual ? "text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            {pricingData.annual}
-          </span>
-          {isAnnual && (
-            <span className="ms-2 px-2 py-1 bg-primary text-card text-xs font-mono">
-              {t(pricingData.save34, { percent: formatLocalizedPercent(34, intlLocale) })}
-            </span>
-          )}
-        </div>
-
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-px bg-foreground/10 max-w-4xl">
           {pricingData.plans.map((planData, idx) => {
-            const priceInfo = plansBase[idx] || { price: { monthly: 0, annual: 0 }, popular: false };
+            const priceInfo = plansBase[idx] || { popular: false };
             return (
               <div
                 key={planData.name || idx}
@@ -134,11 +80,11 @@ export function PricingSection() {
               <div className="mb-8 pb-8 border-b border-foreground/10">
                 <div className="flex items-baseline gap-2">
                   <span className="font-display text-5xl lg:text-6xl text-foreground">
-                    {BILLING_LIVE
-                      ? formatPrice(isAnnual ? priceInfo.price.annual : priceInfo.price.monthly, intlLocale)
-                      : formatPrice(0, intlLocale)}
+                    {idx === 1 ? pricingData.trialPriceLabel : pricingData.freePriceLabel}
                   </span>
-                  <span className="text-muted-foreground">{pricingData.perMonth}</span>
+                  <span className="text-muted-foreground">
+                    {idx === 1 ? pricingData.trialPeriod : pricingData.freePeriod}
+                  </span>
                 </div>
               </div>
 
@@ -174,11 +120,9 @@ export function PricingSection() {
         <p className="mt-12 text-center text-sm text-muted-foreground">
           {pricingData.bottomNote}
         </p>
-        {!BILLING_LIVE && (
-          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
-            {m.pro.trialTitle} — {m.pro.trialBody}
-          </p>
-        )}
+        <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
+          {m.pro.betaTitle} — {m.pro.betaBody}
+        </p>
       </div>
     </section>
   );

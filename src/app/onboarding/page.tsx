@@ -2,7 +2,7 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
@@ -21,6 +21,7 @@ import {
 } from '../../lib/store';
 import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
+import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { parseAmountInput } from '../../lib/parse-amount';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
@@ -63,18 +64,48 @@ function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { messages: m, t, translate, language, intlLocale, isRTL } = useLanguage();
-  const { user, profile, updateProfileData } = useAuth();
-  const { workspace, household, markHouseholdOnboarded } = useHousehold();
+  const { user, profile, loading: authLoading, updateProfileData } = useAuth();
+  const {
+    workspace,
+    household,
+    loading: householdLoading,
+    isOwner,
+    markHouseholdOnboarded,
+  } = useHousehold();
   const isHouseholdScope = searchParams.get('scope') === 'household' || workspace === 'household';
   const householdId = household?.id || profile?.activeHouseholdId;
   const { currency, setCurrency, symbol, format } = useCurrency();
+
+  // Onboarding is a one-time bootstrap, not an account-settings screen. Direct
+  // navigation or browser back must never let an established user replace an
+  // existing month. Cloud state is authoritative; local flags cover demo mode
+  // and a prior completion whose profile update is still retrying.
+  useEffect(() => {
+    if (authLoading) return;
+    if (isHouseholdScope) {
+      if (householdLoading || !householdId || !household) return;
+      const localDone = typeof window !== 'undefined'
+        && localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
+      if (!isOwner || household.onboardingComplete !== false || localDone) {
+        router.replace('/dashboard');
+      }
+      return;
+    }
+
+    if (profile && profile.onboardingComplete !== false) {
+      router.replace('/dashboard');
+      return;
+    }
+    if (!user && isDemoMode() && isOnboardingDoneLocally()) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, household, householdId, householdLoading, isHouseholdScope, isOwner, profile, router, user]);
+
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
   const percentSign = getLocalizedPercentSign(intlLocale);
 
   const [step, setStep] = useState<number>(1);
-  // Starts empty on purpose: the audit found sample defaults (15 000 income,
-  // pre-added Rent/Electricity bills) could be saved as real financial data.
   const [income, setIncome] = useState<string>('');
   // Optional: the day of the month the salary arrives (start of the budget month).
   // Onboarding in household scope sets the HOUSEHOLD start date; the personal
@@ -120,8 +151,6 @@ function OnboardingFlow() {
     '#d946ef', '#a855f7', '#f43f5e', '#00685f',
   ];
 
-  // No pre-seeded example bills: suggestions are offered as one-tap chips in
-  // the bills step instead of silently becoming saved records.
   const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([]);
 
   const [newBillName, setNewBillName] = useState('');
@@ -132,6 +161,7 @@ function OnboardingFlow() {
   const [incomeError, setIncomeError] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
+  // Clean numeric string parsing for income (handles comma/formatting)
   // Locale-aware parsing: accepts French decimal commas, grouping spaces and
   // Arabic-Indic digits (audit P1 — ASCII-only stripping mangled fr/ar input).
   const rawParsedIncome = parseAmountInput(income);
@@ -241,8 +271,30 @@ function OnboardingFlow() {
     router.push('/dashboard');
   };
 
+  const onboardingWriteIsBlocked = () => {
+    if (isHouseholdScope) {
+      const localDone = Boolean(
+        householdId
+        && typeof window !== 'undefined'
+        && localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true'
+      );
+      return !householdId || (Boolean(household) && !isOwner)
+        || household?.onboardingComplete !== false
+        || localDone;
+    }
+    if (profile) return profile.onboardingComplete !== false || isOnboardingDoneLocally();
+    // An authenticated account without a loaded profile is not safe to bootstrap:
+    // wait for profile recovery instead of guessing that its data is empty.
+    if (user) return true;
+    return isOnboardingDoneLocally();
+  };
+
   const handleImportPersonal = async () => {
     if (isImporting || isCompleting || !isHouseholdScope) return;
+    if (onboardingWriteIsBlocked()) {
+      router.replace('/dashboard');
+      return;
+    }
     setIsImporting(true);
     const today = new Date();
     const monthKey = getCurrentMonthKey(monthStartDate, today);
@@ -254,7 +306,10 @@ function OnboardingFlow() {
           if (!storageKey?.startsWith('flousy_month_')) continue;
           const mk = storageKey.slice('flousy_month_'.length);
           const raw = localStorage.getItem(storageKey);
-          if (raw) localStorage.setItem(`flousy_household_${householdId}_month_${mk}`, raw);
+          const targetKey = `flousy_household_${householdId}_month_${mk}`;
+          if (raw && localStorage.getItem(targetKey) === null) {
+            localStorage.setItem(targetKey, raw);
+          }
         }
       }
     } catch { /* ignore */ }
@@ -284,6 +339,10 @@ function OnboardingFlow() {
 
   const handleCompleteOnboarding = async () => {
     if (isCompleting) return;
+    if (onboardingWriteIsBlocked()) {
+      router.replace('/dashboard');
+      return;
+    }
     setIsCompleting(true);
 
     const today = new Date();
@@ -303,7 +362,10 @@ function OnboardingFlow() {
       if (isHouseholdScope && householdId) {
         localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
       } else {
-        localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
+        const monthStorageKey = `flousy_month_${monthKey}`;
+        if (localStorage.getItem(monthStorageKey) === null) {
+          localStorage.setItem(monthStorageKey, JSON.stringify(newMonth));
+        }
         localStorage.setItem('flousy_onboarding_done', 'true');
       }
       localStorage.setItem('flousy_currency', currency);
@@ -347,7 +409,7 @@ function OnboardingFlow() {
   };
 
   return (
-    <main id="main-content" className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -739,18 +801,18 @@ function OnboardingFlow() {
                 { name: 'Rent', label: m.onboarding.rent, category: 'Housing' },
                 { name: 'Electricity', label: m.onboarding.electricity, category: 'Utilities' },
               ] as const)
-                .filter((s) => !bills.some((b) => b.name === s.name))
-                .map((s) => (
+                .filter((sugg) => !bills.some((b) => b.name === sugg.name))
+                .map((sugg) => (
                   <button
-                    key={s.name}
+                    key={sugg.name}
                     type="button"
                     onClick={() => {
-                      setNewBillName(s.name);
-                      setNewBillCategory(s.category);
+                      setNewBillName(sugg.name);
+                      setNewBillCategory(sugg.category);
                     }}
                     className="px-3 py-1.5 bg-surface border border-outline-variant rounded-full text-[13px] font-bold text-on-surface-variant hover:border-primary hover:text-primary transition-all cursor-pointer"
                   >
-                    {s.label}
+                    {sugg.label}
                   </button>
                 ))}
             </div>
@@ -1201,6 +1263,6 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

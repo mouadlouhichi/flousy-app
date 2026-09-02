@@ -1,5 +1,6 @@
 import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget, UserProfile } from './store';
 import type { HouseholdPermissions } from './household-rbac';
+import { resolveProEntitlement } from './pro-features';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
@@ -24,6 +25,10 @@ export interface Household {
   defaultCategoryBudgets?: Record<string, number>;
   enableRollover?: boolean;
   entitlementOwnerId: string;
+  /** Readable projection of the owner's entitlement for member-side feature gates. */
+  entitlementSource?: 'launch_trial' | 'stripe' | 'cmi' | 'admin';
+  entitlementStatus?: 'trialing' | 'active' | 'grace_period' | 'past_due' | 'canceled' | 'expired';
+  entitlementEndsAtMs?: number;
   schemaVersion?: number;
 }
 
@@ -138,14 +143,33 @@ export function canShowProUpgrade(
   return !isProUser && (workspace === undefined || workspace === 'personal');
 }
 
+/** Resolve the provider-neutral entitlement projection stored on a household. */
+export function isHouseholdEntitlementActive(
+  household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
+  nowMs = Date.now(),
+): boolean {
+  if (!household) return false;
+  // Households created before expiry-aware launch trials have no projection.
+  // Preserve their data and access; all new households carry the immutable one.
+  if (!household.entitlementSource && !household.entitlementEndsAtMs) return true;
+  return resolveProEntitlement({
+    plan: 'pro',
+    entitlementSource: household.entitlementSource,
+    entitlementStatus: household.entitlementStatus,
+    entitlementEndsAtMs: household.entitlementEndsAtMs,
+  }, nowMs).isPro;
+}
+
 /**
- * Within a household workspace, Pro features (such as Trends, Category Budgets, CSV import/export)
- * are unlocked for active household members.
+ * Household Pro features follow the owner's projected entitlement. Data stays
+ * readable after expiry, while mutation controls fall back to the free tier.
  */
 export function isProFeatureUnlocked(
   isProUser: boolean,
   workspace: 'personal' | 'household' | undefined,
+  household?: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null,
+  nowMs = Date.now(),
 ): boolean {
-  return isProUser || workspace === 'household';
+  return isProUser || (workspace === 'household' && isHouseholdEntitlementActive(household, nowMs));
 }
 

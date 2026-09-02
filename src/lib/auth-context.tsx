@@ -22,6 +22,7 @@ import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { setAuthCookie } from './auth-status';
 import { UserProfile } from './store';
 import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData, type DeletionReport } from './db';
+import { resolveProEntitlement } from './pro-features';
 
 /** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
 export class RequiresRecentLoginError extends Error {
@@ -142,6 +143,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [dismissVerificationBanner, setDismissVerificationBanner] = useState<boolean>(false);
   const [profileUnavailable, setProfileUnavailable] = useState<boolean>(false);
+  const [entitlementTick, setEntitlementTick] = useState(0);
+
+  // Re-render the provider at the exact entitlement boundary. A 90-day timeout
+  // exceeds browsers' maximum timer delay, so long waits are safely chunked.
+  useEffect(() => {
+    const endsAtMs = resolveProEntitlement(profile).endsAtMs;
+    if (!endsAtMs) return;
+    const remaining = endsAtMs - Date.now();
+    if (remaining <= 0) return;
+    const timer = window.setTimeout(
+      () => setEntitlementTick((value) => value + 1),
+      Math.min(remaining + 1_000, 2_147_000_000),
+    );
+    return () => window.clearTimeout(timer);
+  }, [profile, entitlementTick]);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
