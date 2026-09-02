@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
 import { getMobileQuickActions } from '@/lib/dashboard-quick-actions';
+import { useHousehold } from '@/lib/household-context';
+import { QUICK_ACTION_AREA } from '@/lib/household-rbac';
 import { useDashboard } from './dashboard-provider';
 import { getScreenIdFromPath } from './nav-items';
 import { useLanguage } from '@/lib/i18n-context';
@@ -14,6 +16,7 @@ export function QuickActions() {
   const router = useRouter();
   const { messages: m } = useLanguage();
   const { openExpenseModal, openFixedModal, openSavingsModal } = useDashboard();
+  const { canEditArea } = useHousehold();
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
   const activeScreen = getScreenIdFromPath(pathname);
@@ -26,6 +29,16 @@ export function QuickActions() {
     activeScreen === 'profile' ||
     activeScreen === 'courses'
   ) {
+    return null;
+  }
+
+  // Every quick action writes to an RBAC area (expenses, fixed bills or
+  // savings). A member without the grant gets no shortcut for it — and when
+  // nothing is left, no floating button either.
+  const actions = getMobileQuickActions(m).filter((action) =>
+    canEditArea(QUICK_ACTION_AREA[action.id], true),
+  );
+  if (actions.length === 0) {
     return null;
   }
 
@@ -47,7 +60,7 @@ export function QuickActions() {
             : 'translate-y-3 opacity-0 pointer-events-none'
         }`}
       >
-        {getMobileQuickActions(m).map((action, index) => (
+        {actions.map((action, index) => (
           <button
             key={action.id}
             type="button"

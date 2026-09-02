@@ -9,18 +9,24 @@ import { exportMonthToCsv, downloadCsv } from '@/lib/export';
 import { trackEvent } from '@/lib/analytics';
 import { useLanguage } from '@/lib/i18n-context';
 import { AccountDeletionIncompleteError } from '@/lib/auth-context';
-import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
+import { canExportAnything } from '@/lib/household-rbac';
+import { useDashboard } from '../dashboard-provider';
 import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup } from '@/lib/db';
 import { downloadJson, parseFinanceBackup, serializeFinanceBackup, type FinanceBackup } from '@/lib/finance-backup';
 
 export function DataPanel() {
   const { deleteAllData, user, profile } = useAuth();
-  const { workspace, household, isOwner } = useHousehold();
+  const { workspace, household, isOwner, canEditArea, exportSections } = useHousehold();
   const { messages: m, isRTL, t } = useLanguage();
   const p = m.profile.data;
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
+  // The CSV contains balances, fixed bills, expenses and savings: in a
+  // household each section is filtered by the member's RBAC area, so a
+  // download can never reveal a figure that is hidden on screen.
+  const canExport = canExportAnything(exportSections);
+  const canImport = canEditArea('expenses') || canEditArea('fixedBills');
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [backupBusy, setBackupBusy] = useState(false);
@@ -28,9 +34,10 @@ export function DataPanel() {
   const [pendingRestore, setPendingRestore] = useState<FinanceBackup | null>(null);
 
   const handleExportCsv = () => {
+    if (!canExport) return;
     downloadCsv(
       `flousy-budget-${currentMonthKey}.csv`,
-      exportMonthToCsv(month, goals, currentMonthKey, currency),
+      exportMonthToCsv(month, goals, currentMonthKey, currency, exportSections),
     );
     trackEvent('export_csv');
   };
@@ -47,6 +54,9 @@ export function DataPanel() {
         defaultCategoryBudgets: household.defaultCategoryBudgets,
         enableRollover: household.enableRollover,
         moneyPlaces: household.moneyPlaces,
+        activeCategories: household.activeCategories,
+        categoryColors: household.categoryColors,
+        categoryIcons: household.categoryIcons,
       }
     : profile;
   const canRestore = workspace === 'personal' || isOwner;
@@ -102,7 +112,7 @@ export function DataPanel() {
 
   return (
     <section className="flex flex-col gap-3">
-      <button
+      {canExport && <button
         type="button"
         onClick={handleExportCsv}
         className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high"
@@ -117,35 +127,39 @@ export function DataPanel() {
           name="chevron_right"
           className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
-      </button>
-      <button
-        type="button"
-        onClick={openCsvModal}
-        className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high"
-      >
-        <span className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
-            <AppIcon name="upload_file" className="text-[20px] text-primary" />
+      </button>}
+      {canImport && (
+        <button
+          type="button"
+          onClick={openCsvModal}
+          className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
+              <AppIcon name="upload_file" className="text-[20px] text-primary" />
+            </span>
+            <span className="text-sm font-medium text-on-surface">{p.importCsv}</span>
           </span>
-          <span className="text-sm font-medium text-on-surface">{p.importCsv}</span>
-        </span>
-        <AppIcon
-          name="chevron_right"
-          className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
-        />
-      </button>
-      <button
-        type="button"
-        disabled={!user || backupBusy}
-        onClick={() => { void handleBackupExport(); }}
-        className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high disabled:opacity-50"
-      >
-        <span className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10"><AppIcon name="archive" className="text-[20px] text-primary" /></span>
-          <span className="text-start"><span className="block text-sm font-medium text-on-surface">{p.exportBackup}</span><span className="block text-xs text-on-surface-variant">{p.exportBackupDescription}</span></span>
-        </span>
-        <AppIcon name="download" className="text-[20px] text-on-surface-variant" />
-      </button>
+          <AppIcon
+            name="chevron_right"
+            className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
+          />
+        </button>
+      )}
+      {canExport && (
+        <button
+          type="button"
+          disabled={!user || backupBusy}
+          onClick={() => { void handleBackupExport(); }}
+          className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high disabled:opacity-50"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10"><AppIcon name="archive" className="text-[20px] text-primary" /></span>
+            <span className="text-start"><span className="block text-sm font-medium text-on-surface">{p.exportBackup}</span><span className="block text-xs text-on-surface-variant">{p.exportBackupDescription}</span></span>
+          </span>
+          <AppIcon name="download" className="text-[20px] text-on-surface-variant" />
+        </button>
+      )}
       {canRestore && (
         <label className={`group flex w-full cursor-pointer items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high ${backupBusy || !user ? 'pointer-events-none opacity-50' : ''}`}>
           <input type="file" accept="application/json,.json" onChange={(event) => { void handleBackupFile(event); }} className="sr-only" disabled={backupBusy || !user} />

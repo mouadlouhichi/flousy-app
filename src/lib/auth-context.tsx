@@ -40,7 +40,7 @@ export class AccountDeletionIncompleteError extends Error {
     this.name = 'AccountDeletionIncompleteError';
   }
 }
-import { trackEvent } from './analytics';
+import { CONSENT_STORAGE_KEY, trackEvent } from './analytics';
 import { clearFinanceOutbox } from './finance-sync';
 
 interface AuthContextType {
@@ -123,7 +123,10 @@ async function clearLocalData() {
   await clearFinanceOutbox().catch((error) => console.warn('Error clearing finance outbox:', error));
   try {
     Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('flousy_')) {
+      // The analytics-consent answer is a device preference, not user budget
+      // data: wiping it on sign-out made the privacy bar re-appear on every
+      // subsequent login, which reads as a bug rather than a choice.
+      if (key.startsWith('flousy_') && key !== CONSENT_STORAGE_KEY) {
         localStorage.removeItem(key);
       }
     });

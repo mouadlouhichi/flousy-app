@@ -71,7 +71,11 @@ export function MonthDayPicker({
         </div>
       )}
 
-      <div className="rounded-xl border border-outline-variant bg-surface-container p-2.5">
+      {/* The grid is capped on purpose: the cells are `aspect-square`, so an
+          unconstrained grid grew with its container and turned into a
+          ~500px-tall calendar on desktop. 320px keeps every day cell at a
+          comfortable tap/click size (~38px) at any viewport width. */}
+      <div className="w-full max-w-[320px] rounded-xl border border-outline-variant bg-surface-container p-2.5">
         <div className="grid grid-cols-7 gap-1">
           {weekdayLabels.map((w, i) => (
             <span

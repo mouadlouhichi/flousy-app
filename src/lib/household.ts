@@ -1,4 +1,4 @@
-import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget } from './store';
+import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget, UserProfile } from './store';
 import type { HouseholdPermissions } from './household-rbac';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
@@ -98,6 +98,33 @@ export interface HouseholdInvoice {
   reviewedByUserId?: string;
   postedExpenseId?: string;
   postedMonthKey?: string;
+}
+
+/** Roles an owner may assign to an existing member (never owner/profile/custom). */
+export type AssignableMemberRole = 'editor' | 'viewer' | 'contributor';
+
+/** True when a stored member role maps to enforceable Firestore access. */
+export function isAssignableMemberRole(role: string): role is AssignableMemberRole {
+  return role === 'editor' || role === 'viewer' || role === 'contributor';
+}
+
+/** Normalize a household name against the Firestore rule contract. */
+export function normalizeHouseholdName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 100) return null;
+  return trimmed;
+}
+
+/**
+ * Resolve the authoritative period start. Household configuration is stored on
+ * the household document; a member's personal profile must never override it.
+ */
+export function monthStartDateFor(
+  profile: Pick<UserProfile, 'monthStartDate'> | null | undefined,
+  workspace: 'personal' | 'household' | undefined,
+  household?: Pick<Household, 'monthStartDate'> | null,
+): number | undefined {
+  return workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
 }
 
 /**

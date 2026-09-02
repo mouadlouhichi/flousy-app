@@ -14,6 +14,8 @@ import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
+import { isProFeatureUnlocked } from '../../lib/household';
+import { useHousehold } from '../../lib/household-context';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { localizeCategoryName } from '../../lib/localized-labels';
@@ -34,6 +36,8 @@ interface ExpenseModalProps {
   placeBalances?: Record<MoneyPlace, number>;
   periodStartDate?: string;
   periodEndDate?: string;
+  /** Hide balance-derived hints when the role cannot read household balances. */
+  canSeeBalances?: boolean;
 }
 
 const ADD_CATEGORY_VALUE = '__add_variable_category__';
@@ -69,13 +73,15 @@ export function ExpenseModal({
   placeBalances,
   periodStartDate,
   periodEndDate,
+  canSeeBalances = true,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { workspace } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
   const e = m.modals.expense;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProUser(profile);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace);
   const today = todayLocalIso();
   const defaultDate = periodStartDate && today < periodStartDate
     ? periodStartDate
@@ -242,7 +248,8 @@ export function ExpenseModal({
 
     // The source place must actually hold the money being spent. Half-a-cent
     // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    // Skipped when balances are hidden: the message quotes the exact figure.
+    if (canSeeBalances && parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(e.insufficientFunds, {
           amount: format(availableInPlace),
@@ -439,9 +446,11 @@ export function ExpenseModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (

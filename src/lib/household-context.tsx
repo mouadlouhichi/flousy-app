@@ -16,8 +16,13 @@ import {
   subscribePendingHouseholdInvites,
   type HouseholdAccess,
 } from './db';
-import type { Household, HouseholdInvite, HouseholdMember, HouseholdPayer, HouseholdRole } from './household';
-import { canEdit as canEditAreaRule, canView, type HouseholdArea, type HouseholdPermissions } from './household-rbac';
+import { normalizeHouseholdName, type Household, type HouseholdInvite, type HouseholdMember, type HouseholdPayer, type HouseholdRole } from './household';
+import {
+  resolveAreaAccess,
+  type AccessLevel,
+  type ExportSections,
+  type HouseholdArea,
+} from './household-rbac';
 import { DEFAULT_MONEY_PLACES } from './store';
 import { useLanguage } from './i18n-context';
 
@@ -54,13 +59,16 @@ type HouseholdContextValue = {
   selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>;
   canViewArea: (area: HouseholdArea) => boolean;
   canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
+  areaLevel: (area: HouseholdArea) => AccessLevel;
+  exportSections: ExportSections;
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
   payers: HouseholdPayer[];
   pendingInvites: HouseholdInvite[];
   create: (name: string) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
+  renameHousehold: (name: string) => Promise<void>;
+  invite: (name: string, email: string, role: InviteRole) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>;
   updateMember: (member: HouseholdMember) => Promise<void>;
   updateConfiguration: (patch: Partial<HouseholdConfigurationPatch>) => Promise<void>;
@@ -128,22 +136,25 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       || myMember?.role === 'owner',
   );
   const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
-  // Legacy custom roles were never enforceable against a monolithic month
-  // document. Treat them as restricted contributors until migrated by an owner.
-  const effectiveRole: HouseholdRole | undefined = memberRole === 'custom' ? 'contributor' : memberRole;
-  const canEdit = isOwner || effectiveRole === 'editor';
-  const isContributor = !isOwner && effectiveRole === 'contributor';
-
-  const canViewArea = useCallback(
-    (area: HouseholdArea) =>
-      workspace === 'personal' || isOwner || canView(effectiveRole, area, undefined),
-    [workspace, isOwner, effectiveRole],
+  // The coarse edit flag mirrors month-document rules. Contributor and legacy
+  // custom roles can only use their own invoice collection workflow.
+  const canEdit = isOwner || memberRole === 'editor';
+  const isContributor = !isOwner && (memberRole === 'contributor' || memberRole === 'custom');
+  const areaAccess = useMemo(
+    () => resolveAreaAccess({
+      unrestricted: workspace === 'personal' || isOwner,
+      role: memberRole,
+      // Legacy custom maps are deliberately not passed: Firestore cannot
+      // enforce field-level grants on the shared month document.
+    }),
+    [workspace, isOwner, memberRole],
   );
-  const canEditArea = useCallback(
-    (area: HouseholdArea, own = false) =>
-      workspace === 'personal' || isOwner || canEditAreaRule(effectiveRole, area, undefined, own),
-    [workspace, isOwner, effectiveRole],
-  );
+  const {
+    level: areaLevel,
+    canView: canViewArea,
+    canEdit: canEditArea,
+    exportSections,
+  } = areaAccess;
 
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) {
@@ -298,6 +309,17 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setHousehold((current) => current ? { ...current, onboardingComplete: true } : current);
   }, [trackedHouseholdId, isOwner]);
 
+  const renameHousehold = useCallback(async (name: string) => {
+    const normalized = normalizeHouseholdName(name);
+    if (!trackedHouseholdId || !isOwner || !normalized) {
+      throw new Error(m.household.householdNameRequired);
+    }
+    await saveHousehold(trackedHouseholdId, { name: normalized });
+    setHousehold((current) => current
+      ? { ...current, name: normalized, updatedAt: new Date().toISOString() }
+      : current);
+  }, [trackedHouseholdId, isOwner, m.household.householdNameRequired]);
+
   const removeHouseholdWorkspace = useCallback(async () => {
     const targetId = householdId || profile?.activeHouseholdId;
     if (!user || !profile || !targetId) throw new Error(m.household.genericError);
@@ -330,11 +352,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     selectWorkspace,
     canViewArea,
     canEditArea,
+    areaLevel,
+    exportSections,
     householdAccess: access,
     payers,
     pendingInvites,
     create,
     addProfile,
+    renameHousehold,
     invite,
     acceptInvite,
     updateMember,

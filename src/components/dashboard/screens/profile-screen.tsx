@@ -9,6 +9,7 @@ import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useAuth } from '@/lib/auth-context';
@@ -33,8 +34,18 @@ export function ProfileScreen() {
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
   const { month, isPro, openIncomeModal, openProModal } = useDashboard();
-  const { workspace } = useHousehold();
+  const { workspace, canViewArea } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  // Profile is the member's own account page, so it is never blocked wholesale.
+  // Individual entries that lead into a household area are gated instead.
+  const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
+  // Household management is a Pro feature: a free user in their personal
+  // workspace gets no household entry at all. A member of someone else's
+  // household keeps it — their access comes from the household, not a plan.
+  const canManageHousehold = isPro || workspace === 'household';
+  const canSeeMembers = canViewArea(TOOL_AREA.household);
+  const canSeeAnalytics = canViewArea('analytics');
+  const canSeeExpenses = canViewArea('expenses');
   const { places } = useMoneyPlaces(month);
   const theme = profile?.theme || 'system';
   const themeLabel = m.settings[theme];
@@ -44,15 +55,18 @@ export function ProfileScreen() {
     icon: string;
     title: string;
     hint: string;
+    /** Hidden when the member's household role excludes the area it opens. */
+    hidden?: boolean;
   };
 
+  const monthStartDate = month.periodStartDay;
   const preferenceHint = [
     currency,
     localeNames[language],
     themeLabel,
-    profile?.monthStartDate
+    monthStartDate
       ? t(p.hints.budgetStarts, {
-          day: formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale),
+          day: formatLocalizedDayOfMonth(monthStartDate, language, intlLocale),
         })
       : null,
   ]
@@ -86,24 +100,28 @@ export function ProfileScreen() {
           icon: 'trending_up',
           title: p.pro.analyticsInsights,
           hint: p.pro.features.trends.description,
+          hidden: !canSeeAnalytics,
         },
         {
           href: '/dashboard/courses',
           icon: 'scan_barcode',
           title: p.pro.features.courseScan.title,
           hint: p.pro.features.courseScan.description,
+          hidden: !canSeeExpenses,
         },
         {
           onClick: proUnlocked ? openIncomeModal : openProModal,
           icon: 'payments',
           title: p.pro.manageIncomeSources,
           hint: p.pro.features.incomeSources.description,
+          hidden: !canSeeIncome,
         },
         {
           href: '/dashboard/profile/household',
           icon: 'family_restroom',
           title: p.pro.manageHousehold,
           hint: p.pro.features.household.description,
+          hidden: !canSeeMembers || !canManageHousehold,
         },
       ],
     },
@@ -116,12 +134,18 @@ export function ProfileScreen() {
     },
   ];
 
+  // Drop entries the member's household role excludes, then any group left
+  // empty — an empty bordered section would read as a broken page.
+  const visibleGroups = groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.hidden) }))
+    .filter((group) => group.items.length > 0);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pb-24">
       <ProfileIdentity />
 
       <div className="flex flex-col gap-6">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <section key={group.label} className="flex flex-col gap-2">
             <h3 className="px-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant">
               {group.label}

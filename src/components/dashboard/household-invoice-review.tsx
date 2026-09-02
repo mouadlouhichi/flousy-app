@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useHousehold } from '@/lib/household-context';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName } from '@/lib/localized-labels';
 import { approveHouseholdInvoice, reviewHouseholdInvoice, subscribeHouseholdInvoices } from '@/lib/db';
@@ -22,7 +23,7 @@ export function HouseholdInvoiceReview() {
   const { format } = useCurrency();
   const { messages: m } = useLanguage();
   const copy = m.household.invoice;
-  const canReview = canEditArea('invoices');
+  const canReview = canEditArea(TOOL_AREA.invoices);
   const [invoices, setInvoices] = useState<HouseholdInvoice[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

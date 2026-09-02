@@ -31,11 +31,11 @@ export function DebtsScreen() {
         updateAndSaveMonth(recordDebtPayment(month, debtId, {
           ...payment,
           createdByUserId: user?.uid,
-        }));
+        }), 'debts');
       }}
       onDeletePayment={(debtId, paymentId) => {
         if (!canEdit) return;
-        updateAndSaveMonth(deleteDebtPayment(month, debtId, paymentId));
+        updateAndSaveMonth(deleteDebtPayment(month, debtId, paymentId), 'debts');
       }}
     />
   );

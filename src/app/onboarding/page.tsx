@@ -74,7 +74,13 @@ function OnboardingFlow() {
   const [step, setStep] = useState<number>(1);
   const [income, setIncome] = useState<string>('15000');
   // Optional: the day of the month the salary arrives (start of the budget month).
-  const [monthStartDate, setMonthStartDate] = useState<number | undefined>(profile?.monthStartDate);
+  // Onboarding in household scope sets the HOUSEHOLD start date; the personal
+  // flow sets the personal one. They are separate budget periods.
+  const [monthStartDate, setMonthStartDate] = useState<number | undefined>(
+    isHouseholdScope
+      ? (profile?.householdMonthStartDate ?? profile?.monthStartDate)
+      : profile?.monthStartDate,
+  );
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyId>('50-30-20');
   // Custom strategy split, kept in whole percents while editing.
   const [customSplit, setCustomSplit] = useState({
@@ -311,6 +317,9 @@ function OnboardingFlow() {
           ? Promise.all([
               saveHouseholdMonthBudget(householdId, monthKey, newMonth),
               markHouseholdOnboarded(),
+              // The household budget period is its own setting; without this the
+              // start date picked during household onboarding was discarded.
+              updateProfileData({ householdMonthStartDate: monthStartDate }),
             ])
           : Promise.all([
               saveMonthBudget(user.uid, monthKey, newMonth),

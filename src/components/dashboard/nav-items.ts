@@ -147,6 +147,42 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
   );
 }
 
+/**
+ * Profile subpages promoted into the desktop sidebar.
+ *
+ * The mobile bottom nav keeps its five destinations; the desktop sidebar has
+ * room for the settings pages too, grouped separately from the budget screens
+ * so the two never look like one flat list.
+ */
+export interface ProfileSubpageNavItem {
+  id: string;
+  href: string;
+  icon: string;
+  labelKey: keyof Messages['profile']['links'];
+  /** Only shown to Pro users, or to anyone already inside a household. */
+  proOrHouseholdOnly?: boolean;
+}
+
+export const PROFILE_SUBPAGE_NAV_ITEMS: ProfileSubpageNavItem[] = [
+  { id: 'preferences', href: '/dashboard/profile/preferences', icon: 'tune', labelKey: 'preferences' },
+  { id: 'money-sources', href: '/dashboard/profile/money-sources', icon: 'account_balance_wallet', labelKey: 'moneySources' },
+  { id: 'household', href: '/dashboard/profile/household', icon: 'family_restroom', labelKey: 'household', proOrHouseholdOnly: true },
+  { id: 'data', href: '/dashboard/profile/data', icon: 'database', labelKey: 'data' },
+  { id: 'account', href: '/dashboard/profile/account', icon: 'manage_accounts', labelKey: 'account' },
+];
+
+/**
+ * Sidebar account-group items for the current user. Household management is a
+ * Pro feature, so it disappears for a free user in their personal workspace —
+ * a household member who is not Pro themselves still gets it, because their
+ * access comes from the household rather than a subscription.
+ */
+export function getProfileSubpageNavItems(canManageHousehold: boolean): ProfileSubpageNavItem[] {
+  return PROFILE_SUBPAGE_NAV_ITEMS.filter(
+    (item) => !item.proOrHouseholdOnly || canManageHousehold,
+  );
+}
+
 const PROFILE_PAGE_TITLE_KEYS: Record<string, keyof Messages['navigation']> = {
   '/dashboard/profile': 'profileAccount',
   '/dashboard/profile/preferences': 'preferences',

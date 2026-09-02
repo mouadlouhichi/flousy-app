@@ -2,6 +2,19 @@ export type ProUserLike = {
   plan?: string | null;
 } | null;
 
+/**
+ * Single definition of "this account is Pro".
+ *
+ * Tolerant of casing/whitespace (`'Pro'`, `'PRO'`, `' pro '` written by an old
+ * client or a manual console edit all count) so a Firestore value that reads as
+ * Pro can never render as Free through a strict `=== 'pro'` mismatch. Every
+ * Pro decision — badge, feature gates, cache sanitiser, trial claim — must go
+ * through here rather than comparing the raw string.
+ */
+export function isProPlan(plan: unknown): boolean {
+  return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro';
+}
+
 export type ProFeatureId =
   | 'courseScan'
   | 'trends'
@@ -54,5 +67,5 @@ export function isProUser(
     }
     return demo && storage?.getItem('flousy_pro_plan') === 'true';
   }
-  return profile.plan === 'pro';
+  return isProPlan(profile.plan);
 }

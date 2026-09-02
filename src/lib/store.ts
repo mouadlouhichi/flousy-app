@@ -291,6 +291,51 @@ export interface FixedCategoryItem {
   icon: string;
 }
 
+/** Icons for the default fixed categories, so list rows match the modal. */
+export const FIXED_TYPE_ICONS: Record<string, string> = {
+  Rent: 'home',
+  Utilities: 'bolt',
+  Housing: 'house',
+  Subscriptions: 'subscriptions',
+  Insurance: 'shield',
+  Internet: 'wifi',
+  Gym: 'fitness_center',
+  Other: 'label',
+};
+
+/** Colors for the default fixed categories. */
+export const FIXED_TYPE_COLORS: Record<string, string> = {
+  Rent: '#8b5cf6',
+  Utilities: '#eab308',
+  Housing: '#f97316',
+  Subscriptions: '#6366f1',
+  Insurance: '#10b981',
+  Internet: '#06b6d4',
+  Gym: '#ec4899',
+  Other: '#6d7a77',
+};
+
+/**
+ * Resolve the icon + colour a fixed bill's category should render with, in the
+ * same precedence the Add/Edit modal uses: a month-level override, then a
+ * user-defined category, then the default map. Shared so list rows and the
+ * modal never disagree (a row used to fall back to a generic receipt icon).
+ */
+export function fixedCategoryVisual(
+  name: string,
+  opts?: {
+    icons?: Record<string, string>;
+    colors?: Record<string, string>;
+    custom?: FixedCategoryItem[];
+  },
+): { icon: string; color: string } {
+  const custom = opts?.custom?.find((c) => c.name === name);
+  return {
+    icon: opts?.icons?.[name] || custom?.icon || FIXED_TYPE_ICONS[name] || 'label',
+    color: opts?.colors?.[name] || custom?.color || FIXED_TYPE_COLORS[name] || '#6d7a77',
+  };
+}
+
 export interface SavingGoal {
   id: string;
   name: string;
@@ -432,12 +477,18 @@ export interface UserProfile {
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
-  /** Global preference for the day of the month a budget month starts.
-   * Mirrors the per-source salary start date used by Income Sources. */
+  /** Day of the month the PERSONAL budget month starts. Mirrors the
+   * per-source salary start date used by Income Sources. */
   monthStartDate?: number;
+  /** Legacy client preference; household documents now own this setting. */
+  householdMonthStartDate?: number;
   /** Cash locations (Bank, Home, Wallet, plus any the user added). */
   moneyPlaces?: MoneyPlaceConfig[];
 }
+
+/** Defaults used only when a period does not already contain its own snapshot. */
+export type MonthConfiguration = Partial<UserProfile> &
+  Partial<Pick<MonthBudget, 'activeCategories' | 'categoryColors' | 'categoryIcons'>>;
 
 /**
  * Strategy Envelope Amounts Calculation
@@ -1671,7 +1722,7 @@ export function normalizeMonth(
   // `null` is how the auth context represents "signed out or still loading",
   // and every caller forwards that value straight through; requiring
   // `undefined` only forced `profile ?? undefined` at nine call sites.
-  userProfile?: Partial<UserProfile> | null,
+  userProfile?: MonthConfiguration | null,
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
@@ -1858,9 +1909,17 @@ export function normalizeMonth(
     fixedCategoryBases: raw?.fixedCategoryBases || {},
     categoryBudgets,
     rolloverFromPrevious,
-    activeCategories: raw?.activeCategories || defaultCategories,
-    categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
-    categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },
+    activeCategories: raw?.activeCategories || userProfile?.activeCategories || defaultCategories,
+    categoryColors: {
+      ...defaultColors,
+      ...(userProfile?.categoryColors || {}),
+      ...(raw?.categoryColors || {}),
+    },
+    categoryIcons: {
+      ...defaultIcons,
+      ...(userProfile?.categoryIcons || {}),
+      ...(raw?.categoryIcons || {}),
+    },
     debts: (raw?.debts || []).map((debt, debtIndex) => ({
       ...debt,
       id: debt.id || stableLegacyId('debt', debtIndex, [debt.name, debt.amount, debt.date]),

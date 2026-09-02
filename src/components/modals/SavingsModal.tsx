@@ -29,6 +29,11 @@ interface SavingsModalProps {
   availableBalance?: number;
   /** Live balances per money place, used to cap an opening goal balance. */
   placeBalances?: Record<MoneyPlace, number>;
+  /**
+   * False when the member may manage savings goals but not see household
+   * balances: hides the balance hints and skips the checks that quote them.
+   */
+  canSeeBalances?: boolean;
 }
 
 export function SavingsModal({
@@ -42,6 +47,7 @@ export function SavingsModal({
   onDelete,
   availableBalance = 0,
   placeBalances,
+  canSeeBalances = true,
 }: SavingsModalProps) {
   const { symbol, format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -112,7 +118,7 @@ export function SavingsModal({
         // Only the *increase* has to be covered by the place's balance.
         const alreadyAllocated = goal ? goal.current : 0;
         const delta = parsedCurrent - alreadyAllocated;
-        if (delta > selectedPlaceBalance) {
+        if (canSeeBalances && delta > selectedPlaceBalance) {
           setErrors({
             current: t(s.openingInsufficient, {
               amount: format(selectedPlaceBalance),
@@ -145,7 +151,7 @@ export function SavingsModal({
 
       // The deposit can only move money the source place actually holds.
       // Half-a-cent tolerance absorbs float noise from prior arithmetic.
-      if (parsedAmount - selectedPlaceBalance > 0.005) {
+      if (canSeeBalances && parsedAmount - selectedPlaceBalance > 0.005) {
         setErrors({
           amount: t(s.fundInsufficient, {
             amount: format(selectedPlaceBalance),
@@ -273,9 +279,11 @@ export function SavingsModal({
                     />
                     <span className="text-[12px] font-semibold text-on-surface leading-snug">
                       {t(s.deductOpening, { place: placeLabel(place) })}
-                      <span className="block text-[11px] font-medium text-on-surface-variant mt-0.5">
-                        {t(s.deductOpeningHint, { amount: format(selectedPlaceBalance) })}
-                      </span>
+                      {canSeeBalances && (
+                        <span className="block text-[11px] font-medium text-on-surface-variant mt-0.5">
+                          {t(s.deductOpeningHint, { amount: format(selectedPlaceBalance) })}
+                        </span>
+                      )}
                     </span>
                   </label>
 
@@ -377,7 +385,7 @@ export function SavingsModal({
             />
 
             {/* Live balance of the source account — the deposit cap for fund mode */}
-            {mode === 'fund' && (
+            {mode === 'fund' && canSeeBalances && (
               <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
                 {t(s.availableIn, {
                   place: placeLabel(place),

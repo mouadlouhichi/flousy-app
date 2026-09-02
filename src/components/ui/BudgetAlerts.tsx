@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useHousehold } from '@/lib/household-context';
+import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -19,9 +20,14 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
   const percent = (value: number) => formatLocalizedPercent(value, intlLocale);
-  const { pendingInvites } = useHousehold();
+  const { pendingInvites, canViewArea } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
   const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
+
+  // Every alert here quotes a spent-vs-budget figure, so the whole budget-health
+  // list is an `expenses` concern. Household invitations are the member's own
+  // business and stay visible either way.
+  const canSeeSpending = canViewArea(AMOUNT_AREA.variableExpense);
 
   const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const { needs: needsSpent, wants: wantsSpent } = calculateEnvelopeSpent(month);
@@ -31,13 +37,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
 
   const alerts: { title: string; message: string; severity: 'warning' | 'error' }[] = [];
 
-  if (needsRatio >= 100) {
+  if (canSeeSpending && needsRatio >= 100) {
     alerts.push({
       title: m.alerts.needsExceeded,
       message: t(m.alerts.spentVsBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
       severity: 'error',
     });
-  } else if (needsRatio >= 80) {
+  } else if (canSeeSpending && needsRatio >= 80) {
     alerts.push({
       title: m.alerts.needsAlert,
       message: t(m.alerts.spentOfBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
@@ -45,13 +51,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     });
   }
 
-  if (wantsRatio >= 100) {
+  if (canSeeSpending && wantsRatio >= 100) {
     alerts.push({
       title: m.alerts.wantsExceeded,
       message: t(m.alerts.spentVsBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
       severity: 'error',
     });
-  } else if (wantsRatio >= 80) {
+  } else if (canSeeSpending && wantsRatio >= 80) {
     alerts.push({
       title: m.alerts.wantsAlert,
       message: t(m.alerts.spentOfBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
@@ -66,7 +72,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const categoryBudgets = month.categoryBudgets || {};
 
   Object.entries(categoryBudgets).forEach(([cat, budget]) => {
-    if (!budget || budget <= 0) return;
+    if (!canSeeSpending || !budget || budget <= 0) return;
 
     const spent = calculateCategorySpent(month, cat);
     const pct = (spent / budget) * 100;

@@ -228,6 +228,9 @@ export function PreferencesPanel() {
         <MonthlyStartDateControl
           compact
           value={draftMonthStartDate}
+          scopeLabel={
+            workspace === 'household' ? p.monthStartDateHouseholdScope : p.monthStartDatePersonalScope
+          }
           onChange={(day) => {
             beginEditing();
             setDraftMonthStartDate(day);

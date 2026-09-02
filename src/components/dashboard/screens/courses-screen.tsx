@@ -14,6 +14,8 @@ import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
+import { AreaRestricted } from '../area-restricted';
+import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
@@ -32,6 +34,18 @@ interface PendingProduct {
   source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
   ma: boolean;
+}
+
+/**
+ * A course session ends by writing its items into the month as variable
+ * expenses, so the whole screen belongs to the `expenses` area — a member
+ * without that grant must not be able to scan a bill into the shared budget.
+ */
+export function CoursesScreen() {
+  const { canViewArea } = useHousehold();
+  const area = SCREEN_AREA.courses!;
+  if (!canViewArea(area)) return <AreaRestricted area={area} icon="scan_barcode" />;
+  return <CoursesScreenInner />;
 }
 
 function parsePrice(raw: string): number | null {
@@ -90,7 +104,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
   );
 }
 
-export function CoursesScreen() {
+function CoursesScreenInner() {
   const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
   const { t, messages: m, intlLocale } = useLanguage();
   const c = m.courses;
@@ -126,13 +140,15 @@ export function CoursesScreen() {
   const clearNotice = () => setNotice(null);
 
   // ---- scan / manual code handling ---------------------------------------------
-  const openPending = (product: PendingProduct) => {
+  const openPending = (product: PendingProduct, prefilledPrice?: string) => {
     setPending(product);
     setPendingQty(1);
-    // Price is ALWAYS entered fresh: it varies from market to market, so we
+    // Price is normally entered fresh: it varies from market to market, so we
     // never prefill or suggest a value (the catalog's last price is recorded
-    // for future price history but intentionally not shown here).
-    setPendingPrice('');
+    // for future price history but intentionally not shown here). The single
+    // exception is an in-store variable-measure barcode, whose price is
+    // printed *inside* the code and is passed in as `prefilledPrice`.
+    setPendingPrice(prefilledPrice ?? '');
   };
 
   const handleCode = async (raw: string) => {
@@ -184,11 +200,20 @@ export function CoursesScreen() {
           ma,
         });
       } else {
-        setNotice({
-          kind: 'warn',
-          text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
-        });
-        openPending({ barcode, name: '', source: 'manual', ma });
+        const embeddedPrice =
+          resolution.kind === 'not-found' ? resolution.embeddedPrice : undefined;
+        if (embeddedPrice != null) {
+          // In-store scale label: the name still has to be typed, but the
+          // amount is already printed in the barcode, so prefill it.
+          setNotice({ kind: 'info', text: c.priceFromLabel });
+          openPending({ barcode, name: '', source: 'manual', ma }, embeddedPrice.toFixed(2));
+        } else {
+          setNotice({
+            kind: 'warn',
+            text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
+          });
+          openPending({ barcode, name: '', source: 'manual', ma });
+        }
       }
     } finally {
       setResolving(false);
@@ -298,7 +323,7 @@ export function CoursesScreen() {
           sourceType: 'course',
           sourceId: billSession.id,
         };
-        updateAndSaveMonth(addVariableExpense(month, expense));
+        updateAndSaveMonth(addVariableExpense(month, expense), 'expenses');
         store.markLogged(billSession.id, expenseId);
       }
       setViewingBill({

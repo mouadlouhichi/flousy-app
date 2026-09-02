@@ -1,6 +1,6 @@
 # CI
 
-`github-actions-ci.yml` runs typecheck → lint → lint:strict → test → build on every
+`github-actions-ci.yml` runs typecheck → typecheck:strict → lint → test → build on every
 push and pull request, and deploys `firestore.rules` + `firestore.indexes.json` to
 the Firebase project on merges to `main`.
 
@@ -17,6 +17,10 @@ GitHub refuses to let the App that pushes this branch create or update a file un
 ! [remote rejected] … (refusing to allow a GitHub App to create or update
   workflow `.github/workflows/ci.yml` without `workflows` permission)
 ```
+
+Retested 2026-09-01 at `6cd4e3a`: the push was rejected with the same message, so
+the App still lacks the permission. The move was reverted; this file is the
+workflow, unchanged apart from the `typecheck:strict` step.
 
 Grant `Workflows: write` to the App (or push from an account that has it), then
 activate CI with:

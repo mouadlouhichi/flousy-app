@@ -19,8 +19,19 @@ import {
   mergeMonthMutation,
   type FinanceMutation,
 } from './finance-sync';
-import { addVariableExpense, CourseSession, DEFAULT_MONEY_PLACES, MonthBudget, Product, SavingGoal, UserProfile, normalizeMonth } from './store';
+import {
+  addVariableExpense,
+  CourseSession,
+  DEFAULT_MONEY_PLACES,
+  MonthBudget,
+  Product,
+  SavingGoal,
+  UserProfile,
+  normalizeMonth,
+  type MonthConfiguration,
+} from './store';
 import { FINANCE_BACKUP_FORMAT, FINANCE_BACKUP_VERSION, type FinanceBackup } from './finance-backup';
+import { isProPlan } from './pro-features';
 
 export enum OperationType {
   CREATE = 'create',
@@ -114,7 +125,7 @@ export function subscribeMonthBudget(
   uid: string,
   monthKey: string,
   onData: (month: MonthBudget | null) => void,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
   onError?: (err: Error) => void,
 ): () => void {
   if (!isFirebaseConfigured || !db) {
@@ -189,7 +200,7 @@ export async function getFinanceState(
   workspace: 'personal' | 'household',
   workspaceId: string,
   monthKey: string,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<{ month: MonthBudget; goals: SavingGoal[] }> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const monthRef = workspace === 'household'
@@ -214,7 +225,7 @@ export async function getFinanceState(
  */
 export async function commitFinanceMutation(
   mutation: FinanceMutation,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<FinanceCommitResult> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const monthRef = mutation.workspace === 'household'
@@ -319,7 +330,7 @@ function backupId(): string {
 export async function exportFinanceBackup(
   uid: string,
   target: FinanceTarget,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<FinanceBackup> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const monthCollection = target.workspace === 'household'
@@ -581,7 +592,7 @@ export async function importPersonalBudgetIntoHousehold(uid: string, householdId
 export async function getMonthBudget(
   uid: string,
   monthKey: string,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<MonthBudget | null> {
   if (!isFirebaseConfigured || !db) return null;
   try {
@@ -623,7 +634,7 @@ export async function fetchMonthsForTrends(
   uid: string | undefined,
   currentKey: string,
   count: number = 6,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<{ monthKey: string; month: MonthBudget }[]> {
   const results: { monthKey: string; month: MonthBudget }[] = [];
 
@@ -776,7 +787,7 @@ export async function postCourseSession(input: {
   monthKey: string;
   category: string;
   place: string;
-  configuration?: Partial<UserProfile> | null;
+  configuration?: MonthConfiguration | null;
 }): Promise<{ month: MonthBudget; expenseId: string }> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const { uid, sessionId, target, monthKey, category, place, configuration } = input;
@@ -893,7 +904,7 @@ export async function claimProTrial(uid: string): Promise<boolean> {
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
   const plan = snapshot.exists() ? (snapshot.data() as { plan?: string }).plan : undefined;
-  if (plan === 'pro') return true;
+  if (isProPlan(plan)) return true;
   if (snapshot.exists() && plan !== 'free') return false;
   await setDoc(ref, {
     plan: 'pro',
@@ -1228,7 +1239,7 @@ export function subscribeHouseholdMonthBudget(
   householdId: string,
   monthKey: string,
   onData: (month: MonthBudget | null) => void,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ) {
   if (!isFirebaseConfigured || !db) { onData(null); return () => {}; }
   return onSnapshot(
@@ -1274,7 +1285,7 @@ export async function saveHouseholdMonthBudget(householdId: string, monthKey: st
 export async function getHouseholdMonthBudget(
   householdId: string,
   monthKey: string,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ) {
   if (!isFirebaseConfigured || !db) return null;
   const snap = await getDoc(doc(db, 'households', householdId, 'months', monthKey));
@@ -1322,7 +1333,7 @@ export async function fetchHouseholdMonthsForTrends(
   householdId: string,
   currentKey: string,
   count = 6,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<{ monthKey: string; month: MonthBudget }[]> {
   const results: { monthKey: string; month: MonthBudget }[] = [];
   const [year, calendarMonth] = currentKey.split('-').map(Number);
@@ -1371,7 +1382,7 @@ export async function approveHouseholdInvoice(
   invoiceId: string,
   monthKey: string,
   reviewerId: string,
-  configuration?: Partial<UserProfile> | null,
+  configuration?: MonthConfiguration | null,
 ): Promise<MonthBudget> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const invoiceRef = doc(db, 'households', householdId, 'invoices', invoiceId);

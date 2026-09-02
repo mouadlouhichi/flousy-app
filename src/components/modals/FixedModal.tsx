@@ -14,11 +14,11 @@ import {
   MoneyPlace,
   DEFAULT_FIXED_CATEGORIES,
   FixedCategoryItem,
-  addFixedCategory,
-  updateFixedCategory,
   availableForCharge,
   fixedPaidAmount,
   type LifecycleStatus,
+  FIXED_TYPE_COLORS,
+  fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
@@ -26,6 +26,8 @@ import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
+import { useHousehold } from '../../lib/household-context';
+import { isProFeatureUnlocked } from '../../lib/household';
 import { localizeBillCategory } from '../../lib/localized-labels';
 
 interface FixedModalProps {
@@ -39,6 +41,12 @@ interface FixedModalProps {
   categoryIcons?: Record<string, string>;
   /** Live balance per money place, so a bill cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+  /**
+   * False when the member may edit bills but not see household balances.
+   * Hides the "available in {place}" hint and skips the insufficient-funds
+   * check, whose message would disclose the exact balance.
+   */
+  canSeeBalances?: boolean;
   /** Called when a custom fixed category is renamed, to retype existing bills. */
   onRenameCategory?: (oldName: string, newName: string) => void;
 }
@@ -63,28 +71,6 @@ function pickUnusedColor(takenColors: string[]): string {
 }
 
 /** Fallback icons/colors used when the month data has none for a bill type. */
-const FIXED_TYPE_ICONS: Record<string, string> = {
-  Rent: 'home',
-  Utilities: 'bolt',
-  Housing: 'house',
-  Subscriptions: 'subscriptions',
-  Insurance: 'shield',
-  Internet: 'wifi',
-  Gym: 'fitness_center',
-  Other: 'label',
-};
-
-const FIXED_TYPE_COLORS: Record<string, string> = {
-  Rent: '#8b5cf6',
-  Utilities: '#eab308',
-  Housing: '#f97316',
-  Subscriptions: '#6366f1',
-  Insurance: '#10b981',
-  Internet: '#06b6d4',
-  Gym: '#ec4899',
-  Other: '#6d7a77',
-};
-
 export function FixedModal({
   isOpen,
   onClose,
@@ -95,14 +81,16 @@ export function FixedModal({
   categoryColors = {},
   categoryIcons = {},
   placeBalances,
+  canSeeBalances = true,
   onRenameCategory,
 }: FixedModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   const { messages: m, t } = useLanguage();
   const f = m.modals.fixed;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProUser(profile);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Rent');
@@ -115,8 +103,12 @@ export function FixedModal({
   const [paidAmount, setPaidAmount] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Custom fixed-category add/update form state
-  const customCategories = profile?.fixedCategories ?? [];
+  // Household category configuration belongs to the household document. Never
+  // mix a member's personal category list into a shared workspace.
+  const customCategories = workspace === 'household'
+    ? (household?.fixedCategories ?? [])
+    : (profile?.fixedCategories ?? []);
+  const canManageCategories = workspace === 'personal' || isOwner;
   const customByName = new Map<string, FixedCategoryItem>(customCategories.map((c) => [c.name, c]));
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -124,10 +116,12 @@ export function FixedModal({
   const [customIcon, setCustomIcon] = useState('label');
   const [categoryError, setCategoryError] = useState('');
 
-  const categoryVisual = (catName: string) => ({
-    icon: categoryIcons[catName] || customByName.get(catName)?.icon || FIXED_TYPE_ICONS[catName] || 'label',
-    color: categoryColors[catName] || customByName.get(catName)?.color || FIXED_TYPE_COLORS[catName] || '#6d7a77',
-  });
+  const categoryVisual = (catName: string) =>
+    fixedCategoryVisual(catName, {
+      icons: categoryIcons,
+      colors: categoryColors,
+      custom: customCategories,
+    });
 
   const resetCategoryForm = () => {
     setShowCategoryForm(false);
@@ -138,11 +132,13 @@ export function FixedModal({
   };
 
   const openAddCategoryForm = () => {
+    if (!canManageCategories) return;
     resetCategoryForm();
     setShowCategoryForm(true);
   };
 
   const openEditCategoryForm = () => {
+    if (!canManageCategories) return;
     const item = customByName.get(type);
     if (!item) return;
     setEditingCategory(item.name);
@@ -163,7 +159,7 @@ export function FixedModal({
   };
 
   const handleSaveCategory = () => {
-    if (!profile) return;
+    if (!canManageCategories || (workspace === 'personal' && !profile)) return;
 
     const trimmed = customName.trim();
     const existing = editingCategory ? customByName.get(editingCategory) : undefined;
@@ -190,10 +186,16 @@ export function FixedModal({
     }
 
     const item: FixedCategoryItem = { name: trimmed, color, icon: customIcon };
-    const nextProfile = editingCategory
-      ? updateFixedCategory(profile, editingCategory, item)
-      : addFixedCategory(profile, item);
-    updateProfileData({ fixedCategories: nextProfile.fixedCategories }).catch(() => {});
+    const nextCategories = editingCategory
+      ? customCategories.map((category) => category.name === editingCategory ? item : category)
+      : [...customCategories, item];
+    const saveConfiguration = workspace === 'household'
+      ? updateConfiguration({ fixedCategories: nextCategories })
+      : updateProfileData({ fixedCategories: nextCategories });
+    void saveConfiguration.catch((error) => {
+      console.error('Could not save fixed category:', error);
+      setCategoryError(f.invalidCategoryData);
+    });
 
     // Renaming must retype existing fixed bills so they don't lose the link
     if (editingCategory && editingCategory !== trimmed) {
@@ -281,7 +283,7 @@ export function FixedModal({
 
     // Only cash actually paid is checked/debited. Planned and skipped
     // occurrences remain commitments without changing a balance.
-    if (parsedPaidAmount - availableInPlace > 0.005) {
+    if (canSeeBalances && parsedPaidAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(f.insufficientFunds, {
           amount: format(availableInPlace),
@@ -369,7 +371,7 @@ export function FixedModal({
             <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               {f.category}
             </label>
-            {customByName.has(type) && !showCategoryForm && (
+            {canManageCategories && customByName.has(type) && !showCategoryForm && (
               <button
                 type="button"
                 onClick={openEditCategoryForm}
@@ -396,7 +398,7 @@ export function FixedModal({
                 label: c.name,
                 ...categoryVisual(c.name),
               })),
-              ...(profile
+              ...(canManageCategories
                 ? [{ value: ADD_CATEGORY_VALUE, label: f.new, icon: 'add' as const }]
                 : []),
             ]}
@@ -469,8 +471,10 @@ export function FixedModal({
           </AnimatePresence>
         </div>
 
-        {/* ── Due Day — day-picker card (solid bg) ── */}
-        <DueDayPicker value={date} onChange={setDate} />
+        {/* ── Due Day — day-picker card (solid bg). Only meaningful for a bill
+            that repeats every month; a one-off bill has no "repeat-on day", so
+            the picker is hidden unless the recurring toggle is on. ── */}
+        {recurring && <DueDayPicker value={date} onChange={setDate} />}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
@@ -526,9 +530,11 @@ export function FixedModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">

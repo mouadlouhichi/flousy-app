@@ -698,7 +698,13 @@
           "type": "number",
           "minimum": 1,
           "maximum": 31,
-          "description": "Global preference for the day of the month a budget month starts; mirrors the per-source salary start date"
+          "description": "Payday of the Personal workspace: the day of the month its budget month starts; mirrors the per-source salary start date"
+        },
+        "householdMonthStartDate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 31,
+          "description": "Payday of the Household workspace, stored per workspace so switching workspace does not change the other one. Falls back to monthStartDate while unset."
         },
         "moneyPlaces": {
           "type": "array",
