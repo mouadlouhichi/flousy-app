@@ -249,51 +249,30 @@ today.
 
 ## 🏗 Project structure
 
-```
-src/
-├── app/                        # Next.js App Router
-│   ├── page.tsx                # Marketing landing page
-│   ├── login/                  # Auth: sign in / sign up / reset / demo
-│   ├── onboarding/             # 5-step budget setup
-│   ├── dashboard/              # Main app shell + state orchestration
-│   ├── blog/  help/  about/    # Content & support pages
-│   ├── contact/  careers/
-│   ├── privacy/  terms/ cookies/
-│   ├── opengraph-image.tsx     # Generated OG image
-│   ├── sitemap.ts  robots.ts   # SEO route handlers
-│   ├── error.tsx               # Route error boundary
-│   ├── not-found.tsx           # 404
-│   └── loading.tsx             # Route loading state
-│
-├── components/
-│   ├── ui/                     # shadcn/ui primitives + Modal, ConfirmDialog…
-│   ├── modals/                 # Expense, Fixed, Savings, MoveMoney, Debt,
-│   │                           #   Settings, Categories, ImportCsv, Income, Pro
-│   ├── tabs/                   # Overview, Variable, Fixed, Savings, Trends, Debts
-│   ├── landing/                # Marketing sections
-│   ├── pwa/                    # Install prompt, banner, SW registrar
-│   └── seo/                    # JSON-LD helper
-│
-├── lib/
-│   ├── store.ts                # ⭐ Domain model + all money math (pure)
-│   ├── db.ts                   # Firestore read/write/subscribe
-│   ├── auth-context.tsx        # Auth state, sign-in, account deletion
-│   ├── currency.ts / -context  # 12 currencies + formatting
-│   ├── i18n*.ts(x)             # en/fr/ar, RTL, ICU plurals
-│   ├── validation.ts           # Zod schemas for every form
-│   ├── export.ts               # CSV generation
-│   ├── payments.ts             # Mock Stripe checkout
-│   ├── blog.ts  seo.ts         # Content + SEO constants
-│   └── analytics.ts            # Telemetry seam (no-op by default)
-│
-├── hooks/                      # use-pwa-install, use-mobile, use-toast
-└── middleware.ts               # Per-request nonce-based CSP
+pnpm + Turborepo. Apps are deployable; packages are shared integrations that
+fit Firebase + Expo (not Clerk/Prisma).
 
-messages/                       # en.json · fr.json · ar.json
-tests/                          # node:test suites
-ci/                             # GitHub Actions workflow (see CI section)
-firestore.rules                 # Authorisation layer
 ```
+apps/
+├── web/                        # Next.js (Vercel: pnpm --filter @flousy/web build)
+└── mobile/                     # Expo / EAS
+
+packages/
+├── core/                       # Domain: store, household, i18n, courses, SEO facts
+├── email/                      # Resend + household-invite templates
+├── payments/                   # Pro checkout (mock Stripe today)
+├── observability/              # captureException / captureMessage seam
+├── rate-limit/                 # In-memory limiter for invite + barcode APIs
+├── next-config/                # Shared Next headers + transpilePackages
+└── typescript-config/          # Shared tsconfig for packages
+
+apps/web/src/                   # App Router UI (marketing + dashboard)
+apps/mobile/src/                # Expo Router UI
+```
+
+See [`packages/README.md`](packages/README.md) for what belongs in a package
+versus an app. UI stays in `apps/web` (Radix) and `apps/mobile` (React Native)
+— they cannot share a design-system package.
 
 **Design notes**
 

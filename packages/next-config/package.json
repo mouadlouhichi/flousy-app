@@ -1,0 +1,14 @@
+{
+  "name": "@flousy/next-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "scripts": {
+    "build": "echo '@flousy/next-config is source-only'",
+    "test": "echo 'no tests'",
+    "typecheck": "echo 'no typecheck'"
+  }
+}

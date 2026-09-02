@@ -64,24 +64,12 @@ function cacheSet(key: string, body: unknown): void {
  */
 const LOOKUPS_PER_MINUTE = 60;
 const GLOBAL_DEADLINE_MS = 12_000;
-const hitsByIp = new Map<string, { at: number; count: number }>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = hitsByIp.get(ip);
-  if (!entry || now - entry.at >= 60_000) {
-    hitsByIp.set(ip, { at: now, count: 1 });
-  } else {
-    entry.count += 1;
-  }
-  // Bound the map itself; stale buckets are worthless.
-  if (hitsByIp.size > 10_000) {
-    for (const [key, value] of hitsByIp) {
-      if (now - value.at >= 60_000) hitsByIp.delete(key);
-    }
-  }
-  return hitsByIp.get(ip)!.count > LOOKUPS_PER_MINUTE;
-}
+const lookupLimiter = createMemoryRateLimiter({
+  windowMs: 60_000,
+  max: LOOKUPS_PER_MINUTE,
+  maxKeys: 10_000,
+});
+const rateLimited = (ip: string) => lookupLimiter.limited(ip);
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
