@@ -177,6 +177,12 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
 | `RESEND_API_KEY` | [ ] | [ ] | [ ] |
 | `RESEND_FROM_EMAIL` | [ ] | [ ] | [ ] |
 | `CONTACT_TO_EMAIL` | [ ] | [ ] | [ ] |
+| `ARCJET_KEY` (optional — API shield/bot detection) | [ ] | [ ] | [ ] |
+| `UPSTASH_REDIS_REST_URL` (optional — durable rate limits) | [ ] | [ ] | [ ] |
+| `UPSTASH_REDIS_REST_TOKEN` (optional — durable rate limits) | [ ] | [ ] | [ ] |
+| `SENTRY_DSN` (optional — client-error forwarding) | [ ] | [ ] | [ ] |
+| `BETTERSTACK_API_KEY` (optional — log forwarding) | [ ] | [ ] | [ ] |
+| `BETTERSTACK_URL` (optional — ingest host override) | [ ] | [ ] | [ ] |
 
 - [ ] `[EXTERNAL]` Production `NEXT_PUBLIC_SITE_URL` is the exact HTTPS canonical
       origin with no path or trailing environment alias.
@@ -284,12 +290,23 @@ SmartJib's control; the shipped copy states that operational retention may apply
 - [ ] `[EXTERNAL]` Enable Firebase Auth/Firestore monitoring, quota alerts and
       billing-budget alerts.
 - [ ] `[EXTERNAL]` Configure uptime checks for `/`, `/login`, `/api/contact` and
-      `/api/household-invitations` (GET only; do not generate mail).
+      `/api/household-invitations` (GET only; do not generate mail). Better Stack
+      Uptime is the chosen provider; monitors live in its dashboard, not in code.
+- [ ] `[EXTERNAL]` Optional hardening/observability integrations (all inert until
+      their env vars exist — see `.env.example`): create an Upstash Redis database
+      and set `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (durable API rate
+      limits); create an Arcjet site and set `ARCJET_KEY` (shield + bot detection on
+      `/api/contact` and `/api/household-invitations`); create a Sentry project and
+      set `SENTRY_DSN` (server-side forwarding of the consent-gated
+      `/api/client-errors` reports — no browser SDK, no CSP change); create a Better
+      Stack log source and set `BETTERSTACK_API_KEY` (+ `BETTERSTACK_URL` if your
+      source uses a dedicated ingest host).
 - [ ] `[EXTERNAL]` Alert on elevated 5xx/429 rates, Auth failures, Firestore denied
       writes, Resend delivery failures and cost anomalies.
-- [ ] `[EXTERNAL]` Choose an error-monitoring provider or document the deliberate
-      host/Firebase-log-only decision; apply consent and redaction rules before
-      adding any SDK.
+- [x] Error-monitoring decision: reports stay in the host log by default; setting
+      `SENTRY_DSN`/`BETTERSTACK_API_KEY` forwards the already-consented, sanitized
+      `/api/client-errors` beacons server-side (`src/lib/server/telemetry.ts`). No
+      browser SDK is loaded, so consent and CSP posture are unchanged.
 - [ ] `[EXTERNAL]` Create an incident channel, primary/backup owner and severity
       definitions.
 - [ ] `[EXTERNAL]` Document credential rotation for Firebase deploy credentials,

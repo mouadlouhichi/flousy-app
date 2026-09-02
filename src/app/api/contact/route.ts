@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { isRateLimited } from '@/lib/server/rate-limit';
+import { checkArcjet } from '@/lib/server/arcjet';
 
 export const runtime = 'nodejs';
 
@@ -14,8 +16,10 @@ export const runtime = 'nodejs';
  *
  * Abuse posture (the form is public, so it needs more care than the
  * authenticated invitation route):
- *  - per-IP token bucket, in-memory per instance (outer bound: Resend quota
- *    and host/WAF limits — see PRODUCTION_CHECKLIST §5);
+ *  - per-IP rate limit via the shared limiter (durable across instances when
+ *    Upstash Redis is configured, in-memory per instance otherwise; outer
+ *    bound: Resend quota and host/WAF limits — see PRODUCTION_CHECKLIST §5);
+ *  - optional Arcjet shield + bot detection when ARCJET_KEY is set;
  *  - honeypot field: bots that fill `website` get a fake success and no mail;
  *  - idempotency: a client-generated `requestId` suppresses duplicate sends
  *    from retries/double-clicks within the dedupe window;
@@ -25,23 +29,9 @@ export const runtime = 'nodejs';
 const SANDBOX_SENDER = '@resend.dev';
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 5;
-const sendsByIp = new Map<string, number[]>();
 
 const DEDUPE_WINDOW_MS = 30 * 60 * 1000;
 const seenRequestIds = new Map<string, number>();
-
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const hits = (sendsByIp.get(ip) || []).filter((at) => now - at < WINDOW_MS);
-  hits.push(now);
-  sendsByIp.set(ip, hits);
-  if (sendsByIp.size > 5000) {
-    for (const [key, times] of sendsByIp) {
-      if (!times.some((at) => now - at < WINDOW_MS)) sendsByIp.delete(key);
-    }
-  }
-  return hits.length > MAX_SENDS_PER_WINDOW;
-}
 
 /** True when this requestId already produced a send recently. */
 function duplicateRequest(requestId: string): boolean {
@@ -166,7 +156,14 @@ export async function POST(request: NextRequest) {
   const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim()
     || request.headers.get('x-real-ip')
     || 'unknown';
-  if (rateLimited(ip)) {
+  const arcjet = await checkArcjet(request);
+  if (arcjet.denied) {
+    return NextResponse.json(
+      { error: 'Request blocked.', code: 'blocked' },
+      { status: 403 },
+    );
+  }
+  if (await isRateLimited('contact', ip, MAX_SENDS_PER_WINDOW, WINDOW_MS)) {
     return NextResponse.json(
       { error: 'Too many messages from this address; try again later.', code: 'rate_limited' },
       { status: 429 },

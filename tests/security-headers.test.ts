@@ -147,7 +147,9 @@ describe('server endpoint abuse limits', () => {
   });
 
   it('rate limits sends per user and deduplicates provider retries', () => {
-    assert.match(invitations, /rateLimited\(/);
+    // Counting goes through the shared limiter (Upstash-durable when
+    // configured, in-memory fallback otherwise — see tests/rate-limit.test.ts).
+    assert.match(invitations, /await isRateLimited\('household-invitations', caller\.uid/);
     assert.match(invitations, /status: 429/);
     assert.match(invitations, /idempotencyKey: `household-invite-\$\{inviteId\}`/);
   });

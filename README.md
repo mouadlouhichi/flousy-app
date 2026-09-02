@@ -463,8 +463,11 @@ Current scale/operations constraints:
 
 - A month is a bounded aggregate document (up to the Rules-defined limits), so a
   future transaction-subcollection migration is needed at larger scale.
-- Contact/invitation in-memory abuse counters are per server instance; production
-  should add platform/WAF-level distributed controls and alerts.
+- Contact/invitation/error-sink abuse counters use Upstash Redis when
+  `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set (durable across
+  instances) and fall back to per-instance in-memory counting otherwise;
+  Arcjet shield/bot detection activates with `ARCJET_KEY`. Platform/WAF-level
+  controls and alerts remain a deployment responsibility.
 - Receipt images are bounded inline data rather than Firebase Storage objects.
 - Firestore Rules cannot rate-limit document writes; App Check, quotas and cost
   alerts are deployment responsibilities.
