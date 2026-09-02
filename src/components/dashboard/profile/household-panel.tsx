@@ -8,10 +8,9 @@ import { isProUser } from '@/lib/pro-features';
 import { useHousehold } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
-import type { MonthBudget } from '@/lib/store';
-import { HOUSEHOLD_AREAS, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
+import { fixedPaidAmount, type MonthBudget } from '@/lib/store';
 
-type InviteRole = 'editor' | 'viewer' | 'custom';
+type InviteRole = 'editor' | 'viewer' | 'contributor';
 
 interface HouseholdPanelProps {
   onOpenPro?: () => void;
@@ -34,11 +33,7 @@ export function HouseholdPanel({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
-  const [role, setRole] = useState<InviteRole>('custom');
-  const [permissions, setPermissions] = useState<HouseholdPermissions>({
-    expenses: 'editOwn',
-    invoices: 'editOwn',
-  });
+  const [role, setRole] = useState<InviteRole>('contributor');
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -67,26 +62,20 @@ export function HouseholdPanel({
     .filter((member) => member.status === 'active' && member.role !== 'profile')
     .map((member) => ({
       member,
-      total: [...(month?.variableExpenses || []), ...(month?.fixedExpenses || [])]
-        .filter((expense) => expense.payerMemberId === member.id)
-        .reduce((sum, expense) => sum + expense.amount, 0),
+      total:
+        (month?.variableExpenses || [])
+          .filter((expense) => expense.payerMemberId === member.id)
+          .reduce((sum, expense) => sum + expense.amount, 0)
+        + (month?.fixedExpenses || [])
+          .filter((expense) => expense.payerMemberId === member.id)
+          .reduce((sum, expense) => sum + fixedPaidAmount(expense), 0),
     }));
   const paidTotal = contributions.reduce((sum, item) => sum + item.total, 0);
   const equalShare = contributions.length ? paidTotal / contributions.length : 0;
   const roleOptions = [
-    { value: 'custom', label: h.customAccess },
+    { value: 'contributor', label: h.contributor },
     { value: 'editor', label: h.fullAccess },
     { value: 'viewer', label: h.viewOnly },
-  ];
-  const accessOptions = (editable?: boolean) => [
-    { value: 'none', label: h.noAccess },
-    { value: 'view', label: h.view },
-    ...(editable
-      ? [
-          { value: 'editOwn', label: h.editOwn },
-          { value: 'editAll', label: h.editAll },
-        ]
-      : []),
   ];
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
@@ -264,12 +253,7 @@ export function HouseholdPanel({
                     disabled={!memberName || busy}
                     onClick={() =>
                       run(async () => {
-                        const inviteId = await invite(
-                          memberName,
-                          email,
-                          role,
-                          role === 'custom' ? permissions : undefined,
-                        );
+                        const inviteId = await invite(memberName, email, role);
                         setLastInviteCode(inviteId);
                         setCopied(false);
                         if (email && !user) {
@@ -356,31 +340,6 @@ export function HouseholdPanel({
                   </div>
                 )}
 
-                {role === 'custom' && (
-                  <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      {h.customAccess}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {HOUSEHOLD_AREAS.map((area) => (
-                        <div key={area.id} className="min-w-0">
-                          <CustomSelect
-                            value={permissions[area.id] || 'none'}
-                            onChange={(value) =>
-                              setPermissions((current) => ({
-                                ...current,
-                                [area.id]: value as AccessLevel,
-                              }))
-                            }
-                            options={accessOptions(area.editable)}
-                            label={h.areas[area.id]}
-                            triggerClassName="!h-10 !text-xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </>

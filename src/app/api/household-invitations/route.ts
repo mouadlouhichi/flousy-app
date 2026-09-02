@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 const EMAIL_MESSAGES: Record<Language, Messages> = { en, fr, ar };
 
 /** Roles a signed-in member may be invited with; mirrors `householdInvites` in firestore.rules. */
-const INVITABLE_ROLES = ['editor', 'viewer', 'contributor', 'custom'] as const;
+const INVITABLE_ROLES = ['editor', 'viewer', 'contributor'] as const;
 
 /**
  * Only domains the sender is expected to control. Resend's own sandbox domain is
@@ -288,9 +288,15 @@ export async function POST(request: NextRequest) {
     if (invite.status !== 'pending') {
       return NextResponse.json({ error: 'This invitation is no longer pending.', code: 'invite_not_pending' }, { status: 409 });
     }
-    // An expired code is still readable, but mailing it would promise access the
-    // client-side acceptance step then refuses.
-    if (typeof invite.expiresAt === 'string' && Date.parse(invite.expiresAt) < Date.now()) {
+    // `expiresAtMs` is the field Firestore rules enforce. Treat the ISO string
+    // as a compatibility fallback only, so an inconsistent display field can
+    // never make this endpoint mail a link the authorization layer rejects.
+    const expiresAtMs = typeof invite.expiresAtMs === 'number'
+      ? invite.expiresAtMs
+      : typeof invite.expiresAt === 'string'
+        ? Date.parse(invite.expiresAt)
+        : Number.NaN;
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
       return NextResponse.json({ error: 'This invitation has expired.', code: 'invite_expired' }, { status: 410 });
     }
 

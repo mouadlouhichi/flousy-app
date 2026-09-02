@@ -96,7 +96,7 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
     .trim();
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const isDev = process.env.NODE_ENV === 'development';
   const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
   const { pathname } = request.nextUrl;

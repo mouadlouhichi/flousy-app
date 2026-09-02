@@ -4,7 +4,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
 import Link from 'next/link';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
@@ -54,7 +54,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
     categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
   });
   (month.fixedExpenses || []).forEach((exp) => {
-    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + fixedPaidAmount(exp);
   });
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
 
@@ -68,7 +68,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   (month.fixedExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
     if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
-    personBreakdown[person].fixed += exp.amount;
+    personBreakdown[person].fixed += fixedPaidAmount(exp);
   });
 
   // ── Multi-month trend calculations ──

@@ -291,6 +291,7 @@
       "queen": "Reine",
       "king": "Roi",
       "date": "Date",
+      "dateOutsidePeriod": "Choisissez une date comprise dans cette période budgétaire (du {start} au {end}).",
       "noteOptional": "Note (Facultatif)",
       "notePlaceholder": "C'était pour quoi ?",
       "receiptOptional": "REÇU / PIÈCE JOINTE (FACULTATIF)",
@@ -333,7 +334,14 @@
       "duplicateCategory": "Une catégorie portant ce nom existe déjà.",
       "availableIn": "Disponible dans {place} : {amount}",
       "insufficientFunds": "Seuls {amount} sont disponibles dans {place}. Réduisez le montant ou déplacez de l’argent vers cet emplacement.",
-      "householdPro": "Le suivi des membres du foyer est disponible avec Pro."
+      "householdPro": "Le suivi des membres du foyer est disponible avec Pro.",
+      "partialAmountError": "Le montant payé doit être supérieur à zéro et inférieur au montant de la facture.",
+      "lifecycleStatus": "Statut du paiement",
+      "statusPlanned": "Prévu",
+      "statusPartial": "Partiellement payé",
+      "statusPaid": "Payé",
+      "statusSkipped": "Ignoré",
+      "paidAmount": "Montant payé"
     },
     "savings": {
       "createTitle": "Créer un Objectif d'Épargne",
@@ -411,7 +419,8 @@
       "noteOptional": "Note (Facultatif)",
       "notePlaceholder": "Cette dette est pour quoi ?",
       "saveChanges": "Enregistrer les Modifications",
-      "addCredit": "Ajouter une créance"
+      "addCredit": "Ajouter une créance",
+      "statusManagedByPayments": "Le statut est mis à jour automatiquement selon l’historique des paiements."
     },
     "categories": {
       "title": "Gérer les Catégories",
@@ -435,7 +444,21 @@
       "noNumericAmounts": "Aucun montant numérique valide n’a été trouvé dans les lignes CSV.",
       "parseFailed": "Le fichier CSV n’a pas pu être lu.",
       "importedExpense": "Dépense importée",
-      "selectFile": "Sélectionnez un fichier CSV pour prévisualiser vos transactions avant l’importation."
+      "selectFile": "Sélectionnez un fichier CSV pour prévisualiser vos transactions avant l’importation.",
+      "mappingTitle": "Associer les colonnes CSV",
+      "column": "Colonne",
+      "mapIgnore": "Ignorer",
+      "mapName": "Nom / description",
+      "mapAmount": "Montant",
+      "mapDate": "Date",
+      "mapCategory": "Catégorie",
+      "mapPlace": "Source d’argent",
+      "mapNote": "Note",
+      "mapPerson": "Personne",
+      "mapAmountRequired": "Choisissez la colonne qui contient le montant.",
+      "allDuplicates": "Toutes les lignes valides existent déjà. Aucun doublon n’a été importé.",
+      "noValidRows": "Aucune ligne sûre à importer. Vérifiez les dates, montants et colonnes.",
+      "skippedRows": "{invalid} lignes invalides/hors période et {duplicates} doublons ignorés."
     },
     "incomeSources": {
       "title": "Sources de Revenus",
@@ -465,7 +488,17 @@
       "startsOn": "Commence le {day}",
       "period": "Période du {start} au {end}",
       "payDayHint": "Le salaire arrive chaque mois le {day} : la période budgétaire de cette source commence alors.",
-      "payDayOptional": "Facultatif : choisissez le jour du mois où ce revenu arrive."
+      "payDayOptional": "Facultatif : choisissez le jour du mois où ce revenu arrive.",
+      "statusPlanned": "Prévu",
+      "statusPartial": "Partiellement reçu",
+      "statusReceived": "Reçu",
+      "statusSkipped": "Ignoré",
+      "partialAmountError": "Le montant reçu doit être supérieur à zéro et inférieur au montant attendu.",
+      "receivedSummary": "{received} reçus sur {expected}",
+      "lifecycleStatus": "Statut de réception",
+      "receivedAmount": "Montant reçu",
+      "receivedShort": "Reçu",
+      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire."
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -550,7 +583,10 @@
       "description": "Corrigez vos espèces actuelles dans chaque emplacement. Cela ajuste votre trésorerie disponible ; votre budget mensuel reste inchangé.",
       "totalCash": "Total des espèces disponibles",
       "monthlyBudget": "Budget mensuel : {amount}",
-      "saveBalances": "Enregistrer les soldes"
+      "saveBalances": "Enregistrer les soldes",
+      "adjustmentPreview": "{from} → {to}",
+      "reconciliationNote": "Note de rapprochement (facultative)",
+      "reconciliationNotePlaceholder": "Ex. : vérifié avec le relevé bancaire"
     }
   },
   "settings": {
@@ -565,7 +601,13 @@
     "language": "Langue",
     "languageDescription": "Changer la langue d'affichage de l'application",
     "privacyPolicy": "Politique de Confidentialité",
-    "termsOfService": "Conditions d'Utilisation"
+    "termsOfService": "Conditions d'Utilisation",
+    "historicalCurrencyActive": "Cette période reste en {currency}.",
+    "currencyChangeTitle": "Changer la devise des périodes futures ?",
+    "currencyChangeFutureOnly": "Passer la devise configurée de {current} à {next} ? Les périodes existantes gardent leurs valeurs et ne sont pas converties.",
+    "periodChangeTitle": "Modifier les périodes budgétaires futures ?",
+    "periodChangeFutureOnly": "Utiliser le jour {day} pour les périodes nouvellement sélectionnées et futures ? Les périodes existantes ne sont pas réécrites.",
+    "useForFuturePeriods": "Utiliser pour les périodes futures"
   },
   "tabs": {
     "variable": {
@@ -604,7 +646,15 @@
       "carryOverNote": "Les factures récurrentes sont automatiquement reportées du mois précédent.",
       "recurringMonthly": "Récurrent chaque mois",
       "due": "Échéance : {date}",
-      "monthly": "Mensuel"
+      "monthly": "Mensuel",
+      "paidSummary": "{paid} payés sur {total}",
+      "status": {
+        "planned": "Prévu",
+        "partial": "Partiel",
+        "paid": "Payé",
+        "skipped": "Ignoré"
+      },
+      "paidShort": "payé"
     },
     "savings": {
       "totalSaved": "TOTAL ÉPARGNÉ",
@@ -645,7 +695,18 @@
       "manageDebt": "GÉRER VOS DETTES SEREINEMENT",
       "title": "Dettes & Crédits",
       "openCount": "{count} ouvert",
-      "settledCount": "{count} réglé"
+      "settledCount": "{count} réglé",
+      "invalidPayment": "Saisissez un montant positif ne dépassant pas le solde restant.",
+      "paymentFailed": "Le versement n’a pas pu être enregistré.",
+      "paidOfTotal": "{paid} payés sur {total}",
+      "paymentHistory": "Historique des paiements",
+      "noPayments": "Aucun versement enregistré.",
+      "paymentAmount": "Montant du versement",
+      "paidFrom": "Source d’argent",
+      "recordPayment": "Enregistrer le paiement",
+      "recordReceipt": "Enregistrer l’argent reçu",
+      "deletePaymentTitle": "Supprimer ce versement ?",
+      "deletePaymentMessage": "Le mouvement d’argent lié sera annulé et le solde restant sera rouvert."
     },
     "trends": {
       "title": "Tendances & Analyses",
@@ -762,7 +823,11 @@
     "billTextItem": "article",
     "billTextItems": "articles",
     "billTextTotal": "TOTAL",
-    "unnamedItem": "Article sans nom"
+    "unnamedItem": "Article sans nom",
+    "logPermissionDenied": "Seul un propriétaire ou éditeur peut ajouter cette course au budget du foyer.",
+    "logPosting": "Ajout…",
+    "logFailed": "La course n’a pas pu être ajoutée. Aucun doublon n’a été créé ; réessayez.",
+    "personalWorkspace": "Personnel"
   },
   "alerts": {
     "needsExceeded": "Enveloppe des besoins dépassée",
@@ -1672,7 +1737,19 @@
       "exportThisMonth": "Exporter ce mois en CSV",
       "importCsv": "Importer un CSV",
       "deleteAllData": "Supprimer toutes les données",
-      "deleteAllDataMessage": "Cette action supprime définitivement tous les mois de données budgétaires, dépenses et objectifs d’épargne de votre compte. Votre compte et vos paramètres seront conservés. Cette action est irréversible : téléchargez vos données d’abord si vous souhaitez en garder une copie."
+      "deleteAllDataMessage": "Cette action supprime définitivement tous les mois de données budgétaires, dépenses et objectifs d’épargne de votre compte. Votre compte et vos paramètres seront conservés. Cette action est irréversible : téléchargez vos données d’abord si vous souhaitez en garder une copie.",
+      "exportBackup": "Exporter une sauvegarde complète",
+      "exportBackupDescription": "Toutes les périodes, objectifs, préférences et courses",
+      "restoreBackup": "Restaurer une sauvegarde JSON",
+      "restoreBackupDescription": "Valider et restaurer une sauvegarde SmartJib versionnée",
+      "backupExported": "Votre sauvegarde complète a été téléchargée.",
+      "backupFailed": "La sauvegarde n’a pas pu être exportée.",
+      "backupInvalid": "Ce fichier n’est pas une sauvegarde SmartJib valide et prise en charge.",
+      "restoreComplete": "{months} périodes et {goals} objectifs restaurés.",
+      "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
+      "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
+      "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
+      "personalWorkspace": "Espace personnel"
     },
     "moneySources": {
       "description": "Ce sont les emplacements d’argent depuis lesquels vous dépensez : Banque, Maison, Portefeuille ou toute réserve que vous ajoutez. En en supprimant un, le solde restant est déplacé vers la première source restante.",
@@ -1814,7 +1891,9 @@
       "reviewDescription": "Examinez les soumissions des contributeurs avant de les enregistrer dans le budget privé du foyer.",
       "nonePending": "Aucune soumission de facture en attente.",
       "approve": "Approuver",
-      "reject": "Refuser"
+      "reject": "Refuser",
+      "reviewError": "La facture n’a pas pu être traitée. Réessayez.",
+      "postsToMonth": "Comptabilisée dans {month}"
     },
     "invited": "Invité",
     "invitationCount": "{count, plural, one {# invitation au foyer} other {# invitations au foyer}}",
@@ -1833,7 +1912,8 @@
     "copyCode": "Copier",
     "copied": "Copié",
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
-    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre."
+    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre.",
+    "contributor": "Contributeur"
   },
   "consent": {
     "title": "Confidentialité",
@@ -1877,5 +1957,18 @@
       "notFound": "Page introuvable",
       "landing": "SmartJib — Suivez votre budget, hors ligne, sans publicité"
     }
+  },
+  "sync": {
+    "idle": "Enregistré",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "failed": "Échec de synchronisation",
+    "conflict": "Modifications à vérifier",
+    "conflictDetail": "Une modification plus récente dans le cloud chevauche votre modification locale. Ignorez la copie locale uniquement si vous souhaitez conserver la version cloud.",
+    "queuedLocally": "Vos modifications sont conservées sur cet appareil.",
+    "retry": "Réessayer",
+    "useCloudCopy": "Ignorer les modifications locales",
+    "pending": "En attente",
+    "local": "Enregistré sur cet appareil"
   }
 }

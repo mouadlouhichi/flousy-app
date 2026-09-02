@@ -106,6 +106,46 @@ function EmailVerificationBanner() {
  * showing it from the first client render would hydrate a banner the server
  * never emitted. It is therefore applied after mount.
  */
+function SyncIssueBanner() {
+  const { messages: m } = useLanguage();
+  const { syncState, pendingMutations, retrySync, discardPendingChanges } = useDashboard();
+  const [discarding, setDiscarding] = useState(false);
+  if (syncState !== 'failed' && syncState !== 'conflict') return null;
+
+  return (
+    <div role="alert" className="flex flex-col gap-2 bg-error/10 px-margin-mobile py-3 text-error sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2">
+        <AppIcon name={syncState === 'conflict' ? 'sync_problem' : 'cloud_off'} className="mt-0.5 shrink-0 text-[20px]" />
+        <div>
+          <p className="text-sm font-bold">{m.sync[syncState]}</p>
+          <p className="text-xs">
+            {syncState === 'conflict' ? m.sync.conflictDetail : m.sync.queuedLocally}
+            {pendingMutations > 0 ? ` (${pendingMutations})` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        {syncState === 'failed' && (
+          <button type="button" onClick={retrySync} className="rounded-full bg-error px-3 py-1.5 text-xs font-bold text-on-error">
+            {m.sync.retry}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={discarding}
+          onClick={() => {
+            setDiscarding(true);
+            void discardPendingChanges().catch(() => {}).finally(() => setDiscarding(false));
+          }}
+          className="rounded-full border border-error px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+        >
+          {m.sync.useCloudCopy}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DemoModeBanner() {
   const { messages: m } = useLanguage();
   const router = useRouter();
@@ -272,6 +312,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <ProfileSyncBanner />
         <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
+        <SyncIssueBanner />
         <DashboardHeader />
 
         <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">

@@ -4,9 +4,10 @@ import { DebtsTab } from '@/components/tabs/DebtsTab';
 import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
+import { deleteDebtPayment, recordDebtPayment, type DebtPayment } from '@/lib/store';
 
 export function DebtsScreen() {
-  const { month, openDebtModal } = useDashboard();
+  const { month, openDebtModal, updateAndSaveMonth, user } = useDashboard();
   const { workspace, canViewArea, canEditArea } = useHousehold();
   const { messages: m } = useLanguage();
   const canView = workspace === 'personal' || canViewArea('debts');
@@ -19,5 +20,23 @@ export function DebtsScreen() {
     </div>
   );
 
-  return <DebtsTab month={month} onOpenDebtModal={() => canEdit && openDebtModal()} />;
+  return (
+    <DebtsTab
+      month={month}
+      canEdit={canEdit}
+      onOpenDebtModal={() => canEdit && openDebtModal()}
+      onEditDebt={(debt) => canEdit && openDebtModal(debt)}
+      onRecordPayment={(debtId: string, payment: DebtPayment) => {
+        if (!canEdit) return;
+        updateAndSaveMonth(recordDebtPayment(month, debtId, {
+          ...payment,
+          createdByUserId: user?.uid,
+        }));
+      }}
+      onDeletePayment={(debtId, paymentId) => {
+        if (!canEdit) return;
+        updateAndSaveMonth(deleteDebtPayment(month, debtId, paymentId));
+      }}
+    />
+  );
 }

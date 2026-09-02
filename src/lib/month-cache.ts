@@ -44,7 +44,7 @@ export function writeStoredMonthKey(key: string, storage?: StorageLike | null): 
 export function readCachedMonth(
   storageKey: string,
   monthKey: string,
-  profile?: UserProfile | null,
+  profile?: Partial<UserProfile> | null,
   storage?: StorageLike | null,
 ): MonthBudget | null {
   const store = resolveStorage(storage);

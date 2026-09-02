@@ -17,6 +17,8 @@ import {
   addFixedCategory,
   updateFixedCategory,
   availableForCharge,
+  fixedPaidAmount,
+  type LifecycleStatus,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
@@ -109,6 +111,8 @@ export function FixedModal({
   const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [recurring, setRecurring] = useState(true);
+  const [status, setStatus] = useState<LifecycleStatus>('planned');
+  const [paidAmount, setPaidAmount] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Custom fixed-category add/update form state
@@ -212,6 +216,8 @@ export function FixedModal({
       setPerson(initialBill.person || 'Self');
       setPayerMemberId(initialBill.payerMemberId || initialBill.person || 'self');
       setRecurring(initialBill.recurring ?? true);
+      setStatus(initialBill.status || 'paid');
+      setPaidAmount(String(fixedPaidAmount(initialBill)));
     } else {
       setName('');
       setAmount('');
@@ -221,6 +227,8 @@ export function FixedModal({
       setPerson('Self');
       setPayerMemberId('self');
       setRecurring(true);
+      setStatus('planned');
+      setPaidAmount('');
     }
     setErrors({});
     resetCategoryForm();
@@ -258,9 +266,22 @@ export function FixedModal({
       return;
     }
 
-    // The source place must actually hold the money for the charge. Half-a-cent
-    // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    const parsedPaidAmount = status === 'paid'
+      ? parsedAmount
+      : status === 'partial'
+        ? Number(paidAmount)
+        : 0;
+    if (
+      status === 'partial'
+      && (!Number.isFinite(parsedPaidAmount) || parsedPaidAmount <= 0 || parsedPaidAmount >= parsedAmount)
+    ) {
+      setErrors({ paidAmount: f.partialAmountError });
+      return;
+    }
+
+    // Only cash actually paid is checked/debited. Planned and skipped
+    // occurrences remain commitments without changing a balance.
+    if (parsedPaidAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(f.insufficientFunds, {
           amount: format(availableInPlace),
@@ -270,8 +291,11 @@ export function FixedModal({
       return;
     }
 
+    const id = initialBill?.id || `fixed-${crypto.randomUUID()}`;
     const newBill: FixedExpense = {
-      id: initialBill ? initialBill.id : Math.random().toString(36).substring(2, 9),
+      ...(initialBill || {}),
+      id,
+      templateId: initialBill?.templateId || id,
       name: name.trim(),
       amount: parsedAmount,
       type,
@@ -280,6 +304,9 @@ export function FixedModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       recurring,
+      status,
+      paidAmount: parsedPaidAmount,
+      paidAt: parsedPaidAmount > 0 ? initialBill?.paidAt || new Date().toISOString() : undefined,
     };
 
     onSave(newBill);
@@ -453,6 +480,41 @@ export function FixedModal({
             <p className="font-body-sm text-body-sm text-on-surface-variant">{f.householdPro}</p>
           </div>
         )}
+
+        <div className="flex flex-col gap-2">
+          <SegmentedControl
+            label={f.lifecycleStatus}
+            value={status}
+            onChange={(value) => {
+              setStatus(value as LifecycleStatus);
+              setErrors((previous) => ({ ...previous, paidAmount: '', amount: '' }));
+            }}
+            options={[
+              { value: 'planned', label: f.statusPlanned, icon: 'schedule' },
+              { value: 'partial', label: f.statusPartial, icon: 'pending' },
+              { value: 'paid', label: f.statusPaid, icon: 'check_circle' },
+              { value: 'skipped', label: f.statusSkipped, icon: 'block' },
+            ]}
+          />
+          {status === 'partial' && (
+            <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
+              {f.paidAmount}
+              <input
+                type="number"
+                min="0"
+                max={amount || undefined}
+                step="0.01"
+                value={paidAmount}
+                onChange={(event) => {
+                  setPaidAmount(event.target.value);
+                  setErrors((previous) => ({ ...previous, paidAmount: '' }));
+                }}
+                className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
+              />
+              {errors.paidAmount && <span role="alert" className="text-error">{errors.paidAmount}</span>}
+            </label>
+          )}
+        </div>
 
         {/* ── Paid From — segmented group with sliding active background ── */}
         <SegmentedControl

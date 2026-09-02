@@ -42,6 +42,9 @@ export function DashboardHeader() {
     handleNextMonth,
     openExpenseModal,
     isMounted,
+    syncState,
+    pendingMutations,
+    retrySync,
   } = useDashboard();
 
   const { workspace, canEditArea } = useHousehold();
@@ -68,8 +71,9 @@ export function DashboardHeader() {
 
   // When a monthly start date is configured, the navigator shows the budget
   // period itself (e.g. "AUG 25 → SEP 24") instead of a bare calendar month.
-  const budgetPeriod = isMounted && profile?.monthStartDate
-    ? getSourcePeriod(currentMonthKey, profile.monthStartDate)
+  const budgetStartDay = month.periodStartDay;
+  const budgetPeriod = isMounted && budgetStartDay && budgetStartDay > 1
+    ? getSourcePeriod(currentMonthKey, budgetStartDay)
     : null;
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
   const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
@@ -102,8 +106,8 @@ export function DashboardHeader() {
       <div
         className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
         title={
-          profile?.monthStartDate
-            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(profile.monthStartDate, language, intlLocale)})`
+          budgetStartDay && budgetStartDay > 1
+            ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(budgetStartDay, language, intlLocale)})`
             : undefined
         }
       >
@@ -145,6 +149,26 @@ export function DashboardHeader() {
 
       {/* Header Action Tools */}
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={syncState === 'failed' ? retrySync : undefined}
+          disabled={syncState !== 'failed'}
+          className={`hidden items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold sm:flex ${
+            syncState === 'saved' || syncState === 'local'
+              ? 'bg-primary/10 text-primary'
+              : syncState === 'pending'
+                ? 'bg-tertiary-container text-on-tertiary-container'
+                : 'bg-error/10 text-error'
+          }`}
+          title={syncState === 'failed' ? m.sync.retry : m.sync[syncState]}
+        >
+          <AppIcon
+            name={syncState === 'saved' ? 'cloud_done' : syncState === 'pending' ? 'cloud_upload' : syncState === 'local' ? 'devices' : 'cloud_off'}
+            className={`text-[14px] ${syncState === 'pending' ? 'animate-pulse' : ''}`}
+          />
+          <span>{m.sync[syncState]}</span>
+          {pendingMutations > 0 && <span>({pendingMutations})</span>}
+        </button>
         <BudgetAlerts month={month} />
 
         {canAddExpense && <button

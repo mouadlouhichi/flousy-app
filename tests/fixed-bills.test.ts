@@ -84,7 +84,7 @@ describe('Fixed bills reduce their own source', () => {
 });
 
 describe('carryOverFixedExpenses', () => {
-  it('carries recurring bills and debits each from its own place', () => {
+  it('materializes recurring bills as planned occurrences without moving cash', () => {
     const previous = monthWith({}, [
       bill({ id: 'rent', amount: 3500, place: 'bank', name: 'Rent' }),
       bill({ id: 'gym', amount: 200, place: 'wallet', name: 'Gym' }),
@@ -96,12 +96,13 @@ describe('carryOverFixedExpenses', () => {
     const next = carryOverFixedExpenses(fresh, previous);
 
     assert.strictEqual(next.fixedExpenses.length, 3, 'non-recurring bill is not carried');
-    assert.strictEqual(next.bankPart, 15000 - 3500, 'bank bill debits bank');
-    assert.strictEqual(next.homePart, 1000 - 400, 'home bill debits home cash');
-    assert.strictEqual(next.walletPart, 500 - 200, 'wallet bill debits wallet');
+    assert.ok(next.fixedExpenses.every((item) => item.status === 'planned' && item.paidAmount === 0));
+    assert.strictEqual(next.bankPart, 15000, 'planning does not debit bank');
+    assert.strictEqual(next.homePart, 1000, 'planning does not debit home cash');
+    assert.strictEqual(next.walletPart, 500, 'planning does not debit wallet');
   });
 
-  it('never drives a source below zero and skips bills already present', () => {
+  it('does not require cash for planned occurrences and skips templates already present', () => {
     const previous = monthWith({}, [
       bill({ id: 'rent', amount: 3500, place: 'bank' }),
       bill({ id: 'gym', amount: 200, place: 'wallet' }),
@@ -115,7 +116,7 @@ describe('carryOverFixedExpenses', () => {
 
     assert.strictEqual(next.fixedExpenses.length, 2, 'rent already exists, only gym is added');
     assert.strictEqual(next.bankPart, 2000, 'existing rent is not debited again');
-    assert.strictEqual(next.walletPart, 0, 'wallet clamps at zero instead of going negative');
+    assert.strictEqual(next.walletPart, 50, 'a planned bill does not move cash');
   });
 
   it('returns the month untouched when there is nothing to carry', () => {

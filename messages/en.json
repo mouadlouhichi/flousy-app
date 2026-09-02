@@ -291,6 +291,7 @@
       "queen": "Queen",
       "king": "King",
       "date": "Date",
+      "dateOutsidePeriod": "Choose a date within this budget period ({start} to {end}).",
       "noteOptional": "Note (Optional)",
       "notePlaceholder": "What was this for?",
       "receiptOptional": "RECEIPT / ATTACHMENT (OPTIONAL)",
@@ -333,7 +334,14 @@
       "duplicateCategory": "A category with this name already exists.",
       "availableIn": "Available in {place}: {amount}",
       "insufficientFunds": "Only {amount} is available in {place}. Lower the amount or move money into this place first.",
-      "householdPro": "Household member tracking is available in Pro."
+      "householdPro": "Household member tracking is available in Pro.",
+      "partialAmountError": "The paid amount must be greater than zero and lower than the bill amount.",
+      "lifecycleStatus": "Payment status",
+      "statusPlanned": "Planned",
+      "statusPartial": "Partially paid",
+      "statusPaid": "Paid",
+      "statusSkipped": "Skipped",
+      "paidAmount": "Amount paid"
     },
     "savings": {
       "createTitle": "Create Saving Goal",
@@ -411,7 +419,8 @@
       "noteOptional": "Note (Optional)",
       "notePlaceholder": "What is this debt for?",
       "saveChanges": "Save Changes",
-      "addCredit": "Add Credit"
+      "addCredit": "Add Credit",
+      "statusManagedByPayments": "Status is updated automatically from the payment history."
     },
     "categories": {
       "title": "Manage Categories",
@@ -435,7 +444,21 @@
       "noNumericAmounts": "No valid numeric amounts found in the CSV rows.",
       "parseFailed": "The CSV file could not be read.",
       "importedExpense": "Imported expense",
-      "selectFile": "Select a CSV file to preview your transactions before importing."
+      "selectFile": "Select a CSV file to preview your transactions before importing.",
+      "mappingTitle": "Map CSV columns",
+      "column": "Column",
+      "mapIgnore": "Ignore",
+      "mapName": "Name / description",
+      "mapAmount": "Amount",
+      "mapDate": "Date",
+      "mapCategory": "Category",
+      "mapPlace": "Money source",
+      "mapNote": "Note",
+      "mapPerson": "Person",
+      "mapAmountRequired": "Choose which column contains the amount.",
+      "allDuplicates": "Every valid row is already in this budget. No duplicates were imported.",
+      "noValidRows": "No safe rows are ready to import. Check dates, amounts, and column mapping.",
+      "skippedRows": "Skipped {invalid} invalid/out-of-period rows and {duplicates} duplicates."
     },
     "incomeSources": {
       "title": "Income Sources",
@@ -465,7 +488,17 @@
       "startsOn": "Starts on {day}",
       "period": "Period {start} → {end}",
       "payDayHint": "Salary arrives monthly on {day} — your budget period for this source starts then.",
-      "payDayOptional": "Optional: pick the day of the month this income arrives."
+      "payDayOptional": "Optional: pick the day of the month this income arrives.",
+      "statusPlanned": "Planned",
+      "statusPartial": "Partially received",
+      "statusReceived": "Received",
+      "statusSkipped": "Skipped",
+      "partialAmountError": "The received amount must be greater than zero and lower than the expected amount.",
+      "receivedSummary": "Received {received} of {expected}",
+      "lifecycleStatus": "Receipt status",
+      "receivedAmount": "Amount received",
+      "receivedShort": "Received",
+      "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first."
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -550,7 +583,10 @@
       "description": "Correct your current cash in each place. This adjusts your cash on hand — your monthly budget stays unchanged.",
       "totalCash": "Total cash on hand",
       "monthlyBudget": "Monthly budget: {amount}",
-      "saveBalances": "Save balances"
+      "saveBalances": "Save balances",
+      "adjustmentPreview": "{from} → {to}",
+      "reconciliationNote": "Reconciliation note (optional)",
+      "reconciliationNotePlaceholder": "For example: matched bank statement"
     }
   },
   "settings": {
@@ -565,7 +601,13 @@
     "language": "Language",
     "languageDescription": "Change the display language of the app",
     "privacyPolicy": "Privacy Policy",
-    "termsOfService": "Terms of Service"
+    "termsOfService": "Terms of Service",
+    "historicalCurrencyActive": "This period remains in {currency}.",
+    "currencyChangeTitle": "Change currency for future periods?",
+    "currencyChangeFutureOnly": "Change the configured currency from {current} to {next}? Existing periods keep their original values and are not converted.",
+    "periodChangeTitle": "Change future budget periods?",
+    "periodChangeFutureOnly": "Use day {day} for newly selected and future budget periods? Existing period records are not rewritten.",
+    "useForFuturePeriods": "Use for future periods"
   },
   "tabs": {
     "variable": {
@@ -604,7 +646,15 @@
       "carryOverNote": "Recurring bills are auto-carried from the previous month.",
       "recurringMonthly": "Recurring monthly",
       "due": "Due {date}",
-      "monthly": "Monthly"
+      "monthly": "Monthly",
+      "paidSummary": "Paid {paid} of {total}",
+      "status": {
+        "planned": "Planned",
+        "partial": "Partial",
+        "paid": "Paid",
+        "skipped": "Skipped"
+      },
+      "paidShort": "paid"
     },
     "savings": {
       "totalSaved": "TOTAL SAVED",
@@ -645,7 +695,18 @@
       "manageDebt": "MANAGE DEBT PEACEFULLY",
       "title": "Debts & Credits",
       "openCount": "{count} open",
-      "settledCount": "{count} settled"
+      "settledCount": "{count} settled",
+      "invalidPayment": "Enter an amount greater than zero and no more than the outstanding balance.",
+      "paymentFailed": "The installment could not be recorded.",
+      "paidOfTotal": "{paid} paid of {total}",
+      "paymentHistory": "Payment history",
+      "noPayments": "No installments recorded yet.",
+      "paymentAmount": "Installment amount",
+      "paidFrom": "Money source",
+      "recordPayment": "Record payment",
+      "recordReceipt": "Record money received",
+      "deletePaymentTitle": "Delete this installment?",
+      "deletePaymentMessage": "This reverses the linked cash movement and reopens the outstanding balance."
     },
     "trends": {
       "title": "Trends & Analytics",
@@ -762,7 +823,11 @@
     "billTextItem": "item",
     "billTextItems": "items",
     "billTextTotal": "TOTAL",
-    "unnamedItem": "Unnamed item"
+    "unnamedItem": "Unnamed item",
+    "logPermissionDenied": "Only an owner or editor can post this course to the household budget.",
+    "logPosting": "Posting…",
+    "logFailed": "The course could not be posted. Nothing was duplicated; try again.",
+    "personalWorkspace": "Personal"
   },
   "alerts": {
     "needsExceeded": "Needs envelope exceeded",
@@ -1672,7 +1737,19 @@
       "exportThisMonth": "Export this month as CSV",
       "importCsv": "Import CSV",
       "deleteAllData": "Delete All Data",
-      "deleteAllDataMessage": "This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy."
+      "deleteAllDataMessage": "This permanently deletes every month of budget data, expenses, and savings goals from your account. Your account and settings will be kept. This action cannot be undone — download your data first if you want a copy.",
+      "exportBackup": "Export complete backup",
+      "exportBackupDescription": "All periods, goals, settings, and shopping sessions",
+      "restoreBackup": "Restore JSON backup",
+      "restoreBackupDescription": "Validate and restore a versioned SmartJib backup",
+      "backupExported": "Your complete backup was downloaded.",
+      "backupFailed": "The backup could not be exported.",
+      "backupInvalid": "This file is not a supported or valid SmartJib backup.",
+      "restoreComplete": "Restored {months} periods and {goals} goals.",
+      "restorePartial": "Restore stopped partway through. Select the same file again to resume safely.",
+      "restoreFailed": "The backup could not be restored. Check its currency and budget-period settings.",
+      "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
+      "personalWorkspace": "Personal workspace"
     },
     "moneySources": {
       "description": "These are the cash locations you spend from — Bank, Home, Wallet, or any jar you add. Removing one moves leftover cash into the first remaining source.",
@@ -1814,7 +1891,9 @@
       "reviewDescription": "Review contributor submissions before recording them in the private household budget.",
       "nonePending": "No pending invoice submissions.",
       "approve": "Approve",
-      "reject": "Reject"
+      "reject": "Reject",
+      "reviewError": "The invoice could not be reviewed. Try again.",
+      "postsToMonth": "Posts to {month}"
     },
     "invited": "Invited",
     "invitationCount": "{count, plural, one {# household invitation} other {# household invitations}}",
@@ -1833,7 +1912,8 @@
     "copyCode": "Copy",
     "copied": "Copied",
     "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
-    "inviteCodeHint": "Anyone with this code can join from Household → Join."
+    "inviteCodeHint": "Anyone with this code can join from Household → Join.",
+    "contributor": "Contributor"
   },
   "consent": {
     "title": "Privacy controls",
@@ -1877,5 +1957,18 @@
       "notFound": "Page not found",
       "landing": "SmartJib — Track your money, offline-first, no ads"
     }
+  },
+  "sync": {
+    "idle": "Saved",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "failed": "Sync failed",
+    "conflict": "Changes need review",
+    "conflictDetail": "A newer cloud change overlaps your local edit. Discard the local copy only if you want to keep the cloud version.",
+    "queuedLocally": "Your changes are safely queued on this device.",
+    "retry": "Retry",
+    "useCloudCopy": "Discard local changes",
+    "pending": "Pending",
+    "local": "Saved on this device"
   }
 }

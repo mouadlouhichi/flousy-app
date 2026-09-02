@@ -4,6 +4,39 @@ export type BuiltinMoneyPlace = 'bank' | 'home' | 'wallet';
 export type MoneyPlace = string;
 export type StrategyId = '50-30-20' | '70-20-10' | '80-20' | 'zero-based' | 'envelope' | 'pay-first' | 'custom';
 export type ExpenseKind = 'variable' | 'fixed';
+export type LifecycleStatus = 'planned' | 'partial' | 'paid' | 'skipped';
+
+/** Domain error thrown before a mutation can create or destroy cash. */
+export class MoneyInvariantError extends Error {
+  constructor(
+    public readonly code: 'invalid-amount' | 'insufficient-funds' | 'duplicate-id' | 'not-found' | 'outside-period',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'MoneyInvariantError';
+  }
+}
+
+/** Keep every persisted monetary value finite, non-negative and cent-precise. */
+export function money(value: number): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new MoneyInvariantError('invalid-amount', 'Amount must be a finite non-negative number.');
+  }
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function positiveMoney(value: number): number {
+  const rounded = money(value);
+  if (rounded <= 0) throw new MoneyInvariantError('invalid-amount', 'Amount must be greater than zero.');
+  return rounded;
+}
+
+function entityId(prefix: string): string {
+  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${uuid}`;
+}
 
 /** A tracked cash location the user can rename, add or remove from Profile. */
 export interface MoneyPlaceConfig {
@@ -180,7 +213,14 @@ export function resolveMonthStrategy(
 export interface IncomeSource {
   id: string;
   name: string;
+  /** Expected amount for this budget period. */
   amount: number;
+  status?: LifecycleStatus;
+  /** Cash actually received. Legacy sources default to their full amount. */
+  receivedAmount?: number;
+  receivedAt?: string;
+  recurring?: boolean;
+  templateId?: string;
   category?: string;
   /** Day of the month (1–31) this salary/income is paid, when it is a
    * recurring monthly payment. Used to show the payment start date and, when
@@ -202,6 +242,9 @@ export interface VariableExpense {
   updatedByUserId?: string;
   tags?: string[];
   receiptUrl?: string;
+  sourceType?: 'invoice' | 'course' | 'csv' | 'manual';
+  sourceId?: string;
+  importFingerprint?: string;
 }
 
 export interface FixedExpense {
@@ -217,7 +260,16 @@ export interface FixedExpense {
   createdByUserId?: string;
   updatedByUserId?: string;
   recurring?: boolean;
+  /** Explicit template identity used to create one planned occurrence per period. */
+  templateId?: string;
+  status?: LifecycleStatus;
+  /** Amount that has actually left the selected money place. */
+  paidAmount?: number;
+  paidAt?: string;
   receiptUrl?: string;
+  sourceType?: 'invoice' | 'csv' | 'manual';
+  sourceId?: string;
+  importFingerprint?: string;
 }
 
 /** Default fixed-bill categories offered in the Add Fixed Charge modal. */
@@ -275,18 +327,61 @@ export interface SavingsActivityEntry {
 export type DebtType = 'debt' | 'credit';
 export type DebtStatus = 'open' | 'settled';
 
+export interface DebtPayment {
+  id: string;
+  amount: number;
+  date: string;
+  place: MoneyPlace;
+  note?: string;
+  createdByUserId?: string;
+}
+
 export interface DebtItem {
   id: string;
   name: string;       // person/entity
+  /** Original amount. Outstanding = amount - payment history. */
   amount: number;
   type: DebtType;     // 'debt' = I owe, 'credit' = owed to me
   status: DebtStatus;
   date: string;       // YYYY-MM-DD
+  dueDate?: string;
+  payments?: DebtPayment[];
   note?: string;
 }
 
+export interface AccountTransfer {
+  id: string;
+  from: MoneyPlace;
+  to: MoneyPlace;
+  amount: number;
+  date: string;
+  createdByUserId?: string;
+}
+
+export interface BalanceAdjustment {
+  id: string;
+  place: MoneyPlace;
+  previousBalance: number;
+  newBalance: number;
+  delta: number;
+  reason: 'reconciliation' | 'opening-balance' | 'income';
+  note?: string;
+  date: string;
+  createdByUserId?: string;
+}
+
 export interface MonthBudget {
-  totalBudget: number; // total income
+  /** Schema metadata is optional for legacy documents and backfilled on read. */
+  schemaVersion?: number;
+  revision?: number;
+  lastMutationId?: string;
+  periodKey?: string;
+  periodStartDay?: number;
+  periodStartDate?: string;
+  periodEndDate?: string;
+  /** Immutable display snapshot for this period; configuration changes affect future periods. */
+  currency?: string;
+  totalBudget: number; // total expected income
   incomeSources?: IncomeSource[];
   bankPart: number;
   homePart: number;
@@ -305,6 +400,8 @@ export interface MonthBudget {
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
   debts?: DebtItem[];
+  transfers?: AccountTransfer[];
+  balanceAdjustments?: BalanceAdjustment[];
   /** Deposit / withdrawal log feeding the home-screen Recent Activity list. */
   savingsActivity?: SavingsActivityEntry[];
   /** Balances for user-defined money sources (beyond bank / home / wallet). */
@@ -315,6 +412,8 @@ export interface MonthBudget {
 
 export interface UserProfile {
   plan: 'free' | 'pro';
+  /** Immutable marker for the one-time beta Pro claim allowed by Firestore rules. */
+  proTrialClaimedAt?: string;
   /** Billing cycle selected at checkout (Firebase-backed, mirrors `plan`). */
   planBillingCycle?: 'monthly' | 'annual';
   /** Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades. */
@@ -401,6 +500,46 @@ export function calculateTotalIncome(month: Pick<MonthBudget, 'totalBudget' | 'i
   return sum > 0 ? sum : (month.totalBudget || 0);
 }
 
+/** Cash actually received from an income source in this period. */
+export function incomeReceivedAmount(source: IncomeSource): number {
+  const planned = Math.max(0, Number.isFinite(source.amount) ? source.amount : 0);
+  // A missing status is legacy data: those balances were already credited in
+  // earlier releases, so migration must treat the source as fully received.
+  const status = source.status || 'paid';
+  if (status === 'planned' || status === 'skipped') return 0;
+  if (status === 'partial') {
+    return Math.min(planned, Math.max(0, Number.isFinite(source.receivedAmount) ? source.receivedAmount! : 0));
+  }
+  return Math.min(planned, Math.max(0, Number.isFinite(source.receivedAmount) ? source.receivedAmount! : planned));
+}
+
+export function calculateReceivedIncome(
+  month: Pick<MonthBudget, 'totalBudget' | 'incomeSources'>,
+): number {
+  const sources = month.incomeSources || [];
+  if (sources.length === 0) return Math.max(0, month.totalBudget || 0);
+  return money(sources.reduce((sum, source) => sum + incomeReceivedAmount(source), 0));
+}
+
+/** Cash actually paid for a fixed bill in this period. */
+export function fixedPaidAmount(expense: FixedExpense): number {
+  const planned = Math.max(0, Number.isFinite(expense.amount) ? expense.amount : 0);
+  const status = expense.status || 'paid';
+  if (status === 'planned' || status === 'skipped') return 0;
+  if (status === 'partial') {
+    return Math.min(planned, Math.max(0, Number.isFinite(expense.paidAmount) ? expense.paidAmount! : 0));
+  }
+  return Math.min(planned, Math.max(0, Number.isFinite(expense.paidAmount) ? expense.paidAmount! : planned));
+}
+
+export function debtOutstanding(debt: DebtItem): number {
+  const paid = (debt.payments || []).reduce(
+    (sum, payment) => sum + Math.max(0, Number.isFinite(payment.amount) ? payment.amount : 0),
+    0,
+  );
+  return money(Math.max(0, (Number.isFinite(debt.amount) ? debt.amount : 0) - paid));
+}
+
 /**
  * Category Bucket Resolution
  * Resolves whether a category is a 'needs' or 'wants' bucket depending on kind ('variable' vs 'fixed').
@@ -457,9 +596,10 @@ export function calculateEnvelopeSpent(month: MonthBudget): { needs: number; wan
   }
 
   for (const exp of month.fixedExpenses || []) {
+    const paid = fixedPaidAmount(exp);
     const bucket = bucketOf(exp.type, 'fixed');
-    if (bucket === 'needs') needs += exp.amount;
-    else if (bucket === 'wants') wants += exp.amount;
+    if (bucket === 'needs') needs += paid;
+    else if (bucket === 'wants') wants += paid;
   }
 
   const savings = month.monthlySavingsTarget || 0;
@@ -652,7 +792,7 @@ export function isBuiltinMoneyPlace(place: string): place is BuiltinMoneyPlace {
   return place === 'bank' || place === 'home' || place === 'wallet';
 }
 
-export function resolveMoneyPlaces(profile?: UserProfile | null): MoneyPlaceConfig[] {
+export function resolveMoneyPlaces(profile?: Pick<UserProfile, 'moneyPlaces'> | null): MoneyPlaceConfig[] {
   const configured = (profile?.moneyPlaces || []).filter(
     (p) => p && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim(),
   );
@@ -694,7 +834,13 @@ export function getPlaceBalance(month: PlaceBalanceMonth, place: MoneyPlace): nu
 }
 
 export function withPlaceBalance(month: MonthBudget, place: MoneyPlace, value: number): MonthBudget {
-  const next = Math.max(0, Number.isFinite(value) ? value : 0);
+  if (!place || typeof place !== 'string') {
+    throw new MoneyInvariantError('invalid-amount', 'A valid money source is required.');
+  }
+  if (!Number.isFinite(value) || value < -0.005) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${place}” does not have enough funds.`);
+  }
+  const next = money(Math.max(0, value));
   if (place === 'bank') return { ...month, bankPart: next };
   if (place === 'home') return { ...month, homePart: next };
   if (place === 'wallet') return { ...month, walletPart: next };
@@ -702,6 +848,9 @@ export function withPlaceBalance(month: MonthBudget, place: MoneyPlace, value: n
 }
 
 export function adjustPlaceBalance(month: MonthBudget, place: MoneyPlace, delta: number): MonthBudget {
+  if (!Number.isFinite(delta)) {
+    throw new MoneyInvariantError('invalid-amount', 'Balance change must be finite.');
+  }
   return withPlaceBalance(month, place, getPlaceBalance(month, place) + delta);
 }
 
@@ -795,40 +944,93 @@ export function reassignGoalSources(goals: SavingGoal[], from: MoneyPlace, to: M
   return goals.map((g) => (g.source === from ? { ...g, source: to } : g));
 }
 
+function assertExpenseDateInPeriod(month: MonthBudget, date: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new MoneyInvariantError('outside-period', 'Expense date must use YYYY-MM-DD.');
+  }
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new MoneyInvariantError('outside-period', 'Expense date is not a valid calendar date.');
+  }
+  if (
+    (month.periodStartDate && date < month.periodStartDate) ||
+    (month.periodEndDate && date > month.periodEndDate)
+  ) {
+    throw new MoneyInvariantError('outside-period', 'Expense date falls outside this budget period.');
+  }
+}
+
+function canonicalVariableExpense(expense: VariableExpense): VariableExpense {
+  return { ...expense, amount: positiveMoney(expense.amount), place: expense.place || 'bank' };
+}
+
 export function addVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
-  const amount = Math.max(0, expense.amount);
+  if ((month.variableExpenses || []).some((item) => item.id === expense.id)) return month;
+  assertExpenseDateInPeriod(month, expense.date);
+  const nextExpense = canonicalVariableExpense(expense);
   return {
-    ...adjustPlaceBalance(month, expense.place, -amount),
-    variableExpenses: [expense, ...(month.variableExpenses || [])],
+    ...adjustPlaceBalance(month, nextExpense.place, -nextExpense.amount),
+    variableExpenses: [nextExpense, ...(month.variableExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function editVariableExpense(month: MonthBudget, oldExpense: VariableExpense, newExpense: VariableExpense): MonthBudget {
-  const updatedExpenses = (month.variableExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
-  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
+  const existing = (month.variableExpenses || []).find((expense) => expense.id === oldExpense.id);
+  if (!existing) throw new MoneyInvariantError('not-found', 'The expense no longer exists.');
+  assertExpenseDateInPeriod(month, newExpense.date);
+  const candidate = canonicalVariableExpense({
+    ...newExpense,
+    id: existing.id,
+    payerMemberId: newExpense.payerMemberId ?? existing.payerMemberId,
+    createdByUserId: existing.createdByUserId ?? newExpense.createdByUserId,
+    sourceType: existing.sourceType ?? newExpense.sourceType,
+    sourceId: existing.sourceId ?? newExpense.sourceId,
+    importFingerprint: existing.importFingerprint ?? newExpense.importFingerprint,
+  });
+  let next = adjustPlaceBalance(month, existing.place || 'bank', existing.amount);
+  next = adjustPlaceBalance(next, candidate.place, -candidate.amount);
   return {
     ...next,
-    variableExpenses: updatedExpenses,
+    variableExpenses: (month.variableExpenses || []).map((expense) =>
+      expense.id === existing.id ? candidate : expense,
+    ),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function deleteVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
-  const updatedExpenses = (month.variableExpenses || []).filter((exp) => exp.id !== expense.id);
+  const existing = (month.variableExpenses || []).find((item) => item.id === expense.id);
+  // Idempotent deletion is essential for replaying queued mutations: a retry
+  // must never refund an expense twice.
+  if (!existing) return month;
   return {
-    ...adjustPlaceBalance(month, expense.place, expense.amount),
-    variableExpenses: updatedExpenses,
+    ...adjustPlaceBalance(month, existing.place || 'bank', existing.amount),
+    variableExpenses: (month.variableExpenses || []).filter((item) => item.id !== existing.id),
     updatedAt: new Date().toISOString(),
   };
 }
 
-export function addFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
-  const amount = Math.max(0, expense.amount);
+function canonicalFixedExpense(expense: FixedExpense): FixedExpense {
+  const amount = positiveMoney(expense.amount);
+  const status = expense.status || 'paid';
+  const paidAmount = fixedPaidAmount({ ...expense, amount, status });
   return {
-    ...adjustPlaceBalance(month, expense.place, -amount),
-    fixedExpenses: [expense, ...(month.fixedExpenses || [])],
+    ...expense,
+    amount,
+    place: expense.place || 'bank',
+    status,
+    paidAmount,
+    ...(status === 'paid' && !expense.paidAt ? { paidAt: new Date().toISOString() } : {}),
+  };
+}
+
+export function addFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
+  if ((month.fixedExpenses || []).some((item) => item.id === expense.id)) return month;
+  const candidate = canonicalFixedExpense(expense);
+  return {
+    ...adjustPlaceBalance(month, candidate.place, -fixedPaidAmount(candidate)),
+    fixedExpenses: [candidate, ...(month.fixedExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -845,55 +1047,112 @@ export function addFixedExpense(month: MonthBudget, expense: FixedExpense): Mont
 export function availableForCharge(
   balances: Record<MoneyPlace, number | undefined> | null | undefined,
   place: MoneyPlace,
-  previousCharge?: { place?: MoneyPlace; amount?: number } | null,
+  previousCharge?: { place?: MoneyPlace; amount?: number; status?: LifecycleStatus; paidAmount?: number } | null,
 ): number {
   let available = Math.max(0, balances?.[place] ?? 0);
   if (previousCharge && (previousCharge.place || 'bank') === place) {
-    available += Math.max(0, previousCharge.amount || 0);
+    available += previousCharge.status
+      ? fixedPaidAmount(previousCharge as FixedExpense)
+      : Math.max(0, previousCharge.amount || 0);
   }
   return available;
 }
 
 export function editFixedExpense(month: MonthBudget, oldExpense: FixedExpense, newExpense: FixedExpense): MonthBudget {
-  const updatedExpenses = (month.fixedExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
-  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
+  const existing = (month.fixedExpenses || []).find((expense) => expense.id === oldExpense.id);
+  if (!existing) throw new MoneyInvariantError('not-found', 'The fixed bill no longer exists.');
+  const candidate = canonicalFixedExpense({
+    ...newExpense,
+    id: existing.id,
+    payerMemberId: newExpense.payerMemberId ?? existing.payerMemberId,
+    createdByUserId: existing.createdByUserId ?? newExpense.createdByUserId,
+    templateId: existing.templateId ?? newExpense.templateId,
+    sourceType: existing.sourceType ?? newExpense.sourceType,
+    sourceId: existing.sourceId ?? newExpense.sourceId,
+    importFingerprint: existing.importFingerprint ?? newExpense.importFingerprint,
+  });
+  let next = adjustPlaceBalance(month, existing.place || 'bank', fixedPaidAmount(existing));
+  next = adjustPlaceBalance(next, candidate.place, -fixedPaidAmount(candidate));
   return {
     ...next,
-    fixedExpenses: updatedExpenses,
+    fixedExpenses: (month.fixedExpenses || []).map((expense) =>
+      expense.id === existing.id ? candidate : expense,
+    ),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function deleteFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
-  const updatedExpenses = (month.fixedExpenses || []).filter((exp) => exp.id !== expense.id);
+  const existing = (month.fixedExpenses || []).find((item) => item.id === expense.id);
+  if (!existing) return month;
   return {
-    ...adjustPlaceBalance(month, expense.place, expense.amount),
-    fixedExpenses: updatedExpenses,
+    ...adjustPlaceBalance(month, existing.place || 'bank', fixedPaidAmount(existing)),
+    fixedExpenses: (month.fixedExpenses || []).filter((item) => item.id !== existing.id),
     updatedAt: new Date().toISOString(),
   };
 }
 
-export function moveMoney(month: MonthBudget, from: MoneyPlace, to: MoneyPlace, amount: number): MonthBudget {
-  if (from === to || amount <= 0) return month;
-
+export function moveMoney(
+  month: MonthBudget,
+  from: MoneyPlace,
+  to: MoneyPlace,
+  amount: number,
+  createdByUserId?: string,
+): MonthBudget {
+  if (from === to) throw new MoneyInvariantError('invalid-amount', 'Transfer accounts must be different.');
+  const transferAmount = positiveMoney(amount);
   const currentFrom = getPlaceBalance(month, from);
-  const actualMove = Math.min(currentFrom, amount);
-  let next = withPlaceBalance(month, from, currentFrom - actualMove);
-  next = withPlaceBalance(next, to, getPlaceBalance(next, to) + actualMove);
-  return { ...next, updatedAt: new Date().toISOString() };
+  if (transferAmount > currentFrom) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${from}” does not have enough funds.`);
+  }
+  let next = withPlaceBalance(month, from, currentFrom - transferAmount);
+  next = withPlaceBalance(next, to, getPlaceBalance(next, to) + transferAmount);
+  const transfer: AccountTransfer = {
+    id: entityId('transfer'),
+    from,
+    to,
+    amount: transferAmount,
+    date: new Date().toISOString(),
+    ...(createdByUserId ? { createdByUserId } : {}),
+  };
+  return {
+    ...next,
+    transfers: [transfer, ...(month.transfers || [])].slice(0, 500),
+    updatedAt: transfer.date,
+  };
 }
 
 export function updateMoneyPlaces(
   month: MonthBudget,
-  values: Partial<Record<MoneyPlace, number>>
+  values: Partial<Record<MoneyPlace, number>>,
+  metadata: { reason?: BalanceAdjustment['reason']; note?: string; createdByUserId?: string } = {},
 ): MonthBudget {
   let next = month;
+  const adjustments: BalanceAdjustment[] = [];
   for (const [place, value] of Object.entries(values)) {
     if (value === undefined) continue;
-    next = withPlaceBalance(next, place, value);
+    const previousBalance = getPlaceBalance(next, place);
+    const newBalance = money(value);
+    if (newBalance === previousBalance) continue;
+    next = withPlaceBalance(next, place, newBalance);
+    adjustments.push({
+      id: entityId('adjustment'),
+      place,
+      previousBalance,
+      newBalance,
+      delta: money(Math.abs(newBalance - previousBalance)) * (newBalance < previousBalance ? -1 : 1),
+      reason: metadata.reason || 'reconciliation',
+      ...(metadata.note?.trim() ? { note: metadata.note.trim() } : {}),
+      date: new Date().toISOString(),
+      ...(metadata.createdByUserId ? { createdByUserId: metadata.createdByUserId } : {}),
+    });
   }
-  return { ...next, updatedAt: new Date().toISOString() };
+  if (adjustments.length === 0) return month;
+  return {
+    ...next,
+    balanceAdjustments: [...adjustments, ...(month.balanceAdjustments || [])].slice(0, 500),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /** Cap for the per-month savings activity log (mirrored in firestore.rules). */
@@ -930,14 +1189,14 @@ export function fundGoal(
   amount: number,
   sourcePlace: MoneyPlace
 ): { month: MonthBudget; goals: SavingGoal[] } {
-  if (amount <= 0) return { month, goals };
-
+  const actualAmount = positiveMoney(amount);
   const currentBalance = getPlaceBalance(month, sourcePlace);
-  const actualAmount = Math.min(currentBalance, amount);
-
-  if (actualAmount <= 0) return { month, goals };
+  if (actualAmount > currentBalance) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${sourcePlace}” does not have enough funds.`);
+  }
 
   const goal = goals.find((g) => g.id === goalId);
+  if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
 
   const updatedMonth = withSavingsActivity(
     withPlaceBalance(month, sourcePlace, currentBalance - actualAmount),
@@ -974,11 +1233,11 @@ export function withdrawGoal(
   targetPlace: MoneyPlace
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const goal = goals.find((g) => g.id === goalId);
-  if (!goal || amount <= 0) return { month, goals };
-
-  const actualWithdraw = Math.min(goal.current, amount);
-
-  if (actualWithdraw <= 0) return { month, goals };
+  if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
+  const actualWithdraw = positiveMoney(amount);
+  if (actualWithdraw > goal.current) {
+    throw new MoneyInvariantError('insufficient-funds', 'The savings goal does not have enough funds.');
+  }
 
   const updatedMonth = withSavingsActivity(
     withPlaceBalance(month, targetPlace, getPlaceBalance(month, targetPlace) + actualWithdraw),
@@ -1040,8 +1299,10 @@ export function saveGoalWithBalance(
     const delta = requested - previousCurrent;
 
     if (delta > 0) {
-      // Never let a goal pull more than what actually sits in that place.
-      const actual = Math.min(balance, delta);
+      if (delta > balance) {
+        throw new MoneyInvariantError('insufficient-funds', `Money source “${deductFromPlace}” does not have enough funds.`);
+      }
+      const actual = money(delta);
       nextCurrent = previousCurrent + actual;
       nextMonth = {
         ...withPlaceBalance(month, deductFromPlace, balance - actual),
@@ -1319,9 +1580,90 @@ export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudge
   };
 }
 
+/** Record an installment and its matching cash movement in one month mutation. */
+export function recordDebtPayment(
+  month: MonthBudget,
+  debtId: string,
+  payment: DebtPayment,
+): MonthBudget {
+  const debt = (month.debts || []).find((item) => item.id === debtId);
+  if (!debt) throw new MoneyInvariantError('not-found', 'The debt no longer exists.');
+  if ((debt.payments || []).some((item) => item.id === payment.id)) return month;
+  const amount = positiveMoney(payment.amount);
+  if (amount > debtOutstanding(debt)) {
+    throw new MoneyInvariantError('invalid-amount', 'Payment cannot exceed the outstanding balance.');
+  }
+  assertExpenseDateInPeriod(month, payment.date);
+  const nextPayment: DebtPayment = { ...payment, amount, place: payment.place || 'bank' };
+  const cashDelta = debt.type === 'debt' ? -amount : amount;
+  const next = adjustPlaceBalance(month, nextPayment.place, cashDelta);
+  const payments = [nextPayment, ...(debt.payments || [])];
+  const updatedDebt: DebtItem = {
+    ...debt,
+    payments,
+    status: money(debt.amount - payments.reduce((sum, item) => sum + item.amount, 0)) <= 0
+      ? 'settled'
+      : 'open',
+  };
+  return {
+    ...next,
+    debts: (month.debts || []).map((item) => item.id === debtId ? updatedDebt : item),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Reverse one installment without ever allowing a second replay to mint cash. */
+export function deleteDebtPayment(month: MonthBudget, debtId: string, paymentId: string): MonthBudget {
+  const debt = (month.debts || []).find((item) => item.id === debtId);
+  const payment = debt?.payments?.find((item) => item.id === paymentId);
+  if (!debt || !payment) return month;
+  // Reversing a debt payment returns cash; reversing received credit takes it
+  // back out and therefore still observes the source balance guard.
+  const cashDelta = debt.type === 'debt' ? payment.amount : -payment.amount;
+  const next = adjustPlaceBalance(month, payment.place || 'bank', cashDelta);
+  const payments = (debt.payments || []).filter((item) => item.id !== paymentId);
+  const updatedDebt: DebtItem = { ...debt, payments, status: 'open' };
+  return {
+    ...next,
+    debts: (month.debts || []).map((item) => item.id === debtId ? updatedDebt : item),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function stableLegacyId(prefix: string, index: number, parts: unknown[]): string {
+  const input = `${prefix}|${index}|${parts.map((part) => String(part ?? '')).join('|')}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}-legacy-${(hash >>> 0).toString(36)}`;
+}
+
+function safeStoredMoney(value: unknown, fallback = 0): number {
+  const parsed = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return Math.round(Math.max(0, parsed) * 100) / 100;
+}
+
+function budgetPeriodBounds(monthKey: string | undefined, startDay: number): { startDate?: string; endDate?: string } {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return {};
+  const [year, month] = monthKey.split('-').map(Number);
+  if (!year || month < 1 || month > 12) return {};
+  const day = Math.min(Math.max(1, Math.round(startDay)), new Date(year, month, 0).getDate());
+  const start = new Date(year, month - 1, day);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextDay = Math.min(Math.max(1, Math.round(startDay)), new Date(nextYear, nextMonth, 0).getDate());
+  const end = new Date(nextYear, nextMonth - 1, nextDay - 1);
+  const dateOnly = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return { startDate: dateOnly(start), endDate: dateOnly(end) };
+}
+
 /**
  * Normalizes a raw Firestore month document, backfilling missing or legacy properties.
- * Handles rollover from previous month for Pro users.
+ * Handles rollover from previous month for Pro users. Unknown forward-compatible
+ * fields and all attribution fields are retained instead of being erased by a read.
  */
 export function normalizeMonth(
   raw: Partial<MonthBudget> | null | undefined,
@@ -1329,7 +1671,7 @@ export function normalizeMonth(
   // `null` is how the auth context represents "signed out or still loading",
   // and every caller forwards that value straight through; requiring
   // `undefined` only forced `profile ?? undefined` at nine call sites.
-  userProfile?: UserProfile | null,
+  userProfile?: Partial<UserProfile> | null,
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
@@ -1378,55 +1720,98 @@ export function normalizeMonth(
     Subscriptions: 'movie',
   };
 
-  const totalBudget = typeof raw?.totalBudget === 'number' && !isNaN(raw.totalBudget) ? raw.totalBudget : 0;
+  const totalBudget = safeStoredMoney(raw?.totalBudget);
+  const periodStartDay = Math.min(31, Math.max(1, Math.round(raw?.periodStartDay || userProfile?.monthStartDate || 1)));
+  const bounds = budgetPeriodBounds(raw?.periodKey || monthKey, periodStartDay);
+  const lifecycle = (status: unknown): LifecycleStatus | undefined =>
+    status === 'planned' || status === 'partial' || status === 'paid' || status === 'skipped'
+      ? status
+      : undefined;
 
   const incomeSources: IncomeSource[] =
     raw?.incomeSources && raw.incomeSources.length > 0
-      ? raw.incomeSources
-      : [{ id: 'main-income', name: 'Primary Income', amount: totalBudget }];
+      ? raw.incomeSources.map((source, index) => {
+          const amount = safeStoredMoney(source.amount);
+          const status = lifecycle(source.status) || 'paid';
+          return {
+            ...source,
+            id: source.id || stableLegacyId('income', index, [source.name, amount, source.payDay]),
+            name: source.name || 'Primary Income',
+            amount,
+            status,
+            receivedAmount:
+              status === 'paid'
+                ? safeStoredMoney(source.receivedAmount, amount)
+                : status === 'partial'
+                  ? Math.min(amount, safeStoredMoney(source.receivedAmount))
+                  : 0,
+            recurring: source.recurring ?? true,
+          };
+        })
+      : [{
+          id: 'main-income',
+          name: 'Primary Income',
+          amount: totalBudget,
+          status: 'paid',
+          receivedAmount: totalBudget,
+          recurring: true,
+        }];
 
-  // Normalize expenses: ensure 'place' exists (default to 'bank')
-  const variableExpenses: VariableExpense[] = (raw?.variableExpenses || []).map((exp) => ({
-    id: exp.id || Math.random().toString(36).substring(2, 9),
+  const fallbackDate = raw?.periodStartDate || bounds.startDate || (monthKey ? `${monthKey}-01` : '1970-01-01');
+  const variableExpenses: VariableExpense[] = (raw?.variableExpenses || []).map((exp, index) => ({
+    ...exp,
+    id: exp.id || stableLegacyId('expense', index, [exp.name, exp.amount, exp.date, exp.place]),
     name: exp.name || 'Expense',
-    amount: typeof exp.amount === 'number' ? exp.amount : 0,
+    amount: safeStoredMoney(exp.amount),
     type: exp.type || 'Other',
-    date: exp.date || new Date().toISOString().split('T')[0],
+    date: exp.date || fallbackDate,
     place: exp.place || 'bank',
-    note: exp.note,
     person: exp.person || 'Self',
     tags: exp.tags || [],
-    receiptUrl: exp.receiptUrl,
   }));
 
-  const fixedExpenses: FixedExpense[] = (raw?.fixedExpenses || []).map((exp) => ({
-    id: exp.id || Math.random().toString(36).substring(2, 9),
-    name: exp.name || 'Fixed Bill',
-    amount: typeof exp.amount === 'number' ? exp.amount : 0,
-    type: exp.type || 'Utilities',
-    date: exp.date || '1st',
-    place: exp.place || 'bank',
-    base: exp.base,
-    person: exp.person || 'Self',
-    recurring: exp.recurring ?? true,
-    receiptUrl: exp.receiptUrl,
-  }));
+  const fixedExpenses: FixedExpense[] = (raw?.fixedExpenses || []).map((exp, index) => {
+    const amount = safeStoredMoney(exp.amount);
+    const status = lifecycle(exp.status) || 'paid';
+    return {
+      ...exp,
+      id: exp.id || stableLegacyId('fixed', index, [exp.name, amount, exp.date, exp.place]),
+      name: exp.name || 'Fixed Bill',
+      amount,
+      type: exp.type || 'Utilities',
+      date: exp.date || '1st',
+      place: exp.place || 'bank',
+      person: exp.person || 'Self',
+      recurring: exp.recurring ?? true,
+      templateId: exp.templateId || exp.id,
+      status,
+      paidAmount:
+        status === 'paid'
+          ? safeStoredMoney(exp.paidAmount, amount)
+          : status === 'partial'
+            ? Math.min(amount, safeStoredMoney(exp.paidAmount))
+            : 0,
+    };
+  });
 
-  // Calculate sum of variable/fixed expenses paid per place if places weren't explicitly provided
+  // Calculate sum of variable/fixed expenses paid per place if places weren't explicitly provided.
   const variableSpent = variableExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const fixedSpent = fixedExpenses.reduce((acc, e) => acc + e.amount, 0);
+  const fixedSpent = fixedExpenses.reduce((acc, e) => acc + fixedPaidAmount(e), 0);
 
+  const receivedIncome = incomeSources.reduce((sum, source) => sum + incomeReceivedAmount(source), 0);
   const bankPart =
     typeof raw?.bankPart === 'number'
-      ? raw.bankPart
-      : Math.max(0, totalBudget - variableSpent - fixedSpent);
-  const homePart = typeof raw?.homePart === 'number' ? raw.homePart : 0;
-  const walletPart = typeof raw?.walletPart === 'number' ? raw.walletPart : 0;
+      ? safeStoredMoney(raw.bankPart)
+      : safeStoredMoney(receivedIncome - variableSpent - fixedSpent);
+  const homePart = safeStoredMoney(raw?.homePart);
+  const walletPart = safeStoredMoney(raw?.walletPart);
   const placeBalances: Record<string, number> | undefined = raw?.placeBalances
     ? Object.fromEntries(
-        Object.entries(raw.placeBalances).filter(
-          ([id, value]) => id && !isBuiltinMoneyPlace(id) && typeof value === 'number' && Number.isFinite(value),
-        ),
+        Object.entries(raw.placeBalances)
+          .filter(
+            ([id, value]) => id && !isBuiltinMoneyPlace(id) && typeof value === 'number' && Number.isFinite(value),
+          )
+          .map(([id, value]) => [id, safeStoredMoney(value)]),
       )
     : undefined;
 
@@ -1450,6 +1835,14 @@ export function normalizeMonth(
   }
 
   return {
+    ...(raw || {}),
+    schemaVersion: Math.max(2, Math.floor(raw?.schemaVersion || 0)),
+    revision: Math.max(0, Math.floor(raw?.revision || 0)),
+    periodKey: raw?.periodKey || monthKey,
+    periodStartDay,
+    periodStartDate: raw?.periodStartDate || bounds.startDate,
+    periodEndDate: raw?.periodEndDate || bounds.endDate,
+    currency: raw?.currency || userProfile?.currency || 'MAD',
     totalBudget,
     incomeSources,
     bankPart,
@@ -1458,7 +1851,7 @@ export function normalizeMonth(
     ...(placeBalances && Object.keys(placeBalances).length > 0 ? { placeBalances } : {}),
     strategyId,
     ...(customRatios ? { customRatios } : {}),
-    monthlySavingsTarget: raw?.monthlySavingsTarget ?? defaultEnvelopes.savings,
+    monthlySavingsTarget: safeStoredMoney(raw?.monthlySavingsTarget, defaultEnvelopes.savings),
     variableExpenses,
     fixedExpenses,
     variableCategoryBases: raw?.variableCategoryBases || {},
@@ -1468,63 +1861,113 @@ export function normalizeMonth(
     activeCategories: raw?.activeCategories || defaultCategories,
     categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
     categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },
-    debts: (raw?.debts || []).map((d) => ({
-      id: d.id || Math.random().toString(36).substring(2, 9),
-      name: d.name || 'Unknown',
-      amount: typeof d.amount === 'number' ? d.amount : 0,
-      type: d.type || 'debt',
-      status: d.status || 'open',
-      date: d.date || new Date().toISOString().split('T')[0],
-      note: d.note,
+    debts: (raw?.debts || []).map((debt, debtIndex) => ({
+      ...debt,
+      id: debt.id || stableLegacyId('debt', debtIndex, [debt.name, debt.amount, debt.date]),
+      name: debt.name || 'Unknown',
+      amount: safeStoredMoney(debt.amount),
+      type: debt.type === 'credit' ? 'credit' : 'debt',
+      status: debt.status === 'settled' ? 'settled' : 'open',
+      date: debt.date || fallbackDate,
+      payments: (debt.payments || []).map((payment, paymentIndex) => ({
+        ...payment,
+        id: payment.id || stableLegacyId('debt-payment', paymentIndex, [debt.id, payment.amount, payment.date]),
+        amount: safeStoredMoney(payment.amount),
+        date: payment.date || fallbackDate,
+        place: payment.place || 'bank',
+      })),
+    })),
+    transfers: (raw?.transfers || []).slice(0, 500).map((transfer, index) => ({
+      ...transfer,
+      id: transfer.id || stableLegacyId('transfer', index, [transfer.from, transfer.to, transfer.amount, transfer.date]),
+      from: transfer.from || 'bank',
+      to: transfer.to || 'wallet',
+      amount: safeStoredMoney(transfer.amount),
+      date: transfer.date || `${fallbackDate}T00:00:00.000Z`,
+    })),
+    balanceAdjustments: (raw?.balanceAdjustments || []).slice(0, 500).map((adjustment, index) => ({
+      ...adjustment,
+      id: adjustment.id || stableLegacyId('adjustment', index, [adjustment.place, adjustment.delta, adjustment.date]),
+      place: adjustment.place || 'bank',
+      previousBalance: safeStoredMoney(adjustment.previousBalance),
+      newBalance: safeStoredMoney(adjustment.newBalance),
+      delta: Number.isFinite(adjustment.delta)
+        ? Math.round(adjustment.delta * 100) / 100
+        : safeStoredMoney(adjustment.newBalance) - safeStoredMoney(adjustment.previousBalance),
+      reason: adjustment.reason || 'reconciliation',
+      date: adjustment.date || `${fallbackDate}T00:00:00.000Z`,
     })),
     savingsActivity: (raw?.savingsActivity || [])
       .filter((evt) => evt && (evt.type === 'deposit' || evt.type === 'withdraw'))
       .slice(0, MAX_SAVINGS_ACTIVITY)
-      .map((evt) => ({
-        id: evt.id || Math.random().toString(36).substring(2, 9),
+      .map((evt, index) => ({
+        ...evt,
+        id: evt.id || stableLegacyId('savings', index, [evt.goalId, evt.type, evt.amount, evt.date]),
         goalId: evt.goalId || '',
         goalName: evt.goalName || 'Savings goal',
         type: evt.type,
-        amount: typeof evt.amount === 'number' && evt.amount >= 0 ? evt.amount : 0,
-        date: evt.date || new Date().toISOString(),
+        amount: safeStoredMoney(evt.amount),
+        date: evt.date || `${fallbackDate}T00:00:00.000Z`,
         ...(evt.place && typeof evt.place === 'string' ? { place: evt.place } : {}),
       })),
-    updatedAt: raw?.updatedAt || new Date().toISOString(),
+    updatedAt: raw?.updatedAt || `${fallbackDate}T00:00:00.000Z`,
   };
 }
 
+/** Materialize recurring expected income without crediting cash before receipt. */
+export function carryOverIncomeSources(
+  previousMonth: Pick<MonthBudget, 'incomeSources'>,
+  periodKey: string,
+): IncomeSource[] {
+  return (previousMonth.incomeSources || [])
+    .filter((source) => source.recurring !== false)
+    .map((source) => {
+      const templateId = source.templateId || source.id;
+      return {
+        ...source,
+        id: `income-occurrence-${templateId}-${periodKey}`,
+        templateId,
+        status: 'planned',
+        receivedAmount: 0,
+        receivedAt: undefined,
+      };
+    });
+}
+
 /**
- * Carries over recurring fixed expenses from a previous month into a new month.
- * Only copies bills with `recurring: true`.
- *
- * Each carried bill reduces the money place it is actually paid from
- * (`bill.place`), not blanket-debited from the bank.
+ * Materialize one planned occurrence from each recurring template. Carrying a
+ * template must never debit cash: the debit happens only when the occurrence
+ * becomes partial/paid. Deterministic IDs make retries idempotent.
  */
 export function carryOverFixedExpenses(
   newMonth: MonthBudget,
   previousMonth: MonthBudget,
 ): MonthBudget {
-  const recurringBills = (previousMonth.fixedExpenses || []).filter((b) => b.recurring !== false);
+  const recurringBills = (previousMonth.fixedExpenses || []).filter((bill) => bill.recurring !== false);
   if (recurringBills.length === 0) return newMonth;
 
-  const existingIds = new Set((newMonth.fixedExpenses || []).map((b) => b.id));
-  const toCarry = recurringBills.filter((b) => !existingIds.has(b.id));
+  const existingTemplates = new Set(
+    (newMonth.fixedExpenses || []).map((bill) => bill.templateId || bill.id),
+  );
+  const toCarry = recurringBills.filter((bill) => !existingTemplates.has(bill.templateId || bill.id));
   if (toCarry.length === 0) return newMonth;
 
-  // Recreate IDs so they don't collide
-  const carried = toCarry.map((b) => ({
-    ...b,
-    id: `carry-${b.id}-${Date.now()}`,
-    date: b.date || '1st',
-  }));
-
-  let next = newMonth;
-  carried.forEach((b) => {
-    next = adjustPlaceBalance(next, b.place || 'bank', -b.amount);
+  const period = newMonth.periodKey || newMonth.periodStartDate?.slice(0, 7) || 'next';
+  const carried: FixedExpense[] = toCarry.map((bill) => {
+    const templateId = bill.templateId || bill.id;
+    return {
+      ...bill,
+      id: `fixed-occurrence-${templateId}-${period}`,
+      templateId,
+      date: bill.date || '1st',
+      status: 'planned',
+      paidAmount: 0,
+      paidAt: undefined,
+    };
   });
 
   return {
-    ...next,
+    ...newMonth,
     fixedExpenses: [...(newMonth.fixedExpenses || []), ...carried],
     updatedAt: new Date().toISOString(),
   };
@@ -1541,24 +1984,41 @@ export function createNewMonth(
   monthKey: string,
   customRatios?: Partial<CustomRatios> | null
 ): MonthBudget {
+  const safeIncome = money(income);
   const resolvedCustomRatios =
     strategyId === 'custom' ? normalizeCustomRatios(customRatios) : undefined;
-  const { savings } = calculateEnvelopeAmounts(income, strategyId, resolvedCustomRatios);
+  const { savings } = calculateEnvelopeAmounts(safeIncome, strategyId, resolvedCustomRatios);
 
   const fixedExpenses: FixedExpense[] = bills.map((b, idx) => ({
     id: `fixed-${idx}-${Date.now()}`,
+    templateId: `fixed-template-${idx}-${Date.now()}`,
     name: b.name,
-    amount: b.amount,
+    amount: money(b.amount),
     type: b.category,
     date: '1st',
     place: 'bank',
+    recurring: true,
+    status: 'paid',
+    paidAmount: money(b.amount),
+    paidAt: new Date().toISOString(),
   }));
 
-  const totalFixed = fixedExpenses.reduce((acc, b) => acc + b.amount, 0);
-  const remainingBank = Math.max(0, income - totalFixed);
+  const totalFixed = fixedExpenses.reduce((acc, bill) => acc + fixedPaidAmount(bill), 0);
+  if (totalFixed > safeIncome) {
+    throw new MoneyInvariantError('insufficient-funds', 'Fixed bills cannot exceed received income.');
+  }
+  const remainingBank = money(safeIncome - totalFixed);
 
   return normalizeMonth({
-    totalBudget: income,
+    totalBudget: safeIncome,
+    incomeSources: [{
+      id: 'main-income',
+      name: 'Primary Income',
+      amount: safeIncome,
+      status: 'paid',
+      receivedAmount: safeIncome,
+      recurring: true,
+    }],
     bankPart: remainingBank,
     homePart: 0,
     walletPart: 0,
@@ -1629,4 +2089,9 @@ export interface CourseSession {
   items: SessionItem[]; // capped at 500 lines
   total: number; // denormalized sum of lineTotals
   loggedExpenseId?: string; // set once the total is logged as a variable expense
+  loggedMonthKey?: string;
+  loggedWorkspace?: 'personal' | 'household';
+  loggedWorkspaceId?: string;
+  loggedMutationId?: string;
+  loggedAt?: string;
 }

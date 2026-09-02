@@ -1,4 +1,4 @@
-import type { MonthBudget } from './store';
+import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget } from './store';
 import type { HouseholdPermissions } from './household-rbac';
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
@@ -13,6 +13,18 @@ export interface Household {
   updatedAt: string;
   /** False until the household owner finishes household onboarding. */
   onboardingComplete?: boolean;
+  /** Authoritative workspace configuration. Personal profile preferences never leak in. */
+  currency: string;
+  monthStartDate?: number;
+  moneyPlaces: MoneyPlaceConfig[];
+  activeCategories: string[];
+  categoryColors?: Record<string, string>;
+  categoryIcons?: Record<string, string>;
+  fixedCategories?: FixedCategoryItem[];
+  defaultCategoryBudgets?: Record<string, number>;
+  enableRollover?: boolean;
+  entitlementOwnerId: string;
+  schemaVersion?: number;
 }
 
 export interface HouseholdMember {
@@ -46,7 +58,12 @@ export interface HouseholdInvite {
   createdBy: string;
   createdAt: string;
   expiresAt: string;
+  /** Numeric expiry is enforceable in Firestore Rules (legacy string-only invites cannot be claimed). */
+  expiresAtMs: number;
   status: 'pending' | 'accepted' | 'revoked';
+  acceptedByUserId?: string;
+  acceptedEmail?: string;
+  acceptedAt?: string;
 }
 
 export interface HouseholdPayer {
@@ -72,10 +89,15 @@ export interface HouseholdInvoice {
   date: string;
   payerMemberId: string;
   submitterId: string;
+  place: MoneyPlace;
   receiptUrl?: string;
   note?: string;
   status: 'submitted' | 'approved' | 'rejected';
   createdAt: string;
+  reviewedAt?: string;
+  reviewedByUserId?: string;
+  postedExpenseId?: string;
+  postedMonthKey?: string;
 }
 
 /**

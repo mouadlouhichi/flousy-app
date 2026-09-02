@@ -22,7 +22,10 @@ interface CoursesBudgetLoggerProps {
   /** Persists a new paid-from selection and refreshes the receipt. */
   onPlaceChange: (place: MoneyPlace) => void;
   /** Logs the session total as a variable expense under the category + place. */
-  onLog: (category: string, place: MoneyPlace) => void;
+  onLog: (category: string, place: MoneyPlace) => void | Promise<void>;
+  posting?: boolean;
+  error?: string | null;
+  canPost?: boolean;
 }
 
 /**
@@ -41,6 +44,9 @@ export function CoursesBudgetLogger({
   place,
   onPlaceChange,
   onLog,
+  posting = false,
+  error = null,
+  canPost = true,
 }: CoursesBudgetLoggerProps) {
   const { t, messages, intlLocale } = useLanguage();
   const c = messages.courses;
@@ -87,6 +93,10 @@ export function CoursesBudgetLogger({
             onChange={(value) => onPlaceChange(value as MoneyPlace)}
             options={getMoneyPlaceOptions(messages)}
           />
+          {!canPost && (
+            <p role="status" className="text-sm font-medium text-on-surface-variant">{c.logPermissionDenied}</p>
+          )}
+          {error && <p role="alert" className="text-sm font-bold text-error">{error}</p>}
           <div className="flex flex-wrap items-end gap-2.5">
             <CustomSelect
               value={category}
@@ -98,11 +108,12 @@ export function CoursesBudgetLogger({
             />
             <button
               type="button"
-              onClick={() => onLog(category, place)}
-              className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary transition-opacity hover:opacity-90"
+              disabled={posting || !canPost}
+              onClick={() => { void onLog(category, place); }}
+              className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              <AppIcon name="add" className="size-4" />
-              {c.logCta}
+              <AppIcon name={posting ? 'sync' : 'add'} className="size-4" />
+              {posting ? c.logPosting : c.logCta}
             </button>
           </div>
         </div>

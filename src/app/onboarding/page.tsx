@@ -229,11 +229,7 @@ function OnboardingFlow() {
   };
 
   const goDashboard = () => {
-    try {
-      router.push('/dashboard');
-    } catch {
-      window.location.href = '/dashboard';
-    }
+    router.push('/dashboard');
   };
 
   const handleImportPersonal = async () => {
@@ -326,12 +322,8 @@ function OnboardingFlow() {
       }
     }
 
-    // Redirect to dashboard smoothly
-    try {
-      router.push('/dashboard');
-    } catch {
-      window.location.href = '/dashboard';
-    }
+    // Redirect to dashboard smoothly.
+    router.push('/dashboard');
   };
 
   const handleBack = () => {

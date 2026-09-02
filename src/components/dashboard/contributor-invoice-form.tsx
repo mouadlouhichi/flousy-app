@@ -40,6 +40,7 @@ export function ContributorInvoiceForm() {
         category: category.trim() || m.categories.other,
         date: new Date().toISOString().slice(0, 10),
         payerMemberId,
+        place: 'bank',
         submitterId: user.uid,
         status: 'submitted',
         createdAt: new Date().toISOString(),

@@ -11,6 +11,8 @@ import { AnalyticsConsentToggle } from '../analytics-consent-toggle';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
 import { trackEvent } from '@/lib/analytics';
 import { MonthlyStartDateControl } from '../monthly-start-date-control';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useHousehold } from '@/lib/household-context';
 
 type Theme = 'light' | 'dark' | 'system';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -33,8 +35,9 @@ function applyTheme(theme: Theme) {
 
 export function PreferencesPanel() {
   const { profile, updateProfileData } = useAuth();
-  const { currency } = useCurrency();
-  const { language, messages: m, localeNames, setLanguage } = useLanguage();
+  const { configuredCurrency } = useCurrency();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
+  const { language, messages: m, localeNames, setLanguage, t } = useLanguage();
   const languageOptions = [
     { value: 'en', label: localeNames.en },
     { value: 'fr', label: localeNames.fr },
@@ -42,31 +45,33 @@ export function PreferencesPanel() {
   ];
   const p = m.profile;
   const savedTheme = profile?.theme || 'system';
-  const savedMonthStartDate = profile?.monthStartDate;
+  const savedMonthStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
+  const canConfigureBudget = workspace === 'personal' || isOwner;
 
   // Preference changes remain local until the user explicitly saves them.
   // This makes the button meaningful and avoids a partial preference update.
-  const [draftCurrency, setDraftCurrency] = useState(currency);
+  const [draftCurrency, setDraftCurrency] = useState(configuredCurrency);
   const [draftLanguage, setDraftLanguage] = useState(language);
   const [draftTheme, setDraftTheme] = useState<Theme>(savedTheme);
   const [draftMonthStartDate, setDraftMonthStartDate] = useState<number | undefined>(savedMonthStartDate);
   const [hasStartedEditing, setHasStartedEditing] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmBudgetBoundaryChange, setConfirmBudgetBoundaryChange] = useState(false);
 
   // Auth/profile data arrives asynchronously. Hydrate drafts from it until
   // the visitor begins making edits, then never overwrite their in-progress
   // choices with a background profile update.
   useEffect(() => {
     if (hasStartedEditing) return;
-    setDraftCurrency(currency);
+    setDraftCurrency(configuredCurrency);
     setDraftLanguage(language);
     setDraftTheme(savedTheme);
     setDraftMonthStartDate(savedMonthStartDate);
-  }, [currency, hasStartedEditing, language, savedMonthStartDate, savedTheme]);
+  }, [configuredCurrency, hasStartedEditing, language, savedMonthStartDate, savedTheme]);
 
   const hasChanges =
-    draftCurrency !== currency ||
+    draftCurrency !== configuredCurrency ||
     draftLanguage !== language ||
     draftTheme !== savedTheme ||
     draftMonthStartDate !== savedMonthStartDate;
@@ -77,27 +82,38 @@ export function PreferencesPanel() {
     setSaveError(null);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (budgetBoundaryChangeConfirmed = false) => {
     if (!hasChanges || saveState === 'saving') return;
 
-    const currencyChanged = draftCurrency !== currency;
+    const currencyChanged = draftCurrency !== configuredCurrency;
     const languageChanged = draftLanguage !== language;
     const themeChanged = draftTheme !== savedTheme;
     const monthStartDateChanged = draftMonthStartDate !== savedMonthStartDate;
+    if ((currencyChanged || monthStartDateChanged) && !budgetBoundaryChangeConfirmed) {
+      setConfirmBudgetBoundaryChange(true);
+      return;
+    }
 
     setSaveState('saving');
     setSaveError(null);
 
     try {
-      // One click persists every changed field together. Keeping this patch
-      // narrow also prevents an older open tab from overwriting another
-      // preference that changed in the background.
-      await updateProfileData({
-        ...(currencyChanged ? { currency: draftCurrency } : {}),
+      // Language/theme belong to the person. Currency and period start belong
+      // to the active budget workspace, so household owners update the shared
+      // configuration rather than silently changing only their own profile.
+      const profilePatch = {
         ...(languageChanged ? { language: draftLanguage } : {}),
         ...(themeChanged ? { theme: draftTheme } : {}),
-        ...(monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
-      });
+        ...(workspace === 'personal' && currencyChanged ? { currency: draftCurrency } : {}),
+        ...(workspace === 'personal' && monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
+      };
+      if (Object.keys(profilePatch).length > 0) await updateProfileData(profilePatch);
+      if (workspace === 'household' && (currencyChanged || monthStartDateChanged)) {
+        await updateConfiguration({
+          ...(currencyChanged ? { currency: draftCurrency } : {}),
+          ...(monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
+        });
+      }
 
       if (themeChanged) {
         applyTheme(draftTheme);
@@ -121,7 +137,17 @@ export function PreferencesPanel() {
     }
   };
 
+  const confirmationMessages = [
+    draftCurrency !== configuredCurrency
+      ? t(m.settings.currencyChangeFutureOnly, { current: configuredCurrency, next: draftCurrency })
+      : '',
+    draftMonthStartDate !== savedMonthStartDate
+      ? t(m.settings.periodChangeFutureOnly, { day: draftMonthStartDate || 1 })
+      : '',
+  ].filter(Boolean);
+
   return (
+    <>
     <div className="divide-y divide-outline-variant/30 rounded-2xl border border-outline-variant bg-surface-container">
       <div className="flex items-center justify-between gap-3 p-4">
         <span className="flex min-w-0 items-center gap-3">
@@ -138,6 +164,7 @@ export function PreferencesPanel() {
             setDraftCurrency(value);
           }}
           options={CURRENCY_OPTIONS}
+          disabled={!canConfigureBudget}
           className="w-32 shrink-0"
           triggerClassName="!h-11"
         />
@@ -197,7 +224,7 @@ export function PreferencesPanel() {
         <AnalyticsConsentToggle />
       </div>
 
-      <div className="p-4">
+      <fieldset disabled={!canConfigureBudget} className="p-4 disabled:opacity-60">
         <MonthlyStartDateControl
           compact
           value={draftMonthStartDate}
@@ -206,7 +233,7 @@ export function PreferencesPanel() {
             setDraftMonthStartDate(day);
           }}
         />
-      </div>
+      </fieldset>
 
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p
@@ -224,7 +251,7 @@ export function PreferencesPanel() {
         </p>
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => { void handleSave(); }}
           disabled={!hasChanges || saveState === 'saving'}
           className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -233,5 +260,19 @@ export function PreferencesPanel() {
         </button>
       </div>
     </div>
+    <ConfirmDialog
+      isOpen={confirmBudgetBoundaryChange}
+      onClose={() => setConfirmBudgetBoundaryChange(false)}
+      onConfirm={() => {
+        setConfirmBudgetBoundaryChange(false);
+        void handleSave(true);
+      }}
+      title={draftCurrency !== configuredCurrency
+        ? m.settings.currencyChangeTitle
+        : m.settings.periodChangeTitle}
+      message={confirmationMessages.join(' ')}
+      confirmLabel={m.settings.useForFuturePeriods}
+    />
+    </>
   );
 }

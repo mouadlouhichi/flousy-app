@@ -19,6 +19,27 @@
           "minimum": 0,
           "maximum": 1000000000
         },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "partial",
+            "paid",
+            "skipped"
+          ]
+        },
+        "receivedAmount": {
+          "type": "number"
+        },
+        "receivedAt": {
+          "type": "string"
+        },
+        "recurring": {
+          "type": "boolean"
+        },
+        "templateId": {
+          "type": "string"
+        },
         "category": {
           "type": "string"
         },
@@ -72,6 +93,15 @@
           "type": "string",
           "description": "Household member the expense belongs to"
         },
+        "payerMemberId": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        },
+        "updatedByUserId": {
+          "type": "string"
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -81,13 +111,19 @@
         "receiptUrl": {
           "type": "string"
         },
-        "payerMemberId": {
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "invoice",
+            "course",
+            "csv",
+            "manual"
+          ]
+        },
+        "sourceId": {
           "type": "string"
         },
-        "createdByUserId": {
-          "type": "string"
-        },
-        "updatedByUserId": {
+        "importFingerprint": {
           "type": "string"
         }
       },
@@ -138,12 +174,6 @@
           "type": "string",
           "description": "Household member the bill belongs to"
         },
-        "recurring": {
-          "type": "boolean"
-        },
-        "receiptUrl": {
-          "type": "string"
-        },
         "payerMemberId": {
           "type": "string"
         },
@@ -151,6 +181,44 @@
           "type": "string"
         },
         "updatedByUserId": {
+          "type": "string"
+        },
+        "recurring": {
+          "type": "boolean"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "partial",
+            "paid",
+            "skipped"
+          ]
+        },
+        "paidAmount": {
+          "type": "number"
+        },
+        "paidAt": {
+          "type": "string"
+        },
+        "receiptUrl": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "invoice",
+            "csv",
+            "manual"
+          ]
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "importFingerprint": {
           "type": "string"
         }
       },
@@ -207,12 +275,6 @@
           "minimum": 0,
           "maximum": 1000000000
         },
-        "deposited": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1000000000,
-          "description": "Money actually deposited into this goal (fund flow or checkbox transfer). Excludes bookkeeping \"already saved\" balances recorded without the transfer checkbox; the home-screen savings plan sums only this."
-        },
         "source": {
           "type": "string",
           "description": "Money source id (bank, home, wallet, or a user-defined location)"
@@ -222,6 +284,12 @@
         },
         "category": {
           "type": "string"
+        },
+        "deposited": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000000,
+          "description": "Money actually deposited into this goal (fund flow or checkbox transfer). Excludes bookkeeping \"already saved\" balances recorded without the transfer checkbox; the home-screen savings plan sums only this."
         }
       },
       "required": [
@@ -267,6 +335,15 @@
         "date": {
           "type": "string",
           "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "dueDate": {
+          "type": "string"
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DebtPayment"
+          }
         },
         "note": {
           "type": "string",
@@ -415,6 +492,106 @@
         "unitPrice",
         "lineTotal"
       ]
+    },
+    "DebtPayment": {
+      "title": "DebtPayment",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "date": {
+          "type": "string"
+        },
+        "place": {},
+        "note": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "amount",
+        "date",
+        "place"
+      ]
+    },
+    "AccountTransfer": {
+      "title": "AccountTransfer",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {},
+        "to": {},
+        "amount": {
+          "type": "number"
+        },
+        "date": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "amount",
+        "date"
+      ]
+    },
+    "BalanceAdjustment": {
+      "title": "BalanceAdjustment",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "place": {},
+        "previousBalance": {
+          "type": "number"
+        },
+        "newBalance": {
+          "type": "number"
+        },
+        "delta": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "reconciliation",
+            "opening-balance",
+            "income"
+          ]
+        },
+        "note": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "createdByUserId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "place",
+        "previousBalance",
+        "newBalance",
+        "delta",
+        "reason",
+        "date"
+      ]
     }
   },
   "entities": {
@@ -430,6 +607,9 @@
             "pro"
           ],
           "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'. No payment provider is wired up, so firestore.rules allows exactly one other transition: free -> pro, once per account, carrying proTrialClaimedAt (the beta claim). When real billing lands, the webhook writes plan with the Admin SDK instead."
+        },
+        "proTrialClaimedAt": {
+          "type": "string"
         },
         "planBillingCycle": {
           "type": "string",
@@ -480,6 +660,22 @@
             "type": "string"
           }
         },
+        "activeHouseholdId": {
+          "type": "string"
+        },
+        "activeWorkspace": {
+          "type": "string",
+          "enum": [
+            "personal",
+            "household"
+          ]
+        },
+        "householdIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "defaultCategoryBudgets": {
           "type": "object",
           "additionalProperties": {
@@ -497,22 +693,6 @@
             "$ref": "#/definitions/FixedCategoryItem"
           },
           "description": "User-defined fixed-bill categories shown in the Add Fixed Charge modal"
-        },
-        "activeHouseholdId": {
-          "type": "string"
-        },
-        "householdIds": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "activeWorkspace": {
-          "type": "string",
-          "enum": [
-            "personal",
-            "household"
-          ]
         },
         "monthStartDate": {
           "type": "number",
@@ -539,6 +719,30 @@
       "description": "Monthly budget state including money places and expenses.",
       "type": "object",
       "properties": {
+        "schemaVersion": {
+          "type": "number"
+        },
+        "revision": {
+          "type": "number"
+        },
+        "lastMutationId": {
+          "type": "string"
+        },
+        "periodKey": {
+          "type": "string"
+        },
+        "periodStartDay": {
+          "type": "number"
+        },
+        "periodStartDate": {
+          "type": "string"
+        },
+        "periodEndDate": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
         "totalBudget": {
           "type": "number",
           "minimum": 0,
@@ -602,20 +806,6 @@
           },
           "maxItems": 500
         },
-        "categoryBudgets": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          },
-          "description": "Pro feature: planned maximum per category for the month"
-        },
-        "rolloverFromPrevious": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          },
-          "description": "Pro feature: unused category budgets rolled over from the previous month"
-        },
         "variableCategoryBases": {
           "type": "object",
           "additionalProperties": {
@@ -629,6 +819,20 @@
             "type": "number"
           },
           "description": "Planned amount per category for fixed bills"
+        },
+        "categoryBudgets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Pro feature: planned maximum per category for the month"
+        },
+        "rolloverFromPrevious": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Pro feature: unused category budgets rolled over from the previous month"
         },
         "activeCategories": {
           "type": "array",
@@ -656,6 +860,18 @@
             "$ref": "#/definitions/DebtItem"
           }
         },
+        "transfers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AccountTransfer"
+          }
+        },
+        "balanceAdjustments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BalanceAdjustment"
+          }
+        },
         "savingsActivity": {
           "type": "array",
           "maxItems": 200,
@@ -663,13 +879,6 @@
             "$ref": "#/definitions/SavingsActivityEntry"
           },
           "description": "Deposit / withdrawal log feeding the home-screen Recent Activity list"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "ISO 8601 timestamp of the last write"
-        },
-        "updatedByUserId": {
-          "type": "string"
         },
         "placeBalances": {
           "type": "object",
@@ -679,6 +888,13 @@
             "maximum": 1000000000
           },
           "description": "Balances for user-defined money sources (beyond bank / home / wallet)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp of the last write"
+        },
+        "updatedByUserId": {
+          "type": "string"
         }
       },
       "required": [
@@ -700,7 +916,7 @@
     },
     "SavingsData": {
       "title": "SavingsData",
-      "description": "Global savings goals list for the user.",
+      "description": "Revisioned workspace savings goals wrapper.",
       "type": "object",
       "properties": {
         "goals": {
@@ -709,6 +925,19 @@
             "$ref": "#/definitions/SavingGoal"
           },
           "maxItems": 200
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lastMutationId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "updatedByUserId": {
+          "type": "string"
         }
       },
       "required": [
@@ -979,6 +1208,25 @@
           "minLength": 1,
           "maxLength": 40,
           "description": "Id of the variable expense the total was logged as (idempotency link)"
+        },
+        "loggedMonthKey": {
+          "type": "string"
+        },
+        "loggedWorkspace": {
+          "type": "string",
+          "enum": [
+            "personal",
+            "household"
+          ]
+        },
+        "loggedWorkspaceId": {
+          "type": "string"
+        },
+        "loggedMutationId": {
+          "type": "string"
+        },
+        "loggedAt": {
+          "type": "string"
         }
       },
       "required": [
@@ -991,6 +1239,66 @@
         "items",
         "total"
       ]
+    },
+    "LedgerEntry": {
+      "title": "LedgerEntry",
+      "description": "Immutable idempotency and audit record for a finance mutation.",
+      "type": "object",
+      "properties": {
+        "mutationId": {
+          "type": "string"
+        },
+        "actorId": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string",
+          "enum": [
+            "personal",
+            "household"
+          ]
+        },
+        "workspaceId": {
+          "type": "string"
+        },
+        "monthKey": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "baseRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nextRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "balanceDelta": {
+          "type": "object"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "committedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mutationId",
+        "actorId",
+        "workspace",
+        "workspaceId",
+        "monthKey",
+        "kind",
+        "baseRevision",
+        "nextRevision",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -1000,66 +1308,54 @@
     },
     "/users/{uid}/months/{monthKey}": {
       "schema": "MonthBudget",
-      "description": "Monthly budget records",
+      "description": "Revisioned monthly budget records",
       "idPattern": "^[0-9]{4}-[0-9]{2}$"
     },
     "/users/{uid}/data/savings": {
       "schema": "SavingsData",
-      "description": "Global savings goals document"
+      "description": "Revisioned global savings goals document"
+    },
+    "/users/{uid}/ledger/{mutationId}": {
+      "schema": "LedgerEntry",
+      "description": "Immutable personal finance mutation ledger"
     },
     "/users/{uid}/products/{barcode}": {
       "schema": "Product",
-      "description": "Course catalog: one document per normalized barcode (8/13 digits)",
+      "description": "Course catalog by normalized barcode",
       "idPattern": "^[0-9]{8}$|^[0-9]{13}$"
     },
     "/users/{uid}/sessions/{sessionId}": {
       "schema": "CourseSession",
-      "description": "Course session (shopping trip); a completed session is its bill"
+      "description": "Shopping trip and posting state"
     },
     "/households/{householdId}": {
       "schema": "Household",
-      "description": "Shared household workspace"
+      "description": "Shared household workspace and authoritative configuration"
     },
-    "/households/{id}": {
-      "schema": "Household",
-      "description": "Shared household workspace (created via saveHousehold id)"
-    },
-    "/households/{id}/members/{owner.id}": {
+    "/households/{householdId}/members/{memberId}": {
       "schema": "HouseholdMember",
-      "description": "Creator membership written at household creation"
-    },
-    "/households/{householdId}/members/{member.id}": {
-      "schema": "HouseholdMember",
-      "description": "Household membership and roles"
-    },
-    "/households/{invite.householdId}/members/{userId}": {
-      "schema": "HouseholdMember",
-      "description": "Activated membership written when an invite is accepted"
-    },
-    "/households/{invite.householdId}/members/{invite.memberId}": {
-      "schema": "HouseholdMember",
-      "description": "Retires the owner's email-bound pending membership row once the invitation has been accepted, so the member list shows one active entry per person instead of a leftover invite."
-    },
-    "/householdInvites/{invite.id}": {
-      "schema": "HouseholdInvite",
-      "description": "Email-bound household invitation"
+      "description": "Household membership and enforceable role"
     },
     "/householdInvites/{inviteId}": {
       "schema": "HouseholdInvite",
-      "description": "Email-bound household invitation (read/accept by recipient)"
+      "description": "Verified-email, expiry-bound invitation"
     },
     "/households/{householdId}/months/{monthKey}": {
       "schema": "MonthBudget",
-      "description": "Shared monthly budget",
+      "description": "Revisioned shared monthly budget",
       "idPattern": "^[0-9]{4}-[0-9]{2}$"
     },
     "/households/{householdId}/data/savings": {
       "schema": "SavingsData",
-      "description": "Shared savings goals"
+      "description": "Revisioned shared savings goals"
     },
-    "/households/{householdId}/invoices/{invoice.id}": {
+    "/households/{householdId}/ledger/{mutationId}": {
+      "schema": "LedgerEntry",
+      "description": "Immutable household finance mutation ledger"
+    },
+    "/households/{householdId}/invoices/{invoiceId}": {
       "schema": "HouseholdInvoice",
-      "description": "Contributor invoice submissions isolated from private budgets"
+      "description": "Contributor submissions with atomic approval posting"
     }
   }
 }

@@ -93,7 +93,7 @@ export function DashboardModals() {
     goals,
     currentMonthKey,
     updateAndSaveMonth,
-    updateAndSaveGoals,
+    updateAndSaveFinance,
     handleEditMoneyPlaces,
     handleAddCategory,
     handleSaveIncomeSources,
@@ -149,7 +149,7 @@ export function DashboardModals() {
 
   // Move money handler
   const handleMoveMoney = (from: MoneyPlace, to: MoneyPlace, amount: number) => {
-    const updated = moveMoney(month, from, to, amount);
+    const updated = moveMoney(month, from, to, amount, dashboard.user?.uid);
     updateAndSaveMonth(updated);
     trackEvent('move_money', { from, to, amount });
   };
@@ -160,28 +160,24 @@ export function DashboardModals() {
     // when the transfer checkbox was checked, and tracks how much of the
     // balance is real deposited money (vs. bookkeeping "already saved").
     const res = saveGoalWithBalance(month, goals, goal, deductFromPlace ?? null);
-    if (res.month !== month) updateAndSaveMonth(res.month);
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
     const res = fundGoal(month, goals, goalId, amount, sourcePlace);
-    updateAndSaveMonth(res.month);
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
     trackEvent('fund_goal', { amount, sourcePlace });
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
     const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
-    updateAndSaveMonth(res.month);
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
     trackEvent('withdraw_goal', { amount, targetPlace });
   };
 
   const handleDeleteGoal = (goalId: string) => {
     const res = deleteFundedGoal(month, goals, goalId);
-    updateAndSaveMonth(res.month);
-    updateAndSaveGoals(res.goals);
+    updateAndSaveFinance(res.month, res.goals);
   };
 
   // Debt handlers
@@ -210,6 +206,8 @@ export function DashboardModals() {
           categoryIcons={month.categoryIcons}
           onAddCategory={handleAddCategory}
           placeBalances={placeBalances}
+          periodStartDate={month.periodStartDate}
+          periodEndDate={month.periodEndDate}
         />
       )}
 
@@ -283,8 +281,8 @@ export function DashboardModals() {
           onClose={dashboard.closeEditMoneyPlaces}
           initialValues={placeBalances}
           totalBudget={month.totalBudget || 0}
-          onSave={(values) => {
-            handleEditMoneyPlaces(values);
+          onSave={(values, note) => {
+            handleEditMoneyPlaces(values, note);
             dashboard.closeEditMoneyPlaces();
           }}
         />

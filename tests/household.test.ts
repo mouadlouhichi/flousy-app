@@ -1,90 +1,62 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  HOUSEHOLD_AREAS,
   permissionsFor,
   canView,
   canEdit,
-  SCREEN_AREA,
   type HouseholdArea,
-  type HouseholdPermissions,
 } from '../src/lib/household-rbac';
 import {
   householdStorageKey,
   actorForMonth,
   canShowProUpgrade,
   isProFeatureUnlocked,
-  type HouseholdRole,
 } from '../src/lib/household';
 
+const AREAS: HouseholdArea[] = [
+  'dashboard', 'balances', 'expenses', 'savings', 'debts', 'invoices', 'settings', 'roles',
+];
+
 describe('Household RBAC permissions', () => {
-  it('grants full editAll permissions to owner and editor roles across all 11 areas', () => {
+  it('grants owners all permissions and prevents editors from managing roles', () => {
     const ownerPerms = permissionsFor('owner');
     const editorPerms = permissionsFor('editor');
-
-    for (const area of HOUSEHOLD_AREAS) {
-      assert.equal(ownerPerms[area.id], 'editAll');
-      assert.equal(editorPerms[area.id], 'editAll');
-      assert.equal(canView('owner', area.id), true);
-      assert.equal(canEdit('owner', area.id), true);
-      assert.equal(canView('editor', area.id), true);
-      assert.equal(canEdit('editor', area.id), true);
+    for (const area of AREAS) {
+      assert.equal(ownerPerms[area], 'editAll');
+      assert.equal(canEdit('owner', area), true);
+      assert.equal(editorPerms[area], area === 'roles' ? 'view' : 'editAll');
     }
+    assert.equal(canEdit('editor', 'roles'), false);
+    assert.equal(canView('editor', 'roles'), true);
   });
 
-  it('grants read-only view permissions to viewer role across all 11 areas', () => {
+  it('keeps viewers read-only and hides configuration and roles', () => {
     const viewerPerms = permissionsFor('viewer');
-
-    for (const area of HOUSEHOLD_AREAS) {
-      assert.equal(viewerPerms[area.id], 'view');
-      assert.equal(canView('viewer', area.id), true);
-      assert.equal(canEdit('viewer', area.id), false);
-      assert.equal(canEdit('viewer', area.id, undefined, true), false);
+    for (const area of AREAS) {
+      const expected = area === 'settings' || area === 'roles' ? 'hidden' : 'view';
+      assert.equal(viewerPerms[area], expected);
+      assert.equal(canEdit('viewer', area), false);
     }
+    assert.equal(canView('viewer', 'dashboard'), true);
+    assert.equal(canView('viewer', 'settings'), false);
   });
 
-  it('grants editOwn permissions only on invoices and expenses to contributor role', () => {
+  it('restricts contributors to their own invoice boundary', () => {
     const contributorPerms = permissionsFor('contributor');
-    assert.deepEqual(contributorPerms, { invoices: 'editOwn', expenses: 'editOwn' });
-
-    assert.equal(canView('contributor', 'invoices'), true);
-    assert.equal(canView('contributor', 'expenses'), true);
-    assert.equal(canView('contributor', 'dashboard'), false);
-    assert.equal(canView('contributor', 'balances'), false);
-
+    assert.equal(contributorPerms.invoices, 'editOwn');
+    for (const area of AREAS.filter((area) => area !== 'invoices')) {
+      assert.equal(contributorPerms[area], 'hidden');
+    }
     assert.equal(canEdit('contributor', 'invoices', undefined, false), false);
     assert.equal(canEdit('contributor', 'invoices', undefined, true), true);
-    assert.equal(canEdit('contributor', 'expenses', undefined, true), true);
-    assert.equal(canEdit('contributor', 'fixedBills', undefined, true), false);
+    assert.equal(canView('contributor', 'expenses'), false);
   });
 
-  it('respects custom permissions maps for custom role', () => {
-    const customPerms: HouseholdPermissions = {
-      dashboard: 'view',
-      savings: 'editAll',
-      invoices: 'editOwn',
-    };
-
-    assert.equal(canView('custom', 'dashboard', customPerms), true);
-    assert.equal(canEdit('custom', 'dashboard', customPerms), false);
-
-    assert.equal(canView('custom', 'savings', customPerms), true);
-    assert.equal(canEdit('custom', 'savings', customPerms), true);
-
-    assert.equal(canView('custom', 'invoices', customPerms), true);
-    assert.equal(canEdit('custom', 'invoices', customPerms, false), false);
-    assert.equal(canEdit('custom', 'invoices', customPerms, true), true);
-
-    assert.equal(canView('custom', 'debts', customPerms), false);
-  });
-
-  it('maps UI screens to expected RBAC areas', () => {
-    assert.equal(SCREEN_AREA.overview, 'dashboard');
-    assert.equal(SCREEN_AREA.variable, 'expenses');
-    assert.equal(SCREEN_AREA.fixed, 'fixedBills');
-    assert.equal(SCREEN_AREA.savings, 'savings');
-    assert.equal(SCREEN_AREA.debts, 'debts');
-    assert.equal(SCREEN_AREA.trends, 'analytics');
+  it('does not honor legacy custom maps that Firestore cannot enforce', () => {
+    const attemptedCustom = { dashboard: 'editAll' as const, savings: 'editAll' as const };
+    assert.equal(canView('custom', 'dashboard', attemptedCustom), false);
+    assert.equal(canEdit('custom', 'savings', attemptedCustom), false);
+    assert.equal(canEdit('custom', 'invoices', attemptedCustom, true), true);
   });
 });
 
@@ -97,26 +69,23 @@ describe('Household storage and audit helpers', () => {
   it('actorForMonth attaches updatedAt timestamp and optional updatedByUserId audit trail', () => {
     const baseMonth: any = { month: '2026-07', totalBudget: 5000 };
     const auditedWithUser = actorForMonth(baseMonth, 'user-xyz');
-
     assert.equal(auditedWithUser.month, '2026-07');
     assert.equal(auditedWithUser.totalBudget, 5000);
     assert.equal(auditedWithUser.updatedByUserId, 'user-xyz');
     assert.ok(typeof auditedWithUser.updatedAt === 'string');
-
     const auditedNoUser = actorForMonth(baseMonth);
     assert.equal(auditedNoUser.updatedByUserId, undefined);
     assert.ok(typeof auditedNoUser.updatedAt === 'string');
   });
 
-  it('canShowProUpgrade displays upgrade CTA only on private workspace and never on household workspace', () => {
+  it('canShowProUpgrade displays upgrade CTA only on private workspace', () => {
     assert.equal(canShowProUpgrade(false, 'personal'), true);
     assert.equal(canShowProUpgrade(false, undefined), true);
     assert.equal(canShowProUpgrade(false, 'household'), false);
     assert.equal(canShowProUpgrade(true, 'personal'), false);
-    assert.equal(canShowProUpgrade(true, 'household'), false);
   });
 
-  it('isProFeatureUnlocked unlocks Pro features when in a household workspace even for free members', () => {
+  it('isProFeatureUnlocked unlocks Pro features in household workspaces', () => {
     assert.equal(isProFeatureUnlocked(true, 'personal'), true);
     assert.equal(isProFeatureUnlocked(false, 'household'), true);
     assert.equal(isProFeatureUnlocked(false, 'personal'), false);

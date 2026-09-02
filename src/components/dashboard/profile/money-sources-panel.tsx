@@ -18,11 +18,18 @@ import {
 } from '@/lib/store';
 import { useDashboard } from '../dashboard-provider';
 import { useLanguage } from '@/lib/i18n-context';
+import { useHousehold } from '@/lib/household-context';
+import type { UserProfile } from '@/lib/store';
 
 export function MoneySourcesPanel() {
   const { profile, updateProfileData } = useAuth();
-  const { month, goals, updateAndSaveMonth, updateAndSaveGoals } = useDashboard();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
+  const { month, goals, updateAndSaveFinance } = useDashboard();
   const { places, label } = useMoneyPlaces(month);
+  const canConfigure = workspace === 'personal' || isOwner;
+  const configurationProfile: UserProfile | null = profile
+    ? { ...profile, ...(workspace === 'household' ? { moneyPlaces: household?.moneyPlaces } : {}) }
+    : null;
   const { format } = useCurrency();
   const { messages: m, t } = useLanguage();
   const p = m.profile.moneySources;
@@ -36,22 +43,26 @@ export function MoneySourcesPanel() {
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const persistPlaces = async (nextProfile: typeof profile) => {
-    if (!nextProfile || !profile) return;
-    if (nextProfile === profile) return;
-    await updateProfileData({ moneyPlaces: nextProfile.moneyPlaces });
+  const persistPlaces = async (nextProfile: UserProfile | null) => {
+    if (!nextProfile || !configurationProfile || !canConfigure) return;
+    if (nextProfile === configurationProfile) return;
+    if (workspace === 'household') {
+      await updateConfiguration({ moneyPlaces: nextProfile.moneyPlaces || [] });
+    } else {
+      await updateProfileData({ moneyPlaces: nextProfile.moneyPlaces });
+    }
   };
 
   const handleAdd = async () => {
-    if (!profile) return;
+    if (!configurationProfile || !canConfigure) return;
     const name = draftName.trim();
     if (!name) {
       setError(p.nameRequired);
       return;
     }
     const id = nextMoneyPlaceId(name, places.map((p) => p.id));
-    const next = addMoneyPlace(profile, { id, name, icon: draftIcon });
-    if (next === profile) {
+    const next = addMoneyPlace(configurationProfile, { id, name, icon: draftIcon });
+    if (next === configurationProfile) {
       setError(p.duplicateName);
       return;
     }
@@ -63,9 +74,9 @@ export function MoneySourcesPanel() {
   };
 
   const handleSaveEdit = async () => {
-    if (!profile || !editingId) return;
-    const next = updateMoneyPlace(profile, editingId, { name: editName, icon: editIcon });
-    if (next === profile) {
+    if (!configurationProfile || !canConfigure || !editingId) return;
+    const next = updateMoneyPlace(configurationProfile, editingId, { name: editName, icon: editIcon });
+    if (next === configurationProfile) {
       setError(p.uniqueName);
       return;
     }
@@ -75,15 +86,17 @@ export function MoneySourcesPanel() {
   };
 
   const handleRemove = async (id: string) => {
-    if (!profile) return;
+    if (!configurationProfile || !canConfigure) return;
     const remaining = places.filter((p) => p.id !== id);
     if (remaining.length === 0) return;
     const fallback = remaining[0].id;
-    const nextProfile = removeMoneyPlace(profile, id);
-    if (nextProfile === profile) return;
+    const nextProfile = removeMoneyPlace(configurationProfile, id);
+    if (nextProfile === configurationProfile) return;
     await persistPlaces(nextProfile);
-    updateAndSaveMonth(reassignMoneyPlace(month, id, fallback));
-    updateAndSaveGoals(reassignGoalSources(goals, id, fallback));
+    updateAndSaveFinance(
+      reassignMoneyPlace(month, id, fallback),
+      reassignGoalSources(goals, id, fallback),
+    );
     setPendingRemove(null);
   };
 
@@ -125,7 +138,7 @@ export function MoneySourcesPanel() {
                     </>
                   )}
                 </div>
-                {!isEditing && (
+                {!isEditing && canConfigure && (
                   <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
@@ -182,7 +195,7 @@ export function MoneySourcesPanel() {
         })}
       </div>
 
-      {adding ? (
+      {canConfigure && (adding ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-outline-variant bg-surface-container p-4">
           <input
             value={draftName}
@@ -225,7 +238,7 @@ export function MoneySourcesPanel() {
           <AppIcon name="add" className="text-[18px]" />
           {p.addMoneySource}
         </button>
-      )}
+      ))}
 
       {error && <p className="px-1 text-xs font-medium text-error">{error}</p>}
 

@@ -1,32 +1,69 @@
 import type { HouseholdRole } from './household';
 
-export type HouseholdArea = 'dashboard' | 'balances' | 'income' | 'expenses' | 'fixedBills' | 'savings' | 'debts' | 'analytics' | 'invoices' | 'members' | 'settings';
-export type AccessLevel = 'none' | 'view' | 'editOwn' | 'editAll';
-export type HouseholdPermissions = Partial<Record<HouseholdArea, AccessLevel>>;
+export type HouseholdArea = 'dashboard' | 'balances' | 'expenses' | 'savings' | 'debts' | 'invoices' | 'settings' | 'roles';
+export type AccessLevel = 'hidden' | 'view' | 'editOwn' | 'editAll';
+export type HouseholdPermissions = Record<HouseholdArea, AccessLevel>;
 
-export const HOUSEHOLD_AREAS: Array<{ id: HouseholdArea; editable?: boolean }> = [
-  { id: 'dashboard' }, { id: 'balances' },
-  { id: 'income', editable: true }, { id: 'expenses', editable: true },
-  { id: 'fixedBills', editable: true }, { id: 'savings', editable: true },
-  { id: 'debts', editable: true }, { id: 'analytics' },
-  { id: 'invoices', editable: true }, { id: 'members', editable: true }, { id: 'settings', editable: true },
-];
-const all = (level: AccessLevel): HouseholdPermissions => Object.fromEntries(HOUSEHOLD_AREAS.map(a => [a.id, level]));
-export function permissionsFor(role: HouseholdRole, custom?: HouseholdPermissions): HouseholdPermissions {
-  if (role === 'owner' || role === 'editor') return all('editAll');
-  if (role === 'viewer') return all('view');
-  if (role === 'contributor') return { invoices: 'editOwn', expenses: 'editOwn' };
-  return custom || {};
-}
-export function canView(role: HouseholdRole | undefined, area: HouseholdArea, custom?: HouseholdPermissions) {
-  if (role === 'owner') return true;
-  const access = role ? permissionsFor(role, custom)[area] || 'none' : 'none'; return access !== 'none';
-}
-export function canEdit(role: HouseholdRole | undefined, area: HouseholdArea, custom?: HouseholdPermissions, own = false) {
-  if (role === 'owner') return true;
-  const access = role ? permissionsFor(role, custom)[area] || 'none' : 'none'; return access === 'editAll' || (own && access === 'editOwn');
+const hiddenPermissions = (): HouseholdPermissions => ({
+  dashboard: 'hidden',
+  balances: 'hidden',
+  expenses: 'hidden',
+  savings: 'hidden',
+  debts: 'hidden',
+  invoices: 'hidden',
+  settings: 'hidden',
+  roles: 'hidden',
+});
+
+/**
+ * The shared month is one Firestore document, so field-by-field custom access
+ * cannot be enforced safely. Roles intentionally map only to permissions that
+ * Security Rules can enforce at document boundaries. Legacy `custom` members
+ * are restricted to the contributor invoice workflow until an owner migrates
+ * them to editor/viewer/contributor.
+ */
+export function permissionsFor(
+  role: HouseholdRole | undefined,
+  _custom?: Partial<HouseholdPermissions>,
+): HouseholdPermissions {
+  const permissions = hiddenPermissions();
+  if (role === 'owner') {
+    for (const area of Object.keys(permissions) as HouseholdArea[]) permissions[area] = 'editAll';
+    return permissions;
+  }
+  if (role === 'editor') {
+    for (const area of Object.keys(permissions) as HouseholdArea[]) {
+      permissions[area] = area === 'roles' ? 'view' : 'editAll';
+    }
+    return permissions;
+  }
+  if (role === 'viewer') {
+    for (const area of Object.keys(permissions) as HouseholdArea[]) {
+      permissions[area] = area === 'settings' || area === 'roles' ? 'hidden' : 'view';
+    }
+    return permissions;
+  }
+  if (role === 'contributor' || role === 'custom') {
+    permissions.invoices = 'editOwn';
+    return permissions;
+  }
+  return permissions;
 }
 
-export const SCREEN_AREA: Partial<Record<string, HouseholdArea>> = {
-  overview: 'dashboard', variable: 'expenses', fixed: 'fixedBills', savings: 'savings', debts: 'debts', trends: 'analytics',
-};
+export function canView(
+  role: HouseholdRole | undefined,
+  area: HouseholdArea,
+  custom?: Partial<HouseholdPermissions>,
+): boolean {
+  return permissionsFor(role, custom)[area] !== 'hidden';
+}
+
+export function canEdit(
+  role: HouseholdRole | undefined,
+  area: HouseholdArea,
+  custom?: Partial<HouseholdPermissions>,
+  own = false,
+): boolean {
+  const level = permissionsFor(role, custom)[area];
+  return level === 'editAll' || (level === 'editOwn' && own);
+}

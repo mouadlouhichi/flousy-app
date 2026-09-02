@@ -30,20 +30,21 @@ import {
   updateMoneyPlaces,
   updateBudgetStrategy,
   carryOverFixedExpenses,
+  carryOverIncomeSources,
+  calculateReceivedIncome,
+  adjustPlaceBalance,
 } from '../../lib/store';
 import {
   subscribeMonthBudget,
-  saveMonthBudget,
   subscribeSavingsGoals,
-  saveSavingsGoals,
   fetchMonthsForTrends,
   getMonthBudget,
   subscribeHouseholdMonthBudget,
-  saveHouseholdMonthBudget,
   subscribeHouseholdSavingsGoals,
-  saveHouseholdSavingsGoals,
   getHouseholdMonthBudget,
   fetchHouseholdMonthsForTrends,
+  commitFinanceMutation,
+  getFinanceState,
 } from '../../lib/db';
 import { isProUser } from '../../lib/pro-features';
 import { trackEvent } from '../../lib/analytics';
@@ -58,6 +59,16 @@ import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey } from '../../lib/household';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
+import { useCurrency } from '../../lib/currency-context';
+import {
+  FinanceConflictError,
+  listFinanceMutations,
+  newFinanceMutationId,
+  putFinanceMutation,
+  removeFinanceMutation,
+  type FinanceMutation,
+  type FinanceSyncState,
+} from '../../lib/finance-sync';
 
 export type SavingsModalMode = 'create' | 'fund' | 'withdraw' | 'edit';
 
@@ -92,10 +103,16 @@ interface DashboardContextType {
   // Persistence helpers
   updateAndSaveMonth: (month: MonthBudget) => void;
   updateAndSaveGoals: (goals: SavingGoal[]) => void;
+  updateAndSaveFinance: (month: MonthBudget, goals: SavingGoal[]) => void;
+  syncState: FinanceSyncState;
+  syncError: string | null;
+  pendingMutations: number;
+  retrySync: () => void;
+  discardPendingChanges: () => Promise<void>;
 
   // Budget handlers
   handleUpdateTotalBudget: (newTotalBudget: number) => void;
-  handleEditMoneyPlaces: (values: Record<string, number>) => void;
+  handleEditMoneyPlaces: (values: Record<string, number>, note?: string) => void;
   handleUpdateStrategy: (strategyId: StrategyId) => void;
   handleUpdateProfile: (updatedProfile: UserProfile) => Promise<void>;
   handleSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
@@ -176,8 +193,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     loading: authLoading,
     updateProfileData,
   } = useAuth();
-  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess } = useHousehold();
+  const { household, canEdit, isContributor, workspace, loading: householdLoading, householdAccess, updateConfiguration } = useHousehold();
+  const { configuredCurrency, setPeriodCurrency } = useCurrency();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
+  const budgetStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
+  const budgetProfile: Partial<UserProfile> | null = useMemo(() => (
+    workspace === 'household'
+      ? {
+          currency: household?.currency || configuredCurrency,
+          monthStartDate: household?.monthStartDate,
+          defaultCategoryBudgets: household?.defaultCategoryBudgets,
+          enableRollover: household?.enableRollover,
+        }
+      : profile
+  ), [
+    workspace,
+    household?.currency,
+    household?.monthStartDate,
+    household?.defaultCategoryBudgets,
+    household?.enableRollover,
+    configuredCurrency,
+    profile,
+  ]);
 
   // Contributors never load private household month documents. Their invoice
   // submissions live in a separate collection with dedicated rules.
@@ -185,20 +222,41 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // active month is the budget period containing today (so on the 1st the
   // month does not flip to the new calendar month until the start date).
   const today = new Date();
-  const defaultMonthKey = getCurrentMonthKey(profile?.monthStartDate, today);
+  const defaultMonthKey = getCurrentMonthKey(budgetStartDate, today);
   const [currentMonthKey, setCurrentMonthKey] = useState<string>(defaultMonthKey);
-  const profileRef = useRef(profile);
-  profileRef.current = profile;
+  const profileRef = useRef<Partial<UserProfile> | null>(budgetProfile);
+  profileRef.current = budgetProfile;
   const profileReady = Boolean(profile);
   const hydratedStartRef = useRef(false);
   const lastStartDateRef = useRef<number | undefined>(undefined);
 
   // Core State
   const [month, setMonth] = useState<MonthBudget>(() =>
-    normalizeMonth({ totalBudget: 0 }, undefined, profile),
+    normalizeMonth({ totalBudget: 0 }, undefined, budgetProfile),
   );
   const [goals, setGoals] = useState<SavingGoal[]>([]);
+  const monthRef = useRef(month);
+  const goalsRef = useRef(goals);
+  monthRef.current = month;
+  goalsRef.current = goals;
   const [loading, setLoading] = useState<boolean>(true);
+  const [syncState, setSyncState] = useState<FinanceSyncState>('local');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [pendingMutations, setPendingMutations] = useState(0);
+  const [outboxHydrated, setOutboxHydrated] = useState(false);
+  const flushInProgressRef = useRef(false);
+  const pendingCurrentTargetRef = useRef(0);
+  const pendingGoalsRef = useRef(0);
+  const workspaceId = householdId || user?.uid;
+  const activeTargetRef = useRef('');
+  activeTargetRef.current = `${workspace}:${workspaceId || 'local'}:${currentMonthKey}`;
+
+  // Every month carries a currency snapshot. Configuration changes therefore
+  // apply to newly created periods without relabelling historical records.
+  useEffect(() => {
+    setPeriodCurrency(month.currency || configuredCurrency);
+  }, [month.currency, configuredCurrency, setPeriodCurrency]);
+  useEffect(() => () => setPeriodCurrency(null), [setPeriodCurrency]);
 
   // Multi-month trends data
   const [trendsMonths, setTrendsMonths] = useState<{ monthKey: string; month: MonthBudget }[]>([]);
@@ -267,6 +325,61 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
   }, []);
 
+  // Rehydrate the durable IndexedDB outbox before attaching cloud listeners.
+  // This prevents an older snapshot from flashing over unsent local edits after
+  // a reload or an offline browser restart.
+  useEffect(() => {
+    let cancelled = false;
+    setOutboxHydrated(false);
+    pendingCurrentTargetRef.current = 0;
+    pendingGoalsRef.current = 0;
+    if (!user || !workspaceId) {
+      pendingCurrentTargetRef.current = 0;
+      pendingGoalsRef.current = 0;
+      setPendingMutations(0);
+      setSyncState('local');
+      setOutboxHydrated(true);
+      return () => { cancelled = true; };
+    }
+    void listFinanceMutations({
+      actorId: user.uid,
+      workspace,
+      workspaceId,
+    }).then((queued) => {
+      if (cancelled) return;
+      const current = queued.filter((mutation) => mutation.monthKey === currentMonthKey);
+      const goalMutations = queued.filter((mutation) => Boolean(mutation.nextGoals));
+      pendingCurrentTargetRef.current = current.length;
+      pendingGoalsRef.current = goalMutations.length;
+      setPendingMutations(queued.length);
+      if (current.length > 0) {
+        const latest = current[current.length - 1];
+        monthRef.current = latest.nextMonth;
+        setMonth(latest.nextMonth);
+        writeCachedMonth(householdStorageKey(householdId, currentMonthKey), latest.nextMonth);
+      }
+      const latestGoals = goalMutations[goalMutations.length - 1]?.nextGoals;
+      if (latestGoals) {
+        goalsRef.current = latestGoals;
+        setGoals(latestGoals);
+      }
+      if (queued.some((mutation) => mutation.lastError === 'conflict')) {
+        setSyncState('conflict');
+        setSyncError('Your local edit conflicts with a newer change from another device.');
+      } else {
+        setSyncState(queued.length > 0 ? 'pending' : 'saved');
+        setSyncError(null);
+      }
+      setOutboxHydrated(true);
+    }).catch((error) => {
+      if (cancelled) return;
+      setSyncError(error instanceof Error ? error.message : String(error));
+      setSyncState('failed');
+      setOutboxHydrated(true);
+    });
+    return () => { cancelled = true; };
+  }, [user, workspace, workspaceId, householdId, currentMonthKey]);
+
   // Honour the last viewed month from storage so tab / month navigation does
   // not snap back to "today's period" and trigger a loading refetch. Only
   // jump to the period containing today when the user actually changes the
@@ -274,7 +387,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authLoading || (user && !profileReady)) return;
 
-    const nextStart = profile?.monthStartDate;
+    const nextStart = budgetStartDate;
 
     if (!hydratedStartRef.current) {
       hydratedStartRef.current = true;
@@ -303,7 +416,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const resolved = getCurrentMonthKey(nextStart);
     setCurrentMonthKey(resolved);
     writeStoredMonthKey(resolved);
-  }, [authLoading, user, profileReady, profile?.monthStartDate]);
+  }, [authLoading, user, profileReady, budgetStartDate]);
 
   useEffect(() => {
     writeStoredMonthKey(currentMonthKey);
@@ -343,16 +456,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
       if (householdId) {
-        const prev = await getHouseholdMonthBudget(householdId, prevKey);
+        const prev = await getHouseholdMonthBudget(householdId, prevKey, profileRef.current);
         return prev || undefined;
       } else if (user) {
-        const prev = await getMonthBudget(user.uid, prevKey);
+        const prev = await getMonthBudget(user.uid, prevKey, profileRef.current);
         return prev || undefined;
       } else {
         try {
           const local = localStorage.getItem(`flousy_month_${prevKey}`);
           if (local) {
-            return normalizeMonth(JSON.parse(local), prevKey, profile);
+            return normalizeMonth(JSON.parse(local), prevKey, budgetProfile);
           }
         } catch {
           /* ignore */
@@ -360,7 +473,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
       return undefined;
     },
-    [user, profile, householdId],
+    [user, budgetProfile, householdId],
   );
 
   // 1. Subscribe or load month budget.
@@ -371,7 +484,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Do not subscribe to the personal workspace while the authenticated
     // profile (and its selected workspace) is still hydrating. Otherwise the
     // personal month paints briefly before the household subscription wins.
-    if (authLoading || (user && !profileReady)) {
+    if (authLoading || (user && !profileReady) || !outboxHydrated) {
       setLoading(true);
       return;
     }
@@ -392,6 +505,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
     if (householdId && !isContributor) {
       const unsub = subscribeHouseholdMonthBudget(householdId, currentMonthKey, async (data) => {
+        if (pendingCurrentTargetRef.current > 0) {
+          setLoading(false);
+          return;
+        }
         if (data) {
           setMonth(data);
           persist(data);
@@ -401,7 +518,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           persist(fresh);
         }
         setLoading(false);
-      });
+      }, activeProfile);
       return () => unsub();
     } else if (householdId && isContributor) {
       setMonth(normalizeMonth({ totalBudget: 0 }, currentMonthKey, activeProfile));
@@ -409,6 +526,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       return;
     } else if (user) {
       const unsub = subscribeMonthBudget(user.uid, currentMonthKey, async (data) => {
+        if (pendingCurrentTargetRef.current > 0) {
+          setLoading(false);
+          return;
+        }
         if (data) {
           setMonth(data);
           persist(data);
@@ -426,7 +547,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
               previousMonth
                 ? {
                     totalBudget: previousMonth.totalBudget,
-                    incomeSources: previousMonth.incomeSources,
+                    incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
                     activeCategories: previousMonth.activeCategories,
                     categoryIcons: previousMonth.categoryIcons,
                     categoryColors: previousMonth.categoryColors,
@@ -441,7 +562,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           }
         }
         setLoading(false);
-      });
+      }, activeProfile);
       return () => unsub();
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
@@ -450,7 +571,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           previousMonth
             ? {
                 totalBudget: previousMonth.totalBudget,
-                incomeSources: previousMonth.incomeSources,
+                incomeSources: carryOverIncomeSources(previousMonth, currentMonthKey),
                 activeCategories: previousMonth.activeCategories,
                 categoryIcons: previousMonth.categoryIcons,
                 categoryColors: previousMonth.categoryColors,
@@ -466,65 +587,247 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profileReady]);
+  }, [user, authLoading, householdId, isContributor, canEdit, currentMonthKey, profileReady, outboxHydrated]);
 
   // 2. Subscribe or load savings goals
   useEffect(() => {
-    if (authLoading || (user && !profile)) return;
+    if (authLoading || (user && !profile) || !outboxHydrated) return;
+    const acceptGoals = (data: SavingGoal[]) => {
+      if (pendingGoalsRef.current > 0) return;
+      goalsRef.current = data || [];
+      setGoals(data || []);
+    };
     if (householdId && !isContributor) {
-      const unsub = subscribeHouseholdSavingsGoals(householdId, (data) => setGoals(data || []));
+      const unsub = subscribeHouseholdSavingsGoals(householdId, acceptGoals);
       return () => unsub();
     } else if (householdId && isContributor) {
       setGoals([]);
       return;
     } else if (user) {
-      const unsub = subscribeSavingsGoals(user.uid, (data) => {
-        setGoals(data || []);
-      });
+      const unsub = subscribeSavingsGoals(user.uid, acceptGoals);
       return () => unsub();
     } else {
       setGoals([]);
     }
-  }, [user, authLoading, profile, householdId, isContributor]);
+  }, [user, authLoading, profile, householdId, isContributor, outboxHydrated]);
 
-  // Helper to persist month updates locally + cloud
-  const updateAndSaveMonth = useCallback(
-    (newMonth: MonthBudget) => {
-      if (householdId && !canEdit) return;
-      setMonth(newMonth);
-      // Never let a local write abort the cloud write: a raw setItem here threw
-      // QuotaExceededError (Safari under pressure, blocked/partitioned storage)
-      // straight out of the save callback, so the edit looked applied and was
-      // never sent to Firestore. writeCachedMonth is the swallow-and-continue
-      // wrapper used everywhere else.
-      writeCachedMonth(householdStorageKey(householdId, currentMonthKey), newMonth);
-      if (householdId) {
-        saveHouseholdMonthBudget(householdId, currentMonthKey, { ...newMonth, updatedByUserId: user?.uid }).catch((e) => console.error(e));
-      } else if (user) {
-        saveMonthBudget(user.uid, currentMonthKey, newMonth).catch((e) => console.error(e));
+  const flushRequestedRef = useRef(false);
+  const flushLatestRef = useRef<() => Promise<void>>(async () => {});
+  const flushOutbox = useCallback(async () => {
+    if (!user || !workspaceId || !outboxHydrated) return;
+    const target = `${workspace}:${workspaceId}:${currentMonthKey}`;
+    const isActiveTarget = () => activeTargetRef.current === target;
+    // A previous render may have queued this callback while the user switched
+    // workspace or budget period. Its writes may finish safely, but it must not
+    // paint the old workspace over the new one.
+    if (!isActiveTarget()) return;
+    if (flushInProgressRef.current) {
+      flushRequestedRef.current = true;
+      return;
+    }
+    flushInProgressRef.current = true;
+    let latestCurrent: MonthBudget | null = null;
+    let latestGoals: SavingGoal[] | null = null;
+    try {
+      const queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      if (isActiveTarget()) setPendingMutations(queued.length);
+      for (const mutation of queued) {
+        if (mutation.lastError === 'conflict') {
+          if (isActiveTarget()) {
+            setSyncState('conflict');
+            setSyncError('Your local edit conflicts with a newer change from another device.');
+          }
+          break;
+        }
+        try {
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+          const timeout = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error('Sync timed out. Your change remains queued.')),
+              15000,
+            );
+          });
+          let result: Awaited<ReturnType<typeof commitFinanceMutation>>;
+          try {
+            result = await Promise.race([
+              commitFinanceMutation(mutation, profileRef.current),
+              timeout,
+            ]);
+          } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+          }
+          await removeFinanceMutation(mutation.id);
+          if (mutation.monthKey === currentMonthKey) latestCurrent = result.month;
+          if (result.goals) latestGoals = result.goals;
+        } catch (error) {
+          const conflict = error instanceof FinanceConflictError;
+          await putFinanceMutation({
+            ...mutation,
+            attempts: mutation.attempts + 1,
+            lastError: conflict ? 'conflict' : (error instanceof Error ? error.message : String(error)),
+          });
+          if (isActiveTarget()) {
+            setSyncState(conflict ? 'conflict' : 'failed');
+            setSyncError(
+              conflict
+                ? 'Your local edit conflicts with a newer change from another device.'
+                : 'Could not sync. Your change is safely queued on this device.',
+            );
+          }
+          break;
+        }
       }
-    },
-    [currentMonthKey, user, householdId, canEdit],
-  );
 
-  // Helper to persist goals updates locally + cloud
-  const updateAndSaveGoals = useCallback(
-    (newGoals: SavingGoal[]) => {
-      if (householdId && !canEdit) return;
+      const remaining = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      const currentRemaining = remaining.filter((mutation) => mutation.monthKey === currentMonthKey);
+      const goalRemaining = remaining.filter((mutation) => Boolean(mutation.nextGoals));
+      if (isActiveTarget()) {
+        pendingCurrentTargetRef.current = currentRemaining.length;
+        pendingGoalsRef.current = goalRemaining.length;
+        setPendingMutations(remaining.length);
+        if (currentRemaining.length === 0 && latestCurrent) {
+          monthRef.current = latestCurrent;
+          setMonth(latestCurrent);
+          writeCachedMonth(householdStorageKey(householdId, currentMonthKey), latestCurrent);
+        }
+        if (goalRemaining.length === 0 && latestGoals) {
+          goalsRef.current = latestGoals;
+          setGoals(latestGoals);
+        }
+        if (remaining.length === 0) {
+          setSyncState('saved');
+          setSyncError(null);
+        } else if (remaining.some((mutation) => mutation.lastError === 'conflict')) {
+          setSyncState('conflict');
+          setSyncError('Your local edit conflicts with a newer change from another device.');
+        } else {
+          setSyncState((current) => current === 'failed' ? current : 'pending');
+        }
+      }
+    } finally {
+      flushInProgressRef.current = false;
+      if (flushRequestedRef.current) {
+        flushRequestedRef.current = false;
+        // Always invoke the callback for the latest workspace/render. Calling
+        // this closure again could otherwise keep flushing the workspace the
+        // user just left and strand the newly active queue.
+        queueMicrotask(() => { void flushLatestRef.current(); });
+      }
+    }
+  }, [user, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId]);
+  flushLatestRef.current = flushOutbox;
+
+  useEffect(() => {
+    if (!outboxHydrated || !user || !workspaceId) return;
+    void flushOutbox();
+    const retryWhenOnline = () => { void flushOutbox(); };
+    window.addEventListener('online', retryWhenOnline);
+    return () => window.removeEventListener('online', retryWhenOnline);
+  }, [outboxHydrated, user, workspaceId, flushOutbox]);
+
+  const enqueueFinanceUpdate = useCallback((newMonth: MonthBudget, newGoals?: SavingGoal[]) => {
+    if (householdId && !canEdit) return;
+    const baseMonth = monthRef.current;
+    const baseGoals = goalsRef.current;
+    monthRef.current = newMonth;
+    setMonth(newMonth);
+    writeCachedMonth(householdStorageKey(householdId, currentMonthKey), newMonth);
+    if (newGoals) {
+      goalsRef.current = newGoals;
       setGoals(newGoals);
       try {
-        localStorage.setItem(householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals', JSON.stringify(newGoals));
+        localStorage.setItem(
+          householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals',
+          JSON.stringify(newGoals),
+        );
       } catch {
-        /* quota / private mode — the Firestore write below still runs */
+        // IndexedDB outbox remains the durable source even if this paint cache is unavailable.
       }
-      if (householdId) {
-        saveHouseholdSavingsGoals(householdId, newGoals).catch((e) => console.error(e));
-      } else if (user) {
-        saveSavingsGoals(user.uid, newGoals).catch((e) => console.error(e));
-      }
-    },
-    [user, householdId, canEdit],
+    }
+    if (!user || !workspaceId) {
+      setSyncState('local');
+      return;
+    }
+
+    const mutation: FinanceMutation = {
+      version: 1,
+      id: newFinanceMutationId(),
+      actorId: user.uid,
+      workspace,
+      workspaceId,
+      monthKey: currentMonthKey,
+      baseMonth,
+      nextMonth: newMonth,
+      ...(newGoals ? { baseGoals, nextGoals: newGoals } : {}),
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    };
+    pendingCurrentTargetRef.current += 1;
+    if (newGoals) pendingGoalsRef.current += 1;
+    setPendingMutations((count) => count + 1);
+    setSyncState('pending');
+    setSyncError(null);
+    void putFinanceMutation(mutation)
+      .then(() => flushOutbox())
+      .catch((error) => {
+        pendingCurrentTargetRef.current = Math.max(0, pendingCurrentTargetRef.current - 1);
+        if (newGoals) pendingGoalsRef.current = Math.max(0, pendingGoalsRef.current - 1);
+        setPendingMutations((count) => Math.max(0, count - 1));
+        setSyncState('failed');
+        setSyncError(error instanceof Error ? error.message : String(error));
+      });
+  }, [householdId, canEdit, currentMonthKey, user, workspaceId, workspace, flushOutbox]);
+
+  const updateAndSaveMonth = useCallback(
+    (newMonth: MonthBudget) => enqueueFinanceUpdate(newMonth),
+    [enqueueFinanceUpdate],
   );
+  const updateAndSaveGoals = useCallback(
+    (newGoals: SavingGoal[]) => enqueueFinanceUpdate(monthRef.current, newGoals),
+    [enqueueFinanceUpdate],
+  );
+  const updateAndSaveFinance = useCallback(
+    (newMonth: MonthBudget, newGoals: SavingGoal[]) => enqueueFinanceUpdate(newMonth, newGoals),
+    [enqueueFinanceUpdate],
+  );
+  const retrySync = useCallback(() => {
+    setSyncState('pending');
+    setSyncError(null);
+    void flushOutbox();
+  }, [flushOutbox]);
+
+  const discardPendingChanges = useCallback(async () => {
+    if (!user || !workspaceId) return;
+    const target = `${workspace}:${workspaceId}:${currentMonthKey}`;
+    // Fetch first. A failed read must never delete the only durable local copy.
+    const remote = await getFinanceState(workspace, workspaceId, currentMonthKey, profileRef.current);
+    const queued = await listFinanceMutations({
+      actorId: user.uid,
+      workspace,
+      workspaceId,
+      monthKey: currentMonthKey,
+    });
+    await Promise.all(queued.map((mutation) => removeFinanceMutation(mutation.id)));
+    const remaining = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+    if (activeTargetRef.current !== target) return;
+    const goalRemaining = remaining.filter((mutation) => Boolean(mutation.nextGoals));
+    const effectiveGoals = goalRemaining[goalRemaining.length - 1]?.nextGoals || remote.goals;
+    pendingCurrentTargetRef.current = 0;
+    pendingGoalsRef.current = goalRemaining.length;
+    setPendingMutations(remaining.length);
+    monthRef.current = remote.month;
+    goalsRef.current = effectiveGoals;
+    setMonth(remote.month);
+    setGoals(effectiveGoals);
+    writeCachedMonth(householdStorageKey(householdId, currentMonthKey), remote.month);
+    if (remaining.some((mutation) => mutation.lastError === 'conflict')) {
+      setSyncState('conflict');
+      setSyncError('Your local edit conflicts with a newer change from another device.');
+    } else {
+      setSyncState(remaining.length > 0 ? 'pending' : 'saved');
+      setSyncError(null);
+    }
+  }, [user, workspaceId, workspace, currentMonthKey, householdId]);
 
   // Carry over recurring fixed expenses from previous month
   const carryOverRecurring = useCallback(
@@ -535,9 +838,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
       if (householdId || user) {
         const prev = householdId
-          ? await getHouseholdMonthBudget(householdId, prevKey)
+          ? await getHouseholdMonthBudget(householdId, prevKey, budgetProfile)
           : user
-            ? await getMonthBudget(user.uid, prevKey)
+            ? await getMonthBudget(user.uid, prevKey, budgetProfile)
             : undefined;
         if (prev) {
           const withCarry = carryOverFixedExpenses(month, prev);
@@ -547,7 +850,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         try {
           const local = localStorage.getItem(`flousy_month_${prevKey}`);
           if (local) {
-            const prev = normalizeMonth(JSON.parse(local), prevKey, profile);
+            const prev = normalizeMonth(JSON.parse(local), prevKey, budgetProfile);
             const withCarry = carryOverFixedExpenses(month, prev);
             if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
               updateAndSaveMonth(withCarry);
@@ -558,7 +861,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [month, profile, updateAndSaveMonth, user, householdId],
+    [month, budgetProfile, updateAndSaveMonth, user, householdId],
   );
 
   // Automatically carry over recurring bills when entering a fresh month.
@@ -588,7 +891,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
-      (householdId ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6) : fetchMonthsForTrends(user?.uid, currentMonthKey, 6))
+      (householdId
+        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6, profileRef.current)
+        : fetchMonthsForTrends(user?.uid, currentMonthKey, 6, profileRef.current))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
@@ -637,31 +942,45 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         0,
         Number.isFinite(newTotalBudget) ? newTotalBudget : month.totalBudget || 0,
       );
-      const delta = safeBudget - (month.totalBudget || 0);
-
+      const oldReceived = calculateReceivedIncome(month);
+      const sources: IncomeSource[] = [{
+        id: 'manual-total-income',
+        templateId: 'manual-total-income',
+        name: 'Primary Income',
+        amount: safeBudget,
+        status: 'paid',
+        receivedAmount: safeBudget,
+        receivedAt: new Date().toISOString(),
+        recurring: true,
+      }];
+      const withCash = adjustPlaceBalance(month, 'bank', safeBudget - oldReceived);
       const updated = normalizeMonth(
         {
-          ...month,
+          ...withCash,
           totalBudget: safeBudget,
-          bankPart: Math.max(0, (month.bankPart || 0) + delta),
+          incomeSources: sources,
           monthlySavingsTarget: calculateEnvelopeAmounts(safeBudget, month.strategyId, month.customRatios).savings,
         },
         currentMonthKey,
-        profile,
+        budgetProfile,
       );
 
       updateAndSaveMonth(updated);
       trackEvent('update_total_budget', { amount: safeBudget });
     },
-    [month, currentMonthKey, profile, updateAndSaveMonth],
+    [month, currentMonthKey, budgetProfile, updateAndSaveMonth],
   );
 
   const handleEditMoneyPlaces = useCallback(
-    (values: Record<string, number>) => {
-      const updated = updateMoneyPlaces(month, values);
+    (values: Record<string, number>, note?: string) => {
+      const updated = updateMoneyPlaces(month, values, {
+        reason: 'reconciliation',
+        note,
+        createdByUserId: user?.uid,
+      });
       updateAndSaveMonth(updated);
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, user?.uid],
   );
 
   const handleUpdateStrategy = useCallback(
@@ -684,24 +1003,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Income goes first to Bank, then can be moved to Wallet/Home via Move Money
   const handleSaveIncomeSources = useCallback(
     (sources: IncomeSource[], total: number) => {
-      const oldTotal = month.totalBudget || 0;
-      const difference = total - oldTotal;
-      // New income goes first to Bank; if total is reduced, deduct from Bank
-      const newBankPart = Math.max(0, (month.bankPart || 0) + difference);
-
+      const oldReceived = calculateReceivedIncome(month);
+      const nextIncome = { totalBudget: total, incomeSources: sources };
+      const receivedDelta = calculateReceivedIncome(nextIncome) - oldReceived;
+      const withCash = adjustPlaceBalance(month, 'bank', receivedDelta);
       const updated = normalizeMonth(
         {
-          ...month,
+          ...withCash,
           incomeSources: sources,
           totalBudget: total,
-          bankPart: newBankPart,
+          monthlySavingsTarget: calculateEnvelopeAmounts(total, month.strategyId, month.customRatios).savings,
         },
         currentMonthKey,
-        profile,
+        budgetProfile,
       );
       updateAndSaveMonth(updated);
     },
-    [month, currentMonthKey, profile, updateAndSaveMonth],
+    [month, currentMonthKey, budgetProfile, updateAndSaveMonth],
   );
 
   // Categories Handlers
@@ -800,21 +1118,19 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const handleSaveSavingsEntry = useCallback(
     (entryId: string, patch: Partial<SavingsActivityEntry>) => {
       const res = updateSavingsActivityEntry(month, goals, entryId, patch);
-      updateAndSaveMonth(res.month);
-      updateAndSaveGoals(res.goals);
+      updateAndSaveFinance(res.month, res.goals);
       trackEvent('edit_savings_entry', { type: patch.type });
     },
-    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+    [month, goals, updateAndSaveFinance],
   );
 
   const handleDeleteSavingsEntry = useCallback(
     (entryId: string) => {
       const res = deleteSavingsActivityEntry(month, goals, entryId);
-      updateAndSaveMonth(res.month);
-      updateAndSaveGoals(res.goals);
+      updateAndSaveFinance(res.month, res.goals);
       trackEvent('delete_savings_entry', {});
     },
-    [month, goals, updateAndSaveMonth, updateAndSaveGoals],
+    [month, goals, updateAndSaveFinance],
   );
 
   const openSettingsModal = useCallback(() => setIsSettingsModalOpen(true), []);
@@ -865,6 +1181,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       trendsLoading,
       updateAndSaveMonth,
       updateAndSaveGoals,
+      updateAndSaveFinance,
+      syncState,
+      syncError,
+      pendingMutations,
+      retrySync,
+      discardPendingChanges,
       handleUpdateTotalBudget,
       handleEditMoneyPlaces,
       handleUpdateStrategy,
@@ -935,6 +1257,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       trendsLoading,
       updateAndSaveMonth,
       updateAndSaveGoals,
+      updateAndSaveFinance,
+      syncState,
+      syncError,
+      pendingMutations,
+      retrySync,
+      discardPendingChanges,
       handleUpdateTotalBudget,
       handleEditMoneyPlaces,
       handleUpdateStrategy,

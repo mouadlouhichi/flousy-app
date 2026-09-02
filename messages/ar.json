@@ -291,6 +291,7 @@
       "queen": "الملكة",
       "king": "الملك",
       "date": "التاريخ",
+      "dateOutsidePeriod": "اختر تاريخًا ضمن فترة الميزانية هذه ({start} إلى {end}).",
       "noteOptional": "ملاحظة (اختياري)",
       "notePlaceholder": "لأجل ماذا كان هذا؟",
       "receiptOptional": "إيصال / مرفق (اختياري)",
@@ -333,7 +334,14 @@
       "duplicateCategory": "توجد فئة بهذا الاسم بالفعل.",
       "availableIn": "المتاح في {place}: {amount}",
       "insufficientFunds": "المتاح في {place} هو {amount} فقط. خفّض المبلغ أو انقل أموالًا إلى هذا الموقع أولًا.",
-      "householdPro": "تتبع أفراد الأسرة متاح مع برو."
+      "householdPro": "تتبع أفراد الأسرة متاح مع برو.",
+      "partialAmountError": "يجب أن يكون المبلغ المدفوع أكبر من صفر وأقل من مبلغ الفاتورة.",
+      "lifecycleStatus": "حالة الدفع",
+      "statusPlanned": "مخطط",
+      "statusPartial": "مدفوع جزئيًا",
+      "statusPaid": "مدفوع",
+      "statusSkipped": "متجاوز",
+      "paidAmount": "المبلغ المدفوع"
     },
     "savings": {
       "createTitle": "إنشاء هدف ادخار",
@@ -411,7 +419,8 @@
       "noteOptional": "ملاحظة (اختياري)",
       "notePlaceholder": "ما سبب هذا الدين؟",
       "saveChanges": "حفظ التعديلات",
-      "addCredit": "إضافة مستحق"
+      "addCredit": "إضافة مستحق",
+      "statusManagedByPayments": "يتم تحديث الحالة تلقائيًا حسب سجل الدفعات."
     },
     "categories": {
       "title": "إدارة الفئات",
@@ -435,7 +444,21 @@
       "noNumericAmounts": "لم يُعثر على مبالغ رقمية صالحة في صفوف CSV.",
       "parseFailed": "تعذر قراءة ملف CSV.",
       "importedExpense": "مصروف مستورد",
-      "selectFile": "اختر ملف CSV لمعاينة معاملاتك قبل الاستيراد."
+      "selectFile": "اختر ملف CSV لمعاينة معاملاتك قبل الاستيراد.",
+      "mappingTitle": "مطابقة أعمدة CSV",
+      "column": "العمود",
+      "mapIgnore": "تجاهل",
+      "mapName": "الاسم / الوصف",
+      "mapAmount": "المبلغ",
+      "mapDate": "التاريخ",
+      "mapCategory": "الفئة",
+      "mapPlace": "مصدر المال",
+      "mapNote": "ملاحظة",
+      "mapPerson": "الشخص",
+      "mapAmountRequired": "اختر العمود الذي يحتوي على المبلغ.",
+      "allDuplicates": "كل الصفوف الصالحة موجودة مسبقًا. لم يتم استيراد أي تكرار.",
+      "noValidRows": "لا توجد صفوف آمنة للاستيراد. تحقق من التواريخ والمبالغ ومطابقة الأعمدة.",
+      "skippedRows": "تم تجاوز {invalid} صفوف غير صالحة/خارج الفترة و{duplicates} صفوف مكررة."
     },
     "incomeSources": {
       "title": "مصادر الدخل",
@@ -465,7 +488,17 @@
       "startsOn": "يبدأ في {day}",
       "period": "الفترة من {start} إلى {end}",
       "payDayHint": "يصل الراتب شهريًا في {day} — وتبدأ فترة ميزانية هذا المصدر حينها.",
-      "payDayOptional": "اختياري: اختر يوم الشهر الذي يصل فيه هذا الدخل."
+      "payDayOptional": "اختياري: اختر يوم الشهر الذي يصل فيه هذا الدخل.",
+      "statusPlanned": "مخطط",
+      "statusPartial": "مستلم جزئيًا",
+      "statusReceived": "مستلم",
+      "statusSkipped": "متجاوز",
+      "partialAmountError": "يجب أن يكون المبلغ المستلم أكبر من صفر وأقل من المبلغ المتوقع.",
+      "receivedSummary": "تم استلام {received} من {expected}",
+      "lifecycleStatus": "حالة الاستلام",
+      "receivedAmount": "المبلغ المستلم",
+      "receivedShort": "مستلم",
+      "cashAdjustmentError": "سيؤدي هذا التغيير إلى خفض الدخل المستلم إلى أقل من الأموال التي تم إنفاقها. أضف أموالًا أو طابق رصيد البنك أولًا."
     },
     "pro": {
       "title": "الترقية إلى سمارت جيب برو",
@@ -550,7 +583,10 @@
       "description": "صحّح رصيدك النقدي الحالي في كل موقع. يضبط هذا النقد المتاح لديك، بينما تظل ميزانيتك الشهرية دون تغيير.",
       "totalCash": "إجمالي النقد المتاح",
       "monthlyBudget": "الميزانية الشهرية: {amount}",
-      "saveBalances": "حفظ الأرصدة"
+      "saveBalances": "حفظ الأرصدة",
+      "adjustmentPreview": "{from} ← {to}",
+      "reconciliationNote": "ملاحظة التسوية (اختيارية)",
+      "reconciliationNotePlaceholder": "مثال: تمت المطابقة مع كشف البنك"
     }
   },
   "settings": {
@@ -565,7 +601,13 @@
     "language": "اللغة",
     "languageDescription": "تغيير لغة عرض التطبيق",
     "privacyPolicy": "سياسة الخصوصية",
-    "termsOfService": "شروط الخدمة"
+    "termsOfService": "شروط الخدمة",
+    "historicalCurrencyActive": "تظل هذه الفترة بعملة {currency}.",
+    "currencyChangeTitle": "تغيير عملة الفترات المستقبلية؟",
+    "currencyChangeFutureOnly": "هل تريد تغيير العملة المحددة من {current} إلى {next}؟ تحتفظ الفترات السابقة بقيمها ولا يتم تحويلها.",
+    "periodChangeTitle": "تغيير فترات الميزانية المستقبلية؟",
+    "periodChangeFutureOnly": "هل تريد استخدام اليوم {day} للفترات المحددة حديثًا والمستقبلية؟ لن تُعاد كتابة سجلات الفترات الحالية.",
+    "useForFuturePeriods": "استخدام للفترات المستقبلية"
   },
   "tabs": {
     "variable": {
@@ -604,7 +646,15 @@
       "carryOverNote": "يتم ترحيل الفواتير المتكررة تلقائياً من الشهر السابق.",
       "recurringMonthly": "يتكرر شهرياً",
       "due": "موعد الاستحقاق: {date}",
-      "monthly": "شهرياً"
+      "monthly": "شهرياً",
+      "paidSummary": "تم دفع {paid} من {total}",
+      "status": {
+        "planned": "مخطط",
+        "partial": "جزئي",
+        "paid": "مدفوع",
+        "skipped": "متجاوز"
+      },
+      "paidShort": "مدفوع"
     },
     "savings": {
       "totalSaved": "إجمالي المدّخرات",
@@ -645,7 +695,18 @@
       "manageDebt": "إدارة الديون بسلام",
       "title": "الديون والائتمانات",
       "openCount": "{count} مفتوح",
-      "settledCount": "{count} مسدد"
+      "settledCount": "{count} مسدد",
+      "invalidPayment": "أدخل مبلغًا أكبر من صفر ولا يتجاوز الرصيد المتبقي.",
+      "paymentFailed": "تعذّر تسجيل الدفعة.",
+      "paidOfTotal": "تم دفع {paid} من {total}",
+      "paymentHistory": "سجل الدفعات",
+      "noPayments": "لم تُسجّل أي دفعات بعد.",
+      "paymentAmount": "مبلغ الدفعة",
+      "paidFrom": "مصدر المال",
+      "recordPayment": "تسجيل دفعة",
+      "recordReceipt": "تسجيل مبلغ مستلم",
+      "deletePaymentTitle": "حذف هذه الدفعة؟",
+      "deletePaymentMessage": "سيتم عكس حركة المال المرتبطة وإعادة فتح الرصيد المتبقي."
     },
     "trends": {
       "title": "الاتجاهات والتحليلات",
@@ -762,7 +823,11 @@
     "billTextItem": "صنف",
     "billTextItems": "أصناف",
     "billTextTotal": "الإجمالي",
-    "unnamedItem": "صنف بلا اسم"
+    "unnamedItem": "صنف بلا اسم",
+    "logPermissionDenied": "يمكن للمالك أو المحرر فقط إضافة هذه الجولة إلى ميزانية الأسرة.",
+    "logPosting": "جارٍ الإضافة…",
+    "logFailed": "تعذّرت إضافة الجولة. لم يتم إنشاء أي تكرار؛ حاول مرة أخرى.",
+    "personalWorkspace": "شخصي"
   },
   "alerts": {
     "needsExceeded": "تم تجاوز مخصصات الاحتياجات",
@@ -1672,7 +1737,19 @@
       "exportThisMonth": "تصدير هذا الشهر بصيغة CSV",
       "importCsv": "استيراد CSV",
       "deleteAllData": "حذف كل البيانات",
-      "deleteAllDataMessage": "سيؤدي هذا إلى حذف كل أشهر بيانات الميزانية والمصروفات وأهداف الادخار نهائيًا من حسابك. سيُحتفظ بحسابك وإعداداتك. لا يمكن التراجع عن هذا الإجراء — نزّل بياناتك أولًا إن أردت الاحتفاظ بنسخة."
+      "deleteAllDataMessage": "سيؤدي هذا إلى حذف كل أشهر بيانات الميزانية والمصروفات وأهداف الادخار نهائيًا من حسابك. سيُحتفظ بحسابك وإعداداتك. لا يمكن التراجع عن هذا الإجراء — نزّل بياناتك أولًا إن أردت الاحتفاظ بنسخة.",
+      "exportBackup": "تصدير نسخة احتياطية كاملة",
+      "exportBackupDescription": "كل الفترات والأهداف والإعدادات وجلسات التسوق",
+      "restoreBackup": "استعادة نسخة JSON",
+      "restoreBackupDescription": "التحقق من نسخة SmartJib ذات إصدار واستعادتها",
+      "backupExported": "تم تنزيل نسختك الاحتياطية الكاملة.",
+      "backupFailed": "تعذّر تصدير النسخة الاحتياطية.",
+      "backupInvalid": "هذا الملف ليس نسخة SmartJib صالحة أو مدعومة.",
+      "restoreComplete": "تمت استعادة {months} فترة و{goals} هدفًا.",
+      "restorePartial": "توقفت الاستعادة جزئيًا. اختر الملف نفسه للمتابعة بأمان دون تكرار.",
+      "restoreFailed": "تعذّرت استعادة النسخة. تحقق من العملة وإعدادات فترة الميزانية.",
+      "restoreConfirm": "هل تريد استعادة {months} فترة و{goals} هدفًا إلى {workspace}؟ ستُستبدل السجلات المطابقة ويمكن إعادة المحاولة بأمان.",
+      "personalWorkspace": "المساحة الشخصية"
     },
     "moneySources": {
       "description": "هذه هي المواقع النقدية التي تنفق منها — البنك أو المنزل أو المحفظة أو أي صندوق تضيفه. تؤدي إزالة أحدها إلى نقل الرصيد المتبقي إلى أول مصدر متبقٍ.",
@@ -1814,7 +1891,9 @@
       "reviewDescription": "راجع طلبات المساهمين قبل تسجيلها في ميزانية الأسرة الخاصة.",
       "nonePending": "لا توجد طلبات فواتير معلقة.",
       "approve": "قبول",
-      "reject": "رفض"
+      "reject": "رفض",
+      "reviewError": "تعذّرت مراجعة الفاتورة. حاول مرة أخرى.",
+      "postsToMonth": "ستُسجّل في {month}"
     },
     "invited": "مدعو",
     "invitationCount": "{count, plural, one {# دعوة للأسرة} two {# دعوتان للأسرة} few {# دعوات للأسرة} many {# دعوة للأسرة} other {# دعوة للأسرة}}",
@@ -1833,7 +1912,8 @@
     "copyCode": "نسخ",
     "copied": "تم النسخ",
     "inviteCodeReady": "تم إنشاء الدعوة. شارك الرمز أدناه إذا تعذر إرسال البريد.",
-    "inviteCodeHint": "يمكن لأي شخص لديه هذا الرمز الانضمام من المنزل ← انضمام."
+    "inviteCodeHint": "يمكن لأي شخص لديه هذا الرمز الانضمام من المنزل ← انضمام.",
+    "contributor": "مساهم"
   },
   "consent": {
     "title": "إعدادات الخصوصية",
@@ -1877,5 +1957,18 @@
       "notFound": "الصفحة غير موجودة",
       "landing": "SmartJib — تتبّع أموالك دون اتصال وبدون إعلانات"
     }
+  },
+  "sync": {
+    "idle": "محفوظ",
+    "saving": "جارٍ الحفظ…",
+    "saved": "محفوظ",
+    "failed": "فشلت المزامنة",
+    "conflict": "تغييرات تحتاج إلى مراجعة",
+    "conflictDetail": "يتداخل تغيير أحدث في السحابة مع تعديلك المحلي. تجاهل النسخة المحلية فقط إذا أردت الاحتفاظ بنسخة السحابة.",
+    "queuedLocally": "تغييراتك محفوظة بأمان على هذا الجهاز.",
+    "retry": "إعادة المحاولة",
+    "useCloudCopy": "تجاهل التغييرات المحلية",
+    "pending": "قيد الانتظار",
+    "local": "محفوظ على هذا الجهاز"
   }
 }

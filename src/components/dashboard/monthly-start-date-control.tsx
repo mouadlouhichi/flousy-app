@@ -10,6 +10,7 @@ interface MonthlyStartDateControlProps {
   onChange: (day: number | undefined) => void;
   /** Compact variant for modals (no outer heading). */
   compact?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function MonthlyStartDateControl({
   value,
   onChange,
   compact = false,
+  disabled = false,
 }: MonthlyStartDateControlProps) {
   const { messages: m, t, language, intlLocale } = useLanguage();
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
@@ -37,6 +39,7 @@ export function MonthlyStartDateControl({
             value={value}
             onChange={onChange}
             label={null}
+            disabled={disabled}
             hint={
               value
                 ? t(m.onboarding.monthlyStartHint, { day: localizedDay(value) })

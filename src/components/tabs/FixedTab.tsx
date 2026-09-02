@@ -1,6 +1,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React from 'react';
-import { MonthBudget, FixedExpense } from '../../lib/store';
+import { MonthBudget, FixedExpense, fixedPaidAmount } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
@@ -16,7 +16,8 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, language, intlLocale } = useLanguage();
 
-  const totalFixed = (month.fixedExpenses || []).reduce((acc, b) => acc + b.amount, 0);
+  const totalFixed = (month.fixedExpenses || []).reduce((acc, bill) => acc + bill.amount, 0);
+  const totalPaid = (month.fixedExpenses || []).reduce((acc, bill) => acc + fixedPaidAmount(bill), 0);
 
   return (
     <div className="flex flex-col gap-lg pb-24">
@@ -29,6 +30,9 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
             {format(totalFixed)}
           </h2>
+          <p className="mt-1 text-xs font-bold text-primary">
+            {t(m.tabs.fixed.paidSummary, { amount: format(totalPaid) })}
+          </p>
         </div>
         <button
           onClick={onOpenAddModal}
@@ -60,10 +64,11 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
               : m.tabs.fixed.monthly;
 
             return (
-            <div
+            <button
+              type="button"
               key={bill.id}
               onClick={() => onEditBill(bill)}
-              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 hover:border-primary transition-all cursor-pointer shadow-2xs"
+              className="p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start hover:border-primary transition-all cursor-pointer shadow-2xs"
             >
               <div className="flex min-w-0 flex-1 items-center gap-md">
                 <div className="p-3 bg-primary/10 text-primary rounded-xl shrink-0">
@@ -82,6 +87,9 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
                     {bill.recurring && (
                       <AppIcon name="sync" className="text-[16px] text-primary" title={m.tabs.fixed.recurringMonthly} />
                     )}
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      {m.tabs.fixed.status[bill.status || 'paid']}
+                    </span>
                   </div>
                   <div className="flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant">
                     <span>{localizeCategoryName(bill.type, m)}</span>
@@ -93,10 +101,17 @@ export function FixedTab({ month, onOpenAddModal, onEditBill }: FixedTabProps) {
                 </div>
               </div>
 
-              <span className="font-mono font-extrabold text-headline-sm text-on-surface">
-                {format(bill.amount)}
+              <span className="text-end">
+                <span className="block font-mono font-extrabold text-headline-sm text-on-surface">
+                  {format(bill.amount)}
+                </span>
+                {fixedPaidAmount(bill) !== bill.amount && (
+                  <span className="block text-[10px] font-bold text-primary">
+                    {t(m.tabs.fixed.paidShort, { amount: format(fixedPaidAmount(bill)) })}
+                  </span>
+                )}
               </span>
-            </div>
+            </button>
             );
           })}
         </div>
