@@ -174,7 +174,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 py-8 font-sans">
+    <main id="main-content" className="min-h-screen bg-background flex flex-col justify-center items-center px-4 py-8 font-sans">
       <div className="w-full max-w-[420px] bg-surface p-6 sm:p-8 rounded-[28px] border border-outline-variant/50 shadow-md flex flex-col gap-5">
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
@@ -414,6 +414,6 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

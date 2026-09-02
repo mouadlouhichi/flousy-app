@@ -44,6 +44,9 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
       onClick={onClose}
       role="presentation"
     >
+      {/* Bubbling guard so taps inside the sheet don't hit the backdrop's
+          close handler; not an interactive control of its own. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
         aria-modal="true"

@@ -54,6 +54,9 @@ function PaginationLink({
   ...props
 }: PaginationLinkProps) {
   return (
+    // Library primitive: link content arrives through {...props} children,
+    // which the static rule cannot see.
+    // eslint-disable-next-line jsx-a11y/anchor-has-content
     <a
       aria-current={isActive ? 'page' : undefined}
       data-slot="pagination-link"

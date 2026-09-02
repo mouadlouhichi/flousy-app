@@ -21,6 +21,7 @@ import {
 } from '../../lib/store';
 import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
+import { parseAmountInput } from '../../lib/parse-amount';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
 import { useLanguage } from '@/lib/i18n-context';
@@ -72,7 +73,9 @@ function OnboardingFlow() {
   const percentSign = getLocalizedPercentSign(intlLocale);
 
   const [step, setStep] = useState<number>(1);
-  const [income, setIncome] = useState<string>('15000');
+  // Starts empty on purpose: the audit found sample defaults (15 000 income,
+  // pre-added Rent/Electricity bills) could be saved as real financial data.
+  const [income, setIncome] = useState<string>('');
   // Optional: the day of the month the salary arrives (start of the budget month).
   // Onboarding in household scope sets the HOUSEHOLD start date; the personal
   // flow sets the personal one. They are separate budget periods.
@@ -117,10 +120,9 @@ function OnboardingFlow() {
     '#d946ef', '#a855f7', '#f43f5e', '#00685f',
   ];
 
-  const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([
-    { name: 'Rent', amount: 1500, category: 'Housing' },
-    { name: 'Electricity', amount: 120, category: 'Utilities' },
-  ]);
+  // No pre-seeded example bills: suggestions are offered as one-tap chips in
+  // the bills step instead of silently becoming saved records.
+  const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([]);
 
   const [newBillName, setNewBillName] = useState('');
   const [newBillAmount, setNewBillAmount] = useState('');
@@ -130,9 +132,10 @@ function OnboardingFlow() {
   const [incomeError, setIncomeError] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
-  // Clean numeric string parsing for income (handles comma/formatting)
-  const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
-  const parsedIncome = parseFloat(cleanNumStr) || 0;
+  // Locale-aware parsing: accepts French decimal commas, grouping spaces and
+  // Arabic-Indic digits (audit P1 — ASCII-only stripping mangled fr/ar input).
+  const rawParsedIncome = parseAmountInput(income);
+  const parsedIncome = Number.isFinite(rawParsedIncome) ? rawParsedIncome : 0;
   const customRatios: CustomRatios = normalizeCustomRatios({
     needs: customSplit.needs / 100,
     wants: customSplit.wants / 100,
@@ -179,8 +182,8 @@ function OnboardingFlow() {
 
   const handleAddBill = () => {
     if (!newBillName.trim() || !newBillAmount) return;
-    const amt = parseFloat(newBillAmount.toString().replace(/[^0-9.]/g, ''));
-    if (amt <= 0) return;
+    const amt = parseAmountInput(newBillAmount);
+    if (!Number.isFinite(amt) || amt <= 0) return;
 
     setBills([...bills, { name: newBillName.trim(), amount: amt, category: newBillCategory }]);
     setNewBillName('');
@@ -194,8 +197,8 @@ function OnboardingFlow() {
   const handleStep3Continue = () => {
     // If user entered a bill but didn't click "Add Bill", auto-add it
     if (newBillName.trim() && newBillAmount) {
-      const amt = parseFloat(newBillAmount.toString().replace(/[^0-9.]/g, ''));
-      if (amt > 0) {
+      const amt = parseAmountInput(newBillAmount);
+      if (Number.isFinite(amt) && amt > 0) {
         setBills((prev) => [
           ...prev,
           { name: newBillName.trim(), amount: amt, category: newBillCategory },
@@ -344,7 +347,7 @@ function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <main id="main-content" className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -727,6 +730,31 @@ function OnboardingFlow() {
               </button>
             </form>
 
+            {/* One-tap suggestions replace the old pre-seeded example bills:
+                they only prefill the form, so nothing is saved until the user
+                types a real amount and adds it. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[12px] font-bold text-on-surface-variant">{m.onboarding.suggestedBills}</span>
+              {([
+                { name: 'Rent', label: m.onboarding.rent, category: 'Housing' },
+                { name: 'Electricity', label: m.onboarding.electricity, category: 'Utilities' },
+              ] as const)
+                .filter((s) => !bills.some((b) => b.name === s.name))
+                .map((s) => (
+                  <button
+                    key={s.name}
+                    type="button"
+                    onClick={() => {
+                      setNewBillName(s.name);
+                      setNewBillCategory(s.category);
+                    }}
+                    className="px-3 py-1.5 bg-surface border border-outline-variant rounded-full text-[13px] font-bold text-on-surface-variant hover:border-primary hover:text-primary transition-all cursor-pointer"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+            </div>
+
             {/* Added Bills List */}
             {bills.length > 0 && (
               <div className="flex flex-col gap-2">
@@ -834,10 +862,13 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 const strategyCopy = localizeStrategy(strat.id, m, intlLocale);
 
                 return (
+                  // Mouse-only convenience surface; keyboard and AT semantics
+                  // live on the real <input type="radio"> inside the card.
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                   <div
                     key={strat.id}
                     onClick={() => setSelectedStrategy(strat.id)}
-                    className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${
+                    className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-primary/60 ${
                       selected
                         ? 'border-2 border-primary bg-primary-container/30 shadow-2xs'
                         : 'border-outline-variant bg-surface hover:bg-surface-container-low'
@@ -851,14 +882,24 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         </p>
                       </div>
 
-                      {/* Custom Radio Button */}
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                      {/* Real radio input (keyboard + screen-reader semantics);
+                          the visual dot renders on top of the invisible control. */}
+                      <span
+                        className={`relative w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
                           selected ? 'border-primary bg-primary' : 'border-slate-300'
                         }`}
                       >
-                        {selected && <div className="w-2 h-2 rounded-full bg-surface" />}
-                      </div>
+                        <input
+                          type="radio"
+                          name="onboarding-strategy"
+                          value={strat.id}
+                          checked={selected}
+                          onChange={() => setSelectedStrategy(strat.id)}
+                          aria-label={strategyCopy.name}
+                          className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0"
+                        />
+                        {selected && <span className="w-2 h-2 rounded-full bg-surface" />}
+                      </span>
                     </div>
 
                     {/* Segmented Bar Visual */}
@@ -920,6 +961,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                     {/* Custom strategy: definable split, editable in place */}
                     {strat.id === 'custom' && (
+                      // Stops card-selection clicks from swallowing editor
+                      // interaction; purely a bubbling guard, not a control.
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                       <div
                         className="flex flex-col gap-3 pt-1"
                         onClick={(e) => e.stopPropagation()}
@@ -1157,6 +1201,6 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

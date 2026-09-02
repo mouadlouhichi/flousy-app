@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { useCourseSession } from '@/hooks/use-course-session';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { normalizeDigitsToAscii, parseAmountInput } from '@/lib/parse-amount';
 import { useHousehold } from '@/lib/household-context';
 import { trackEvent } from '@/lib/analytics';
 import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
@@ -49,7 +50,7 @@ export function CoursesScreen() {
 }
 
 function parsePrice(raw: string): number | null {
-  const value = Number(raw.replace(',', '.'));
+  const value = parseAmountInput(raw);
   return Number.isFinite(value) && value >= 0 ? round2(value) : null;
 }
 
@@ -507,7 +508,7 @@ function CoursesScreenInner() {
                     </span>
                     <Input
                       value={manualPrice}
-                      onChange={(e) => setManualPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      onChange={(e) => setManualPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
                       placeholder="0.00"
                       inputMode="decimal"
                       aria-label={c.price}
@@ -779,7 +780,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         <div className="flex items-center gap-2">
           <Input
             value={price}
-            onChange={(e) => onPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+            onChange={(e) => onPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
             placeholder="0.00"
             inputMode="decimal"

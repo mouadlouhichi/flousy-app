@@ -37,7 +37,7 @@ export function BlogArticle({ slug }: { slug: string }) {
   const BackIcon = isRTL ? ArrowRight : ArrowLeft;
 
   return (
-    <main className="noise-overlay relative min-h-screen overflow-x-hidden">
+    <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
       <Navigation />
 
       <article>

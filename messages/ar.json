@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "سمارت جيب",
+    "skipToContent": "الانتقال إلى المحتوى الرئيسي",
     "save": "حفظ",
     "cancel": "إلغاء",
     "delete": "حذف",
@@ -195,6 +196,7 @@
     "skipForNow": "تخطَّ الآن",
     "categoryNamePlaceholder": "اسم الفئة (مثال: النادي الرياضي)",
     "billNamePlaceholder": "مثال: الإيجار أو نتفليكس أو الكهرباء",
+    "suggestedBills": "إضافة سريعة:",
     "addedBills": "الفواتير المضافة",
     "billCategoryOptions": {
       "housing": "السكن / الإيجار",

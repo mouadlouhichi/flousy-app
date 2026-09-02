@@ -5,6 +5,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MoneyPlaceConfig } from '../../lib/store';
 import { useLanguage } from '../../lib/i18n-context';
+import { normalizeDigitsToAscii, parseAmountInput } from '../../lib/parse-amount';
 
 interface EditMoneyPlacesModalProps {
   isOpen: boolean;
@@ -16,13 +17,15 @@ interface EditMoneyPlacesModalProps {
 }
 
 function sanitizeAmount(raw: string): string {
-  const cleaned = raw.replace(/[^0-9.]/g, '');
+  // Keystroke filter: keep Arabic digits usable by transliterating them, and
+  // accept a comma as decimal separator (normalized to a single dot).
+  const cleaned = normalizeDigitsToAscii(raw).replace(/,/g, '.').replace(/[^0-9.]/g, '');
   const [intPart, ...rest] = cleaned.split('.');
   return rest.length > 0 ? `${intPart}.${rest.join('')}` : intPart;
 }
 
 function parseAmount(raw: string): number {
-  const parsed = Number.parseFloat(raw.trim());
+  const parsed = parseAmountInput(raw);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : NaN;
 }
 

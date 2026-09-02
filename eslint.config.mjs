@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import nextPlugin from '@next/eslint-plugin-next';
 import reactHooks from 'eslint-plugin-react-hooks';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import globals from 'globals';
 
 /**
@@ -30,10 +31,19 @@ export default [
     plugins: {
       '@next/next': nextPlugin,
       'react-hooks': reactHooks,
+      'jsx-a11y': jsxA11y,
     },
     rules: {
       ...nextPlugin.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Accessibility defects are real defects (2026-09 audit): keyboardless
+      // click handlers, missing alt text and broken ARIA all ship silently
+      // without this plugin.
+      ...jsxA11y.configs.recommended.rules,
+      // Deliberate: moving focus into a just-opened dialog/form is the
+      // WAI-ARIA dialog pattern, which is exactly where every autoFocus in
+      // this codebase sits. The rule flags the good uses too, so it's off.
+      'jsx-a11y/no-autofocus': 'off',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-prototype-builtins': 'error',
       // tsc owns identifier/typedef checking; no-undef false-positives on

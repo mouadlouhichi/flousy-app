@@ -16,7 +16,7 @@ export function StaticPageShell({
   maxWidth?: string;
 }) {
   return (
-    <main className="relative min-h-screen overflow-x-hidden noise-overlay">
+    <main id="main-content" className="relative min-h-screen overflow-x-hidden noise-overlay">
       <Navigation />
 
       <section className="relative pt-40 pb-16 lg:pt-48 lg:pb-24">

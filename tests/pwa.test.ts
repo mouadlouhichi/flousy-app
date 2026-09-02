@@ -163,8 +163,13 @@ describe('install prompt wiring', () => {
     assert.ok(layout.includes('apple-mobile-web-app-capable'));
   });
 
-  it('caps viewport scale so iOS does not zoom when focusing an input', () => {
-    assert.match(layout, /maximumScale:\s*1/);
+  it('keeps pinch zoom enabled while preventing iOS focus auto-zoom via ≥16px inputs', () => {
+    assert.doesNotMatch(layout, /maximumScale/);
+    assert.doesNotMatch(layout, /userScalable/);
+    // The accessible substitute: mobile form controls render at 16px so iOS
+    // Safari has no reason to auto-zoom a focused field.
+    const input = readFileSync(path.join(root, 'src/components/ui/input.tsx'), 'utf8');
+    assert.match(input, /text-base/);
   });
 });
 

@@ -383,7 +383,14 @@ export function VariableTab({
             <div
               key={exp.id}
               role={canEdit ? 'button' : undefined}
+              tabIndex={canEdit ? 0 : undefined}
               onClick={canEdit ? () => onEditExpense(exp) : undefined}
+              onKeyDown={canEdit ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEditExpense(exp);
+                }
+              } : undefined}
               className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
                 canEdit ? 'hover:border-primary cursor-pointer' : ''
               }`}

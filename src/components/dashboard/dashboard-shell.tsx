@@ -315,7 +315,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <SyncIssueBanner />
         <DashboardHeader />
 
-        <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
+        <main id="main-content" className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
           {/* Inner positioning context: the exiting screen is absolutely
               positioned against the CONTENT box (not the padded <main>), so
               it overlays the incoming screen exactly — no edge slivers. */}

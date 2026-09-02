@@ -91,7 +91,6 @@ export function DatePicker({
             type="button"
             disabled={disabled}
             aria-label={t(m.datePicker.openDatePicker, { date: selectedLabel })}
-            aria-invalid={Boolean(error) || undefined}
             aria-describedby={error ? errorId : undefined}
             className={`flex h-12 w-full min-w-0 max-w-full items-center gap-3 rounded-xl border bg-surface-container-lowest px-4 text-start font-body-md text-base text-on-surface transition-all duration-200 md:text-body-md ${
               error

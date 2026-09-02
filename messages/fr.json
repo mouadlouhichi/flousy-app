@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "SmartJib",
+    "skipToContent": "Aller au contenu principal",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "delete": "Supprimer",
@@ -195,6 +196,7 @@
     "skipForNow": "Passer pour l’instant",
     "categoryNamePlaceholder": "Nom de catégorie (ex. Salle de sport)",
     "billNamePlaceholder": "ex. Loyer, Netflix, Électricité",
+    "suggestedBills": "Ajout rapide :",
     "addedBills": "Factures ajoutées",
     "billCategoryOptions": {
       "housing": "Logement / loyer",
