@@ -69,8 +69,10 @@ describe('carryOverIncomeSources (salary reset in full)', () => {
 
   it('resets a partially received salary back to the full template amount', () => {
     const prev = previousMonth();
-    prev.incomeSources[0].status = 'partial';
-    prev.incomeSources[0].receivedAmount = 2500;
+    const [salarySource] = prev.incomeSources ?? [];
+    assert.ok(salarySource);
+    salarySource.status = 'partial';
+    salarySource.receivedAmount = 2500;
     const [salary] = carryOverIncomeSources(prev, '2026-09');
     assert.equal(salary.receivedAmount, 8000, 'new period starts from the full salary, not the partial remainder');
   });
@@ -101,7 +103,7 @@ describe('buildRolloverSeed (the plan-dependent contract)', () => {
     const month = normalizeMonth(seed, '2026-09');
     assert.equal(month.bankPart, 8000, 'bank = full salary');
     assert.ok(
-      !month.incomeSources.some((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX)),
+      !(month.incomeSources ?? []).some((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX)),
       'no carry-over line on Free',
     );
   });
@@ -110,7 +112,7 @@ describe('buildRolloverSeed (the plan-dependent contract)', () => {
     const seed = buildRolloverSeed(previousMonth(), '2026-09', { carryRemainingBalance: true });
     const month = normalizeMonth(seed, '2026-09');
     assert.equal(month.bankPart, 11000, 'bank = 8000 salary + 3000 carried over');
-    const carry = month.incomeSources.find((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX));
+    const carry = (month.incomeSources ?? []).find((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX));
     assert.ok(carry, 'carry-over is an explicit, auditable income line');
     assert.equal(carry.amount, 3000);
   });
@@ -124,7 +126,7 @@ describe('buildRolloverSeed (the plan-dependent contract)', () => {
     const seed = buildRolloverSeed(prev, '2026-09', { carryRemainingBalance: true });
     const month = normalizeMonth(seed, '2026-09');
     assert.equal(month.bankPart, 8000);
-    assert.ok(!month.incomeSources.some((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX)));
+    assert.ok(!(month.incomeSources ?? []).some((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX)));
   });
 
   it('keeps strategy envelopes based on the planned salary, not the carried remainder', () => {
@@ -138,7 +140,7 @@ describe('buildRolloverSeed (the plan-dependent contract)', () => {
     // Nothing spent in September: 8000 salary + 3000 carried = 11000 left.
     const seedOct = buildRolloverSeed(september, '2026-10', { carryRemainingBalance: true });
     const october = normalizeMonth(seedOct, '2026-10');
-    const carrySources = october.incomeSources.filter((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX));
+    const carrySources = (october.incomeSources ?? []).filter((s) => s.id.startsWith(CARRYOVER_INCOME_ID_PREFIX));
     assert.equal(carrySources.length, 1, 'exactly one fresh carry-over line, never a stacked copy');
     assert.equal(carrySources[0].amount, 11000, 'October carries September\u2019s actual remainder');
     assert.equal(october.bankPart, 8000 + 11000);
