@@ -31,7 +31,7 @@ import {
   type MonthConfiguration,
 } from './store';
 import { FINANCE_BACKUP_FORMAT, FINANCE_BACKUP_VERSION, type FinanceBackup } from './finance-backup';
-import { isProPlan } from './pro-features';
+import { PRO_TRIAL_DURATION_MS, resolveProEntitlement } from './pro-features';
 
 export enum OperationType {
   CREATE = 'create',
@@ -889,26 +889,40 @@ async function deleteUserCourseData(uid: string): Promise<void> {
 
 /** Per-collection outcome of an erasure so the UI can be truthful about it. */
 /**
- * Claim the single free Pro beta unlock for this account.
+ * Claim the single free 90-day Pro launch trial for this account.
  *
  * There is no payment provider wired up, and Firestore rules refuse a
  * self-assigned `plan: 'pro'` for exactly that reason: an account that can grant
  * itself Pro is an account that never pays. The rules allow one exception — the
- * free -> pro transition stamped with `proTrialClaimedAt`, non-repeatable
- * because a profile that already carries the field cannot claim it again. This is
- * the only client-side write that matches that shape; the billing fields
- * `upgradeUserPlan` used to send are rejected by design.
+ * free -> pro transition stamped with `proTrialClaimedAt(-Ms)` and a
+ * `proTrialEndsAtMs` exactly 90 days (7,776,000,000 ms) later. Both stamps are
+ * immutable once present, so the trial can neither be re-claimed nor extended
+ * from a client. Expiry is enforced by `resolveProEntitlement` on the client
+ * and by `activePro()` inside firestore.rules for server-checked surfaces
+ * (household creation). When CMI/Stripe billing arrives, its webhook writes
+ * `plan: 'pro'` + `planSource: 'billing'` through the Admin SDK instead.
  */
 export async function claimProTrial(uid: string): Promise<boolean> {
   if (!db) return false;
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
-  const plan = snapshot.exists() ? (snapshot.data() as { plan?: string }).plan : undefined;
-  if (isProPlan(plan)) return true;
-  if (snapshot.exists() && plan !== 'free') return false;
+  const data = snapshot.exists() ? (snapshot.data() as Partial<UserProfile>) : undefined;
+  if (data && resolveProEntitlement({
+    plan: data.plan,
+    proTrialEndsAtMs: data.proTrialEndsAtMs,
+    planSource: data.planSource,
+  }).isPro) return true;
+  // A previously claimed (possibly expired) trial cannot be claimed again —
+  // the rules would reject the write; fail honestly instead of racing it.
+  if (data && (data.proTrialClaimedAt !== undefined || data.proTrialEndsAtMs !== undefined)) return false;
+  if (data && data.plan !== 'free') return false;
+  const claimedAtMs = Date.now();
   await setDoc(ref, {
     plan: 'pro',
-    proTrialClaimedAt: new Date().toISOString(),
+    planSource: 'launch_trial',
+    proTrialClaimedAt: new Date(claimedAtMs).toISOString(),
+    proTrialClaimedAtMs: claimedAtMs,
+    proTrialEndsAtMs: claimedAtMs + PRO_TRIAL_DURATION_MS,
   } satisfies Partial<UserProfile>, { merge: true });
   return true;
 }

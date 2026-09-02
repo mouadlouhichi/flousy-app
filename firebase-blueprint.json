@@ -606,10 +606,27 @@
             "free",
             "pro"
           ],
-          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'. No payment provider is wired up, so firestore.rules allows exactly one other transition: free -> pro, once per account, carrying proTrialClaimedAt (the beta claim). When real billing lands, the webhook writes plan with the Admin SDK instead."
+          "description": "Single source of truth for Pro access, stored on the Firebase user profile. New profiles always start as 'free'. No payment provider is wired up, so firestore.rules allows exactly one other transition: free -> pro, once per account, carrying proTrialClaimedAt / proTrialClaimedAtMs / proTrialEndsAtMs (the 90-day launch trial; endsAtMs must equal claimedAtMs + 7776000000 and the stamps are immutable afterwards). The plan string stays 'pro' after expiry; entitlement is resolved client-side by resolveProEntitlement, which treats a lapsed trial as Free. When real billing lands, the webhook writes plan with the Admin SDK and planSource 'billing' instead."
         },
         "proTrialClaimedAt": {
-          "type": "string"
+          "type": "string",
+          "description": "ISO timestamp of the one-time launch-trial claim (human-readable twin of proTrialClaimedAtMs)"
+        },
+        "proTrialClaimedAtMs": {
+          "type": "number",
+          "description": "Epoch-ms twin of proTrialClaimedAt; firestore.rules requires it within 5 minutes of request.time"
+        },
+        "proTrialEndsAtMs": {
+          "type": "number",
+          "description": "Epoch-ms end of the 90-day launch trial; must equal proTrialClaimedAtMs + 7776000000 and decides entitlement after expiry"
+        },
+        "planSource": {
+          "type": "string",
+          "enum": [
+            "launch_trial",
+            "billing"
+          ],
+          "description": "Where the Pro entitlement came from: the one-time launch trial (client claim) or a future CMI/Stripe webhook (Admin SDK)"
         },
         "planBillingCycle": {
           "type": "string",

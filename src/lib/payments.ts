@@ -52,6 +52,23 @@ export interface PaymentReceipt {
 // Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Master billing switch — the single flag every billing surface must consult.
+ *
+ * `false` (launch state): no price is quoted as purchasable, no card field is
+ * rendered to a real account, no request is made to any payment processor.
+ * Pro is available only through the one-time 90-day launch trial
+ * (`claimProTrial` in db.ts, enforced by firestore.rules).
+ *
+ * Flipping to `true` is NOT enough to bill: it only re-enables the billing
+ * UI seam. A real provider (Moroccan CMI or Stripe) must then supply:
+ *   1. provider-hosted checkout (never a card form inside SmartJib),
+ *   2. an idempotent, signature-verified webhook that writes
+ *      `plan: 'pro'` + `planSource: 'billing'` via the Admin SDK,
+ *   3. provider-owned prices replacing `PRO_PRICING` below.
+ */
+export const BILLING_LIVE = false as boolean;
+
 export const PRO_PRICING: PlanPricing = {
   monthly: 4.99,
   annual: 39.99,

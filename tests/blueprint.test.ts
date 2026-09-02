@@ -314,22 +314,38 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     // New profiles always start on the free plan…
     assert.match(rulesSource, /incoming\(\)\.plan == 'free'/);
     // …and an update may not hand out Pro on its own: the only permitted
-    // free -> pro transition is the single, stamped beta claim. A plain
-    // `plan in ['free','pro']` whitelist is what let any account self-grant.
+    // free -> pro transition is the single, stamped 90-day launch-trial claim.
+    // A plain `plan in ['free','pro']` whitelist is what let any account
+    // self-grant.
     assert.match(rulesSource, /incoming\(\)\.plan == 'pro'/);
     assert.match(rulesSource, /existing\(\)\.plan == 'free'/);
     assert.match(rulesSource, /!\('proTrialClaimedAt' in existing\(\)\)/);
     assert.match(rulesSource, /incoming\(\)\.proTrialClaimedAt is string/);
+    // The claim must be time-bounded server-side: the end stamp is exactly
+    // claim + 90 days (7,776,000,000 ms), the claim instant is pinned to
+    // request.time, and the stamps are immutable once written.
+    assert.match(rulesSource, /function validTrialClaim/);
+    assert.match(rulesSource, /function trialStampsUnchanged/);
+    assert.match(rulesSource, /7776000000/);
+    // Rules and client must agree on the trial length.
+    const proFeaturesSource = readRepoFile('src/lib/pro-features.ts');
+    assert.match(proFeaturesSource, /PRO_TRIAL_DURATION_MS = 7_776_000_000/);
+    // Anything gated on Pro server-side must use the expiry-aware helper, not
+    // a raw plan string — otherwise a lapsed trial keeps creating households.
+    assert.match(rulesSource, /function activePro/);
+    assert.match(rulesSource, /activePro\(request\.auth\.uid\)/);
     // The client side of that claim must exist too, or the rules describe a
     // transition nothing can perform.
     const dbSource = readRepoFile('src/lib/db.ts');
     assert.match(dbSource, /export async function claimProTrial/);
-    assert.match(dbSource, /proTrialClaimedAt: new Date\(\)\.toISOString\(\)/);
+    assert.match(dbSource, /proTrialClaimedAt: new Date\(claimedAtMs\)\.toISOString\(\)/);
+    assert.match(dbSource, /proTrialEndsAtMs: claimedAtMs \+ PRO_TRIAL_DURATION_MS/);
+    assert.match(dbSource, /planSource: 'launch_trial'/);
     // The mock checkout must not pretend to charge anyone: no card field may be
     // reachable for a real signed-in account.
     const upgradeModal = readRepoFile('src/components/modals/ProUpgradeModal.tsx');
     assert.match(upgradeModal, /const realAccount = Boolean\(user\) && !isDemoMode\(\)/);
-    assert.match(upgradeModal, /m\.pro\.betaTitle/);
+    assert.match(upgradeModal, /m\.pro\.trialTitle/);
     assert.doesNotMatch(upgradeModal, /trackEvent\(\s*'purchase'/);
     assert.match(
       blueprint.entities.UserProfile.properties.plan.description,

@@ -19,7 +19,7 @@ import { useHousehold } from '../../lib/household-context';
 import { resolveProfileAvatarSource } from '../../lib/profile-avatar';
 import { ProfileAvatar } from '../dashboard/profile-avatar';
 import { canShowProUpgrade } from '../../lib/household';
-import { isProPlan } from '../../lib/pro-features';
+import { resolveProEntitlement } from '../../lib/pro-features';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,6 +45,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
   const [pendingStartDay, setPendingStartDay] = useState<number | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
+  // Expiry-aware: an account whose 90-day trial lapsed shows Free and gets the
+  // upgrade CTA back, even though `plan` still reads 'pro' in Firestore.
+  const settingsIsPro = resolveProEntitlement(profile).isPro;
 
   const currentTheme = profile?.theme || 'system';
   const currencyOptions = Object.values(SUPPORTED_CURRENCIES).map((item) => ({
@@ -164,9 +167,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                       {user?.email || m.auth.anonymousUser}
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2 rounded-full bg-primary/10 text-primary">
-                      <AppIcon name={isProPlan(profile?.plan) ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                      <AppIcon name={settingsIsPro ? 'workspace_premium' : 'person'} className="text-[14px]" />
                       <span className="font-label-sm text-label-sm font-bold">
-                        {t(m.auth.planLabel, { plan: isProPlan(profile?.plan) ? m.profile.links.pro : m.profile.free })}
+                        {t(m.auth.planLabel, { plan: settingsIsPro ? m.profile.links.pro : m.profile.free })}
                       </span>
                     </div>
                   </>
@@ -176,7 +179,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* ── Upgrade CTA ── */}
-          {onOpenProModal && canShowProUpgrade(isProPlan(profile?.plan), workspace) && (
+          {onOpenProModal && canShowProUpgrade(settingsIsPro, workspace) && (
             <button
               type="button"
               onClick={onOpenProModal}

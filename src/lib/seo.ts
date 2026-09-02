@@ -73,7 +73,7 @@ export const LANDING_FAQS: readonly LandingFaq[] = [
   {
     question: 'Is SmartJib free?',
     answer:
-      'SmartJib is free, including Pro: billing is not connected yet, so Pro is included in the beta at no cost and nothing is charged.',
+      'SmartJib is free to use. SmartJib Pro is included free for your first 90 days — a one-time launch trial, no card required. When the trial ends your account returns to the free plan and all of your data stays available; paid Pro plans arrive when billing launches.',
   },
   {
     question: 'Does SmartJib connect to my bank?',

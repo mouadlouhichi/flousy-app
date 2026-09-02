@@ -14,11 +14,11 @@ import { isDemoMode } from '@/lib/demo-mode';
  * `PRO_PRICING`. No payment provider is configured in this deployment, so any
  * price shown here would be unbuyable and every "Save 34%" toggle would be a
  * control that changes nothing. Pro is therefore presented as included for free
- * during the beta, and `BILLING_LIVE` becomes the single switch to flip when a
- * real provider exists — at which point these figures must be deleted in favour
- * of the provider's prices.
+ * during the launch period, and `BILLING_LIVE` (imported from `lib/payments`,
+ * the single billing switch) flips when a real provider exists — at which
+ * point these figures must be deleted in favour of the provider's prices.
  */
-const BILLING_LIVE = false;
+import { BILLING_LIVE } from '@/lib/payments';
 
 const plansBase = [
   { price: { monthly: 0, annual: 0 }, popular: false },
@@ -176,7 +176,7 @@ export function PricingSection() {
         </p>
         {!BILLING_LIVE && (
           <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
-            {m.pro.betaTitle} — {m.pro.betaBody}
+            {m.pro.trialTitle} — {m.pro.trialBody}
           </p>
         )}
       </div>

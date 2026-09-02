@@ -14,6 +14,32 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isEmail(value) { return value is string && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
+    // 90-day launch trial (7,776,000,000 ms). The claim must stamp an
+    // end-instant EXACTLY this far after a claim instant near server time,
+    // and both stamps are immutable afterwards — no client can extend a trial.
+    function validTrialClaim() {
+      return incoming().proTrialClaimedAt is string
+        && incoming().proTrialClaimedAtMs is number
+        && incoming().proTrialClaimedAtMs >= request.time.toMillis() - 300000
+        && incoming().proTrialClaimedAtMs <= request.time.toMillis() + 300000
+        && incoming().proTrialEndsAtMs is number
+        && incoming().proTrialEndsAtMs == incoming().proTrialClaimedAtMs + 7776000000
+        && incoming().planSource == 'launch_trial';
+    }
+    function trialStampsUnchanged() {
+      return (!('proTrialClaimedAt' in existing()) || incoming().proTrialClaimedAt == existing().proTrialClaimedAt)
+        && (!('proTrialClaimedAtMs' in existing()) || incoming().proTrialClaimedAtMs == existing().proTrialClaimedAtMs)
+        && (!('proTrialEndsAtMs' in existing()) || incoming().proTrialEndsAtMs == existing().proTrialEndsAtMs)
+        && (!('planSource' in existing()) || incoming().planSource == existing().planSource);
+    }
+    // Expiry-aware Pro: `plan == 'pro'` alone is not entitlement — a lapsed
+    // launch trial keeps the plan string but loses Pro. Billing-sourced
+    // entitlements (Admin SDK writes, no trial window) never lapse here.
+    function activePro(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.plan == 'pro'
+        && (!('proTrialEndsAtMs' in get(/databases/$(database)/documents/users/$(uid)).data)
+          || get(/databases/$(database)/documents/users/$(uid)).data.proTrialEndsAtMs > request.time.toMillis());
+    }
     function boundedText(value, maxBytes) {
       return value is string && value.size() > 0 && value.size() <= maxBytes;
     }
@@ -99,8 +125,10 @@ service cloud.firestore {
           || (incoming().plan == 'pro'
             && existing().plan == 'free'
             && !('proTrialClaimedAt' in existing())
-            && 'proTrialClaimedAt' in incoming()
-            && incoming().proTrialClaimedAt is string))
+            && !('proTrialClaimedAtMs' in existing())
+            && !('proTrialEndsAtMs' in existing())
+            && validTrialClaim()))
+        && trialStampsUnchanged()
         && (!('currency' in incoming()) || incoming().currency is string)
         && (!('onboardingComplete' in incoming()) || incoming().onboardingComplete is bool)
         && (!('displayName' in incoming()) || incoming().displayName == null
@@ -213,7 +241,7 @@ service cloud.firestore {
         && incoming().entitlementOwnerId == request.auth.uid
         && boundedText(incoming().name, 100)
         && validHouseholdConfig(incoming())
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
+        && activePro(request.auth.uid);
       allow update: if householdOwner(hid)
         && incoming().ownerId == existing().ownerId
         && incoming().planOwnerId == existing().planOwnerId

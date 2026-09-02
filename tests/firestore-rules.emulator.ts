@@ -9,6 +9,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   setDoc,
@@ -257,5 +258,91 @@ describe('atomic household invoice approval rules', () => {
       postedExpenseId: 'invoice-invoice-atomic', postedMonthKey: '2026-09',
     });
     await assertSucceeds(batch.commit());
+  });
+});
+
+describe('90-day launch-trial claim rules', () => {
+  const DAY_MS = 86_400_000;
+  const TRIAL_MS = 90 * DAY_MS;
+
+  const freeProfile = () => ({
+    plan: 'free',
+    currency: 'MAD',
+    onboardingComplete: true,
+  });
+
+  const claim = (claimedAtMs: number) => ({
+    plan: 'pro',
+    planSource: 'launch_trial',
+    proTrialClaimedAt: new Date(claimedAtMs).toISOString(),
+    proTrialClaimedAtMs: claimedAtMs,
+    proTrialEndsAtMs: claimedAtMs + TRIAL_MS,
+  });
+
+  const household = (ownerId: string) => ({
+    name: 'Home', ownerId, planOwnerId: ownerId, entitlementOwnerId: ownerId,
+    currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+    activeCategories: ['Groceries'], createdAt: new Date().toISOString(),
+  });
+
+  it('accepts exactly the shaped claim and rejects every distortion of it', async () => {
+    await seed(async (db) => setDoc(doc(db, 'users/tess'), freeProfile()));
+    const db = firestore(environment.authenticatedContext('tess', { email: 'tess@example.com', email_verified: true }));
+    const ref = doc(db, 'users/tess');
+    const now = Date.now();
+
+    // Wrong end stamp: 91 days instead of 90 — the client cannot buy itself time.
+    await assertFails(updateDoc(ref, { ...claim(now), proTrialEndsAtMs: now + TRIAL_MS + DAY_MS }));
+    // Backdated/forward-dated claim instant outside the 5-minute window.
+    await assertFails(updateDoc(ref, claim(now - 6 * 60_000)));
+    await assertFails(updateDoc(ref, claim(now + 6 * 60_000)));
+    // Self-declared billing entitlement is not a thing a client can write.
+    await assertFails(updateDoc(ref, { ...claim(now), planSource: 'billing' }));
+    // Bare plan flip without the stamps stays forbidden.
+    await assertFails(updateDoc(ref, { plan: 'pro' }));
+    // Missing the ms twin.
+    await assertFails(updateDoc(ref, {
+      plan: 'pro', planSource: 'launch_trial',
+      proTrialClaimedAt: new Date(now).toISOString(), proTrialEndsAtMs: now + TRIAL_MS,
+    }));
+    // The exact claim shape near server time succeeds.
+    await assertSucceeds(updateDoc(ref, claim(Date.now())));
+  });
+
+  it('freezes the trial stamps after the claim — no extension, no re-claim', async () => {
+    const claimedAtMs = Date.now() - 10 * DAY_MS;
+    await seed(async (db) => setDoc(doc(db, 'users/tess'), { ...freeProfile(), ...claim(claimedAtMs) }));
+    const db = firestore(environment.authenticatedContext('tess', { email: 'tess@example.com', email_verified: true }));
+    const ref = doc(db, 'users/tess');
+
+    // Any attempt to move the window is refused…
+    await assertFails(updateDoc(ref, { proTrialEndsAtMs: claimedAtMs + 2 * TRIAL_MS }));
+    await assertFails(updateDoc(ref, { proTrialClaimedAtMs: Date.now() }));
+    await assertFails(updateDoc(ref, { planSource: 'billing' }));
+    // …including erasing the stamps to claim again.
+    await assertFails(updateDoc(ref, { proTrialEndsAtMs: deleteField() }));
+    // Unrelated profile edits still work while the stamps ride along unchanged.
+    await assertSucceeds(updateDoc(ref, { onboardingComplete: true }));
+  });
+
+  it('lets an active trial create a household and blocks a lapsed one', async () => {
+    const activeClaim = claim(Date.now() - DAY_MS);
+    const lapsedClaim = claim(Date.now() - 91 * DAY_MS);
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/active-triallist'), { ...freeProfile(), ...activeClaim });
+      await setDoc(doc(db, 'users/lapsed-triallist'), { ...freeProfile(), ...lapsedClaim });
+      await setDoc(doc(db, 'users/billing-pro'), { ...freeProfile(), plan: 'pro', planSource: 'billing' });
+    });
+
+    const active = firestore(environment.authenticatedContext('active-triallist', { email_verified: true }));
+    await assertSucceeds(setDoc(doc(active, 'households/active-home'), household('active-triallist')));
+
+    // plan still reads 'pro', but the window has passed: entitlement is gone.
+    const lapsed = firestore(environment.authenticatedContext('lapsed-triallist', { email_verified: true }));
+    await assertFails(setDoc(doc(lapsed, 'households/lapsed-home'), household('lapsed-triallist')));
+
+    // A billing-sourced entitlement (Admin SDK write, no window) never lapses.
+    const billing = firestore(environment.authenticatedContext('billing-pro', { email_verified: true }));
+    await assertSucceeds(setDoc(doc(billing, 'households/billing-home'), household('billing-pro')));
   });
 });

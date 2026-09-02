@@ -1291,7 +1291,7 @@
       "items": [
         {
           "question": "Is SmartJib free?",
-          "answer": "SmartJib has a free plan for core budgeting. SmartJib Pro is an optional paid upgrade."
+          "answer": "SmartJib is free to use. SmartJib Pro is included free for your first 90 days — a one-time launch trial, no card required. When the trial ends your account returns to the free plan and all of your data stays available; paid Pro plans arrive when billing launches."
         },
         {
           "question": "Does SmartJib connect to my bank?",
@@ -1398,7 +1398,7 @@
         },
         {
           "question": "What do I get with SmartJib Pro?",
-          "answer": "Pro adds spending trends over time, automatic recurring bills, overspending alerts, and the ability to import your past spending in one go — on top of everything in the free plan."
+          "answer": "Pro adds spending trends over time, automatic recurring bills, overspending alerts, and the ability to import your past spending in one go — on top of everything in the free plan. Pro is included free for your first 90 days."
         },
         {
           "question": "Can I export my data?",
@@ -1423,7 +1423,11 @@
       "messagePlaceholder": "Tell us a bit more...",
       "send": "Send message",
       "sentTitle": "Message sent",
-      "sentDescription": "Thanks for reaching out. We usually reply within a day or two."
+      "sentDescription": "Thanks for reaching out. We usually reply within a day or two.",
+      "sending": "Sending…",
+      "sendFailed": "Your message could not be sent. Please try again, or email us directly at {email}.",
+      "rateLimited": "Too many messages were sent from your connection. Please wait a few minutes and try again.",
+      "notConfigured": "The contact form is not available right now. Email us directly at {email} and we'll get back to you."
     },
     "careers": {
       "eyebrow": "Careers",
@@ -1952,12 +1956,14 @@
     "truncated": "Only the first {limit} rows were imported — a single month cannot hold more."
   },
   "pro": {
-    "betaTitle": "Pro is included during the beta",
-    "betaBody": "Billing is not connected yet, so Pro is unlocked for your account at no cost. Nothing is charged and no card details are needed.",
-    "betaAction": "Unlock Pro for free",
+    "trialTitle": "Pro is free for your first 90 days",
+    "trialBody": "Claim a one-time 90-day Pro trial — no card required and nothing is charged. When it ends, your account returns to the Free plan automatically and every record and export stays available.",
+    "trialAction": "Start my free 90 days",
     "cardFieldsRemoved": "No payment form — SmartJib does not collect card details.",
     "trialClaimed": "Pro unlocked on this account.",
-    "alreadyIncluded": "Pro is already active on your account during the beta."
+    "trialActiveNote": "{days} days left in your free Pro trial.",
+    "trialExpiredTitle": "Your free Pro trial has ended",
+    "trialExpiredBody": "The 90-day trial is over, so Pro features are locked again. All of your data, history and exports remain fully available on the Free plan. Paid upgrades are coming soon."
   },
   "seo": {
     "titles": {

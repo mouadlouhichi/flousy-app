@@ -1291,7 +1291,7 @@
       "items": [
         {
           "question": "SmartJib est-il gratuit ?",
-          "answer": "SmartJib propose un forfait gratuit pour la gestion de budget essentielle. SmartJib Pro est une mise à niveau payante facultative."
+          "answer": "SmartJib est gratuit. SmartJib Pro est inclus gratuitement pendant vos 90 premiers jours — un essai de lancement unique, sans carte bancaire. À la fin de l'essai, votre compte repasse au forfait gratuit et toutes vos données restent disponibles ; les offres Pro payantes arriveront avec le lancement de la facturation."
         },
         {
           "question": "SmartJib se connecte-t-il à ma banque ?",
@@ -1398,7 +1398,7 @@
         },
         {
           "question": "Qu'est-ce que SmartJib Pro apporte ?",
-          "answer": "Pro ajoute les tendances de dépenses, les factures récurrentes automatiques, les alertes de dépassement et l'import de dépenses passées — en plus de tout le plan gratuit."
+          "answer": "Pro ajoute les tendances de dépenses, les factures récurrentes automatiques, les alertes de dépassement et l'import de dépenses passées — en plus de tout le plan gratuit. Pro est inclus gratuitement pendant vos 90 premiers jours."
         },
         {
           "question": "Puis-je exporter mes données ?",
@@ -1423,7 +1423,11 @@
       "messagePlaceholder": "Dites-nous en un peu plus...",
       "send": "Envoyer le message",
       "sentTitle": "Message envoyé",
-      "sentDescription": "Merci de nous avoir contactés. Nous répondons généralement sous un jour ou deux."
+      "sentDescription": "Merci de nous avoir contactés. Nous répondons généralement sous un jour ou deux.",
+      "sending": "Envoi…",
+      "sendFailed": "Votre message n'a pas pu être envoyé. Réessayez, ou écrivez-nous directement à {email}.",
+      "rateLimited": "Trop de messages ont été envoyés depuis votre connexion. Patientez quelques minutes puis réessayez.",
+      "notConfigured": "Le formulaire de contact est indisponible pour le moment. Écrivez-nous directement à {email} et nous vous répondrons."
     },
     "careers": {
       "eyebrow": "Carrières",
@@ -1952,12 +1956,14 @@
     "truncated": "Seules les {limit} premières lignes ont été importées — un mois ne peut pas en contenir plus."
   },
   "pro": {
-    "betaTitle": "Pro est inclus pendant la bêta",
-    "betaBody": "Le paiement n'est pas encore activé, donc Pro est débloqué sur votre compte sans frais. Rien n'est facturé et aucune donnée de carte n'est demandée.",
-    "betaAction": "Débloquer Pro gratuitement",
-    "cardFieldsRemoved": "Aucun formulaire de paiement — SmartJib ne collecte pas de données de carte.",
+    "trialTitle": "Pro est gratuit pendant vos 90 premiers jours",
+    "trialBody": "Activez un essai Pro unique de 90 jours — sans carte bancaire et sans aucun prélèvement. À la fin de l'essai, votre compte repasse automatiquement au forfait Gratuit et toutes vos données et exports restent disponibles.",
+    "trialAction": "Commencer mes 90 jours gratuits",
+    "cardFieldsRemoved": "Aucun formulaire de paiement — SmartJib ne collecte pas de données bancaires.",
     "trialClaimed": "Pro activé sur ce compte.",
-    "alreadyIncluded": "Pro est déjà actif sur votre compte pendant la bêta."
+    "trialActiveNote": "{days} jours restants dans votre essai Pro gratuit.",
+    "trialExpiredTitle": "Votre essai Pro gratuit est terminé",
+    "trialExpiredBody": "L'essai de 90 jours est terminé, les fonctionnalités Pro sont donc de nouveau verrouillées. Toutes vos données, votre historique et vos exports restent entièrement disponibles avec le forfait Gratuit. Les offres payantes arrivent bientôt."
   },
   "seo": {
     "titles": {

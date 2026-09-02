@@ -58,3 +58,70 @@ describe('Pro plan normalisation (isProPlan)', () => {
     assert.equal(isProUser({ plan: 'free' } as any), false);
   });
 });
+
+describe('90-day launch trial entitlement (resolveProEntitlement)', () => {
+  const DAY = 86_400_000;
+  const NOW = 1_800_000_000_000;
+
+  it('exposes the exact 90-day duration the Firestore rules enforce', async () => {
+    const { PRO_TRIAL_DURATION_MS } = await import('../src/lib/pro-features');
+    assert.equal(PRO_TRIAL_DURATION_MS, 90 * DAY);
+  });
+
+  it('grants nothing to a free profile or a missing profile', async () => {
+    const { resolveProEntitlement } = await import('../src/lib/pro-features');
+    for (const profile of [null, { plan: 'free' }, { plan: '' }, {}]) {
+      const e = resolveProEntitlement(profile as any, NOW);
+      assert.deepEqual(
+        { isPro: e.isPro, isTrialActive: e.isTrialActive, isTrialExpired: e.isTrialExpired },
+        { isPro: false, isTrialActive: false, isTrialExpired: false },
+      );
+    }
+  });
+
+  it('an active trial is Pro with a day countdown (ceil, never 0 while active)', async () => {
+    const { resolveProEntitlement } = await import('../src/lib/pro-features');
+    const endsAt = NOW + 90 * DAY;
+    const fresh = resolveProEntitlement({ plan: 'pro', proTrialEndsAtMs: endsAt, planSource: 'launch_trial' } as any, NOW);
+    assert.equal(fresh.isPro, true);
+    assert.equal(fresh.isTrialActive, true);
+    assert.equal(fresh.trialDaysRemaining, 90);
+    // One millisecond before expiry still counts as Pro with 1 day shown.
+    const lastMoment = resolveProEntitlement({ plan: 'pro', proTrialEndsAtMs: endsAt } as any, endsAt - 1);
+    assert.equal(lastMoment.isPro, true);
+    assert.equal(lastMoment.trialDaysRemaining, 1);
+  });
+
+  it('an expired trial is Free even though plan still reads pro', async () => {
+    const { resolveProEntitlement, isProUser } = await import('../src/lib/pro-features');
+    const profile = { plan: 'pro', proTrialEndsAtMs: NOW, planSource: 'launch_trial' } as any;
+    // The boundary instant itself is already expired (strict `<`).
+    const e = resolveProEntitlement(profile, NOW);
+    assert.equal(e.isPro, false);
+    assert.equal(e.isTrialExpired, true);
+    assert.equal(e.trialDaysRemaining, 0);
+    assert.equal(e.trialEndsAtMs, NOW);
+  });
+
+  it('billing/legacy Pro (no trial window) never expires here', async () => {
+    const { resolveProEntitlement } = await import('../src/lib/pro-features');
+    for (const profile of [
+      { plan: 'pro' },
+      { plan: 'pro', planSource: 'billing' },
+      { plan: 'pro', proTrialEndsAtMs: null },
+    ]) {
+      const e = resolveProEntitlement(profile as any, NOW + 10_000 * DAY);
+      assert.equal(e.isPro, true, JSON.stringify(profile));
+      assert.equal(e.isTrialActive, false);
+      assert.equal(e.isTrialExpired, false);
+    }
+  });
+
+  it('isProUser follows the entitlement, not the raw plan string', async () => {
+    const { isProUser } = await import('../src/lib/pro-features');
+    // Live trial (ends far in the future relative to real now).
+    assert.equal(isProUser({ plan: 'pro', proTrialEndsAtMs: Date.now() + DAY } as any), true);
+    // Lapsed trial: plan says pro, entitlement says Free.
+    assert.equal(isProUser({ plan: 'pro', proTrialEndsAtMs: Date.now() - DAY } as any), false);
+  });
+});

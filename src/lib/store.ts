@@ -457,8 +457,20 @@ export interface MonthBudget {
 
 export interface UserProfile {
   plan: 'free' | 'pro';
-  /** Immutable marker for the one-time beta Pro claim allowed by Firestore rules. */
+  /** Immutable marker for the one-time no-card Pro launch trial (ISO, display). */
   proTrialClaimedAt?: string;
+  /** Epoch-ms mirror of the claim instant; rules anchor the trial window to it. */
+  proTrialClaimedAtMs?: number;
+  /**
+   * Epoch ms when the launch trial ends — exactly claim + 90 days
+   * (7,776,000,000 ms), enforced by Firestore rules. After this instant the
+   * account is treated as Free everywhere, while all records and exports stay
+   * available. A future billing webhook (Admin SDK) can grant `plan: 'pro'`
+   * with `planSource: 'billing'` and no trial window.
+   */
+  proTrialEndsAtMs?: number;
+  /** Entitlement provenance; `launch_trial` now, `billing` once CMI/Stripe lands. */
+  planSource?: 'launch_trial' | 'billing';
   /** Billing cycle selected at checkout (Firebase-backed, mirrors `plan`). */
   planBillingCycle?: 'monthly' | 'annual';
   /** Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades. */

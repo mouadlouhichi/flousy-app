@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { useAuth } from '../../lib/auth-context';
-import { isProUser } from '../../lib/pro-features';
+import { isProUser, resolveProEntitlement } from '../../lib/pro-features';
 import {
   type BillingCycle,
   PRO_PRICING,
@@ -61,7 +61,10 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
   const [betaClaimError, setBetaClaimError] = useState<string>('');
   const { messages: m, t, intlLocale } = useLanguage();
   const p = m.modals.pro;
-  // Pro state always comes from the `plan` field on the Firebase profile.
+  // Pro state always comes from the `plan` field on the Firebase profile,
+  // resolved through the expiry-aware entitlement (a lapsed 90-day trial is
+  // Free even though `plan` still reads 'pro').
+  const entitlement = resolveProEntitlement(profile);
   const isPro = isProUser(profile);
 
   // -- Checkout state --
@@ -253,7 +256,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
    * in this deployment, so presenting that to a real signed-in account is not a
    * mock — it collects card details and then charges nothing, while promising a
    * subscription that will never bill. Real accounts therefore get the honest
-   * path: Pro is included for free during the beta, one non-repeatable claim per
+   * path: Pro is included free for 90 days via the one-time launch trial, one
+   * non-repeatable claim per
    * account (the only `plan` transition firestore.rules permits), and no card
    * field anywhere in the DOM. The simulated checkout stays for demo mode, where
    * there is no account to charge and the copy already says "demo".
@@ -264,14 +268,22 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       setBetaClaimPending(true);
       setBetaClaimError('');
       try {
-        await claimProTrial(user!.uid);
+        const claimed = await claimProTrial(user!.uid);
+        if (!claimed) {
+          setBetaClaimError(m.pro.trialExpiredBody);
+          return;
+        }
         await retryProfileSync();
+        trackEvent('pro_trial_claimed');
       } catch {
         setBetaClaimError(m.auth.networkError);
       } finally {
         setBetaClaimPending(false);
       }
     };
+    const expired = entitlement.isTrialExpired;
+    const headline = isPro ? p.youArePro : expired ? m.pro.trialExpiredTitle : m.pro.trialTitle;
+    const body = isPro ? p.proActiveDescription : expired ? m.pro.trialExpiredBody : m.pro.trialBody;
     return (
       <Modal isOpen={isOpen} onClose={onClose} title={isPro ? p.memberTitle : p.title} className="max-w-xl">
         <div className="flex flex-col gap-4">
@@ -282,26 +294,33 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             />
             <div className="flex flex-col gap-1">
               <h3 className="text-base font-extrabold text-on-surface">
-                {isPro ? p.youArePro : m.pro.betaTitle}
+                {headline}
               </h3>
               <p className="text-sm leading-6 text-on-surface-variant">
-                {isPro ? p.proActiveDescription : m.pro.betaBody}
+                {body}
               </p>
               <p className="text-xs font-medium text-on-surface-variant">{m.pro.cardFieldsRemoved}</p>
             </div>
           </div>
 
-          {!isPro && (
+          {!isPro && !expired && (
             <button
               type="button"
               onClick={claim}
               disabled={betaClaimPending}
               className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-on-primary transition-all hover:bg-primary/90 disabled:opacity-60"
             >
-              {betaClaimPending ? m.common.loading : m.pro.betaAction}
+              {betaClaimPending ? m.common.loading : m.pro.trialAction}
             </button>
           )}
-          {isPro && <p className="text-xs font-semibold text-primary">{m.pro.alreadyIncluded}</p>}
+          {isPro && entitlement.isTrialActive && (
+            <p className="text-xs font-semibold text-primary">
+              {t(m.pro.trialActiveNote, { days: entitlement.trialDaysRemaining })}
+            </p>
+          )}
+          {isPro && !entitlement.isTrialActive && (
+            <p className="text-xs font-semibold text-primary">{m.pro.trialClaimed}</p>
+          )}
           {betaClaimError && (
             <p role="alert" className="text-xs font-bold text-error">
               {betaClaimError}
