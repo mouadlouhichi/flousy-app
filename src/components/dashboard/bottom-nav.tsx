@@ -133,6 +133,7 @@ export function BottomNav() {
             prefetch={true}
             data-nav-item={item.id}
             aria-label={getLocalizedNavLabel(item, m)}
+            aria-current={isActive ? 'page' : undefined}
             title={getLocalizedNavLabel(item, m)}
             // `flex-1` + `min-w-0` lets the bar share its width evenly, so the
             // 6th item PRO users get never pushes the pill off screen on

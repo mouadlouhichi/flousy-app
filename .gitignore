@@ -13,3 +13,7 @@ coverage/
 .cache/
 .cursor/
 tsconfig.tsbuildinfo
+
+# Playwright (CI-run browser E2E)
+/playwright-report/
+/test-results/

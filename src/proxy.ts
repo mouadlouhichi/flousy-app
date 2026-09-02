@@ -64,6 +64,17 @@ const CONNECT_SOURCES = [
 ];
 
 function buildCsp(isDev: boolean, authDomain?: string): string {
+  /*
+   * `script-src` keeps `'unsafe-inline'` deliberately (audit S4, accepted
+   * residual risk): the App Router injects inline bootstrap/flight scripts
+   * into every page, and a per-request nonce would force all 36 prerendered
+   * routes dynamic — trading a real performance/SEO property for protection
+   * against injected inline <script> blocks on a site that renders no
+   * user-controlled HTML. The sharper end of that risk is cut instead:
+   * `script-src-attr 'none'` blocks every inline event handler (onclick=…),
+   * and `object-src`/`base-uri`/`form-action` stay locked down. Revisit when
+   * Next.js supports hash-based CSP for prerendered output.
+   */
   const scriptSrc = isDev
     ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
     : `script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`;
@@ -73,10 +84,16 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
   return [
     "default-src 'self'",
     scriptSrc,
+    // Inline handler attributes are refused even though inline <script>
+    // blocks are (necessarily, see above) allowed.
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     "img-src 'self' data: https:",
     `connect-src ${connect.join(' ')}`,
+    // The PWA service worker and any future module workers are same-origin.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     // Scoped to the origins that actually frame us for sign-in. The previous
     // wildcard `https://*.google.com` also allow-listed every other Google
     // property (including attacker-reachable user content on googleusercontent

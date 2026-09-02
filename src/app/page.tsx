@@ -134,7 +134,7 @@ export default function Home() {
       <JsonLd id="website-json-ld" data={websiteSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
-      <main className="noise-overlay relative min-h-screen overflow-x-hidden">
+      <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
         <Navigation />
         <HeroSection />
         <WhatIsFlousySection />

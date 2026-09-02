@@ -294,7 +294,15 @@ export function OverviewTab({
 
             {/* Savings Bar */}
             <div
+              role={canSeeSavings ? 'button' : undefined}
+              tabIndex={canSeeSavings ? 0 : undefined}
               onClick={canSeeSavings ? () => onSelectTab('savings') : undefined}
+              onKeyDown={canSeeSavings ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectTab('savings');
+                }
+              } : undefined}
               className={`flex flex-col gap-1.5 transition-all ${canSeeSavings ? 'hover:opacity-80 cursor-pointer' : ''}`}
             >
               <div className="flex justify-between items-center text-xs">
@@ -470,9 +478,20 @@ export function OverviewTab({
                     <div
                       key={`exp-${item.id}`}
                       role={canEditExpenses ? 'button' : undefined}
+                      tabIndex={canEditExpenses ? 0 : undefined}
                       onClick={
                         canEditExpenses
                           ? () => onOpenEditExpense(recentExpenses.find((exp) => exp.id === item.id))
+                          : undefined
+                      }
+                      onKeyDown={
+                        canEditExpenses
+                          ? (e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                onOpenEditExpense(recentExpenses.find((exp) => exp.id === item.id));
+                              }
+                            }
                           : undefined
                       }
                       className={`p-3 flex items-center justify-between gap-3 transition-colors ${
@@ -504,7 +523,15 @@ export function OverviewTab({
                     <div
                       key={`sav-${item.id}`}
                       role={canEditSavings && onOpenEditSavings ? 'button' : undefined}
+                      tabIndex={(canEditSavings && onOpenEditSavings) || canSeeSavings ? 0 : undefined}
                       onClick={() => {
+                        const entry = recentSavings.find((evt) => evt.id === item.id);
+                        if (canEditSavings && onOpenEditSavings && entry) onOpenEditSavings(entry);
+                        else if (canSeeSavings) onSelectTab('savings');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
                         const entry = recentSavings.find((evt) => evt.id === item.id);
                         if (canEditSavings && onOpenEditSavings && entry) onOpenEditSavings(entry);
                         else if (canSeeSavings) onSelectTab('savings');

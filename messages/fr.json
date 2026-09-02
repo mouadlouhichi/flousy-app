@@ -87,7 +87,8 @@
       "carousel": "Carrousel",
       "slide": "Diapositive"
     },
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "skipToContent": "Aller au contenu principal"
   },
   "auth": {
     "signIn": "Connexion",
@@ -218,7 +219,8 @@
     "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors.",
     "importPersonalTitle": "Importer mon budget personnel",
     "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer.",
-    "importPersonalLoading": "Copie de votre budget personnel…"
+    "importPersonalLoading": "Copie de votre budget personnel…",
+    "suggestedBills": "Ajout rapide :"
   },
   "dashboard": {
     "overview": "Aperçu",
@@ -498,7 +500,8 @@
       "lifecycleStatus": "Statut de réception",
       "receivedAmount": "Montant reçu",
       "receivedShort": "Reçu",
-      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire."
+      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
+      "carriedOver": "Solde reporté"
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -673,7 +676,8 @@
       "incomeSourcesPro": "Les analyses des sources de revenus sont disponibles avec Pro.",
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
-      "fixedAmount": "Fixe : {amount}"
+      "fixedAmount": "Fixe : {amount}",
+      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres."
     }
   },
   "courses": {
@@ -792,7 +796,7 @@
       "s4Title": "4. Analytique",
       "s4Body": "Les statistiques facultatives restent désactivées jusqu’à votre accord. Si elles sont activées, SmartJib enregistre des événements d’usage limités et des chemins de pages. Une liste d’autorisation stricte exclut les montants, soldes, catégories, justificatifs, messages et tout contenu financier libre. Vous pouvez retirer votre accord dans les réglages du Profil.",
       "s5Title": "5. Conservation des données",
-      "s5Body": "Nous conservons les données de vos espaces tant que votre compte est actif. Lors d’une demande de suppression, SmartJib retire les données vérifiables et signale toute étape incomplète. Les données d’un Foyer sont supprimées par son propriétaire ; un autre membre peut le quitter sans supprimer ses données. Les prestataires peuvent conserver des journaux opérationnels limités selon leurs propres durées de conservation.",
+      "s5Body": "Nous conservons les données de vos espaces tant que votre compte est actif. Lors d’une demande de suppression, SmartJib retire les données vérifiables et signale toute étape incomplète. Les données d’un Foyer sont supprimées par son propriétaire ; un autre membre peut le quitter sans supprimer ses données. Les prestataires peuvent conserver des journaux opérationnels limités selon leurs propres durées de conservation. L'application garde aussi une copie de vos données budgétaires récentes sur votre appareil pour fonctionner hors ligne ; cette copie locale est supprimée à la déconnexion.",
       "s6Title": "6. Vos choix",
       "s6Body": "Vous pouvez exporter votre historique au format CSV ou dans une sauvegarde JSON complète et restaurable depuis le Profil. Vous pouvez également supprimer vos données ou votre compte ; toute suppression partielle est signalée et peut être réessayée.",
       "s7Title": "7. Modifications de cette politique",
@@ -1303,7 +1307,7 @@
         },
         {
           "question": "Qu'est-ce que SmartJib Pro apporte ?",
-          "answer": "Pro ajoute la saisie de courses assistée par codes-barres, les tendances sur plusieurs mois, la gestion des sources de revenus, l’import CSV en lot, les plafonds et reports par catégorie, ainsi que la collaboration Foyer."
+          "answer": "Pro ajoute la saisie de courses assistée par codes-barres, les tendances sur plusieurs mois, la gestion des sources de revenus, l’import CSV en lot, les plafonds et reports par catégorie, ainsi que la collaboration Foyer. Pro est inclus gratuitement pendant vos 90 premiers jours."
         },
         {
           "question": "Puis-je exporter mes données ?",
@@ -1331,7 +1335,10 @@
       "sentDescription": "Le fournisseur de messagerie a accepté votre message. Cela ne garantit ni sa remise en boîte de réception ni une réponse ; conservez l’identifiant de demande pour réessayer ou assurer le suivi.",
       "sending": "Envoi…",
       "sendError": "Votre message n’a pas été envoyé. Réessayez ou écrivez à hello@flousy.app.",
-      "requestId": "Identifiant de demande"
+      "requestId": "Identifiant de demande",
+      "sendFailed": "Votre message n'a pas pu être envoyé. Réessayez, ou écrivez-nous directement à {email}.",
+      "rateLimited": "Trop de messages ont été envoyés depuis votre connexion. Patientez quelques minutes puis réessayez.",
+      "notConfigured": "Le formulaire de contact est indisponible pour le moment. Écrivez-nous directement à {email} et nous vous répondrons."
     },
     "careers": {
       "eyebrow": "Carrières",
@@ -1470,7 +1477,10 @@
     "emailVerificationPrompt": "Veuillez vérifier votre adresse e-mail pour sécuriser votre compte.",
     "verificationSent": "E-mail de vérification envoyé !",
     "resendEmail": "Renvoyer l’e-mail",
-    "dismissBanner": "Fermer la bannière"
+    "dismissBanner": "Fermer la bannière",
+    "newPeriodTitle": "Une nouvelle période de salaire a commencé",
+    "newPeriodBody": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet.",
+    "newPeriodBodyCarryover": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet plus le reste de la période précédente."
   },
   "quickActions": {
     "close": "Fermer les actions rapides",

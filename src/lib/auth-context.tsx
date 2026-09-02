@@ -43,6 +43,7 @@ export class AccountDeletionIncompleteError extends Error {
 }
 import { CONSENT_STORAGE_KEY, trackEvent } from './analytics';
 import { clearFinanceOutbox } from './finance-sync';
+import { clearDemoResidue, isDemoMode } from './demo-mode';
 
 interface AuthContextType {
   user: User | null;
@@ -178,6 +179,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(u);
       setAuthCookie(Boolean(u));
       if (u) {
+        // A real account is now signed in on this browser: any demo-session
+        // residue (demo flag, global onboarding flag, cached demo months) must
+        // not masquerade as this account's local state — it used to skip
+        // onboarding for brand-new users who tried the demo first.
+        if (isDemoMode()) clearDemoResidue();
         const cached = readCachedProfile(u.uid);
         if (cached) setProfile(cached);
         setLoading(false);

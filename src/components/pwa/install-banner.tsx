@@ -74,7 +74,7 @@ export function InstallBanner() {
             type="button"
             onClick={dismiss}
             aria-label={m.pwa.dismissPrompt}
-            className="shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+            className="tap-target shrink-0 rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
             <AppIcon name="close" className=" text-[20px]" />
           </button>

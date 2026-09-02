@@ -90,7 +90,7 @@ export function WorkspacePanel() {
                 <span className="flex items-center gap-2 font-bold"><AppIcon name="inventory_2" className="text-[19px]" />{household?.name || p.householdDashboard}</span>
                 <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
               </button>
-              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="absolute end-3 top-1/2 -translate-y-1/2 text-error hover:text-error/70 disabled:opacity-50">
+              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="absolute end-1 top-1/2 -translate-y-1/2 p-2.5 text-error hover:text-error/70 disabled:opacity-50">
                 <AppIcon name="delete" className="text-[22px]" />
               </button>
             </div>

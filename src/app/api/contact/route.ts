@@ -1,58 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { z } from 'zod';
+import { isRateLimited } from '@/lib/server/rate-limit';
+import { checkArcjet } from '@/lib/server/arcjet';
 
 export const runtime = 'nodejs';
 
-const contactSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  email: z.string().trim().email().max(254),
-  topic: z.string().trim().max(120).optional().default(''),
-  message: z.string().trim().min(10).max(5000),
-  locale: z.enum(['en', 'fr', 'ar']).optional().default('en'),
-  requestId: z.string().uuid(),
-  // Real visitors never see this field. A filled value is accepted but dropped
-  // so basic form bots do not learn how to bypass the trap.
-  website: z.string().max(200).optional().default(''),
-});
+/**
+ * Public contact endpoint.
+ *
+ * The contact page used to render a form that flipped to "message sent"
+ * without transmitting anything — a fake-success state flagged by the 2026-09
+ * audit. This route makes the form real: validated, size-bounded, HTML-escaped
+ * mail to a monitored inbox, with a readiness GET so the client can fall back
+ * to a plain support-email link when the deployment has no mail credentials.
+ *
+ * Abuse posture (the form is public, so it needs more care than the
+ * authenticated invitation route):
+ *  - per-IP rate limit via the shared limiter (durable across instances when
+ *    Upstash Redis is configured, in-memory per instance otherwise; outer
+ *    bound: Resend quota and host/WAF limits — see PRODUCTION_CHECKLIST §5);
+ *  - optional Arcjet shield + bot detection when ARCJET_KEY is set;
+ *  - honeypot field: bots that fill `website` get a fake success and no mail;
+ *  - idempotency: a client-generated `requestId` suppresses duplicate sends
+ *    from retries/double-clicks within the dedupe window;
+ *  - the submitter's address goes into Reply-To, never into From.
+ */
 
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_MESSAGES = 5;
-const requestsByIp = new Map<string, number[]>();
-const deliveries = new Map<string, { at: number; state: 'pending' | 'accepted' }>();
+const SANDBOX_SENDER = '@resend.dev';
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_SENDS_PER_WINDOW = 5;
 
-function clientIp(request: NextRequest): string {
-  return (request.headers.get('x-forwarded-for') || '').split(',')[0].trim()
-    || request.headers.get('x-real-ip')
-    || 'unknown';
-}
+const DEDUPE_WINDOW_MS = 30 * 60 * 1000;
+const seenRequestIds = new Map<string, number>();
 
-function isRateLimited(ip: string, now = Date.now()): boolean {
-  const recent = (requestsByIp.get(ip) || []).filter((at) => now - at < WINDOW_MS);
-  recent.push(now);
-  requestsByIp.set(ip, recent);
-  if (requestsByIp.size > 5000) {
-    for (const [key, hits] of requestsByIp) {
-      if (!hits.some((at) => now - at < WINDOW_MS)) requestsByIp.delete(key);
+/** True when this requestId already produced a send recently. */
+function duplicateRequest(requestId: string): boolean {
+  const now = Date.now();
+  if (seenRequestIds.size > 10000) {
+    for (const [key, at] of seenRequestIds) {
+      if (now - at > DEDUPE_WINDOW_MS) seenRequestIds.delete(key);
     }
   }
-  return recent.length > MAX_MESSAGES;
-}
-
-function sameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return true; // non-browser clients are still constrained by rate limits
-  try {
-    const expectedHost = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '').toLowerCase();
-    return new URL(origin).host.toLowerCase() === expectedHost;
-  } catch {
-    return false;
-  }
+  const seenAt = seenRequestIds.get(requestId);
+  if (seenAt !== undefined && now - seenAt < DEDUPE_WINDOW_MS) return true;
+  seenRequestIds.set(requestId, now);
+  return false;
 }
 
 function isProductionDeployment(): boolean {
-  const vercelEnvironment = process.env.VERCEL_ENV;
-  if (vercelEnvironment) return vercelEnvironment === 'production';
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv) return vercelEnv === 'production';
   return process.env.NODE_ENV === 'production';
 }
 
@@ -65,117 +62,156 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function response(code: string, status: number) {
-  return NextResponse.json({ ok: status < 400, code }, {
-    status,
-    headers: { 'Cache-Control': 'no-store' },
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+interface ContactPayload {
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  requestId: string;
+}
+
+/** Returns the validated payload or the field that failed. */
+function validate(body: unknown): { payload: ContactPayload } | { invalid: string } {
+  const raw = (body || {}) as Record<string, unknown>;
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  const email = typeof raw.email === 'string' ? raw.email.trim() : '';
+  const topic = typeof raw.topic === 'string' ? raw.topic.trim() : '';
+  const message = typeof raw.message === 'string' ? raw.message.trim() : '';
+  const requestId = typeof raw.requestId === 'string' ? raw.requestId.trim() : '';
+  if (!name || name.length > 120) return { invalid: 'name' };
+  if (!EMAIL_PATTERN.test(email) || email.length > 254) return { invalid: 'email' };
+  if (topic.length > 150) return { invalid: 'topic' };
+  if (!message || message.length > 5000) return { invalid: 'message' };
+  if (!requestId || requestId.length > 80) return { invalid: 'requestId' };
+  return { payload: { name, email, topic, message, requestId } };
+}
+
+function readiness() {
+  const from = process.env.RESEND_FROM_EMAIL || 'SmartJib <onboarding@resend.dev>';
+  const configured = Boolean(process.env.RESEND_API_KEY) && Boolean(process.env.CONTACT_TO_EMAIL);
+  const sandboxSender = from.includes(SANDBOX_SENDER);
+  const code = !configured
+    ? 'email_not_configured'
+    : isProductionDeployment() && sandboxSender
+      ? 'sandbox_sender'
+      : 'ready';
+  return { ready: code === 'ready', code, sandboxSender };
+}
+
+/** Readiness probe — sends nothing and reveals no secret. */
+export async function GET() {
+  const state = readiness();
+  return NextResponse.json({
+    ...state,
+    environment: isProductionDeployment() ? 'production' : process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
   });
 }
 
-/** Configuration probe for deployment smoke tests; sends no email or secret. */
-export async function GET() {
-  const from = process.env.RESEND_FROM_EMAIL || '';
-  const sandboxSender = from.toLowerCase().includes('@resend.dev');
-  const configured = Boolean(process.env.RESEND_API_KEY && from && process.env.CONTACT_TO_EMAIL);
-  const ready = configured && !(isProductionDeployment() && sandboxSender);
-  return NextResponse.json({
-    ready,
-    code: ready ? 'ready' : configured ? 'sandbox_sender' : 'contact_not_configured',
-    sandboxSender,
-    environment: isProductionDeployment()
-      ? 'production'
-      : process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
-  }, { headers: { 'Cache-Control': 'no-store' } });
-}
-
 export async function POST(request: NextRequest) {
-  if (!sameOrigin(request)) return response('origin_not_allowed', 403);
-  const declaredLength = Number(request.headers.get('content-length') || 0);
-  if (declaredLength > 20_000) return response('request_too_large', 413);
-
-  const ip = clientIp(request);
-  if (isRateLimited(ip)) {
-    const result = response('rate_limited', 429);
-    result.headers.set('Retry-After', String(Math.ceil(WINDOW_MS / 1000)));
-    return result;
-  }
-
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return response('invalid_json', 400);
-  }
-  const parsed = contactSchema.safeParse(raw);
-  if (!parsed.success) return response('invalid_contact', 400);
-  const input = parsed.data;
-  if (input.website) return response('accepted', 202);
-
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
   const to = process.env.CONTACT_TO_EMAIL;
-  const sandboxSender = from?.toLowerCase().includes('@resend.dev') ?? false;
-  if (!apiKey || !from || !to || (isProductionDeployment() && sandboxSender)) {
-    return response('contact_not_configured', 503);
-  }
+  const from = process.env.RESEND_FROM_EMAIL || 'SmartJib <onboarding@resend.dev>';
 
-  const now = Date.now();
-  for (const [id, delivery] of deliveries) {
-    if (now - delivery.at > 24 * 60 * 60 * 1000) deliveries.delete(id);
-  }
-  const prior = deliveries.get(input.requestId);
-  if (prior?.state === 'accepted') return response('already_accepted', 200);
-  if (prior?.state === 'pending') return response('delivery_in_progress', 409);
-  // Reserve before calling Resend so two concurrent requests with the same
-  // idempotency key cannot emit duplicate email. Failures release the key.
-  deliveries.set(input.requestId, { at: now, state: 'pending' });
-
-  const safeTopic = input.topic.replace(/[\r\n]+/g, ' ').trim() || 'SmartJib contact form';
-  const resend = new Resend(apiKey);
+  let body: unknown;
   try {
-    const result = await resend.emails.send({
-      from,
-      to: [to],
-      replyTo: input.email,
-      subject: `[SmartJib] ${safeTopic}`,
-      text: [
-        `Name: ${input.name}`,
-        `Email: ${input.email}`,
-        `Locale: ${input.locale}`,
-        `Request: ${input.requestId}`,
-        '',
-        input.message,
-      ].join('\n'),
-      html: `
-        <h2>SmartJib contact message</h2>
-        <p><strong>Name:</strong> ${escapeHtml(input.name)}</p>
-        <p><strong>Email:</strong> ${escapeHtml(input.email)}</p>
-        <p><strong>Locale:</strong> ${escapeHtml(input.locale)}</p>
-        <p><strong>Request:</strong> ${escapeHtml(input.requestId)}</p>
-        <hr />
-        <p style="white-space:pre-wrap">${escapeHtml(input.message)}</p>
-      `,
-    }, {
-      // Resend applies this across serverless instances. The local reservation
-      // handles concurrent requests in one process; the provider key prevents a
-      // retry routed to another instance (or after a restart) from duplicating
-      // the same message.
-      idempotencyKey: `contact-${input.requestId}`,
-    });
-    if (result.error) {
-      deliveries.delete(input.requestId);
-      console.error('[contact] delivery failed', { code: result.error.name });
-      return response('delivery_failed', 502);
-    }
-    // Resend returning an ID means the request was accepted by the provider; a
-    // later mailbox bounce is still possible without a delivery webhook.
-    deliveries.set(input.requestId, { at: Date.now(), state: 'accepted' });
-    return response('accepted_for_delivery', 202);
-  } catch (error) {
-    deliveries.delete(input.requestId);
-    console.error('[contact] delivery failed', {
-      name: error instanceof Error ? error.name : 'unknown',
-    });
-    return response('delivery_failed', 502);
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body.', code: 'invalid_body' }, { status: 400 });
   }
+
+  // Honeypot: legitimate users never see or fill this field. Answer with the
+  // same shape as success so scripts cannot detect the trap.
+  const honeypot = (body as Record<string, unknown> | null)?.website;
+  if (typeof honeypot === 'string' && honeypot.trim() !== '') {
+    return NextResponse.json({ sent: true, code: 'sent' });
+  }
+
+  const result = validate(body);
+  if ('invalid' in result) {
+    return NextResponse.json(
+      { error: `Invalid or missing field: ${result.invalid}.`, code: 'invalid_field', field: result.invalid },
+      { status: 400 },
+    );
+  }
+
+  if (!apiKey || !to) {
+    // Truthful degradation: the client shows the direct support address
+    // instead of pretending the message went somewhere.
+    return NextResponse.json({
+      error: 'Contact email is not configured for this deployment.',
+      code: 'email_not_configured',
+      hint: 'Set RESEND_API_KEY, RESEND_FROM_EMAIL and CONTACT_TO_EMAIL for this environment, then redeploy.',
+    }, { status: 503 });
+  }
+  if (isProductionDeployment() && from.includes(SANDBOX_SENDER)) {
+    return NextResponse.json({
+      error: 'Production cannot send from the Resend sandbox domain.',
+      code: 'sandbox_sender',
+      hint: 'Verify a sending domain in Resend and set RESEND_FROM_EMAIL to it.',
+    }, { status: 503 });
+  }
+
+  const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')
+    || 'unknown';
+  const arcjet = await checkArcjet(request);
+  if (arcjet.denied) {
+    return NextResponse.json(
+      { error: 'Request blocked.', code: 'blocked' },
+      { status: 403 },
+    );
+  }
+  if (await isRateLimited('contact', ip, MAX_SENDS_PER_WINDOW, WINDOW_MS)) {
+    return NextResponse.json(
+      { error: 'Too many messages from this address; try again later.', code: 'rate_limited' },
+      { status: 429 },
+    );
+  }
+
+  const { payload } = result;
+  if (duplicateRequest(payload.requestId)) {
+    // Retried submission: the first one already produced a mail.
+    return NextResponse.json({ sent: true, code: 'sent', deduplicated: true });
+  }
+
+  const subject = `[SmartJib contact] ${payload.topic || payload.name}`.slice(0, 200);
+  const html = `
+    <div style="font-family:sans-serif;max-width:600px">
+      <h2 style="margin:0 0 12px">New contact message</h2>
+      <p style="margin:0 0 4px"><strong>From:</strong> ${escapeHtml(payload.name)} &lt;${escapeHtml(payload.email)}&gt;</p>
+      ${payload.topic ? `<p style="margin:0 0 4px"><strong>Topic:</strong> ${escapeHtml(payload.topic)}</p>` : ''}
+      <p style="margin:0 0 4px"><strong>Request ID:</strong> ${escapeHtml(payload.requestId)}</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:12px 0" />
+      <p style="white-space:pre-wrap;margin:0">${escapeHtml(payload.message)}</p>
+    </div>`;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from,
+      to,
+      replyTo: payload.email,
+      subject,
+      html,
+    });
+    if (error) {
+      // Not sent — forget the requestId so an honest retry is not swallowed
+      // by the dedupe check.
+      seenRequestIds.delete(payload.requestId);
+      return NextResponse.json(
+        { error: 'The email provider rejected the message.', code: 'provider_rejected' },
+        { status: 502 },
+      );
+    }
+  } catch {
+    seenRequestIds.delete(payload.requestId);
+    return NextResponse.json(
+      { error: 'The email provider could not be reached.', code: 'provider_unreachable' },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({ sent: true, code: 'sent' });
 }

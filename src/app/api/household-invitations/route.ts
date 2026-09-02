@@ -5,13 +5,15 @@ import fr from '../../../../messages/fr.json';
 import ar from '../../../../messages/ar.json';
 import { formatMessage, type Language, type Messages } from '@/lib/i18n-core';
 import { verifyFirebaseIdToken, type TokenRejection } from '@/lib/firebase-id-token';
+import { isRateLimited } from '@/lib/server/rate-limit';
+import { checkArcjet } from '@/lib/server/arcjet';
 
 export const runtime = 'nodejs';
 
 const EMAIL_MESSAGES: Record<Language, Messages> = { en, fr, ar };
 
 /** Roles a signed-in member may be invited with; mirrors `householdInvites` in firestore.rules. */
-const INVITABLE_ROLES = ['editor', 'viewer', 'contributor'] as const;
+const INVITABLE_ROLES = ['editor', 'viewer', 'contributor', 'custom'] as const;
 
 /**
  * Only domains the sender is expected to control. Resend's own sandbox domain is
@@ -40,26 +42,13 @@ function escapeHtml(value: string): string {
  * Requests are therefore tied to a signed-in Firebase user, and each user gets a
  * small budget of sends per window.
  *
- * The store is per instance and in-memory — enough to stop a scripted flood, not
- * a distributed one; Resend's own account limits are the outer bound.
+ * Counting goes through the shared limiter: durable across instances when
+ * Upstash Redis is configured, in-memory per instance otherwise; Resend's own
+ * account limits are the outer bound. Arcjet (when keyed) screens the request
+ * before any budget is spent.
  */
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 8;
-const sendsByUid = new Map<string, number[]>();
-
-function rateLimited(uid: string): boolean {
-  const now = Date.now();
-  const hits = (sendsByUid.get(uid) || []).filter((at) => now - at < WINDOW_MS);
-  hits.push(now);
-  sendsByUid.set(uid, hits);
-  // Keep the map from growing without bound on a long-lived instance.
-  if (sendsByUid.size > 5000) {
-    for (const [key, times] of sendsByUid) {
-      if (!times.some((at) => now - at < WINDOW_MS)) sendsByUid.delete(key);
-    }
-  }
-  return hits.length > MAX_SENDS_PER_WINDOW;
-}
 
 /**
  * Who is calling, established cryptographically rather than by trust.
@@ -266,7 +255,10 @@ export async function POST(request: NextRequest) {
       { status: 401 },
     );
   }
-  if (rateLimited(caller.uid)) {
+  if ((await checkArcjet(request)).denied) {
+    return NextResponse.json({ error: 'Request blocked.', code: 'blocked' }, { status: 403 });
+  }
+  if (await isRateLimited('household-invitations', caller.uid, MAX_SENDS_PER_WINDOW, WINDOW_MS)) {
     return NextResponse.json(
       { error: 'Too many invitations sent. Try again in a few minutes.', code: 'rate_limited' },
       { status: 429, headers: { 'Retry-After': '600' } },

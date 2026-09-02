@@ -13,7 +13,9 @@ import { QuickActions } from './quick-actions';
 import { DashboardModals } from './dashboard-modals';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { useLanguage } from '@/lib/i18n-context';
+import { interpolate } from '@/lib/i18n-core';
 import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
+import { CARRYOVER_INCOME_ID_PREFIX } from '@/lib/store';
 import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
@@ -62,6 +64,53 @@ const pageVariants: Variants = {
   }),
 };
 
+/**
+ * Announces that a new salary period has started (payday passed since the
+ * last visit, or while the app sat in the background). The provider already
+ * jumped to the fresh period — bank opens at the full salary, plus the
+ * previous period's remainder as a "Carried over" income line on Pro — this
+ * banner just tells the user why the numbers changed.
+ */
+function NewPeriodBanner() {
+  const { messages: m, language } = useLanguage();
+  const { newPeriodNoticeKey, dismissNewPeriodNotice, month } = useDashboard();
+
+  if (!newPeriodNoticeKey) return null;
+
+  const [year, monthNum] = newPeriodNoticeKey.split('-').map(Number);
+  const monthLabel = new Date(year, (monthNum || 1) - 1, 1)
+    .toLocaleDateString(language === 'ar' ? 'ar-MA' : language, { month: 'long', year: 'numeric' });
+  const hasCarryover = (month.incomeSources || []).some(
+    (source) => source.id.startsWith(CARRYOVER_INCOME_ID_PREFIX) && (source.amount || 0) > 0,
+  );
+  const body = hasCarryover
+    ? m.notifications.newPeriodBodyCarryover
+    : m.notifications.newPeriodBody;
+
+  return (
+    <div
+      role="status"
+      className="bg-primary-container text-on-primary-container px-margin-mobile py-2.5 flex items-center justify-between gap-2 font-label-md text-label-md"
+    >
+      <div className="flex items-center gap-xs min-w-0">
+        <AppIcon name="celebration" className=" text-[20px] shrink-0" />
+        <span className="min-w-0">
+          <span className="font-bold">{m.notifications.newPeriodTitle}</span>
+          {' — '}
+          {interpolate(body, { month: monthLabel })}
+        </span>
+      </div>
+      <button
+        onClick={dismissNewPeriodNotice}
+        className="tap-target p-1 hover:bg-primary/20 rounded-full shrink-0"
+        aria-label={m.notifications.dismissBanner}
+      >
+        <AppIcon name="close" className=" text-[18px]" />
+      </button>
+    </div>
+  );
+}
+
 function EmailVerificationBanner() {
   const { messages: m } = useLanguage();
   const {
@@ -89,7 +138,7 @@ function EmailVerificationBanner() {
       </div>
       <button
         onClick={() => setDismissVerificationBanner(true)}
-        className="p-1 hover:bg-tertiary/20 rounded-full"
+        className="tap-target p-1 hover:bg-tertiary/20 rounded-full"
         aria-label={m.notifications.dismissBanner}
       >
         <AppIcon name="close" className=" text-[18px]" />
@@ -344,11 +393,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <ProfileSyncBanner />
         <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
+        <NewPeriodBanner />
         <SyncIssueBanner />
         <ClosedMonthBanner />
         <DashboardHeader />
 
-        <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
+        <main id="main-content" className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
           {/* Inner positioning context: the exiting screen is absolutely
               positioned against the CONTENT box (not the padded <main>), so
               it overlays the incoming screen exactly — no edge slivers. */}

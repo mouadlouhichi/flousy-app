@@ -15,10 +15,30 @@ interface ModalProps {
   className?: string;
 }
 
+/**
+ * Stack of currently open modals (topmost last). Escape must only dismiss the
+ * TOPMOST dialog: every instance listens on `window`, so without this a
+ * nested confirm sheet and its parent modal both closed on one key press.
+ */
+const openModalStack: symbol[] = [];
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function visibleFocusables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    // offsetParent is null for display:none subtrees (and position:fixed,
+    // which doesn't occur inside the sheet body).
+    (el) => el.offsetParent !== null || el === document.activeElement,
+  );
+}
+
 export function Modal({ isOpen, onClose, title, children, triggerRef, className = '' }: ModalProps) {
   const { messages: m } = useLanguage();
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const modalIdRef = useRef<symbol | null>(null);
+  if (modalIdRef.current === null) modalIdRef.current = Symbol('modal');
   const reduceMotion = useReducedMotion();
 
   // Portals need a client-side document; also gates SSR rendering.
@@ -36,20 +56,51 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
     return () => mql.removeEventListener('change', onChange);
   }, []);
 
-  // Lock background scroll & handle Escape key
+  // Lock background scroll, trap Tab, and handle Escape (topmost dialog only)
   useEffect(() => {
     if (!isOpen) return;
 
     // Store the element that had focus before modal opened
     previouslyFocusedRef.current = document.activeElement as HTMLElement;
 
+    const modalId = modalIdRef.current!;
+    openModalStack.push(modalId);
+
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Only the top of the stack reacts, so a nested confirm dialog's
+      // Escape no longer also dismisses the sheet underneath it.
+      if (openModalStack[openModalStack.length - 1] !== modalId) return;
+
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
+        return;
+      }
+
+      // Focus trap (WCAG 2.4.3): Tab cycles inside the dialog instead of
+      // escaping into the inert-looking background page.
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = visibleFocusables(modalRef.current);
+        if (focusables.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        const inside = active instanceof HTMLElement && modalRef.current.contains(active);
+        if (e.shiftKey) {
+          if (!inside || active === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (!inside || active === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
 
@@ -58,9 +109,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
     // Focus first focusable element inside modal
     requestAnimationFrame(() => {
       if (modalRef.current) {
-        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
+        const focusableElements = visibleFocusables(modalRef.current);
         if (focusableElements.length > 0) {
           focusableElements[0].focus();
         }
@@ -73,6 +122,8 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
     const effectTrigger = triggerRef?.current;
 
     return () => {
+      const stackIndex = openModalStack.indexOf(modalId);
+      if (stackIndex !== -1) openModalStack.splice(stackIndex, 1);
       document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       // Restore focus to previously focused element on close
@@ -166,7 +217,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
               <button
                 onClick={onClose}
                 aria-label={m.modal.close}
-                className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
+                className="tap-target p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
               >
                 <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
               </button>

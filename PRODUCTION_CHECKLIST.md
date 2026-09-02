@@ -75,19 +75,18 @@ rebuilt with the production public Firebase configuration.
 | ESLint (zero warnings) | Pass — includes authoritative `firestore.rules` syntax parsing | 2026-09-02 local candidate |
 | Normal TypeScript | Pass | 2026-09-02 local candidate |
 | Strict TypeScript | Pass | 2026-09-02 local candidate |
-| Unit/regression suites | Pass — 304 tests, 72 suites | 2026-09-02 local candidate |
-| Firestore emulator Rules suite | **Pending / release blocked** — Java 21 and official emulator unavailable in the local sandbox | Assign to activated CI or release operator |
-| Production build | Pass — 36 static pages generated | 2026-09-02 local candidate |
-| PR checks | Pending | Save required-check URL after the workflow is activated |
+| Unit/regression suites | Pass — 314 tests, 74 suites (incl. custom-role matrix coverage); also green in CI | 2026-09-02, commit `186d464` |
+| Firestore emulator Rules suite | Pass — 16/16 in CI (run 33672579376, commit `186d464`); first run surfaced and fixed a 1000-expression-cap denial in custom month updates | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
+| Production build | Pass — 37 static pages generated | 2026-09-02 local candidate, commit `21e9426` |
+| PR checks | Workflow active on branch pushes (check + e2e green); enable branch protection on `main` to make them required | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
 
 If any gate cannot run, mark the release **blocked**—do not silently reinterpret
 “not run” as “passed.”
 
 ## 2. GitHub and CI — BLOCKER
 
-- [ ] `[EXTERNAL]` Grant the connected GitHub App workflow-write permission, or
-      have an authorized maintainer move `ci/github-actions-ci.yml` to
-      `.github/workflows/ci.yml`.
+- [x] `[EXTERNAL]` CI activated 2026-09-02: `.github/workflows/ci.yml` is live;
+      check + e2e jobs green on branch pushes (run 33672579376).
 - [ ] `[EXTERNAL]` Configure repository secret `FIREBASE_SERVICE_ACCOUNT` with a
       least-privilege deployment service account.
 - [ ] `[EXTERNAL]` Configure repository variable
@@ -178,6 +177,12 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
 | `RESEND_API_KEY` | [ ] | [ ] | [ ] |
 | `RESEND_FROM_EMAIL` | [ ] | [ ] | [ ] |
 | `CONTACT_TO_EMAIL` | [ ] | [ ] | [ ] |
+| `ARCJET_KEY` (optional — API shield/bot detection) | [ ] | [ ] | [ ] |
+| `UPSTASH_REDIS_REST_URL` (optional — durable rate limits) | [ ] | [ ] | [ ] |
+| `UPSTASH_REDIS_REST_TOKEN` (optional — durable rate limits) | [ ] | [ ] | [ ] |
+| `SENTRY_DSN` (optional — client-error forwarding) | [ ] | [ ] | [ ] |
+| `BETTERSTACK_API_KEY` (optional — log forwarding) | [ ] | [ ] | [ ] |
+| `BETTERSTACK_URL` (optional — ingest host override) | [ ] | [ ] | [ ] |
 
 - [ ] `[EXTERNAL]` Production `NEXT_PUBLIC_SITE_URL` is the exact HTTPS canonical
       origin with no path or trailing environment alias.
@@ -285,12 +290,23 @@ SmartJib's control; the shipped copy states that operational retention may apply
 - [ ] `[EXTERNAL]` Enable Firebase Auth/Firestore monitoring, quota alerts and
       billing-budget alerts.
 - [ ] `[EXTERNAL]` Configure uptime checks for `/`, `/login`, `/api/contact` and
-      `/api/household-invitations` (GET only; do not generate mail).
+      `/api/household-invitations` (GET only; do not generate mail). Better Stack
+      Uptime is the chosen provider; monitors live in its dashboard, not in code.
+- [ ] `[EXTERNAL]` Optional hardening/observability integrations (all inert until
+      their env vars exist — see `.env.example`): create an Upstash Redis database
+      and set `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (durable API rate
+      limits); create an Arcjet site and set `ARCJET_KEY` (shield + bot detection on
+      `/api/contact` and `/api/household-invitations`); create a Sentry project and
+      set `SENTRY_DSN` (server-side forwarding of the consent-gated
+      `/api/client-errors` reports — no browser SDK, no CSP change); create a Better
+      Stack log source and set `BETTERSTACK_API_KEY` (+ `BETTERSTACK_URL` if your
+      source uses a dedicated ingest host).
 - [ ] `[EXTERNAL]` Alert on elevated 5xx/429 rates, Auth failures, Firestore denied
       writes, Resend delivery failures and cost anomalies.
-- [ ] `[EXTERNAL]` Choose an error-monitoring provider or document the deliberate
-      host/Firebase-log-only decision; apply consent and redaction rules before
-      adding any SDK.
+- [x] Error-monitoring decision: reports stay in the host log by default; setting
+      `SENTRY_DSN`/`BETTERSTACK_API_KEY` forwards the already-consented, sanitized
+      `/api/client-errors` beacons server-side (`src/lib/server/telemetry.ts`). No
+      browser SDK is loaded, so consent and CSP posture are unchanged.
 - [ ] `[EXTERNAL]` Create an incident channel, primary/backup owner and severity
       definitions.
 - [ ] `[EXTERNAL]` Document credential rotation for Firebase deploy credentials,
@@ -332,8 +348,12 @@ Chrome where available.
 - [ ] Free user is blocked from trends, income-source management, bulk CSV import,
       category-cap editing, rollover and Household creation.
 - [ ] Data export/JSON backup remains available to a Free user.
-- [ ] Create Household; invite editor/viewer/contributor; accept each role.
-- [ ] Verify owner/editor/viewer/contributor read/write matrix on separate accounts.
+- [ ] Create Household; invite editor/viewer/contributor/custom; accept each role.
+- [ ] Invite a custom member with a narrow matrix (e.g. expenses edit-all +
+      invoices submit); verify they can record spending but cannot change the
+      budget, transfers, savings, debts or period state, and that the areas
+      their matrix omits stay hidden.
+- [ ] Verify owner/editor/viewer/contributor/custom read/write matrix on separate accounts.
 - [ ] Contributor submits invoice; owner approves exactly once into an open month.
 - [ ] Household recurring income/fixed items roll over exactly once.
 - [ ] Owner closes/reopens Household month; non-owner cannot do so.
@@ -434,3 +454,60 @@ These are not fake “implemented” launch features:
 
 Any item promoted into launch scope must receive an owner, acceptance tests,
 privacy/security review and rollback plan before it becomes a blocker.
+
+---
+
+## 14. Post-merge addendum — 2026-09-02 (branches reconciled)
+
+The parallel branches `arena/01a05eeb` (entitlement schema, rules lint, modal
+rewrite) and `arena/01a062c5` (a11y, observability, E2E, CSP, contact UX) were
+merged. On top of everything above, this build also ships:
+
+- **CSP hardening (S4 partial)** — `script-src-attr 'none'`, `worker-src 'self'`,
+  `manifest-src 'self'`; remaining `'unsafe-inline'` for inline `<script>` is a
+  documented accepted residual (`src/proxy.ts`), guard-tested.
+- **Touch targets** — `.tap-target` utility (44 px hit area, no layout shift)
+  on all small icon buttons.
+- **Chart text alternative** — Trends bar chart is `aria-hidden` behind an
+  sr-only summary + its data table; decorative graphics hidden from AT.
+- **Observability** — `/api/client-errors` beacon sink (rate-limited, capped,
+  logs `[client-error]` for platform alerting); `ObservabilityReporter` wires
+  window errors, unhandled rejections, boundary reports (`error.tsx`,
+  `global-error.tsx`) and consent-gated Web Vitals through `trackEvent`.
+- **Contact UX** — the form distinguishes rate-limited / not-configured /
+  failed states truthfully and names the support inbox as fallback
+  (`static.contact.sendFailed|rateLimited|notConfigured` in en/fr/ar).
+- **Browser E2E** — Playwright scaffold (`playwright.config.ts`, `e2e/`,
+  `npm run test:e2e`) + CI job in `ci/github-actions-ci.yml`. Browsers cannot
+  download in the dev sandbox; the suite runs in CI.
+- **Privacy copy** — §3 household sharing and §5 on-device offline copy
+  disclosures retained in all three locales.
+- **CI activation** remains external-only: the GitHub App lacks `workflows`
+  permission (re-verified 2026-09-02, third rejection) — move
+  `ci/github-actions-ci.yml` → `.github/workflows/ci.yml` from a maintainer
+  account or the GitHub web UI.
+
+## 15. Addendum — 2026-09-02 (custom role reinstated, commit `21e9426`)
+
+The `custom` member role is a first-class assignable role again — no longer a
+legacy contributor alias:
+
+- **Rules-enforced per-area matrix.** Month updates by custom members are
+  validated key-group by key-group via `diff().affectedKeys()`; savings,
+  ledger, invoices and reads follow the same stored grants. Permission maps
+  are shape-validated at every write point, invitations are tamper-proof and
+  acceptance must copy the invited map exactly.
+- **Client mirrors rules.** `sanitizePermissions` clamps any stored map to the
+  enforceable levels; legacy custom documents without a map keep
+  contributor-equivalent access.
+- **Known residual (documented, accepted):** Firestore reads are
+  per-document, so a custom member with any finance-view grant can technically
+  read the whole shared month document; per-area hiding on *read* is client
+  presentation. All *writes* are genuinely enforced per grant.
+- **New evidence:** `tests/firestore-rules.emulator.ts` gained a
+  `custom role per-area grant rules` suite (finance-read gating, granted vs
+  denied month key groups, savings scoping, invoice gating, map validation,
+  invite-acceptance binding). It runs where the Firestore emulator is
+  available — i.e. in CI once the workflow is activated; the local sandbox
+  still cannot run Java 21, so the emulator gate in section 1 remains
+  assigned to CI or the release operator.

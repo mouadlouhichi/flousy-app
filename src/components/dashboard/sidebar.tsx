@@ -116,6 +116,7 @@ export function Sidebar() {
                 key={item.id}
                 href={item.href}
                 prefetch={true}
+                aria-current={isActive ? 'page' : undefined}
                 className={`relative flex items-center gap-3 rounded-2xl px-3 py-2.5 font-label-lg transition-colors ${
                   isActive
                     ? 'font-bold text-primary'

@@ -153,7 +153,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                           setIsEditingName(true);
                           setDisplayName(profile?.displayName || '');
                         }}
-                        className="p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        className="tap-target p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                         title={m.profile.editName}
                         aria-label={m.profile.editName}
                       >

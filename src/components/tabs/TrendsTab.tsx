@@ -12,7 +12,7 @@ import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -224,9 +224,13 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <span className="text-on-surface-variant font-medium">{m.tabs.trends.loadingTrends}</span>
           </div>
         ) : monthOverMonth.length > 1 && proUnlocked ? (
-          /* Bar chart with month-over-month comparison */
+          /* Bar chart with month-over-month comparison. The bars are a purely
+             visual rendering of the table that follows, so they are hidden
+             from assistive tech and a screen-reader summary points at the
+             table — the accessible "chart". */
           <div className="space-y-4">
-            <div className="flex items-end gap-2 sm:gap-3 h-48">
+            <p className="sr-only">{m.tabs.trends.chartAltText}</p>
+            <div aria-hidden="true" className="flex items-end gap-2 sm:gap-3 h-48">
               {monthOverMonth.map((m, idx) => {
                 const heightPct = Math.max(8, (m.totalSpent / maxSpent) * 100);
                 const isCurrent = idx === monthOverMonth.length - 1;
@@ -308,10 +312,11 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <span
+                        aria-hidden="true"
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{src.name}</span>
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[12px] font-bold text-on-surface-variant">
@@ -320,7 +325,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -365,6 +370,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <span
+                        aria-hidden="true"
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
@@ -377,7 +383,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -427,7 +433,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     </span>
                   </div>
                   <span className="truncate text-[20px] font-extrabold font-mono text-on-surface">{format(total)}</span>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}

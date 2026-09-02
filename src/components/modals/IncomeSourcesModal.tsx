@@ -11,7 +11,7 @@ import { useCurrency } from '../../lib/currency-context';
 import { getSourcePeriod } from '../../lib/utils';
 import { useLanguage } from '../../lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { formatLocalizedDayOfMonth } from '../../lib/localized-labels';
+import { formatLocalizedDayOfMonth, localizeIncomeSourceName } from '../../lib/localized-labels';
 
 interface IncomeSourcesModalProps {
   isOpen: boolean;
@@ -435,7 +435,7 @@ export function IncomeSourcesModal({
                       {/* Source info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-[15px] text-on-surface truncate">{src.name}</span>
+                          <span className="font-bold text-[15px] text-on-surface truncate">{localizeIncomeSourceName(src.name, m)}</span>
                           {src.category && (
                             <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full truncate max-w-[80px]">
                               {src.category}
@@ -488,7 +488,7 @@ export function IncomeSourcesModal({
                           <button
                             type="button"
                             onClick={() => startEdit(src)}
-                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                            className="tap-target p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                             aria-label={t(copy.editSource, { name: src.name })}
                           >
                             <AppIcon name="edit" className=" text-[18px]" />
@@ -497,7 +497,7 @@ export function IncomeSourcesModal({
                             <button
                               type="button"
                               onClick={() => handleRemoveSource(src.id)}
-                              className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
+                              className="tap-target p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
                               aria-label={t(copy.removeSource, { name: src.name })}
                             >
                               <AppIcon name="close" className=" text-[18px]" />

@@ -18,9 +18,10 @@ GitHub refuses to let the App that pushes this branch create or update a file un
   workflow `.github/workflows/ci.yml` without `workflows` permission)
 ```
 
-Retested 2026-09-01 at `6cd4e3a`: the push was rejected with the same message, so
-the App still lacks the permission. The move was reverted; this file is the
-workflow, unchanged apart from the `typecheck:strict` step.
+Retested 2026-09-01 at `6cd4e3a` and again 2026-09-02 at `7e00d42`: the push was
+rejected with the same message both times, so the App still lacks the permission.
+The move was reverted; this file is the workflow, unchanged apart from the
+`typecheck:strict` step.
 
 Grant `Workflows: write` to the App (or push from an account that has it), then
 activate CI with:

@@ -504,7 +504,7 @@ export function ExpenseModal({
                   <button
                     type="button"
                     onClick={() => setReceiptUrl(undefined)}
-                    className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                    className="tap-target p-1.5 text-error hover:bg-error-container/20 rounded-lg"
                     aria-label={e.removeReceipt}
                   >
                     <AppIcon name="close" className=" text-[18px]" />

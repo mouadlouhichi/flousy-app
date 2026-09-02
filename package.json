@@ -14,9 +14,11 @@
     "test:rules": "tsx --test tests/firestore-rules.emulator.ts",
     "check": "npm run lint && npm run typecheck && npm run typecheck:strict && npm test",
     "lint:fix": "eslint src tests --fix",
-    "typecheck:strict": "tsc --noEmit --strict --skipLibCheck"
+    "typecheck:strict": "tsc --noEmit --strict --skipLibCheck",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@arcjet/next": "^1.11.0",
     "@fontsource-variable/cairo": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
@@ -76,6 +78,7 @@
     "@eslint/js": "^9.39.5",
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
@@ -83,6 +86,7 @@
     "esbuild": "^0.25.9",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^15.15.0",
     "tailwindcss": "^4.1.14",

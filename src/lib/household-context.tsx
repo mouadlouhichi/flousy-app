@@ -26,10 +26,15 @@ import {
   type HouseholdRole,
 } from './household';
 import {
+  hasFinanceView,
+  hasMonthEditGrant,
+  permissionsFor,
   resolveAreaAccess,
+  sanitizePermissions,
   type AccessLevel,
   type ExportSections,
   type HouseholdArea,
+  type HouseholdPermissions,
 } from './household-rbac';
 import { DEFAULT_MONEY_PLACES } from './store';
 import { useLanguage } from './i18n-context';
@@ -41,7 +46,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 /** Only roles that map to enforceable document-level Firestore access are invitational. */
-export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor'>;
+export type InviteRole = Extract<HouseholdRole, 'editor' | 'viewer' | 'contributor' | 'custom'>;
 export type HouseholdConfigurationPatch = Pick<
   Household,
   | 'currency'
@@ -78,7 +83,7 @@ type HouseholdContextValue = {
   create: (name: string) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
   renameHousehold: (name: string) => Promise<void>;
-  invite: (name: string, email: string, role: InviteRole) => Promise<string>;
+  invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
   acceptInvite: (code: string) => Promise<void>;
   updateMember: (member: HouseholdMember) => Promise<void>;
   updateConfiguration: (patch: Partial<HouseholdConfigurationPatch>) => Promise<void>;
@@ -160,17 +165,33 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   );
   const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
   const entitlementActive = workspace === 'personal' || isHouseholdEntitlementActive(household);
+  // Effective per-area grants for a custom member (sanitized matrix, with the
+  // contributor-equivalent fallback for legacy documents that never stored one).
+  const customPermissions = useMemo(
+    () => (!isOwner && myMember?.role === 'custom' ? permissionsFor('custom', myMember.permissions) : null),
+    [isOwner, myMember?.role, myMember?.permissions],
+  );
   // The coarse edit flag mirrors month-document rules. Expiry never hides or
   // deletes data, but it makes a household read-only until a future provider
-  // renews the owner's entitlement.
-  const canEdit = entitlementActive && (isOwner || memberRole === 'editor');
-  const isContributor = !isOwner && (memberRole === 'contributor' || memberRole === 'custom');
+  // renews the owner's entitlement. A custom member counts as a writer only
+  // when at least one month area is granted `editAll` — the same predicate
+  // `customMonthWriter()` applies in firestore.rules.
+  const canEdit = entitlementActive
+    && (isOwner
+      || memberRole === 'editor'
+      || (customPermissions != null && hasMonthEditGrant(customPermissions)));
+  // Contributors work through the invoice queue instead of month documents.
+  // A custom member without any finance view grant gets the same flow: rules
+  // deny them month/ledger reads, so subscribing would only produce errors.
+  const isContributor = !isOwner
+    && (memberRole === 'contributor'
+      || (memberRole === 'custom' && (!customPermissions || !hasFinanceView(customPermissions))));
   const areaAccess = useMemo(() => {
     const base = resolveAreaAccess({
       unrestricted: workspace === 'personal' || isOwner,
       role: memberRole,
-      // Legacy custom maps are deliberately not passed: Firestore cannot
-      // enforce field-level grants on the shared month document.
+      // Sanitized inside `permissionsFor`; only meaningful for `custom`.
+      permissions: myMember?.permissions,
     });
     if (workspace !== 'household' || entitlementActive) return base;
     const level = (area: HouseholdArea): AccessLevel => {
@@ -184,7 +205,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       // Export remains available so expiry can never hold user data hostage.
       exportSections: base.exportSections,
     };
-  }, [workspace, isOwner, memberRole, entitlementActive]);
+  }, [workspace, isOwner, memberRole, entitlementActive, myMember?.permissions]);
   const {
     level: areaLevel,
     canView: canViewArea,
@@ -271,18 +292,22 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     });
   }, [householdId, isOwner, entitlementActive, members.length, m.household.genericError]);
 
-  const invite = useCallback(async (name: string, email: string, role: InviteRole) => {
+  const invite = useCallback(async (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => {
     if (!householdId || !user || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
     const normalizedEmail = email.trim().toLowerCase();
     const memberId = crypto.randomUUID();
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const expiresAtMs = Date.now() + 14 * 86_400_000;
+    // The matrix travels sanitized so the stored map can never exceed what
+    // `validCustomPermissions()` accepts in firestore.rules.
+    const grantedPermissions = role === 'custom' ? sanitizePermissions(permissions) : undefined;
     const pendingMember: HouseholdMember = {
       id: memberId,
       displayName: name.trim() || normalizedEmail.split('@')[0],
       email: normalizedEmail,
       role,
+      ...(grantedPermissions ? { permissions: grantedPermissions } : {}),
       status: 'invited',
       avatarColor: COLORS[members.length % COLORS.length],
       invitedAt: now,
@@ -293,6 +318,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       memberId,
       email: normalizedEmail,
       role,
+      ...(grantedPermissions ? { permissions: grantedPermissions } : {}),
       createdBy: user.uid,
       createdAt: now,
       expiresAt: new Date(expiresAtMs).toISOString(),
@@ -342,7 +368,13 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const updateMember = useCallback(async (member: HouseholdMember) => {
     if (!trackedHouseholdId || !isOwner || !entitlementActive) throw new Error(m.household.genericError);
     if (member.role === 'owner') throw new Error(m.household.genericError);
-    await saveHouseholdMember(trackedHouseholdId, member);
+    // Custom members always persist the full sanitized matrix: the merge write
+    // then overwrites every area key, normalizing legacy maps that stored
+    // levels the rules no longer accept (e.g. `expenses: 'editOwn'`).
+    const next: HouseholdMember = member.role === 'custom'
+      ? { ...member, permissions: sanitizePermissions(member.permissions) }
+      : member;
+    await saveHouseholdMember(trackedHouseholdId, next);
   }, [trackedHouseholdId, isOwner, entitlementActive, m.household.genericError]);
 
   const updateConfiguration = useCallback(async (patch: Partial<HouseholdConfigurationPatch>) => {

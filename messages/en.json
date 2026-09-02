@@ -87,7 +87,8 @@
       "carousel": "Carousel",
       "slide": "Slide"
     },
-    "retry": "Try again"
+    "retry": "Try again",
+    "skipToContent": "Skip to main content"
   },
   "auth": {
     "signIn": "Log in",
@@ -218,7 +219,8 @@
     "monthlyStartDescription": "Pick the day your salary arrives each month — your budget month will start then.",
     "importPersonalTitle": "Import my personal budget",
     "importPersonalHint": "Copy months, expenses, and savings goals from your private workspace into this household.",
-    "importPersonalLoading": "Copying your personal budget…"
+    "importPersonalLoading": "Copying your personal budget…",
+    "suggestedBills": "Quick add:"
   },
   "dashboard": {
     "overview": "Overview",
@@ -498,7 +500,8 @@
       "lifecycleStatus": "Receipt status",
       "receivedAmount": "Amount received",
       "receivedShort": "Received",
-      "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first."
+      "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
+      "carriedOver": "Carried over"
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -673,7 +676,8 @@
       "incomeSourcesPro": "Income source analytics are available in Pro.",
       "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
       "variableAmount": "Variable: {amount}",
-      "fixedAmount": "Fixed: {amount}"
+      "fixedAmount": "Fixed: {amount}",
+      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures."
     }
   },
   "courses": {
@@ -792,7 +796,7 @@
       "s4Title": "4. Analytics",
       "s4Body": "Optional analytics is off until you agree. If enabled, SmartJib records limited product-usage events and page paths. A strict allowlist removes financial amounts, balances, categories, receipt data, contact text and other free-form financial content before an event can leave the app. You can withdraw consent from Profile settings.",
       "s5Title": "5. Data retention",
-      "s5Body": "We keep your workspace data while your account is active. When you request deletion, SmartJib removes the data it can verify and reports any incomplete step instead of claiming success. Household data is deleted by its owner; other members can leave without deleting household-owned data. Delivery, security and hosting providers may retain limited operational logs under their own retention policies.",
+      "s5Body": "We keep your workspace data while your account is active. When you request deletion, SmartJib removes the data it can verify and reports any incomplete step instead of claiming success. Household data is deleted by its owner; other members can leave without deleting household-owned data. Delivery, security and hosting providers may retain limited operational logs under their own retention policies. The app also keeps a copy of your recent budgeting data on your device so it can work offline; that local copy is removed when you sign out.",
       "s6Title": "6. Your choices",
       "s6Body": "You can export your budgeting history as CSV or a complete, restorable JSON backup from Profile at any time. You can also delete your data or account from Profile; destructive actions report partial failures and remain retryable.",
       "s7Title": "7. Changes to this policy",
@@ -1303,7 +1307,7 @@
         },
         {
           "question": "What do I get with SmartJib Pro?",
-          "answer": "Pro adds barcode-assisted course entry, multi-month trends, income-source management, bulk CSV import, category caps and rollover, and Household collaboration."
+          "answer": "Pro adds barcode-assisted course entry, multi-month trends, income-source management, bulk CSV import, category caps and rollover, and Household collaboration. Pro is included free for your first 90 days."
         },
         {
           "question": "Can I export my data?",
@@ -1331,7 +1335,10 @@
       "sentDescription": "The email provider accepted your message. This does not guarantee mailbox delivery or a response; keep the request ID if you need to retry or follow up.",
       "sending": "Sending…",
       "sendError": "Your message was not sent. Please try again or email hello@flousy.app.",
-      "requestId": "Request ID"
+      "requestId": "Request ID",
+      "sendFailed": "Your message could not be sent. Please try again, or email us directly at {email}.",
+      "rateLimited": "Too many messages were sent from your connection. Please wait a few minutes and try again.",
+      "notConfigured": "The contact form is not available right now. Email us directly at {email} and we'll get back to you."
     },
     "careers": {
       "eyebrow": "Careers",
@@ -1470,7 +1477,10 @@
     "emailVerificationPrompt": "Please verify your email address to secure your account.",
     "verificationSent": "Verification email sent!",
     "resendEmail": "Resend email",
-    "dismissBanner": "Dismiss banner"
+    "dismissBanner": "Dismiss banner",
+    "newPeriodTitle": "A new salary period has started",
+    "newPeriodBody": "Your {month} budget is ready — your bank starts with your full salary.",
+    "newPeriodBodyCarryover": "Your {month} budget is ready — your bank starts with your full salary plus what was left from last period."
   },
   "quickActions": {
     "close": "Close quick actions",

@@ -249,7 +249,7 @@ export function VariableTab({
                       <button
                         onClick={() => handleSetBudget(category)}
                         aria-label={t(m.tabs.variable.saveBudget, { category: localizeCategoryName(category, m) })}
-                        className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        className="tap-target p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
                       >
                         <AppIcon name="check" className="text-[18px]" />
                       </button>
@@ -259,7 +259,7 @@ export function VariableTab({
                           setBudgetInput('');
                         }}
                         aria-label={m.tabs.variable.cancelBudgetEdit}
-                        className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
+                        className="tap-target p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
                       >
                         <AppIcon name="close" className="text-[18px]" />
                       </button>
@@ -383,7 +383,14 @@ export function VariableTab({
             <div
               key={exp.id}
               role={canEdit ? 'button' : undefined}
+              tabIndex={canEdit ? 0 : undefined}
               onClick={canEdit ? () => onEditExpense(exp) : undefined}
+              onKeyDown={canEdit ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEditExpense(exp);
+                }
+              } : undefined}
               className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
                 canEdit ? 'hover:border-primary cursor-pointer' : ''
               }`}
