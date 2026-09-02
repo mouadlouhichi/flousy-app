@@ -488,7 +488,7 @@ export function IncomeSourcesModal({
                           <button
                             type="button"
                             onClick={() => startEdit(src)}
-                            className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                            className="tap-target p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                             aria-label={t(copy.editSource, { name: src.name })}
                           >
                             <AppIcon name="edit" className=" text-[18px]" />
@@ -497,7 +497,7 @@ export function IncomeSourcesModal({
                             <button
                               type="button"
                               onClick={() => handleRemoveSource(src.id)}
-                              className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
+                              className="tap-target p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all"
                               aria-label={t(copy.removeSource, { name: src.name })}
                             >
                               <AppIcon name="close" className=" text-[18px]" />

@@ -747,7 +747,8 @@
       "incomeSourcesPro": "Income source analytics are available in Pro.",
       "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
       "variableAmount": "Variable: {amount}",
-      "fixedAmount": "Fixed: {amount}"
+      "fixedAmount": "Fixed: {amount}",
+      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures."
     }
   },
   "courses": {
@@ -862,11 +863,11 @@
       "s2Title": "2. How we use it",
       "s2Body": "Your budgeting data is used to power the app itself — to show your balances, calculate your budget, and sync your information across your devices. We do not use your financial data to build advertising profiles, and we do not sell it to third parties.",
       "s3Title": "3. Who can see your data",
-      "s3Body": "Only you can access your budget. Our systems are built so that your account's data is isolated from every other account, and our team accesses individual data only when needed to fix a problem you've reported.",
+      "s3Body": "Your personal workspace is visible only to you: our systems isolate each account's data, and our team accesses individual data only when needed to fix a problem you've reported. If you create or join a shared household (a Pro feature), the budgets, expenses and goals of that household workspace are shared with its members according to the role each member was given — your personal workspace stays private.",
       "s4Title": "4. Analytics",
       "s4Body": "We may use limited, privacy-respecting analytics to understand how the app is used overall (for example, which features are popular). This is aggregated and anonymized, and is off by default until you agree to it.",
       "s5Title": "5. Data retention",
-      "s5Body": "We keep your data for as long as your account is active. If you delete your account, your profile, budgets, and goals are permanently removed from our systems.",
+      "s5Body": "We keep your data for as long as your account is active. The app also keeps a copy of your recent budgeting data on your device so it can work offline; that local copy is removed when you sign out. If you delete your account, your profile, budgets, and goals are permanently removed from our systems.",
       "s6Title": "6. Your choices",
       "s6Body": "You can export your budgeting history as a spreadsheet at any time from Settings. You can also delete your account and all associated data permanently, whenever you like — no need to contact support.",
       "s7Title": "7. Changes to this policy",

@@ -249,7 +249,7 @@ export function VariableTab({
                       <button
                         onClick={() => handleSetBudget(category)}
                         aria-label={t(m.tabs.variable.saveBudget, { category: localizeCategoryName(category, m) })}
-                        className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        className="tap-target p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
                       >
                         <AppIcon name="check" className="text-[18px]" />
                       </button>
@@ -259,7 +259,7 @@ export function VariableTab({
                           setBudgetInput('');
                         }}
                         aria-label={m.tabs.variable.cancelBudgetEdit}
-                        className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
+                        className="tap-target p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
                       >
                         <AppIcon name="close" className="text-[18px]" />
                       </button>

@@ -161,7 +161,7 @@ export function DebtsTab({
                         {(debt.payments || []).map((payment) => (
                           <li key={payment.id} className="flex items-center justify-between rounded-xl bg-surface p-2.5 text-sm">
                             <span><strong>{format(payment.amount)}</strong><span className="ms-2 text-xs text-on-surface-variant">{formatShortDate(payment.date, intlLocale)} · {placeLabel(payment.place)}</span></span>
-                            {canEdit && <button type="button" onClick={() => setDeleteTarget({ debtId: debt.id, paymentId: payment.id })} aria-label={m.common.delete} className="rounded-full p-1.5 text-error hover:bg-error/10"><AppIcon name="delete" className="text-[17px]" /></button>}
+                            {canEdit && <button type="button" onClick={() => setDeleteTarget({ debtId: debt.id, paymentId: payment.id })} aria-label={m.common.delete} className="tap-target rounded-full p-1.5 text-error hover:bg-error/10"><AppIcon name="delete" className="text-[17px]" /></button>}
                           </li>
                         ))}
                       </ul>

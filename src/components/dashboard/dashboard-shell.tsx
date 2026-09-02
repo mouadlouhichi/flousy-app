@@ -88,7 +88,7 @@ function EmailVerificationBanner() {
       </div>
       <button
         onClick={() => setDismissVerificationBanner(true)}
-        className="p-1 hover:bg-tertiary/20 rounded-full"
+        className="tap-target p-1 hover:bg-tertiary/20 rounded-full"
         aria-label={m.notifications.dismissBanner}
       >
         <AppIcon name="close" className=" text-[18px]" />

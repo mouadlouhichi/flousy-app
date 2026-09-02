@@ -262,7 +262,7 @@ export function HouseholdPanel({
                         setRenameOpen(true);
                       }}
                       aria-label={h.renameHousehold}
-                      className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                      className="tap-target rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
                     >
                       <AppIcon name="edit" className="text-[18px]" />
                     </button>
@@ -309,7 +309,7 @@ export function HouseholdPanel({
                           type="button"
                           onClick={() => setEditingMember(member)}
                           aria-label={h.editMember}
-                          className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                          className="tap-target rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
                         >
                           <AppIcon name="edit" className="text-[18px]" />
                         </button>

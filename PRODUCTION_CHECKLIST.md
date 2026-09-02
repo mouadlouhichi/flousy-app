@@ -13,15 +13,14 @@
 > marked `[NOT IN THIS BUILD]` below and listed in §13 so they are recreated
 > deliberately instead of being assumed to exist:
 >
-> - a `BILLING_LIVE` flag in `src/lib/payments.ts`
-> - a 90-day trial entitlement (`source: launch_trial`, `status: trialing`,
->   end timestamp exactly 7,776,000,000 ms after start) — this branch instead
->   ships a one-time, non-expiring beta claim gated by `proTrialClaimedAt`
-> - a working `/api/contact` endpoint (Resend) + `CONTACT_TO_EMAIL`; the
->   contact form in this build **fakes success client-side and sends nothing**
-> - ESLint parsing `firestore.rules` with Firebase's ANTLR grammar
-> - the draft's evidence counts (304 tests / 72 suites); this branch is at
->   292 tests / 70 suites
+> - ~~a `BILLING_LIVE` flag~~ — **now shipped** in `src/lib/payments.ts`
+> - ~~a 90-day trial entitlement~~ — **now shipped**: `planSource: 'launch_trial'`,
+>   `proTrialEndsAtMs` exactly 7,776,000,000 ms after the claim, rules-enforced
+> - ~~a working `/api/contact`~~ — **now shipped** (+ `CONTACT_TO_EMAIL` in env)
+> - ESLint parsing `firestore.rules` with Firebase's ANTLR grammar — still not
+>   done here; covered by blueprint invariants + the CI emulator run
+> - evidence counts: this branch is now at **307 tests / 73 suites** (draft
+>   cited 304/72)
 
 ## Status and ownership
 
@@ -200,7 +199,7 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
 | `APP_URL` | [ ] | [ ] | [ ] |
 | `RESEND_API_KEY` | [ ] | [ ] | [ ] |
 | `RESEND_FROM_EMAIL` | [ ] | [ ] | [ ] |
-| `CONTACT_TO_EMAIL` `[NOT IN THIS BUILD]` | — | — | — |
+| `CONTACT_TO_EMAIL` | [ ] | [ ] | [ ] |
 
 - [ ] `[EXTERNAL]` Production `NEXT_PUBLIC_SITE_URL` is the exact HTTPS canonical
       origin with no path or trailing environment alias.
@@ -238,10 +237,12 @@ Use an environment matrix; do not assume Vercel Preview inherits Production:
       links.
 - [ ] `[MANUAL]` Verify an invitation code remains visible/copyable when Resend is
       unavailable.
-- [ ] **BLOCKER `[REPO]`** The contact form (`contact-form.tsx`) currently shows a
-      success state without sending anything. Before launch either implement
-      `/api/contact` (Resend, rate-limited, idempotent) or replace the form with
-      an honest `mailto:`/support-address block. `[NOT IN THIS BUILD]`
+- [x] `[REPO]` **Resolved 2026-09-02** — `/api/contact` is live in this build
+      (validated, per-IP rate-limited, honeypot, requestId dedupe, readiness
+      GET) and `contact-form.tsx` reports every failure truthfully with the
+      support address as fallback. Remaining external step: set
+      `RESEND_API_KEY` + verified `RESEND_FROM_EMAIL` + `CONTACT_TO_EMAIL`
+      per environment, then check `GET /api/contact` → `{"ready":true}`.
 
 Invitation readiness check (sends nothing and reveals no secret):
 
@@ -469,22 +470,30 @@ privacy/security review and rollback plan before it becomes a blocker.
 
 ## 13. Work referenced by the prior draft that must be recreated
 
-The prior session's branch (`arena/01a05eeb-flousy-app`) was never pushed past
-`7e00d42`, so the following exist only as intentions. Recreate them on this
-branch (with tests) or explicitly drop them from launch scope:
+> **Recreated 2026-09-02** on `arena/01a062c5-flousy-app` — status per item:
 
-1. **`/api/contact`** — Resend-backed contact endpoint with validation,
-   rate-limiting, idempotent request IDs and a readiness GET; wire
-   `contact-form.tsx` to it and remove the fake success state. **BLOCKER** if
-   the contact page ships.
-2. **`BILLING_LIVE` kill-switch** in `src/lib/payments.ts` asserting no billing
-   surface renders while `false`.
-3. **Bounded 90-day trial** (if desired over the current unbounded beta claim):
-   `proTrialClaimedAt` + `proTrialEndsAt` (start + 7,776,000,000 ms), rules
-   rejecting timestamp extension, expiry-aware entitlement in
-   `pro-features.ts`/household access, downgrade path that preserves records
-   and exports.
-4. **Rules-syntax lint** — parse `firestore.rules` during `npm run lint` so a
-   syntax error cannot reach the deploy step.
-5. The ~12 additional tests covering the above (draft evidence cited 304 tests;
-   this branch has 292).
+1. **`/api/contact`** — ✅ DONE. Validated + per-IP rate-limited + honeypot +
+   requestId-deduplicated Resend send, readiness GET, sandbox-sender guard;
+   `contact-form.tsx` wired with truthful sending/failed/rate-limited/
+   not-configured states (fallback names `hello@flousy.app`). Set
+   `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (verified domain) and
+   `CONTACT_TO_EMAIL` in production, then confirm `GET /api/contact` answers
+   `{"ready":true}`.
+2. **`BILLING_LIVE` kill-switch** — ✅ DONE in `src/lib/payments.ts` (single
+   switch, consumed by the landing pricing section; documents the CMI/Stripe
+   integration contract: provider-hosted checkout, Admin-SDK webhook writing
+   `planSource: 'billing'`).
+3. **Bounded 90-day trial** — ✅ DONE and stricter than the draft:
+   `proTrialClaimedAt` (ISO) + `proTrialClaimedAtMs` + `proTrialEndsAtMs`
+   (= claimed + 7,776,000,000 ms exactly, rules-verified against
+   `request.time` ±5 min), stamps immutable, `resolveProEntitlement()` is the
+   single expiry-aware entitlement (lapsed trial ⇒ Free with all data/exports
+   intact), `activePro()` gates household creation server-side. UI shows
+   days-remaining and an expired state in en/fr/ar.
+4. **Rules-syntax lint** — ⚠️ NOT run here (needs the emulator toolchain /
+   Java, unavailable in the sandbox). Covered structurally by
+   `tests/blueprint.test.ts` invariants and behaviorally by the emulator
+   suite (now 15 tests) in the CI `check` job.
+5. **Additional tests** — ✅ 307 unit tests / 73 suites now pass (was 292/70),
+   plus 3 new emulator rules cases and a 4-spec Playwright scaffold
+   (`npm run test:e2e`, CI-run — browser CDN unreachable in the sandbox).

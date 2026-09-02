@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
+import { ObservabilityReporter } from '@/components/observability-reporter';
 import { LightLanguageProvider } from '@/lib/i18n-light';
 import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SkipToContentLink } from '@/components/ui/skip-to-content';
@@ -140,6 +141,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <InstallBanner />
         </LightLanguageProvider>
         <ServiceWorkerRegistrar />
+        <ObservabilityReporter />
       </body>
     </html>
   );

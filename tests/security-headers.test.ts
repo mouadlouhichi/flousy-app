@@ -37,6 +37,18 @@ describe('response headers', () => {
     assert.match(config, /Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups'/);
   });
 
+  it('cuts the inline-handler half of the unsafe-inline risk (audit S4)', () => {
+    // Inline <script> blocks stay allowed (App Router bootstrap needs them and
+    // a nonce would force every prerendered page dynamic), but inline event
+    // handler attributes — the injection surface markup can actually reach —
+    // are refused outright, and workers/manifest stay same-origin.
+    assert.match(middleware, /script-src-attr 'none'/);
+    assert.match(middleware, /worker-src 'self'/);
+    assert.match(middleware, /manifest-src 'self'/);
+    assert.match(middleware, /object-src 'none'/);
+    assert.match(middleware, /base-uri 'self'/);
+  });
+
   it('applies CSP to /api responses as well as pages', () => {
     // The matcher used to exclude /api, leaving JSON responses as the one place
     // with no policy at all.

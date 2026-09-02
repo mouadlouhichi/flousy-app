@@ -217,7 +217,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
               <button
                 onClick={onClose}
                 aria-label={m.modal.close}
-                className="p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
+                className="tap-target p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
               >
                 <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
               </button>

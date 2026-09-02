@@ -104,6 +104,27 @@
 }
 
 @layer utilities {
+  /*
+   * Minimum touch target (WCAG 2.5.5 / 2.5.8). Small icon buttons keep their
+   * compact visual footprint, but a centred pseudo-element extends the
+   * clickable/tappable area to 44x44px without shifting layout. Apply to any
+   * interactive control whose rendered box is below ~40px.
+   */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    min-width: 100%;
+    min-height: 100%;
+    transform: translate(-50%, -50%);
+  }
+
   .font-display {
     font-family: var(--font-display);
   }

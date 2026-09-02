@@ -429,7 +429,7 @@ function CoursesScreenInner() {
                 <AppIcon name={notice.kind === 'warn' ? 'warning' : 'info'} className="size-4" />
                 {notice.text}
               </span>
-              <button type="button" onClick={clearNotice} aria-label={m.common.close} className="p-1 hover:opacity-70">
+              <button type="button" onClick={clearNotice} aria-label={m.common.close} className="tap-target p-1 hover:opacity-70">
                 <AppIcon name="close" className="size-3.5" />
               </button>
             </div>
@@ -557,7 +557,7 @@ function CoursesScreenInner() {
                   <button
                     type="button"
                     onClick={() => store.removeLine(line.key)}
-                    className="p-1.5 text-on-surface-variant hover:text-error"
+                    className="tap-target p-1.5 text-on-surface-variant hover:text-error"
                     aria-label={m.common.remove}
                   >
                     <AppIcon name="close" className="size-4" />

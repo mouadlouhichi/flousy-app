@@ -747,7 +747,8 @@
       "incomeSourcesPro": "Les analyses des sources de revenus sont disponibles avec Pro.",
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
-      "fixedAmount": "Fixe : {amount}"
+      "fixedAmount": "Fixe : {amount}",
+      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres."
     }
   },
   "courses": {
@@ -862,11 +863,11 @@
       "s2Title": "2. Comment nous les utilisons",
       "s2Body": "Vos données budgétaires sont utilisées pour faire fonctionner l'application — pour afficher vos soldes, calculer votre budget et synchroniser vos informations entre vos appareils. Nous n'utilisons pas vos données financières pour créer des profils publicitaires, et nous ne les vendons pas à des tiers.",
       "s3Title": "3. Qui peut voir vos données",
-      "s3Body": "Vous seul pouvez accéder à votre budget. Nos systèmes sont conçus pour que les données de votre compte soient isolées de celles de tout autre compte, et notre équipe n'accède aux données individuelles que lorsque nécessaire pour résoudre un problème que vous avez signalé.",
+      "s3Body": "Votre espace personnel n'est visible que par vous : nos systèmes isolent les données de chaque compte, et notre équipe n'accède à des données individuelles que pour résoudre un problème que vous avez signalé. Si vous créez ou rejoignez un foyer partagé (fonctionnalité Pro), les budgets, dépenses et objectifs de cet espace foyer sont partagés avec ses membres selon le rôle attribué à chacun — votre espace personnel reste privé.",
       "s4Title": "4. Analytique",
       "s4Body": "Nous pouvons utiliser des analyses limitées et respectueuses de la vie privée pour comprendre comment l'application est utilisée globalement (par exemple, quelles fonctionnalités sont populaires). Ces données sont agrégées et anonymisées, et sont désactivées par défaut jusqu'à votre accord.",
       "s5Title": "5. Conservation des données",
-      "s5Body": "Nous conservons vos données tant que votre compte est actif. Si vous supprimez votre compte, votre profil, vos budgets et vos objectifs sont définitivement supprimés de nos systèmes.",
+      "s5Body": "Nous conservons vos données tant que votre compte est actif. L'application garde aussi une copie de vos données budgétaires récentes sur votre appareil pour fonctionner hors ligne ; cette copie locale est supprimée à la déconnexion. Si vous supprimez votre compte, votre profil, vos budgets et vos objectifs sont définitivement effacés de nos systèmes.",
       "s6Title": "6. Vos choix",
       "s6Body": "Vous pouvez exporter votre historique budgétaire sous forme de tableur à tout moment depuis les Paramètres. Vous pouvez également supprimer votre compte et toutes les données associées de manière permanente, quand vous le souhaitez — sans avoir besoin de contacter le support.",
       "s7Title": "7. Modifications de cette politique",

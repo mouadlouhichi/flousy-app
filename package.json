@@ -14,7 +14,8 @@
     "test:rules": "tsx --test tests/firestore-rules.emulator.ts",
     "check": "npm run lint && npm run typecheck && npm run typecheck:strict && npm test",
     "lint:fix": "eslint src tests --fix",
-    "typecheck:strict": "tsc --noEmit --strict --skipLibCheck"
+    "typecheck:strict": "tsc --noEmit --strict --skipLibCheck",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",
@@ -77,6 +78,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
