@@ -97,3 +97,12 @@ jobs:
           npx --yes firebase-tools@15 deploy \
             --only firestore:rules,firestore:indexes \
             --project "$FIREBASE_PROJECT_ID" --non-interactive
+
+      # A silent skip here once left production rules several contracts behind
+      # the client (every budget write 403'd). On main, an unconfigured deploy
+      # must fail the build, not report success.
+      - name: Fail loudly when the rules deploy is unconfigured
+        if: github.ref == 'refs/heads/main' && (env.FIREBASE_SERVICE_ACCOUNT == '' || env.FIREBASE_PROJECT_ID == '')
+        run: |
+          echo "::error::Firestore rules were NOT deployed: configure the FIREBASE_SERVICE_ACCOUNT repository secret and the NEXT_PUBLIC_FIREBASE_PROJECT_ID repository variable (Settings → Secrets and variables → Actions). Deployed rules that lag the client write contract reject every budget write with 403."
+          exit 1
