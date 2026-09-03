@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   HOUSEHOLD_DEFAULT_AVATAR_COLOR,
@@ -168,9 +169,22 @@ describe('the model, the rules and the maintenance script agree', () => {
       assert.ok(householdFields().includes(field), `${field} is required by the rules but has no migration`);
     }
     // The identity fields the household update branch compares are read out of the
-    // stored document too, so they belong to the contract.
-    const update = rules.slice(rules.indexOf('allow update: if householdOwner(hid)'), rules.indexOf('allow delete: if householdOwner(hid)'));
-    assert.match(update, /incoming\(\)\.get\('ownerId', ''\) == existing\(\)\.get\('ownerId', ''\)/);
+    // stored document too, so they belong to the contract. Ownership is not a second
+    // read: the gate *is* the stored `ownerId`, and the entitlement branch asks the
+    // document already in scope - both because the household rule is the one every
+    // workspace save pays for, and because a rule that outgrows the request's
+    // expression budget is refused as a plain permission-denied.
+    const gateStart = rules.indexOf('function householdUpdateAuthorized(hid) {');
+    assert.ok(gateStart > 0, 'the household settings write should be one bound function, so the two document states are read once');
+    const gate = rules.slice(gateStart, rules.indexOf('\n    }', gateStart));
+    assert.match(gate, /let after = incoming\(\);/);
+    assert.match(gate, /let before = existing\(\);/);
+    assert.match(gate, /before\.get\('ownerId', ''\) == request\.auth\.uid/,
+      'ownership has to be the stored owner, not a re-fetch of the root the rule is writing');
+    assert.match(gate, /before\.get\('createdAt', ''\)/, 'the stored creation instant stays frozen');
+    assert.doesNotMatch(gate, /householdOwner\(hid\)|householdEntitled\(hid\)/,
+      'this rule must not fetch the document it is already holding');
+    assert.match(rules, /allow update: if householdUpdateAuthorized\(hid\);/);
     for (const field of ['ownerId', 'createdAt']) {
       assert.ok(householdFields().includes(field), `${field} is compared on every update but has no migration entry`);
     }
@@ -192,6 +206,36 @@ describe('the model, the rules and the maintenance script agree', () => {
       );
     }
     assert.deepEqual(Object.keys(SCHEMA_MODELS).sort(), ['householdInvites', 'householdMembers', 'households']);
+  });
+
+  it('keeps the rules a workspace save depends on inside their recorded budget', () => {
+    // Firestore charges one request a shared budget of 1000 expressions and answers an
+    // over-budget write with a plain permission-denied - at the client, indistinguishable
+    // from a rule that simply dislikes the document. The number the script reports is a
+    // worst case, because `||` short-circuits at evaluation time, so this pins each rule
+    // to the bound this branch reached rather than to the theoretical cap: the household
+    // member and settings writes - the two writes the workspace flow cannot do without -
+    // fit the cap outright, and everything else may only move down without touching this
+    // test. Raise a bound deliberately, with the rule that grew named in the diff, and
+    // read the `over expression budget` count the rules job publishes: that is the
+    // number the engine actually enforces.
+    const report = execFileSync('node', ['scripts/rules-budget.mjs', 'firestore.rules', '200'], { encoding: 'utf8' });
+    const lines = report.split('\n');
+    const costOf = (marker: string) => {
+      const line = lines.find((candidate) => candidate.includes(marker));
+      assert.ok(line, `${marker} is no longer reported by scripts/rules-budget.mjs`);
+      return Number(line.trim().split(/\s+/)[0]);
+    };
+    const bounds: [string, number][] = [
+      ['memberCreateAuthorized(hid, memberId)', 1000],
+      ['householdUpdateAuthorized(hid)', 1100],
+      ['memberUpdateAuthorized(hid, memberId)', 1200],
+      ['monthUpdateAuthorized(hid)', 1550],
+    ];
+    for (const [marker, bound] of bounds) {
+      const cost = costOf(marker);
+      assert.ok(cost <= bound, `${marker} costs ${cost} expressions, over its recorded bound of ${bound}`);
+    }
   });
 
   it('lists no field the household type does not have', () => {
@@ -250,8 +294,11 @@ describe('months and profiles need no migration, and this is why', () => {
     // document: the update branch accepts a first write that bootstraps them, and
     // every writer persists the normalized month after that. Remove that escape and
     // a month migration becomes mandatory - which is what this pins.
-    assert.match(rules, /!\('revision' in existing\(\)\) && incoming\(\)\.revision == 1/);
-    assert.match(rules, /!\('periodStatus' in incoming\(\)\)/);
+    // `after`/`before` are the bound names the rules use for the two document states;
+    // either spelling satisfies the contract, which is that an absent `revision` is a
+    // month being bootstrapped rather than a month that can never be written again.
+    assert.match(rules, /!\('revision' in (?:existing\(\)|before)\) && (?:incoming\(\)|after)\.revision == 1/);
+    assert.match(rules, /!\('periodStatus' in (?:incoming\(\)|after)\)/);
   });
 
   it('keeps profile fields that older documents may lack optional', () => {

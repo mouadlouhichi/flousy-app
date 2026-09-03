@@ -199,6 +199,68 @@ that targets an invented collection name succeeds quietly and changes nothing.)
 * Emulator suite runs in CI only (no JVM here): the 7 previously failing cases are the
   ones this change targets, so `Firestore rules (emulator)` is the arbiter.
 
+## The write the household sync makes, and why the published rules refuse it
+
+Reported on a real account: *"not able to sync household from personal account"*, with the
+app's own explanation blaming rules older than the build. It is right about the cause and
+too optimistic about the repair. The rules deployed from `main` gate every household write
+with this:
+
+```
+allow update: if householdOwner(hid)
+  && householdEntitled(hid)                                  // requires a live entitlement
+  && incoming().planOwnerId == existing().planOwnerId        // the binding is FROZEN
+  && incoming().entitlementOwnerId == existing().entitlementOwnerId
+  && … && validHouseholdConfig(incoming());                    // demands the projection trio
+```
+
+Three consequences, in the order a user meets them:
+
+1. A household whose `planOwnerId` is missing or pointing at a departed sponsor **cannot be
+   re-bound from any client**, because the rule forbids changing that field. The sync's
+   first step is exactly that write, so the sync stops on the first period and copies
+   nothing.
+2. `householdEntitled(hid)` gates *every* settings write, so while the binding is wrong the
+   document cannot be edited to fix the binding. That is a deadlock by construction, not a
+   race or a stale cache.
+3. "Restore shared access" - this app's browser-side repair - can still put the owner's
+   `members/{uid}` row back (main's create branch permits an owner's own active row with no
+   entitlement check), which is why offering it is correct; but it cannot write the binding,
+   so the card now says which half it did instead of implying the sync will work after it.
+   `sync.restoreBindingFrozen` / `profile.workspace.syncRestoreOfferFrozen`.
+
+The only two ways out for an account already in this state are a rules deploy of this
+branch's `firestore.rules` (which drops the frozen-equality clause, gates the binding
+through `householdSponsorBindingValid` instead, and accepts the projection as the repair)
+or `npm run db:migrate -- --apply`, which writes outside the rules entirely. The in-app
+backfill cannot help while main's rules are published - that is precisely what
+`rules-behind` means.
+
+### Shrinking the rules that gate those writes
+
+A rule that evaluates more than 1000 expressions for a request is refused with the same
+bare `permission-denied`, so "make every read total" has to pay for itself. Measured with
+`node scripts/rules-budget.mjs` (worst case, fully inlined), `HEAD` of this branch → now:
+
+| rule | before | now |
+|---|---|---|
+| `members` create | 1979 | **989** |
+| `members` update | 2090 | 1152 |
+| `households` update | 1602 | 1061 |
+| `households` months create | 1427 | 1222 |
+| `households` months update | 1708 | 1503 |
+| `users/{uid}` months update | 1041 | under the cap |
+
+Four changes, each semantics-preserving: `memberCreateAuthorized` /
+`memberUpdateAuthorized` / `householdUpdateAuthorized` bind the shared facts once
+(`householdRootFacts(hid)` reads the household root once for the owner *and* the
+entitlement question; `let after = incoming(); let before = existing();` replace 40+
+call-site expansions in `validMonthDocument` and friends); `invitationJoinOk` replaces
+nine literal invite paths in each member branch; `entitlementProjectionAgrees` takes the
+caller's already-required Pro answer instead of recomputing the profile chain twice more.
+`tests/schema-migrations.test.ts` ratchets these bounds so a rule can only get cheaper
+without someone noticing.
+
 ## The repeatable rule
 
 A new feature that adds a field to a persisted type must ship all four of these. Steps 3

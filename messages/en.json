@@ -1733,6 +1733,7 @@
       "syncSkippedSome": "{periods} closed period(s) in the target were left out.",
       "syncPartialNothing": "Nothing was copied yet - the first period already failed.",
       "syncRestoreOffer": "Run \"{action}\" below first: it is the repair this app can perform from the browser.",
+      "syncRestoreOfferFrozen": "Run \"{action}\" below: it can put your membership row back, and nothing else. The plan-owner field the sync also needs is frozen by the published rules, so only a rules deploy or the maintenance script changes it.",
       "syncFailed": "The sync could not be completed. Please try again.",
       "personalWorkspace": "Personal workspace"
     },
@@ -2004,6 +2005,7 @@
     "restoreAccessHint": "Writes here are refused because the Pro plan that pays for this household belongs to another account. You own this household and hold an active plan, so it can be switched to yours.",
     "restoreAccessDone": "Household plan owner updated. Your queued changes go out on the next sync.",
     "restoreAccessConsistent": "This household already runs on your plan, so the refusal came from somewhere else.",
+    "restoreBindingFrozen": "Your membership row is back, so the workspace opens again. The plan-owner binding is still refused: the published rules freeze that field to what is stored, and no browser client can change it - not this repair, not a save from Settings. Deploy the rules this build ships with, or run the maintenance script (npm run db:migrate -- --apply).",
     "restoreAccessFailed": "The server refused the change, so this household's plan owner could not be updated."
   },
   "monthLock": {

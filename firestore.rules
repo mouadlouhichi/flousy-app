@@ -122,15 +122,21 @@ service cloud.firestore {
      * overstate the sponsor's profile, because the expiry has to match it
      * exactly and `profileIsPro` is what licenses the optimistic spelling.
      */
-    function entitlementProjectionAgrees(data, profile, field, nowMs) {
+    // `pro` is the caller's already-computed `profileIsPro` answer: the two callers both
+    // require it before they get here, so recomputing it inside cost the largest helper
+    // in the file a third expansion of the profile read for no additional guarantee.
+    function entitlementProjectionAgrees(data, profile, field, pro) {
       let profileValue = tokenValue(profile.get(field, ''));
       let nextValue = tokenValue(data.get(field, ''));
       return profileValue == ''
         || nextValue == profileValue
-        || (field == 'entitlementStatus' && nextValue == 'active' && profileIsPro(profile, nowMs));
+        || (field == 'entitlementStatus' && nextValue == 'active' && pro);
     }
     function activeProEntitlement(uid) {
-      return profileIsPro(userProfileData(uid), request.time.toMillis());
+      // The profile is read once and named: `profileIsPro` looks at four fields of it,
+      // and a document read passed as an argument is expanded at every use.
+      let profile = userProfileData(uid);
+      return profileIsPro(profile, request.time.toMillis());
     }
     /**
      * Sponsor of a household's plan. Legacy documents store only `ownerId`,
@@ -149,6 +155,11 @@ service cloud.firestore {
           ? billing
           : (creator is string ? creator : ''));
     }
+    // The entitlement question asked of a household document already in scope - the
+    // same owner/editor gate and the same sponsor chain, without re-fetching the root.
+    function householdEntitledFor(data) {
+      return activeProEntitlement(householdSponsor(data));
+    }
     function householdEntitled(hid) {
       // The household document is read through `exists()` first so an absent one
       // answers "no entitlement" instead of aborting: an aborted rule and a denial
@@ -160,10 +171,11 @@ service cloud.firestore {
     function validHouseholdEntitlementProjection(data, uid) {
       let profile = userProfileData(uid);
       let nowMs = request.time.toMillis();
+      let pro = profileIsPro(profile, nowMs);
       return data.get('entitlementOwnerId', '') == uid
-        && profileIsPro(profile, nowMs)
-        && entitlementProjectionAgrees(data, profile, 'entitlementSource', nowMs)
-        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', nowMs)
+        && pro
+        && entitlementProjectionAgrees(data, profile, 'entitlementSource', pro)
+        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', pro)
         && millisOrMissing(data.get('entitlementEndsAtMs', -1)) == profileEntitlementEndsAtMs(profile);
     }
     /**
@@ -181,11 +193,12 @@ service cloud.firestore {
     function householdSponsorBindingValid(data, uid) {
       let profile = userProfileData(uid);
       let nowMs = request.time.toMillis();
+      let pro = profileIsPro(profile, nowMs);
       let changed = data.diff(existing()).affectedKeys();
       return data.get('entitlementOwnerId', '') == uid
-        && profileIsPro(profile, nowMs)
-        && entitlementProjectionAgrees(data, profile, 'entitlementSource', nowMs)
-        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', nowMs)
+        && pro
+        && entitlementProjectionAgrees(data, profile, 'entitlementSource', pro)
+        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', pro)
         && millisOrMissing(data.get('entitlementEndsAtMs', -1)) == profileEntitlementEndsAtMs(profile)
         && changed.hasOnly([
           'entitlementOwnerId', 'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs',
@@ -193,39 +206,42 @@ service cloud.firestore {
         ]);
     }
     function validMonthDocument() {
-      return isMoney(incoming().totalBudget)
-        && isMoney(incoming().bankPart)
-        && isMoney(incoming().homePart)
-        && isMoney(incoming().walletPart)
-        && incoming().revision is int
-        && incoming().revision >= 1
-        && incoming().lastMutationId is string
-        && incoming().lastMutationId.size() > 0
-        && incoming().lastMutationId.size() <= 160
-        && (!('periodStatus' in incoming()) || incoming().periodStatus in ['open', 'closed'])
-        && (!('periodStatus' in incoming())
-          || incoming().periodStatus != 'closed'
-          || (incoming().closedAt is string
-            && incoming().closedByUserId is string
-            && incoming().closedByUserId.size() > 0))
-        && (!('currency' in incoming())
-          || (incoming().currency is string && incoming().currency.size() >= 3 && incoming().currency.size() <= 8))
+      // Bound once: a rules function call is inlined at every use, so forty
+      // `incoming()` reads are forty copies of the same ternary.
+      let after = incoming();
+      return isMoney(after.totalBudget)
+        && isMoney(after.bankPart)
+        && isMoney(after.homePart)
+        && isMoney(after.walletPart)
+        && after.revision is int
+        && after.revision >= 1
+        && after.lastMutationId is string
+        && after.lastMutationId.size() > 0
+        && after.lastMutationId.size() <= 160
+        && (!('periodStatus' in after) || after.periodStatus in ['open', 'closed'])
+        && (!('periodStatus' in after)
+          || after.periodStatus != 'closed'
+          || (after.closedAt is string
+            && after.closedByUserId is string
+            && after.closedByUserId.size() > 0))
+        && (!('currency' in after)
+          || (after.currency is string && after.currency.size() >= 3 && after.currency.size() <= 8))
         // Firestore Rules cannot iterate arbitrary list/map values. The client
         // schema validates each entry; rules enforce collection shape and
         // bounded cardinality before accepting the document.
-        && (!('variableExpenses' in incoming())
-          || (incoming().variableExpenses is list
-            && incoming().variableExpenses.size() <= 2000))
-        && (!('fixedExpenses' in incoming())
-          || (incoming().fixedExpenses is list
-            && incoming().fixedExpenses.size() <= 500))
-        && (!('savingsActivity' in incoming())
-          || (incoming().savingsActivity is list && incoming().savingsActivity.size() <= 200))
-        && (!('debts' in incoming()) || (incoming().debts is list && incoming().debts.size() <= 500))
-        && (!('transfers' in incoming()) || (incoming().transfers is list && incoming().transfers.size() <= 500))
-        && (!('balanceAdjustments' in incoming())
-          || (incoming().balanceAdjustments is list && incoming().balanceAdjustments.size() <= 500))
-        && (!('placeBalances' in incoming()) || incoming().placeBalances is map);
+        && (!('variableExpenses' in after)
+          || (after.variableExpenses is list
+            && after.variableExpenses.size() <= 2000))
+        && (!('fixedExpenses' in after)
+          || (after.fixedExpenses is list
+            && after.fixedExpenses.size() <= 500))
+        && (!('savingsActivity' in after)
+          || (after.savingsActivity is list && after.savingsActivity.size() <= 200))
+        && (!('debts' in after) || (after.debts is list && after.debts.size() <= 500))
+        && (!('transfers' in after) || (after.transfers is list && after.transfers.size() <= 500))
+        && (!('balanceAdjustments' in after)
+          || (after.balanceAdjustments is list && after.balanceAdjustments.size() <= 500))
+        && (!('placeBalances' in after) || after.placeBalances is map);
     }
 
     function periodClosed(data) {
@@ -357,6 +373,26 @@ service cloud.firestore {
      * three times; the gates below read it once between them instead.
      * `scripts/rules-budget.mjs` estimates that budget and CI enforces it.
      */
+    // Who owns this household, and does somebody pay for it - the two questions the
+    // member rules ask repeatedly, from one read of the household root. `householdOwner`
+    // and `householdEntitled` each fetch that document on their own, so a rule with
+    // three branches used to expand the same path and the same `get()` three times over;
+    // a rule that outgrows the request's 1000-expression budget is refused with a plain
+    // permission-denied, which is the least diagnosable failure a client can be given.
+    // The `create` case reads the after-state because a household and its owner's
+    // membership row are written in one batch by both onboarding and this app's repair.
+    function householdRootFacts(hid) {
+      let uid = signedIn() ? request.auth.uid : '';
+      let path = householdPath(hid);
+      let root = request.method == 'create'
+        ? (existsAfter(path) ? getAfter(path).data : {})
+        : (exists(path) ? get(path).data : {});
+      return {
+        owner: uid != '' && root.get('ownerId', '') == uid,
+        signedIn: uid != '',
+        paid: uid != '' && activeProEntitlement(householdSponsor(root))
+      };
+    }
     function householdAccess(hid) {
       let uid = signedIn() ? request.auth.uid : '';
       // Paths are built once: a `get()` and the `exists()` that guards it would
@@ -575,7 +611,10 @@ service cloud.firestore {
     // stored one must still be well-formed so a later switch to `custom`
     // cannot resurrect grants the rules never accepted.
     function memberDocPermissionsValid() {
-      return !('permissions' in incoming()) || validCustomPermissions(incoming().permissions);
+      // Named once: `validCustomPermissions` inspects twelve keys of it, and an
+      // expression passed as an argument is expanded at each of those uses.
+      let permissions = incoming().get('permissions', {});
+      return !('permissions' in incoming()) || validCustomPermissions(permissions);
     }
     // Field-group enforcement for custom month updates. Every changed key
     // must belong to a granted area (or be sync bookkeeping). Recording money
@@ -779,6 +818,116 @@ service cloud.firestore {
       }
     }
 
+    // Joining or rejoining by invitation has to prove the invitation was addressed to this
+    // account, was still pending and unexpired, and is accepted by the same batch. It is
+    // one function because the two member rules each expanded the same nine paths: a
+    // request that outgrows the expression budget is answered with a plain denial rather
+    // than an error, which is the failure mode this file keeps having to remove.
+    function invitationJoinOk(hid) {
+      let after = incoming();
+      let inviteId = after.get('inviteId', '');
+      let invitePath = /databases/$(database)/documents/householdInvites/$(inviteId);
+      let offered = inviteId is string && inviteId != '' && exists(invitePath)
+        ? get(invitePath).data : {};
+      let result = inviteId is string && inviteId != '' && existsAfter(invitePath)
+        ? getAfter(invitePath).data : {};
+      // A custom member may only join with exactly the grants the owner put on the
+      // invitation - never a self-authored variation.
+      return after.get('email', '') == request.auth.token.email
+        && offered.get('householdId', '') == hid
+        && offered.get('status', '') == 'pending'
+        && offered.get('email', '') == request.auth.token.email
+        && offered.get('role', '') == after.role
+        && after.get('permissions', {}) == offered.get('permissions', {})
+        && offered.get('expiresAtMs', 0) > request.time.toMillis()
+        && result.get('status', '') == 'accepted'
+        && result.get('acceptedByUserId', '') == request.auth.uid;
+    }
+
+    // One place per rule for each shared question, so `householdOwner`, the entitlement
+    // chain and the grant check are each expanded once for the request instead of once
+    // per branch. The branches themselves are unchanged.
+    function memberCreateAuthorized(hid, memberId) {
+      let after = incoming();
+      let facts = householdRootFacts(hid);
+      let grantsOk = memberDocPermissionsValid();
+      let self = memberId == request.auth.uid;
+      return (facts.owner && self
+          && after.userId == request.auth.uid
+          && after.role == 'owner'
+          && after.status == 'active')
+        || (facts.owner && facts.paid && !self
+          && after.role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && grantsOk
+          && after.status in ['invited', 'active'])
+        || (verifiedEmail() && facts.paid && self
+          && after.userId == request.auth.uid
+          && after.status == 'active'
+          && after.role in ['editor', 'viewer', 'contributor', 'custom']
+          && grantsOk
+          && invitationJoinOk(hid));
+    }
+
+    function memberUpdateAuthorized(hid, memberId) {
+      let after = incoming();
+      let before = existing();
+      let facts = householdRootFacts(hid);
+      let grantsOk = memberDocPermissionsValid();
+      let changed = after.diff(before).affectedKeys();
+      return (facts.owner && facts.paid
+          && before.get('role', '') != 'owner'
+          && after.role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && (after.role != 'custom' || grantsOk)
+          && (!('userId' in before) || after.userId == before.userId))
+        || (verifiedEmail()
+          && before.get('email', '') == request.auth.token.email
+          && before.get('status', '') == 'invited'
+          && after.status == 'inactive'
+          && after.userId == request.auth.uid
+          && changed.hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
+        || (memberId == request.auth.uid
+          && before.get('userId', memberId) == request.auth.uid
+          && after.status == 'inactive'
+          && changed.hasOnly(['status', 'retiredAt']))
+        // Returning member: an inactive row is reactivated only through the same atomic
+        // invitation proof the fresh-create branch demands.
+        || (verifiedEmail() && facts.paid
+          && memberId == request.auth.uid
+          && before.get('userId', memberId) == request.auth.uid
+          && before.get('status', '') == 'inactive'
+          && after.userId == request.auth.uid
+          && after.status == 'active'
+          && after.role in ['editor', 'viewer', 'contributor', 'custom']
+          && grantsOk
+          && invitationJoinOk(hid));
+    }
+
+    // The household's own settings write, with the pre- and post-state named once: this
+    // is the single most frequently evaluated rule in the file, and it used to expand
+    // `existing()` four times and `incoming()` five. `householdOwner(hid)` is gone
+    // because for an update of this very document the stored owner is `before`, which
+    // keeps the same guarantee - a household that never stored `ownerId` cannot be
+    // claimed, and can still be repaired, because the create rule pins it to the writer.
+    function householdUpdateAuthorized(hid) {
+      let after = incoming();
+      let before = existing();
+      let changed = after.diff(before).affectedKeys();
+      return before.get('ownerId', '') == request.auth.uid
+        && validHouseholdConfigFields(after)
+        && after.get('createdAt', '') == before.get('createdAt', '')
+        && (
+          // Ordinary configuration write: identity and entitlement fields are
+          // frozen, and the workspace must currently hold an entitlement.
+          (householdEntitledFor(before)
+            && !changed.hasAny([
+              'entitlementOwnerId', 'planOwnerId',
+              'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
+            ]))
+          // ...or the one repair that must stay possible while it does not.
+          || householdSponsorBindingValid(after, request.auth.uid)
+        );
+    }
+
     match /households/{hid} {
       allow get: if householdMember(hid) || householdOwner(hid);
       allow create: if signedIn()
@@ -788,21 +937,7 @@ service cloud.firestore {
         && boundedText(incoming().name, 100)
         && validHouseholdConfig(incoming())
         && validHouseholdEntitlementProjection(incoming(), request.auth.uid);
-      allow update: if householdOwner(hid)
-        && validHouseholdConfigFields(incoming())
-        && incoming().get('ownerId', '') == existing().get('ownerId', '')
-        && incoming().get('createdAt', '') == existing().get('createdAt', '')
-        && (
-          // Ordinary configuration write: identity and entitlement fields are
-          // frozen, and the workspace must currently hold an entitlement.
-          (householdEntitled(hid)
-            && !incoming().diff(existing()).affectedKeys().hasAny([
-              'entitlementOwnerId', 'planOwnerId',
-              'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
-            ]))
-          // ...or the one repair that must stay possible while it does not.
-          || householdSponsorBindingValid(incoming(), request.auth.uid)
-        );
+      allow update: if householdUpdateAuthorized(hid);
       allow delete: if householdOwner(hid);
 
       match /members/{memberId} {
@@ -811,78 +946,9 @@ service cloud.firestore {
           || (verifiedEmail() && (memberId == request.auth.uid || resource.data.get('email', '') == request.auth.token.email));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
-        allow create: if (householdOwner(hid)
-            && memberId == request.auth.uid
-            && incoming().userId == request.auth.uid
-            && incoming().role == 'owner'
-            && incoming().status == 'active')
-          || (householdOwner(hid)
-            && householdEntitled(hid)
-            && memberId != request.auth.uid
-            && incoming().role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-            && memberDocPermissionsValid()
-            && incoming().status in ['invited', 'active'])
-          || (verifiedEmail()
-            && householdEntitled(hid)
-            && memberId == request.auth.uid
-            && incoming().userId == request.auth.uid
-            && incoming().status == 'active'
-            && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
-            && memberDocPermissionsValid()
-            && incoming().email == request.auth.token.email
-            && 'inviteId' in incoming()
-            && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('householdId', '') == hid
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'pending'
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('email', '') == request.auth.token.email
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('role', '') == incoming().role
-            // A custom member may only join with exactly the grants the owner
-            // put on the invitation - never a self-authored variation.
-            && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('expiresAtMs', 0) > request.time.toMillis()
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('acceptedByUserId', '') == request.auth.uid);
+        allow create: if memberCreateAuthorized(hid, memberId);
 
-        allow update: if (householdOwner(hid)
-            && householdEntitled(hid)
-            && resource.data.get('role', '') != 'owner'
-            && incoming().role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-            && (incoming().role != 'custom' || memberDocPermissionsValid())
-            && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
-          || (verifiedEmail()
-            && resource.data.get('email', '') == request.auth.token.email
-            && resource.data.get('status', '') == 'invited'
-            && incoming().status == 'inactive'
-            && incoming().userId == request.auth.uid
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
-          || (memberId == request.auth.uid
-            && resource.data.get('userId', memberId) == request.auth.uid
-            && incoming().status == 'inactive'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'retiredAt']))
-          // Returning member: an inactive membership row may be reactivated
-          // only through the same atomic invitation proof the fresh-create
-          // branch demands - pending, unexpired, addressed to this account's
-          // verified email, with the role (and custom grants) the owner chose.
-          || (verifiedEmail()
-            && householdEntitled(hid)
-            && memberId == request.auth.uid
-            && existing().get('userId', memberId) == request.auth.uid
-            && existing().get('status', '') == 'inactive'
-            && incoming().userId == request.auth.uid
-            && incoming().status == 'active'
-            && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
-            && memberDocPermissionsValid()
-            && incoming().email == request.auth.token.email
-            && 'inviteId' in incoming()
-            && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('householdId', '') == hid
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'pending'
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('email', '') == request.auth.token.email
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('role', '') == incoming().role
-            && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('expiresAtMs', 0) > request.time.toMillis()
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('acceptedByUserId', '') == request.auth.uid);
+        allow update: if memberUpdateAuthorized(hid, memberId);
         allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
       }
 

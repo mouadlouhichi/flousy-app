@@ -158,11 +158,20 @@ export function WorkspacePanel() {
    * just failed. What stopped it is known, so it is said; and where the one thing
    * left to try is the repair this card offers, the message points at it.
    */
+  /**
+   * The repair and the refusal have to be described together. The membership row is
+   * writable under every published version of these rules; the plan-owner field is
+   * frozen by the version this project still runs, so the same button is genuinely worth
+   * pressing *and* is not what lets the sync finish. Promising "run the repair first"
+   * without saying that sent owners back into the identical refusal.
+   */
+  const rulesFreezeTheBinding = Boolean(sponsorStale && sponsorDenial === null && canRestoreSharedAccess);
+
   const syncStopMessage = (error: WorkspaceSyncError): string => {
     const stop = classifyWorkspaceSyncStop(error);
     const detail = stop.cause === 'refused'
       ? `${syncPermissionMessage(error.reason)}${canRestoreSharedAccess
-        ? ` ${t(d.syncRestoreOffer, { action: m.sync.restoreAccess })}`
+        ? ` ${t(rulesFreezeTheBinding ? d.syncRestoreOfferFrozen : d.syncRestoreOffer, { action: m.sync.restoreAccess })}`
         : ''}`
       : stop.cause === 'changed-target'
         // The target month moved underneath the sync: a review, not a retry.
@@ -196,17 +205,22 @@ export function WorkspacePanel() {
       outcome = { ...outcome, membership: 'unavailable', sponsor: 'unavailable' };
     }
     setRestoring(false);
-    const description = outcome.changed
-      ? m.sync.accessRestored
-      : outcome.membership === 'blocked'
-        // Only a workspace owner (or the console) may re-activate a row the rules
-        // already recorded as an owner's; that is not a deployment problem.
-        ? m.sync.membershipBlocked
-        : outcome.membership === 'rejected' || outcome.sponsor === 'rejected-by-rules'
-          ? m.sync.rulesBehind
-          : outcome.sponsor === 'already-consistent' && outcome.membership === 'already'
-            ? m.sync.restoreAccessConsistent
-            : m.sync.restoreAccessFailed;
+    const description = outcome.membership === 'written' && outcome.sponsor === 'rejected-by-rules'
+      // Half the repair landed. `changed` is true here, so this case has to be read
+      // first: otherwise the card claims shared access is restored while the write that
+      // the sync is actually blocked on is still refused.
+      ? m.sync.restoreBindingFrozen
+      : outcome.changed
+        ? m.sync.accessRestored
+          : outcome.membership === 'blocked'
+            // Only a workspace owner (or the console) may re-activate a row the rules
+            // already recorded as an owner's; that is not a deployment problem.
+            ? m.sync.membershipBlocked
+          : outcome.membership === 'rejected' || outcome.sponsor === 'rejected-by-rules'
+            ? m.sync.rulesBehind
+            : outcome.sponsor === 'already-consistent' && outcome.membership === 'already'
+              ? m.sync.restoreAccessConsistent
+              : m.sync.restoreAccessFailed;
     setSyncNotice(description);
     toast({
       variant: outcome.changed ? 'default' : 'destructive',

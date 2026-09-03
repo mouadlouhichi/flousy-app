@@ -1733,6 +1733,7 @@
       "syncSkippedSome": "{periods} période(s) clôturée(s) dans la cible ont été laissées de côté.",
       "syncPartialNothing": "Rien n'a encore été copié : la première période a déjà échoué.",
       "syncRestoreOffer": "Lancez d'abord « {action} » ci-dessous : c'est la réparation que l'application peut effectuer depuis le navigateur.",
+      "syncRestoreOfferFrozen": "Lancez d'abord « {action} » ci-dessous : elle peut remettre votre ligne de membre, rien d'autre. Le champ du titulaire du plan que la synchronisation exige aussi est gelé par les règles publiées ; seul un déploiement des règles ou le script de maintenance le modifie.",
       "syncFailed": "La synchronisation n'a pas pu être terminée. Veuillez réessayer.",
       "personalWorkspace": "Espace personnel"
     },
@@ -2004,6 +2005,7 @@
     "restoreAccessHint": "Les écritures sont refusées car l'abonnement Pro qui paie ce ménage appartient à un autre compte. Vous possédez ce ménage et votre abonnement est actif : il peut basculer sur le vôtre.",
     "restoreAccessDone": "Le propriétaire de l'abonnement du ménage est à jour. Vos modifications partent à la prochaine synchronisation.",
     "restoreAccessConsistent": "Ce ménage tourne déjà sur votre abonnement : le refus vient d'ailleurs.",
+    "restoreBindingFrozen": "Votre ligne de membre est rétablie, l'espace de travail s'ouvre de nouveau. La liaison du titulaire du plan reste refusée : les règles publiées gèlent ce champ à la valeur stockée, et aucun client léger ne peut la changer - ni cette réparation, ni un enregistrement depuis les paramètres. Déployez les règles de cette version ou exécutez le script de maintenance (npm run db:migrate -- --apply).",
     "restoreAccessFailed": "Le serveur a refusé la modification ; le propriétaire de l'abonnement du ménage n'a pas pu être mis à jour."
   },
   "monthLock": {

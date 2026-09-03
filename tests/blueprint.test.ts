@@ -290,7 +290,9 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
 
   it('reuses the array caps enforced by firestore.rules', () => {
     const capFor = (field: string) =>
-      Number(rulesSource.match(new RegExp(`incoming\\(\\)\\.${field}\\.size\\(\\) <= (\\d+)`))?.[1]);
+      // Either spelling of the post-write document: the caps are the contract, the
+      // local name the rule binds it to is not.
+      Number(rulesSource.match(new RegExp(`(?:incoming\\(\\)|after)\\.${field}\\.size\\(\\) <= (\\d+)`))?.[1]);
 
     const monthProperties = blueprint.entities.MonthBudget.properties;
     assert.strictEqual(monthProperties.variableExpenses.maxItems, capFor('variableExpenses'));
