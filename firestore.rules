@@ -265,11 +265,17 @@ service cloud.firestore {
     function householdOwner(hid) {
       // `ownerId` is pinned to the creator at create time and frozen against
       // every writer below, so it is the authoritative ownership record.
+      // Only one copy of it is read: `getAfter` exists because a household can be
+      // created in the same batch as its owner's membership row, where the root
+      // document does not exist yet for `get()`. Asking both on every write was
+      // affordable until the entitlement chain grew; a shared write then ran into
+      // the 1000-expression cap, and an over-cap request is just a denial.
       return signedIn()
-        && ((exists(householdPath(hid))
-            && get(householdPath(hid)).data.get('ownerId', '') == request.auth.uid)
-          || (existsAfter(householdPath(hid))
-            && getAfter(householdPath(hid)).data.get('ownerId', '') == request.auth.uid));
+        && (request.method == 'create'
+          ? (existsAfter(householdPath(hid))
+            && getAfter(householdPath(hid)).data.get('ownerId', '') == request.auth.uid)
+          : (exists(householdPath(hid))
+            && get(householdPath(hid)).data.get('ownerId', '') == request.auth.uid));
     }
     /**
      * Writers of the shared budget. The household's own owner counts even when
@@ -325,9 +331,13 @@ service cloud.firestore {
     }
     function householdSavingsGate(hid) {
       let entitled = householdEntitled(hid);
-      let savingsGrant = memberDocument(hid).get('permissions', {}).get('savings', 'none');
-      let isCustomSaver = memberRole(hid) == 'custom' && savingsGrant == 'editAll';
-      return entitled && (householdEditor(hid) || (householdMember(hid) && isCustomSaver));
+      let member = memberDocument(hid);
+      let role = member.get('role', '');
+      let active = member.get('status', '') == 'active';
+      return entitled && (householdOwner(hid)
+        || (active && (role == 'owner' || role == 'editor'))
+        || (active && role == 'custom'
+          && member.get('permissions', {}).get('savings', 'none') == 'editAll'));
     }
     function householdFinanceReader(hid) {
       return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
