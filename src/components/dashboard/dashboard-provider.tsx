@@ -67,6 +67,7 @@ import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-a
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
 import { useToast } from '@/hooks/use-toast';
+import { resolveProEntitlement } from '../../lib/pro-features';
 import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
@@ -796,11 +797,18 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             // for a household that is the Pro entitlement pause. Retrying
             // cannot help until access returns, so say so instead of the
             // generic queue message.
+            // When the profile itself is Pro but the server still denies,
+            // the cause is a household sponsored by another account or
+            // deployed rules older than this client - not an expired trial.
+            const profileIsPro = resolveProEntitlement(profileRef.current).isPro;
+            const deniedMessage = profileIsPro
+              ? m.sync.entitlementConflict
+              : `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`;
             setSyncError(
               conflict
                 ? m.sync.conflictDetail
                 : denied
-                  ? `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`
+                  ? deniedMessage
                   : '',
             );
             if (denied && Date.now() - deniedToastAtRef.current > 30000) {
@@ -808,7 +816,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
               toast({
                 variant: 'destructive',
                 title: m.sync.failed,
-                description: `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`,
+                description: deniedMessage,
               });
             }
           }

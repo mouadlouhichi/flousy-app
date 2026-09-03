@@ -1926,7 +1926,9 @@
     "trialExpiredBody": "Vos données restent en sécurité et disponibles. Les modifications réservées à Pro sont suspendues, tandis que l’offre gratuite continue de fonctionner.",
     "billingNotAvailable": "Les offres payantes ne sont pas encore disponibles. Vous ne serez jamais facturé sans choisir explicitement une offre après le lancement du paiement.",
     "noCardRequired": "Sans carte · sans renouvellement automatique · un essai par compte",
-    "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez."
+    "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez.",
+    "householdSponsorActive": "Parrainage Pro du ménage : actif jusqu'au {date}.",
+    "householdSponsorExpired": "Le parrainage Pro de ce ménage (enregistré à sa création) a expiré le {date}. Le parrain est fixé à la création — si votre abonnement est actif, le ménage doit être relié ou recréé."
   },
   "seo": {
     "titles": {
@@ -1957,7 +1959,8 @@
     "useCloudCopy": "Ignorer les modifications locales",
     "pending": "En attente",
     "local": "Enregistré sur cet appareil",
-    "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès."
+    "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès.",
+    "entitlementConflict": "Votre abonnement Pro semble actif, mais le serveur refuse toujours cette écriture sur le ménage. Le ménage est peut-être parrainé par un autre compte, ou les règles Firestore déployées sont obsolètes — redéployez-les (firebase deploy --only firestore:rules)."
   },
   "monthLock": {
     "closed": "Mois clôturé",

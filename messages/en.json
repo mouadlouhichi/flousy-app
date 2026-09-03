@@ -1926,7 +1926,9 @@
     "trialExpiredBody": "Your data is safe and remains available. Pro-only editing is paused, while the core free plan continues to work.",
     "billingNotAvailable": "Paid upgrades are not available yet. You will never be charged without explicitly choosing a plan after billing launches.",
     "noCardRequired": "No card required · no automatic renewal · one trial per account",
-    "trialError": "The trial could not be started. Check your connection and try again."
+    "trialError": "The trial could not be started. Check your connection and try again.",
+    "householdSponsorActive": "Household Pro sponsorship: active until {date}.",
+    "householdSponsorExpired": "This household's Pro sponsorship (recorded at creation) expired on {date}. A household's sponsor is fixed at creation — if your plan is active, the household must be re-linked or recreated."
   },
   "seo": {
     "titles": {
@@ -1957,7 +1959,8 @@
     "useCloudCopy": "Discard local changes",
     "pending": "Pending",
     "local": "Saved on this device",
-    "blockedEntitlement": "Editing the shared household budget needs an active Pro entitlement. Your change stays safely queued on this device and will sync once access is active again."
+    "blockedEntitlement": "Editing the shared household budget needs an active Pro entitlement. Your change stays safely queued on this device and will sync once access is active again.",
+    "entitlementConflict": "Your Pro plan looks active, but the server still refuses this household write. The household may be sponsored by a different account, or the deployed Firestore rules are out of date — redeploy them (firebase deploy --only firestore:rules)."
   },
   "monthLock": {
     "closed": "Month closed",

@@ -31,6 +31,30 @@ export function ProPanel() {
         )}
       </div>
 
+      {workspace === 'household' && household?.entitlementEndsAtMs && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            household.entitlementEndsAtMs > Date.now()
+              ? 'border-primary/25 bg-primary/5 text-primary'
+              : 'border-error/30 bg-error/5 text-error'
+          }`}
+        >
+          {household.entitlementEndsAtMs > Date.now()
+            ? t(m.pro.householdSponsorActive, {
+                date: formatShortDate(
+                  new Date(household.entitlementEndsAtMs).toISOString().slice(0, 10),
+                  intlLocale,
+                ),
+              })
+            : t(m.pro.householdSponsorExpired, {
+                date: formatShortDate(
+                  new Date(household.entitlementEndsAtMs).toISOString().slice(0, 10),
+                  intlLocale,
+                ),
+              })}
+        </div>
+      )}
+
       {workspace === 'personal' && entitlement.status === 'trialing' && entitlement.endsAtMs && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary">
           {t(m.pro.trialEnds, {

@@ -118,7 +118,14 @@ export function WorkspacePanel() {
   // Pro entitlement has lapsed; say that instead of a raw permission error.
   const syncPermissionMessage = (error: unknown): string => {
     const code = (error as { code?: string })?.code;
-    if (code === 'permission-denied') return `${m.pro.trialExpiredTitle} ${m.pro.trialExpiredBody}`;
+    if (code === 'permission-denied') {
+      // An active profile entitlement plus a denial means the household is
+      // sponsored by a different account or the deployed rules are older
+      // than this client - say so instead of blaming the trial.
+      return entitlement.isPro
+        ? m.sync.entitlementConflict
+        : `${m.pro.trialExpiredTitle} ${m.pro.trialExpiredBody}`;
+    }
     return d.syncFailed;
   };
 
