@@ -445,18 +445,16 @@ export async function restoreFinanceBackup(
 ): Promise<{ restoredMonths: number; restoredGoals: number }> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const firestore = db;
-  if (backup.workspace.type !== target.workspace) {
-    throw new Error('A backup can only be restored into the same workspace type.');
-  }
-  const backupCurrency = typeof backup.configuration.currency === 'string' ? backup.configuration.currency : undefined;
-  if (backupCurrency && currentConfiguration?.currency && backupCurrency !== currentConfiguration.currency) {
-    throw new Error('Backup currency differs from the destination. Migrate currency before restoring.');
-  }
-  const backupStartDay = Number(backup.configuration.monthStartDate || 1);
-  const currentStartDay = Number(currentConfiguration?.monthStartDate || 1);
-  if (backupStartDay !== currentStartDay) {
-    throw new Error('Backup budget-period settings differ from the destination.');
-  }
+  // The destination is the user's choice, not something this function re-litigates:
+  // the periods in a file are self-describing (each carries its own currency and
+  // start day), so a budget exported from a shared workspace restores into a
+  // personal one and the other way round, and a currency or period-start that
+  // differs from the destination is a thing to say out loud in the confirmation
+  // dialog - see planFinanceBackupRestore() - not a reason to refuse someone's own
+  // data. What must not travel is the *configuration*: a household's shared places
+  // and category defaults belong to the people who see them, and one member's
+  // personal settings file has no business rewriting a household's.
+  const retargeted = backup.workspace.type !== 'unknown' && backup.workspace.type !== target.workspace;
 
   const workspaceId = target.workspace === 'household' ? target.householdId : target.uid;
   const monthEntries = Object.entries(backup.months).sort(([left], [right]) => left.localeCompare(right));
@@ -510,6 +508,7 @@ export async function restoreFinanceBackup(
       await batch.commit();
     }
     const config = backup.configuration as Partial<UserProfile>;
+    if (retargeted) return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
     await setDoc(doc(firestore, 'users', uid), cleanUndefined({
       theme: config.theme,
       language: config.language,
@@ -521,6 +520,7 @@ export async function restoreFinanceBackup(
     }), { merge: true });
   } else {
     const config = backup.configuration as Record<string, unknown>;
+    if (retargeted) return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
     await setDoc(doc(firestore, 'households', target.householdId), cleanUndefined({
       defaultCategoryBudgets: config.defaultCategoryBudgets,
       enableRollover: config.enableRollover,

@@ -62,12 +62,68 @@ const SESSION_STATUS = ['active', 'completed'] as const;
 const EXPENSE_SOURCE_TYPES = ['invoice', 'course', 'csv', 'manual'] as const;
 const FIXED_SOURCE_TYPES = ['invoice', 'csv', 'manual'] as const;
 
+/**
+ * What a file asked us to forgive. A backup is the user's own data, written by
+ * whatever build of the app they had at the time and often re-opened in another
+ * account, so the parser completes and trims instead of refusing: every
+ * concession is reported, because a restore that quietly dropped part of a
+ * period is worse than one that said so.
+ */
+export type BackupNoticeCode =
+  | 'unrecognizedFields'
+  | 'completedFields'
+  | 'generatedIds'
+  | 'recalculatedTotals'
+  | 'reopenedPeriods'
+  | 'newerVersion'
+  | 'unmarkedFile';
+
+export interface BackupNotice {
+  code: BackupNoticeCode;
+  count: number;
+  /** Field or period names involved, capped so a dialog stays readable. */
+  fields?: string[];
+}
+
+class BackupReport {
+  private readonly entries = new Map<BackupNoticeCode, { count: number; fields: Set<string> }>();
+
+  note(code: BackupNoticeCode, field?: string): void {
+    const entry = this.entries.get(code) ?? { count: 0, fields: new Set<string>() };
+    entry.count += 1;
+    if (field) entry.fields.add(field);
+    this.entries.set(code, entry);
+  }
+
+  notices(): BackupNotice[] {
+    return [...this.entries.entries()].map(([code, { count, fields }]) => ({
+      code,
+      count,
+      ...(fields.size ? { fields: [...fields].slice(0, 6) } : {}),
+    }));
+  }
+}
+
+/**
+ * Bound for the duration of one synchronous `readFinanceBackup` call. The helpers
+ * below are shared by every parser and would otherwise each thread a report
+ * through their signature; parsing is synchronous, so calls cannot interleave.
+ */
+let activeReport: BackupReport | null = null;
+/** Timestamp a file omits: the moment it was written, not the moment it is read. */
+let fileTimestamp = '1970-01-01T00:00:00.000Z';
+
+function note(code: BackupNoticeCode, field?: string): void {
+  activeReport?.note(code, field);
+}
+
 export interface FinanceBackup {
   format: typeof FINANCE_BACKUP_FORMAT;
   version: typeof FINANCE_BACKUP_VERSION;
   id: string;
   exportedAt: string;
-  workspace: { type: 'personal' | 'household'; id: string; name?: string };
+  /** `unknown` for a file that does not say - which still restores. */
+  workspace: { type: 'personal' | 'household' | 'unknown'; id: string; name?: string };
   configuration: Partial<UserProfile> | Partial<Household>;
   months: Record<string, MonthBudget>;
   goals: SavingGoal[];
@@ -138,6 +194,53 @@ function enumValue<T extends string>(value: unknown, field: string, allowed: rea
   }
   return value as T;
 }
+/**
+ * A value this build does not recognise in a field that only selects a default -
+ * a strategy preset, a product source - is completed rather than fatal: the
+ * record around it is real data, and refusing a whole period over a label a newer
+ * app invented would lock the file out of the account that still needs it.
+ */
+function enumValueOr<T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  if (typeof value === 'string' && allowed.includes(value as T)) return value as T;
+  if (value !== undefined && value !== null) note('unrecognizedFields', field);
+  return fallback;
+}
+/** An enum a record may leave out; an unreadable value is defaulted and reported. */
+function optionalEnumValue<T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+  fallback: T,
+): T | undefined {
+  return value === undefined || value === null ? undefined : enumValueOr(value, field, allowed, fallback);
+}
+function moneyOr(value: unknown, field: string, fallback: number): number {
+  if (value === undefined || value === null) return fallback;
+  return money(value, field);
+}
+/** Position of an entry inside the array it came from, read off its field path. */
+function entryIndex(field: string): number {
+  const match = /\[(\d+)\]$/.exec(field);
+  return match ? Number(match[1]) : 0;
+}
+/**
+ * An id a record has to carry to be addressable. A missing one is generated from
+ * the entry's position, so restoring the same file twice reaches the same record
+ * instead of duplicating it; a present-but-unusable one stays an error.
+ */
+function identifier(value: unknown, field: string, kind: string): string {
+  if (typeof value === 'string' && value.length > 0 && value.length <= 160) return value;
+  if (value !== undefined && value !== null) {
+    throw new InvalidFinanceBackupError(`${field} must be a string of up to 160 characters.`);
+  }
+  note('generatedIds', field);
+  return `backup-${kind}-${entryIndex(field)}`;
+}
 
 function optional<T>(value: unknown, field: string, parse: (v: unknown, f: string) => T): T | undefined {
   return value === undefined || value === null ? undefined : parse(value, field);
@@ -147,7 +250,12 @@ function optionalString(value: unknown, field: string, max: number): string | un
   return value === undefined || value === null ? undefined : text(value, field, max, { min: 0 });
 }
 
-/** Reject unknown keys so a restored document can never smuggle extra fields. */
+/**
+ * Strip keys this build does not know, so a restored document can never carry an
+ * extra field into Firestore. Dropping them - rather than rejecting the record -
+ * is what lets a file written by a newer app restore into an older account, and
+ * the names are reported so the user learns that something was not understood.
+ */
 function assertKnownKeys(
   source: Record<string, unknown>,
   allowed: readonly string[],
@@ -155,7 +263,8 @@ function assertKnownKeys(
 ): void {
   for (const key of Object.keys(source)) {
     if (!allowed.includes(key)) {
-      throw new InvalidFinanceBackupError(`${field} has an unsupported field: ${key}.`);
+      note('unrecognizedFields', `${field}.${key}`);
+      delete source[key];
     }
   }
 }
@@ -276,7 +385,7 @@ function parseIncomeSource(raw: unknown, field: string) {
   const amount = money(raw.amount, `${field}.amount`);
   const status = enumValue(raw.status ?? 'paid', `${field}.status`, LIFECYCLE);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     name: text(raw.name, `${field}.name`, 60),
     amount,
     status,
@@ -297,7 +406,7 @@ function parseVariableExpense(raw: unknown, field: string) {
     'sourceType', 'sourceId', 'importFingerprint',
   ], field);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     name: text(raw.name, `${field}.name`, 100),
     amount: money(raw.amount, `${field}.amount`),
     type: text(raw.type, `${field}.type`, 100),
@@ -327,7 +436,7 @@ function parseFixedExpense(raw: unknown, field: string) {
   const amount = money(raw.amount, `${field}.amount`);
   const status = enumValue(raw.status ?? 'paid', `${field}.status`, LIFECYCLE);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     name: text(raw.name, `${field}.name`, 100),
     amount,
     type: text(raw.type, `${field}.type`, 100),
@@ -354,7 +463,7 @@ function parseDebtPayment(raw: unknown, field: string) {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, ['id', 'amount', 'date', 'place', 'note', 'createdByUserId'], field);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     amount: money(raw.amount, `${field}.amount`),
     date: calendarDate(raw.date, `${field}.date`),
     place: text(raw.place, `${field}.place`, 80, { min: 0 }),
@@ -377,7 +486,7 @@ function parseDebt(raw: unknown, field: string) {
     throw new InvalidFinanceBackupError(`${field} payments exceed the original amount.`);
   }
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     name: text(raw.name, `${field}.name`, 120),
     amount,
     type: enumValue(raw.type, `${field}.type`, ['debt', 'credit'] as const),
@@ -397,7 +506,7 @@ function parseTransfer(raw: unknown, field: string) {
   const to = text(raw.to, `${field}.to`, 80, { min: 0 });
   if (from === to) throw new InvalidFinanceBackupError(`${field} must move between two different money places.`);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     from,
     to,
     amount: money(raw.amount, `${field}.amount`),
@@ -420,7 +529,7 @@ function parseAdjustment(raw: unknown, field: string) {
     throw new InvalidFinanceBackupError(`${field}.delta does not reconcile with the balance change.`);
   }
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     place: text(raw.place, `${field}.place`, 80, { min: 0 }),
     previousBalance,
     newBalance,
@@ -436,7 +545,7 @@ function parseSavingsActivity(raw: unknown, field: string) {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, ['id', 'goalId', 'goalName', 'type', 'amount', 'date', 'place'], field);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     goalId: text(raw.goalId, `${field}.goalId`, 160, { min: 0 }),
     goalName: text(raw.goalName, `${field}.goalName`, 100),
     type: enumValue(raw.type, `${field}.type`, ['deposit', 'withdraw'] as const),
@@ -457,11 +566,17 @@ function parseMonth(raw: unknown, field: string, monthKey: string): MonthBudget 
     throw new InvalidFinanceBackupError(`${field} exceeds the ${MAX_MONTH_BACKUP_BYTES}-byte restore ceiling (${bytes} bytes).`);
   }
 
-  const periodStatus = raw.periodStatus === undefined ? undefined : enumValue(raw.periodStatus, `${field}.periodStatus`, ['open', 'closed'] as const);
-  if (periodStatus === 'closed') {
-    if (typeof raw.closedAt !== 'string' || typeof raw.closedByUserId !== 'string' || !raw.closedByUserId) {
-      throw new InvalidFinanceBackupError(`${field} is closed and must carry closedAt and closedByUserId.`);
-    }
+  const periodStatus = optionalEnumValue(raw.periodStatus, `${field}.periodStatus`, ['open', 'closed'] as const, 'open');
+  // A closed period is only writable with the record of who closed it and when -
+  // Firestore Rules ask for both. A file that says `closed` without them is
+  // restored open, and said so, rather than aborting the restore halfway through.
+  if (periodStatus === 'closed'
+    && (typeof raw.closedAt !== 'string' || typeof raw.closedByUserId !== 'string' || !raw.closedByUserId)) {
+    note('reopenedPeriods', monthKey);
+    raw.periodStatus = 'open';
+    delete raw.closedAt;
+    delete raw.closedByUserId;
+  } else if (periodStatus === 'closed') {
     isoTimestamp(raw.closedAt, `${field}.closedAt`);
     text(raw.closedByUserId, `${field}.closedByUserId`, 160);
   }
@@ -491,12 +606,21 @@ function parseMonth(raw: unknown, field: string, monthKey: string): MonthBudget 
   return {
     ...(raw as unknown as MonthBudget),
     periodKey: raw.periodKey === undefined ? monthKey : text(raw.periodKey, `${field}.periodKey`, 10, { min: 0 }),
-    totalBudget: money(raw.totalBudget, `${field}.totalBudget`),
-    bankPart: money(raw.bankPart, `${field}.bankPart`),
-    homePart: money(raw.homePart, `${field}.homePart`),
-    walletPart: money(raw.walletPart, `${field}.walletPart`),
-    strategyId: enumValue(raw.strategyId, `${field}.strategyId`, STRATEGIES),
-    monthlySavingsTarget: money(raw.monthlySavingsTarget, `${field}.monthlySavingsTarget`),
+    // Fields a period cannot be without are completed the way an empty period in
+    // this app is defined, so an older or hand-trimmed file still restores; each one
+    // is reported, because a zero the file never carried is information too.
+    ...(() => {
+      if (raw.totalBudget === undefined || raw.bankPart === undefined) note('completedFields', field.replace(/\.$/, ''));
+      return {};
+    })(),
+    totalBudget: moneyOr(raw.totalBudget, `${field}.totalBudget`, 0),
+    bankPart: moneyOr(raw.bankPart, `${field}.bankPart`, 0),
+    homePart: moneyOr(raw.homePart, `${field}.homePart`, 0),
+    walletPart: moneyOr(raw.walletPart, `${field}.walletPart`, 0),
+    // The removed '80-20' preset held the same ratios as 50/30/20, which is what
+    // normalizeMonth() maps it to: the label moves, the numbers do not.
+    strategyId: enumValueOr(raw.strategyId === '80-20' ? '50-30-20' : raw.strategyId, `${field}.strategyId`, STRATEGIES, '50-30-20'),
+    monthlySavingsTarget: moneyOr(raw.monthlySavingsTarget, `${field}.monthlySavingsTarget`, 0),
     incomeSources: raw.incomeSources === undefined ? [] : entities(raw.incomeSources, `${field}.incomeSources`, LIMITS.incomeSources, parseIncomeSource),
     variableExpenses: raw.variableExpenses === undefined ? [] : entities(raw.variableExpenses, `${field}.variableExpenses`, LIMITS.variableExpenses, parseVariableExpense),
     fixedExpenses: raw.fixedExpenses === undefined ? [] : entities(raw.fixedExpenses, `${field}.fixedExpenses`, LIMITS.fixedExpenses, parseFixedExpense),
@@ -522,27 +646,42 @@ function parseGoal(raw: unknown, field: string): SavingGoal {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, ['id', 'name', 'target', 'current', 'source', 'active', 'category', 'deposited'], field);
   return {
-    id: text(raw.id, `${field}.id`, 160),
+    id: identifier(raw.id, `${field}.id`, 'entry'),
     name: text(raw.name, `${field}.name`, 100),
     target: money(raw.target, `${field}.target`),
     current: money(raw.current, `${field}.current`),
-    source: text(raw.source, `${field}.source`, 80, { min: 0 }),
+    // A goal's funding place is a label the app carries; an older file may not have
+    // one, and inventing a place would move money the user never assigned.
+    source: optionalString(raw.source, `${field}.source`, 80) ?? '',
     active: raw.active === undefined ? true : Boolean(raw.active),
     ...(optionalString(raw.category, `${field}.category`, 100) ? { category: raw.category as string } : {}),
     ...(raw.deposited !== undefined ? { deposited: money(raw.deposited, `${field}.deposited`) } : {}),
   };
 }
 
+/**
+ * A product is keyed by its barcode, so a file that lost one still gets a
+ * placeholder key and survives; a barcode that is present but not a barcode is a
+ * different product than the file claims, and inventing one would silently move the
+ * price history to a shelf it never belonged on.
+ */
+function productBarcode(value: unknown, field: string): string {
+  if (typeof value === 'string' && /^\d{8}$|^\d{13}$/.test(value)) return value;
+  if (value !== undefined && value !== null && value !== '') {
+    throw new InvalidFinanceBackupError(`${field} must be 8 or 13 digits.`);
+  }
+  note('generatedIds', field);
+  // 13 digits, the EAN-13 length the app also accepts, so a placeholder can never
+  // collide with a scanned barcode.
+  return `000000${String(entryIndex(field) % 10000000).padStart(7, '0')}`;
+}
 function parseProduct(raw: unknown, field: string): Product {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
     'barcode', 'name', 'brand', 'category', 'imageUrl', 'lastPrice',
     'priceUpdatedAt', 'source', 'origin', 'createdAt', 'updatedAt',
   ], field);
-  const barcode = text(raw.barcode, `${field}.barcode`, 13);
-  if (!/^\d{8}$|^\d{13}$/.test(barcode)) {
-    throw new InvalidFinanceBackupError(`${field}.barcode must be 8 or 13 digits.`);
-  }
+  const barcode = productBarcode(raw.barcode, `${field}.barcode`);
   return {
     barcode,
     name: text(raw.name, `${field}.name`, 100),
@@ -551,10 +690,10 @@ function parseProduct(raw: unknown, field: string): Product {
     ...(optionalString(raw.imageUrl, `${field}.imageUrl`, 500) ? { imageUrl: raw.imageUrl as string } : {}),
     ...(raw.lastPrice !== undefined ? { lastPrice: money(raw.lastPrice, `${field}.lastPrice`) } : {}),
     ...(optionalString(raw.priceUpdatedAt, `${field}.priceUpdatedAt`, 40) ? { priceUpdatedAt: raw.priceUpdatedAt as string } : {}),
-    source: enumValue(raw.source, `${field}.source`, PRODUCT_SOURCES),
+    source: enumValueOr(raw.source, `${field}.source`, PRODUCT_SOURCES, 'manual'),
     ...(optionalString(raw.origin, `${field}.origin`, 8) ? { origin: raw.origin as string } : {}),
-    createdAt: isoTimestamp(raw.createdAt, `${field}.createdAt`),
-    updatedAt: isoTimestamp(raw.updatedAt, `${field}.updatedAt`),
+    createdAt: isoTimestamp(raw.createdAt ?? fileTimestamp, `${field}.createdAt`),
+    updatedAt: isoTimestamp(raw.updatedAt ?? fileTimestamp, `${field}.updatedAt`),
   } as Product;
 }
 
@@ -568,18 +707,19 @@ function parseSessionItem(raw: unknown, field: string) {
   }
   const unitPrice = money(raw.unitPrice, `${field}.unitPrice`);
   const lineTotal = money(raw.lineTotal, `${field}.lineTotal`);
-  // Line totals are stored, never re-derived; a mismatch means tampered data.
-  if (lineTotal !== round2(qty * unitPrice)) {
-    throw new InvalidFinanceBackupError(`${field}.lineTotal does not equal qty × unitPrice.`);
-  }
+  // A line whose total disagrees with qty × unitPrice is rewritten to agree: the
+  // session bill is derived from these lines, so an unreconciled entry would
+  // either abort the restore or restore a bill the app then contradicts.
+  const expected = round2(qty * unitPrice);
+  if (lineTotal !== expected) note('recalculatedTotals', field);
   return {
-    key: text(raw.key, `${field}.key`, 160),
+    key: identifier(raw.key, `${field}.key`, 'item'),
     ...(optionalString(raw.barcode, `${field}.barcode`, 13) ? { barcode: raw.barcode as string } : {}),
     name: text(raw.name, `${field}.name`, 100),
     ...(optionalString(raw.category, `${field}.category`, 100) ? { category: raw.category as string } : {}),
     qty,
     unitPrice,
-    lineTotal,
+    lineTotal: expected,
   };
 }
 
@@ -592,22 +732,23 @@ function parseSession(raw: unknown, field: string): CourseSession {
   ], field);
   // Session lines are keyed by `key`, not `id`.
   const items = raw.items === undefined ? [] : entities(raw.items, `${field}.items`, LIMITS.sessionItems, parseSessionItem, 'key');
-  const total = money(raw.total, `${field}.total`);
-  // The denormalized total must equal the bill it claims to render.
+  // The session total is the bill it renders, so it is recomputed from the lines
+  // rather than trusted - and reported when the file disagreed with itself.
   const expectedTotal = round2(items.reduce((sum, item) => sum + item.lineTotal, 0));
+  const total = moneyOr(raw.total, `${field}.total`, expectedTotal);
   if (items.length > 0 && total !== expectedTotal) {
-    throw new InvalidFinanceBackupError(`${field}.total does not equal the sum of line totals.`);
+    note('recalculatedTotals', field);
   }
   return {
-    id: text(raw.id, `${field}.id`, 160),
-    status: enumValue(raw.status, `${field}.status`, SESSION_STATUS),
-    startedAt: isoTimestamp(raw.startedAt, `${field}.startedAt`),
+    id: identifier(raw.id, `${field}.id`, 'session'),
+    status: enumValueOr(raw.status, `${field}.status`, SESSION_STATUS, 'completed'),
+    startedAt: isoTimestamp(raw.startedAt ?? fileTimestamp, `${field}.startedAt`),
     ...(optionalString(raw.endedAt, `${field}.endedAt`, 40) ? { endedAt: raw.endedAt as string } : {}),
     date: calendarDate(raw.date, `${field}.date`),
     currency: text(raw.currency, `${field}.currency`, 8, { min: 0 }),
     place: text(raw.place, `${field}.place`, 80, { min: 0 }),
     items,
-    total,
+    total: expectedTotal,
     ...(optionalString(raw.loggedExpenseId, `${field}.loggedExpenseId`, 160) ? { loggedExpenseId: raw.loggedExpenseId as string } : {}),
     ...(optionalString(raw.loggedMonthKey, `${field}.loggedMonthKey`, 10) ? { loggedMonthKey: raw.loggedMonthKey as string } : {}),
     ...(raw.loggedWorkspace !== undefined ? { loggedWorkspace: enumValue(raw.loggedWorkspace, `${field}.loggedWorkspace`, ['personal', 'household'] as const) } : {}),
@@ -673,35 +814,77 @@ function sanitizeConfiguration(raw: unknown): Partial<UserProfile> | Partial<Hou
 }
 
 /**
- * Strict structural validation before any restore write is attempted. Every
- * nested month entity, goal, product and session is validated against the
- * same contracts Firestore Rules and normalizeMonth() enforce, unknown
- * fields are rejected, arithmetic must reconcile, and a malformed record
- * aborts the restore before the first write.
+ * Structural validation before any restore write is attempted. Every nested month
+ * entity, goal, product and session is checked against the contracts Firestore
+ * Rules and normalizeMonth() enforce, and arithmetic has to reconcile - but a file
+ * is treated as the user's own data across *versions* and *accounts*, not only as
+ * this build's exact output: keys this build lacks are dropped and reported,
+ * fields a period cannot be without are completed, and a file from another
+ * workspace type restores into the one the user is standing in. What stays fatal
+ * is what cannot be written at all: unreadable JSON, an over-long period, amounts
+ * Firestore Rules would refuse, and collections past their size limits.
  */
 export function parseFinanceBackup(text: string): FinanceBackup {
-  if (new Blob([text]).size > MAX_BACKUP_BYTES) {
+  return readFinanceBackup(text).backup;
+}
+
+/** Parse a backup and report what had to be forgiven to read it. */
+export function readFinanceBackup(text: string): { backup: FinanceBackup; notices: BackupNotice[] } {
+  const report = new BackupReport();
+  const previousReport = activeReport;
+  const previousTimestamp = fileTimestamp;
+  activeReport = report;
+  try {
+    return { backup: read(text), notices: report.notices() };
+  } finally {
+    activeReport = previousReport;
+    fileTimestamp = previousTimestamp;
+  }
+
+function read(source: string): FinanceBackup {
+  if (new Blob([source]).size > MAX_BACKUP_BYTES) {
     throw new InvalidFinanceBackupError('Backup exceeds the 20 MB safety limit.');
   }
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(source);
   } catch {
     throw new InvalidFinanceBackupError('Backup is not valid JSON.');
   }
-  if (!isObject(raw)
-    || raw.format !== FINANCE_BACKUP_FORMAT
-    || raw.version !== FINANCE_BACKUP_VERSION
-    || !isObject(raw.workspace)
-    || !['personal', 'household'].includes(String(raw.workspace.type))
-    || typeof raw.workspace.id !== 'string'
-    || !isObject(raw.months)
-    || !Array.isArray(raw.goals)
-    || !isObject(raw.configuration)) {
-    throw new InvalidFinanceBackupError('Unsupported or incomplete SmartJib backup.');
+  if (!isObject(raw)) {
+    throw new InvalidFinanceBackupError('This is not a SmartJib backup: the file holds no backup object.');
   }
+  if (raw.format !== FINANCE_BACKUP_FORMAT) {
+    // Unmarked, but shaped like one. A backup written before the format marker, or
+    // renamed and re-saved by hand, is still the user's budget.
+    if (!isObject(raw.months) && !Array.isArray(raw.goals)) {
+      throw new InvalidFinanceBackupError('This is not a SmartJib backup: it holds no budget periods.');
+    }
+    note('unmarkedFile');
+  }
+  if (typeof raw.version === 'number' && Number.isInteger(raw.version) && raw.version > FINANCE_BACKUP_VERSION) {
+    note('newerVersion', String(raw.version));
+  }
+  if (raw.months !== undefined && !isObject(raw.months)) {
+    throw new InvalidFinanceBackupError('This is not a SmartJib backup: its periods are not a list of months.');
+  }
+  if (raw.goals !== undefined && !Array.isArray(raw.goals)) {
+    throw new InvalidFinanceBackupError('This is not a SmartJib backup: its savings goals are not a list.');
+  }
+  if (raw.configuration !== undefined && !isObject(raw.configuration)) {
+    throw new InvalidFinanceBackupError('This is not a SmartJib backup: its settings are not an object.');
+  }
+  const exportedAt = typeof raw.exportedAt === 'string' && !Number.isNaN(Date.parse(raw.exportedAt))
+    ? raw.exportedAt
+    : new Date().toISOString();
+  fileTimestamp = exportedAt;
+  const workspaceInput = isObject(raw.workspace) ? raw.workspace : undefined;
+  const workspaceType = workspaceInput?.type === 'personal' || workspaceInput?.type === 'household'
+    ? workspaceInput.type as 'personal' | 'household'
+    : 'unknown';
+  const workspaceId = typeof workspaceInput?.id === 'string' ? workspaceInput.id : '';
   const months: Record<string, MonthBudget> = {};
-  for (const [monthKey, month] of Object.entries(raw.months)) {
+  for (const [monthKey, month] of Object.entries(isObject(raw.months) ? raw.months : {})) {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey) || !isObject(month)) {
       throw new InvalidFinanceBackupError(`Invalid month entry: ${monthKey}.`);
     }
@@ -710,28 +893,107 @@ export function parseFinanceBackup(text: string): FinanceBackup {
   if (Object.keys(months).length > LIMITS.months) {
     throw new InvalidFinanceBackupError('Backup contains more months than SmartJib can safely restore.');
   }
-  const goals = entities(raw.goals, 'goals', LIMITS.goals, parseGoal);
+  const goals = entities(raw.goals ?? [], 'goals', LIMITS.goals, parseGoal);
   // Products are keyed by their barcode (the document id), not an `id` field.
   const products = raw.products === undefined
     ? undefined
     : entities(raw.products, 'products', LIMITS.products, parseProduct, 'barcode');
   const sessions = raw.sessions === undefined ? undefined : entities(raw.sessions, 'sessions', LIMITS.sessions, parseSession);
+  if (raw.sessions !== undefined && !Array.isArray(raw.sessions)) {
+    throw new InvalidFinanceBackupError('Backup sessions must be an array.');
+  }
 
   return {
     format: FINANCE_BACKUP_FORMAT,
     version: FINANCE_BACKUP_VERSION,
     id: safeBackupId(raw.id),
-    exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : new Date().toISOString(),
+    exportedAt,
     workspace: {
-      type: raw.workspace.type as 'personal' | 'household',
-      id: raw.workspace.id,
-      ...(typeof raw.workspace.name === 'string' ? { name: raw.workspace.name } : {}),
+      type: workspaceType,
+      id: workspaceId,
+      ...(typeof workspaceInput?.name === 'string' ? { name: workspaceInput.name } : {}),
     },
-    configuration: sanitizeConfiguration(raw.configuration),
+    configuration: sanitizeConfiguration(raw.configuration ?? {}),
     months,
     goals,
     ...(products ? { products } : {}),
     ...(sessions ? { sessions } : {}),
+  };
+}
+}
+
+/** Where a parsed backup is going, so a plan can be shown before anything is written. */
+export interface BackupDestination {
+  workspace: 'personal' | 'household';
+  /** Restoring into a shared workspace changes what everyone in it sees. */
+  isOwner: boolean;
+  currency?: string;
+  monthStartDate?: number;
+  name?: string;
+}
+
+export type BackupPlanCode =
+  | 'retargeted'
+  | 'currencyDiffers'
+  | 'monthStartDiffers'
+  | 'householdOwnerOnly';
+
+export interface BackupPlanNotice {
+  code: BackupPlanCode;
+  params: Record<string, string | number>;
+}
+
+export interface BackupPlan {
+  canRestore: boolean;
+  notices: BackupPlanNotice[];
+  counts: { months: number; goals: number; products: number; sessions: number };
+}
+
+/**
+ * The decision the restore dialog shows: what is in the file, where it will land,
+ * and which differences between the two the user is accepting. Currency and
+ * budget-period start are deliberately *not* blockers - the file's amounts stay as
+ * they were recorded, and every restored period carries its own start day - but
+ * they are said out loud, because a number shown in another currency is a number
+ * the user has to agree to read.
+ */
+export function planFinanceBackupRestore(
+  backup: FinanceBackup,
+  destination: BackupDestination,
+): BackupPlan {
+  const notices: BackupPlanNotice[] = [];
+  const source = backup.workspace;
+  if (source.type !== 'unknown' && source.type !== destination.workspace) {
+    notices.push({
+      code: 'retargeted',
+      params: {
+        from: source.name || source.type,
+        to: destination.name || destination.workspace,
+      },
+    });
+  }
+  const fileCurrency = typeof backup.configuration.currency === 'string' ? backup.configuration.currency : undefined;
+  if (fileCurrency && destination.currency && fileCurrency !== destination.currency) {
+    notices.push({ code: 'currencyDiffers', params: { from: fileCurrency, to: destination.currency } });
+  }
+  const fileStart = Number(backup.configuration.monthStartDate || 1);
+  const destinationStart = Number(destination.monthStartDate || 1);
+  if (fileStart !== destinationStart) {
+    notices.push({ code: 'monthStartDiffers', params: { from: fileStart, to: destinationStart } });
+  }
+  const sharedWorkspace = destination.workspace === 'household';
+  if (sharedWorkspace && !destination.isOwner) {
+    notices.push({ code: 'householdOwnerOnly', params: {} });
+  }
+  return {
+    canRestore: !sharedWorkspace || destination.isOwner,
+    notices,
+    counts: {
+      months: Object.keys(backup.months).length,
+      goals: backup.goals.length,
+      products: backup.products?.length ?? 0,
+      sessions: backup.sessions?.length ?? 0,
+    },
   };
 }
 

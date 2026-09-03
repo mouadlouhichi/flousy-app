@@ -1696,6 +1696,23 @@
       "restorePartial": "Restore stopped partway through. Select the same file again to resume safely.",
       "restoreFailed": "The backup could not be restored. Check its currency and budget-period settings.",
       "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
+      "restoreCounts": "Exported {exportedAt}: {months} periods, {goals} savings goals, {products} products, {sessions} shopping sessions.",
+      "backupInvalidDetail": "This file was not accepted: {reason}",
+      "backupPlanNotices": {
+        "retargeted": "This backup was exported from {from}; it will be restored into {to}.",
+        "currencyDiffers": "Amounts in the file are in {from} while this workspace uses {to}. They are restored exactly as they were recorded.",
+        "monthStartDiffers": "The file's budget periods start on day {from}, this workspace's on day {to}. Each restored period keeps its own start day.",
+        "householdOwnerOnly": "Only the owner of this shared workspace can restore a backup into it, because it changes what everyone in it sees."
+      },
+      "backupReportNotices": {
+        "unrecognizedFields": "Ignored {count} field(s) this version does not know: {fields}",
+        "completedFields": "Completed {count} period(s) that were missing values SmartJib fills in for a new period.",
+        "generatedIds": "Gave new identifiers to {count} record(s) whose file had lost theirs.",
+        "recalculatedTotals": "Recomputed {count} shopping bill(s) whose total did not match their lines.",
+        "reopenedPeriods": "Restored {count} closed period(s) as open, because the file did not carry the record of who closed them: {fields}",
+        "newerVersion": "This file was written by a newer SmartJib (version {fields}); everything it holds that this version understands was restored.",
+        "unmarkedFile": "This file is not marked as a SmartJib backup, so its periods and goals were read as they are."
+      },
       "syncRunning": "Syncing…",
       "syncComplete": "Synced {months} month(s): {incomes} incomes, {expenses} expenses, {fixed} fixed bills, {debts} debts.",
       "syncNothingNew": "Nothing new to sync — every record is already there.",

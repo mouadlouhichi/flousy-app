@@ -6,6 +6,8 @@ import {
   InvalidFinanceBackupError,
   MAX_MONTH_BACKUP_BYTES,
   parseFinanceBackup,
+  planFinanceBackupRestore,
+  readFinanceBackup,
   serializeFinanceBackup,
 } from '../src/lib/finance-backup';
 import { normalizeMonth } from '../src/lib/store';
@@ -161,11 +163,22 @@ describe('Finance backup deep validation (M1)', () => {
     assert.ok(!('entitlementSource' in config));
   });
 
-  it('rejects non-JSON payloads and foreign formats', () => {
+  it('rejects payloads that are not a backup at all', () => {
     assert.throws(() => parseFinanceBackup('not json'), InvalidFinanceBackupError);
-    const wrongFormat = validBackup();
-    wrongFormat.format = 'some-other-tool';
-    expectRejected(wrongFormat, 'Unsupported or incomplete');
+    assert.throws(() => parseFinanceBackup('[]'), InvalidFinanceBackupError);
+    // A file from another tool is refused, whatever it calls itself.
+    expectRejected({ format: 'some-other-tool', note: 'my groceries' }, 'not a SmartJib backup');
+  });
+
+  it('reads an unmarked file that is shaped like one, and says so', () => {
+    // Exports survive being renamed, re-saved, or written by a build that had not
+    // settled on the format marker; the data is the user's either way.
+    const backup = validBackup();
+    delete backup.format;
+    delete backup.version;
+    const { backup: read, notices } = readFinanceBackup(JSON.stringify(backup));
+    assert.ok(Object.keys(read.months).length > 0);
+    assert.deepEqual(notices.map((notice) => notice.code), ['unmarkedFile']);
   });
 
   it('rejects malformed month keys', () => {
@@ -174,10 +187,24 @@ describe('Finance backup deep validation (M1)', () => {
     expectRejected(backup, 'Invalid month entry');
   });
 
-  it('rejects unknown fields inside a month document', () => {
+  it('drops fields this version does not know instead of refusing the file', () => {
+    // A backup written by a newer app can carry fields this one has never heard of.
+    // They must never reach Firestore - that is the property the strict parser
+    // existed for - and dropping them keeps the file importable; the report is what
+    // tells the user that something was not understood.
     const backup = validBackup();
-    (backup.months as Record<string, unknown>)['2026-07'] = { ...validMonth(), evilKey: true };
-    expectRejected(backup, 'unsupported field: evilKey');
+    (backup.months as Record<string, unknown>)['2026-07'] = {
+      ...validMonth(),
+      evilKey: true,
+      receipts: [{ id: 'r1' }],
+    };
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    const month = read.months['2026-07'] as unknown as Record<string, unknown>;
+    assert.equal(month.evilKey, undefined);
+    assert.equal(month.receipts, undefined);
+    const notice = notices.find((entry) => entry.code === 'unrecognizedFields');
+    assert.ok(notice && notice.count === 2);
+    assert.ok(notice?.fields?.some((field) => field.endsWith('evilKey')));
   });
 
   it('rejects duplicate entity ids inside one collection', () => {
@@ -292,10 +319,30 @@ describe('Finance backup deep validation (M1)', () => {
     expectRejected(backup, 'summing to 1');
   });
 
-  it('rejects closed periods without an audit trail', () => {
+  it('reopens a closed period whose audit trail the file lost', () => {
+    // Firestore Rules refuse a closed period without who closed it and when, so
+    // accepting it as closed would abort the restore over a bookkeeping field. The
+    // period comes back open, and the dialog says so.
     const backup = validBackup();
     backup.months = { '2026-07': { ...validMonth(), periodStatus: 'closed' } };
-    expectRejected(backup, 'closedAt and closedByUserId');
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    assert.equal(read.months['2026-07'].periodStatus, 'open');
+    assert.equal((read.months['2026-07'] as unknown as Record<string, unknown>).closedAt, undefined);
+    const notice = notices.find((entry) => entry.code === 'reopenedPeriods');
+    assert.deepEqual(notice?.fields, ['2026-07']);
+  });
+
+  it('keeps a closed period that does carry its audit trail', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(), periodStatus: 'closed',
+        closedAt: '2026-08-01T00:00:00.000Z', closedByUserId: 'someone',
+      },
+    };
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    assert.equal(read.months['2026-07'].periodStatus, 'closed');
+    assert.equal(notices.find((entry) => entry.code === 'reopenedPeriods'), undefined);
   });
 
   it('enforces the Firestore money bound (max 1e9)', () => {
@@ -304,7 +351,7 @@ describe('Finance backup deep validation (M1)', () => {
     expectRejected(backup, 'between 0 and 1000000000');
   });
 
-  it('rejects session line and bill totals that disagree with their lines', () => {
+  it('reconciles session line and bill totals with the lines they come from', () => {
     const badLine = validBackup();
     badLine.sessions = [{
       id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
@@ -312,7 +359,10 @@ describe('Finance backup deep validation (M1)', () => {
       items: [{ key: 'k1', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 18 }],
       total: 18,
     }];
-    expectRejected(badLine, 'qty × unitPrice');
+    const reconciled = readFinanceBackup(serializeFinanceBackup(badLine as unknown as FinanceBackup));
+    // 2 × 8.5 is the line, and the bill is the sum of its lines.
+    assert.equal(reconciled.backup.sessions?.[0].total, 17);
+    assert.ok(reconciled.notices.some((notice) => notice.code === 'recalculatedTotals'));
 
     const badTotal = validBackup();
     badTotal.sessions = [{
@@ -321,16 +371,25 @@ describe('Finance backup deep validation (M1)', () => {
       items: [{ key: 'k1', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
       total: 20,
     }];
-    expectRejected(badTotal, 'sum of line totals');
+    // The bill is derived from its lines, so the bill moves and the lines do not.
+    const rebilled = readFinanceBackup(serializeFinanceBackup(badTotal as unknown as FinanceBackup));
+    assert.equal(rebilled.backup.sessions?.[0].total, 17);
+    assert.equal(rebilled.backup.sessions?.[0].items[0].lineTotal, 17);
   });
 
-  it('rejects malformed product barcodes', () => {
+  it('rejects a product barcode that is not a barcode, and keys a missing one', () => {
     const backup = validBackup();
     backup.products = [{
       barcode: '1234', name: 'Milk', source: 'manual',
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     }];
     expectRejected(backup, '8 or 13 digits');
+
+    const unbarcoded = validBackup();
+    unbarcoded.products = [{ name: 'Milk' }];
+    const read = readFinanceBackup(serializeFinanceBackup(unbarcoded as unknown as FinanceBackup));
+    assert.match(read.backup.products?.[0].barcode ?? '', /^\d{13}$/);
+    assert.ok(read.notices.some((notice) => notice.code === 'generatedIds'));
   });
 
   it('rejects collections above their safety cardinality', () => {
@@ -380,7 +439,12 @@ describe('Finance backup deep validation (M1)', () => {
     (backup.configuration as Record<string, unknown>).moneyPlaces = [
       { id: 'bank', name: 'Bank', icon: 'account_balance', ownerId: 'evil' },
     ];
-    expectRejected(backup, 'unsupported field: ownerId');
+    const sanitized = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    // An id another account owns is not configuration; it is dropped, not obeyed.
+    assert.deepEqual(sanitized.backup.configuration.moneyPlaces, [
+      { id: 'bank', name: 'Bank', icon: 'account_balance' },
+    ]);
+    assert.ok(sanitized.notices.some((notice) => notice.code === 'unrecognizedFields'));
 
     const backup2 = validBackup();
     (backup2.configuration as Record<string, unknown>).defaultCategoryBudgets = { Rent: -5 };
@@ -489,5 +553,140 @@ describe('an exported backup re-imports (M-)', () => {
     const reparsed = parseFinanceBackup(serializeFinanceBackup(restored));
     assert.deepEqual(reparsed.months, restored.months);
     assert.deepEqual(reparsed.goals, restored.goals);
+    // Nothing had to be forgiven: an export of this build imports into this build
+    // without a single notice, so every report the tolerant parser can make means a
+    // real difference between the file and the account reading it.
+    const roundTrip = readFinanceBackup(serializeFinanceBackup(restored));
+    assert.deepEqual(roundTrip.notices, []);
+    const plan = planFinanceBackupRestore(roundTrip.backup, {
+      workspace: 'personal', isOwner: false, currency: 'MAD', monthStartDate: 1,
+    });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.notices, []);
+  });
+});
+
+/**
+ * The other direction of the same contract: a file a user exported in one account -
+ * often an older build, often the workspace they no longer have - and wants back in
+ * a new one. This is where a strict parser stops protecting anyone and starts
+ * locking people out of their own numbers, so the tolerance below is the feature,
+ * and every forgiveness has to be reported rather than hidden.
+ */
+describe('importing a backup into another account', () => {
+  /** A household file as an older build wrote it: no ids on its rows, fields the
+   *  new app has not heard of, and no values for the columns it later required. */
+  function foreignHouseholdFile(): Record<string, unknown> {
+    return {
+      format: FINANCE_BACKUP_FORMAT,
+      version: FINANCE_BACKUP_VERSION,
+      id: 'flatmate-export',
+      exportedAt: '2026-07-01T00:00:00.000Z',
+      workspace: { type: 'household', id: 'household-1', name: 'Flatmates' },
+      configuration: {
+        currency: 'MAD',
+        monthStartDate: 1,
+        sharedBudgetNote: 'added by a newer build',
+        moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance', ownerId: 'someone-else' }],
+      },
+      months: {
+        '2026-06': {
+          periodKey: '2026-06',
+          schemaVersion: 2,
+          revision: 1,
+          lastMutationId: 'older-build',
+          totalBudget: 1000,
+          incomeSources: [{ name: 'Salary', amount: 1000, status: 'paid', receivedAmount: 1000 }],
+          variableExpenses: [
+            { name: 'Bread', amount: 10, type: 'Groceries', date: '2026-06-05', place: 'wallet', legacyFlag: true },
+          ],
+          fixedExpenses: [],
+          debts: [],
+          transfers: [],
+          balanceAdjustments: [],
+          savingsActivity: [],
+          variableCategoryBases: {},
+          fixedCategoryBases: {},
+          activeCategories: ['Groceries'],
+          categoryColors: {},
+          categoryIcons: {},
+        },
+      },
+      goals: [{ name: 'Trip', target: 5000, current: 100 }],
+    };
+  }
+
+  it('reads the file, keeps its numbers and forgives only what it reports', () => {
+    const { backup, notices } = readFinanceBackup(JSON.stringify(foreignHouseholdFile()));
+    const month = backup.months['2026-06'] as unknown as Record<string, unknown>;
+    const codes = notices.map((notice) => notice.code);
+    assert.ok(codes.includes('unrecognizedFields'), codes.join(','));
+    assert.ok(codes.includes('generatedIds'), codes.join(','));
+    assert.ok(codes.includes('completedFields'), codes.join(','));
+    // Amounts are never invented: the file says 1000, so the period says 1000.
+    assert.equal(month.totalBudget, 1000);
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].amount, 10);
+    assert.equal((month.incomeSources as Record<string, unknown>[])[0].receivedAmount, 1000);
+    // A field this build does not know is gone rather than on its way to Firestore,
+    // and an id the file lost is regenerated from the row's position.
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].legacyFlag, undefined);
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].id, 'backup-entry-0');
+    assert.equal(backup.goals[0].id, 'backup-entry-0');
+    assert.equal((backup.configuration as Record<string, unknown>).sharedBudgetNote, undefined);
+    assert.deepEqual(backup.configuration.moneyPlaces, [{ id: 'bank', name: 'Bank', icon: 'account_balance' }]);
+    // The values the app later made required take the defaults of a new period.
+    assert.equal(month.strategyId, '50-30-20');
+    assert.equal(month.monthlySavingsTarget, 0);
+    assert.equal(month.bankPart, 0);
+  });
+
+  it('stays a fixed point once repaired, so re-exporting the import is safe', () => {
+    const once = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const twice = parseFinanceBackup(serializeFinanceBackup(once));
+    assert.deepEqual(twice.months, once.months);
+    assert.deepEqual(twice.goals, once.goals);
+    assert.deepEqual(twice.configuration, once.configuration);
+  });
+
+  it('plans the retarget into a personal account and says which one it came from', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const plan = planFinanceBackupRestore(backup, { workspace: 'personal', isOwner: false, currency: 'MAD' });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.counts, { months: 1, goals: 1, products: 0, sessions: 0 });
+    assert.deepEqual(plan.notices.map((notice) => notice.code), ['retargeted']);
+    assert.equal(plan.notices[0].params.from, 'Flatmates');
+  });
+
+  it('warns about a different currency and period start without refusing them', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const plan = planFinanceBackupRestore(backup, {
+      workspace: 'personal', isOwner: false, currency: 'EUR', monthStartDate: 15,
+    });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.notices.map((notice) => notice.code), ['retargeted', 'currencyDiffers', 'monthStartDiffers']);
+    assert.equal(plan.notices[1].params.from, 'MAD');
+    assert.equal(plan.notices[1].params.to, 'EUR');
+  });
+
+  it('refuses to put another member\'s numbers into a shared workspace they do not own', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const member = planFinanceBackupRestore(backup, {
+      workspace: 'household', isOwner: false, currency: 'MAD', name: 'Flatmates',
+    });
+    assert.equal(member.canRestore, false);
+    assert.ok(member.notices.some((notice) => notice.code === 'householdOwnerOnly'));
+    const owner = planFinanceBackupRestore(backup, {
+      workspace: 'household', isOwner: true, currency: 'MAD', name: 'Flatmates',
+    });
+    assert.equal(owner.canRestore, true);
+    // Same workspace type, so there is nothing to retarget.
+    assert.equal(owner.notices.some((notice) => notice.code === 'retargeted'), false);
+  });
+
+  it('reads a file written by a newer build instead of refusing it', () => {
+    const newer = { ...foreignHouseholdFile(), version: FINANCE_BACKUP_VERSION + 3 };
+    const { backup, notices } = readFinanceBackup(JSON.stringify(newer));
+    assert.ok(Object.keys(backup.months).length === 1);
+    assert.equal(notices.find((notice) => notice.code === 'newerVersion')?.fields?.[0], String(FINANCE_BACKUP_VERSION + 3));
   });
 });

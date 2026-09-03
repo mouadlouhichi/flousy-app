@@ -556,3 +556,56 @@ would not catch a bad function name, and deploy would). The asymmetry only ever
 favours an expired beta-trial account that the app already locks, and the
 Stripe/CMI seam that will project real expiries through the Admin SDK makes it
 moot.
+
+**The second failure mode: one budget per request.** With the entitlement chain
+made total, CI's emulator suite answered some shared writes with
+`permission-denied: … Unable to evaluate the expression as the maximum of 1000
+expressions to evaluate has been reached`. Firestore evaluates every document of
+a batch against a single expression budget and inlines every function call into
+its caller, and a flush writes three documents out of that one budget: the
+immutable ledger row, the month document it advances, and - for savings
+mutations - the goals document. Each of those rules then asked the same three
+questions separately (who pays for this workspace, does the caller's membership
+row allow it, which mutation is being replayed) and, clause by clause, asked them
+again: `periodClosed()` eight times in the months rule, the household root twice,
+the ledger row's path re-spelled inside every `exists()` and `getAfter()`.
+The rules now answer them once per document through `householdAccess()`, and read
+a mutation's row once through `mutationLedger()`, `monthUpdateAuthorized()` and
+`savingsMutationAgrees()`. `scripts/rules-budget.mjs` estimates that budget per
+rule, and the rules job records the estimate in its summary, because the
+emulator never says *which* rule asked for too much.
+
+The number to remember when adding a clause to a shared write: with three
+documents in one request, a rule that costs a few hundred expressions is what
+denies a paying user's sync - and a denial for exceeding the budget is
+indistinguishable, on the client, from a denial for lacking permission.
+Pending on this branch: CI's emulator run, which is the only place the budget can
+be measured.
+
+## A backup is portable, so the importer reads another account's file
+
+`profile.data.backupInvalid` ("This file is not a supported or valid SmartJib
+backup") was the single message for two different things: a file that is not a
+backup, and a backup this build would not sign off on. The second case is a user
+locked out of their own numbers - an older build wrote a field this one dropped, a
+household file opened in a personal account, a period missing a `strategyId` the
+newer app requires - and every one of them was a hard rejection.
+
+The parser now separates *unreadable* from *not mine*. Unreadable stays fatal: bad
+JSON, a file with no periods in it, amounts Firestore Rules would refuse,
+collections past their cardinality, a period that cannot fit one document, a
+barcode that names a different product than the file claims. Everything else is
+read and reported through `readFinanceBackup()`: unknown keys are dropped (never
+written, so a restore still cannot smuggle a field into a document), ids a file
+lost are regenerated from the row's position so re-importing the same file does not
+duplicate it, values a period cannot be without take the defaults `normalizeMonth()`
+uses, a closed period without its audit trail comes back open because the rules
+would not accept it otherwise, and a session bill is recomputed from its lines.
+`planFinanceBackupRestore()` decides the destination: a household file restores into
+a personal budget and back, each period keeping its own currency and start day,
+with the difference said out loud in the dialog; only the configuration is left
+behind on a retarget, because a household's shared places and defaults belong to its
+members. Restoring *into* a shared workspace stays owner-only - it changes what
+everyone in it sees - and the dialog now carries the parser's own reason instead of
+a shrug.
+

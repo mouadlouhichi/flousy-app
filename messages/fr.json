@@ -1696,6 +1696,23 @@
       "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
       "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
       "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
+      "restoreCounts": "Exportée le {exportedAt} : {months} périodes, {goals} objectifs d'épargne, {products} produits, {sessions} sessions d'achat.",
+      "backupInvalidDetail": "Ce fichier n'a pas été accepté : {reason}",
+      "backupPlanNotices": {
+        "retargeted": "Cette sauvegarde provient de {from} ; elle sera restaurée dans {to}.",
+        "currencyDiffers": "Les montants du fichier sont en {from} alors que cet espace utilise {to}. Ils sont restaurés tels qu'enregistrés.",
+        "monthStartDiffers": "Les périodes du fichier commencent le jour {from}, celles de cet espace le jour {to}. Chaque période restaurée garde son propre jour de début.",
+        "householdOwnerOnly": "Seul le propriétaire de cet espace partagé peut restaurer une sauvegarde, car elle modifie ce que tous ses membres voient."
+      },
+      "backupReportNotices": {
+        "unrecognizedFields": "{count} champ(s) inconnus de cette version ont été ignorés : {fields}",
+        "completedFields": "{count} période(s) sans valeur ont été complétées comme une nouvelle période SmartJib.",
+        "generatedIds": "{count} enregistrement(s) avaient perdu leur identifiant ; un nouveau leur a été attribué.",
+        "recalculatedTotals": "{count} facture(s) d'achat dont le total ne correspondait pas aux lignes ont été recalculées.",
+        "reopenedPeriods": "{count} période(s) clôturée(s) ont été rouvertes, le fichier ne gardant pas la trace de leur clôture : {fields}",
+        "newerVersion": "Ce fichier provient d'un SmartJib plus récent (version {fields}) ; tout ce que cette version comprend a été restauré.",
+        "unmarkedFile": "Ce fichier n'est pas marqué comme une sauvegarde SmartJib ; ses périodes et objectifs ont été lus tels quels."
+      },
       "syncRunning": "Synchronisation…",
       "syncComplete": "{months} mois synchronisé(s) : {incomes} revenus, {expenses} dépenses, {fixed} factures fixes, {debts} dettes.",
       "syncNothingNew": "Rien de nouveau à synchroniser — tous les enregistrements y sont déjà.",
