@@ -389,3 +389,51 @@ Notes for the release gate:
 - `assertExpenseDateInPeriod` still rejects forward-dated entries outside the
   open period by design (cash accounting); the debt carry-forward removes the
   only case where that rule blocked a legitimate money movement.
+
+---
+
+## 9. Reconciliation with the parallel "launch-candidate" audit (2026-09-03)
+
+A second audit session (baseline `98523b9`, post-PR #45) produced a
+production-readiness patch that was **never pushed** — its own §8
+delivery-state note says a new session is required to publish it. That
+baseline commit is not even present in this repository's history, so every
+fix unique to that patch is absent here too. Each claim was re-verified
+against this branch's tree on 2026-09-03:
+
+### Already present on this branch (no gap)
+
+- Canonical invite emails (`normalizedEmail` at creation; lowercase queries)
+- `verifiedEmail()` required to *accept* an invitation (Rules member-create)
+- Account erasure removes created invites, revokes email-addressed pending
+  invites, tears down owned households, retires non-owner memberships, keeps
+  the profile on partial failure (`deleteUserAccountData`)
+- Owner-only member deletion; invitee invited→inactive + self-deactivate
+  member transitions (Rules)
+- Household nested-then-root teardown with truthful failure reporting
+- Case-insensitive fixed-category rename no-op
+- Everything in PR #46 lineage (revisioned writes, closed periods, trial
+  claim exactness, onboarding idempotence) plus this branch's own work
+
+### Missing from this branch (the unpublished patch's unique fixes)
+
+| # | Gap | Where verified missing |
+| --- | --- | --- |
+| M1 | **Deep restore validation**: nested month entities (income sources, expenses, debts+payments, transfers, adjustments, savings activity) are cast `as unknown as MonthBudget` after only a top-level shape check — no allow-listed keys, bounds, duplicate-ID rejection, date/status checks, line-total/adjustment/debt-payment reconciliation, or per-month byte ceiling | `src/lib/finance-backup.ts` (108 lines, month loop at L60-64) |
+| M2 | Household teardown does not delete top-level `householdInvites` first — pending invitations (recipient emails) survive workspace deletion | `deleteHouseholdWorkspace` (db.ts) |
+| M3 | No inactive→active rejoin branch in member update Rules — a former member accepting a fresh invite writes their existing inactive UID row and is denied | `firestore.rules` members update block |
+| M4 | Address-based member `get` does not require a verified email (unverified same-address account can read the pending record) | `firestore.rules` members get (signedIn branch) |
+| M5 | `householdIds` profile linkage uses whole-array writes, not `arrayUnion`/`arrayRemove` (concurrent tabs can clobber) | zero `arrayUnion` hits in `db.ts` |
+| M6 | Erasure treats an expected permission-denied on a stale inaccessible household as a hard failure instead of tolerating it | `deletionTracker` (db.ts) |
+| M7 | Legacy SettingsModal still has its own ungated CSV export and duplicate destructive actions; personal-data deletion not hidden in household mode (modal currently appears unreachable — dead-code hardening) | `SettingsModal.tsx` |
+| M8 | Money-source count is uncapped in `addMoneyPlace` (no 30-entry contract) | `store.ts` |
+| M9 | Sign-up schema collects no display name (their patch bounded one; this app defers naming to onboarding/profile, where Rules bound it to 120 chars) | `validation.ts` — informational |
+
+### External release gates (identical for both audits)
+
+Firestore Rules emulator run (Java 21), Node 24 validation of the exact
+release SHA, CI activation under `.github/workflows`, Rules/index deploy,
+legacy-entitlement Admin migration, orphan inventory, Firebase/email/DNS
+configuration, manual production journeys, and monitoring/App Check remain
+operator-owned per `PRODUCTION_CHECKLIST.md`. `npm run test:rules` (15
+tests) exists here but still needs a Java-capable runner.
