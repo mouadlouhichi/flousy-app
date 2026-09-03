@@ -11,8 +11,14 @@ service cloud.firestore {
     function isMoney(value) { return value is number && value >= 0 && value <= 1000000000; }
     function isPositiveMoney(value) { return isMoney(value) && value > 0; }
     function isValidMonthId(id) { return id.matches('^[0-9]{4}-[0-9]{2}$'); }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
+    // Both are total on purpose. Firestore evaluates the `update` rules for a
+    // `set()` on a document that does not exist yet, and `resource` is null in
+    // that request: reading `resource.data` there is an evaluation error, which
+    // the client sees as a plain permission-denied - so an ordinary first write to
+    // a month document would be refused for the wrong reason, and a bootstrap
+    // diff would abort instead of reporting every key as added.
+    function incoming() { return request.resource == null ? {} : request.resource.data; }
+    function existing() { return resource == null ? {} : resource.data; }
     function isEmail(value) { return value is string && value.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
     function boundedText(value, maxBytes) {
       return value is string && value.size() > 0 && value.size() <= maxBytes;
