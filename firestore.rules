@@ -390,8 +390,9 @@ service cloud.firestore {
     }
     /**
      * A month write must be named by the ledger row that replays it, and that row's
-     * kind has to match the period's transition: closing and reopening stay with
-     * owners and editors, who are allowed the transition without its own kind.
+     * kind has to match the transition the period is making: an open period needs no
+     * special kind, while closing and reopening are only ever posted by the
+     * `month-close` / `month-reopen` mutations that own them.
      */
     function monthMutationAgrees(hid) {
       let row = mutationLedger(hid);
@@ -400,8 +401,7 @@ service cloud.firestore {
       return row.present && row.kind != 'bootstrap'
         && ((!wasClosed && !willBeClosed)
           || (!wasClosed && willBeClosed && row.kind == 'month-close')
-          || (wasClosed && !willBeClosed && row.kind == 'month-reopen')
-          || householdOwner(hid));
+          || (wasClosed && !willBeClosed && row.kind == 'month-reopen'));
     }
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
     function savingsMutationAgrees(hid, bootstrapAllowed) {
