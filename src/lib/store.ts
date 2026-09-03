@@ -1028,6 +1028,13 @@ export function isBuiltinMoneyPlace(place: string): place is BuiltinMoneyPlace {
   return place === 'bank' || place === 'home' || place === 'wallet';
 }
 
+/**
+ * Maximum number of money places (built-in + custom) a workspace may track.
+ * Mirrors the bound enforced in firestore.rules so a client-side add can
+ * never produce a profile the server would reject.
+ */
+export const MAX_MONEY_PLACES = 30;
+
 export function resolveMoneyPlaces(profile?: Pick<UserProfile, 'moneyPlaces'> | null): MoneyPlaceConfig[] {
   const configured = (profile?.moneyPlaces || []).filter(
     (p) => p && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim(),
@@ -1122,6 +1129,9 @@ export function addMoneyPlace(profile: UserProfile, item: MoneyPlaceConfig): Use
   const name = item.name.trim();
   if (!id || !name) return profile;
   if (existing.some((p) => p.id === id || p.name.toLowerCase() === name.toLowerCase())) return profile;
+  // Mirror of the Firestore Rules bound: a profile above 30 places can no
+  // longer be written, so the client refuses the 31st entry up front.
+  if (existing.length >= MAX_MONEY_PLACES) return profile;
   return { ...profile, moneyPlaces: [...existing, { id, name, icon: item.icon || 'payments' }] };
 }
 

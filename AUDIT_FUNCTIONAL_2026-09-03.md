@@ -417,17 +417,20 @@ against this branch's tree on 2026-09-03:
 
 ### Missing from this branch (the unpublished patch's unique fixes)
 
-| # | Gap | Where verified missing |
-| --- | --- | --- |
-| M1 | **Deep restore validation**: nested month entities (income sources, expenses, debts+payments, transfers, adjustments, savings activity) are cast `as unknown as MonthBudget` after only a top-level shape check — no allow-listed keys, bounds, duplicate-ID rejection, date/status checks, line-total/adjustment/debt-payment reconciliation, or per-month byte ceiling | `src/lib/finance-backup.ts` (108 lines, month loop at L60-64) |
-| M2 | Household teardown does not delete top-level `householdInvites` first — pending invitations (recipient emails) survive workspace deletion | `deleteHouseholdWorkspace` (db.ts) |
-| M3 | No inactive→active rejoin branch in member update Rules — a former member accepting a fresh invite writes their existing inactive UID row and is denied | `firestore.rules` members update block |
-| M4 | Address-based member `get` does not require a verified email (unverified same-address account can read the pending record) | `firestore.rules` members get (signedIn branch) |
-| M5 | `householdIds` profile linkage uses whole-array writes, not `arrayUnion`/`arrayRemove` (concurrent tabs can clobber) | zero `arrayUnion` hits in `db.ts` |
-| M6 | Erasure treats an expected permission-denied on a stale inaccessible household as a hard failure instead of tolerating it | `deletionTracker` (db.ts) |
-| M7 | Legacy SettingsModal still has its own ungated CSV export and duplicate destructive actions; personal-data deletion not hidden in household mode (modal currently appears unreachable — dead-code hardening) | `SettingsModal.tsx` |
-| M8 | Money-source count is uncapped in `addMoneyPlace` (no 30-entry contract) | `store.ts` |
-| M9 | Sign-up schema collects no display name (their patch bounded one; this app defers naming to onboarding/profile, where Rules bound it to 120 chars) | `validation.ts` — informational |
+**Status update (same day, post-remediation): M1–M8 are now implemented on
+this branch — see the "Fixed" column. M9 stays informational.**
+
+| # | Gap | Where verified missing | Fixed in |
+| --- | --- | --- | --- |
+| M1 | **Deep restore validation**: nested month entities (income sources, expenses, debts+payments, transfers, adjustments, savings activity) are cast `as unknown as MonthBudget` after only a top-level shape check — no allow-listed keys, bounds, duplicate-ID rejection, date/status checks, line-total/adjustment/debt-payment reconciliation, or per-month byte ceiling | `src/lib/finance-backup.ts` (108 lines, month loop at L60-64) | ✅ `parseFinanceBackup` now validates every nested entity against the Rules/`normalizeMonth` contracts: allow-listed keys per entity and per month document, isMoney bounds (≤ 1e9), duplicate-ID (and duplicate session-line-key / product-barcode) rejection, date/status checks, signed-adjustment + debt-payment + session line/bill-total reconciliation, lifecycle progress semantics, 900 KiB per-month ceiling, and a finance-only configuration allow-list that strips identity/entitlement keys. 19 regression tests in `tests/finance-backup.test.ts` |
+| M2 | Household teardown does not delete top-level `householdInvites` first — pending invitations (recipient emails) survive workspace deletion | `deleteHouseholdWorkspace` (db.ts) | ✅ Teardown now deletes every `householdInvites` doc for the household *before* nested data and the root (owner delete rights lapse once the root is gone) |
+| M3 | No inactive→active rejoin branch in member update Rules — a former member accepting a fresh invite writes their existing inactive UID row and is denied | `firestore.rules` members update block | ✅ Rejoin branch added with the full atomic invitation proof (verified email, pending, unexpired, email/role match, custom-permission equality, `getAfter` accepted + acceptedByUserId) |
+| M4 | Address-based member `get` does not require a verified email (unverified same-address account can read the pending record) | `firestore.rules` members get (signedIn branch) | ✅ Branch now requires `verifiedEmail()` |
+| M5 | `householdIds` profile linkage uses whole-array writes, not `arrayUnion`/`arrayRemove` (concurrent tabs can clobber) | zero `arrayUnion` hits in `db.ts` | ✅ `setUserProfile`/`updateProfileData` accept `{add, remove}`; create, accept and leave flows write `arrayUnion`/`arrayRemove` atomically (local mirrors stay in sync) |
+| M6 | Erasure treats an expected permission-denied on a stale inaccessible household as a hard failure instead of tolerating it | `deletionTracker` (db.ts) | ✅ Household loop catches `permission-denied`/`not-found` on the stale root read and treats the workspace as already removed |
+| M7 | Legacy SettingsModal still has its own ungated CSV export and duplicate destructive actions; personal-data deletion not hidden in household mode (modal currently appears unreachable — dead-code hardening) | `SettingsModal.tsx` | ✅ Ungated CSV export removed (export lives only in the workspace-aware Data panel); finance props dropped from the component contract; "delete all data" hidden while a household workspace is active |
+| M8 | Money-source count is uncapped in `addMoneyPlace` (no 30-entry contract) | `store.ts` | ✅ `MAX_MONEY_PLACES = 30` exported and enforced in `addMoneyPlace`; Money Sources panel pre-checks the cap with a localized (en/fr/ar) limit message |
+| M9 | Sign-up schema collects no display name (their patch bounded one; this app defers naming to onboarding/profile, where Rules bound it to 120 chars) | `validation.ts` — informational | n/a (no change needed) |
 
 ### External release gates (identical for both audits)
 

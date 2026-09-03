@@ -26,6 +26,7 @@ import {
   updateMoneyPlaces,
   calculateTotalIncome,
   addMoneyPlace,
+  MAX_MONEY_PLACES,
   updateMoneyPlace,
   removeMoneyPlace,
   reassignMoneyPlace,
@@ -322,6 +323,20 @@ describe('Store & Money Math Invariants', () => {
     assert.strictEqual(totalCashOnHand(retired), starting - 50);
     assert.strictEqual(retired.variableExpenses[0].place, afterRemove.moneyPlaces![0].id);
     assert.ok(nextMoneyPlaceId('PayPal', ['paypal']).startsWith('paypal-'));
+  });
+
+  it('caps money places at the Firestore rules bound (30)', () => {
+    let profile: UserProfile = { plan: 'free', currency: 'MAD', onboardingComplete: true };
+    // 3 built-in places exist; add until exactly MAX_MONEY_PLACES.
+    for (let i = 0; i < MAX_MONEY_PLACES - 3; i += 1) {
+      profile = addMoneyPlace(profile, { id: `place-${i}`, name: `Place ${i}`, icon: 'payments' });
+    }
+    assert.strictEqual(profile.moneyPlaces!.length, MAX_MONEY_PLACES);
+    // The 31st place is refused: a profile above the bound could never be
+    // written back to Firestore.
+    const atCap = addMoneyPlace(profile, { id: 'overflow', name: 'Overflow', icon: 'payments' });
+    assert.strictEqual(atCap, profile);
+    assert.strictEqual(atCap.moneyPlaces!.length, MAX_MONEY_PLACES);
   });
 
   it('renameFixedCategory retypes only matching bills', () => {

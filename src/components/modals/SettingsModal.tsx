@@ -9,8 +9,6 @@ import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { isDemoMode } from '../../lib/demo-mode';
 import { useLanguage } from '../../lib/i18n-context';
-import { exportMonthToCsv, downloadCsv } from '../../lib/export';
-import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
 import { SegmentedControl } from '../ui/segmented-control';
 import { MonthlyStartDateControl } from '../dashboard/monthly-start-date-control';
@@ -24,13 +22,10 @@ import { isProUser } from '../../lib/pro-features';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  month: MonthBudget;
-  goals: SavingGoal[];
-  monthKey: string;
   onOpenProModal?: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onOpenProModal }: SettingsModalProps) {
   const router = useRouter();
   const { currency, configuredCurrency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
@@ -80,12 +75,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
       trackEvent('update_display_name');
     }
     setIsEditingName(false);
-  };
-
-  const handleExportCsv = () => {
-    const csvContent = exportMonthToCsv(month, goals, monthKey, currency);
-    downloadCsv(`flousy-budget-${monthKey}.csv`, csvContent);
-    trackEvent('export_csv');
   };
 
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || 'M';
@@ -280,35 +269,29 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* ── Data Management Section ── */}
-          <div className="space-y-3">
-            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">{m.settings.dataManagement}</h3>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors border border-outline-variant/50 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <AppIcon name="download" className="text-[20px] text-primary" />
+          {/* Data export lives exclusively in the workspace-aware Data panel
+              (Profile → Data); this modal must never grow a second, unscoped
+              export path. The personal "delete all data" action is likewise
+              hidden while a shared household workspace is active — wiping
+              personal history is a personal-mode decision. */}
+          {workspace !== 'household' && (
+            <div className="space-y-3">
+              <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">{m.settings.dataManagement}</h3>
+              <button
+                type="button"
+                onClick={() => setShowDeleteDataConfirm(true)}
+                className="w-full flex items-center justify-between p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors border border-error/30 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-colors">
+                    <AppIcon name="delete_forever" className="text-[20px] text-error" />
+                  </div>
+                  <span className="font-label-lg text-label-lg font-medium text-error">{m.profile.data.deleteAllData}</span>
                 </div>
-                <span className="font-label-lg text-label-lg font-medium text-on-surface">{m.settings.exportBudgetData}</span>
-              </div>
-              <AppIcon name="chevron_right" className="text-[20px] text-on-surface-variant group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDeleteDataConfirm(true)}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors border border-error/30 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-colors">
-                  <AppIcon name="delete_forever" className="text-[20px] text-error" />
-                </div>
-                <span className="font-label-lg text-label-lg font-medium text-error">{m.profile.data.deleteAllData}</span>
-              </div>
-              <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-          </div>
+                <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          )}
 
           {/* ── Install App (moved here from the dashboard header) ── */}
           <div className="flex justify-center pt-1">

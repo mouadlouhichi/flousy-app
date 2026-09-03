@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import {
+  MAX_MONEY_PLACES,
   MONEY_PLACE_ICON_CHOICES,
   addMoneyPlace,
   getPlaceBalance,
@@ -58,6 +59,10 @@ export function MoneySourcesPanel() {
     const name = draftName.trim();
     if (!name) {
       setError(p.nameRequired);
+      return;
+    }
+    if (places.length >= MAX_MONEY_PLACES) {
+      setError(t(p.limitReached, { count: MAX_MONEY_PLACES }));
       return;
     }
     const id = nextMoneyPlaceId(name, places.map((p) => p.id));

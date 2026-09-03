@@ -274,11 +274,16 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
         joinedAt: now,
       },
     );
-    await updateProfileData({
-      activeWorkspace: 'household',
-      activeHouseholdId: id,
-      householdIds: [...new Set([...(profile.householdIds || []), id])],
-    });
+    await updateProfileData(
+      {
+        activeWorkspace: 'household',
+        activeHouseholdId: id,
+        // Local mirror only — the server-side write uses arrayUnion so a
+        // concurrent session cannot clobber this membership list.
+        householdIds: [...new Set([...(profile.householdIds || []), id])],
+      },
+      { add: id },
+    );
   }, [user, profile, updateProfileData, m.household.genericError, m.household.me, m.profile.household]);
 
   const addProfile = useCallback(async (name: string) => {
@@ -349,11 +354,16 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       profile.displayName || user.email.split('@')[0] || m.household.member,
     );
     setPendingInvites((current) => current.filter((item) => item.id !== invite.id));
-    await updateProfileData({
-      activeWorkspace: 'household',
-      activeHouseholdId: invite.householdId,
-      householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])],
-    });
+    await updateProfileData(
+      {
+        activeWorkspace: 'household',
+        activeHouseholdId: invite.householdId,
+        // Local mirror only — the server-side write uses arrayUnion so a
+        // concurrent session cannot clobber this membership list.
+        householdIds: [...new Set([...(profile.householdIds || []), invite.householdId])],
+      },
+      { add: invite.householdId },
+    );
   }, [user, profile, updateProfileData, m.household.genericError, m.household.member]);
 
   const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
@@ -411,11 +421,16 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       await saveHouseholdMember(targetId, { ...myMember, status: 'inactive' });
     }
     const remaining = (profile.householdIds || []).filter((id) => id !== targetId);
-    await updateProfileData({
-      activeWorkspace: 'personal',
-      activeHouseholdId: remaining[0] || '',
-      householdIds: remaining,
-    });
+    await updateProfileData(
+      {
+        activeWorkspace: 'personal',
+        activeHouseholdId: remaining[0] || '',
+        // Local mirror only — the server-side write uses arrayRemove so a
+        // concurrent session cannot resurrect or drop household links.
+        householdIds: remaining,
+      },
+      { remove: targetId },
+    );
     setHousehold(null);
     setMembers([]);
   }, [user, profile, householdId, household?.ownerId, isOwner, myMember, updateProfileData, m.household.genericError]);

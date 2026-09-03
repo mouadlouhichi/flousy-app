@@ -437,7 +437,7 @@ service cloud.firestore {
       match /members/{memberId} {
         allow get: if householdFinanceReader(hid)
           || householdOwner(hid)
-          || (signedIn() && (memberId == request.auth.uid || resource.data.email == request.auth.token.email));
+          || (verifiedEmail() && (memberId == request.auth.uid || resource.data.email == request.auth.token.email));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
         allow create: if (householdOwner(hid)
@@ -487,7 +487,31 @@ service cloud.firestore {
           || (memberId == request.auth.uid
             && resource.data.userId == request.auth.uid
             && incoming().status == 'inactive'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'retiredAt']));
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'retiredAt']))
+          // Returning member: an inactive membership row may be reactivated
+          // only through the same atomic invitation proof the fresh-create
+          // branch demands - pending, unexpired, addressed to this account's
+          // verified email, with the role (and custom grants) the owner chose.
+          || (verifiedEmail()
+            && householdEntitled(hid)
+            && memberId == request.auth.uid
+            && existing().userId == request.auth.uid
+            && existing().status == 'inactive'
+            && incoming().userId == request.auth.uid
+            && incoming().status == 'active'
+            && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
+            && memberDocPermissionsValid()
+            && incoming().email == request.auth.token.email
+            && 'inviteId' in incoming()
+            && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.householdId == hid
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'pending'
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.email == request.auth.token.email
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.role == incoming().role
+            && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
         allow delete: if householdOwner(hid) && resource.data.role != 'owner';
       }
 

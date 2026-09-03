@@ -1702,6 +1702,7 @@
       "nameRequired": "Donnez un nom à cette source d’argent.",
       "duplicateName": "Ce nom est déjà utilisé.",
       "uniqueName": "Saisissez un nom unique.",
+      "limitReached": "Vous avez atteint la limite de {count} sources d'argent. Supprimez-en une pour en ajouter une autre.",
       "exampleName": "ex. PayPal, Coffre, Revolut",
       "addSource": "Ajouter une source",
       "addMoneySource": "Ajouter une source d’argent",

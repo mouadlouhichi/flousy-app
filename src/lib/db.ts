@@ -11,6 +11,8 @@ import {
   limit,
   writeBatch,
   runTransaction,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
 import {
@@ -112,10 +114,29 @@ export async function getUserProfile(uid: string): Promise<UserProfileReadResult
   }
 }
 
-export async function setUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {
+/**
+ * Apply a profile patch. `householdIdChange` performs the `householdIds`
+ * update atomically (arrayUnion/arrayRemove) instead of writing a whole
+ * array computed from possibly stale local state — two sessions joining or
+ * leaving households concurrently would otherwise clobber each other's
+ * membership list. The sentinel overrides any `householdIds` value inside
+ * `profile`; callers keep the computed array in `profile` only so their
+ * local mirror stays in sync.
+ */
+export async function setUserProfile(
+  uid: string,
+  profile: Partial<UserProfile>,
+  householdIdChange?: { add?: string; remove?: string },
+): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   try {
-    await setDoc(doc(db, 'users', uid), cleanUndefined(profile), { merge: true });
+    const patch: Record<string, unknown> = { ...cleanUndefined(profile) };
+    if (householdIdChange?.add) {
+      patch.householdIds = arrayUnion(householdIdChange.add);
+    } else if (householdIdChange?.remove) {
+      patch.householdIds = arrayRemove(householdIdChange.remove);
+    }
+    await setDoc(doc(db, 'users', uid), patch, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
   }
@@ -1012,7 +1033,19 @@ export async function deleteUserAccountData(
     await run(`household ${householdId}`, async () => {
       if (!db) return;
       const householdRef = doc(db, 'households', householdId);
-      const snapshot = await getDoc(householdRef);
+      // A stale householdId can point at a workspace this account can no
+      // longer read (membership revoked, or the household already deleted).
+      // `permission-denied` here means there is nothing left to clean up on
+      // our side — treating it as fatal would block profile erasure forever
+      // because of a household the account cannot even see.
+      let snapshot;
+      try {
+        snapshot = await getDoc(householdRef);
+      } catch (err) {
+        const code = (err as { code?: string })?.code;
+        if (code === 'permission-denied' || code === 'not-found') return;
+        throw err;
+      }
       if (!snapshot.exists()) return;
       const value = snapshot.data() as Partial<Household>;
       if (value.ownerId === uid || value.planOwnerId === uid) {
@@ -1167,6 +1200,14 @@ export async function deleteHouseholdWorkspace(householdId: string): Promise<voi
     for (const item of snap.docs) await deleteDoc(item.ref);
   };
   try {
+    // Top-level invites reference this household; rules only let the owner
+    // delete them while the household root still exists, so they go first —
+    // otherwise the teardown would strand pending invites that keep pointing
+    // at a deleted workspace.
+    const inviteSnap = await getDocs(
+      query(collection(db, 'householdInvites'), where('householdId', '==', householdId)),
+    );
+    for (const invite of inviteSnap.docs) await deleteDoc(invite.ref);
     // Delete nested data while the owner membership still exists, then members,
     // then the household doc. Firestore delete rules cannot inspect incoming().
     await wipe('months');

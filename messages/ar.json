@@ -1702,6 +1702,7 @@
       "nameRequired": "أدخل اسمًا لمصدر المال هذا.",
       "duplicateName": "هذا الاسم مستخدم بالفعل.",
       "uniqueName": "أدخل اسمًا فريدًا.",
+      "limitReached": "لقد وصلت إلى الحد الأقصى وهو {count} مصدرًا للمال. احذف أحدها لإضافة مصدر آخر.",
       "exampleName": "مثل PayPal أو خزنة أو Revolut",
       "addSource": "إضافة مصدر",
       "addMoneySource": "إضافة مصدر مال",
