@@ -77,18 +77,22 @@ jobs:
               "$(grep -c 'Null value error' "$log" || true)" \
               "$(grep -c 'exceeded the limit' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
-          # The decisive text is the assertion each failing test printed - which
-          # permission the emulator actually returned, and what it blamed. The log is not
-          # otherwise readable from here (the blob host is blocked, and annotations cap at
-          # ten per run), so the first error line after each failing name is published as
-          # one digest annotation.
+          # The decisive text is the assertion each failing test printed. The SDK's own
+          # GrpcConnection lines are noise here - they only repeat the code the test
+          # already asserted on - so they are skipped, and what is published is the
+          # emulator's reason: which rule, which property, which document.
           printf '::error title=Firestore rules failure detail::%s\n' \
-            "$(awk '/✖ |^ *not ok [0-9]+/{want=1; next}
-                    want && /(Error|error:|code:|expected|Expected|Null value|INTERNAL|PERMISSION)/ {
-                      line = $0; sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line)
-                      digest = digest substr(line, 1, 150) " | "; want = 0
-                    }
-                    END { print substr(digest, 1, 1400) }' "$log" || true)" 
+            "$(awk '
+                /✖ |^ *not ok [0-9]+/ { want = 1; next }
+                want && /GrpcConnection/ { next }
+                want && /Null value|Evaluation error|evaluation error|assertion failed|Property|No such method|assert/ {
+                  line = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+                  if (line != last) { digest = digest substr(line, 1, 220) " || "; last = line; hits++ }
+                  if (hits >= 5) { want = 0 }
+                }
+                END { print substr(digest, 1, 1600) }' "$log" || true)"
+          printf '::error title=Firestore rules raw cause::%s\n' \
+            "$(grep -oE 'Null value error[^\"]{0,160}|Property [^ ]+ does not exist[^\"]{0,120}|firestore\.rules:[0-9]+:[0-9]+' "$log" | sort | uniq -c | sort -rn | head -6 | tr -s ' ' | tr '\n' '|')"
           grep -nE "not ok [0-9]+|✖ " "$log" | head -n 5 \
             | while IFS= read -r line; do
                 printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
