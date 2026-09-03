@@ -1754,6 +1754,7 @@
       "chooseIcon": "اختر أيقونة"
     },
     "workspace": {
+      "schemaGaps": "وثيقة مساحة العمل هذه أقدم من {fields}، ولا يمكن لأي شاشة إتمامها من التطبيق. ينهيها نص الصيانة: يعرض npm run db:migrate -- --dry-run الوثائق، ويكتبها --apply.",
       "mySmartJib": "سمارت جيب الخاص بي",
       "personalDashboard": "لوحة تحكم شخصية خاصة",
       "householdDashboard": "لوحة تحكم الأسرة",

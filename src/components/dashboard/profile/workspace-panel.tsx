@@ -40,6 +40,7 @@ export function WorkspacePanel() {
     create,
     removeHouseholdWorkspace,
     repairHouseholdAccess,
+    workspaceSchemaGaps,
   } = useHousehold();
   const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
@@ -175,6 +176,15 @@ export function WorkspacePanel() {
     return `${detail} ${where}`;
   };
 
+  /**
+   * Fields the workspace document never stored and no client may invent. Shown on
+   * the card that owns workspace settings, because that is where the user would
+   * otherwise keep pressing save on a write the stored shape cannot satisfy.
+   */
+  const schemaGapNotice = isOwner && workspaceSchemaGaps.length > 0
+    ? t(p.schemaGaps, { fields: workspaceSchemaGaps.join(', ') })
+    : '';
+
   const [restoring, setRestoring] = useState(false);
   const restoreSharedAccess = async () => {
     if (!canRestoreSharedAccess || restoring) return;
@@ -296,6 +306,11 @@ export function WorkspacePanel() {
 
   return (
     <div className="flex flex-col gap-4">
+      {schemaGapNotice && (
+        <p role="status" className="rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 text-xs">
+          {schemaGapNotice}
+        </p>
+      )}
       <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">{m.profile.groups.workspace}</p>
         <div className="grid gap-2 sm:grid-cols-2">

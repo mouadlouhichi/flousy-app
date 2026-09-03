@@ -1754,6 +1754,7 @@
       "chooseIcon": "Choisir une icône"
     },
     "workspace": {
+      "schemaGaps": "Le document de cet espace de travail est antérieur à {fields} ; aucun écran ne peut les remplir depuis l'application. Le script de maintenance les complète : npm run db:migrate -- --dry-run liste les documents, --apply les écrit.",
       "mySmartJib": "Mon SmartJib",
       "personalDashboard": "Tableau de bord personnel privé",
       "householdDashboard": "Tableau de bord du foyer",

@@ -31,7 +31,11 @@ service cloud.firestore {
       ]);
     }
     function validLaunchTrialClaim() {
-      return existing().plan == 'free'
+      // A profile created and claimed in one `set()` has no existing document, and
+      // `existing()` is deliberately an empty map there: reading `plan` off it as a
+      // property aborts, which reaches the client as a plain denial. "No profile yet"
+      // and "a free profile" are the same answer to this question.
+      return existing().get('plan', 'free') == 'free'
         && incoming().plan == 'pro'
         && !('entitlementSource' in existing())
         && !('proTrialClaimedAt' in existing())
@@ -285,6 +289,22 @@ service cloud.firestore {
     function memberRole(hid) {
       return memberDocument(hid).get('role', '');
     }
+    // An approved invoice must land in the month it names, and that month's write must
+    // be the invoice's own. The document is read twice because a rule cannot tell
+    // whether this write created it, so the path is built once and every read is
+    // total: a month with no `revision` yet is a month being created, and an approval
+    // that never sent `postedMonthKey` is a malformed write, not an aborted rule.
+    function invoicePostedMonthOk(hid, invoiceId) {
+      let key = incoming().get('postedMonthKey', '');
+      let path = /databases/$(database)/documents/households/$(hid)/months/$(key);
+      return isValidMonthId(key)
+        && existsAfter(path)
+        && getAfter(path).data.get('lastMutationId', '') == 'invoice-approval-' + invoiceId
+        && ((!exists(path) && getAfter(path).data.get('revision', 0) == 1)
+          || (exists(path)
+            && getAfter(path).data.get('revision', 0) == get(path).data.get('revision', 0) + 1));
+    }
+
     function householdOwner(hid) {
       // `ownerId` is pinned to the creator at create time and frozen against
       // every writer below, so it is the authoritative ownership record.
@@ -293,7 +313,11 @@ service cloud.firestore {
       // document does not exist yet for `get()`. Asking both on every write was
       // affordable until the entitlement chain grew; a shared write then ran into
       // the 1000-expression cap, and an over-cap request is just a denial.
-      return signedIn()
+      // A stored id reaches this function from the invitation rules, and an empty one
+      // builds a path Firestore rejects - which the client sees as a plain
+      // permission-denied. Checked here because every caller reads documents first.
+      return hid != ''
+        && signedIn()
         && (request.method == 'create'
           ? (existsAfter(householdPath(hid))
             && getAfter(householdPath(hid)).data.get('ownerId', '') == request.auth.uid)
@@ -658,12 +682,12 @@ service cloud.firestore {
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') != 'bootstrap'
           && ((!periodClosed(existing()) && !periodClosed(incoming()))
             || (!periodClosed(existing()) && periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') == 'month-close')
             || (periodClosed(existing()) && !periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
+              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') == 'month-reopen'));
         allow delete: if owner(uid);
       }
 
@@ -683,7 +707,7 @@ service cloud.firestore {
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
+          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') != 'savings-bootstrap'
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if owner(uid);
       }
@@ -706,18 +730,18 @@ service cloud.firestore {
           ]
           && ((incoming().monthKey == 'savings'
               && existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings)
-              && getAfter(/databases/$(database)/documents/users/$(uid)/data/savings).data.lastMutationId == mutationId)
+              && getAfter(/databases/$(database)/documents/users/$(uid)/data/savings).data.get('lastMutationId', '') == mutationId)
             || (isValidMonthId(incoming().monthKey)
               && existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey))
-              && getAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey)).data.lastMutationId == mutationId));
+              && getAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey)).data.get('lastMutationId', '') == mutationId));
         allow update: if false;
         // Audit records remain immutable while their financial record exists,
         // but can still be erased after an account/budget teardown.
         allow delete: if owner(uid)
-          && ((existing().monthKey == 'savings'
+          && ((existing().get('monthKey', '') == 'savings'
               && !existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings))
-            || (isValidMonthId(existing().monthKey)
-              && !existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(existing().monthKey))));
+            || (isValidMonthId(existing().get('monthKey', ''))
+              && !existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(existing().get('monthKey', '')))));
       }
 
       match /products/{barcode} {
@@ -780,7 +804,7 @@ service cloud.firestore {
       match /members/{memberId} {
         allow get: if householdFinanceReader(hid)
           || householdOwner(hid)
-          || (verifiedEmail() && (memberId == request.auth.uid || resource.data.email == request.auth.token.email));
+          || (verifiedEmail() && (memberId == request.auth.uid || resource.data.get('email', '') == request.auth.token.email));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
         allow create: if (householdOwner(hid)
@@ -804,15 +828,15 @@ service cloud.firestore {
             && incoming().email == request.auth.token.email
             && 'inviteId' in incoming()
             && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.householdId == hid
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'pending'
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.email == request.auth.token.email
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.role == incoming().role
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('householdId', '') == hid
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'pending'
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('email', '') == request.auth.token.email
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('role', '') == incoming().role
             // A custom member may only join with exactly the grants the owner
             // put on the invitation - never a self-authored variation.
             && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
 
         allow update: if (householdOwner(hid)
@@ -822,8 +846,8 @@ service cloud.firestore {
             && (incoming().role != 'custom' || memberDocPermissionsValid())
             && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
           || (verifiedEmail()
-            && resource.data.email == request.auth.token.email
-            && resource.data.status == 'invited'
+            && resource.data.get('email', '') == request.auth.token.email
+            && resource.data.get('status', '') == 'invited'
             && incoming().status == 'inactive'
             && incoming().userId == request.auth.uid
             && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
@@ -847,13 +871,13 @@ service cloud.firestore {
             && incoming().email == request.auth.token.email
             && 'inviteId' in incoming()
             && exists(/databases/$(database)/documents/householdInvites/$(incoming().inviteId))
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.householdId == hid
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'pending'
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.email == request.auth.token.email
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.role == incoming().role
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('householdId', '') == hid
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'pending'
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('email', '') == request.auth.token.email
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('role', '') == incoming().role
             && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
         allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
       }
@@ -861,10 +885,10 @@ service cloud.firestore {
       match /invoices/{invoiceId} {
         allow get: if householdEditor(hid)
           || (customMember(hid) && customLevel(hid, 'invoices') == 'view')
-          || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
+          || (householdMember(hid) && resource.data.get('submitterId', '') == request.auth.uid);
         allow list: if householdEditor(hid)
           || (customMember(hid) && customLevel(hid, 'invoices') == 'view')
-          || (householdMember(hid) && resource.data.submitterId == request.auth.uid);
+          || (householdMember(hid) && resource.data.get('submitterId', '') == request.auth.uid);
         allow create: if householdEntitled(hid)
           && householdMember(hid)
           && (memberRole(hid) in ['owner', 'editor', 'contributor']
@@ -881,7 +905,7 @@ service cloud.firestore {
           && (!('receiptUrl' in incoming())
             || (incoming().receiptUrl is string && incoming().receiptUrl.size() <= 120000));
         allow update: if householdWriter(hid)
-          && existing().status == 'submitted'
+          && existing().get('status', '') == 'submitted'
           && incoming().status in ['approved', 'rejected']
           && incoming().diff(existing()).affectedKeys().hasOnly([
             'status', 'reviewedAt', 'reviewedByUserId', 'postedExpenseId', 'postedMonthKey'
@@ -889,19 +913,11 @@ service cloud.firestore {
           && incoming().reviewedByUserId == request.auth.uid
           && (incoming().status == 'rejected'
             || (incoming().postedExpenseId == 'invoice-' + invoiceId
-              && incoming().postedMonthKey is string
-              && isValidMonthId(incoming().postedMonthKey)
-              && existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
-              && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.lastMutationId == 'invoice-approval-' + invoiceId
-              && ((!exists(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
-                  && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision == 1)
-                || (exists(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey))
-                  && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision
-                    == get(/databases/$(database)/documents/households/$(hid)/months/$(incoming().postedMonthKey)).data.revision + 1))));
+              && invoicePostedMonthOk(hid, invoiceId)));
         allow delete: if householdOwner(hid)
           || (householdMember(hid)
-            && existing().submitterId == request.auth.uid
-            && existing().status == 'submitted');
+            && existing().get('submitterId', '') == request.auth.uid
+            && existing().get('status', '') == 'submitted');
       }
 
       match /months/{key} {
@@ -963,20 +979,20 @@ service cloud.firestore {
           && mutationTargetAgrees(hid, mutationId);
         allow update: if false;
         allow delete: if householdOwner(hid)
-          && ((existing().monthKey == 'savings'
+          && ((existing().get('monthKey', '') == 'savings'
               && !existsAfter(/databases/$(database)/documents/households/$(hid)/data/savings))
-            || (isValidMonthId(existing().monthKey)
-              && !existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(existing().monthKey))));
+            || (isValidMonthId(existing().get('monthKey', ''))
+              && !existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(existing().get('monthKey', '')))));
       }
     }
 
     match /householdInvites/{inviteId} {
       allow get: if verifiedEmail()
-        && (resource.data.email == request.auth.token.email
-          || householdOwner(resource.data.householdId));
+        && (resource.data.get('email', '') == request.auth.token.email
+          || householdOwner(resource.data.get('householdId', '')));
       allow list: if signedIn()
-        && (resource.data.createdBy == request.auth.uid
-          || (verifiedEmail() && resource.data.email == request.auth.token.email));
+        && (resource.data.get('createdBy', '') == request.auth.uid
+          || (verifiedEmail() && resource.data.get('email', '') == request.auth.token.email));
       allow create: if signedIn()
         && householdOwner(incoming().householdId)
         && householdEntitled(incoming().householdId)
@@ -988,49 +1004,36 @@ service cloud.firestore {
         && incoming().expiresAtMs is number
         && incoming().expiresAtMs > request.time.toMillis()
         && incoming().expiresAtMs <= request.time.toMillis() + 1296000000;
-      allow update: if (householdOwner(existing().householdId)
-          && incoming().householdId == existing().householdId
-          && incoming().memberId == existing().memberId
-          && incoming().email == existing().email
-          && incoming().role == existing().role
-          && incoming().createdBy == existing().createdBy
-          && incoming().createdAt == existing().createdAt
-          && incoming().expiresAtMs == existing().expiresAtMs
+      allow update: if (householdOwner(existing().get('householdId', ''))
           && incoming().status == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']))
         || (verifiedEmail()
-          && existing().email == request.auth.token.email
-          && existing().status == 'pending'
-          && existing().expiresAtMs > request.time.toMillis()
-          && incoming().householdId == existing().householdId
-          && incoming().memberId == existing().memberId
-          && incoming().email == existing().email
-          && incoming().role == existing().role
-          && incoming().createdBy == existing().createdBy
-          && incoming().createdAt == existing().createdAt
-          && incoming().expiresAtMs == existing().expiresAtMs
+          // An invitation that never stored its household cannot be claimed either, and the
+          // empty id is checked before it reaches a path: a malformed path aborts the rule,
+          // which is the failure this pass exists to remove.
+          && existing().get('householdId', '') != ''
+          && existing().get('email', '') == request.auth.token.email
+          && existing().get('status', '') == 'pending'
+          && existing().get('expiresAtMs', 0) > request.time.toMillis()
           && incoming().status == 'accepted'
           && incoming().acceptedByUserId == request.auth.uid
           && incoming().acceptedEmail == request.auth.token.email
-          && existsAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid))
-          && getAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid)).data.inviteId == inviteId
-          && getAfter(/databases/$(database)/documents/households/$(existing().householdId)/members/$(request.auth.uid)).data.role == existing().role
+          && existsAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid))
+          && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('inviteId', '') == inviteId
+          && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('role', '') == existing().get('role', '')
           && incoming().diff(existing()).affectedKeys().hasOnly([
             'status', 'acceptedAt', 'acceptedByUserId', 'acceptedEmail'
           ]))
         || (verifiedEmail()
-          && existing().email == request.auth.token.email
-          && existing().status == 'pending'
-          && incoming().householdId == existing().householdId
-          && incoming().memberId == existing().memberId
-          && incoming().email == existing().email
-          && incoming().role == existing().role
-          && incoming().createdBy == existing().createdBy
-          && incoming().createdAt == existing().createdAt
-          && incoming().expiresAtMs == existing().expiresAtMs
+          // An invitation that never stored its household cannot be claimed either, and the
+          // empty id is checked before it reaches a path: a malformed path aborts the rule,
+          // which is the failure this pass exists to remove.
+          && existing().get('householdId', '') != ''
+          && existing().get('email', '') == request.auth.token.email
+          && existing().get('status', '') == 'pending'
           && incoming().status == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));
-      allow delete: if householdOwner(existing().householdId);
+      allow delete: if householdOwner(existing().get('householdId', ''));
     }
 
     match /{document=**} {

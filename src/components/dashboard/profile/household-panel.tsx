@@ -139,7 +139,9 @@ export function HouseholdPanel({
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
     if (status === 'inactive') return m.common.inactive;    if (status === 'invited') return h.invited;
-    return status;
+    // Same reason as `localizeHouseholdRole`: an absent `status` is not the string
+    // "undefined", and this list is exactly where a legacy row is looked at.
+    return typeof status === 'string' ? status : '';
   };
 
   // An invitation link (?invite=CODE) is the one exception: that is how a

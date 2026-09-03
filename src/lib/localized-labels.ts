@@ -63,7 +63,9 @@ export function localizeHouseholdRole(role: string, messages: Messages): string 
   if (role === 'contributor') return messages.householdRoles.contributor;
   if (role === 'custom') return messages.householdRoles.custom;
   if (role === 'profile') return messages.householdRoles.profile;
-  return role;
+  // A document written before `role` existed has no role to localize. Returning the
+  // value as-is rendered the literal text "undefined" next to a member's name.
+  return typeof role === 'string' ? role : '';
 }
 
 /** Translate the optional starter bill names without altering persisted names. */

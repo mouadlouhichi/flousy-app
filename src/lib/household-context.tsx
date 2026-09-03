@@ -19,6 +19,7 @@ import {
   writeHouseholdOwnerMembership,
   type HouseholdAccess,
 } from './db';
+import type { DocumentMigration } from './schema-migrations';
 import {
   buildHouseholdSponsorBinding,
   householdSponsorBindingIsStale,
@@ -108,6 +109,12 @@ type HouseholdContextValue = {
   rebindHouseholdSponsor: () => Promise<SponsorRebindOutcome>;
   /** Everything a locked-out owner may write back, in one attempt. */
   repairHouseholdAccess: () => Promise<HouseholdAccessRepair>;
+  /**
+   * Fields this workspace's document never stored and the app cannot derive - so no
+   * screen explains them and no retry fixes them. Empty for a household written by a
+   * current build; otherwise the maintenance script is the way to close them.
+   */
+  workspaceSchemaGaps: string[];
 };
 
 /**
@@ -143,6 +150,13 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const trackedHouseholdId = profile?.activeHouseholdId;
   const householdId = workspace === 'household' ? trackedHouseholdId : undefined;
   const [household, setHousehold] = useState<Household | null>(null);
+  /**
+   * What the stored household document is missing, from the schema model: `patch`
+   * is what the app can write back on the owner's behalf, `unresolved` is what only
+   * the maintenance script (or the console) can settle. Kept separate from the
+   * household value because the normalized copy always looks complete.
+   */
+  const [schema, setSchema] = useState<DocumentMigration | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
@@ -164,6 +178,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!trackedHouseholdId) {
       setHousehold(null);
+      setSchema(null);
       setAccess('ok');
       setLoading(false);
       return;
@@ -171,8 +186,10 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     const unsubscribe = subscribeHousehold(
       trackedHouseholdId,
-      (nextHousehold) => {
+      (nextHousehold, migration) => {
         setHousehold(nextHousehold);
+        const gaps = migration && (Object.keys(migration.patch).length > 0 || migration.unresolved.length > 0);
+        setSchema(gaps ? migration : null);
         setLoading(false);
       },
       (nextAccess) => {
@@ -543,6 +560,33 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   }, [trackedHouseholdId, user, household, profile, rebindHouseholdSponsor]);
 
   /**
+   * Close the stored-document gaps this app can derive on its own.
+   *
+   * A household written before `currency`, `moneyPlaces` or `activeCategories`
+   * existed reads fine - the normalizer supplies them in memory - and is then
+   * refused on every update, because the rules compare the stored shape. The gap is
+   * invisible until a save fails, which is how "my settings will not save" arrives
+   * as a story about permissions. Writing back the fields that follow from the
+   * document itself makes it what the app has been assuming all along, and it is a
+   * write the household's own owner is allowed to make.
+   */
+  const schemaBackfillRef = useRef('');
+  useEffect(() => {
+    if (!schema || !householdId || !isOwner) return;
+    const entries = Object.entries(schema.patch);
+    if (entries.length === 0) return;
+    const fingerprint = `${householdId}:${entries.map(([key]) => key).sort().join(',')}`;
+    if (schemaBackfillRef.current === fingerprint) return;
+    schemaBackfillRef.current = fingerprint;
+    void saveHousehold(householdId, Object.fromEntries(entries) as Partial<Household>).catch((error) => {
+      // Deferred, not failed: under rules older than this build the household root
+      // may refuse any write at all. The next load tries again, and the workspace
+      // card already names what is outstanding.
+      console.info('Workspace schema backfill deferred:', error);
+    });
+  }, [schema, householdId, isOwner]);
+
+  /**
    * Keep the readable projection in step with the sponsor's profile.
    *
    * Members cannot read `users/{sponsorId}` - rules hide profiles from each
@@ -594,6 +638,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
   const value: HouseholdContextValue = {
     household,
+    workspaceSchemaGaps: schema?.unresolved ?? [],
     members,
     loading,
     isOwner,

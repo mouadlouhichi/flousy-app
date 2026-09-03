@@ -1253,32 +1253,9 @@ export async function deleteUserBudgetData(uid: string): Promise<DeletionReport>
 // Household documents are deliberately separate from private user documents.
 // This lets rules grant access by membership without exposing a user's profile.
 import type { Household, HouseholdInvite, HouseholdMember } from './household';
+import { planDocumentMigration, type DocumentMigration } from './schema-migrations';
+import { normalizeHousehold } from './household';
 
-const HOUSEHOLD_DEFAULT_CATEGORIES = [
-  'Groceries', 'Transport', 'Rent', 'Entertainment', 'Health',
-  'Utilities', 'Dining Out', 'Shopping', 'Subscriptions',
-];
-
-function normalizeHousehold(id: string, value: Partial<Household>): Household {
-  return {
-    ...value,
-    id,
-    name: value.name || 'Household',
-    ownerId: value.ownerId || '',
-    planOwnerId: value.planOwnerId || value.ownerId || '',
-    entitlementOwnerId: value.entitlementOwnerId || value.planOwnerId || value.ownerId || '',
-    currency: value.currency || 'MAD',
-    moneyPlaces: value.moneyPlaces?.length
-      ? value.moneyPlaces
-      : DEFAULT_MONEY_PLACES.map((place) => ({ ...place })),
-    activeCategories: value.activeCategories?.length
-      ? value.activeCategories
-      : [...HOUSEHOLD_DEFAULT_CATEGORIES],
-    createdAt: value.createdAt || new Date(0).toISOString(),
-    updatedAt: value.updatedAt || value.createdAt || new Date(0).toISOString(),
-    schemaVersion: Math.max(2, value.schemaVersion || 0),
-  };
-}
 
 export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
 
@@ -1292,17 +1269,31 @@ export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
  * the first one — otherwise a slow connection logs people out of their shared
  * budget.
  */
+/**
+ * `onData` also receives what the stored document is missing. The caller decides
+ * whether it may act on that - only the household's owner can write these fields,
+ * and a member must not try - so the plan travels with the data instead of being
+ * applied here.
+ */
 export function subscribeHousehold(
   householdId: string | undefined,
-  onData: (household: Household | null) => void,
+  onData: (household: Household | null, migration: DocumentMigration | null) => void,
   onAccess: (access: HouseholdAccess) => void = () => {},
 ) {
-  if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
+  if (!householdId || !isFirebaseConfigured || !db) { onData(null, null); return () => {}; }
   return onSnapshot(
     doc(db, 'households', householdId),
     (snap) => {
       onAccess('ok');
-      onData(snap.exists() ? normalizeHousehold(snap.id, snap.data() as Partial<Household>) : null);
+      if (!snap.exists()) { onData(null, null); return; }
+      const stored = snap.data() as Partial<Household>;
+      // The migration plan is read off the *stored* document, never the normalized
+      // one: normalizing first would report every household older than a field as
+      // complete, which is exactly the state that gets its writes refused.
+      onData(
+        normalizeHousehold(snap.id, stored),
+        planDocumentMigration('households', stored as Record<string, unknown>),
+      );
     },
     (err) => {
       const code = (err as { code?: string })?.code;

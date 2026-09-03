@@ -1754,6 +1754,7 @@
       "chooseIcon": "Choose an icon"
     },
     "workspace": {
+      "schemaGaps": "This workspace's document predates {fields}, and no screen can fill those in from the app. The maintenance script completes them: npm run db:migrate -- --dry-run lists the documents, --apply writes them.",
       "mySmartJib": "My SmartJib",
       "personalDashboard": "Private personal dashboard",
       "householdDashboard": "Household Dashboard",
