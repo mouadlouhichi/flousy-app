@@ -13,6 +13,7 @@ import {
   runTransaction,
   arrayUnion,
   arrayRemove,
+  deleteField,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
 import {
@@ -1333,6 +1334,34 @@ export async function saveHouseholdMember(householdId: string, member: Household
 export async function saveHousehold(householdId: string, patch: Partial<Household>) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId), cleanUndefined({ ...patch, updatedAt: new Date().toISOString() }), { merge: true });
+}
+
+/**
+ * Bind a household's plan sponsor - and the readable projection members'
+ * clients gate on - to the calling account. `null` becomes `deleteField()`:
+ * a projection entry the sponsor's profile no longer carries is as wrong as a
+ * missing one, and `householdSponsorBindingValid()` in firestore.rules only
+ * accepts the document when every remaining value mirrors this account.
+ *
+ * This is the in-app recovery for the two states that used to strand a shared
+ * budget with a bare 403: a legacy household that never stored
+ * `entitlementOwnerId`, and one left behind a sponsor whose plan lapsed.
+ */
+export async function bindHouseholdSponsor(
+  householdId: string,
+  patch: {
+    entitlementOwnerId: string;
+    entitlementSource: string | null;
+    entitlementStatus: string | null;
+    entitlementEndsAtMs: number | null;
+  },
+): Promise<void> {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const data: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  for (const [key, value] of Object.entries(patch)) {
+    data[key] = value === undefined ? deleteField() : value;
+  }
+  await setDoc(doc(db, 'households', householdId), data, { merge: true });
 }
 
 export async function createHouseholdInvite(invite: HouseholdInvite, pendingMember?: HouseholdMember) {

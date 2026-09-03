@@ -1960,7 +1960,16 @@
     "pending": "Pending",
     "local": "Saved on this device",
     "blockedEntitlement": "Editing the shared household budget needs an active Pro entitlement. Your change stays safely queued on this device and will sync once access is active again.",
-    "entitlementConflict": "Your Pro plan looks active, but the server still refuses this household write. The household may be sponsored by a different account, or the deployed Firestore rules are out of date — redeploy them (firebase deploy --only firestore:rules)."
+    "sponsorRebound": "Shared budget access restored — this household now runs on your Pro plan, and your queued changes are being sent.",
+    "sponsorLapsed": "This household runs on another account's Pro plan and that plan is no longer active. Everything stays readable; editing resumes once the plan is renewed.",
+    "sponsorUnreadable": "This household's shared budget is paid for by another account, which this device cannot inspect. Only the household owner can change whose plan it runs on.",
+    "rulesBehind": "The Firestore rules deployed on this project cannot store a household plan owner, so they refuse the write. Redeploy them (firebase deploy --only firestore:rules).",
+    "profileInvalid": "This account's plan is stored in a form the app cannot verify (an unrecognised plan or status value), so the server will not attach the household to it. Correct the plan fields on the user profile in the Firebase console, or start the Pro trial from the app.",
+    "restoreAccess": "Restore shared access",
+    "restoreAccessHint": "Writes here are refused because the Pro plan that pays for this household belongs to another account. You own this household and hold an active plan, so it can be switched to yours.",
+    "restoreAccessDone": "Household plan owner updated. Your queued changes go out on the next sync.",
+    "restoreAccessConsistent": "This household already runs on your plan, so the refusal came from somewhere else.",
+    "restoreAccessFailed": "The server refused the change, so this household's plan owner could not be updated."
   },
   "monthLock": {
     "closed": "Month closed",

@@ -17,12 +17,19 @@ import { trackEvent } from '@/lib/analytics';
 import { resolveProEntitlement } from '@/lib/pro-features';
 import { useToast } from '@/hooks/use-toast';
 import { syncWorkspaceTransactions, WorkspaceSyncError } from '@/lib/db';
+import {
+  buildHouseholdSponsorBinding,
+  diagnoseHouseholdWriteDenial,
+  householdSponsorBindingIsStale,
+  householdSponsorId,
+  type SponsorRebindOutcome,
+} from '@/lib/household-entitlement';
 import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
 
 export function WorkspacePanel() {
   const router = useRouter();
   const { profile, user, updateProfileData } = useAuth();
-  const { openProModal } = useDashboard();
+  const { openProModal, retrySync } = useDashboard();
   const {
     household,
     workspace,
@@ -32,6 +39,7 @@ export function WorkspacePanel() {
     updateConfiguration,
     create,
     removeHouseholdWorkspace,
+    rebindHouseholdSponsor,
   } = useHousehold();
   const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
@@ -114,19 +122,56 @@ export function WorkspacePanel() {
   const [syncNotice, setSyncNotice] = useState('');
   const [pendingAlign, setPendingAlign] = useState<WorkspaceSyncAlignment | null>(null);
 
-  // Firestore rejects household writes with permission-denied when the owner's
-  // Pro entitlement has lapsed; say that instead of a raw permission error.
+  // A household refusal is never this account's trial: `householdEntitled()`
+  // in firestore.rules asks the *sponsor's* profile, so name the state that was
+  // actually found - and offer the repair when one exists.
+  const sponsorDenial = user && household
+    ? diagnoseHouseholdWriteDenial({ household, profile, uid: user.uid, isOwner })
+    : null;
+  const sponsorBinding = user ? buildHouseholdSponsorBinding(profile, user.uid) : null;
+  const canRestoreSharedAccess = Boolean(
+    user && household && isOwner && sponsorBinding?.bindable
+    && (householdSponsorId(household) !== user.uid
+      || householdSponsorBindingIsStale(household, sponsorBinding)),
+  );
   const syncPermissionMessage = (error: unknown): string => {
     const code = (error as { code?: string })?.code;
-    if (code === 'permission-denied') {
-      // An active profile entitlement plus a denial means the household is
-      // sponsored by a different account or the deployed rules are older
-      // than this client - say so instead of blaming the trial.
-      return entitlement.isPro
-        ? m.sync.entitlementConflict
-        : `${m.pro.trialExpiredTitle} ${m.pro.trialExpiredBody}`;
+    if (code !== 'permission-denied') return d.syncFailed;
+    if (!entitlement.isPro) return `${m.pro.trialExpiredTitle} ${m.pro.trialExpiredBody}`;
+    if (sponsorDenial === 'sponsor-rebindable') return m.sync.restoreAccessHint;
+    if (sponsorDenial === 'sponsor-unreadable') return m.sync.sponsorUnreadable;
+    if (sponsorDenial === 'sponsor-lapsed') return m.sync.sponsorLapsed;
+    if (sponsorDenial === 'profile-invalid') return m.sync.profileInvalid;
+    return m.sync.rulesBehind;
+  };
+
+  const [restoring, setRestoring] = useState(false);
+  const restoreSharedAccess = async () => {
+    if (!canRestoreSharedAccess || restoring) return;
+    setRestoring(true);
+    let outcome: SponsorRebindOutcome = 'unavailable';
+    try {
+      outcome = await rebindHouseholdSponsor();
+    } catch {
+      outcome = 'unavailable';
     }
-    return d.syncFailed;
+    setRestoring(false);
+    const description = outcome === 'repaired'
+      ? m.sync.restoreAccessDone
+      : outcome === 'already-consistent'
+        ? m.sync.restoreAccessConsistent
+        : outcome === 'rejected-by-rules'
+          ? m.sync.rulesBehind
+          : m.sync.restoreAccessFailed;
+    setSyncNotice(description);
+    toast({
+      variant: outcome === 'repaired' ? 'default' : 'destructive',
+      title: p.syncTitle,
+      description,
+    });
+    // Changes queued while the household was refusing writes are still in the
+    // outbox; send them now rather than on the next app load.
+    if (outcome === 'repaired') retrySync();
   };
 
   const runSyncBothWays = async (alignedDay: number, prefix = '') => {
@@ -247,6 +292,22 @@ export function WorkspacePanel() {
           </span>
           <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
         </Link>
+      )}
+
+      {isHouseholdOwner && canRestoreSharedAccess && (
+        <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+          <p className="font-bold text-on-surface">{m.sync.restoreAccess}</p>
+          <p className="mt-1 text-xs leading-5 text-on-surface-variant">{m.sync.restoreAccessHint}</p>
+          <button
+            type="button"
+            disabled={restoring}
+            onClick={restoreSharedAccess}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            <AppIcon name="family_restroom" className="text-[18px]" />
+            {m.sync.restoreAccess}
+          </button>
+        </section>
       )}
 
       {isHouseholdOwner && (

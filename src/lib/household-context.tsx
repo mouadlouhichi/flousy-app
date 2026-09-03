@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
-import { isProUser, resolveProEntitlement } from './pro-features';
+import { isProUser } from './pro-features';
 import {
   acceptHouseholdInvite,
+  bindHouseholdSponsor,
   createHousehold,
   createHouseholdInvite,
   deleteHouseholdWorkspace,
@@ -16,6 +17,13 @@ import {
   subscribePendingHouseholdInvites,
   type HouseholdAccess,
 } from './db';
+import {
+  buildHouseholdSponsorBinding,
+  householdSponsorBindingIsStale,
+  householdSponsorId,
+  householdSponsorProjectionFields,
+  type SponsorRebindOutcome,
+} from './household-entitlement';
 import {
   householdEntitlementForEditor,
   normalizeHouseholdName,
@@ -89,7 +97,15 @@ type HouseholdContextValue = {
   updateConfiguration: (patch: Partial<HouseholdConfigurationPatch>) => Promise<void>;
   markHouseholdOnboarded: () => Promise<void>;
   removeHouseholdWorkspace: () => Promise<void>;
+  /**
+   * Restore a shared workspace whose writes are refused: bind the plan that
+   * pays for it to this account (when this account holds one) and make sure the
+   * owner's membership row exists. Safe to call repeatedly.
+   */
+  rebindHouseholdSponsor: () => Promise<SponsorRebindOutcome>;
 };
+
+export type { SponsorRebindOutcome };
 
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 
@@ -236,13 +252,13 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
   const create = useCallback(async (name: string) => {
     if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
-    const entitlement = resolveProEntitlement(profile);
-    const entitlementSource = entitlement.source === 'launch_trial'
-      || entitlement.source === 'stripe'
-      || entitlement.source === 'cmi'
-      || entitlement.source === 'admin'
-      ? entitlement.source
-      : undefined;
+    // The entitlement fields are written through the same builder the repair
+    // path uses, because `validHouseholdEntitlementProjection()` in
+    // firestore.rules compares the projection against the profile key by key:
+    // any spelling of it that is invented here (or left out) is a creation
+    // that the server refuses.
+    const binding = buildHouseholdSponsorBinding(profile, user.uid);
+    if (!binding.bindable) throw new Error(m.household.genericError);
     const now = new Date().toISOString();
     const id = await createHousehold(
       user.uid,
@@ -250,12 +266,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
         name: name.trim() || m.profile.household,
         ownerId: user.uid,
         planOwnerId: user.uid,
-        entitlementOwnerId: user.uid,
-        ...(entitlementSource ? { entitlementSource } : {}),
-        ...(entitlement.status !== 'free' && entitlement.status !== 'expired'
-          ? { entitlementStatus: entitlement.status }
-          : {}),
-        ...(entitlement.endsAtMs ? { entitlementEndsAtMs: entitlement.endsAtMs } : {}),
+        ...householdSponsorProjectionFields(binding),
         currency: profile.currency || 'MAD',
         monthStartDate: profile.monthStartDate,
         moneyPlaces: (profile.moneyPlaces || DEFAULT_MONEY_PLACES).map((place) => ({ ...place })),
@@ -414,6 +425,79 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       : current);
   }, [trackedHouseholdId, isOwner, entitlementActive, m.household.householdNameRequired]);
 
+  /**
+   * Point the workspace back at a plan that actually exists.
+   *
+   * The household root freezes `ownerId`, so its owner is the one account that
+   * may say who pays for it - and `householdSponsorBindingValid()` in
+   * firestore.rules only accepts the write when the projected values mirror
+   * that account's own profile and the profile really is active. Everything the
+   * sync layer needs to be honest about a 403 comes back from here.
+   */
+  const rebindHouseholdSponsor = useCallback(async (): Promise<SponsorRebindOutcome> => {
+    if (!trackedHouseholdId || !user || !household) return 'unavailable';
+    if (!isOwner) return 'not-owner';
+    const binding = buildHouseholdSponsorBinding(profile, user.uid);
+    if (binding.rejectedFields.length > 0 || !binding.bindable) return 'no-entitlement';
+    if (!householdSponsorBindingIsStale(household, binding)) return 'already-consistent';
+    try {
+      await bindHouseholdSponsor(trackedHouseholdId, binding.patch);
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      // permission-denied here means the deployed rules predate this
+      // condition: that is the only state where redeploying them is the fix.
+      return code === 'permission-denied' ? 'rejected-by-rules' : 'unavailable';
+    }
+    setHousehold((current) => current
+      ? { ...current, ...householdSponsorProjectionFields(binding) }
+      : current);
+    // A household created before the owner's membership row was batched into
+    // `members/` is writable by its owner under the current rules, but the
+    // roster - and every role a member can be given - needs the row.
+    if (!members.some((member) => member.userId === user.uid || member.id === user.uid)) {
+      try {
+        await saveHouseholdMember(trackedHouseholdId, {
+          id: user.uid,
+          userId: user.uid,
+          displayName: profile?.displayName || user.email?.split('@')[0] || m.household.me,
+          email: user.email || undefined,
+          role: 'owner',
+          status: 'active',
+          avatarColor: COLORS[0],
+          joinedAt: household?.createdAt || new Date().toISOString(),
+        });
+      } catch {
+        // Best effort: the write path no longer depends on this row existing.
+      }
+    }
+    return 'repaired';
+  }, [trackedHouseholdId, user, profile, household, members, isOwner, m.household.me]);
+
+  /**
+   * Keep the readable projection in step with the sponsor's profile.
+   *
+   * Members cannot read `users/{sponsorId}` - rules hide profiles from each
+   * other on purpose - so the projected status/expiry on the household document
+   * is the only thing their gates can consult, while the server re-reads the
+   * profile for every write. Refresh it when this account is both the owner and
+   * the sponsor: never re-bind a foreign sponsor behind someone's back.
+   */
+  const projectedSponsorRef = useRef('');
+  useEffect(() => {
+    if (!trackedHouseholdId || !user || !isOwner || !household) return;
+    if (householdSponsorId(household) !== user.uid) return;
+    const binding = buildHouseholdSponsorBinding(profile, user.uid);
+    const fingerprint = JSON.stringify(binding.patch);
+    if (!binding.bindable || !householdSponsorBindingIsStale(household, binding)) return;
+    if (projectedSponsorRef.current === fingerprint) return;
+    projectedSponsorRef.current = fingerprint;
+    void bindHouseholdSponsor(trackedHouseholdId, binding.patch).catch(() => {
+      // A refused or offline refresh is not a failed save: the next entitlement
+      // change - or the sync layer's repair - tries again.
+      projectedSponsorRef.current = '';
+    });
+  }, [trackedHouseholdId, user, profile, household, isOwner]);
+
   const removeHouseholdWorkspace = useCallback(async () => {
     const targetId = householdId || profile?.activeHouseholdId;
     if (!user || !profile || !targetId) throw new Error(m.household.genericError);
@@ -466,6 +550,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     updateConfiguration,
     markHouseholdOnboarded,
     removeHouseholdWorkspace,
+    rebindHouseholdSponsor,
   };
 
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;

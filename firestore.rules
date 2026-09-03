@@ -41,28 +41,131 @@ service cloud.firestore {
           'entitlementStartedAtMs', 'entitlementEndsAtMs'
         ]);
     }
+    /* ---------------------------- entitlement ----------------------------
+     * Every household write is authorized by re-reading the sponsor's profile.
+     * Three things used to surface as an unexplainable permission-denied for
+     * accounts whose Pro plan is plainly active:
+     *   - `.data.entitlementOwnerId` on a household that predates the field,
+     *     `get(users/$(uid)).data` on a deleted sponsor, and `plan == 'Pro'`
+     *     typed by hand in the console. Each of those ABORTS evaluation, and an
+     *     aborted rule is indistinguishable from a denial on the client.
+     *   - a plan value the client accepts and the server does not:
+     *     isProPlan() in src/lib/pro-features.ts is deliberately tolerant of the
+     *     casing/whitespace that console edits and migrations leave behind.
+     * So the helpers below are total: every field is read with get(key, default),
+     * every comparison is type-guarded, and -1 means "no such value" wherever a
+     * millisecond figure is expected.
+     */
+    function userProfileData(uid) {
+      return uid is string
+        && uid.size() > 0
+        && exists(/databases/$(database)/documents/users/$(uid))
+        ? get(/databases/$(database)/documents/users/$(uid)).data
+        : {};
+    }
+    function isProPlanValue(value) {
+      return value is string && value.trim().lower() == 'pro';
+    }
+    /**
+     * Entitlement tokens are compared the way the client compares them: the
+     * enum spelling is what matters, not the casing or padding a hand-edited
+     * document happens to carry.
+     */
+    function tokenValue(value) {
+      return value is string ? value.trim().lower() : '';
+    }
+    function millisOrMissing(value) {
+      return value is number && value > 0 ? value : -1;
+    }
+    function profileEntitlementEndsAtMs(profile) {
+      return millisOrMissing(profile.get('entitlementEndsAtMs', -1));
+    }
+    /** Single source of truth for "may this profile spend its Pro entitlement". */
+    function profileIsPro(profile, nowMs) {
+      let source = tokenValue(profile.get('entitlementSource', ''));
+      let status = tokenValue(profile.get('entitlementStatus', ''));
+      let endsAtMs = profileEntitlementEndsAtMs(profile);
+      // A launch trial is a closed period: without a usable end time there is no
+      // entitlement to spend, exactly as resolveProEntitlement() decides. A
+      // provider grant (stripe/cmi/admin) with no end time is unbounded.
+      return isProPlanValue(profile.get('plan', ''))
+        && (source == 'launch_trial'
+          ? (endsAtMs >= 0 && endsAtMs > nowMs)
+          : ((status == '' || status in ['trialing', 'active', 'grace_period', 'canceled'])
+            && (endsAtMs < 0 || endsAtMs > nowMs)));
+    }
+    /**
+     * A projected entitlement field the household document may carry for a
+     * sponsor: either the sponsor's own value, or - for a grant that spells
+     * nothing out - the 'active' the client derives from it. Nothing here can
+     * overstate the sponsor's profile, because the expiry has to match it
+     * exactly and `profileIsPro` is what licenses the optimistic spelling.
+     */
+    function entitlementProjectionAgrees(data, profile, field, nowMs) {
+      let profileValue = tokenValue(profile.get(field, ''));
+      let nextValue = tokenValue(data.get(field, ''));
+      return profileValue == ''
+        || nextValue == profileValue
+        || (field == 'entitlementStatus' && nextValue == 'active' && profileIsPro(profile, nowMs));
+    }
     function activeProEntitlement(uid) {
-      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
-      return profile.plan == 'pro'
-        && (!('entitlementStatus' in profile)
-          || profile.entitlementStatus in ['trialing', 'active', 'grace_period', 'canceled'])
-        && (!('entitlementEndsAtMs' in profile)
-          || profile.entitlementEndsAtMs > request.time.toMillis());
+      return profileIsPro(userProfileData(uid), request.time.toMillis());
+    }
+    /**
+     * Sponsor of a household's plan. Legacy documents store only `ownerId`,
+     * and normalizeHousehold() in src/lib/db.ts already resolves this same
+     * chain for the UI - the server has to agree or those households end up
+     * writable by nobody.
+     */
+    function householdSponsor(data) {
+      let explicit = data.get('entitlementOwnerId', '');
+      let billing = data.get('planOwnerId', '');
+      let creator = data.get('ownerId', '');
+      // The same `a || b || c` chain normalizeHousehold() runs, including its
+      // treatment of an empty string as "not set".
+      return explicit is string && explicit.size() > 0 ? explicit
+        : (billing is string && billing.size() > 0
+          ? billing
+          : (creator is string ? creator : ''));
     }
     function householdEntitled(hid) {
       return exists(householdPath(hid))
-        && activeProEntitlement(get(householdPath(hid)).data.entitlementOwnerId);
+        && activeProEntitlement(householdSponsor(get(householdPath(hid)).data));
     }
     function validHouseholdEntitlementProjection(data, uid) {
-      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
-      return data.entitlementOwnerId == uid
-        && activeProEntitlement(uid)
-        && (!('entitlementSource' in profile)
-          || data.entitlementSource == profile.entitlementSource)
-        && (!('entitlementStatus' in profile)
-          || data.entitlementStatus == profile.entitlementStatus)
-        && (!('entitlementEndsAtMs' in profile)
-          || data.entitlementEndsAtMs == profile.entitlementEndsAtMs);
+      let profile = userProfileData(uid);
+      let nowMs = request.time.toMillis();
+      return data.get('entitlementOwnerId', '') == uid
+        && profileIsPro(profile, nowMs)
+        && entitlementProjectionAgrees(data, profile, 'entitlementSource', nowMs)
+        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', nowMs)
+        && millisOrMissing(data.get('entitlementEndsAtMs', -1)) == profileEntitlementEndsAtMs(profile);
+    }
+    /**
+     * (Re)binding of the household's plan sponsor and its readable projection.
+     * Two legitimate repairs share one shape, so both go through here:
+     *   - a legacy household that never stored `entitlementOwnerId`, and
+     *   - a household stranded behind a sponsor whose plan lapsed, which the
+     *     owner unblocks by binding their own active entitlement (before this,
+     *     the only in-app recovery was deleting the shared workspace).
+     * Only the household owner can reach this branch, the sponsor may only be
+     * bound to the caller's own account, the projected values must equal what
+     * that account really holds, and no other field may move - so it cannot be
+     * used to widen anyone's access.
+     */
+    function householdSponsorBindingValid(data, uid) {
+      let profile = userProfileData(uid);
+      let nowMs = request.time.toMillis();
+      let changed = data.diff(existing()).affectedKeys();
+      return data.get('entitlementOwnerId', '') == uid
+        && profileIsPro(profile, nowMs)
+        && entitlementProjectionAgrees(data, profile, 'entitlementSource', nowMs)
+        && entitlementProjectionAgrees(data, profile, 'entitlementStatus', nowMs)
+        && millisOrMissing(data.get('entitlementEndsAtMs', -1)) == profileEntitlementEndsAtMs(profile)
+        && changed.hasOnly([
+          'entitlementOwnerId', 'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs',
+          'schemaVersion', 'updatedAt'
+        ]);
     }
     function validMonthDocument() {
       return isMoney(incoming().totalBudget)
@@ -131,20 +234,30 @@ service cloud.firestore {
     function householdMember(hid) {
       return signedIn()
         && exists(memberPath(hid, request.auth.uid))
-        && get(memberPath(hid, request.auth.uid)).data.status == 'active';
+        && get(memberPath(hid, request.auth.uid)).data.get('status', '') == 'active';
     }
     function memberRole(hid) {
-      return get(memberPath(hid, request.auth.uid)).data.role;
+      return get(memberPath(hid, request.auth.uid)).data.get('role', '');
     }
     function householdOwner(hid) {
+      // `ownerId` is pinned to the creator at create time and frozen against
+      // every writer below, so it is the authoritative ownership record.
       return signedIn()
         && ((exists(householdPath(hid))
-            && get(householdPath(hid)).data.ownerId == request.auth.uid)
+            && get(householdPath(hid)).data.get('ownerId', '') == request.auth.uid)
           || (existsAfter(householdPath(hid))
-            && getAfter(householdPath(hid)).data.ownerId == request.auth.uid));
+            && getAfter(householdPath(hid)).data.get('ownerId', '') == request.auth.uid));
     }
+    /**
+     * Writers of the shared budget. The household's own owner counts even when
+     * their membership row is missing or stale: households created before the
+     * owner row was batched into `members/` used to be readable by their owner
+     * and writable by nobody, which reads as a lost budget rather than as a
+     * permission problem.
+     */
     function householdEditor(hid) {
-      return householdMember(hid) && memberRole(hid) in ['owner', 'editor'];
+      return householdOwner(hid)
+        || (householdMember(hid) && memberRole(hid) in ['owner', 'editor']);
     }
     function householdWriter(hid) {
       return householdEditor(hid) && householdEntitled(hid);
@@ -264,23 +377,33 @@ service cloud.firestore {
         && (p.get('debts', 'none') == 'editAll' || !changed.hasAny(['debts']));
     }
 
-    function validHouseholdConfig(data) {
-      return data.currency is string
-        && data.currency.size() >= 3
-        && data.currency.size() <= 8
-        && data.moneyPlaces is list
-        && data.moneyPlaces.size() > 0
-        && data.moneyPlaces.size() <= 30
-        && data.activeCategories is list
-        && data.activeCategories.size() <= 100
+    // Field-level shape checks, tolerating keys an older document never had:
+    // `households/{hid}` is validated in full on create and per-patch on update.
+    function validHouseholdConfigFields(data) {
+      return (!('currency' in data)
+        || (data.currency is string && data.currency.size() >= 3 && data.currency.size() <= 8))
+        && (!('moneyPlaces' in data)
+          || (data.moneyPlaces is list && data.moneyPlaces.size() > 0 && data.moneyPlaces.size() <= 30))
+        && (!('activeCategories' in data)
+          || (data.activeCategories is list && data.activeCategories.size() <= 100))
         && (!('monthStartDate' in data)
           || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
         && (!('entitlementSource' in data)
-          || data.entitlementSource in ['launch_trial', 'stripe', 'cmi', 'admin'])
+          || tokenValue(data.entitlementSource) in ['launch_trial', 'stripe', 'cmi', 'admin'])
         && (!('entitlementStatus' in data)
-          || data.entitlementStatus in ['trialing', 'active', 'grace_period', 'past_due', 'canceled', 'expired'])
+          || tokenValue(data.entitlementStatus)
+            in ['trialing', 'active', 'grace_period', 'past_due', 'canceled', 'expired'])
+        // Milliseconds since the epoch; `is number` (not `is int`) because a
+        // hand-edited document can hold the same instant as a double, and an
+        // aborted comparison would deny every later write to the household.
         && (!('entitlementEndsAtMs' in data)
-          || (data.entitlementEndsAtMs is int && data.entitlementEndsAtMs > 0));
+          || (data.entitlementEndsAtMs is number && data.entitlementEndsAtMs > 0));
+    }
+    function validHouseholdConfig(data) {
+      return validHouseholdConfigFields(data)
+        && 'currency' in data
+        && 'moneyPlaces' in data
+        && 'activeCategories' in data;
     }
 
     match /users/{uid} {
@@ -423,15 +546,20 @@ service cloud.firestore {
         && validHouseholdConfig(incoming())
         && validHouseholdEntitlementProjection(incoming(), request.auth.uid);
       allow update: if householdOwner(hid)
-        && householdEntitled(hid)
-        && incoming().ownerId == existing().ownerId
-        && incoming().planOwnerId == existing().planOwnerId
-        && incoming().entitlementOwnerId == existing().entitlementOwnerId
-        && !incoming().diff(existing()).affectedKeys().hasAny([
-          'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
-        ])
-        && incoming().createdAt == existing().createdAt
-        && validHouseholdConfig(incoming());
+        && validHouseholdConfigFields(incoming())
+        && incoming().get('ownerId', '') == existing().get('ownerId', '')
+        && incoming().get('createdAt', '') == existing().get('createdAt', '')
+        && (
+          // Ordinary configuration write: identity and entitlement fields are
+          // frozen, and the workspace must currently hold an entitlement.
+          (householdEntitled(hid)
+            && !incoming().diff(existing()).affectedKeys().hasAny([
+              'entitlementOwnerId', 'planOwnerId',
+              'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
+            ]))
+          // ...or the one repair that must stay possible while it does not.
+          || householdSponsorBindingValid(incoming(), request.auth.uid)
+        );
       allow delete: if householdOwner(hid);
 
       match /members/{memberId} {
@@ -474,7 +602,7 @@ service cloud.firestore {
 
         allow update: if (householdOwner(hid)
             && householdEntitled(hid)
-            && resource.data.role != 'owner'
+            && resource.data.get('role', '') != 'owner'
             && incoming().role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
             && (incoming().role != 'custom' || memberDocPermissionsValid())
             && (!('userId' in resource.data) || incoming().userId == resource.data.userId))
@@ -485,7 +613,7 @@ service cloud.firestore {
             && incoming().userId == request.auth.uid
             && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
           || (memberId == request.auth.uid
-            && resource.data.userId == request.auth.uid
+            && resource.data.get('userId', memberId) == request.auth.uid
             && incoming().status == 'inactive'
             && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'retiredAt']))
           // Returning member: an inactive membership row may be reactivated
@@ -495,8 +623,8 @@ service cloud.firestore {
           || (verifiedEmail()
             && householdEntitled(hid)
             && memberId == request.auth.uid
-            && existing().userId == request.auth.uid
-            && existing().status == 'inactive'
+            && existing().get('userId', memberId) == request.auth.uid
+            && existing().get('status', '') == 'inactive'
             && incoming().userId == request.auth.uid
             && incoming().status == 'active'
             && incoming().role in ['editor', 'viewer', 'contributor', 'custom']
@@ -512,7 +640,7 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.status == 'accepted'
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
-        allow delete: if householdOwner(hid) && resource.data.role != 'owner';
+        allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
       }
 
       match /invoices/{invoiceId} {

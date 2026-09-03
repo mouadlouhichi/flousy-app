@@ -68,6 +68,7 @@ import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
 import { useToast } from '@/hooks/use-toast';
 import { resolveProEntitlement } from '../../lib/pro-features';
+import { diagnoseHouseholdWriteDenial } from '../../lib/household-entitlement';
 import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
@@ -223,6 +224,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     householdAccess,
     canEditArea,
     canViewArea,
+    rebindHouseholdSponsor,
   } = useHousehold();
   const { configuredCurrency, setPeriodCurrency } = useCurrency();
   const { messages: m } = useLanguage();
@@ -290,6 +292,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [syncState, setSyncState] = useState<FinanceSyncState>('local');
   // permission-denied is deterministic; do not toast it on every retry
   const deniedToastAtRef = useRef(0);
+  // ...and do not re-attempt a household entitlement repair on every retry
+  // either: it is a write, and a refused one stays refused until the data
+  // behind it changes.
+  const sponsorRebindAtRef = useRef(0);
   const conflictToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
@@ -802,25 +808,55 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           }
           if (isActiveTarget()) {
             setSyncState('failed');
-            // permission-denied means rules rejected the write itself.
-            // When the profile itself is Pro but the server still denies,
-            // the cause is a household sponsored by another account or
-            // deployed rules older than this client - not an expired trial.
-            // NOTE: entitlement fields live on the AUTH profile; the
-            // workspace budgetProfile (profileRef) deliberately drops them,
-            // so it must never be used for this check.
+            // permission-denied means the rules rejected the write itself.
+            // A profile that is plainly Pro plus a refusal is a household
+            // problem - the workspace is paid for by another account, or by a
+            // plan the deployed rules cannot see - and never an expired trial.
+            // NOTE: entitlement fields live on the AUTH profile; the workspace
+            // budgetProfile (profileRef) deliberately drops them, so it must
+            // never be used for this check.
             const profileIsPro = resolveProEntitlement(profile).isPro;
-            const deniedMessage = profileIsPro
-              ? m.sync.entitlementConflict
-              : `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`;
+            const denial = workspace === 'household' && profileIsPro
+              ? diagnoseHouseholdWriteDenial({ household, profile, uid: user?.uid, isOwner })
+              : null;
+            // A rebindable household is the one state the app can fix by
+            // itself, so try before narrating: the refused write is still
+            // queued, and after a successful rebind it can commit.
+            if (denial === 'sponsor-rebindable' && Date.now() - sponsorRebindAtRef.current > 15000) {
+              sponsorRebindAtRef.current = Date.now();
+              const outcome = await rebindHouseholdSponsor();
+              if (outcome === 'repaired') {
+                if (isActiveTarget()) {
+                  setSyncState('pending');
+                  setSyncError(m.sync.sponsorRebound);
+                }
+                toast({ description: m.sync.sponsorRebound });
+                // Re-enter this flush from its own `finally`, so the replay
+                // runs with the current workspace's queue rather than this
+                // (soon stale) closure.
+                flushRequestedRef.current = true;
+                break;
+              }
+            }
+            const deniedMessage = !profileIsPro
+              ? `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`
+              : denial === 'sponsor-rebindable'
+                ? m.sync.restoreAccessHint
+                : denial === 'sponsor-unreadable'
+                  ? m.sync.sponsorUnreadable
+                  : denial === 'sponsor-lapsed'
+                    ? m.sync.sponsorLapsed
+                    : denial === 'profile-invalid'
+                      ? m.sync.profileInvalid
+                      : workspace === 'household'
+                        // A refusal this client cannot explain is one the deployed
+                        // rules cause: they cannot store or read a plan owner.
+                        ? m.sync.rulesBehind
+                        : m.sync.queuedLocally;
             setSyncError(denied ? deniedMessage : '');
             if (denied && Date.now() - deniedToastAtRef.current > 30000) {
               deniedToastAtRef.current = Date.now();
-              toast({
-                variant: 'destructive',
-                title: m.sync.failed,
-                description: deniedMessage,
-              });
+              toast({ variant: 'destructive', title: m.sync.failed, description: deniedMessage });
             }
           }
           break;
@@ -877,7 +913,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         queueMicrotask(() => { void flushLatestRef.current(); });
       }
     }
-  }, [user, profile, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId, m, toast]);
+  }, [
+    user,
+    profile,
+    workspace,
+    workspaceId,
+    outboxHydrated,
+    currentMonthKey,
+    householdId,
+    household,
+    isOwner,
+    rebindHouseholdSponsor,
+    m,
+    toast,
+  ]);
   flushLatestRef.current = flushOutbox;
 
   useEffect(() => {

@@ -1960,7 +1960,16 @@
     "pending": "En attente",
     "local": "Enregistré sur cet appareil",
     "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès.",
-    "entitlementConflict": "Votre abonnement Pro semble actif, mais le serveur refuse toujours cette écriture sur le ménage. Le ménage est peut-être parrainé par un autre compte, ou les règles Firestore déployées sont obsolètes — redéployez-les (firebase deploy --only firestore:rules)."
+    "sponsorRebound": "L'accès au budget partagé est rétabli — ce ménage fonctionne désormais sur votre abonnement Pro, et vos modifications en attente sont envoyées.",
+    "sponsorLapsed": "Ce ménage fonctionne sur l'abonnement Pro d'un autre compte, qui n'est plus actif. Tout reste consultable ; l'édition reprend dès que l'abonnement est renouvelé.",
+    "sponsorUnreadable": "Le budget partagé de ce ménage est payé par un autre compte que cet appareil ne peut pas consulter. Seul le propriétaire du ménage peut changer l'abonnement utilisé.",
+    "rulesBehind": "Les règles Firestore déployées sur ce projet ne peuvent pas enregistrer le propriétaire de l'abonnement d'un ménage et refusent donc l'écriture. Redéployez-les (firebase deploy --only firestore:rules).",
+    "profileInvalid": "L'abonnement de ce compte est enregistré dans une forme que l'application ne peut pas vérifier (un plan ou un statut non reconnu) ; le serveur ne l'appliquera donc pas au ménage. Corrigez les champs d'abonnement du profil dans la console Firebase, ou démarrez l'essai Pro depuis l'application.",
+    "restoreAccess": "Rétablir l'accès partagé",
+    "restoreAccessHint": "Les écritures sont refusées car l'abonnement Pro qui paie ce ménage appartient à un autre compte. Vous possédez ce ménage et votre abonnement est actif : il peut basculer sur le vôtre.",
+    "restoreAccessDone": "Le propriétaire de l'abonnement du ménage est à jour. Vos modifications partent à la prochaine synchronisation.",
+    "restoreAccessConsistent": "Ce ménage tourne déjà sur votre abonnement : le refus vient d'ailleurs.",
+    "restoreAccessFailed": "Le serveur a refusé la modification ; le propriétaire de l'abonnement du ménage n'a pas pu être mis à jour."
   },
   "monthLock": {
     "closed": "Mois clôturé",
