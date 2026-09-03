@@ -4,47 +4,29 @@ import {
   DASHBOARD_NAV_ITEMS,
   PROFILE_SUBPAGE_NAV_ITEMS,
   getProfilePageTitle,
-  getProfileSubpageNavItems,
   getScreenIdFromPath,
   getSidebarNavItems,
   getVisibleNavItems,
 } from '../src/components/dashboard/nav-items';
 
 describe('Profile subpage nav items', () => {
-  it('exposes the account pages for the grouped desktop sidebar', () => {
+  it('lists the profile subpages the Profile page links to', () => {
     assert.deepEqual(
-      getProfileSubpageNavItems(false).map((item) => item.id),
-      ['preferences', 'money-sources', 'data', 'account'],
+      PROFILE_SUBPAGE_NAV_ITEMS.map((item) => item.id),
+      ['preferences', 'money-sources', 'household', 'data', 'account'],
     );
   });
 
-  it('keeps the desktop sidebar account group short without orphaning pages', () => {
-    // money-sources and data stay on the Profile page; the sidebar keeps
-    // preferences (+ household when entitled) and account.
-    assert.deepEqual(
-      getProfileSubpageNavItems(false, { forSidebar: true }).map((item) => item.id),
-      ['preferences', 'account'],
-    );
-    assert.deepEqual(
-      getProfileSubpageNavItems(true, { forSidebar: true }).map((item) => item.id),
-      ['preferences', 'household', 'account'],
-    );
-    // Every sidebarHidden page still exists in the full list, so the Profile
-    // page continues to link it.
-    for (const id of ['money-sources', 'data']) {
-      assert.ok(PROFILE_SUBPAGE_NAV_ITEMS.some((item) => item.id === id));
-    }
-  });
-
-  it('adds the household page only where household management is allowed', () => {
-    assert.ok(getProfileSubpageNavItems(true).some((item) => item.id === 'household'));
-    assert.ok(!getProfileSubpageNavItems(false).some((item) => item.id === 'household'));
-  });
-
-  it('never puts a profile subpage in the bottom nav', () => {
-    const navIds: string[] = getVisibleNavItems(true).map((item) => item.id);
-    for (const item of PROFILE_SUBPAGE_NAV_ITEMS) {
-      assert.ok(!navIds.includes(item.id), `${item.id} must stay in the sidebar`);
+  it('never puts a profile subpage in a navigation bar', () => {
+    // The Profile page (opened from the avatar/footer) owns these pages; the
+    // bottom nav and the desktop sidebar never list them.
+    for (const isPro of [false, true]) {
+      const navIds: string[] = getVisibleNavItems(isPro).map((item) => item.id);
+      const sidebarIds: string[] = getSidebarNavItems(isPro).map((item) => item.id);
+      for (const item of PROFILE_SUBPAGE_NAV_ITEMS) {
+        assert.ok(!navIds.includes(item.id), `${item.id} must stay off the bottom nav`);
+        assert.ok(!sidebarIds.includes(item.id), `${item.id} must stay off the sidebar`);
+      }
     }
   });
 

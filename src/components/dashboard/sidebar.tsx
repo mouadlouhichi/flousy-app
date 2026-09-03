@@ -9,7 +9,6 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
 import {
   getLocalizedNavLabel,
-  getProfileSubpageNavItems,
   getScreenIdFromPath,
   getSidebarNavItems,
 } from './nav-items';
@@ -28,8 +27,10 @@ function SidebarGroupLabel({ children }: { children: ReactNode }) {
 }
 
 /**
- * Secondary row for the Tools group: the icon sits in a small rounded square so
- * actions read differently from the primary destinations above them.
+ * Tool row (modal actions, not routes): deliberately the same row anatomy as
+ * the Budget links above — same padding, icon size and type scale — so the
+ * whole sidebar reads as one family. No sliding pill: opening a modal never
+ * changes the active screen.
  */
 function SidebarToolRow({
   icon,
@@ -44,11 +45,9 @@ function SidebarToolRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-start font-label-sm text-on-surface-variant transition-colors hover:bg-surface-variant/40 hover:text-on-surface"
+      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-start font-label-lg text-on-surface-variant transition-colors hover:bg-surface-variant/40 hover:text-on-surface"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-variant/70">
-        <AppIcon name={icon} className="text-[15px] text-primary" />
-      </span>
+      <AppIcon name={icon} className="shrink-0 text-[21px]" />
       <span className="truncate">{label}</span>
     </button>
   );
@@ -78,11 +77,6 @@ export function Sidebar() {
   // Desktop shows the full set (courses + analytics included); the mobile
   // bottom bar keeps its five destinations.
   const items = getSidebarNavItems(proUnlocked);
-  // Household management is a Pro feature: a free user in their personal
-  // workspace gets no household entry at all. A member of someone else's
-  // household keeps it, since their access comes from the household.
-  const canManageHousehold = isPro || workspace === 'household';
-  const accountItems = getProfileSubpageNavItems(canManageHousehold, { forSidebar: true });
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
@@ -146,7 +140,7 @@ export function Sidebar() {
         {(canSeeIncome || canUseCsv) && (
           <>
             <SidebarGroupLabel>{m.navigation.groupTools}</SidebarGroupLabel>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               {canSeeIncome && (
                 <SidebarToolRow
                   icon="payments"
@@ -176,32 +170,6 @@ export function Sidebar() {
             </div>
           </>
         )}
-
-        {/* ── Account ────────────────────────────────────────── */}
-        <SidebarGroupLabel>{m.navigation.groupAccount}</SidebarGroupLabel>
-        <div className="flex flex-col gap-0.5">
-          {accountItems.map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              prefetch={true}
-              aria-current={pathname === item.href ? 'page' : undefined}
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 font-label-sm transition-colors ${
-                pathname === item.href
-                  ? 'bg-surface-variant/60 font-bold text-on-surface'
-                  : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
-              }`}
-            >
-              {/* Same icon language as the Tools group: rounded square,
-                  primary-coloured glyph — one consistent icon colour across
-                  every secondary row in the sidebar. */}
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-variant/70">
-                <AppIcon name={item.icon} className="text-[15px] text-primary" />
-              </span>
-              <span className="truncate">{m.profile.links[item.labelKey]}</span>
-            </Link>
-          ))}
-        </div>
       </nav>
 
       {/* Bottom Profile Footer — whole row opens the profile page. Shares
