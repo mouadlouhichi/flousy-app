@@ -147,17 +147,30 @@ that targets an invented collection name succeeds quietly and changes nothing.)
 
   The total reads cost 6-41 expressions on six rules; no rule crossed the cap that was
   not already past it, and two came back under it. The rules that were already far above
-  it are a pre-existing condition of this ruleset, not something this change introduces
-  or fixes — whether the engine counts the way this static estimate does is decided by the
-  emulator suite in CI, and the rules that never trip it in practice are presumably
-  short-circuiting well before the expansion.
+  it are a pre-existing condition, not something this change introduces — but they are
+  real, and CI proved it: the emulator refuses those requests with
+  `Unable to evaluate the expression as the maximum of 1000 expressions`, and that is
+  still the cause of the seven red rules tests after this work. It is *not* a
+  missing-field problem and it is not fixed here. The static per-rule number understates
+  what the engine enforces (a request evaluates every rule that matches the path, plus
+  the catch-all), and the direction of travel for this ruleset is to compute the shared
+  household facts **once** per rule - `householdOwner`, `householdEditor`,
+  `householdEntitled` and `householdAccess` each re-inline the same `exists()/get()` pair
+  against the household root and the member row, so a rule with three gates pays for that
+  chain three times. Collapsing them into one map, read as `facts.owner` and friends, is
+  the change that makes those seven requests fit; it is a semantics-sensitive refactor of
+  the authorization core and is deliberately not attempted in a branch about stored
+  fields.
 
 ## Verification
 
 * `npm run check` → lint, typecheck, strict typecheck, 468 unit tests, 0 failing.
 * The first totalization pass was not enough, and CI is what said so: the rules step now
-  publishes a failure-class count, and it reported 16 aborted evaluations against
-  0 expression-budget failures. Three read sites were still dot-reading a stored value,
+  publishes a failure-class count, and it reported 16 aborted evaluations. (The
+  expression-budget counter initially read 0 because it grepped a phrase the emulator
+  never prints - a metric that silently measures nothing is the same failure mode as a
+  rule that silently denies, so the counter now greps `maximum of 1000 expressions` and
+  `maximum of 10 get`.) Three read sites were still dot-reading a stored value,
   all of them in the "second chance" half of a short-circuit where the guard that looked
   like protection had already been skipped:
   `existing().revision is int` in both month update rules (only reached when `revision`
@@ -166,6 +179,13 @@ that targets an invented collection name succeeds quietly and changes nothing.)
   invitation in the join-by-invite branch. Now: `'revision' in existing() &&` first, and
   `.data.get(key, default)` for the invitation. The lesson is specific — **a `is int` or
   `hasOnly` clause does not make the *other* branch's read total; totality is per read.**
+* Seven of the red tests turned out not to be rules faults at all: 28 of the 32 emulated
+  contexts were built as `authenticatedContext(uid, { email_verified: true })` with no
+  `email` claim, while `verifiedEmail()` requires one, so those requests aborted on a
+  *token* property. The claim stays required - this app signs people in with a password or
+  Google, and reading "no claim" as "some other address" would weaken the gate to please a
+  fixture - so every context now goes through `asUser()` in the test file, which supplies
+  the file's own `<uid>@example.com` convention and cannot be bypassed.
 * `node scripts/rules-budget.mjs` → no rule grew; two shrank.
 * Emulator suite runs in CI only (no JVM here): the 7 previously failing cases are the
   ones this change targets, so `Firestore rules (emulator)` is the arbiter.

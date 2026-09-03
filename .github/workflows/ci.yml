@@ -73,9 +73,10 @@ jobs:
           printf '::error title=Firestore rules totals::%s\n' \
             "$(grep -E "^(#|ℹ|>?) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' || true)"
           printf '::error title=Firestore rules failure class::%s\n' \
-            "$(printf 'aborted evaluations: %s; over expression budget: %s; bare denials: %s' \
+            "$(printf 'aborted evaluations: %s; over expression budget: %s; get()/exists() over 10: %s; bare denials: %s' \
               "$(grep -c 'Null value error' "$log" || true)" \
-              "$(grep -c 'exceeded the limit' "$log" || true)" \
+              "$(grep -c 'maximum of 1000 expressions' "$log" || true)" \
+              "$(grep -c 'maximum of 10 get' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
           # The decisive text is the assertion each failing test printed. The SDK's own
           # GrpcConnection lines are noise here - they only repeat the code the test
@@ -87,7 +88,7 @@ jobs:
                 want && /GrpcConnection/ { next }
                 want && /Null value|Evaluation error|evaluation error|assertion failed|Property|No such method|assert/ {
                   line = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
-                  if (line != last) { digest = digest substr(line, 1, 220) " || "; last = line; hits++ }
+                  if (line != last) { digest = digest substr(line, 1, 420) " || "; last = line; hits++ }
                   if (hits >= 5) { want = 0 }
                 }
                 END { print substr(digest, 1, 1600) }' "$log" || true)"
