@@ -60,6 +60,24 @@ function firestore(context: RulesTestContext): Firestore {
   return context.firestore() as unknown as Firestore;
 }
 
+/**
+ * A context this product can actually produce.
+ *
+ * `verifiedEmail()` reads `request.auth.token.email` and `email_verified` as required
+ * claims on purpose: the app signs people in with a password or Google, so a caller
+ * without them is not a user, and the rule must not read "no claim" as "some other
+ * address". The consequence for this file is sharp - a context missing the claim does not
+ * fail the way a wrong password fails, it aborts the whole rule and the client receives a
+ * bare permission-denied. Every emulated user therefore goes through here.
+ */
+function asUser(uid: string, claims: Record<string, unknown> = {}): Firestore {
+  return firestore(environment.authenticatedContext(uid, {
+    email: `${uid}@example.com`,
+    email_verified: true,
+    ...claims,
+  }));
+}
+
 async function seed(callback: (db: Firestore) => Promise<void>) {
   await environment.withSecurityRulesDisabled(async (context) => callback(firestore(context)));
 }
@@ -81,7 +99,7 @@ after(async () => {
 
 describe('revisioned personal finance rules', () => {
   it('requires an immutable ledger row and an exact revision increment', async () => {
-    const db = firestore(environment.authenticatedContext('alice', { email: 'alice@example.com', email_verified: true }));
+    const db = asUser('alice');
     const monthRef = doc(db, 'users/alice/months/2026-09');
     const firstLedger = doc(db, 'users/alice/ledger/create-1');
     const create = writeBatch(db);
@@ -119,7 +137,7 @@ describe('revisioned personal finance rules', () => {
   });
 
   it('freezes a closed month until a state-only reopen is ledgered', async () => {
-    const db = firestore(environment.authenticatedContext('alice', { email_verified: true }));
+    const db = asUser('alice');
     const monthRef = doc(db, 'users/alice/months/2026-09');
 
     const create = writeBatch(db);
@@ -171,7 +189,7 @@ describe('revisioned personal finance rules', () => {
   });
 
   it('requires savings revisions to be coupled to a ledger row', async () => {
-    const db = firestore(environment.authenticatedContext('alice', { email_verified: true }));
+    const db = asUser('alice');
     const savingsRef = doc(db, 'users/alice/data/savings');
     await assertFails(setDoc(savingsRef, { goals: [], revision: 1, lastMutationId: 'none' }));
     const batch = writeBatch(db);
@@ -207,7 +225,7 @@ describe('launch-trial entitlement rules', () => {
         plan: 'free', currency: 'MAD', onboardingComplete: true,
       });
     });
-    const db = firestore(environment.authenticatedContext('trial-user', { email_verified: true }));
+    const db = asUser('trial-user');
 
     await assertFails(updateDoc(doc(db, 'users/trial-user'), {
       plan: 'pro', proTrialClaimedAt: new Date().toISOString(),
@@ -249,7 +267,7 @@ describe('launch-trial entitlement rules', () => {
         entitlementEndsAtMs: expiredAtMs,
       });
     });
-    const db = firestore(environment.authenticatedContext('expired-user', { email_verified: true }));
+    const db = asUser('expired-user');
     await assertFails(setDoc(doc(db, 'households/expired-home'), {
       name: 'Expired Home', ownerId: 'expired-user', planOwnerId: 'expired-user',
       entitlementOwnerId: 'expired-user', entitlementSource: 'launch_trial',
@@ -293,8 +311,8 @@ describe('household invitations and RBAC rules', () => {
 
   it('allows viewers to read, blocks their writes, and hides finance from contributors', async () => {
     await seedHousehold();
-    const viewer = firestore(environment.authenticatedContext('viewer', { email_verified: true }));
-    const contributor = firestore(environment.authenticatedContext('contributor', { email_verified: true }));
+    const viewer = asUser('viewer');
+    const contributor = asUser('contributor');
     await assertSucceeds(getDoc(doc(viewer, 'households/home/months/2026-09')));
     await assertFails(updateDoc(doc(viewer, 'households/home/months/2026-09'), { bankPart: 1 }));
     await assertFails(getDoc(doc(contributor, 'households/home/months/2026-09')));
@@ -302,8 +320,8 @@ describe('household invitations and RBAC rules', () => {
 
   it('lets only the household owner close or reopen a shared period', async () => {
     await seedHousehold();
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
-    const editor = firestore(environment.authenticatedContext('editor', { email_verified: true }));
+    const owner = asUser('owner');
+    const editor = asUser('editor');
     const monthPath = 'households/home/months/2026-09';
 
     const close = writeBatch(owner);
@@ -349,9 +367,7 @@ describe('household invitations and RBAC rules', () => {
       expiresAtMs: Date.now() + 60_000,
     };
     await seed(async (db) => { await setDoc(doc(db, 'householdInvites/invite-ok'), invite); });
-    const recipient = firestore(environment.authenticatedContext('new-user', {
-      email: 'new@example.com', email_verified: true,
-    }));
+    const recipient = asUser('new-user', { email: 'new@example.com' });
 
     await assertFails(updateDoc(doc(recipient, 'householdInvites/invite-ok'), {
       status: 'accepted', acceptedAt: new Date().toISOString(),
@@ -382,7 +398,7 @@ describe('household invitations and RBAC rules', () => {
       { email: 'late@example.com', email_verified: true },
       { email: 'late@example.com', email_verified: false },
     ]) {
-      const db = firestore(environment.authenticatedContext('late-user', claims));
+      const db = asUser('late-user', claims);
       const batch = writeBatch(db);
       batch.set(doc(db, 'households/home/members/late-user'), {
         id: 'late-user', userId: 'late-user', displayName: 'Late', email: 'late@example.com',
@@ -427,7 +443,7 @@ describe('atomic household invoice approval rules', () => {
   });
 
   it('rejects a status-only approval and accepts approval with its expense revision and ledger', async () => {
-    const db = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const db = asUser('owner');
     await assertFails(updateDoc(doc(db, 'households/home/invoices/invoice-only'), {
       status: 'approved', reviewedAt: new Date().toISOString(), reviewedByUserId: 'owner',
       postedExpenseId: 'invoice-invoice-only', postedMonthKey: '2026-09',
@@ -493,16 +509,16 @@ describe('custom role per-area grant rules', () => {
   });
 
   it('opens finance reads only to custom members holding a finance grant', async () => {
-    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
-    const runner = firestore(environment.authenticatedContext('runner', { email_verified: true }));
-    const legacy = firestore(environment.authenticatedContext('legacy', { email_verified: true }));
+    const clerk = asUser('clerk');
+    const runner = asUser('runner');
+    const legacy = asUser('legacy');
     await assertSucceeds(getDoc(doc(clerk, 'households/home/months/2026-09')));
     await assertFails(getDoc(doc(runner, 'households/home/months/2026-09')));
     await assertFails(getDoc(doc(legacy, 'households/home/months/2026-09')));
   });
 
   it('lets an expenses grant record spending with its balance movement, and nothing else', async () => {
-    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const clerk = asUser('clerk');
     const monthRef = doc(clerk, 'households/home/months/2026-09');
     const expense = {
       id: 'exp-1', name: 'Groceries', amount: 100, type: 'Groceries',
@@ -541,8 +557,8 @@ describe('custom role per-area grant rules', () => {
   });
 
   it('scopes the savings grant to savings keys and the savings document', async () => {
-    const saver = firestore(environment.authenticatedContext('saver', { email_verified: true }));
-    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const saver = asUser('saver');
+    const clerk = asUser('clerk');
     const monthRef = doc(saver, 'households/home/months/2026-09');
 
     // Granted: a savings deposit moves money out of the wallet split.
@@ -585,18 +601,18 @@ describe('custom role per-area grant rules', () => {
       id, name: 'Groceries', amount: 50, category: 'Groceries', date: '2026-09-02',
       place: 'bank', submitterId, status: 'submitted', createdAt: new Date().toISOString(),
     });
-    const runner = firestore(environment.authenticatedContext('runner', { email_verified: true }));
+    const runner = asUser('runner');
     await assertSucceeds(setDoc(doc(runner, 'households/home/invoices/inv-runner'), invoice('inv-runner', 'runner')));
     // No invoices grant on the saver matrix.
-    const saver = firestore(environment.authenticatedContext('saver', { email_verified: true }));
+    const saver = asUser('saver');
     await assertFails(setDoc(doc(saver, 'households/home/invoices/inv-saver'), invoice('inv-saver', 'saver')));
     // Legacy custom member without a stored map gets nothing server-side.
-    const legacy = firestore(environment.authenticatedContext('legacy', { email_verified: true }));
+    const legacy = asUser('legacy');
     await assertFails(setDoc(doc(legacy, 'households/home/invoices/inv-legacy'), invoice('inv-legacy', 'legacy')));
   });
 
   it('accepts only well-formed permission maps written by the owner', async () => {
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const owner = asUser('owner');
     const memberRef = doc(owner, 'households/home/members/clerk');
     await assertSucceeds(updateDoc(memberRef, { permissions: { expenses: 'editAll', invoices: 'editOwn' } }));
     // Unknown level, unknown area, and over-broad management grants all fail.
@@ -605,7 +621,7 @@ describe('custom role per-area grant rules', () => {
     await assertFails(updateDoc(memberRef, { permissions: { members: 'editAll' } }));
     await assertFails(updateDoc(memberRef, { permissions: { invoices: 'editAll' } }));
     // A custom member cannot rewrite their own grants.
-    const clerk = firestore(environment.authenticatedContext('clerk', { email_verified: true }));
+    const clerk = asUser('clerk');
     await assertFails(updateDoc(doc(clerk, 'households/home/members/clerk'), {
       permissions: { expenses: 'editAll', balances: 'editAll' },
     }));
@@ -621,9 +637,7 @@ describe('custom role per-area grant rules', () => {
         expiresAtMs: Date.now() + 60_000,
       });
     });
-    const joiner = firestore(environment.authenticatedContext('joiner', {
-      email: 'joiner@example.com', email_verified: true,
-    }));
+    const joiner = asUser('joiner', { email: 'joiner@example.com' });
     const accept = (permissions: Record<string, string>) => {
       const batch = writeBatch(joiner);
       batch.set(doc(joiner, 'households/home/members/joiner'), {
@@ -690,7 +704,7 @@ describe('household plan-owner authorization and recovery', () => {
         activeCategories: ['Groceries'], createdAt: new Date().toISOString(),
       });
     });
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const owner = asUser('owner');
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
     await assertSucceeds(monthWrite(owner, 'owner', 'households/home/months/2026-09'));
   });
@@ -704,10 +718,10 @@ describe('household plan-owner authorization and recovery', () => {
         displayName: 'Other', role: 'editor', status: 'active',
       });
     });
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const owner = asUser('owner');
     await assertSucceeds(monthWrite(owner, 'owner', 'households/home/months/2026-09'));
     // Ownership is not a wildcard: an unrelated account stays out.
-    const stranger = firestore(environment.authenticatedContext('stranger', { email_verified: true }));
+    const stranger = asUser('stranger');
     await assertFails(monthWrite(stranger, 'stranger', 'households/home/months/2026-09'));
   });
 
@@ -720,7 +734,7 @@ describe('household plan-owner authorization and recovery', () => {
         displayName: 'Editor', role: 'editor', status: 'active',
       });
     });
-    const editor = firestore(environment.authenticatedContext('editor', { email_verified: true }));
+    const editor = asUser('editor');
     // `get(users/deleted-user)` used to abort; a missing sponsor must read as
     // "no entitlement", never as an error that also takes the reads with it.
     await assertSucceeds(getDoc(doc(editor, 'households/home')));
@@ -746,8 +760,8 @@ describe('household plan-owner authorization and recovery', () => {
         displayName: 'Editor', role: 'editor', status: 'active',
       });
     });
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
-    const editor = firestore(environment.authenticatedContext('editor', { email_verified: true }));
+    const owner = asUser('owner');
+    const editor = asUser('editor');
     await assertFails(monthWrite(owner, 'owner', 'households/home/months/2026-09'));
 
     const rebind = {
@@ -777,7 +791,7 @@ describe('household plan-owner authorization and recovery', () => {
       }));
       await setDoc(doc(db, 'households/home/months/2026-09'), validMonth());
     });
-    const payer = firestore(environment.authenticatedContext('payer', { email_verified: true }));
+    const payer = asUser('payer');
     // A longer expiry than the profile carries is a forged grant, not a repair.
     await assertFails(updateDoc(doc(payer, 'households/home'), {
       entitlementOwnerId: 'payer', entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
@@ -817,7 +831,7 @@ describe('household plan-owner authorization and recovery', () => {
         entitlementEndsAtMs: Date.now() - DAY_MS,
       }));
     });
-    const owner = firestore(environment.authenticatedContext('owner', { email_verified: true }));
+    const owner = asUser('owner');
     await assertFails(updateDoc(doc(owner, 'households/home'), { currency: 'EUR' }));
     // ...but the workspace's own data never becomes unreadable.
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
