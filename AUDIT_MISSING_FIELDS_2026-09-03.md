@@ -179,6 +179,15 @@ that targets an invented collection name succeeds quietly and changes nothing.)
   invitation in the join-by-invite branch. Now: `'revision' in existing() &&` first, and
   `.data.get(key, default)` for the invitation. The lesson is specific — **a `is int` or
   `hasOnly` clause does not make the *other* branch's read total; totality is per read.**
+* The measured counts on the final run: `aborted evaluations: 16`, `over expression
+  budget: 19`, `get()/exists() over 10: 0`, `tests 22 / pass 15 / fail 7`. The 1000
+  ceiling matters for production, not just for tests: the static estimate is a worst case
+  because `||` short-circuits, so an owner editing a member pays a few dozen expressions
+  while some other shape - a custom-role member, a legacy document, a batch touching two
+  collections - walks enough branches to be refused. A refusal from the ceiling is
+  indistinguishable from a denial at the client, which is why the counts are published on
+  every run now. The fix is structural (one `facts` map per rule instead of four gates
+  each re-reading the same two documents), and it is the next piece of work.
 * Seven of the red tests turned out not to be rules faults at all: 28 of the 32 emulated
   contexts were built as `authenticatedContext(uid, { email_verified: true })` with no
   `email` claim, while `verifiedEmail()` requires one, so those requests aborted on a
