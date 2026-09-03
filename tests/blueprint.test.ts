@@ -319,8 +319,8 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     // The prior plan is read *totally*: a profile created and claimed in one `set()`
     // has no existing document, and a property read there aborts the whole rule.
     assert.match(rulesSource, /existing\(\)\.get\('plan', 'free'\) == 'free'/);
-    assert.match(rulesSource, /incoming\(\)\.entitlementSource == 'launch_trial'/);
-    assert.match(rulesSource, /incoming\(\)\.entitlementEndsAtMs\s*\n\s*== incoming\(\)\.entitlementStartedAtMs \+ 7776000000/);
+    assert.match(rulesSource, /incoming\(\)(?:\.entitlementSource|\.get\('entitlementSource', ''\)) == 'launch_trial'/);
+    assert.match(rulesSource, /incoming\(\)(?:\.entitlementEndsAtMs|\.get\('entitlementEndsAtMs', 0\))\s*\n\s*== incoming\(\)(?:\.entitlementStartedAtMs|\.get\('entitlementStartedAtMs', -1\)) \+ 7776000000/);
     assert.match(rulesSource, /!entitlementFieldsChanged\(\) \|\| validLaunchTrialClaim\(\)/);
 
     const dbSource = readRepoFile('src/lib/db.ts');

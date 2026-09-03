@@ -244,13 +244,13 @@ bare `permission-denied`, so "make every read total" has to pay for itself. Meas
 
 | rule | before | now |
 |---|---|---|
-| `members` create | 1979 | **989** |
-| `members` update | 2090 | 1152 |
+| `members` create | 1979 | **1034** |
+| `members` update | 2090 | 1202 |
 | `households` update | 1602 | 1061 |
 | `users/{uid}` months update | 1041 | under the cap |
 | `households` months update | 1708 | 1569 |
 
-The month validators came back *up* by ~60 because totality was applied there too -
+The member and month numbers came back *up* because totality was applied there too -
 `isMoney(after.get('totalBudget', null))` instead of `isMoney(after.totalBudget)` - and
 that trade was taken on purpose: the budget number is a worst case that short-circuiting
 usually avoids, while an aborted evaluation denies *every* request that touches the rule.

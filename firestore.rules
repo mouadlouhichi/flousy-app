@@ -40,16 +40,16 @@ service cloud.firestore {
       // property aborts, which reaches the client as a plain denial. "No profile yet"
       // and "a free profile" are the same answer to this question.
       return existing().get('plan', 'free') == 'free'
-        && incoming().plan == 'pro'
+        && incoming().get('plan', '') == 'pro'
         && !('entitlementSource' in existing())
         && !('proTrialClaimedAt' in existing())
-        && incoming().entitlementSource == 'launch_trial'
-        && incoming().entitlementStatus == 'trialing'
-        && incoming().entitlementStartedAtMs is int
-        && incoming().entitlementStartedAtMs >= request.time.toMillis() - 300000
-        && incoming().entitlementStartedAtMs <= request.time.toMillis() + 300000
-        && incoming().entitlementEndsAtMs
-          == incoming().entitlementStartedAtMs + 7776000000
+        && incoming().get('entitlementSource', '') == 'launch_trial'
+        && incoming().get('entitlementStatus', '') == 'trialing'
+        && incoming().get('entitlementStartedAtMs', -1) is int
+        && incoming().get('entitlementStartedAtMs', -1) >= request.time.toMillis() - 300000
+        && incoming().get('entitlementStartedAtMs', -1) <= request.time.toMillis() + 300000
+        && incoming().get('entitlementEndsAtMs', 0)
+          == incoming().get('entitlementStartedAtMs', -1) + 7776000000
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'plan', 'entitlementSource', 'entitlementStatus',
           'entitlementStartedAtMs', 'entitlementEndsAtMs'
@@ -297,7 +297,7 @@ service cloud.firestore {
           && incoming().get('closedByUserId', '') == request.auth.uid)
         || (wasClosed && !willBeClosed
           && 'periodStatus' in incoming()
-          && incoming().periodStatus == 'open'
+          && incoming().get('periodStatus', '') == 'open'
           && stateOnly);
     }
     function validPeriodStateTransition() {
@@ -468,7 +468,7 @@ service cloud.firestore {
       let access = householdAccess(hid);
       // Custom members may ledger ordinary finance mutations; closing, reopening
       // and approving stay with owners and editors.
-      let ordinaryKind = incoming().kind in [
+      let ordinaryKind = incoming().get('kind', '') in [
         'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post'
       ];
       return access.paid && (access.owner || access.editor
@@ -857,7 +857,7 @@ service cloud.firestore {
         && offered.get('householdId', '') == hid
         && offered.get('status', '') == 'pending'
         && offered.get('email', '') == request.auth.token.email
-        && offered.get('role', '') == after.role
+        && offered.get('role', '') == after.get('role', '')
         && after.get('permissions', {}) == offered.get('permissions', {})
         && offered.get('expiresAtMs', 0) > request.time.toMillis()
         && result.get('status', '') == 'accepted'
@@ -873,17 +873,17 @@ service cloud.firestore {
       let grantsOk = memberDocPermissionsValid();
       let self = memberId == request.auth.uid;
       return (facts.owner && self
-          && after.userId == request.auth.uid
-          && after.role == 'owner'
-          && after.status == 'active')
+          && after.get('userId', '') == request.auth.uid
+          && after.get('role', '') == 'owner'
+          && after.get('status', '') == 'active')
         || (facts.owner && facts.paid && !self
-          && after.role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
           && grantsOk
-          && after.status in ['invited', 'active'])
+          && after.get('status', '') in ['invited', 'active'])
         || (verifiedEmail() && facts.paid && self
-          && after.userId == request.auth.uid
-          && after.status == 'active'
-          && after.role in ['editor', 'viewer', 'contributor', 'custom']
+          && after.get('userId', '') == request.auth.uid
+          && after.get('status', '') == 'active'
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
           && grantsOk
           && invitationJoinOk(hid));
     }
@@ -896,18 +896,18 @@ service cloud.firestore {
       let changed = after.diff(before).affectedKeys();
       return (facts.owner && facts.paid
           && before.get('role', '') != 'owner'
-          && after.role in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-          && (after.role != 'custom' || grantsOk)
-          && (!('userId' in before) || after.userId == before.userId))
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && (after.get('role', '') != 'custom' || grantsOk)
+          && (!('userId' in before) || after.get('userId', '') == before.userId))
         || (verifiedEmail()
           && before.get('email', '') == request.auth.token.email
           && before.get('status', '') == 'invited'
-          && after.status == 'inactive'
-          && after.userId == request.auth.uid
+          && after.get('status', '') == 'inactive'
+          && after.get('userId', '') == request.auth.uid
           && changed.hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
         || (memberId == request.auth.uid
           && before.get('userId', memberId) == request.auth.uid
-          && after.status == 'inactive'
+          && after.get('status', '') == 'inactive'
           && changed.hasOnly(['status', 'retiredAt']))
         // Returning member: an inactive row is reactivated only through the same atomic
         // invitation proof the fresh-create branch demands.
@@ -915,9 +915,9 @@ service cloud.firestore {
           && memberId == request.auth.uid
           && before.get('userId', memberId) == request.auth.uid
           && before.get('status', '') == 'inactive'
-          && after.userId == request.auth.uid
-          && after.status == 'active'
-          && after.role in ['editor', 'viewer', 'contributor', 'custom']
+          && after.get('userId', '') == request.auth.uid
+          && after.get('status', '') == 'active'
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
           && grantsOk
           && invitationJoinOk(hid));
     }
@@ -1083,7 +1083,7 @@ service cloud.firestore {
         && incoming().expiresAtMs > request.time.toMillis()
         && incoming().expiresAtMs <= request.time.toMillis() + 1296000000;
       allow update: if (householdOwner(existing().get('householdId', ''))
-          && incoming().status == 'revoked'
+          && incoming().get('status', '') == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']))
         || (verifiedEmail()
           // An invitation that never stored its household cannot be claimed either, and the
@@ -1093,9 +1093,9 @@ service cloud.firestore {
           && existing().get('email', '') == request.auth.token.email
           && existing().get('status', '') == 'pending'
           && existing().get('expiresAtMs', 0) > request.time.toMillis()
-          && incoming().status == 'accepted'
-          && incoming().acceptedByUserId == request.auth.uid
-          && incoming().acceptedEmail == request.auth.token.email
+          && incoming().get('status', '') == 'accepted'
+          && incoming().get('acceptedByUserId', '') == request.auth.uid
+          && incoming().get('acceptedEmail', '') == request.auth.token.email
           && existsAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid))
           && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('inviteId', '') == inviteId
           && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('role', '') == existing().get('role', '')
@@ -1109,7 +1109,7 @@ service cloud.firestore {
           && existing().get('householdId', '') != ''
           && existing().get('email', '') == request.auth.token.email
           && existing().get('status', '') == 'pending'
-          && incoming().status == 'revoked'
+          && incoming().get('status', '') == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));
       allow delete: if householdOwner(existing().get('householdId', ''));
     }

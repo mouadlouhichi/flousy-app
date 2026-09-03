@@ -88,7 +88,7 @@ jobs:
             "$(printf 'aborted evaluations: %s; over expression budget: %s; get()/exists() over 10: %s; bare denials: %s' \
               "$(grep -c 'Null value error' "$log" || true)" \
               "$(grep -c 'maximum of 1000 expressions' "$log" || true)" \
-              "$(grep -c 'maximum of 10 get' "$log" || true)" \
+              "$(grep -ciE 'maximum of 10|document reads exceeded|exceeds the maximum' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
           # The decisive text is the assertion each failing test printed. The SDK's own
           # GrpcConnection lines are noise here - they only repeat the code the test
@@ -113,7 +113,7 @@ jobs:
           printf '::error title=Firestore emulator rule log::%s\n' \
             "$( { [ -f firebase-debug.log ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist' firebase-debug.log; } \
               | sed -E 's/^[[:space:]]+//; s/firestore-emulator[^ ]* //' | tr -d '\r' | tr '\n' '|' | cut -c1-1600 || echo 'no emulator log' )"
-          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 5 \
+          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 12 \
             | while IFS= read -r line; do
                 printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
               done || true

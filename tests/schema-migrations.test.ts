@@ -215,9 +215,13 @@ describe('the model, the rules and the maintenance script agree', () => {
     // worst case, because `||` short-circuits at evaluation time, so this pins each rule
     // to the bound this branch reached rather than to the theoretical cap: the household
     // member and settings writes - the two writes the workspace flow cannot do without -
-    // fit the cap outright, and everything else may only move down without touching this
-    // test. Raise a bound deliberately, with the rule that grew named in the diff, and
-    // read the `over expression budget` count the rules job publishes: that is the
+    // fit the cap outright. A bound may only move down - except where the rule traded
+    // expressions for totality, which is the one direction worth paying for: a rule that
+    // reads `after.get('role', '')` instead of `after.role` costs four expressions rather
+    // than three and answers "no, that member row is malformed" instead of aborting, and
+    // an aborted rule denies the request exactly as loudly as a refusal while telling the
+    // user nothing. Raise a bound deliberately, with the rule that grew named in the diff,
+    // and read the `over expression budget` count the rules job publishes: that is the
     // number the engine actually enforces.
     const report = execFileSync('node', ['scripts/rules-budget.mjs', 'firestore.rules', '200'], { encoding: 'utf8' });
     const lines = report.split('\n');
@@ -227,9 +231,9 @@ describe('the model, the rules and the maintenance script agree', () => {
       return Number(line.trim().split(/\s+/)[0]);
     };
     const bounds: [string, number][] = [
-      ['memberCreateAuthorized(hid, memberId)', 1000],
+      ['memberCreateAuthorized(hid, memberId)', 1100],
       ['householdUpdateAuthorized(hid)', 1100],
-      ['memberUpdateAuthorized(hid, memberId)', 1200],
+      ['memberUpdateAuthorized(hid, memberId)', 1300],
       ['monthUpdateAuthorized(hid)', 1600],
     ];
     for (const [marker, bound] of bounds) {
