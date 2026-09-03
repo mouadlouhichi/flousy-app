@@ -304,32 +304,38 @@ describe('rules and client read the same entitlement', () => {
     assert.match(editor, /member\.get\('role', ''\) == 'owner' \|\| member\.get\('role', ''\) == 'editor'/);
   });
   it('asks each shared write for one pass over the household and its member row', () => {
-    // Rules inline every call into a per-request budget of 1000 evaluated
-    // expressions, and a flush writes the ledger row, the month and the savings
-    // document in one transaction. Gates that each re-derived the same answers put
-    // that request over the cap, and an over-cap request is reported to the client
-    // as a plain denial - the bug this file exists to prevent.
+    // Rules inline every call into one budget of 1000 evaluated expressions per
+    // request, and a flush writes the ledger row, the month and the savings document
+    // out of that same budget. A gate that re-derived the household root, the
+    // membership row or the payer's profile per clause put real users over the cap,
+    // and an over-cap request is reported to the client as a plain denial - the bug
+    // this file exists to prevent.
     const body = (signature: string) => {
       const at = rulesSource.indexOf(signature);
+      assert.notEqual(at, -1, signature);
       return rulesSource.slice(at, rulesSource.indexOf('\n    }', at));
     };
-    for (const gate of [
-      body('function householdMonthGate(hid, grantsChecked) {'),
-      body('function householdLedgerGate(hid) {'),
-      body('function householdSavingsGate(hid) {'),
+    for (const signature of [
+      'function householdMonthGate(hid, grantsChecked) {',
+      'function householdLedgerGate(hid) {',
+      'function householdSavingsGate(hid) {',
+      'function monthUpdateAuthorized(hid) {',
     ]) {
-      assert.match(gate, /let access = householdAccess\(hid\);/);
-      assert.equal(gate.match(/householdAccess\(hid\)/g)?.length ?? 0, 1);
-      assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/);
-      assert.match(gate, /access\.paid && \(access\.owner \|\| access\.editor/);
+      const gate = body(signature);
+      assert.equal((gate.match(/householdAccess\(hid\)/g) ?? []).length, 1, signature);
+      assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
     }
+    // The writer test itself exists once, and the month rules share it.
+    assert.equal((rulesSource.match(/monthWriterOk\(/g) ?? []).length, 3);
+    assert.match(body('function monthWriterOk(access, grantsChecked) {'), /access\.paid && \(access\.owner \|\| access\.editor/);
+    assert.match(
+      rulesSource,
+      /allow update: if monthUpdateAuthorized\(hid\)\n\s*&& isValidMonthId\(key\)/,
+    );
     // And no rule reads a mutation's ledger row through a hand-built path twice.
     assert.doesNotMatch(
       rulesSource,
       /exists\w*\(\/databases\/\$\(database\)\/documents\/households\/\$\(hid\)\/ledger\/\$\(incoming\(\)\.lastMutationId\)\)/,
     );
-    assert.match(rulesSource, /allow update: if householdSavingsGate\(hid\)[\s\S]*?savingsMutationAgrees\(hid, false\)/);
-    assert.match(rulesSource, /allow update: if householdMonthGate\(hid, true\)[\s\S]*?monthMutationAgrees\(hid\)/);
   });
-
 });

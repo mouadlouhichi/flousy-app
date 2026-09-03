@@ -221,16 +221,16 @@ service cloud.firestore {
     function periodClosed(data) {
       return 'periodStatus' in data && data.periodStatus == 'closed';
     }
-    function validPeriodStateTransition() {
-      let wasClosed = periodClosed(existing());
-      let willBeClosed = periodClosed(incoming());
-      let stateOnly = incoming().diff(existing()).affectedKeys().hasOnly([
+    function periodStateOnly() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
         'periodStatus', 'closedAt', 'closedByUserId', 'schemaVersion',
         'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId'
       ]);
-      // Open periods accept ordinary finance writes. Closing is allowed to
-      // normalize a legacy document, but reopening a frozen snapshot may alter
-      // state/audit metadata only; finance edits require a later transaction.
+    }
+    // Open periods accept ordinary finance writes. Closing is allowed to
+    // normalize a legacy document, but reopening a frozen snapshot may alter
+    // state/audit metadata only; finance edits require a later transaction.
+    function periodTransitionOk(wasClosed, willBeClosed, stateOnly) {
       return (!wasClosed && !willBeClosed)
         || (!wasClosed && willBeClosed
           && incoming().closedByUserId == request.auth.uid)
@@ -238,6 +238,11 @@ service cloud.firestore {
           && 'periodStatus' in incoming()
           && incoming().periodStatus == 'open'
           && stateOnly);
+    }
+    function validPeriodStateTransition() {
+      let wasClosed = periodClosed(existing());
+      let willBeClosed = periodClosed(incoming());
+      return periodTransitionOk(wasClosed, willBeClosed, periodStateOnly());
     }
 
     function householdPath(hid) {
@@ -349,11 +354,14 @@ service cloud.firestore {
         paid: sponsor != '' && activeProEntitlement(sponsor)
       };
     }
-    function householdMonthGate(hid, grantsChecked) {
-      let access = householdAccess(hid);
+    /** The writer half of a month write, from answers the caller already holds. */
+    function monthWriterOk(access, grantsChecked) {
       return access.paid && (access.owner || access.editor
         || (access.custom && 'editAll' in access.permissions.values()
           && (!grantsChecked || customMonthChangesGranted(access.permissions))));
+    }
+    function householdMonthGate(hid, grantsChecked) {
+      return monthWriterOk(householdAccess(hid), grantsChecked);
     }
     function householdLedgerGate(hid) {
       let access = householdAccess(hid);
@@ -392,19 +400,34 @@ service cloud.firestore {
       };
     }
     /**
-     * A month write must be named by the ledger row that replays it, and that row's
-     * kind has to match the transition the period is making: an open period needs no
-     * special kind, while closing and reopening are only ever posted by the
-     * `month-close` / `month-reopen` mutations that own them.
+     * Everything the shared month document's update rule asks, in one pass: who
+     * pays for the workspace and who may write it, the ledger row replaying the
+     * mutation, the period's transition and the revision. It is a single function
+     * because rules inline every call into one per-request budget of 1000 evaluated
+     * expressions - a flush then writes the ledger row, the month and the savings
+     * document from the same budget, and asking the household root twice per
+     * document is what made an outbox flush fail. Closing and reopening need their
+     * own ledger kind; only the household's owner may change period state without
+     * it, and a bootstrap row never replays a month.
      */
-    function monthMutationAgrees(hid) {
+    function monthUpdateAuthorized(hid) {
+      let access = householdAccess(hid);
       let row = mutationLedger(hid);
       let wasClosed = periodClosed(existing());
       let willBeClosed = periodClosed(incoming());
-      return row.present && row.kind != 'bootstrap'
+      let revWas = existing().get('revision', -1);
+      let revNext = incoming().get('revision', 0);
+      return monthWriterOk(access, true)
+        && row.present && row.kind != 'bootstrap'
+        && ((!wasClosed && !willBeClosed) || access.owner)
+        && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly())
         && ((!wasClosed && !willBeClosed)
           || (!wasClosed && willBeClosed && row.kind == 'month-close')
-          || (wasClosed && !willBeClosed && row.kind == 'month-reopen'));
+          || (wasClosed && !willBeClosed && row.kind == 'month-reopen'))
+        // `revision` starts at 1 and moves by exactly one, so a document written
+        // before the field carried a number accepts 1 and every later write has to
+        // be the successor of what is stored.
+        && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
     }
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
     function savingsMutationAgrees(hid, bootstrapAllowed) {
@@ -884,14 +907,9 @@ service cloud.firestore {
           && !periodClosed(incoming())
           && incoming().revision == 1
           && mutationLedger(hid).present;
-        allow update: if householdMonthGate(hid, true)
+        allow update: if monthUpdateAuthorized(hid)
           && isValidMonthId(key)
-          && validMonthDocument()
-          && validPeriodStateTransition()
-          && ((!periodClosed(existing()) && !periodClosed(incoming()))
-            || householdOwner(hid))
-          && validRevisionBump()
-          && monthMutationAgrees(hid);
+          && validMonthDocument();
         allow delete: if householdOwner(hid);
       }
 
