@@ -67,20 +67,30 @@ jobs:
           # aborted evaluation. "Null value error" means a rule read a property a stored
           # document may never have had; "exceeded the limit" means the ruleset outgrew
           # the per-request expression budget. Both are rules bugs, not test bugs.
-          # Node's test runner picks TAP or spec by environment, and only the spec
-          # reporter is useful to read here, so both shapes ("not ok N - name" and
-          # the cross-marked line) are matched, and the raw line is published.
-          grep -nE "not ok [0-9]+|^ *\S*✖ |^ *\S*not ok" "$log" | head -n 25 \
-            | while IFS= read -r line; do
-                printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
-              done || true
+          # Node's test runner picks TAP or spec by environment, so both shapes are
+          # matched. GitHub publishes at most 10 annotations per check run, which means
+          # the summary has to come first or the test names crowd it out.
+          printf '::error title=Firestore rules totals::%s\n' \
+            "$(grep -E "^(#|ℹ|>?) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' || true)"
           printf '::error title=Firestore rules failure class::%s\n' \
-            "$(printf 'aborted evaluations (null value): %s; over expression budget: %s; bare denials: %s' \
+            "$(printf 'aborted evaluations: %s; over expression budget: %s; bare denials: %s' \
               "$(grep -c 'Null value error' "$log" || true)" \
               "$(grep -c 'exceeded the limit' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
-          printf '::error title=Firestore rules totals::%s\n' \
-            "$(grep -E "^(#|ℹ|>?) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' || true)"
+          # Which document the evaluation died on, deduplicated: the emulator names the
+          # path, not the rule, so this is the shortest route from "aborted" to "which
+          # collection still reads a stored property by dot access".
+          grep -B2 'Null value error' "$log" \
+            | grep -oE '(users|households|householdInvites)/[A-Za-z0-9_/${}.-]+' \
+            | sed -E 's%[A-Za-z0-9]{12,}%<id>%; s%[0-9]{4}-[0-9]{2}%<month>%' \
+            | sort -u | head -n 7 \
+            | while IFS= read -r path; do
+                printf '::error title=Firestore rules aborted on::%s\n' "$path"
+              done || true
+          grep -nE "not ok [0-9]+|^ *\S*✖ |^ *\S*not ok" "$log" | head -n 7 \
+            | while IFS= read -r line; do
+                printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
+              done || true
           exit 1
 
       - name: Production build
