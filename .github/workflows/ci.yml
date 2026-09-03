@@ -50,14 +50,6 @@ jobs:
             tail -n 200 "$log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          # ...and the failing case names as annotations, because an annotation is
-          # readable through the checks API by anyone who can see the run.
-          grep -a "^ *not ok" "$log" | head -n 12 | while IFS= read -r line; do
-            echo "::error title=Firestore rules case failed::${line//[[:cntrl:]]/}"
-          done
-          grep -aE "^ *error: [^|]|^ *# fail" "$log" | head -n 12 | while IFS= read -r line; do
-            echo "::error title=Firestore rules reason::${line//[[:cntrl:]]/}"
-          done
           exit 1
 
       - name: Production build

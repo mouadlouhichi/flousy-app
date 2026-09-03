@@ -260,6 +260,11 @@ export function parseCsvLine(line: string, delimiter: CsvDelimiter): string[] {
   return values;
 }
 
+/** True when the file is one of this app's own monthly reports, not a bank export. */
+export function isSmartJibCsvExport(text: string): boolean {
+  return normalizeCsvText(text).includes(normalizeCsvText(CSV_EXPORT_TITLE));
+}
+
 export interface CsvLayout {
   /** Record index the column labels sit on. */
   headerIndex: number;

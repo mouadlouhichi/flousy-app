@@ -126,7 +126,9 @@ describe('household sponsor binding', () => {
   });
 
   it('keeps the statuses the rules keep, and withdraws the ones they withdraw', () => {
-    const rulesAllows = rulesSource.match(/status in \[([^\]]+)\]/)?.[1] ?? '';
+    // The list inside the *entitlement* rule, not any other `status in [...]`
+    // the file happens to contain (a course session has its own).
+    const rulesAllows = rulesSource.match(/statusToken in \[([^\]]+)\]/)?.[1] ?? '';
     const allowed = rulesAllows.split(',').map((item) => item.trim().replace(/'/g, ''));
     assert.deepEqual(allowed, ['trialing', 'active', 'grace_period', 'canceled']);
     for (const status of allowed) {
@@ -265,6 +267,30 @@ describe('rules and client read the same entitlement', () => {
     }
   });
 
+  it('keeps one copy of the entitlement decision, inlined where it is hot', () => {
+    // `profileIsPro()` spells the comparisons out instead of calling
+    // isProPlanValue()/tokenValue()/millisOrMissing(), because the engine inlines
+    // every call into a 1000-expression budget and this condition runs on every
+    // shared finance write. That is only safe while the two forms agree, so the
+    // inlined text is pinned here: change one and this fails.
+    const body = rulesSource
+      .slice(
+        rulesSource.indexOf('function profileIsPro(profile, nowMs)'),
+        rulesSource.indexOf('function entitlementProjectionAgrees'),
+      )
+      // Comments are prose, not code: they name the helpers this body inlines.
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+    assert.match(body, /let plan = profile\.get\('plan', ''\);/);
+    assert.match(body, /plan is string && plan\.trim\(\)\.lower\(\) == 'pro'/);
+    assert.match(body, /source is string \? source\.trim\(\)\.lower\(\) : ''/);
+    assert.match(body, /ends is number && ends > 0 \? ends : -1/);
+    assert.doesNotMatch(body, /isProPlanValue\(|tokenValue\(|millisOrMissing\(/);
+    // ...and the helpers the rest of the file composes still answer identically.
+    assert.match(rulesSource, /function isProPlanValue\(value\) \{\s*return value is string && value\.trim\(\)\.lower\(\) == 'pro';/);
+  });
+
   it('grants the household owner their own workspace even without a membership row', () => {
     // `householdOwner()` is the authoritative ownership check (ownerId is
     // immutable), so `householdEditor()` must not require a row the client
@@ -274,6 +300,7 @@ describe('rules and client read the same entitlement', () => {
       rulesSource.indexOf('function householdEditor(hid)'),
       rulesSource.indexOf('function householdWriter(hid)'),
     );
-    assert.match(editor, /return householdOwner\(hid\)\s*\n\s*\|\| \(householdMember\(hid\) && memberRole\(hid\) in \['owner', 'editor'\]\)/);
+    assert.match(editor, /return householdOwner\(hid\)\s*\n\s*\|\| \(member\.get\('status', ''\) == 'active'/);
+    assert.match(editor, /member\.get\('role', ''\) == 'owner' \|\| member\.get\('role', ''\) == 'editor'/);
   });
 });

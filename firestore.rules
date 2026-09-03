@@ -82,16 +82,27 @@ service cloud.firestore {
     }
     /** Single source of truth for "may this profile spend its Pro entitlement". */
     function profileIsPro(profile, nowMs) {
-      let source = tokenValue(profile.get('entitlementSource', ''));
-      let status = tokenValue(profile.get('entitlementStatus', ''));
-      let endsAtMs = profileEntitlementEndsAtMs(profile);
+      // Every read and comparison is inline, in this one place, on purpose.
+      // Rules *inline* each function call into the caller's expression budget
+      // (a request may evaluate at most 1000 expressions), and this is the most
+      // repeated condition in the file: composing tokenValue()/millisOrMissing()/
+      // isProPlanValue() here multiplied the cost of every household finance write
+      // until the engine refused them outright. Those helpers stay as they were for
+      // the paths that use them once - this is the only copy of the decision.
+      let plan = profile.get('plan', '');
+      let source = profile.get('entitlementSource', '');
+      let status = profile.get('entitlementStatus', '');
+      let ends = profile.get('entitlementEndsAtMs', -1);
+      let sourceToken = source is string ? source.trim().lower() : '';
+      let statusToken = status is string ? status.trim().lower() : '';
+      let endsAtMs = ends is number && ends > 0 ? ends : -1;
       // A launch trial is a closed period: without a usable end time there is no
       // entitlement to spend, exactly as resolveProEntitlement() decides. A
       // provider grant (stripe/cmi/admin) with no end time is unbounded.
-      return isProPlanValue(profile.get('plan', ''))
-        && (source == 'launch_trial'
+      return plan is string && plan.trim().lower() == 'pro'
+        && (sourceToken == 'launch_trial'
           ? (endsAtMs >= 0 && endsAtMs > nowMs)
-          : ((status == '' || status in ['trialing', 'active', 'grace_period', 'canceled'])
+          : ((statusToken == '' || statusToken in ['trialing', 'active', 'grace_period', 'canceled'])
             && (endsAtMs < 0 || endsAtMs > nowMs)));
     }
     /**
@@ -129,8 +140,12 @@ service cloud.firestore {
           : (creator is string ? creator : ''));
     }
     function householdEntitled(hid) {
-      return exists(householdPath(hid))
-        && activeProEntitlement(householdSponsor(get(householdPath(hid)).data));
+      // The household document is read through `exists()` first so an absent one
+      // answers "no entitlement" instead of aborting: an aborted rule and a denial
+      // are the same `permission-denied` to the client, and a denial the client
+      // cannot explain is the bug this block exists to remove.
+      let data = exists(householdPath(hid)) ? get(householdPath(hid)).data : {};
+      return activeProEntitlement(householdSponsor(data));
     }
     function validHouseholdEntitlementProjection(data, uid) {
       let profile = userProfileData(uid);
@@ -231,13 +246,21 @@ service cloud.firestore {
     function memberPath(hid, uid) {
       return /databases/$(database)/documents/households/$(hid)/members/$(uid);
     }
+    /**
+     * The caller's membership row, read as one expression. `exists()` and `get()`
+     * are otherwise a pair per call site, and every helper that asked its own
+     * question of the member document paid for the lookup again.
+     */
+    function memberDocument(hid) {
+      return signedIn() && exists(memberPath(hid, request.auth.uid))
+        ? get(memberPath(hid, request.auth.uid)).data
+        : {};
+    }
     function householdMember(hid) {
-      return signedIn()
-        && exists(memberPath(hid, request.auth.uid))
-        && get(memberPath(hid, request.auth.uid)).data.get('status', '') == 'active';
+      return memberDocument(hid).get('status', '') == 'active';
     }
     function memberRole(hid) {
-      return get(memberPath(hid, request.auth.uid)).data.get('role', '');
+      return memberDocument(hid).get('role', '');
     }
     function householdOwner(hid) {
       // `ownerId` is pinned to the creator at create time and frozen against
@@ -256,11 +279,55 @@ service cloud.firestore {
      * permission problem.
      */
     function householdEditor(hid) {
+      let member = memberDocument(hid);
       return householdOwner(hid)
-        || (householdMember(hid) && memberRole(hid) in ['owner', 'editor']);
+        || (member.get('status', '') == 'active'
+          && (member.get('role', '') == 'owner' || member.get('role', '') == 'editor'));
     }
     function householdWriter(hid) {
       return householdEditor(hid) && householdEntitled(hid);
+    }
+    /**
+     * Shared-finance write gates. They exist so that one rule asks
+     * `householdEntitled()` and the membership row ONCE each: rules inline every
+     * call into the caller's expression budget, a request may evaluate at most
+     * 1000 expressions, and `(householdWriter(hid) || customMonthWriter(hid))` -
+     * two helpers that each re-derived the same answers - quietly exceeded it for a
+     * custom member's month write, which the client only ever sees as a denial.
+     * The three conditions are the same ones those helpers enforced; `grantsChecked`
+     * adds the per-area key diff only custom writers are subject to.
+     */
+    function householdMonthGate(hid, grantsChecked) {
+      let entitled = householdEntitled(hid);
+      let member = memberDocument(hid);
+      let role = member.get('role', '');
+      let active = member.get('status', '') == 'active';
+      return entitled && (householdOwner(hid)
+        || (active && (role == 'owner' || role == 'editor'))
+        || (active && role == 'custom'
+          && 'editAll' in member.get('permissions', {}).values()
+          && (!grantsChecked || customMonthChangesGranted(hid))));
+    }
+    function householdLedgerGate(hid) {
+      let entitled = householdEntitled(hid);
+      let member = memberDocument(hid);
+      let role = member.get('role', '');
+      let active = member.get('status', '') == 'active';
+      // Custom members may ledger ordinary finance mutations; closing, reopening
+      // and approving stay with owners and editors.
+      let ordinaryKind = incoming().kind in [
+        'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post'
+      ];
+      return entitled && (householdOwner(hid)
+        || (active && (role == 'owner' || role == 'editor'))
+        || (active && role == 'custom'
+          && 'editAll' in member.get('permissions', {}).values() && ordinaryKind));
+    }
+    function householdSavingsGate(hid) {
+      let entitled = householdEntitled(hid);
+      let savingsGrant = memberDocument(hid).get('permissions', {}).get('savings', 'none');
+      let isCustomSaver = memberRole(hid) == 'custom' && savingsGrant == 'editAll';
+      return entitled && (householdEditor(hid) || (householdMember(hid) && isCustomSaver));
     }
     function householdFinanceReader(hid) {
       return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
@@ -276,7 +343,7 @@ service cloud.firestore {
       return householdMember(hid) && memberRole(hid) == 'custom';
     }
     function customLevel(hid, area) {
-      return get(memberPath(hid, request.auth.uid)).data.get('permissions', {}).get(area, 'none');
+      return memberDocument(hid).get('permissions', {}).get(area, 'none');
     }
     function customCanEditArea(hid, area) {
       return customMember(hid) && householdEntitled(hid) && customLevel(hid, area) == 'editAll';
@@ -288,8 +355,9 @@ service cloud.firestore {
       // Bound once via `let`: Firestore rules cap evaluation at 1000
       // expressions per request, so helpers must not re-expand the member
       // lookup per area (this cap is what CI's emulator suite enforces).
-      let p = get(memberPath(hid, request.auth.uid)).data.get('permissions', {});
-      return customMember(hid)
+      let member = memberDocument(hid);
+      let p = member.get('permissions', {});
+      return member.get('status', '') == 'active' && member.get('role', '') == 'custom'
         && (p.get('dashboard', 'none') != 'none'
           || p.get('balances', 'none') != 'none'
           || p.get('income', 'none') != 'none'
@@ -303,11 +371,15 @@ service cloud.firestore {
     // granted editAll; which keys they may actually change is checked by
     // customMonthChangesGranted().
     function customMonthWriter(hid) {
-      // validCustomPermissions() caps every non-month area below editAll, so
-      // any editAll value in the stored map is necessarily a month-area grant.
-      return customMember(hid)
+      // One read of the membership row answers all three questions: the role, the
+      // entitlement and the grant map. validCustomPermissions() caps every non-month
+      // area below editAll, so any editAll value in the stored map is necessarily a
+      // month-area grant.
+      let member = memberDocument(hid);
+      return member.get('status', '') == 'active'
+        && member.get('role', '') == 'custom'
         && householdEntitled(hid)
-        && 'editAll' in get(memberPath(hid, request.auth.uid)).data.get('permissions', {}).values();
+        && 'editAll' in member.get('permissions', {}).values();
     }
     // Mirrors AREA_LEVEL_OPTIONS in src/lib/household-rbac.ts: month areas may
     // reach editAll (enforceable via affectedKeys), invoices tops out at
@@ -348,7 +420,7 @@ service cloud.firestore {
     // remain owner/editor operations. The permission map and change set are
     // each bound once (`let`) to stay far below the 1000-expression cap.
     function customMonthChangesGranted(hid) {
-      let p = get(memberPath(hid, request.auth.uid)).data.get('permissions', {});
+      let p = memberDocument(hid).get('permissions', {});
       let changed = incoming().diff(existing()).affectedKeys();
       return changed.hasOnly([
           'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId',
@@ -695,14 +767,13 @@ service cloud.firestore {
         // document: a valid month document structurally carries every area's
         // keys, so creation cannot be split per grant. Ongoing edits are the
         // enforced surface - see the update rule.
-        allow create: if (householdWriter(hid) || customMonthWriter(hid))
+        allow create: if householdMonthGate(hid, false)
           && isValidMonthId(key)
           && validMonthDocument()
           && !periodClosed(incoming())
           && incoming().revision == 1
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
-        allow update: if (householdWriter(hid)
-            || (customMonthWriter(hid) && customMonthChangesGranted(hid)))
+        allow update: if householdMonthGate(hid, true)
           && isValidMonthId(key)
           && validMonthDocument()
           && validPeriodStateTransition()
@@ -724,14 +795,14 @@ service cloud.firestore {
         allow read: if householdFinanceReader(hid)
           || householdOwner(hid)
           || (customMember(hid) && customLevel(hid, 'savings') != 'none');
-        allow create: if (householdWriter(hid) || customCanEditArea(hid, 'savings'))
+        allow create: if householdSavingsGate(hid)
           && incoming().revision == 1
           && incoming().lastMutationId is string
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
           && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
-        allow update: if (householdWriter(hid) || customCanEditArea(hid, 'savings'))
+        allow update: if householdSavingsGate(hid)
           && ((!('revision' in existing()) && incoming().revision == 1)
             || (existing().revision is int && incoming().revision == existing().revision + 1))
           && incoming().lastMutationId is string
@@ -749,9 +820,7 @@ service cloud.firestore {
         // a period and approving invoices remain owner/editor ledger kinds.
         // The month/savings documents named by the mutation enforce the
         // per-area grants - the ledger row is bookkeeping for sync.
-        allow create: if (householdWriter(hid)
-            || (customMonthWriter(hid)
-              && incoming().kind in ['bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post']))
+        allow create: if householdLedgerGate(hid)
           && incoming().mutationId == mutationId
           && incoming().actorId == request.auth.uid
           && incoming().workspace == 'household'

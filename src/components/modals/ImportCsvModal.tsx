@@ -17,6 +17,7 @@ import {
   csvImportId,
   detectCsvDelimiter,
   fixedExpenseFingerprint,
+  isSmartJibCsvExport,
   locateCsvLayout,
   mapCsvHeader,
   normalizeCsvText,
@@ -224,7 +225,14 @@ export function ImportCsvModal({
       // file can carry both fixed bills and expenses and still import cleanly.
       const layout = records.length < 2 ? null : locateCsvLayout(records, target);
       if (!layout) {
-        setError(copy.invalidRows);
+        // A report of our own that has no section for the chosen kind is not a
+        // malformed CSV: the file is fine, there is simply nothing to import.
+        setError(isSmartJibCsvExport(csv) ? t(copy.noExportSection, { section: copy[target === 'variable' ? 'variableExpenses' : 'fixedBills'] }) : copy.invalidRows);
+        return;
+      }
+      if (layout.fromExportSection && layout.dataIndexes.length === 0) {
+        setError(t(copy.noExportSection, { section: copy[target === 'variable' ? 'variableExpenses' : 'fixedBills'] }));
+        setColumns(mapCsvHeader(parseCsvLine(records[layout.headerIndex], layout.delimiter)));
         return;
       }
 
