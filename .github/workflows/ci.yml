@@ -40,6 +40,17 @@ jobs:
         run: |
           set -o pipefail
           log="${RUNNER_TEMP:-/tmp}/rules-test.log"
+          # Firestore evaluates a whole request against 1000 expressions and answers
+          # an over-budget write with a plain permission-denied, so the estimated
+          # cost of the heaviest rules is recorded on every run - the emulator
+          # refuses to say which rule asked for too much.
+          {
+            echo "### Estimated rules expression budget"
+            echo
+            echo '```'
+            node scripts/rules-budget.mjs firestore.rules 6
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
           if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" 2>&1 | tee "$log"; then
             exit 0
           fi
