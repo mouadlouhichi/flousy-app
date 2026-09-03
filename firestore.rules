@@ -246,6 +246,15 @@ service cloud.firestore {
     function memberPath(hid, uid) {
       return /databases/$(database)/documents/households/$(hid)/members/$(uid);
     }
+    function monthPath(hid, key) {
+      return /databases/$(database)/documents/households/$(hid)/months/$(key);
+    }
+    function ledgerPath(hid, key) {
+      return /databases/$(database)/documents/households/$(hid)/ledger/$(key);
+    }
+    function savingsPath(hid) {
+      return /databases/$(database)/documents/households/$(hid)/data/savings;
+    }
     /**
      * The caller's membership row, read as one expression. `exists()` and `get()`
      * are otherwise a pair per call site, and every helper that asked its own
@@ -303,44 +312,126 @@ service cloud.firestore {
      * The three conditions are the same ones those helpers enforced; `grantsChecked`
      * adds the per-area key diff only custom writers are subject to.
      */
-    function householdMonthGate(hid, grantsChecked) {
-      let entitled = householdEntitled(hid);
-      let member = memberDocument(hid);
+    /**
+     * One pass over the household root and the caller's membership row, answering
+     * every question a shared write asks. Rules inline a call into the caller's
+     * budget, so a gate that asked three helpers for the same document paid for it
+     * three times; the gates below read it once between them instead.
+     * `scripts/rules-budget.mjs` estimates that budget and CI enforces it.
+     */
+    function householdAccess(hid) {
+      let uid = signedIn() ? request.auth.uid : '';
+      // Paths are built once: a `get()` and the `exists()` that guards it would
+      // otherwise construct the same path twice, and every shared write builds all
+      // three of them.
+      let hPath = householdPath(hid);
+      // `getAfter` because a household can be created in the same batch as its
+      // owner's membership row, where the root does not exist yet for `get()`.
+      let root = request.method == 'create'
+        ? (existsAfter(hPath) ? getAfter(hPath).data : {})
+        : (exists(hPath) ? get(hPath).data : {});
+      let mPath = memberPath(hid, uid);
+      let member = uid != '' && exists(mPath) ? get(mPath).data : {};
       let role = member.get('role', '');
-      let active = member.get('status', '') == 'active';
-      return entitled && (householdOwner(hid)
-        || (active && (role == 'owner' || role == 'editor'))
-        || (active && role == 'custom'
-          && 'editAll' in member.get('permissions', {}).values()
-          && (!grantsChecked || customMonthChangesGranted(hid))));
+      // Whether somebody in this household pays for it is asked once per rule and
+      // shared by all three writer branches, and it is asked of the payer's profile
+      // rather than of the projection on the household: a projection is only ever
+      // written after being verified against that profile, but nothing forces it to
+      // be refreshed when the profile changes, and a shared write must not outlive
+      // the plan that pays for it.
+      let sponsor = householdSponsor(root);
+      return {
+        owner: uid != '' && root.get('ownerId', '') == uid,
+        editor: member.get('status', '') == 'active'
+          && (role == 'owner' || role == 'editor'),
+        custom: isCustomMember(member),
+        permissions: member.get('permissions', {}),
+        paid: sponsor != '' && activeProEntitlement(sponsor)
+      };
+    }
+    function householdMonthGate(hid, grantsChecked) {
+      let access = householdAccess(hid);
+      return access.paid && (access.owner || access.editor
+        || (access.custom && 'editAll' in access.permissions.values()
+          && (!grantsChecked || customMonthChangesGranted(access.permissions))));
     }
     function householdLedgerGate(hid) {
-      let entitled = householdEntitled(hid);
-      let member = memberDocument(hid);
-      let role = member.get('role', '');
-      let active = member.get('status', '') == 'active';
+      let access = householdAccess(hid);
       // Custom members may ledger ordinary finance mutations; closing, reopening
       // and approving stay with owners and editors.
       let ordinaryKind = incoming().kind in [
         'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post'
       ];
-      return entitled && (householdOwner(hid)
-        || (active && (role == 'owner' || role == 'editor'))
-        || (active && role == 'custom'
-          && 'editAll' in member.get('permissions', {}).values() && ordinaryKind));
+      return access.paid && (access.owner || access.editor
+        || (access.custom && 'editAll' in access.permissions.values() && ordinaryKind));
     }
     function householdSavingsGate(hid) {
-      let entitled = householdEntitled(hid);
-      let member = memberDocument(hid);
-      let role = member.get('role', '');
-      let active = member.get('status', '') == 'active';
-      return entitled && (householdOwner(hid)
-        || (active && (role == 'owner' || role == 'editor'))
-        || (active && role == 'custom'
-          && member.get('permissions', {}).get('savings', 'none') == 'editAll'));
+      let access = householdAccess(hid);
+      return access.paid && (access.owner || access.editor
+        || (access.custom && access.permissions.get('savings', 'none') == 'editAll'));
+    }
+    /**
+     * The ledger row a shared finance write is being replayed for. Rules have no
+     * cache between documents, so each rule spelled out the same path literal per
+     * lookup and re-derived `incoming()` inside it; three documents in one
+     * transaction then spent a third of the 1000-expression request budget on
+     * repetition. The path is built once here, the row is read once, and the shape
+     * of the key is checked with it.
+     */
+    function mutationLedger(hid) {
+      let key = incoming().data.get('lastMutationId', '');
+      let path = ledgerPath(hid, key);
+      let present = key is string && key.size() > 0 && key.size() <= 160
+        && existsAfter(path);
+      return {
+        present: present,
+        kind: present ? getAfter(path).data.get('kind', '') : ''
+      };
+    }
+    /**
+     * A month write must be named by the ledger row that replays it, and that row's
+     * kind has to match the period's transition: closing and reopening stay with
+     * owners and editors, who are allowed the transition without its own kind.
+     */
+    function monthMutationAgrees(hid) {
+      let row = mutationLedger(hid);
+      let wasClosed = periodClosed(existing());
+      let willBeClosed = periodClosed(incoming());
+      return row.present && row.kind != 'bootstrap'
+        && ((!wasClosed && !willBeClosed)
+          || (!wasClosed && willBeClosed && row.kind == 'month-close')
+          || (wasClosed && !willBeClosed && row.kind == 'month-reopen')
+          || householdOwner(hid));
+    }
+    /** A bootstrap row seeds the goals document; it may never rewrite it. */
+    function savingsMutationAgrees(hid, bootstrapAllowed) {
+      let row = mutationLedger(hid);
+      return row.present && (bootstrapAllowed || row.kind != 'savings-bootstrap');
+    }
+    /**
+     * A ledger row is accepted once the document it advances has taken the mutation,
+     * which is what makes a replay idempotent instead of double-posted.
+     */
+    function mutationTargetAgrees(hid, mutationId) {
+      let key = incoming().data.get('monthKey', '');
+      let target = key == 'savings' ? savingsPath(hid) : monthPath(hid, key);
+      return existsAfter(target)
+        && getAfter(target).data.get('lastMutationId', '') == mutationId;
+    }
+    /**
+     * `revision` starts at 1 and moves by exactly one, so a document written before
+     * the field carried a number accepts 1 and every later write must be its
+     * successor.
+     */
+    function validRevisionBump() {
+      let was = existing().data.get('revision', -1);
+      let next = incoming().data.get('revision', 0);
+      return (was == -1 && next == 1) || (was is int && next == was + 1);
     }
     function householdFinanceReader(hid) {
-      return householdMember(hid) && memberRole(hid) in ['owner', 'editor', 'viewer'];
+      let member = memberDocument(hid);
+      return member.get('status', '') == 'active'
+        && member.get('role', '') in ['owner', 'editor', 'viewer'];
     }
 
     /* ----------------------- custom role (per-area grants) ----------------------- */
@@ -350,13 +441,19 @@ service cloud.firestore {
     // trust it as the authoritative grant source. The client mirrors the same
     // semantics in src/lib/household-rbac.ts.
     function customMember(hid) {
-      return householdMember(hid) && memberRole(hid) == 'custom';
+      return isCustomMember(memberDocument(hid));
+    }
+    /** The same question, for a caller who has already read the membership row. */
+    function isCustomMember(member) {
+      return member.get('status', '') == 'active' && member.get('role', '') == 'custom';
     }
     function customLevel(hid, area) {
       return memberDocument(hid).get('permissions', {}).get(area, 'none');
     }
     function customCanEditArea(hid, area) {
-      return customMember(hid) && householdEntitled(hid) && customLevel(hid, area) == 'editAll';
+      let member = memberDocument(hid);
+      return isCustomMember(member) && householdEntitled(hid)
+        && member.get('permissions', {}).get(area, 'none') == 'editAll';
     }
     // Reading finance documents (months, ledger) is all-or-nothing per
     // document, so any finance-surface grant opens them; hiding individual
@@ -429,8 +526,7 @@ service cloud.firestore {
     // and configuration keys are absent from the whitelist on purpose: they
     // remain owner/editor operations. The permission map and change set are
     // each bound once (`let`) to stay far below the 1000-expression cap.
-    function customMonthChangesGranted(hid) {
-      let p = memberDocument(hid).get('permissions', {});
+    function customMonthChangesGranted(p) {
       let changed = incoming().diff(existing()).affectedKeys();
       return changed.hasOnly([
           'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId',
@@ -782,22 +878,15 @@ service cloud.firestore {
           && validMonthDocument()
           && !periodClosed(incoming())
           && incoming().revision == 1
-          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId));
+          && mutationLedger(hid).present;
         allow update: if householdMonthGate(hid, true)
           && isValidMonthId(key)
           && validMonthDocument()
           && validPeriodStateTransition()
           && ((!periodClosed(existing()) && !periodClosed(incoming()))
             || householdOwner(hid))
-          && ((!('revision' in existing()) && incoming().revision == 1)
-            || (existing().revision is int && incoming().revision == existing().revision + 1))
-          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'bootstrap'
-          && ((!periodClosed(existing()) && !periodClosed(incoming()))
-            || (!periodClosed(existing()) && periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-close')
-            || (periodClosed(existing()) && !periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind == 'month-reopen'));
+          && validRevisionBump()
+          && monthMutationAgrees(hid);
         allow delete: if householdOwner(hid);
       }
 
@@ -807,19 +896,14 @@ service cloud.firestore {
           || (customMember(hid) && customLevel(hid, 'savings') != 'none');
         allow create: if householdSavingsGate(hid)
           && incoming().revision == 1
-          && incoming().lastMutationId is string
-          && incoming().lastMutationId.size() > 0
-          && incoming().lastMutationId.size() <= 160
-          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
+          && savingsMutationAgrees(hid, true)
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+        // `lastMutationId` is bounded by `mutationLedger()`, which has to read the
+        // row anyway; a key too long to have been accepted by the ledger rules can
+        // never name a row, so it is refused there rather than here.
         allow update: if householdSavingsGate(hid)
-          && ((!('revision' in existing()) && incoming().revision == 1)
-            || (existing().revision is int && incoming().revision == existing().revision + 1))
-          && incoming().lastMutationId is string
-          && incoming().lastMutationId.size() > 0
-          && incoming().lastMutationId.size() <= 160
-          && existsAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/households/$(hid)/ledger/$(incoming().lastMutationId)).data.kind != 'savings-bootstrap'
+          && validRevisionBump()
+          && savingsMutationAgrees(hid, false)
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if householdOwner(hid);
       }
@@ -844,12 +928,7 @@ service cloud.firestore {
             'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
             'month-close', 'month-reopen', 'course-post', 'invoice-approval'
           ]
-          && ((incoming().monthKey == 'savings'
-              && existsAfter(/databases/$(database)/documents/households/$(hid)/data/savings)
-              && getAfter(/databases/$(database)/documents/households/$(hid)/data/savings).data.lastMutationId == mutationId)
-            || (isValidMonthId(incoming().monthKey)
-              && existsAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().monthKey))
-              && getAfter(/databases/$(database)/documents/households/$(hid)/months/$(incoming().monthKey)).data.lastMutationId == mutationId));
+          && mutationTargetAgrees(hid, mutationId);
         allow update: if false;
         allow delete: if householdOwner(hid)
           && ((existing().monthKey == 'savings'
