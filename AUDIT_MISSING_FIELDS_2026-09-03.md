@@ -154,7 +154,18 @@ that targets an invented collection name succeeds quietly and changes nothing.)
 
 ## Verification
 
-* `npm run check` → lint, typecheck, strict typecheck, 466 unit tests, 0 failing.
+* `npm run check` → lint, typecheck, strict typecheck, 468 unit tests, 0 failing.
+* The first totalization pass was not enough, and CI is what said so: the rules step now
+  publishes a failure-class count, and it reported 16 aborted evaluations against
+  0 expression-budget failures. Three read sites were still dot-reading a stored value,
+  all of them in the "second chance" half of a short-circuit where the guard that looked
+  like protection had already been skipped:
+  `existing().revision is int` in both month update rules (only reached when `revision`
+  is **absent** and the incoming revision is not 1 — i.e. precisely a legacy month being
+  updated normally, the case that aborted), and `expiresAtMs` / `acceptedByUserId` on the
+  invitation in the join-by-invite branch. Now: `'revision' in existing() &&` first, and
+  `.data.get(key, default)` for the invitation. The lesson is specific — **a `is int` or
+  `hasOnly` clause does not make the *other* branch's read total; totality is per read.**
 * `node scripts/rules-budget.mjs` → no rule grew; two shrank.
 * Emulator suite runs in CI only (no JVM here): the 7 previously failing cases are the
   ones this change targets, so `Firestore rules (emulator)` is the arbiter.

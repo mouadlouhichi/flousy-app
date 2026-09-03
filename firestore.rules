@@ -680,7 +680,9 @@ service cloud.firestore {
           && validMonthDocument()
           && validPeriodStateTransition()
           && ((!('revision' in existing()) && incoming().revision == 1)
-            || (existing().revision is int && incoming().revision == existing().revision + 1))
+            || ('revision' in existing()
+              && existing().revision is int
+              && incoming().revision == existing().revision + 1))
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
           && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') != 'bootstrap'
           && ((!periodClosed(existing()) && !periodClosed(incoming()))
@@ -702,7 +704,9 @@ service cloud.firestore {
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow update: if owner(uid)
           && ((!('revision' in existing()) && incoming().revision == 1)
-            || (existing().revision is int && incoming().revision == existing().revision + 1))
+            || ('revision' in existing()
+              && existing().revision is int
+              && incoming().revision == existing().revision + 1))
           && incoming().lastMutationId is string
           && incoming().lastMutationId.size() > 0
           && incoming().lastMutationId.size() <= 160
@@ -835,9 +839,9 @@ service cloud.firestore {
             // A custom member may only join with exactly the grants the owner
             // put on the invitation - never a self-authored variation.
             && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('expiresAtMs', 0) > request.time.toMillis()
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('acceptedByUserId', '') == request.auth.uid);
 
         allow update: if (householdOwner(hid)
             && householdEntitled(hid)
@@ -876,9 +880,9 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('email', '') == request.auth.token.email
             && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('role', '') == incoming().role
             && incoming().get('permissions', {}) == get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('permissions', {})
-            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.expiresAtMs > request.time.toMillis()
+            && get(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('expiresAtMs', 0) > request.time.toMillis()
             && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('status', '') == 'accepted'
-            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.acceptedByUserId == request.auth.uid);
+            && getAfter(/databases/$(database)/documents/householdInvites/$(incoming().inviteId)).data.get('acceptedByUserId', '') == request.auth.uid);
         allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
       }
 

@@ -67,9 +67,10 @@ jobs:
           # aborted evaluation. "Null value error" means a rule read a property a stored
           # document may never have had; "exceeded the limit" means the ruleset outgrew
           # the per-request expression budget. Both are rules bugs, not test bugs.
-          # TAP indents nested results and the reporter may or may not add " - ",
-          # so both shapes are matched, and the raw line is what gets published.
-          grep -nE "not ok [0-9]+" "$log" | head -n 25 \
+          # Node's test runner picks TAP or spec by environment, and only the spec
+          # reporter is useful to read here, so both shapes ("not ok N - name" and
+          # the cross-marked line) are matched, and the raw line is published.
+          grep -nE "not ok [0-9]+|^ *\S*✖ |^ *\S*not ok" "$log" | head -n 25 \
             | while IFS= read -r line; do
                 printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
               done || true
@@ -79,7 +80,7 @@ jobs:
               "$(grep -c 'exceeded the limit' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
           printf '::error title=Firestore rules totals::%s\n' \
-            "$(grep -E "^# (tests|pass|fail)" "$log" | tr '\n' ' ' || true)"
+            "$(grep -E "^(#|ℹ|>?) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' || true)"
           exit 1
 
       - name: Production build
