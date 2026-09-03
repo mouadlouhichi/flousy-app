@@ -656,12 +656,18 @@ describe('household plan-owner authorization and recovery', () => {
     activeCategories: ['Groceries'], createdAt: new Date().toISOString(), ...extra,
   });
 
-  /** One finance write: an immutable ledger row and the month it advances. */
+  /**
+   * One finance write: an immutable ledger row and the month it advances.
+   *
+   * The month is *updated*, never `set()`: `allow create` on a month demands
+   * `revision == 1`, so an overwrite of an existing period would be refused for
+   * a reason that has nothing to do with what these cases are about.
+   */
   function monthWrite(db: Firestore, actorId: string, monthRefPath: string, revision = 2) {
     const mutationId = `write-${actorId}-${revision}`;
     const batch = writeBatch(db);
     batch.set(doc(db, `households/home/ledger/${mutationId}`), ledger(mutationId, actorId, 'household', 'home', revision - 1, revision));
-    batch.set(doc(db, monthRefPath), { ...validMonth(revision, mutationId), bankPart: 900 });
+    batch.update(doc(db, monthRefPath), { bankPart: 900, revision, lastMutationId: mutationId });
     return batch.commit();
   }
 
@@ -766,7 +772,9 @@ describe('household plan-owner authorization and recovery', () => {
         entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
         entitlementEndsAtMs: endsAtMs,
       });
-      await setDoc(doc(db, 'households/home'), householdDoc({ entitlementOwnerId: 'someone-else' }));
+      await setDoc(doc(db, 'households/home'), householdDoc({
+        ownerId: 'payer', planOwnerId: 'payer', entitlementOwnerId: 'someone-else',
+      }));
       await setDoc(doc(db, 'households/home/months/2026-09'), validMonth());
     });
     const payer = firestore(environment.authenticatedContext('payer', { email_verified: true }));
@@ -782,10 +790,16 @@ describe('household plan-owner authorization and recovery', () => {
       entitlementEndsAtMs: deleteField(),
       updatedAt: new Date().toISOString(),
     }));
-    // A rebinding may not smuggle configuration or ownership changes with it.
+    // A rebinding may not smuggle configuration changes with it: the projection
+    // is a complete write on its own, and `ownerId`/`createdAt` are frozen.
     await assertFails(updateDoc(doc(payer, 'households/home'), {
       entitlementOwnerId: 'payer', entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
-      entitlementEndsAtMs: endsAtMs, ownerId: 'payer',
+      entitlementEndsAtMs: endsAtMs, currency: 'EUR',
+      updatedAt: new Date().toISOString(),
+    }));
+    await assertFails(updateDoc(doc(payer, 'households/home'), {
+      entitlementOwnerId: 'payer', entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+      entitlementEndsAtMs: endsAtMs, createdAt: '2020-01-01T00:00:00.000Z',
       updatedAt: new Date().toISOString(),
     }));
     await assertSucceeds(updateDoc(doc(payer, 'households/home'), {

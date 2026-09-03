@@ -34,7 +34,23 @@ jobs:
         run: npm run check
 
       - name: Firestore authorization and transaction rules
-        run: npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules"
+        # The emulator's own report is the only place a rules mistake shows up,
+        # so a failure is copied into the job summary: the Actions log blob is
+        # not always reachable, the summary always is.
+        run: |
+          set -o pipefail
+          log="${RUNNER_TEMP:-/tmp}/rules-test.log"
+          if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" 2>&1 | tee "$log"; then
+            exit 0
+          fi
+          {
+            echo "### Firestore rules suite failed - last 200 lines"
+            echo
+            echo '```'
+            tail -n 200 "$log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
 
       - name: Production build
         env:
