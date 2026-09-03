@@ -11,10 +11,12 @@ import {
   deleteHouseholdWorkspace,
   getHouseholdInvite,
   saveHousehold,
+  getHouseholdMember,
   saveHouseholdMember,
   subscribeHousehold,
   subscribeHouseholdMembers,
   subscribePendingHouseholdInvites,
+  writeHouseholdOwnerMembership,
   type HouseholdAccess,
 } from './db';
 import {
@@ -22,6 +24,7 @@ import {
   householdSponsorBindingIsStale,
   householdSponsorId,
   householdSponsorProjectionFields,
+  planHouseholdMembershipRepair,
   type SponsorRebindOutcome,
 } from './household-entitlement';
 import {
@@ -103,7 +106,29 @@ type HouseholdContextValue = {
    * owner's membership row exists. Safe to call repeatedly.
    */
   rebindHouseholdSponsor: () => Promise<SponsorRebindOutcome>;
+  /** Everything a locked-out owner may write back, in one attempt. */
+  repairHouseholdAccess: () => Promise<HouseholdAccessRepair>;
 };
+
+/**
+ * What a self-repair attempt achieved. `membership` is the state of the caller's
+ * own `members/{uid}` row, which the published rules require for any shared
+ * write; `sponsor` is the plan-owner binding, which only the rules this app ships
+ * with can accept. `changed` is what a caller retries its queue on.
+ */
+export type HouseholdMembershipRepairState =
+  | 'written'
+  | 'already'
+  | 'blocked'
+  | 'rejected'
+  | 'not-owner'
+  | 'unavailable';
+
+export interface HouseholdAccessRepair {
+  membership: HouseholdMembershipRepairState;
+  sponsor: SponsorRebindOutcome;
+  changed: boolean;
+}
 
 export type { SponsorRebindOutcome };
 
@@ -474,6 +499,50 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   }, [trackedHouseholdId, user, profile, household, members, isOwner, m.household.me]);
 
   /**
+   * Restore the two things a shared workspace can be locked behind that a client
+   * is allowed to write, and report which one moved.
+   *
+   * `members/{uid}` is what `householdEditor()` in the published rules insists on,
+   * so a household created before that row was batched with it is readable by its
+   * owner and writable by nobody - a lost budget, not a permission problem. The
+   * plan-owner binding is the other one, and it needs the rules this app ships
+   * with, which is why its refusal is reported as `rejected-by-rules`: a
+   * deployment gap the app cannot close from a browser.
+   */
+  const repairHouseholdAccess = useCallback(async (): Promise<HouseholdAccessRepair> => {
+    if (!trackedHouseholdId || !user) {
+      return { membership: 'unavailable', sponsor: 'unavailable', changed: false };
+    }
+    let membership: HouseholdMembershipRepairState = 'unavailable';
+    try {
+      const stored = await getHouseholdMember(trackedHouseholdId, user.uid);
+      const plan = planHouseholdMembershipRepair({
+        household,
+        member: stored,
+        uid: user.uid,
+        displayName: profile?.displayName,
+        email: user.email,
+      });
+      if (plan.action === 'write') {
+        await writeHouseholdOwnerMembership(
+          trackedHouseholdId,
+          { ...plan.member, avatarColor: COLORS[0] },
+          { replace: plan.replace },
+        );
+        membership = 'written';
+      } else if (plan.action === 'blocked') {
+        membership = 'blocked';
+      } else {
+        membership = plan.reason === 'already-owner' ? 'already' : 'not-owner';
+      }
+    } catch (error) {
+      membership = (error as { code?: string })?.code === 'permission-denied' ? 'rejected' : 'unavailable';
+    }
+    const sponsor = await rebindHouseholdSponsor();
+    return { membership, sponsor, changed: membership === 'written' || sponsor === 'repaired' };
+  }, [trackedHouseholdId, user, household, profile, rebindHouseholdSponsor]);
+
+  /**
    * Keep the readable projection in step with the sponsor's profile.
    *
    * Members cannot read `users/{sponsorId}` - rules hide profiles from each
@@ -551,6 +620,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     markHouseholdOnboarded,
     removeHouseholdWorkspace,
     rebindHouseholdSponsor,
+    repairHouseholdAccess,
   };
 
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;

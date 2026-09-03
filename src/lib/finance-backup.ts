@@ -1,5 +1,6 @@
 import type { CourseSession, MonthBudget, Product, SavingGoal, UserProfile } from './store';
 import type { Household } from './household';
+import { isSmartJibCsvExport } from './csv-import';
 
 export const FINANCE_BACKUP_FORMAT = 'smartjib-finance-backup' as const;
 export const FINANCE_BACKUP_VERSION = 1 as const;
@@ -131,10 +132,20 @@ export interface FinanceBackup {
   sessions?: CourseSession[];
 }
 
+/** Why the file *as a whole* could not be used, as opposed to one field inside it. */
+export type FinanceBackupRefusal = 'emptyFile' | 'notJson' | 'csvReport' | 'unreadable';
+
 export class InvalidFinanceBackupError extends Error {
-  constructor(message: string) {
+  /**
+   * Set for a file-level refusal so the UI can name it in the user's language
+   * instead of quoting this library's English text at them.
+   */
+  readonly refusal?: FinanceBackupRefusal;
+
+  constructor(message: string, refusal?: FinanceBackupRefusal) {
     super(message);
     this.name = 'InvalidFinanceBackupError';
+    this.refusal = refusal;
   }
 }
 
@@ -836,6 +847,16 @@ export function readFinanceBackup(text: string): { backup: FinanceBackup; notice
   activeReport = report;
   try {
     return { backup: read(text), notices: report.notices() };
+  } catch (error) {
+    if (error instanceof InvalidFinanceBackupError) throw error;
+    // A parser tripping over a value it did not expect (a goals entry that is a
+    // string, a month that is a number) used to reach the UI as the generic
+    // "unsupported file" notice, because only a named reason was quoted. The
+    // reader's own words are the reason, so they are never swallowed.
+    throw new InvalidFinanceBackupError(
+      `The file could not be read as a backup: ${error instanceof Error && error.message ? error.message : String(error)}`,
+      'unreadable',
+    );
   } finally {
     activeReport = previousReport;
     fileTimestamp = previousTimestamp;
@@ -845,11 +866,20 @@ function read(source: string): FinanceBackup {
   if (new Blob([source]).size > MAX_BACKUP_BYTES) {
     throw new InvalidFinanceBackupError('Backup exceeds the 20 MB safety limit.');
   }
+  if (!source.trim()) {
+    throw new InvalidFinanceBackupError('The file is empty.', 'emptyFile');
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(source);
   } catch {
-    throw new InvalidFinanceBackupError('Backup is not valid JSON.');
+    // The wrong file people reach for is this app's own CSV report: the same data,
+    // a different reader. Naming the reader is the difference between someone
+    // finding the import screen and someone giving up on a file they exported.
+    throw new InvalidFinanceBackupError(isSmartJibCsvExport(source)
+      ? 'This is a SmartJib CSV report - import it from the CSV import screen instead.'
+      : 'The file is not JSON, so it is not a backup this app can read.',
+    isSmartJibCsvExport(source) ? 'csvReport' : 'notJson');
   }
   if (!isObject(raw)) {
     throw new InvalidFinanceBackupError('This is not a SmartJib backup: the file holds no backup object.');

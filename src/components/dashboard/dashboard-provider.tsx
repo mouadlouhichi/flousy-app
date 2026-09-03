@@ -225,6 +225,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     canEditArea,
     canViewArea,
     rebindHouseholdSponsor,
+    repairHouseholdAccess,
   } = useHousehold();
   const { configuredCurrency, setPeriodCurrency } = useCurrency();
   const { messages: m } = useLanguage();
@@ -296,6 +297,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // either: it is a write, and a refused one stays refused until the data
   // behind it changes.
   const sponsorRebindAtRef = useRef(0);
+  // One self-repair per flush cycle: writing the owner's membership row is a
+  // Firestore round trip, and a queue of refused mutations must not turn it into
+  // a write per item.
+  const accessRepairAtRef = useRef(0);
   const conflictToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
@@ -838,9 +843,38 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                 break;
               }
             }
+            // An active plan, a sponsor bound to this account and still a refusal is
+            // the owner's own membership row missing: `householdEditor()` in the
+            // published rules reads it, and the rules let an owner write it for
+            // themselves without any entitlement check. That is a repair this client
+            // can perform against a rules deployment older than this build, so try it
+            // before concluding the deployment is the problem.
+            let accessBlocked = false;
+            if ((denial === 'rules-behind' || denial === 'unknown') && isOwner
+              && householdId && Date.now() - accessRepairAtRef.current > 15000) {
+              accessRepairAtRef.current = Date.now();
+              const repair = await repairHouseholdAccess();
+              accessBlocked = repair.membership === 'blocked';
+              if (repair.changed) {
+                if (isActiveTarget()) {
+                  setSyncState('pending');
+                  setSyncError(m.sync.accessRestored);
+                }
+                toast({ description: m.sync.accessRestored });
+                // Same trick as the sponsor rebind: re-enter the flush from its own
+                // `finally` so the queue replays against current state.
+                flushRequestedRef.current = true;
+                break;
+              }
+            }
+
             const deniedMessage = !profileIsPro
               ? `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`
-              : denial === 'sponsor-rebindable'
+              // A row the household recorded as inactive is neither this account's
+              // plan nor the deployment: only another owner may re-activate it.
+              : accessBlocked
+                ? m.sync.membershipBlocked
+                : denial === 'sponsor-rebindable'
                 ? m.sync.restoreAccessHint
                 : denial === 'sponsor-unreadable'
                   ? m.sync.sponsorUnreadable
@@ -924,6 +958,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     household,
     isOwner,
     rebindHouseholdSponsor,
+    repairHouseholdAccess,
     m,
     toast,
   ]);

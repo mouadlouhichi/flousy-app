@@ -1698,6 +1698,12 @@
       "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
       "restoreCounts": "Exportée le {exportedAt} : {months} périodes, {goals} objectifs d'épargne, {products} produits, {sessions} sessions d'achat.",
       "backupInvalidDetail": "Ce fichier n'a pas été accepté : {reason}",
+      "backupInvalidReasons": {
+        "emptyFile": "Le fichier est vide.",
+        "notJson": "Le fichier n'est pas au format JSON : ce n'est pas une sauvegarde que l'application peut lire.",
+        "csvReport": "C'est un rapport CSV SmartJib. Importez-le depuis l'écran d'importation CSV.",
+        "unreadable": "Le fichier n'a pas pu être lu comme sauvegarde."
+      },
       "backupPlanNotices": {
         "retargeted": "Cette sauvegarde provient de {from} ; elle sera restaurée dans {to}.",
         "currencyDiffers": "Les montants du fichier sont en {from} alors que cet espace utilise {to}. Ils sont restaurés tels qu'enregistrés.",
@@ -1981,7 +1987,9 @@
     "sponsorRebound": "L'accès au budget partagé est rétabli — ce ménage fonctionne désormais sur votre abonnement Pro, et vos modifications en attente sont envoyées.",
     "sponsorLapsed": "Ce ménage fonctionne sur l'abonnement Pro d'un autre compte, qui n'est plus actif. Tout reste consultable ; l'édition reprend dès que l'abonnement est renouvelé.",
     "sponsorUnreadable": "Le budget partagé de ce ménage est payé par un autre compte que cet appareil ne peut pas consulter. Seul le propriétaire du ménage peut changer l'abonnement utilisé.",
-    "rulesBehind": "Les règles Firestore déployées sur ce projet ne peuvent pas enregistrer le propriétaire de l'abonnement d'un ménage et refusent donc l'écriture. Redéployez-les (firebase deploy --only firestore:rules).",
+    "accessRestored": "Votre accès à cet espace de travail est rétabli. Les modifications en attente pendant le refus sont envoyées maintenant.",
+    "membershipBlocked": "Votre rôle dans cet espace de travail est marqué comme inactif, et les règles publiées ici n’autorisent qu’un propriétaire à le modifier. Demandez à un propriétaire de vous inviter à nouveau.",
+    "rulesBehind": "Les règles publiées sur ce projet ne peuvent pas enregistrer de souscripteur pour un foyer, et refusent donc l’écriture. Redéployez-les depuis la version de firestore.rules livrée avec cette application (firebase deploy --only firestore:rules).",
     "profileInvalid": "L'abonnement de ce compte est enregistré dans une forme que l'application ne peut pas vérifier (un plan ou un statut non reconnu) ; le serveur ne l'appliquera donc pas au ménage. Corrigez les champs d'abonnement du profil dans la console Firebase, ou démarrez l'essai Pro depuis l'application.",
     "restoreAccess": "Rétablir l'accès partagé",
     "restoreAccessHint": "Les écritures sont refusées car l'abonnement Pro qui paie ce ménage appartient à un autre compte. Vous possédez ce ménage et votre abonnement est actif : il peut basculer sur le vôtre.",

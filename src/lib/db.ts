@@ -1331,6 +1331,54 @@ export async function saveHouseholdMember(householdId: string, member: Household
   await setDoc(doc(db, 'households', householdId, 'members', member.id), cleanUndefined(member), { merge: true });
 }
 
+/**
+ * The stored membership row of one account, as the database holds it.
+ *
+ * `get` on `members/{own uid}` is readable even when every other rule in the
+ * workspace denies that caller: the published rules allow `memberId ==
+ * request.auth.uid` unconditionally. So this is the one fact a locked-out owner
+ * can always establish about why they are locked out, and it is established
+ * rather than inferred from the roster subscription - which a member with no
+ * row cannot list either.
+ */
+export async function getHouseholdMember(
+  householdId: string,
+  memberId: string,
+): Promise<Record<string, unknown> | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  const snapshot = await getDoc(doc(db, 'households', householdId, 'members', memberId));
+  return snapshot.exists() ? (snapshot.data() as Record<string, unknown>) : null;
+}
+
+/**
+ * Write the household owner's own membership row, replacing whatever stub is in
+ * the way.
+ *
+ * The published rules refuse an *update* that would promote a row to `owner`
+ * (`resource.data.role != 'owner'` guards that branch), so a row written by the
+ * onboarding flow as a `profile` placeholder cannot be edited into an owner row
+ * from a client. Delete-then-set in one batch is accepted - the delete is allowed
+ * for any row that is not already an owner's, and the create branch for a
+ * household owner writing their own row needs no entitlement at all - and it is
+ * atomic, so a refusal leaves the previous row standing.
+ */
+export async function writeHouseholdOwnerMembership(
+  householdId: string,
+  member: HouseholdMember,
+  options: { replace?: boolean } = {},
+): Promise<void> {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const ref = doc(db, 'households', householdId, 'members', member.id);
+  if (!options.replace) {
+    await setDoc(ref, cleanUndefined(member));
+    return;
+  }
+  const batch = writeBatch(db);
+  batch.delete(ref);
+  batch.set(ref, cleanUndefined(member));
+  await batch.commit();
+}
+
 export async function saveHousehold(householdId: string, patch: Partial<Household>) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId), cleanUndefined({ ...patch, updatedAt: new Date().toISOString() }), { merge: true });

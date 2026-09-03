@@ -244,3 +244,83 @@ export function diagnoseHouseholdWriteDenial({
   if (!binding.bindable) return 'sponsor-lapsed';
   return 'rules-behind';
 }
+
+/* ------------------------------------------------------------------------- *
+ * Restoring a locked-out owner's own membership row
+ * ------------------------------------------------------------------------- */
+
+/** The row a household owner may always write for themselves. */
+export interface HouseholdOwnerMembershipRow {
+  id: string;
+  userId: string;
+  displayName: string;
+  email?: string;
+  role: 'owner';
+  status: 'active';
+  joinedAt: string;
+}
+
+export type HouseholdMembershipRepair =
+  /** Nothing this account may write would change the outcome. */
+  | { action: 'none'; reason: 'not-owner' | 'already-owner' }
+  /**
+   * The row exists as this account's owner row but is not active. The published
+   * rules refuse an update that would re-activate a row whose role is already
+   * `owner` (`resource.data.role != 'owner'` guards that branch) and refuse the
+   * delete of one, so no client can fix this: it needs the console, or the
+   * rules this app ships with.
+   */
+  | { action: 'blocked'; reason: 'owner-row-not-active' }
+  /** `replace` when a non-owner stub is in the way, plain write otherwise. */
+  | { action: 'write'; replace: boolean; member: HouseholdOwnerMembershipRow };
+
+export interface HouseholdMembershipRepairInput {
+  household: { ownerId?: string; createdAt?: string } | null | undefined;
+  /** The caller's stored `members/{uid}` document, or null when it is absent. */
+  member: Record<string, unknown> | null | undefined;
+  uid: string | null | undefined;
+  displayName?: string | null;
+  email?: string | null;
+  /** Clock for `joinedAt`; a stored row's own value is preserved when present. */
+  nowIso?: string;
+}
+
+/**
+ * Decide what the client may legitimately do about a refusal that is not about
+ * the plan.
+ *
+ * `householdEditor()` in the published rules is `householdMember(hid) && role in
+ * [owner, editor]`: a household whose owner has no row in `members/` is readable
+ * by them and writable by nobody, which reads as a lost budget rather than as a
+ * permission problem. Only the household's own owner may create that row for
+ * themselves, and that create branch asks for no entitlement, so this is the one
+ * repair available against a rules deployment that is older than this build.
+ */
+export function planHouseholdMembershipRepair({
+  household,
+  member,
+  uid,
+  displayName,
+  email,
+  nowIso = new Date().toISOString(),
+}: HouseholdMembershipRepairInput): HouseholdMembershipRepair {
+  if (!uid || !household || household.ownerId !== uid) return { action: 'none', reason: 'not-owner' };
+  const role = typeof member?.role === 'string' ? member.role : '';
+  const status = typeof member?.status === 'string' ? member.status : '';
+  if (role === 'owner' && status === 'active') return { action: 'none', reason: 'already-owner' };
+  if (role === 'owner') return { action: 'blocked', reason: 'owner-row-not-active' };
+  const storedJoinedAt = typeof member?.joinedAt === 'string' ? member.joinedAt : '';
+  return {
+    action: 'write',
+    replace: Boolean(member),
+    member: {
+      id: uid,
+      userId: uid,
+      displayName: (displayName || '').trim() || (email || '').split('@')[0] || 'Owner',
+      ...(email ? { email } : {}),
+      role: 'owner',
+      status: 'active',
+      joinedAt: storedJoinedAt || household.createdAt || nowIso,
+    },
+  };
+}

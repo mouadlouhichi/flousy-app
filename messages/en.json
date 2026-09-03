@@ -1698,6 +1698,12 @@
       "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
       "restoreCounts": "Exported {exportedAt}: {months} periods, {goals} savings goals, {products} products, {sessions} shopping sessions.",
       "backupInvalidDetail": "This file was not accepted: {reason}",
+      "backupInvalidReasons": {
+        "emptyFile": "The file is empty.",
+        "notJson": "The file is not JSON, so it is not a backup this app can read.",
+        "csvReport": "This is a SmartJib CSV report. Import it from the CSV import screen instead.",
+        "unreadable": "The file could not be read as a backup."
+      },
       "backupPlanNotices": {
         "retargeted": "This backup was exported from {from}; it will be restored into {to}.",
         "currencyDiffers": "Amounts in the file are in {from} while this workspace uses {to}. They are restored exactly as they were recorded.",
@@ -1981,7 +1987,9 @@
     "sponsorRebound": "Shared budget access restored — this household now runs on your Pro plan, and your queued changes are being sent.",
     "sponsorLapsed": "This household runs on another account's Pro plan and that plan is no longer active. Everything stays readable; editing resumes once the plan is renewed.",
     "sponsorUnreadable": "This household's shared budget is paid for by another account, which this device cannot inspect. Only the household owner can change whose plan it runs on.",
-    "rulesBehind": "The Firestore rules deployed on this project cannot store a household plan owner, so they refuse the write. Redeploy them (firebase deploy --only firestore:rules).",
+    "accessRestored": "Restored your access to this workspace. Changes that were queued while it was refused are sending now.",
+    "membershipBlocked": "Your membership in this workspace is recorded as inactive, and the rules published here let only a workspace owner change that. Ask an owner to invite you again.",
+    "rulesBehind": "The rules published on this project cannot store a household plan owner, so they refuse the write. Redeploy them from the version of firestore.rules this build ships with (firebase deploy --only firestore:rules).",
     "profileInvalid": "This account's plan is stored in a form the app cannot verify (an unrecognised plan or status value), so the server will not attach the household to it. Correct the plan fields on the user profile in the Firebase console, or start the Pro trial from the app.",
     "restoreAccess": "Restore shared access",
     "restoreAccessHint": "Writes here are refused because the Pro plan that pays for this household belongs to another account. You own this household and hold an active plan, so it can be switched to yours.",

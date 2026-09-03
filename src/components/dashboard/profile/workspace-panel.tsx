@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useAuth } from '@/lib/auth-context';
 import { useDashboard } from '../dashboard-provider';
-import { useHousehold } from '@/lib/household-context';
+import { useHousehold, type HouseholdAccessRepair } from '@/lib/household-context';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
 import { HouseholdInvoiceReview } from '../household-invoice-review';
@@ -22,7 +22,6 @@ import {
   diagnoseHouseholdWriteDenial,
   householdSponsorBindingIsStale,
   householdSponsorId,
-  type SponsorRebindOutcome,
 } from '@/lib/household-entitlement';
 import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
 
@@ -39,7 +38,7 @@ export function WorkspacePanel() {
     updateConfiguration,
     create,
     removeHouseholdWorkspace,
-    rebindHouseholdSponsor,
+    repairHouseholdAccess,
   } = useHousehold();
   const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
@@ -129,11 +128,16 @@ export function WorkspacePanel() {
     ? diagnoseHouseholdWriteDenial({ household, profile, uid: user.uid, isOwner })
     : null;
   const sponsorBinding = user ? buildHouseholdSponsorBinding(profile, user.uid) : null;
-  const canRestoreSharedAccess = Boolean(
-    user && household && isOwner && sponsorBinding?.bindable
-    && (householdSponsorId(household) !== user.uid
-      || householdSponsorBindingIsStale(household, sponsorBinding)),
-  );
+  const sponsorStale = Boolean(sponsorBinding
+    && (householdSponsorId(household) !== user?.uid
+      || householdSponsorBindingIsStale(household, sponsorBinding)));
+  // Two states, one action: the plan owner may need re-binding, and the owner's own
+  // membership row may simply be missing - the one thing the *published* rules let a
+  // client put back, so it is worth offering even when the binding looks fine.
+  const canRestoreSharedAccess = Boolean(user && household && isOwner
+    && sponsorBinding?.bindable && sponsorStale)
+    || Boolean(user && household && isOwner
+      && (sponsorDenial === 'rules-behind' || sponsorDenial === 'unknown'));
   const syncPermissionMessage = (error: unknown): string => {
     const code = (error as { code?: string })?.code;
     if (code !== 'permission-denied') return d.syncFailed;
@@ -149,29 +153,33 @@ export function WorkspacePanel() {
   const restoreSharedAccess = async () => {
     if (!canRestoreSharedAccess || restoring) return;
     setRestoring(true);
-    let outcome: SponsorRebindOutcome = 'unavailable';
+    let outcome: HouseholdAccessRepair = { membership: 'unavailable', sponsor: 'unavailable', changed: false };
     try {
-      outcome = await rebindHouseholdSponsor();
+      outcome = await repairHouseholdAccess();
     } catch {
-      outcome = 'unavailable';
+      outcome = { ...outcome, membership: 'unavailable', sponsor: 'unavailable' };
     }
     setRestoring(false);
-    const description = outcome === 'repaired'
-      ? m.sync.restoreAccessDone
-      : outcome === 'already-consistent'
-        ? m.sync.restoreAccessConsistent
-        : outcome === 'rejected-by-rules'
+    const description = outcome.changed
+      ? m.sync.accessRestored
+      : outcome.membership === 'blocked'
+        // Only a workspace owner (or the console) may re-activate a row the rules
+        // already recorded as an owner's; that is not a deployment problem.
+        ? m.sync.membershipBlocked
+        : outcome.membership === 'rejected' || outcome.sponsor === 'rejected-by-rules'
           ? m.sync.rulesBehind
-          : m.sync.restoreAccessFailed;
+          : outcome.sponsor === 'already-consistent' && outcome.membership === 'already'
+            ? m.sync.restoreAccessConsistent
+            : m.sync.restoreAccessFailed;
     setSyncNotice(description);
     toast({
-      variant: outcome === 'repaired' ? 'default' : 'destructive',
+      variant: outcome.changed ? 'default' : 'destructive',
       title: p.syncTitle,
       description,
     });
     // Changes queued while the household was refusing writes are still in the
     // outbox; send them now rather than on the next app load.
-    if (outcome === 'repaired') retrySync();
+    if (outcome.changed) retrySync();
   };
 
   const runSyncBothWays = async (alignedDay: number, prefix = '') => {

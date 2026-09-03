@@ -15,10 +15,10 @@ import { useDashboard } from '../dashboard-provider';
 import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup } from '@/lib/db';
 import {
   downloadJson,
+  InvalidFinanceBackupError,
   planFinanceBackupRestore,
   readFinanceBackup,
   serializeFinanceBackup,
-  InvalidFinanceBackupError,
   type BackupNotice,
   type BackupPlan,
   type FinanceBackup,
@@ -107,9 +107,15 @@ export function DataPanel() {
       });
       if (!plan.canRestore) {
         // A shared workspace belongs to everyone in it, so only its owner may put
-        // somebody else's numbers into it.
-        const blocked = p.backupPlanNotices?.householdOwnerOnly;
-        setBackupNotice(blocked ? t(blocked, {}) : p.restoreFailed);
+        // somebody else's numbers into it - and any other reason the plan found has
+        // to be named too, or the user is left with a refusal and no cause.
+        const reasons = plan.notices.flatMap((notice) => {
+          const template = p.backupPlanNotices?.[notice.code];
+          return template ? [t(template, notice.params)] : [];
+        });
+        const description = reasons.length > 0 ? reasons.join(' ') : p.restoreFailed;
+        setBackupNotice(description);
+        toast({ variant: 'destructive', title: p.restoreBackup, description });
         return;
       }
       setPendingRestore({
@@ -137,10 +143,16 @@ export function DataPanel() {
         ],
       });
     } catch (error) {
-      // The file's own reason, when there is one: "not a valid backup" tells a user
-      // nothing about a file they exported themselves, and the reason is the fix.
       console.error('Backup validation failed:', error);
-      const reason = error instanceof InvalidFinanceBackupError ? error.message : '';
+      // Any failure carries its own explanation from here: a named refusal in the
+      // user's language, the reader's own words for a field it could not parse, and
+      // only as a last resort the bare "not a valid backup" notice.
+      const raw = error instanceof Error ? error.message.trim() : '';
+      const refusal = error instanceof InvalidFinanceBackupError ? error.refusal : undefined;
+      const template = refusal ? p.backupInvalidReasons?.[refusal] : undefined;
+      const reason = template
+        ? (refusal === 'unreadable' && raw ? `${t(template, {})}: ${raw}` : t(template, {}))
+        : raw;
       const description = reason ? t(p.backupInvalidDetail, { reason }) : p.backupInvalid;
       setBackupNotice(description);
       toast({ variant: 'destructive', title: p.restoreBackup, description });

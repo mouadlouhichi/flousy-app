@@ -7,6 +7,8 @@ import {
   householdSponsorBindingIsStale,
   householdSponsorId,
   householdSponsorProjectionFields,
+  planHouseholdMembershipRepair,
+  type HouseholdMembershipRepairInput,
 } from '../src/lib/household-entitlement';
 import { entitlementToken, resolveProEntitlement } from '../src/lib/pro-features';
 
@@ -337,5 +339,85 @@ describe('rules and client read the same entitlement', () => {
       rulesSource,
       /exists\w*\(\/databases\/\$\(database\)\/documents\/households\/\$\(hid\)\/ledger\/\$\(incoming\(\)\.lastMutationId\)\)/,
     );
+  });
+});
+
+/**
+ * The second way a paid owner is refused by their own workspace: the published
+ * rules let a household owner create their membership row, but no screen offered
+ * to write it, so an owner whose row was deleted (or who joined before the roster
+ * was the source of truth) could only see the refusal. `planHouseholdMembershipRepair`
+ * is the decision that keeps that write inside what the rules allow.
+ */
+describe('planning the missing membership row', () => {
+  const uid = 'u1';
+  const household = (over: Record<string, unknown> = {}) =>
+    ({ id: 'h1', name: 'Home', ownerId: uid, createdAt: '2025-11-14T22:13:20.000Z', ...over });
+  const row = (over: Record<string, unknown> = {}) =>
+    ({ role: 'owner', status: 'active', ...over });
+
+  it('does nothing for anyone but the household owner, and for no household', () => {
+    assert.deepEqual(planHouseholdMembershipRepair({ uid, household: null, member: null }), {
+      action: 'none',
+      reason: 'not-owner',
+    });
+    assert.deepEqual(planHouseholdMembershipRepair({ uid: null, household: household(), member: null }), {
+      action: 'none',
+      reason: 'not-owner',
+    });
+    assert.deepEqual(planHouseholdMembershipRepair({ uid, household: household({ ownerId: 'someone-else' }), member: null }), {
+      action: 'none',
+      reason: 'not-owner',
+    });
+  });
+
+  it('writes the row the published rules will accept', () => {
+    const plan = planHouseholdMembershipRepair({ uid, household: household(), member: null, email: 'owner@flousy.app' });
+    assert.equal(plan.action, 'write');
+    if (plan.action !== 'write') return;
+    assert.equal(plan.replace, false, 'a row that does not exist is created, not replaced');
+    assert.deepEqual(plan.member, {
+      id: uid,
+      userId: uid,
+      displayName: 'owner',
+      email: 'owner@flousy.app',
+      role: 'owner',
+      status: 'active',
+      joinedAt: household().createdAt,
+    });
+  });
+
+  it('replaces a row filed under somebody else, keeping the date it found', () => {
+    const plan = planHouseholdMembershipRepair({
+      uid,
+      household: household(),
+      member: row({ role: 'profile', joinedAt: '2024-01-01T00:00:00.000Z' }),
+      nowIso: '2026-01-01T00:00:00.000Z',
+    });
+    assert.equal(plan.action, 'write');
+    if (plan.action !== 'write') return;
+    assert.equal(plan.replace, true, 'a row under a different record has to be deleted and rewritten');
+    assert.equal(plan.member.joinedAt, '2024-01-01T00:00:00.000Z', 'the date they joined is not the date we noticed');
+    assert.equal(plan.member.role, 'owner');
+    assert.equal(plan.member.userId, uid);
+  });
+
+  it('leaves a row that already says owner alone', () => {
+    assert.deepEqual(planHouseholdMembershipRepair({ uid, household: household(), member: row() }), {
+      action: 'none',
+      reason: 'already-owner',
+    });
+  });
+
+  it('does not re-activate somebody the household removed', () => {
+    // An owner may create their own row and repair it; un-suspending a member the
+    // household deliberately removed is a different decision, and the published
+    // rules refuse it anyway (`resource.data.role != 'owner'` on the update branch).
+    const plan = planHouseholdMembershipRepair({
+      uid,
+      household: household(),
+      member: row({ status: 'removed' }),
+    });
+    assert.deepEqual(plan, { action: 'blocked', reason: 'owner-row-not-active' });
   });
 });

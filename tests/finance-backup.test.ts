@@ -1,3 +1,4 @@
+import { CSV_EXPORT_TITLE } from '../src/lib/csv-import';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -688,5 +689,57 @@ describe('importing a backup into another account', () => {
     const { backup, notices } = readFinanceBackup(JSON.stringify(newer));
     assert.ok(Object.keys(backup.months).length === 1);
     assert.equal(notices.find((notice) => notice.code === 'newerVersion')?.fields?.[0], String(FINANCE_BACKUP_VERSION + 3));
+  });
+});
+
+describe('every refusal says why', () => {
+  const refused = (text: string) => {
+    try {
+      readFinanceBackup(text);
+    } catch (error) {
+      assert.ok(error instanceof InvalidFinanceBackupError, String(error));
+      return (error as InvalidFinanceBackupError).message;
+    }
+    throw new Error('expected the file to be refused');
+  };
+
+  it('names an empty file as an empty file', () => {
+    assert.match(refused('   '), /empty/i);
+  });
+
+  it('names a file that is not JSON at all', () => {
+    assert.match(refused('i wrote my budget in a notebook'), /not JSON/i);
+  });
+
+  it('sends the app\'s own CSV report to the reader that handles it', () => {
+    // The same data, another format: a user picking their CSV export in the backup
+    // dialog is one sentence away from concluding their numbers are gone.
+    const csv = [`"${CSV_EXPORT_TITLE}"`, 'Date,Name,Amount'].join('\n');
+    assert.match(refused(csv), /CSV import screen/);
+  });
+
+  it('never refuses a file without a reason', () => {
+    // The contract the dialog renders on: a file is either accepted (with the
+    // notices saying what was forgiven) or refused with a message naming the part
+    // that failed. An unexplained refusal is the bug being removed.
+    const inputs = [
+      JSON.stringify({ months: {}, goals: ['a string, not a goal'] }),
+      JSON.stringify({ months: { '2026-01': 'not a month' } }),
+      JSON.stringify({ months: { '2026-1': {} } }),
+      JSON.stringify({ configuration: 'mad' }),
+      JSON.stringify({ goals: { named: true } }),
+      JSON.stringify({ months: { '2026-01': { totalBudget: -5 } } }),
+      '[]',
+      'null',
+      '"just a string"',
+    ];
+    for (const input of inputs) {
+      try {
+        readFinanceBackup(input);
+      } catch (error) {
+        assert.ok(error instanceof InvalidFinanceBackupError, `raw failure for ${input}: ${String(error)}`);
+        assert.ok(error.message.trim().length > 0, `reasonless refusal for ${input}`);
+      }
+    }
   });
 });
