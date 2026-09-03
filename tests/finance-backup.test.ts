@@ -2,10 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FINANCE_BACKUP_FORMAT,
+  FINANCE_BACKUP_VERSION,
   InvalidFinanceBackupError,
   MAX_MONTH_BACKUP_BYTES,
   parseFinanceBackup,
+  serializeFinanceBackup,
 } from '../src/lib/finance-backup';
+import { normalizeMonth } from '../src/lib/store';
+import type { FinanceBackup } from '../src/lib/finance-backup';
 import type { MonthBudget } from '../src/lib/store';
 
 /** A well-formed month, shaped like exportFinanceBackup's normalized output. */
@@ -381,5 +385,109 @@ describe('Finance backup deep validation (M1)', () => {
     const backup2 = validBackup();
     (backup2.configuration as Record<string, unknown>).defaultCategoryBudgets = { Rent: -5 };
     expectRejected(backup2, 'between 0 and 1000000000');
+  });
+});
+
+/**
+ * The other half of a backup: what the app *writes* must be what the app can
+ * `parseFinanceBackup` accepts, so a file you exported is a file you can restore.
+ * Validation-only tests can drift from the exporter: a field the month schema
+ * gains (a receipt URL, a payer on a shared expense) that the backup whitelist
+ * does not know is a backup that cannot be re-imported, and the user finds out at
+ * the worst possible moment. So this goes through `normalizeMonth()` - the same
+ * normalization `exportFinanceBackup()` runs over every stored document - rather
+ * than a hand-tuned fixture.
+ */
+describe('an exported backup re-imports (M-)', () => {
+  /** Every field the live app can put on a month document. */
+  function storedMonth(): Record<string, unknown> {
+    return {
+      ...validMonth(),
+      variableExpenses: [
+        {
+          id: 'v1', name: 'Coffee', amount: 12, type: 'Dining Out', date: '2026-07-02', place: 'wallet',
+          note: 'receipt kept', tags: ['work', 'solo'], receiptUrl: 'https://example.test/r.png',
+          payerMemberId: 'user-1', sourceType: 'invoice', sourceId: 'inv-1',
+          importFingerprint: 'abc1234', createdByUserId: 'user-1', updatedByUserId: 'user-1',
+        },
+      ],
+      fixedExpenses: [
+        {
+          id: 'f1', name: 'Rent', amount: 900, type: 'Rent', date: '1st', place: 'bank', base: 900,
+          person: 'Self', payerMemberId: 'user-1', recurring: true, templateId: 'f1',
+          status: 'paid', paidAmount: 900, paidAt: '2026-07-01', receiptUrl: 'https://example.test/lease.png',
+          sourceType: 'csv', sourceId: 'csv-1', importFingerprint: 'def5678',
+          createdByUserId: 'user-1', updatedByUserId: 'user-1',
+        },
+      ],
+      customRatios: { needs: 0.5, wants: 0.3, savings: 0.2 },
+      categoryBudgets: { Rent: 900 },
+      rolloverFromPrevious: { Rent: 50 },
+      placeBalances: { custom: 10 },
+    };
+  }
+
+  function exportedBackup(): FinanceBackup {
+    const normalized = normalizeMonth(storedMonth() as unknown as MonthBudget, '2026-07', undefined);
+    return {
+      format: FINANCE_BACKUP_FORMAT,
+      version: FINANCE_BACKUP_VERSION,
+      id: 'backup-2',
+      exportedAt: '2026-08-01T00:00:00.000Z',
+      workspace: { type: 'personal', id: 'user-1', name: 'Personal' },
+      // The exporter archives the whole profile document; the parser keeps the
+      // finance-only subset, and that asymmetry has to stay one-directional.
+      configuration: {
+        currency: 'MAD',
+        monthStartDate: 1,
+        theme: 'dark',
+        language: 'fr',
+        moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+        activeCategories: ['Rent'],
+        enableRollover: true,
+        defaultCategoryBudgets: { Rent: 900 },
+        plan: 'pro',
+        entitlementSource: 'stripe',
+        entitlementStatus: 'active',
+        displayName: 'Should Be Stripped',
+        householdIds: ['household-1'],
+        activeHouseholdId: 'household-1',
+        onboardingComplete: true,
+      } as FinanceBackup['configuration'],
+      months: { '2026-07': normalized as MonthBudget },
+      goals: [{ id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true, category: 'fun', deposited: 40 }],
+      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
+      sessions: [{
+        id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z', endedAt: '2026-07-02T18:30:00.000Z',
+        date: '2026-07-02', currency: 'MAD', place: 'wallet', total: 17,
+        items: [{ key: '6111234567890', barcode: '6111234567890', name: 'Milk', category: 'Dairy', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
+        loggedWorkspace: 'personal', loggedWorkspaceId: 'user-1', loggedMonthKey: '2026-07',
+        loggedMutationId: 'mutation-1', loggedExpenseId: 'v1', loggedAt: '2026-07-02T18:31:00.000Z',
+      }],
+    } as unknown as FinanceBackup;
+  }
+
+  it('accepts its own export, entity fields and all', () => {
+    const restored = parseFinanceBackup(serializeFinanceBackup(exportedBackup()));
+    const month = restored.months['2026-07'] as unknown as Record<string, unknown>;
+    const expenses = month.variableExpenses as Record<string, unknown>[];
+    assert.equal(expenses[0].receiptUrl, 'https://example.test/r.png');
+    assert.deepEqual(expenses[0].tags, ['work', 'solo']);
+    assert.equal(expenses[0].payerMemberId, 'user-1');
+    assert.equal((month.fixedExpenses as Record<string, unknown>[])[0].paidAt, '2026-07-01');
+    assert.equal(month.customRatios ? Object.keys(month.customRatios as object).length : 0, 3);
+    assert.deepEqual(month.categoryBudgets, { Rent: 900 });
+    assert.deepEqual(restored.goals.map((goal) => goal.name), ['Bike']);
+    assert.equal(restored.products?.[0].barcode, '6111234567890');
+    assert.equal(restored.sessions?.[0].total, 17);
+    // Identity and entitlement data never come back through a restore.
+    assert.equal((restored.configuration as Record<string, unknown>).plan, undefined);
+    assert.equal((restored.configuration as Record<string, unknown>).displayName, undefined);
+    assert.equal((restored.configuration as Record<string, unknown>).currency, 'MAD');
+    // A valid export stays valid: parsing is a fixed point on this shape, which
+    // is what "restore the backup, export again, restore again" depends on.
+    const reparsed = parseFinanceBackup(serializeFinanceBackup(restored));
+    assert.deepEqual(reparsed.months, restored.months);
+    assert.deepEqual(reparsed.goals, restored.goals);
   });
 });

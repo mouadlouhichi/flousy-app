@@ -12,7 +12,21 @@ import type { Language } from '../../lib/i18n-core';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { localizeCategoryName } from '../../lib/localized-labels';
 import { formatShortDate } from '../../lib/utils';
-import { csvImportFingerprint, csvImportId, fixedExpenseFingerprint, variableExpenseFingerprint } from '../../lib/csv-import';
+import {
+  csvImportFingerprint,
+  csvImportId,
+  detectCsvDelimiter,
+  fixedExpenseFingerprint,
+  locateCsvLayout,
+  mapCsvHeader,
+  normalizeCsvText,
+  parseCsvLine,
+  readCsvRow,
+  splitCsvRecords,
+  variableExpenseFingerprint,
+  type CsvColumn,
+  type CsvColumnMapping,
+} from '../../lib/csv-import';
 import { MONTHLY_FIXED_EXPENSE_LIMIT, MONTHLY_VARIABLE_EXPENSE_LIMIT } from '../../lib/validation';
 
 interface ImportCsvModalProps {
@@ -32,140 +46,6 @@ interface ParsedRow {
   person?: string;
   note?: string;
   fingerprint: string;
-}
-
-type CsvHeaderKind = 'name' | 'amount' | 'date' | 'category' | 'place' | 'note' | 'person';
-type CsvColumnMapping = CsvHeaderKind | 'ignore';
-interface CsvColumn {
-  label: string;
-  mapping: CsvColumnMapping;
-}
-
-/**
- * CSV exports use the language configured by the bank or spreadsheet. These
- * aliases let an Arabic or French user import an export without first having
- * to rename every heading in English.
- */
-const CSV_HEADER_ALIASES: Record<CsvHeaderKind, readonly string[]> = {
-  name: ['name', 'description', 'item', 'nom', 'designation', 'libelle', 'اسم', 'الاسم', 'وصف', 'الوصف', 'عنصر'],
-  amount: ['amount', 'price', 'value', 'val', 'montant', 'prix', 'valeur', 'مبلغ', 'المبلغ', 'سعر', 'القيمة', 'قيمة'],
-  date: ['date', 'time', 'temps', 'تاريخ', 'التاريخ', 'وقت'],
-  category: ['category', 'type', 'categorie', 'الفئة', 'فئة', 'تصنيف', 'النوع', 'نوع'],
-  place: ['place', 'source', 'account', 'emplacement', 'compte', 'lieu', 'مكان', 'المكان', 'حساب', 'المصدر'],
-  note: ['note', 'memo', 'comment', 'remarque', 'ملاحظة', 'ملاحظات', 'تعليق'],
-  person: ['person', 'member', 'personne', 'membre', 'شخص', 'الشخص', 'عضو', 'العضو'],
-};
-
-function normalizeCsvText(value: string): string {
-  return value
-    .replace(/^\uFEFF/, '')
-    .trim()
-    .toLocaleLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f\u064B-\u065F\u0670\u0640]/g, '');
-}
-
-function getCsvHeaderKind(header: string): CsvHeaderKind | undefined {
-  const normalized = normalizeCsvText(header);
-  if (!normalized) return undefined;
-
-  return (Object.keys(CSV_HEADER_ALIASES) as CsvHeaderKind[]).find((kind) =>
-    CSV_HEADER_ALIASES[kind].some(
-      (alias) => normalized === alias || normalized.includes(alias),
-    ),
-  );
-}
-
-function detectCsvDelimiter(headerLine: string): ',' | ';' | '\t' {
-  let commas = 0;
-  let semicolons = 0;
-  let tabs = 0;
-  let inQuotes = false;
-
-  for (let index = 0; index < headerLine.length; index += 1) {
-    const character = headerLine[index];
-    if (character === '"') {
-      if (inQuotes && headerLine[index + 1] === '"') {
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-    if (inQuotes) continue;
-    if (character === ',') commas += 1;
-    else if (character === ';') semicolons += 1;
-    else if (character === '\t') tabs += 1;
-  }
-
-  if (semicolons > commas && semicolons >= tabs) return ';';
-  if (tabs > commas && tabs > semicolons) return '\t';
-  return ',';
-}
-
-/**
- * Split the file into records first, then parse each record.
- *
- * The previous code did `text.split(/\r?\n/)` and ran the (otherwise correct)
- * quote-aware column parser over each physical line. A quoted field containing a
- * line break — which Excel and Google Sheets emit for multi-line notes — was cut
- * in half: the first half became a row whose note was truncated, and the second
- * half became a row of its own whose first column was the tail of someone's
- * note, imported as an expense name.
- */
-function splitCsvRecords(text: string, delimiter: string): string[] {
-  const records: string[] = [];
-  let record = '';
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === '"') {
-      if (inQuotes && text[index + 1] === '"') {
-        record += '"';
-        index += 1;
-        continue;
-      }
-      inQuotes = !inQuotes;
-      record += character;
-      continue;
-    }
-    if (!inQuotes && (character === '\n' || character === '\r')) {
-      if (character === '\r' && text[index + 1] === '\n') index += 1;
-      records.push(record);
-      record = '';
-      continue;
-    }
-    record += character;
-  }
-  records.push(record);
-  return records.map((entry) => entry.trim()).filter((entry) => entry.length > 0);
-}
-
-function parseCsvLine(line: string, delimiter: string): string[] {
-  const values: string[] = [];
-  let value = '';
-  let inQuotes = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (character === '"') {
-      if (inQuotes && line[index + 1] === '"') {
-        value += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (character === delimiter && !inQuotes) {
-      values.push(value.trim());
-      value = '';
-    } else {
-      value += character;
-    }
-  }
-
-  values.push(value.trim());
-  return values;
 }
 
 function toAsciiDigits(value: string): string {
@@ -337,18 +217,22 @@ export function ImportCsvModal({
 
     try {
       const firstPhysicalLine = csv.split(/\r?\n/)[0] ?? '';
-      const lines = splitCsvRecords(csv, detectCsvDelimiter(firstPhysicalLine));
-
-      if (lines.length < 2) {
+      const records = splitCsvRecords(csv, detectCsvDelimiter(firstPhysicalLine));
+      // Where the header is depends on whose file this is: a bank export is a
+      // flat table, this app's own export is a sectioned report. The rows of the
+      // section that matches the chosen target are the only ones read, so a
+      // file can carry both fixed bills and expenses and still import cleanly.
+      const layout = records.length < 2 ? null : locateCsvLayout(records, target);
+      if (!layout) {
         setError(copy.invalidRows);
         return;
       }
 
-      const delimiter = detectCsvDelimiter(lines[0]);
-      const headerLabels = parseCsvLine(lines[0], delimiter);
+      const { delimiter, headerIndex, dataIndexes } = layout;
+      const headerLabels = parseCsvLine(records[headerIndex], delimiter);
       const mappedColumns = overrideColumns && overrideColumns.length === headerLabels.length
         ? overrideColumns
-        : headerLabels.map((label): CsvColumn => ({ label, mapping: getCsvHeaderKind(label) ?? 'ignore' }));
+        : mapCsvHeader(headerLabels);
       setColumns(mappedColumns);
 
       if (!mappedColumns.some((column) => column.mapping === 'amount')) {
@@ -372,58 +256,34 @@ export function ImportCsvModal({
         ? Math.max(0, MONTHLY_VARIABLE_EXPENSE_LIMIT - (month.variableExpenses || []).length)
         : Math.max(0, MONTHLY_FIXED_EXPENSE_LIMIT - (month.fixedExpenses || []).length);
 
-      for (let index = 1; index < lines.length; index += 1) {
-        const values = parseCsvLine(lines[index], delimiter);
+      for (const recordIndex of dataIndexes) {
+        const values = parseCsvLine(records[recordIndex], delimiter);
         if (values.length < 2) {
           rejected += 1;
           continue;
         }
 
-        let name = '';
-        let amount: number | null = null;
+        const cells = readCsvRow(values, mappedColumns);
+        let name = cells.name;
+        let amount: number | null = cells.amount ? parseLocalizedAmount(cells.amount, language) : null;
         let date = month.periodStartDate || todayLocalIso();
-        let category = month.activeCategories?.[0] || 'Groceries';
-        let place: MoneyPlace = 'bank';
-        let note = '';
-        let person = 'Self';
+        let category = cells.category;
+        let place: MoneyPlace = cells.place ? resolveCsvPlace(cells.place, places, placeLabel) : 'bank';
+        const note = cells.note;
+        const person = cells.person || 'Self';
         let invalidDate = false;
-
-        values.forEach((value, columnIndex) => {
-          switch (mappedColumns[columnIndex]?.mapping) {
-            case 'name':
-              name = value.trim();
-              break;
-            case 'amount':
-              amount = parseLocalizedAmount(value, language);
-              break;
-            case 'date': {
-              const parsedDate = parseLocalizedDate(value, language);
-              if (value.trim() && !parsedDate) invalidDate = true;
-              if (parsedDate) date = parsedDate;
-              break;
-            }
-            case 'category':
-              if (value.trim()) category = value.trim();
-              break;
-            case 'place':
-              place = resolveCsvPlace(value, places, placeLabel);
-              break;
-            case 'note':
-              note = value.trim();
-              break;
-            case 'person':
-              person = value.trim() || 'Self';
-              break;
-            default:
-              break;
-          }
-        });
+        if (cells.date) {
+          const parsedDate = parseLocalizedDate(cells.date, language);
+          if (!parsedDate) invalidDate = true;
+          else date = parsedDate;
+        }
 
         const outsidePeriod = Boolean(
           (month.periodStartDate && date < month.periodStartDate)
           || (month.periodEndDate && date > month.periodEndDate),
         );
         if (!name) name = copy.importedExpense;
+        if (!category) category = month.activeCategories?.[0] || 'Groceries';
         if (invalidDate || outsidePeriod || amount === null || !Number.isFinite(amount) || amount <= 0) {
           rejected += 1;
           continue;

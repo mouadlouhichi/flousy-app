@@ -1,5 +1,6 @@
 import { MonthBudget, SavingGoal, totalCashOnHand } from './store';
 import { ALL_EXPORT_SECTIONS, type ExportSections } from './household-rbac';
+import { CSV_EXPORT_SECTIONS, CSV_EXPORT_TITLE, type CsvTarget } from './csv-import';
 
 function escapeCsvCell(val: string | number | null | undefined): string {
   if (val === null || val === undefined) return '""';
@@ -15,8 +16,32 @@ function escapeCsvCell(val: string | number | null | undefined): string {
   return `"${escaped}"`;
 }
 
+/** Quotes a row of fixed text so a comma inside a label cannot split it. */
+function quoteRow(cells: readonly string[]): string {
+  return cells.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',');
+}
+
+/** A section heading of the report, as `locateCsvLayout()` looks for it. */
+function sectionBanner(target: CsvTarget): string {
+  return `"${CSV_EXPORT_SECTIONS[target].banner}"`;
+}
+
+function sectionHeader(target: CsvTarget): string {
+  return quoteRow(CSV_EXPORT_SECTIONS[target].headers);
+}
+
+function sectionEmptyRow(target: CsvTarget): string {
+  return quoteRow([CSV_EXPORT_SECTIONS[target].emptyRow]);
+}
+
 /**
  * Builds the monthly CSV.
+ *
+ * The report is also the app's own CSV import format: `csv-import.ts` owns the
+ * banner labels, the column labels and the "nothing here" row, and the importer
+ * selects a section by them. Writing those strings here as literals would let a
+ * renamed heading silently break `Import CSV` - the file would still open in a
+ * spreadsheet, and still refuse to import.
  *
  * `sections` comes from the household RBAC matrix (`exportSectionsFor`): a
  * member who may not *see* balances or income on screen must not be able to
@@ -32,7 +57,7 @@ export function exportMonthToCsv(
 ): string {
   const lines: string[] = [];
 
-  lines.push(`"SmartJib Financial Export - ${monthKey}"`);
+  lines.push(`"${CSV_EXPORT_TITLE} - ${monthKey}"`);
   lines.push(`"Export Date",${escapeCsvCell(new Date().toISOString())}`);
   lines.push(`"Currency",${escapeCsvCell(currency)}`);
   lines.push('');
@@ -55,22 +80,22 @@ export function exportMonthToCsv(
 
   // Fixed Monthly Charges — owned by the `fixedBills` area.
   if (sections.fixedBills) {
-    lines.push('"FIXED CHARGES"');
-    lines.push('"Name","Category","Amount","Paid From"');
+    lines.push(sectionBanner('fixed'));
+    lines.push(sectionHeader('fixed'));
     if (month.fixedExpenses && month.fixedExpenses.length > 0) {
       month.fixedExpenses.forEach((fe) => {
         lines.push([escapeCsvCell(fe.name), escapeCsvCell(fe.type), escapeCsvCell(fe.amount), escapeCsvCell(fe.place)].join(','));
       });
     } else {
-      lines.push('"No fixed charges recorded"');
+      lines.push(sectionEmptyRow('fixed'));
     }
     lines.push('');
   }
 
   // Variable Expenses — owned by the `expenses` area.
   if (sections.expenses) {
-    lines.push('"VARIABLE EXPENSES"');
-    lines.push('"Date","Name","Category","Amount","Paid From","Note"');
+    lines.push(sectionBanner('variable'));
+    lines.push(sectionHeader('variable'));
     if (month.variableExpenses && month.variableExpenses.length > 0) {
       month.variableExpenses.forEach((ve) => {
         lines.push(
@@ -85,7 +110,7 @@ export function exportMonthToCsv(
         );
       });
     } else {
-      lines.push('"No variable expenses recorded"');
+      lines.push(sectionEmptyRow('variable'));
     }
     lines.push('');
   }
