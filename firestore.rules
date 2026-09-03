@@ -379,10 +379,13 @@ service cloud.firestore {
      * of the key is checked with it.
      */
     function mutationLedger(hid) {
-      let key = incoming().data.get('lastMutationId', '');
-      let path = ledgerPath(hid, key);
-      let present = key is string && key.size() > 0 && key.size() <= 160
-        && existsAfter(path);
+      let key = incoming().get('lastMutationId', '');
+      // A key that could not have been accepted by the ledger rules is refused here
+      // instead of being interpolated into a path: an unusable path is an evaluation
+      // error, and an evaluation error reaches the client as a plain denial.
+      let usable = key is string && key.size() > 0 && key.size() <= 160;
+      let path = ledgerPath(hid, usable ? key : 'absent');
+      let present = usable && existsAfter(path);
       return {
         present: present,
         kind: present ? getAfter(path).data.get('kind', '') : ''
@@ -413,8 +416,10 @@ service cloud.firestore {
      * which is what makes a replay idempotent instead of double-posted.
      */
     function mutationTargetAgrees(hid, mutationId) {
-      let key = incoming().data.get('monthKey', '');
-      let target = key == 'savings' ? savingsPath(hid) : monthPath(hid, key);
+      let key = incoming().get('monthKey', '');
+      let target = key == 'savings'
+        ? savingsPath(hid)
+        : monthPath(hid, key is string && isValidMonthId(key) ? key : '0000-00');
       return existsAfter(target)
         && getAfter(target).data.get('lastMutationId', '') == mutationId;
     }
@@ -424,8 +429,8 @@ service cloud.firestore {
      * successor.
      */
     function validRevisionBump() {
-      let was = existing().data.get('revision', -1);
-      let next = incoming().data.get('revision', 0);
+      let was = existing().get('revision', -1);
+      let next = incoming().get('revision', 0);
       return (was == -1 && next == 1) || (was is int && next == was + 1);
     }
     function householdFinanceReader(hid) {
