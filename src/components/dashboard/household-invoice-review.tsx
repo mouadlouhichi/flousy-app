@@ -18,12 +18,15 @@ function dateInLocalTime(date: string): Date {
 
 /** Owner/editor review queue. Approval and expense posting are one transaction. */
 export function HouseholdInvoiceReview() {
-  const { household, canEditArea, members } = useHousehold();
+  const { household, canEditArea, members, workspace } = useHousehold();
   const { user } = useAuth();
   const { format } = useCurrency();
   const { messages: m } = useLanguage();
   const copy = m.household.invoice;
-  const canReview = canEditArea(TOOL_AREA.invoices);
+  // Reviewing household submissions only makes sense inside the household
+  // workspace; the personal workspace never shows this queue even though the
+  // household document stays subscribed in the background.
+  const canReview = workspace === 'household' && canEditArea(TOOL_AREA.invoices);
   const [invoices, setInvoices] = useState<HouseholdInvoice[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
