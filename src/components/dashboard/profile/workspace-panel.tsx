@@ -14,6 +14,8 @@ import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
+import { isHouseholdEntitlementActive } from '@/lib/household';
+import { useToast } from '@/hooks/use-toast';
 import { syncWorkspaceTransactions, WorkspaceSyncError } from '@/lib/db';
 import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
 
@@ -27,13 +29,13 @@ export function WorkspacePanel() {
     selectWorkspace,
     memberRole,
     isOwner,
-    entitlementActive,
     updateConfiguration,
     create,
     removeHouseholdWorkspace,
   } = useHousehold();
   const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
+  const { toast } = useToast();
   const isPro = isProUser(profile);
   const [householdName, setHouseholdName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,6 +53,7 @@ export function WorkspacePanel() {
       await selectWorkspace(next);
     } catch {
       setNotice(m.household.genericError);
+      toast({ variant: 'destructive', title: m.household.genericError });
     }
   };
 
@@ -66,6 +69,7 @@ export function WorkspacePanel() {
       router.replace('/onboarding?scope=household');
     } catch {
       setNotice(m.household.genericError);
+      toast({ variant: 'destructive', title: m.household.genericError });
     } finally {
       setBusy(false);
     }
@@ -78,6 +82,7 @@ export function WorkspacePanel() {
       await removeHouseholdWorkspace();
     } catch {
       setNotice(m.household.genericError);
+      toast({ variant: 'destructive', title: m.household.genericError });
     } finally {
       setBusy(false);
       setConfirmRemove(false);
@@ -95,10 +100,24 @@ export function WorkspacePanel() {
     household?.monthStartDate,
     workspace,
   );
-  const canSyncWorkspaces = Boolean(user && household?.id && isOwner && entitlementActive);
+  // Gate on the household's REAL entitlement. The context's
+  // `entitlementActive` is deliberately true across the personal workspace
+  // (personal editing must keep working), but a household write from there
+  // is still rejected by Firestore rules when the owner's Pro entitlement
+  // has lapsed - which used to surface as a raw permission-denied.
+  const householdEntitled = isHouseholdEntitlementActive(household);
+  const canSyncWorkspaces = Boolean(user && household?.id && isOwner && householdEntitled);
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncNotice, setSyncNotice] = useState('');
   const [pendingAlign, setPendingAlign] = useState<WorkspaceSyncAlignment | null>(null);
+
+  // Firestore rejects household writes with permission-denied when the owner's
+  // Pro entitlement has lapsed; say that instead of a raw permission error.
+  const syncPermissionMessage = (error: unknown): string => {
+    const code = (error as { code?: string })?.code;
+    if (code === 'permission-denied') return `${m.pro.trialExpiredTitle} ${m.pro.trialExpiredBody}`;
+    return d.syncFailed;
+  };
 
   const runSyncBothWays = async (alignedDay: number, prefix = '') => {
     if (!user || !household?.id) return;
@@ -132,17 +151,23 @@ export function WorkspacePanel() {
         ? d.syncNothingNew
         : t(d.syncComplete, totals);
       setSyncNotice(prefix + result);
+      toast({ title: p.syncTitle, description: prefix + result });
       trackEvent('workspace_sync', { direction: 'both' });
     } catch (error) {
       if (error instanceof WorkspaceSyncError && error.code === 'currency-mismatch') {
         setSyncNotice(d.syncErrorCurrency);
+        toast({ variant: 'destructive', title: p.syncTitle, description: d.syncErrorCurrency });
       } else if (error instanceof WorkspaceSyncError && error.code === 'period-mismatch') {
         setSyncNotice(d.syncErrorPeriod);
+        toast({ variant: 'destructive', title: p.syncTitle, description: d.syncErrorPeriod });
       } else if (error instanceof WorkspaceSyncError) {
-        setSyncNotice(t(d.syncPartial, { months: error.counts?.months ?? 0 }));
+        const partial = t(d.syncPartial, { months: error.counts?.months ?? 0 });
+        setSyncNotice(partial);
+        toast({ variant: 'destructive', title: p.syncTitle, description: partial });
       } else {
         console.error('Workspace sync failed:', error);
         setSyncNotice(d.syncFailed);
+        toast({ variant: 'destructive', title: p.syncTitle, description: syncPermissionMessage(error) });
       }
     } finally {
       setSyncBusy(false);
@@ -168,9 +193,12 @@ export function WorkspacePanel() {
       else await updateProfileData({ monthStartDate: plan.day });
     } catch (error) {
       console.error('Budget-month alignment failed:', error);
-      setSyncNotice(d.syncFailed);
+      const message = syncPermissionMessage(error);
+      setSyncNotice(message);
+      toast({ variant: 'destructive', title: p.syncStartTitle, description: message });
       return;
     }
+    toast({ title: p.syncStartTitle, description: t(p.syncAlignedNote, { day: plan.day }) });
     await runSyncBothWays(plan.day, `${t(p.syncAlignedNote, { day: plan.day })} `);
   };
 

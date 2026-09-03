@@ -14,12 +14,14 @@ import { canExportAnything } from '@/lib/household-rbac';
 import { useDashboard } from '../dashboard-provider';
 import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup } from '@/lib/db';
 import { downloadJson, parseFinanceBackup, serializeFinanceBackup, type FinanceBackup } from '@/lib/finance-backup';
+import { useToast } from '@/hooks/use-toast';
 
 export function DataPanel() {
   const { deleteAllData, user, profile } = useAuth();
   const { workspace, household, isOwner, canEditArea, exportSections } = useHousehold();
   const { messages: m, isRTL, t } = useLanguage();
   const p = m.profile.data;
+  const { toast } = useToast();
   const { currency } = useCurrency();
   const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
   // The CSV contains balances, fixed bills, expenses and savings: in a
@@ -69,10 +71,12 @@ export function DataPanel() {
       const backup = await exportFinanceBackup(user.uid, financeTarget, financeConfiguration);
       downloadJson(`smartjib-backup-${workspace}-${new Date().toISOString().slice(0, 10)}.json`, serializeFinanceBackup(backup));
       setBackupNotice(p.backupExported);
+      toast({ title: p.exportBackup, description: p.backupExported });
       trackEvent('export_json_backup', { workspace });
     } catch (error) {
       console.error('Backup export failed:', error);
       setBackupNotice(p.backupFailed);
+      toast({ variant: 'destructive', title: p.exportBackup, description: p.backupFailed });
     } finally {
       setBackupBusy(false);
     }
@@ -90,6 +94,7 @@ export function DataPanel() {
     } catch (error) {
       console.error('Backup validation failed:', error);
       setBackupNotice(p.backupInvalid);
+      toast({ variant: 'destructive', title: p.restoreBackup, description: p.backupInvalid });
     }
   };
 
@@ -100,11 +105,14 @@ export function DataPanel() {
     try {
       const result = await restoreFinanceBackup(user.uid, financeTarget, pendingRestore, financeConfiguration);
       setBackupNotice(t(p.restoreComplete, { months: result.restoredMonths, goals: result.restoredGoals }));
+      toast({ title: p.restoreBackup, description: t(p.restoreComplete, { months: result.restoredMonths, goals: result.restoredGoals }) });
       setPendingRestore(null);
       trackEvent('restore_json_backup', { workspace });
     } catch (error) {
       console.error('Backup restore failed:', error);
-      setBackupNotice(error instanceof FinanceRestoreIncompleteError ? p.restorePartial : p.restoreFailed);
+      const restoreError = error instanceof FinanceRestoreIncompleteError ? p.restorePartial : p.restoreFailed;
+      setBackupNotice(restoreError);
+      toast({ variant: 'destructive', title: p.restoreBackup, description: restoreError });
     } finally {
       setBackupBusy(false);
     }
@@ -224,11 +232,11 @@ export function DataPanel() {
             await deleteAllData();
             setDeleteError('');
           } catch (error) {
-            setDeleteError(
-              error instanceof AccountDeletionIncompleteError
-                ? t(m.auth.deletePartialFailure, { items: error.report.failed.join(', ') })
-                : m.auth.networkError,
-            );
+            const message = error instanceof AccountDeletionIncompleteError
+              ? t(m.auth.deletePartialFailure, { items: error.report.failed.join(', ') })
+              : m.auth.networkError;
+            setDeleteError(message);
+            toast({ variant: 'destructive', title: p.deleteAllData, description: message });
           }
         }}
         title={p.deleteAllData}
