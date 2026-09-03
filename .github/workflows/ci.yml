@@ -61,6 +61,22 @@ jobs:
             tail -n 200 "$log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # The job summary is only readable in the UI, and the log blob is not always
+          # reachable at all, so the parts that decide what to fix next are published as
+          # annotations: which tests failed, and whether a denial was a clean one or an
+          # aborted evaluation. "Null value error" means a rule read a property a stored
+          # document may never have had; "exceeded the limit" means the ruleset outgrew
+          # the per-request expression budget. Both are rules bugs, not test bugs.
+          grep -E "^ *not ok [0-9]+ - " "$log" | head -n 25 \
+            | sed -E 's/^ *not ok [0-9]+ - //' \
+            | while IFS= read -r name; do
+                printf '::error title=Firestore rules test::%s\n' "$name"
+              done || true
+          printf '::error title=Firestore rules failure class::%s\n' \
+            "$(printf 'aborted evaluations (null value): %s; over expression budget: %s; bare denials: %s' \
+              "$(grep -c 'Null value error' "$log" || true)" \
+              "$(grep -c 'exceeded the limit' "$log" || true)" \
+              "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
           exit 1
 
       - name: Production build
