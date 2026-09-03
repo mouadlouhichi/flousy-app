@@ -30,6 +30,7 @@ import {
   canShowProUpgrade,
   isProFeatureUnlocked,
   isHouseholdEntitlementActive,
+  householdEntitlementForEditor,
   monthStartDateFor,
   normalizeHouseholdName,
   isAssignableMemberRole,
@@ -456,5 +457,30 @@ describe('Household contribution settle-up math', () => {
     const result = computeHouseholdContributions(month, members);
     assert.equal(result.rows[0].balance, 50);
     assert.equal(result.rows[1].balance, -50);
+  });
+});
+
+describe('Editing-gate entitlement truth (owner profile vs projection)', () => {
+  const now = Date.parse('2026-09-03T00:00:00Z');
+  const activeProfile = {
+    plan: 'pro',
+    entitlementSource: 'launch_trial',
+    entitlementStatus: 'trialing',
+    entitlementEndsAtMs: now + 30 * 24 * 60 * 60 * 1000,
+  };
+  const expiredProfile = { ...activeProfile, entitlementEndsAtMs: now - 1 };
+  const activeProjection = { entitlementEndsAtMs: now + 30 * 24 * 60 * 60 * 1000 };
+  const staleProjection = { entitlementEndsAtMs: now - 1 };
+
+  it('the owner is judged by their PROFILE, exactly like Firestore rules', () => {
+    // Rules read users/{ownerId}; a stale projection must not unlock editing.
+    assert.equal(householdEntitlementForEditor(staleProjection, activeProfile, true, now), true);
+    // An optimistic projection must not mask a lapsed profile: edits would 403.
+    assert.equal(householdEntitlementForEditor(activeProjection, expiredProfile, true, now), false);
+  });
+
+  it('a non-owner member is judged by the projection (their only local truth)', () => {
+    assert.equal(householdEntitlementForEditor(activeProjection, expiredProfile, false, now), true);
+    assert.equal(householdEntitlementForEditor(staleProjection, activeProfile, false, now), false);
   });
 });

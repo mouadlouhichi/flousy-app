@@ -240,6 +240,29 @@ export function canShowProUpgrade(
 }
 
 /** Resolve the provider-neutral entitlement projection stored on a household. */
+/**
+ * Entitlement truth for the household EDITING gate.
+ *
+ * Firestore rules decide every household write by reading the OWNER'S
+ * PROFILE (activeProEntitlement) - the household's own projection is an
+ * immutable creation-day copy that can lag the profile. When the current
+ * user IS the owner we therefore evaluate their profile directly, so the
+ * client pauses editing at exactly the moment the server starts rejecting
+ * writes (no doomed edit attempts that queue and fail with 403). A
+ * non-owner member cannot read the owner's profile, so the projection is
+ * their best local truth; a stale projection for a member surfaces as a
+ * permission error handled at the sync layer.
+ */
+export function householdEntitlementForEditor(
+  household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
+  editorProfile: Parameters<typeof resolveProEntitlement>[0],
+  isOwner: boolean,
+  nowMs = Date.now(),
+): boolean {
+  if (isOwner) return resolveProEntitlement(editorProfile, nowMs).isPro;
+  return isHouseholdEntitlementActive(household, nowMs);
+}
+
 export function isHouseholdEntitlementActive(
   household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
   nowMs = Date.now(),

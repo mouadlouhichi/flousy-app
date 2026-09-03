@@ -17,7 +17,7 @@ import {
   type HouseholdAccess,
 } from './db';
 import {
-  isHouseholdEntitlementActive,
+  householdEntitlementForEditor,
   normalizeHouseholdName,
   type Household,
   type HouseholdInvite,
@@ -164,7 +164,11 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       || myMember?.role === 'owner',
   );
   const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;
-  const entitlementActive = workspace === 'personal' || isHouseholdEntitlementActive(household);
+  // Rules read the owner's profile for every household write; when the
+  // current user is the owner, evaluate that profile directly so client
+  // gates pause editing exactly when the server starts rejecting writes.
+  const entitlementActive = workspace === 'personal'
+    || householdEntitlementForEditor(household, profile, isOwner);
   // Effective per-area grants for a custom member (sanitized matrix, with the
   // contributor-equivalent fallback for legacy documents that never stored one).
   const customPermissions = useMemo(

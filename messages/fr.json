@@ -1956,7 +1956,8 @@
     "retry": "Réessayer",
     "useCloudCopy": "Ignorer les modifications locales",
     "pending": "En attente",
-    "local": "Enregistré sur cet appareil"
+    "local": "Enregistré sur cet appareil",
+    "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès."
   },
   "monthLock": {
     "closed": "Mois clôturé",

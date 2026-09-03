@@ -1956,7 +1956,8 @@
     "retry": "Retry",
     "useCloudCopy": "Discard local changes",
     "pending": "Pending",
-    "local": "Saved on this device"
+    "local": "Saved on this device",
+    "blockedEntitlement": "Editing the shared household budget needs an active Pro entitlement. Your change stays safely queued on this device and will sync once access is active again."
   },
   "monthLock": {
     "closed": "Month closed",

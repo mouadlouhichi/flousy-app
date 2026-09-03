@@ -66,6 +66,7 @@ import { householdStorageKey, isProFeatureUnlocked } from '../../lib/household';
 import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-access';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
+import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
@@ -223,6 +224,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   } = useHousehold();
   const { configuredCurrency, setPeriodCurrency } = useCurrency();
   const { messages: m } = useLanguage();
+  const { toast } = useToast();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
   const budgetStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
   const budgetProfile: MonthConfiguration | null = useMemo(() => (
@@ -284,6 +286,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   goalsRef.current = goals;
   const [loading, setLoading] = useState<boolean>(true);
   const [syncState, setSyncState] = useState<FinanceSyncState>('local');
+  // permission-denied is deterministic; do not toast it on every retry
+  const deniedToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
   const [outboxHydrated, setOutboxHydrated] = useState(false);
@@ -780,6 +784,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           if (result.goals) latestGoals = result.goals;
         } catch (error) {
           const conflict = error instanceof FinanceConflictError;
+          const denied = (error as { code?: string })?.code === 'permission-denied';
           await putFinanceMutation({
             ...mutation,
             attempts: mutation.attempts + 1,
@@ -787,11 +792,25 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           });
           if (isActiveTarget()) {
             setSyncState(conflict ? 'conflict' : 'failed');
+            // permission-denied means rules rejected the write itself -
+            // for a household that is the Pro entitlement pause. Retrying
+            // cannot help until access returns, so say so instead of the
+            // generic queue message.
             setSyncError(
               conflict
-                ? 'Your local edit conflicts with a newer change from another device.'
-                : 'Could not sync. Your change is safely queued on this device.',
+                ? m.sync.conflictDetail
+                : denied
+                  ? `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`
+                  : '',
             );
+            if (denied && Date.now() - deniedToastAtRef.current > 30000) {
+              deniedToastAtRef.current = Date.now();
+              toast({
+                variant: 'destructive',
+                title: m.sync.failed,
+                description: `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`,
+              });
+            }
           }
           break;
         }
@@ -833,7 +852,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         queueMicrotask(() => { void flushLatestRef.current(); });
       }
     }
-  }, [user, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId]);
+  }, [user, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId, m, toast]);
   flushLatestRef.current = flushOutbox;
 
   useEffect(() => {
