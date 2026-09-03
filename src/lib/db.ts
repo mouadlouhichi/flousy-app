@@ -37,6 +37,7 @@ import {
 import { FINANCE_BACKUP_FORMAT, FINANCE_BACKUP_VERSION, type FinanceBackup } from './finance-backup';
 import {
   emptyWorkspaceSyncCounts,
+  isClosedTargetConflict,
   mergeSourceTransactionsIntoMonth,
   type WorkspaceSyncCounts,
 } from './workspace-sync';
@@ -425,8 +426,20 @@ export async function exportFinanceBackup(
   };
 }
 
+/**
+ * A restore that applied some periods and then stopped. Re-running the same file
+ * is safe (each period's mutation id is derived from the backup, so an applied
+ * period is a no-op the second time), and that is the only thing the count of
+ * applied periods can honestly promise. `reason` is the error that stopped it:
+ * for a workspace refusing the write, "select the file again" is an instruction to
+ * repeat the failure, and the dialog says so only because the cause survived.
+ */
 export class FinanceRestoreIncompleteError extends Error {
-  constructor(public readonly completed: string[], public readonly failed: string) {
+  constructor(
+    public readonly completed: string[],
+    public readonly failed: string,
+    public readonly reason?: unknown,
+  ) {
     super(`Restore stopped after ${completed.length} periods; retrying the same backup is safe.`);
     this.name = 'FinanceRestoreIncompleteError';
   }
@@ -487,7 +500,7 @@ export async function restoreFinanceBackup(
       completed.push(monthKey);
     } catch (error) {
       console.error('Backup restore stopped:', error);
-      throw new FinanceRestoreIncompleteError(completed, monthKey);
+      throw new FinanceRestoreIncompleteError(completed, monthKey, error);
     }
   }
 
@@ -535,12 +548,21 @@ export async function restoreFinanceBackup(
 
 export type WorkspaceSyncErrorCode = 'currency-mismatch' | 'period-mismatch' | 'incomplete';
 
+/**
+ * A workspace sync that stopped partway. It is always safe to run again - records
+ * keep their ids - so the count of months already copied and the month that
+ * failed are the two facts that tell a user whether "run again" is the answer or
+ * merely the same refusal waiting for them. `reason` is whatever the write
+ * actually raised: `WorkspaceSyncError` is not the place to decide what a
+ * permission refusal means, but it is the place to stop losing it.
+ */
 export class WorkspaceSyncError extends Error {
   constructor(
     public readonly code: WorkspaceSyncErrorCode,
     message: string,
     public readonly counts?: WorkspaceSyncCounts,
     public readonly failedMonth?: string,
+    public readonly reason?: unknown,
   ) {
     super(message);
     this.name = 'WorkspaceSyncError';
@@ -587,6 +609,7 @@ export async function syncWorkspaceTransactions(
   const snapshots = await getDocs(monthCollection);
 
   const counts = emptyWorkspaceSyncCounts();
+  const skippedClosed: string[] = [];
   const runId = Date.now().toString(36);
   const monthEntries = snapshots.docs
     .map((snapshot) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.id)
@@ -616,8 +639,25 @@ export async function syncWorkspaceTransactions(
         attempts: 0,
       }, targetConfiguration);
     } catch (error) {
+      if (isClosedTargetConflict(error)) {
+        // A frozen period cannot take records, and used to abort the entire
+        // two-way sync at month 0 - "Sync stopped after 0 month(s). Running it
+        // again is safe", for a sync that would stop at the same month forever.
+        // The other periods still go through, and the count is the honest report.
+        skippedClosed.push(monthKey);
+        continue;
+      }
       console.error('Workspace sync stopped:', error);
-      throw new WorkspaceSyncError('incomplete', `Workspace sync stopped at ${monthKey}; re-running it is safe.`, counts, monthKey);
+      // A workspace that refuses the write and a connection that died both stop
+      // "after N months", and only one of them is helped by running it again: keep
+      // the raised error, so the card can name the cause instead of the count.
+      throw new WorkspaceSyncError(
+        'incomplete',
+        `Workspace sync stopped at ${monthKey}; re-running it is safe.`,
+        counts,
+        monthKey,
+        error,
+      );
     }
     counts.months += 1;
     counts.incomes += merged.counts.incomes;
@@ -626,6 +666,7 @@ export async function syncWorkspaceTransactions(
     counts.debts += merged.counts.debts;
   }
 
+  if (skippedClosed.length > 0) counts.skippedClosed = skippedClosed;
   return counts;
 }
 

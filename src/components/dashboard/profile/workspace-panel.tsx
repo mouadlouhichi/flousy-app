@@ -23,7 +23,8 @@ import {
   householdSponsorBindingIsStale,
   householdSponsorId,
 } from '@/lib/household-entitlement';
-import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
+import { classifyWorkspaceSyncStop, planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
+import { FinanceConflictError } from '@/lib/finance-sync';
 
 export function WorkspacePanel() {
   const router = useRouter();
@@ -149,6 +150,31 @@ export function WorkspacePanel() {
     return m.sync.rulesBehind;
   };
 
+  /**
+   * The card's answer to a stopped sync used to be a count: "Sync stopped after
+   * 0 month(s). Running it again is safe." - a number instead of a cause for a
+   * workspace that refused the very first write, and a suggestion to repeat what
+   * just failed. What stopped it is known, so it is said; and where the one thing
+   * left to try is the repair this card offers, the message points at it.
+   */
+  const syncStopMessage = (error: WorkspaceSyncError): string => {
+    const stop = classifyWorkspaceSyncStop(error);
+    const detail = stop.cause === 'refused'
+      ? `${syncPermissionMessage(error.reason)}${canRestoreSharedAccess
+        ? ` ${t(d.syncRestoreOffer, { action: m.sync.restoreAccess })}`
+        : ''}`
+      : stop.cause === 'changed-target'
+        // The target month moved underneath the sync: a review, not a retry.
+        ? m.sync.conflictDetail
+        : (error.reason instanceof Error && error.reason.message.trim()) || d.syncFailed;
+    const where = stop.months > 0
+      ? t(d.syncPartial, { months: stop.months })
+      : stop.failedMonth
+        ? t(d.syncPartialNothingAt, { period: stop.failedMonth })
+        : d.syncPartialNothing;
+    return `${detail} ${where}`;
+  };
+
   const [restoring, setRestoring] = useState(false);
   const restoreSharedAccess = async () => {
     if (!canRestoreSharedAccess || restoring) return;
@@ -210,9 +236,12 @@ export function WorkspacePanel() {
         fixed: toHousehold.fixedExpenses + toPersonal.fixedExpenses,
         debts: toHousehold.debts + toPersonal.debts,
       };
+      // Frozen periods are reported as what they are: the sync is not stuck, it
+      // deliberately left those out, and reopening one is the only way in.
+      const skippedPeriods = [...(toHousehold.skippedClosed ?? []), ...(toPersonal.skippedClosed ?? [])].length;
       const result = months === 0
-        ? d.syncNothingNew
-        : t(d.syncComplete, totals);
+        ? skippedPeriods > 0 ? t(d.syncSkippedClosed, { periods: skippedPeriods }) : d.syncNothingNew
+        : `${t(d.syncComplete, totals)}${skippedPeriods > 0 ? ` ${t(d.syncSkippedSome, { periods: skippedPeriods })}` : ''}`;
       setSyncNotice(prefix + result);
       toast({ title: p.syncTitle, description: prefix + result });
       trackEvent('workspace_sync', { direction: 'both' });
@@ -224,9 +253,9 @@ export function WorkspacePanel() {
         setSyncNotice(d.syncErrorPeriod);
         toast({ variant: 'destructive', title: p.syncTitle, description: d.syncErrorPeriod });
       } else if (error instanceof WorkspaceSyncError) {
-        const partial = t(d.syncPartial, { months: error.counts?.months ?? 0 });
-        setSyncNotice(partial);
-        toast({ variant: 'destructive', title: p.syncTitle, description: partial });
+        const description = syncStopMessage(error);
+        setSyncNotice(description);
+        toast({ variant: 'destructive', title: p.syncTitle, description });
       } else {
         console.error('Workspace sync failed:', error);
         setSyncNotice(d.syncFailed);

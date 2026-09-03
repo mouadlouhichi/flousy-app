@@ -1,3 +1,4 @@
+import { FinanceConflictError } from './finance-sync';
 import {
   calculateTotalIncome,
   type DebtItem,
@@ -27,6 +28,18 @@ export interface WorkspaceSyncCounts {
   variableExpenses: number;
   fixedExpenses: number;
   debts: number;
+  /**
+   * Periods of the target workspace that were frozen, and so could not receive
+   * records. Reported rather than counted as a stop: a closed period is one
+   * period's state, not a reason to abandon the rest of the workspace.
+   */
+  skippedClosed?: string[];
+}
+
+/** A write refused because the target period is closed, as opposed to any other conflict. */
+export function isClosedTargetConflict(error: unknown): boolean {
+  return error instanceof FinanceConflictError
+    && error.conflicts.some((item) => item.reason === 'period-closed');
 }
 
 export interface TransactionMergeCounts {
@@ -34,6 +47,45 @@ export interface TransactionMergeCounts {
   variableExpenses: number;
   fixedExpenses: number;
   debts: number;
+}
+
+/**
+ * What stopped a sync, and how far it got.
+ *
+ * The card used to print one sentence for every stop - "Sync stopped after
+ * 0 month(s). Running it again is safe." - which was wrong twice over for a
+ * workspace that refused the very first write: nothing had been copied, and
+ * running it again reproduces the refusal exactly. The write that failed knows
+ * why it failed, so the decision is made here rather than in the copy: a
+ * refusal this app can act on, a target month that moved underneath the sync
+ * (which needs a review, not a retry), or something this app cannot explain.
+ */
+export type WorkspaceSyncStopCause = 'refused' | 'changed-target' | 'unexplained';
+
+export interface WorkspaceSyncStop {
+  cause: WorkspaceSyncStopCause;
+  /** Periods copied before the stop; 0 means the other workspace is untouched. */
+  months: number;
+  /** The period whose write failed, when the sync got that far. */
+  failedMonth: string;
+}
+
+export function classifyWorkspaceSyncStop(error: {
+  counts?: { months?: number };
+  failedMonth?: string;
+  reason?: unknown;
+}): WorkspaceSyncStop {
+  const code = (error.reason as { code?: string } | undefined)?.code;
+  const cause: WorkspaceSyncStopCause = code === 'permission-denied'
+    ? 'refused'
+    : error.reason instanceof FinanceConflictError
+      ? 'changed-target'
+      : 'unexplained';
+  return {
+    cause,
+    months: Math.max(0, Number(error.counts?.months) || 0),
+    failedMonth: error.failedMonth || '',
+  };
 }
 
 /**

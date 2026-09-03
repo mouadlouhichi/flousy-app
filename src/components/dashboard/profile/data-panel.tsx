@@ -171,7 +171,20 @@ export function DataPanel() {
       trackEvent('restore_json_backup', { workspace });
     } catch (error) {
       console.error('Backup restore failed:', error);
-      const restoreError = error instanceof FinanceRestoreIncompleteError ? p.restorePartial : p.restoreFailed;
+      let restoreError = p.restoreFailed;
+      if (error instanceof FinanceRestoreIncompleteError) {
+        // How far it got and what stopped it, instead of one sentence for every
+        // failure: "select the file again" is the right advice for a connection
+        // that died mid-restore and the wrong one for a workspace that refuses
+        // the write, and only the first is fixed by trying.
+        const progress = error.completed.length > 0
+          ? t(p.restoreStoppedAfter, { months: error.completed.length, period: error.failed })
+          : t(p.restoreStoppedFirst, { period: error.failed });
+        const cause = (error.reason as { code?: string } | undefined)?.code === 'permission-denied'
+          ? p.restoreDenied
+          : (error.reason instanceof Error ? error.reason.message.trim() : '');
+        restoreError = cause ? `${progress} ${cause}` : progress;
+      }
       setBackupNotice(restoreError);
       toast({ variant: 'destructive', title: p.restoreBackup, description: restoreError });
     } finally {
