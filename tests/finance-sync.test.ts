@@ -182,3 +182,66 @@ test('handles a conflict that appears mid-queue', () => {
 test('returns empty for an empty queue', () => {
     assert.deepEqual(planFlushAttempts([]), { attempt: [], reviewMonths: [] });
   });
+
+/* ------------------------------------------------------------------------- *
+ * Deleting a record the user added in this session.
+ *
+ * Firestore hands a document back with its fields in its own order, and the
+ * merge only lets a deletion through when the cloud copy still matches the
+ * base it was taken from. Compared as text, `name` before `amount` and
+ * `amount` before `name` are two different objects with the same content, so
+ * every delete - and every edit - of a freshly added row was reported as a
+ * clash with another device, and the month's queue stuck behind it.
+ * ------------------------------------------------------------------------- */
+test('a deletion is not a conflict because the cloud spelled the record differently', () => {
+  const added = { id: 'e1', name: 'Lunch', amount: 12, type: 'Groceries', date: '2026-09-02', place: 'bank' };
+  const base = month({ bankPart: 88, placeBalances: { bank: 88 }, variableExpenses: [added] });
+  const afterDelete = month({ bankPart: 100, placeBalances: { bank: 100 }, variableExpenses: [] });
+  // What the document actually holds: same fields, Firestore's order, and the
+  // default this app fills in on read.
+  const remote = month({
+    bankPart: 88,
+    placeBalances: { bank: 88 },
+    variableExpenses: [{ place: 'bank', date: '2026-09-02', amount: 12, name: 'Lunch', type: 'Groceries', id: 'e1', tags: [] }],
+  });
+
+  const merged = mergeMonthMutation(base, afterDelete, remote);
+  assert.deepEqual(merged.variableExpenses, [], 'the deleted record stays deleted');
+  assert.equal(merged.bankPart, 100, 'the money it was spent from comes back');
+});
+
+test('an explicit key the cloud dropped still counts as the same record', () => {
+  const base = month({ variableExpenses: [{ id: 'e1', name: 'Lunch', amount: 12, type: 'Groceries', date: '2026-09-02', place: 'bank', note: undefined }] });
+  const local = month({ variableExpenses: [] });
+  const remote = month({ variableExpenses: [{ place: 'bank', date: '2026-09-02', amount: 12, name: 'Lunch', type: 'Groceries', id: 'e1' }] });
+  assert.deepEqual(mergeMonthMutation(base, local, remote).variableExpenses, []);
+});
+
+test('a record the cloud really did change still needs review', () => {
+  const base = month({ variableExpenses: [{ id: 'e1', name: 'Lunch', amount: 12, place: 'bank', type: 'Groceries', date: '2026-09-02' }] });
+  const local = month({ variableExpenses: [] });
+  const remote = month({ variableExpenses: [{ place: 'bank', date: '2026-09-02', name: 'Lunch', id: 'e1', amount: 99, type: 'Groceries' }] });
+  assert.throws(
+    () => mergeMonthMutation(base, local, remote),
+    (error: unknown) => error instanceof FinanceConflictError
+      && error.conflicts.some((item) => item.path === 'variableExpenses.e1'),
+    'a deletion of something somebody else edited is their change to keep',
+  );
+});
+
+test('savings goals are compared the same way as month records', () => {
+  const baseGoal = { id: 'g1', name: 'Emergency', target: 1000, current: 200, source: 'bank' };
+  const remoteGoal = { current: 200, target: 1000, name: 'Emergency', id: 'g1', source: 'bank' };
+  assert.deepEqual(
+    mergeGoalsMutation([baseGoal] as SavingGoal[], [] as SavingGoal[], [remoteGoal] as SavingGoal[]),
+    [],
+  );
+  assert.throws(
+    () => mergeGoalsMutation(
+      [baseGoal] as SavingGoal[],
+      [] as SavingGoal[],
+      [{ ...remoteGoal, current: 300 }] as SavingGoal[],
+    ),
+    FinanceConflictError,
+  );
+});

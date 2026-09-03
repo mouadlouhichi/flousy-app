@@ -301,6 +301,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Firestore round trip, and a queue of refused mutations must not turn it into
   // a write per item.
   const accessRepairAtRef = useRef(0);
+  // Parked conflicts are re-attempted once per change, not once per flush: a
+  // second attempt that clashes again is a real clash and goes back to review.
+  const retriedConflictsRef = useRef<Set<string>>(new Set());
   const conflictToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
@@ -766,8 +769,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     let latestCurrent: MonthBudget | null = null;
     let latestGoals: SavingGoal[] | null = null;
     try {
-      const queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      let queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
       if (isActiveTarget()) setPendingMutations(queued.length);
+      // A parked conflict is re-attempted exactly once per change. The merge used
+      // to compare records as text, and Firestore returns a document's fields in
+      // its own order, so deleting a row this app had just added read as a clash
+      // with another device - a queue parked over a change nothing else touched,
+      // with discard as its only exit. Compared by content now, that item commits;
+      // a genuine clash fails again and is parked for good, where review applies.
+      const parked = queued.filter((mutation) => mutation.lastError === 'conflict'
+        && !retriedConflictsRef.current.has(mutation.id));
+      if (parked.length > 0) {
+        for (const mutation of parked) {
+          retriedConflictsRef.current.add(mutation.id);
+          await putFinanceMutation({ ...mutation, lastError: undefined });
+        }
+        queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      }
       // A conflicted mutation can only be resolved by its author (discard it
       // or keep the cloud copy). It must NOT abort the whole flush: mutations
       // for other months are independent, and used to queue up forever
