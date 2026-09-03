@@ -230,7 +230,7 @@ describe('the model, the rules and the maintenance script agree', () => {
       ['memberCreateAuthorized(hid, memberId)', 1000],
       ['householdUpdateAuthorized(hid)', 1100],
       ['memberUpdateAuthorized(hid, memberId)', 1200],
-      ['monthUpdateAuthorized(hid)', 1550],
+      ['monthUpdateAuthorized(hid)', 1600],
     ];
     for (const [marker, bound] of bounds) {
       const cost = costOf(marker);

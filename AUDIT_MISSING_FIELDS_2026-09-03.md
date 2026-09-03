@@ -247,9 +247,15 @@ bare `permission-denied`, so "make every read total" has to pay for itself. Meas
 | `members` create | 1979 | **989** |
 | `members` update | 2090 | 1152 |
 | `households` update | 1602 | 1061 |
-| `households` months create | 1427 | 1222 |
-| `households` months update | 1708 | 1503 |
 | `users/{uid}` months update | 1041 | under the cap |
+| `households` months update | 1708 | 1569 |
+
+The month validators came back *up* by ~60 because totality was applied there too -
+`isMoney(after.get('totalBudget', null))` instead of `isMoney(after.totalBudget)` - and
+that trade was taken on purpose: the budget number is a worst case that short-circuiting
+usually avoids, while an aborted evaluation denies *every* request that touches the rule.
+A rule that aborts on a month document missing one money field is the bug being fixed; a
+rule that costs 60 more expressions is the cost of not having it.
 
 Four changes, each semantics-preserving: `memberCreateAuthorized` /
 `memberUpdateAuthorized` / `householdUpdateAuthorized` bind the shared facts once

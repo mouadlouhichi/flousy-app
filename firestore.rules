@@ -10,7 +10,11 @@ service cloud.firestore {
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function isMoney(value) { return value is number && value >= 0 && value <= 1000000000; }
     function isPositiveMoney(value) { return isMoney(value) && value > 0; }
-    function isValidMonthId(id) { return id.matches('^[0-9]{4}-[0-9]{2}$'); }
+    // `id is string` first: `matches()` on a field the document never stored aborts the
+    // rule, and an aborted evaluation reaches the client as a bare permission-denied -
+    // indistinguishable from this predicate simply answering no, which is the answer a
+    // malformed month key should get.
+    function isValidMonthId(id) { return id is string && id.matches('^[0-9]{4}-[0-9]{2}$'); }
     // Both are total on purpose. Firestore evaluates the `update` rules for a
     // `set()` on a document that does not exist yet, and `resource` is null in
     // that request: reading `resource.data` there is an evaluation error, which
@@ -205,42 +209,70 @@ service cloud.firestore {
           'schemaVersion', 'updatedAt'
         ]);
     }
+    // The ledger row a write must carry, validated once. Every read is defaulted: an
+    // audit record missing `baseRevision` should be refused as the malformed row it is,
+    // not turned into an evaluation error - and `mutationId` in the path is compared
+    // rather than trusted, because the row is the replay guard for the month document.
+    function ledgerRowAgrees(scopeId, mutationId, workspace) {
+      let row = incoming();
+      return row.get('mutationId', '') == mutationId
+        && row.get('actorId', '') == request.auth.uid
+        && row.get('workspace', '') == workspace
+        && row.get('workspaceId', '') == scopeId
+        && row.get('monthKey', '') is string
+        && row.get('baseRevision', -1) is int
+        && row.get('baseRevision', -1) >= 0
+        && row.get('nextRevision', 0) == row.get('baseRevision', -1) + 1
+        && row.get('createdAt', '') is string
+        && row.get('kind', '') in [
+          'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+          'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+        ];
+    }
+
     function validMonthDocument() {
-      // Bound once: a rules function call is inlined at every use, so forty
-      // `incoming()` reads are forty copies of the same ternary.
+      // Every field is read once and named. A rules function inlines its arguments at
+      // each use, so a validator that asks for `revision` twice pays for the read twice -
+      // and this one runs for every month write, personal and shared, in the same
+      // request as the entitlement chain.
       let after = incoming();
-      return isMoney(after.totalBudget)
-        && isMoney(after.bankPart)
-        && isMoney(after.homePart)
-        && isMoney(after.walletPart)
-        && after.revision is int
-        && after.revision >= 1
-        && after.lastMutationId is string
-        && after.lastMutationId.size() > 0
-        && after.lastMutationId.size() <= 160
-        && (!('periodStatus' in after) || after.periodStatus in ['open', 'closed'])
+      let totalBudget = after.get('totalBudget', null);
+      let bankPart = after.get('bankPart', null);
+      let homePart = after.get('homePart', null);
+      let walletPart = after.get('walletPart', null);
+      let revision = after.get('revision', 0);
+      let lastMutationId = after.get('lastMutationId', '');
+      let periodStatus = after.get('periodStatus', '');
+      let closedByUserId = after.get('closedByUserId', '');
+      let currency = after.get('currency', '');
+      return isMoney(totalBudget)
+        && isMoney(bankPart)
+        && isMoney(homePart)
+        && isMoney(walletPart)
+        && revision is int
+        && revision >= 1
+        && lastMutationId is string
+        && lastMutationId.size() > 0
+        && lastMutationId.size() <= 160
+        && (!('periodStatus' in after) || periodStatus in ['open', 'closed'])
         && (!('periodStatus' in after)
-          || after.periodStatus != 'closed'
-          || (after.closedAt is string
-            && after.closedByUserId is string
-            && after.closedByUserId.size() > 0))
-        && (!('currency' in after)
-          || (after.currency is string && after.currency.size() >= 3 && after.currency.size() <= 8))
+          || periodStatus != 'closed'
+          || (after.get('closedAt', '') is string && closedByUserId is string
+            && closedByUserId.size() > 0))
+        && (!('currency' in after) || (currency is string && currency.size() >= 3 && currency.size() <= 8))
         // Firestore Rules cannot iterate arbitrary list/map values. The client
         // schema validates each entry; rules enforce collection shape and
         // bounded cardinality before accepting the document.
-        && (!('variableExpenses' in after)
-          || (after.variableExpenses is list
-            && after.variableExpenses.size() <= 2000))
-        && (!('fixedExpenses' in after)
-          || (after.fixedExpenses is list
-            && after.fixedExpenses.size() <= 500))
-        && (!('savingsActivity' in after)
-          || (after.savingsActivity is list && after.savingsActivity.size() <= 200))
+        && (!('variableExpenses' in after) || (after.variableExpenses is list
+          && after.variableExpenses.size() <= 2000))
+        && (!('fixedExpenses' in after) || (after.fixedExpenses is list
+          && after.fixedExpenses.size() <= 500))
+        && (!('savingsActivity' in after) || (after.savingsActivity is list
+          && after.savingsActivity.size() <= 200))
         && (!('debts' in after) || (after.debts is list && after.debts.size() <= 500))
         && (!('transfers' in after) || (after.transfers is list && after.transfers.size() <= 500))
-        && (!('balanceAdjustments' in after)
-          || (after.balanceAdjustments is list && after.balanceAdjustments.size() <= 500))
+        && (!('balanceAdjustments' in after) || (after.balanceAdjustments is list
+          && after.balanceAdjustments.size() <= 500))
         && (!('placeBalances' in after) || after.placeBalances is map);
     }
 
@@ -758,25 +790,13 @@ service cloud.firestore {
       match /ledger/{mutationId} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && incoming().mutationId == mutationId
-          && incoming().actorId == request.auth.uid
-          && incoming().workspace == 'personal'
-          && incoming().workspaceId == uid
-          && incoming().monthKey is string
-          && incoming().baseRevision is int
-          && incoming().baseRevision >= 0
-          && incoming().nextRevision == incoming().baseRevision + 1
-          && incoming().createdAt is string
-          && incoming().kind in [
-            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
-            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
-          ]
-          && ((incoming().monthKey == 'savings'
+          && ledgerRowAgrees(uid, mutationId, 'personal')
+          && ((incoming().get('monthKey', '') == 'savings'
               && existsAfter(/databases/$(database)/documents/users/$(uid)/data/savings)
               && getAfter(/databases/$(database)/documents/users/$(uid)/data/savings).data.get('lastMutationId', '') == mutationId)
-            || (isValidMonthId(incoming().monthKey)
-              && existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey))
-              && getAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().monthKey)).data.get('lastMutationId', '') == mutationId));
+            || (isValidMonthId(incoming().get('monthKey', ''))
+              && existsAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().get('monthKey', '')))
+              && getAfter(/databases/$(database)/documents/users/$(uid)/months/$(incoming().get('monthKey', ''))).data.get('lastMutationId', '') == mutationId));
         allow update: if false;
         // Audit records remain immutable while their financial record exists,
         // but can still be erased after an account/budget teardown.
@@ -1033,19 +1053,7 @@ service cloud.firestore {
         // The month/savings documents named by the mutation enforce the
         // per-area grants - the ledger row is bookkeeping for sync.
         allow create: if householdLedgerGate(hid)
-          && incoming().mutationId == mutationId
-          && incoming().actorId == request.auth.uid
-          && incoming().workspace == 'household'
-          && incoming().workspaceId == hid
-          && incoming().monthKey is string
-          && incoming().baseRevision is int
-          && incoming().baseRevision >= 0
-          && incoming().nextRevision == incoming().baseRevision + 1
-          && incoming().createdAt is string
-          && incoming().kind in [
-            'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
-            'month-close', 'month-reopen', 'course-post', 'invoice-approval'
-          ]
+          && ledgerRowAgrees(hid, mutationId, 'household')
           && mutationTargetAgrees(hid, mutationId);
         allow update: if false;
         allow delete: if householdOwner(hid)
