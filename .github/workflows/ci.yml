@@ -94,6 +94,13 @@ jobs:
                 END { print substr(digest, 1, 1600) }' "$log" || true)"
           printf '::error title=Firestore rules raw cause::%s\n' \
             "$(grep -oE 'Null value error[^\"]{0,160}|Property [^ ]+ does not exist[^\"]{0,120}|firestore\.rules:[0-9]+:[0-9]+' "$log" | sort | uniq -c | sort -rn | head -6 | tr -s ' ' | tr '\n' '|')"
+          # The emulator writes the reason a rule aborted - which property, on which
+          # document, at which line - to its own log, and that is the only place the two
+          # kinds of failure are distinguishable: a denial and an aborted evaluation reach
+          # the client identically. Published before the test names, which are guessable.
+          printf '::error title=Firestore emulator rule log::%s\n' \
+            "$( { [ -f firebase-debug.log ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist' firebase-debug.log; } \
+              | sed -E 's/^[[:space:]]+//; s/firestore-emulator[^ ]* //' | tr -d '\r' | tr '\n' '|' | cut -c1-1600 || echo 'no emulator log' )"
           grep -nE "not ok [0-9]+|✖ " "$log" | head -n 5 \
             | while IFS= read -r line; do
                 printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
