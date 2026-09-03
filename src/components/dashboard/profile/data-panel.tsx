@@ -12,12 +12,12 @@ import { AccountDeletionIncompleteError } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
 import { canExportAnything } from '@/lib/household-rbac';
 import { useDashboard } from '../dashboard-provider';
-import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup, syncWorkspaceTransactions, WorkspaceSyncError } from '@/lib/db';
+import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup } from '@/lib/db';
 import { downloadJson, parseFinanceBackup, serializeFinanceBackup, type FinanceBackup } from '@/lib/finance-backup';
 
 export function DataPanel() {
   const { deleteAllData, user, profile } = useAuth();
-  const { workspace, household, isOwner, isContributor, entitlementActive, canEditArea, exportSections } = useHousehold();
+  const { workspace, household, isOwner, canEditArea, exportSections } = useHousehold();
   const { messages: m, isRTL, t } = useLanguage();
   const p = m.profile.data;
   const { currency } = useCurrency();
@@ -32,8 +32,6 @@ export function DataPanel() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupNotice, setBackupNotice] = useState('');
   const [pendingRestore, setPendingRestore] = useState<FinanceBackup | null>(null);
-  const [syncBusy, setSyncBusy] = useState(false);
-  const [syncNotice, setSyncNotice] = useState('');
 
   const handleExportCsv = () => {
     if (!canExport) return;
@@ -112,64 +110,6 @@ export function DataPanel() {
     }
   };
 
-  // ── Workspace sync (personal ⇄ household), transactions only ──
-  // Household → personal needs a member who may read household finances
-  // (owner/editor/viewer — a contributor never sees month documents) and the
-  // household document actually loaded, so currency/period guards compare
-  // real values from both sides. Personal → household is an owner write into
-  // the shared budget, so it also requires an active entitlement, exactly
-  // like every other household write.
-  const syncHouseholdId = household?.id || profile?.activeHouseholdId;
-  const canSyncIntoHousehold = workspace === 'household' && isOwner && entitlementActive;
-  const canSyncIntoPersonal = workspace === 'personal' && Boolean(household?.id) && !isContributor;
-  const canSyncWorkspaces = Boolean(user) && (canSyncIntoHousehold || canSyncIntoPersonal);
-
-  const handleWorkspaceSync = async () => {
-    if (!user || !syncHouseholdId) return;
-    setSyncBusy(true);
-    setSyncNotice('');
-    const householdConfig = household
-      ? {
-          currency: household.currency,
-          monthStartDate: household.monthStartDate,
-          defaultCategoryBudgets: household.defaultCategoryBudgets,
-          enableRollover: household.enableRollover,
-          moneyPlaces: household.moneyPlaces,
-          activeCategories: household.activeCategories,
-          categoryColors: household.categoryColors,
-          categoryIcons: household.categoryIcons,
-        }
-      : profile;
-    const personal = { workspace: 'personal' as const, uid: user.uid };
-    const shared = { workspace: 'household' as const, householdId: syncHouseholdId };
-    try {
-      const result = canSyncIntoHousehold
-        ? await syncWorkspaceTransactions(user.uid, personal, shared, profile, householdConfig)
-        : await syncWorkspaceTransactions(user.uid, shared, personal, householdConfig, profile);
-      setSyncNotice(result.months === 0
-        ? p.syncNothingNew
-        : t(p.syncComplete, {
-            months: result.months,
-            incomes: result.incomes,
-            expenses: result.variableExpenses,
-            fixed: result.fixedExpenses,
-            debts: result.debts,
-          }));
-      trackEvent('workspace_sync', { direction: canSyncIntoHousehold ? 'personal-to-household' : 'household-to-personal' });
-    } catch (error) {
-      if (error instanceof WorkspaceSyncError) {
-        if (error.code === 'currency-mismatch') setSyncNotice(p.syncErrorCurrency);
-        else if (error.code === 'period-mismatch') setSyncNotice(p.syncErrorPeriod);
-        else setSyncNotice(t(p.syncPartial, { months: error.counts?.months ?? 0 }));
-      } else {
-        console.error('Workspace sync failed:', error);
-        setSyncNotice(p.syncFailed);
-      }
-    } finally {
-      setSyncBusy(false);
-    }
-  };
-
   return (
     <section className="flex flex-col gap-3">
       {canExport && <button
@@ -230,24 +170,6 @@ export function DataPanel() {
           <AppIcon name="upload_file" className="text-[20px] text-on-surface-variant" />
         </label>
       )}
-      {canSyncWorkspaces && (
-        <button
-          type="button"
-          disabled={syncBusy || backupBusy || !user}
-          onClick={() => { void handleWorkspaceSync(); }}
-          className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high disabled:opacity-50"
-        >
-          <span className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10"><AppIcon name="sync" className="text-[20px] text-primary" /></span>
-            <span className="text-start">
-              <span className="block text-sm font-medium text-on-surface">{syncBusy ? p.syncRunning : canSyncIntoHousehold ? p.syncFromPersonal : p.syncFromHousehold}</span>
-              <span className="block text-xs text-on-surface-variant">{canSyncIntoHousehold ? p.syncFromPersonalDescription : p.syncFromHouseholdDescription}</span>
-            </span>
-          </span>
-          <AppIcon name="chevron_right" className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
-        </button>
-      )}
-      {syncNotice && <p role="status" className="px-1 text-xs font-bold text-on-surface-variant">{syncNotice}</p>}
       {backupNotice && <p role="status" className="px-1 text-xs font-bold text-on-surface-variant">{backupNotice}</p>}
 
       <button

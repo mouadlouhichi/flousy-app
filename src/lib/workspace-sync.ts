@@ -36,6 +36,38 @@ export interface TransactionMergeCounts {
   debts: number;
 }
 
+/**
+ * Plan for aligning the two workspaces' budget-month start days before a
+ * bidirectional sync. The reference ("source point") workspace keeps its
+ * start day; the other workspace is overridden to match, so both sides map
+ * period keys onto the same date ranges.
+ */
+export interface WorkspaceSyncAlignment {
+  /** True when both workspaces already start the budget month on the same day. */
+  aligned: boolean;
+  /** Start day of the reference workspace — the value to apply. */
+  day: number;
+  /** Workspace whose monthStartDate must change (undefined when aligned). */
+  target?: 'personal' | 'household';
+}
+
+export function planWorkspaceSyncAlignment(
+  personalStartDay: number | undefined,
+  householdStartDay: number | undefined,
+  reference: 'personal' | 'household',
+): WorkspaceSyncAlignment {
+  const normalize = (value: number | undefined) =>
+    Math.min(31, Math.max(1, Math.round(Number(value) || 1)));
+  const personal = normalize(personalStartDay);
+  const household = normalize(householdStartDay);
+  if (personal === household) return { aligned: true, day: personal };
+  return {
+    aligned: false,
+    day: reference === 'personal' ? personal : household,
+    target: reference === 'personal' ? 'household' : 'personal',
+  };
+}
+
 export function emptyWorkspaceSyncCounts(): WorkspaceSyncCounts {
   return { months: 0, incomes: 0, variableExpenses: 0, fixedExpenses: 0, debts: 0 };
 }

@@ -1695,10 +1695,6 @@
       "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
       "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
       "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
-      "syncFromPersonal": "Synchroniser personnel → ménage",
-      "syncFromPersonalDescription": "Ajouter vos dépenses, factures, revenus et dettes personnels au budget du ménage. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
-      "syncFromHousehold": "Synchroniser ménage → personnel",
-      "syncFromHouseholdDescription": "Ajouter les dépenses, factures, revenus et dettes du ménage à votre budget personnel. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
       "syncRunning": "Synchronisation…",
       "syncComplete": "{months} mois synchronisé(s) : {incomes} revenus, {expenses} dépenses, {fixed} factures fixes, {debts} dettes.",
       "syncNothingNew": "Rien de nouveau à synchroniser — tous les enregistrements y sont déjà.",
@@ -1735,7 +1731,13 @@
       "convertToHouseholdHint": "Transformez votre espace privé en foyer partagé. Vous configurerez ensuite le budget du foyer.",
       "removeHousehold": "Supprimer l’espace foyer",
       "leaveHousehold": "Quitter l’espace foyer",
-      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici."
+      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici.",
+      "syncTitle": "Synchroniser les espaces",
+      "syncDescription": "Un appui copie les transactions dans les deux sens entre cet espace et {household} : dépenses, factures fixes, revenus et dettes. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
+      "syncAction": "Synchroniser",
+      "syncStartTitle": "Aligner le début du mois budgétaire",
+      "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
+      "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace."
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",

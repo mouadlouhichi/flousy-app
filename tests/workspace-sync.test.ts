@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeMonth, type MonthBudget } from '../src/lib/store';
-import { mergeSourceTransactionsIntoMonth } from '../src/lib/workspace-sync';
+import { mergeSourceTransactionsIntoMonth, planWorkspaceSyncAlignment } from '../src/lib/workspace-sync';
 
 function sourceMonth(): MonthBudget {
   return normalizeMonth({
@@ -106,5 +106,38 @@ describe('Workspace transaction sync (personal ⇄ household)', () => {
     assert.ok(first);
     // Syncing the same source again (idempotent re-run) is a no-op.
     assert.strictEqual(mergeSourceTransactionsIntoMonth(first.month, sourceMonth()), null);
+  });
+});
+
+describe('Budget-month start alignment (source point wins)', () => {
+  it('reports aligned when both workspaces share a start day', () => {
+    const plan = planWorkspaceSyncAlignment(1, 1, 'personal');
+    assert.equal(plan.aligned, true);
+    assert.equal(plan.day, 1);
+    assert.equal(plan.target, undefined);
+  });
+
+  it('overrides the household from the personal source point', () => {
+    const plan = planWorkspaceSyncAlignment(5, 1, 'personal');
+    assert.equal(plan.aligned, false);
+    assert.equal(plan.day, 5);
+    assert.equal(plan.target, 'household');
+  });
+
+  it('overrides the personal workspace from the household source point', () => {
+    const plan = planWorkspaceSyncAlignment(1, 15, 'household');
+    assert.equal(plan.aligned, false);
+    assert.equal(plan.day, 15);
+    assert.equal(plan.target, 'personal');
+  });
+
+  it('defaults missing or out-of-range values to a valid day', () => {
+    assert.deepEqual(planWorkspaceSyncAlignment(undefined, undefined, 'personal'), { aligned: true, day: 1 });
+    const clamped = planWorkspaceSyncAlignment(40, 1, 'personal');
+    assert.equal(clamped.day, 31);
+    assert.equal(clamped.target, 'household');
+    const zero = planWorkspaceSyncAlignment(0, 1, 'personal');
+    assert.equal(zero.day, 1);
+    assert.equal(zero.aligned, true);
   });
 });

@@ -1695,10 +1695,6 @@
       "restorePartial": "Restore stopped partway through. Select the same file again to resume safely.",
       "restoreFailed": "The backup could not be restored. Check its currency and budget-period settings.",
       "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
-      "syncFromPersonal": "Sync personal → household",
-      "syncFromPersonalDescription": "Add your personal expenses, bills, incomes and debts to the household budget. Existing records are kept; balances are never touched.",
-      "syncFromHousehold": "Sync household → personal",
-      "syncFromHouseholdDescription": "Add household expenses, bills, incomes and debts to your personal budget. Existing records are kept; balances are never touched.",
       "syncRunning": "Syncing…",
       "syncComplete": "Synced {months} month(s): {incomes} incomes, {expenses} expenses, {fixed} fixed bills, {debts} debts.",
       "syncNothingNew": "Nothing new to sync — every record is already there.",
@@ -1735,7 +1731,13 @@
       "convertToHouseholdHint": "Turn your private workspace into a shared household. You'll set up the household budget next.",
       "removeHousehold": "Remove household workspace",
       "leaveHousehold": "Leave household workspace",
-      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here."
+      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here.",
+      "syncTitle": "Sync workspaces",
+      "syncDescription": "One tap copies transactions both ways between this workspace and {household}: expenses, fixed bills, incomes and debts. Existing records are kept; balances are never touched.",
+      "syncAction": "Sync now",
+      "syncStartTitle": "Align budget-month start",
+      "syncStartMessage": "Your personal budget month starts on day {personal}, but the household starts on day {householdDay}. Syncing will apply day {day} (this workspace's start) to the other workspace so periods line up. Future periods follow the new day; existing periods keep their recorded dates.",
+      "syncAlignedNote": "Budget-month start day {day} applied to the other workspace."
     },
     "pro": {
       "yourFeatures": "Your Pro Features",

@@ -13,12 +13,25 @@ import { HouseholdInvoiceReview } from '../household-invoice-review';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
+import { trackEvent } from '@/lib/analytics';
+import { syncWorkspaceTransactions, WorkspaceSyncError } from '@/lib/db';
+import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
 
 export function WorkspacePanel() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, user, updateProfileData } = useAuth();
   const { openProModal } = useDashboard();
-  const { household, workspace, selectWorkspace, memberRole, isOwner, create, removeHouseholdWorkspace } = useHousehold();
+  const {
+    household,
+    workspace,
+    selectWorkspace,
+    memberRole,
+    isOwner,
+    entitlementActive,
+    updateConfiguration,
+    create,
+    removeHouseholdWorkspace,
+  } = useHousehold();
   const { messages: m, t } = useLanguage();
   const p = m.profile.workspace;
   const isPro = isProUser(profile);
@@ -71,6 +84,96 @@ export function WorkspacePanel() {
     }
   };
 
+  // ── Bidirectional workspace sync (transactions only) ──
+  // One tap copies transactions both ways: personal → household, then
+  // household → personal. Each side receives only what the other has and it
+  // is missing (id-based merge), so re-running is always a no-op. Requires
+  // the owner because it writes into the shared budget.
+  const d = m.profile.data;
+  const alignment = planWorkspaceSyncAlignment(
+    profile?.monthStartDate,
+    household?.monthStartDate,
+    workspace,
+  );
+  const canSyncWorkspaces = Boolean(user && household?.id && isOwner && entitlementActive);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncNotice, setSyncNotice] = useState('');
+  const [pendingAlign, setPendingAlign] = useState<WorkspaceSyncAlignment | null>(null);
+
+  const runSyncBothWays = async (alignedDay: number, prefix = '') => {
+    if (!user || !household?.id) return;
+    setSyncBusy(true);
+    setSyncNotice('');
+    const personalConfig = { ...(profile || {}), monthStartDate: alignedDay };
+    const householdConfig = {
+      currency: household.currency,
+      monthStartDate: alignedDay,
+      defaultCategoryBudgets: household.defaultCategoryBudgets,
+      enableRollover: household.enableRollover,
+      moneyPlaces: household.moneyPlaces,
+      activeCategories: household.activeCategories,
+      categoryColors: household.categoryColors,
+      categoryIcons: household.categoryIcons,
+    };
+    const personal = { workspace: 'personal' as const, uid: user.uid };
+    const shared = { workspace: 'household' as const, householdId: household.id };
+    try {
+      const toHousehold = await syncWorkspaceTransactions(user.uid, personal, shared, personalConfig, householdConfig);
+      const toPersonal = await syncWorkspaceTransactions(user.uid, shared, personal, householdConfig, personalConfig);
+      const months = toHousehold.months + toPersonal.months;
+      const totals = {
+        months,
+        incomes: toHousehold.incomes + toPersonal.incomes,
+        expenses: toHousehold.variableExpenses + toPersonal.variableExpenses,
+        fixed: toHousehold.fixedExpenses + toPersonal.fixedExpenses,
+        debts: toHousehold.debts + toPersonal.debts,
+      };
+      const result = months === 0
+        ? d.syncNothingNew
+        : t(d.syncComplete, totals);
+      setSyncNotice(prefix + result);
+      trackEvent('workspace_sync', { direction: 'both' });
+    } catch (error) {
+      if (error instanceof WorkspaceSyncError && error.code === 'currency-mismatch') {
+        setSyncNotice(d.syncErrorCurrency);
+      } else if (error instanceof WorkspaceSyncError && error.code === 'period-mismatch') {
+        setSyncNotice(d.syncErrorPeriod);
+      } else if (error instanceof WorkspaceSyncError) {
+        setSyncNotice(t(d.syncPartial, { months: error.counts?.months ?? 0 }));
+      } else {
+        console.error('Workspace sync failed:', error);
+        setSyncNotice(d.syncFailed);
+      }
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
+  const handleSyncClick = () => {
+    if (alignment.aligned) {
+      void runSyncBothWays(alignment.day);
+    } else {
+      setPendingAlign(alignment);
+    }
+  };
+
+  const confirmAlignAndSync = async () => {
+    const plan = pendingAlign;
+    setPendingAlign(null);
+    if (!plan?.target) return;
+    try {
+      // The reference ("source point") workspace keeps its start day; the
+      // other workspace is overridden so both map period keys identically.
+      if (plan.target === 'household') await updateConfiguration({ monthStartDate: plan.day });
+      else await updateProfileData({ monthStartDate: plan.day });
+    } catch (error) {
+      console.error('Budget-month alignment failed:', error);
+      setSyncNotice(d.syncFailed);
+      return;
+    }
+    await runSyncBothWays(plan.day, `${t(p.syncAlignedNote, { day: plan.day })} `);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
@@ -106,6 +209,25 @@ export function WorkspacePanel() {
           </span>
           <AppIcon name="chevron_right" className="text-[18px] text-on-surface-variant" />
         </Link>
+      )}
+
+      {canSyncWorkspaces && (
+        <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">{p.syncTitle}</p>
+          <p className="text-xs leading-5 text-on-surface-variant">{t(p.syncDescription, { household: household?.name || p.householdDashboard })}</p>
+          <button
+            type="button"
+            disabled={syncBusy || busy}
+            onClick={handleSyncClick}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            <AppIcon name="sync" className="text-[18px]" />
+            {syncBusy ? d.syncRunning : p.syncAction}
+          </button>
+          {syncNotice && (
+            <p role="status" className="mt-2 text-xs font-bold text-on-surface-variant">{syncNotice}</p>
+          )}
+        </section>
       )}
 
       {!hasHousehold && (
@@ -149,6 +271,21 @@ export function WorkspacePanel() {
         message={p.removeHouseholdConfirm}
         confirmLabel={isOwner ? p.removeHousehold : p.leaveHousehold}
         isDestructive
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingAlign)}
+        onClose={() => setPendingAlign(null)}
+        onConfirm={() => { void confirmAlignAndSync(); }}
+        title={p.syncStartTitle}
+        message={pendingAlign && !pendingAlign.aligned
+          ? t(p.syncStartMessage, {
+              personal: profile?.monthStartDate || 1,
+              householdDay: household?.monthStartDate || 1,
+              day: pendingAlign.day,
+            })
+          : ''}
+        confirmLabel={p.syncAction}
       />
     </div>
   );
