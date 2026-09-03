@@ -10,6 +10,7 @@ import {
   removeFinanceMutation,
   resolvePeriodMutation,
   type FinanceMutation,
+  planFlushAttempts,
 } from '../src/lib/finance-sync';
 import { normalizeMonth, type MonthBudget, type SavingGoal } from '../src/lib/store';
 
@@ -146,3 +147,38 @@ test('durable outbox fallback clones, filters, orders, replaces, and removes mut
   assert.deepEqual((await listFinanceMutations()).map((item) => item.id), ['earlier']);
   await clearFinanceOutbox();
 });
+
+const queuedItem = (id: string, monthKey: string, lastError?: string) =>
+    ({ id, monthKey, ...(lastError ? { lastError } : {}) });
+
+test('skips pre-conflicted mutations and their month chain, keeps other months flushable', () => {
+    const plan = planFlushAttempts([
+      queuedItem('m1', '2026-07', 'conflict'),   // stuck head
+      queuedItem('m2', '2026-07'),               // same month: must wait with it
+      queuedItem('m3', '2026-08'),               // independent month: must flush
+      queuedItem('m4', '2026-09'),               // independent month: must flush
+    ]);
+    assert.deepEqual(plan.attempt.map((item) => item.id), ['m3', 'm4']);
+    assert.deepEqual(plan.reviewMonths, ['2026-07']);
+  });
+
+test('attempts everything when no mutation is conflicted', () => {
+    const plan = planFlushAttempts([queuedItem('m1', '2026-07'), queuedItem('m2', '2026-08')]);
+    assert.deepEqual(plan.attempt.map((item) => item.id), ['m1', 'm2']);
+    assert.deepEqual(plan.reviewMonths, []);
+  });
+
+test('handles a conflict that appears mid-queue', () => {
+    const plan = planFlushAttempts([
+      queuedItem('m1', '2026-07'),
+      queuedItem('m2', '2026-07', 'conflict'),
+      queuedItem('m3', '2026-07'),  // follows the conflicted chain
+      queuedItem('m4', '2026-08'),  // independent
+    ]);
+    assert.deepEqual(plan.attempt.map((item) => item.id), ['m1', 'm4']);
+    assert.deepEqual(plan.reviewMonths, ['2026-07']);
+  });
+
+test('returns empty for an empty queue', () => {
+    assert.deepEqual(planFlushAttempts([]), { attempt: [], reviewMonths: [] });
+  });

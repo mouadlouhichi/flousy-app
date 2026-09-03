@@ -71,6 +71,7 @@ import { resolveProEntitlement } from '../../lib/pro-features';
 import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
+  planFlushAttempts,
   listFinanceMutations,
   newFinanceMutationId,
   putFinanceMutation,
@@ -289,6 +290,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [syncState, setSyncState] = useState<FinanceSyncState>('local');
   // permission-denied is deterministic; do not toast it on every retry
   const deniedToastAtRef = useRef(0);
+  const conflictToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
   const [outboxHydrated, setOutboxHydrated] = useState(false);
@@ -755,14 +757,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     try {
       const queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
       if (isActiveTarget()) setPendingMutations(queued.length);
-      for (const mutation of queued) {
-        if (mutation.lastError === 'conflict') {
-          if (isActiveTarget()) {
-            setSyncState('conflict');
-            setSyncError('Your local edit conflicts with a newer change from another device.');
-          }
-          break;
-        }
+      // A conflicted mutation can only be resolved by its author (discard it
+      // or keep the cloud copy). It must NOT abort the whole flush: mutations
+      // for other months are independent, and used to queue up forever
+      // behind a stuck conflict at the head of the queue.
+      const { attempt: flushable, reviewMonths } = planFlushAttempts(queued);
+      const runtimeConflicts = new Set<string>();
+      for (const mutation of flushable) {
+        if (runtimeConflicts.has(mutation.monthKey)) continue;
         try {
           let timeoutId: ReturnType<typeof setTimeout> | undefined;
           const timeout = new Promise<never>((_, reject) => {
@@ -791,26 +793,27 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             attempts: mutation.attempts + 1,
             lastError: conflict ? 'conflict' : (error instanceof Error ? error.message : String(error)),
           });
+          if (conflict) {
+            // Skip this month's chain (later mutations build on its local
+            // state) and keep flushing OTHER months; the review state is
+            // surfaced once after the loop.
+            runtimeConflicts.add(mutation.monthKey);
+            continue;
+          }
           if (isActiveTarget()) {
-            setSyncState(conflict ? 'conflict' : 'failed');
-            // permission-denied means rules rejected the write itself -
-            // for a household that is the Pro entitlement pause. Retrying
-            // cannot help until access returns, so say so instead of the
-            // generic queue message.
+            setSyncState('failed');
+            // permission-denied means rules rejected the write itself.
             // When the profile itself is Pro but the server still denies,
             // the cause is a household sponsored by another account or
             // deployed rules older than this client - not an expired trial.
-            const profileIsPro = resolveProEntitlement(profileRef.current).isPro;
+            // NOTE: entitlement fields live on the AUTH profile; the
+            // workspace budgetProfile (profileRef) deliberately drops them,
+            // so it must never be used for this check.
+            const profileIsPro = resolveProEntitlement(profile).isPro;
             const deniedMessage = profileIsPro
               ? m.sync.entitlementConflict
               : `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`;
-            setSyncError(
-              conflict
-                ? m.sync.conflictDetail
-                : denied
-                  ? deniedMessage
-                  : '',
-            );
+            setSyncError(denied ? deniedMessage : '');
             if (denied && Date.now() - deniedToastAtRef.current > 30000) {
               deniedToastAtRef.current = Date.now();
               toast({
@@ -821,6 +824,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             }
           }
           break;
+        }
+      }
+
+      // Surface review-needed state once, without blocking anything else.
+      if ((reviewMonths.length > 0 || runtimeConflicts.size > 0) && isActiveTarget()) {
+        setSyncState('conflict');
+        setSyncError(m.sync.conflictDetail);
+        if (Date.now() - conflictToastAtRef.current > 30000) {
+          conflictToastAtRef.current = Date.now();
+          toast({
+            variant: 'destructive',
+            title: m.sync.conflict,
+            description: m.sync.conflictDetail,
+          });
         }
       }
 
@@ -845,9 +862,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setSyncError(null);
         } else if (remaining.some((mutation) => mutation.lastError === 'conflict')) {
           setSyncState('conflict');
-          setSyncError('Your local edit conflicts with a newer change from another device.');
+          setSyncError(m.sync.conflictDetail);
         } else {
-          setSyncState((current) => current === 'failed' ? current : 'pending');
+          setSyncState((current) => (current === 'failed' || current === 'conflict') ? current : 'pending');
         }
       }
     } finally {
@@ -860,7 +877,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         queueMicrotask(() => { void flushLatestRef.current(); });
       }
     }
-  }, [user, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId, m, toast]);
+  }, [user, profile, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId, m, toast]);
   flushLatestRef.current = flushOutbox;
 
   useEffect(() => {

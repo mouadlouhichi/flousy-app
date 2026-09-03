@@ -3,6 +3,32 @@ import type { MonthBudget, SavingGoal } from './store';
 export type FinanceSyncState = 'saved' | 'pending' | 'failed' | 'conflict' | 'local';
 export type FinanceWorkspace = 'personal' | 'household';
 
+/**
+ * Plan which queued mutations a flush may attempt.
+ *
+ * A mutation marked 'conflict' cannot commit until the user reviews it, and
+ * later mutations for the SAME month build on its local state, so they must
+ * wait with it. Mutations for OTHER months are independent: one stuck
+ * conflict used to abort the whole flush at the queue head, silently
+ * blocking every new edit in the workspace (queued forever behind an item
+ * that can never commit).
+ */
+export function planFlushAttempts<T extends { monthKey: string; lastError?: string }>(
+  mutations: T[],
+): { attempt: T[]; reviewMonths: string[] } {
+  const conflictedMonths = new Set<string>();
+  const attempt: T[] = [];
+  for (const mutation of mutations) {
+    if (mutation.lastError === 'conflict') {
+      conflictedMonths.add(mutation.monthKey);
+      continue;
+    }
+    if (conflictedMonths.has(mutation.monthKey)) continue;
+    attempt.push(mutation);
+  }
+  return { attempt, reviewMonths: [...conflictedMonths] };
+}
+
 export interface FinanceMutation {
   version: 1;
   id: string;
