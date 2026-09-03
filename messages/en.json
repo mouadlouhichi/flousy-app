@@ -1737,7 +1737,8 @@
       "syncAction": "Sync now",
       "syncStartTitle": "Align budget-month start",
       "syncStartMessage": "Your personal budget month starts on day {personal}, but the household starts on day {householdDay}. Syncing will apply day {day} (this workspace's start) to the other workspace so periods line up. Future periods follow the new day; existing periods keep their recorded dates.",
-      "syncAlignedNote": "Budget-month start day {day} applied to the other workspace."
+      "syncAlignedNote": "Budget-month start day {day} applied to the other workspace.",
+      "syncRequiresPro": "Syncing writes into the shared household budget, which needs an active Pro entitlement."
     },
     "pro": {
       "yourFeatures": "Your Pro Features",

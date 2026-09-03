@@ -245,9 +245,14 @@ export function isHouseholdEntitlementActive(
   nowMs = Date.now(),
 ): boolean {
   if (!household) return false;
-  // Households created before expiry-aware launch trials have no projection.
-  // Preserve their data and access; all new households carry the immutable one.
-  if (!household.entitlementSource && !household.entitlementEndsAtMs) return true;
+  // Rules treat an absent expiry as unbounded: only an explicitly negative
+  // status (projected by the Admin SDK) withdraws access. Households created
+  // before expiry-aware launch trials carry no projection at all and keep
+  // their data and access.
+  if (household.entitlementEndsAtMs == null) {
+    if (!household.entitlementSource) return true;
+    return household.entitlementStatus !== 'past_due' && household.entitlementStatus !== 'expired';
+  }
   return resolveProEntitlement({
     plan: 'pro',
     entitlementSource: household.entitlementSource,

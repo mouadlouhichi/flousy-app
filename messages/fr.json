@@ -1737,7 +1737,8 @@
       "syncAction": "Synchroniser",
       "syncStartTitle": "Aligner le début du mois budgétaire",
       "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
-      "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace."
+      "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace.",
+      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif."
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",

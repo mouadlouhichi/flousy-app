@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { isProUser } from '@/lib/pro-features';
 import { trackEvent } from '@/lib/analytics';
-import { isHouseholdEntitlementActive } from '@/lib/household';
+import { resolveProEntitlement } from '@/lib/pro-features';
 import { useToast } from '@/hooks/use-toast';
 import { syncWorkspaceTransactions, WorkspaceSyncError } from '@/lib/db';
 import { planWorkspaceSyncAlignment, type WorkspaceSyncAlignment } from '@/lib/workspace-sync';
@@ -100,13 +100,16 @@ export function WorkspacePanel() {
     household?.monthStartDate,
     workspace,
   );
-  // Gate on the household's REAL entitlement. The context's
-  // `entitlementActive` is deliberately true across the personal workspace
-  // (personal editing must keep working), but a household write from there
-  // is still rejected by Firestore rules when the owner's Pro entitlement
-  // has lapsed - which used to surface as a raw permission-denied.
-  const householdEntitled = isHouseholdEntitlementActive(household);
-  const canSyncWorkspaces = Boolean(user && household?.id && isOwner && householdEntitled);
+  // Gate on the owner's PROFILE entitlement: Firestore rules decide household
+  // writes by reading users/{ownerId} (activeProEntitlement), not the
+  // household's creation-time projection, so the profile is the only source
+  // that cannot disagree with the server. The context's `entitlementActive`
+  // is deliberately true across the personal workspace and the projection is
+  // an immutable copy from household-creation day - both used to show the
+  // card for lapses the server then rejected.
+  const entitlement = resolveProEntitlement(profile);
+  const isHouseholdOwner = Boolean(user && household?.id && isOwner);
+  const canSyncWorkspaces = isHouseholdOwner && entitlement.isPro;
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncNotice, setSyncNotice] = useState('');
   const [pendingAlign, setPendingAlign] = useState<WorkspaceSyncAlignment | null>(null);
@@ -239,19 +242,24 @@ export function WorkspacePanel() {
         </Link>
       )}
 
-      {canSyncWorkspaces && (
+      {isHouseholdOwner && (
         <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-on-surface-variant">{p.syncTitle}</p>
           <p className="text-xs leading-5 text-on-surface-variant">{t(p.syncDescription, { household: household?.name || p.householdDashboard })}</p>
           <button
             type="button"
-            disabled={syncBusy || busy}
+            disabled={!canSyncWorkspaces || syncBusy || busy}
             onClick={handleSyncClick}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <AppIcon name="sync" className="text-[18px]" />
             {syncBusy ? d.syncRunning : p.syncAction}
           </button>
+          {!canSyncWorkspaces && (
+            <p className="mt-2 text-xs font-bold text-on-surface-variant">
+              {m.pro.trialExpiredTitle} {p.syncRequiresPro}
+            </p>
+          )}
           {syncNotice && (
             <p role="status" className="mt-2 text-xs font-bold text-on-surface-variant">{syncNotice}</p>
           )}

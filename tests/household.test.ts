@@ -290,6 +290,21 @@ describe('Household storage and audit helpers', () => {
     assert.equal(isProFeatureUnlocked(false, 'personal', active, now), false);
     // Legacy households have no projection and retain access/data.
     assert.equal(isHouseholdEntitlementActive({}, now), true);
+    // Rules parity: an absent expiry is unbounded; only an explicitly
+    // negative status withdraws access.
+    assert.equal(isHouseholdEntitlementActive({ entitlementSource: 'launch_trial' }, now), true);
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'launch_trial', entitlementStatus: 'trialing' }, now),
+      true,
+    );
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'stripe', entitlementStatus: 'expired' }, now),
+      false,
+    );
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'stripe', entitlementStatus: 'past_due' }, now),
+      false,
+    );
   });
 });
 
