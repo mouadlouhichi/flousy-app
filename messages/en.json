@@ -1810,6 +1810,8 @@
     "remove": "Remove",
     "monthlyContributions": "This month's contributions",
     "contributionGuide": "Balance compares each active collaborator’s paid expenses with an equal share. Use it as a settle-up guide; no money is moved by SmartJib.",
+    "contributionsUnattributed": "Unattributed payments",
+    "contributionsExcluded": "Household-funds and unattributed payments are shown for completeness but stay out of the equal-share split.",
     "inviteMember": "Invite a household member",
     "inviteDescription": "Choose their access instead of assigning a fixed family role.",
     "fullName": "Full name",
