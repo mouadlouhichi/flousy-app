@@ -130,10 +130,25 @@ export function HouseholdPanel({
     { value: 'viewer', label: h.viewOnly },
     { value: 'custom', label: m.householdRoles.custom },
   ];
+  // One person, one row: an invited member's retired placeholder (email-keyed,
+  // status 'inactive') must not double the active membership claimed from the
+  // invitation. Hide a retired row only when an ACTIVE member already carries
+  // the same email — a genuinely retired member with a unique email stays
+  // listed so the owner can restore them.
+  const activeEmails = new Set(
+    members
+      .filter((member) => member.status === 'active' && member.email)
+      .map((member) => (member.email || '').trim().toLowerCase()),
+  );
+  const visibleMembers = members.filter((member) => {
+    if (member.status === 'active') return true;
+    const email = (member.email || '').trim().toLowerCase();
+    return !email || !activeEmails.has(email);
+  });
+
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
-    if (status === 'inactive') return m.common.inactive;
-    if (status === 'invited') return h.invited;
+    if (status === 'inactive') return m.common.inactive;    if (status === 'invited') return h.invited;
     return status;
   };
 
@@ -292,7 +307,7 @@ export function HouseholdPanel({
             </div>
 
             <div className="space-y-2">
-              {members.map((member) =>
+              {visibleMembers.map((member) =>
                 editingMember?.id === member.id ? (
                   <MemberEditor
                     key={member.id}

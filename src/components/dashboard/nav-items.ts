@@ -148,6 +148,18 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
 }
 
 /**
+ * Desktop sidebar list. The sidebar has room for the screens the five-slot
+ * mobile bar omits — courses and analytics are first-class destinations here
+ * (trends still respects `proOnly`). Profile stays out: the sidebar footer
+ * owns that entry.
+ */
+export function getSidebarNavItems(isPro: boolean): DashboardNavItem[] {
+  return DASHBOARD_NAV_ITEMS.filter(
+    (item) => item.id !== 'profile' && (!item.proOnly || isPro),
+  );
+}
+
+/**
  * Profile subpages promoted into the desktop sidebar.
  *
  * The mobile bottom nav keeps its five destinations; the desktop sidebar has
@@ -161,13 +173,18 @@ export interface ProfileSubpageNavItem {
   labelKey: keyof Messages['profile']['links'];
   /** Only shown to Pro users, or to anyone already inside a household. */
   proOrHouseholdOnly?: boolean;
+  /**
+   * Kept on the Profile page but not promoted into the desktop sidebar —
+   * the sidebar account group stays short; these remain one tap away.
+   */
+  sidebarHidden?: boolean;
 }
 
 export const PROFILE_SUBPAGE_NAV_ITEMS: ProfileSubpageNavItem[] = [
   { id: 'preferences', href: '/dashboard/profile/preferences', icon: 'tune', labelKey: 'preferences' },
-  { id: 'money-sources', href: '/dashboard/profile/money-sources', icon: 'account_balance_wallet', labelKey: 'moneySources' },
+  { id: 'money-sources', href: '/dashboard/profile/money-sources', icon: 'account_balance_wallet', labelKey: 'moneySources', sidebarHidden: true },
   { id: 'household', href: '/dashboard/profile/household', icon: 'family_restroom', labelKey: 'household', proOrHouseholdOnly: true },
-  { id: 'data', href: '/dashboard/profile/data', icon: 'database', labelKey: 'data' },
+  { id: 'data', href: '/dashboard/profile/data', icon: 'database', labelKey: 'data', sidebarHidden: true },
   { id: 'account', href: '/dashboard/profile/account', icon: 'manage_accounts', labelKey: 'account' },
 ];
 
@@ -177,9 +194,14 @@ export const PROFILE_SUBPAGE_NAV_ITEMS: ProfileSubpageNavItem[] = [
  * a household member who is not Pro themselves still gets it, because their
  * access comes from the household rather than a subscription.
  */
-export function getProfileSubpageNavItems(canManageHousehold: boolean): ProfileSubpageNavItem[] {
+export function getProfileSubpageNavItems(
+  canManageHousehold: boolean,
+  options: { forSidebar?: boolean } = {},
+): ProfileSubpageNavItem[] {
   return PROFILE_SUBPAGE_NAV_ITEMS.filter(
-    (item) => !item.proOrHouseholdOnly || canManageHousehold,
+    (item) =>
+      (!item.proOrHouseholdOnly || canManageHousehold) &&
+      (!options.forSidebar || !item.sidebarHidden),
   );
 }
 

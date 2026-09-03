@@ -322,8 +322,11 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
-                >{m.auth.signOut}</button>
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/50 bg-surface-container px-4 py-3 font-label-lg text-label-lg font-bold text-on-surface transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary cursor-pointer"
+                >
+                  <AppIcon name="logout" className="text-[18px]" />
+                  {m.auth.signOut}
+                </button>
                 {user && (
                   <button
                     type="button"

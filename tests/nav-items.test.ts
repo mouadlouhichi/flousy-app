@@ -6,6 +6,7 @@ import {
   getProfilePageTitle,
   getProfileSubpageNavItems,
   getScreenIdFromPath,
+  getSidebarNavItems,
   getVisibleNavItems,
 } from '../src/components/dashboard/nav-items';
 
@@ -15,6 +16,24 @@ describe('Profile subpage nav items', () => {
       getProfileSubpageNavItems(false).map((item) => item.id),
       ['preferences', 'money-sources', 'data', 'account'],
     );
+  });
+
+  it('keeps the desktop sidebar account group short without orphaning pages', () => {
+    // money-sources and data stay on the Profile page; the sidebar keeps
+    // preferences (+ household when entitled) and account.
+    assert.deepEqual(
+      getProfileSubpageNavItems(false, { forSidebar: true }).map((item) => item.id),
+      ['preferences', 'account'],
+    );
+    assert.deepEqual(
+      getProfileSubpageNavItems(true, { forSidebar: true }).map((item) => item.id),
+      ['preferences', 'household', 'account'],
+    );
+    // Every sidebarHidden page still exists in the full list, so the Profile
+    // page continues to link it.
+    for (const id of ['money-sources', 'data']) {
+      assert.ok(PROFILE_SUBPAGE_NAV_ITEMS.some((item) => item.id === id));
+    }
   });
 
   it('adds the household page only where household management is allowed', () => {
@@ -41,6 +60,18 @@ describe('Dashboard navigation items', () => {
   it('keeps the bottom nav focused at 5 destinations for free and PRO users', () => {
     assert.strictEqual(getVisibleNavItems(false).length, 5);
     assert.strictEqual(getVisibleNavItems(true).length, 5);
+  });
+
+  it('gives the desktop sidebar courses and analytics, never profile', () => {
+    const freeSidebar = getSidebarNavItems(false).map((item) => item.id);
+    assert.ok(freeSidebar.includes('courses'), 'courses is a sidebar destination');
+    assert.ok(!freeSidebar.includes('trends'), 'analytics stays Pro-gated');
+    assert.ok(!freeSidebar.includes('profile'), 'profile belongs to the footer');
+
+    const proSidebar = getSidebarNavItems(true).map((item) => item.id);
+    assert.deepEqual(proSidebar, [
+      'overview', 'fixed', 'variable', 'courses', 'savings', 'trends', 'debts',
+    ]);
   });
 
   it('never surfaces the profile page in the nav bars', () => {

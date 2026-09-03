@@ -11,7 +11,7 @@ import {
   getLocalizedNavLabel,
   getProfileSubpageNavItems,
   getScreenIdFromPath,
-  getVisibleNavItems,
+  getSidebarNavItems,
 } from './nav-items';
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
@@ -75,12 +75,14 @@ export function Sidebar() {
   const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
   const canUseCsv = workspace === 'personal' || canExportAnything(exportSections);
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(proUnlocked);
+  // Desktop shows the full set (courses + analytics included); the mobile
+  // bottom bar keeps its five destinations.
+  const items = getSidebarNavItems(proUnlocked);
   // Household management is a Pro feature: a free user in their personal
   // workspace gets no household entry at all. A member of someone else's
   // household keeps it, since their access comes from the household.
   const canManageHousehold = isPro || workspace === 'household';
-  const accountItems = getProfileSubpageNavItems(canManageHousehold);
+  const accountItems = getProfileSubpageNavItems(canManageHousehold, { forSidebar: true });
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
@@ -183,13 +185,19 @@ export function Sidebar() {
               key={item.id}
               href={item.href}
               prefetch={true}
+              aria-current={pathname === item.href ? 'page' : undefined}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 font-label-sm transition-colors ${
                 pathname === item.href
                   ? 'bg-surface-variant/60 font-bold text-on-surface'
                   : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
               }`}
             >
-              <AppIcon name={item.icon} className="shrink-0 text-[17px]" />
+              {/* Same icon language as the Tools group: rounded square,
+                  primary-coloured glyph — one consistent icon colour across
+                  every secondary row in the sidebar. */}
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-variant/70">
+                <AppIcon name={item.icon} className="text-[15px] text-primary" />
+              </span>
               <span className="truncate">{m.profile.links[item.labelKey]}</span>
             </Link>
           ))}
