@@ -87,11 +87,24 @@ jobs:
             | while IFS= read -r path; do
                 printf '::error title=Firestore rules aborted on::%s\n' "$path"
               done || true
-          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 7 \
+          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 5 \
             | while IFS= read -r line; do
                 printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
               done || true
           exit 1
+
+      - name: Upload the rules test log
+        # Annotations are capped at ten per check run and the log blob is not always
+        # reachable, so the full emulator transcript ships as an artifact: the failing
+        # assertion's own text - which rule, which document - is the only thing that
+        # distinguishes an aborted evaluation from a correct denial.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-rules-log
+          path: ${{ runner.temp }}/rules-test.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Production build
         env:
