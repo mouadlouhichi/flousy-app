@@ -12,6 +12,7 @@
 |---|---------|--------|-------|
 | 1 | Four budgeting strategies (50/30/20, Zero-Based, Envelope, Pay-Yourself-First) | ✅ | Fully implemented in `store.ts` |
 | 2 | Strategy ratios sum to exactly 100% | ✅ | Enforced in `calculateEnvelopeAmounts()` |
+| 2b | Strategy list is honest (no duplicate presets) | ✅ | The legacy 80/20 preset (identical ratios to 50/30/20) was removed; old months migrate to 50/30/20 on read (2026-09-03) |
 | 3 | Auto-scaled category budgets fill envelope to the last unit | ✅ | `calculateCategoryBudgets()` with remainder distribution |
 | 4 | Category bucket resolution per kind (variable vs fixed) | ✅ | `bucketOf()` in `store.ts` |
 | 5 | Editable per-category caps | ✅ | Via `ManageCategoriesModal` |
@@ -52,6 +53,7 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | 27 | Add debt/credit entry | ✅ | `DebtModal` + `DebtsTab` |
+| 27b | Open debts carry across period rollover with payment history | ✅ | `carryOverDebts()` — deterministic `debt-carry-*` ids, idempotent retries, settled debts stay behind; payments post in the period they are made (2026-09-03) |
 | 28 | Edit debt/credit | ✅ | `editDebt()` |
 | 29 | Delete debt/credit | ✅ | `deleteDebt()` |
 | 30 | Toggle debt status (open/settled) | ✅ | `toggleDebtStatus()` |
@@ -87,6 +89,7 @@
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | 47 | Default categories with colors and icons | ✅ | 9 defaults in `normalizeMonth()` |
+| 47b | Explicit needs/wants envelope per category | ✅ | `categoryEnvelopes` on the month + profile defaults; `envelopeFor()` uses the explicit override and falls back to the localized keyword seed; Needs/Wants control in the budgets panel and add-category form (2026-09-03) |
 | 48 | Custom categories with color + icon picker | ✅ | `ManageCategoriesModal` |
 | 49 | Category chips/indicators in UI | ✅ | Color dots, icon badges throughout |
 | 50 | Category icons from Material Symbols | ✅ | Preset icon grid |
@@ -183,16 +186,18 @@
 |---|---------|--------|-------|
 | P1 | **Launch Pro access / future billing seam** | ✅ | No card collection or simulation. One exact 90-day trial is Rules-enforced; later CMI/Stripe uses provider-hosted checkout, verified webhooks and Admin SDK entitlement projection |
 | P2 | **Recurring income and fixed charges** | ✅ | Deterministic planned occurrences carry into fresh personal and household periods without debiting cash or duplicating concurrent retries |
-| P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts` |
-| P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. |
+| P3 | **Multi-month trends / analytics view** | ✅ | `TrendsTab` fully rewritten with month-over-month bar chart, trend summary table, income source breakdown, category breakdown, household spending, and budget health — all driven by `fetchMonthsForTrends()` from `db.ts`; 6/12-month range toggle and a net-savings-rate column added 2026-09-03 |
+| P4 | **Budget alerts ("80% of groceries used")** | ✅ | Category-level alerts added to `BudgetAlerts`: flags any category representing >60% of variable spending (warning at 60%, error at 80%). Envelope-level 80%/100% thresholds unchanged. The bell is a full notification centre since 2026-09-03: bills due in 7 days, goals ≥80% funded, Pro-trial countdown. |
 | P5 | **Full i18n UI translation (FR, AR)** | ✅ | Added all missing keys for trends, alerts, recurring bills, income source analytics, and debts/credits. All three locale files (en, fr, ar) fully populated with localized translations. |
 | P6 | **Shared / household budgets** | ✅ | Rules-enforceable owner/editor/viewer/contributor access **plus a custom role with a per-area permission matrix enforced in `firestore.rules` via `diff().affectedKeys()`**, entitlement-gated writes, contributor invoice workflow, Resend invitations, exports and workspace switching |
 | P7 | **Bank sync (Plaid / Tink)** | ⏭️ | Deliberately post-launch: requires provider/compliance selection and is not needed for safe manual budgeting |
 | P8 | **Receipt OCR / smart scanning** | ⏭️ | Deliberately post-launch; compressed/bounded receipt attachment works without claiming OCR |
-| P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab` |
+| P9 | **Income sources — analytics per source** | ✅ | Per-source income breakdown with percentage bars, total combined income display, and source-level contribution percentages in `TrendsTab`. Gated as advertised since 2026-09-03: the first source is free, additional sources need an active Pro entitlement (household inheritance honoured). |
 | P10 | **Push notifications** | ⏭️ | Deliberately post-launch; requires a separate consent and delivery design |
 | P11 | **Data export — JSON backup** | ✅ | Full-workspace JSON export plus schema-validated, confirmation-gated restore with partial-failure reporting |
 | P12 | **Month locking / archiving** | ✅ | Owner close/reopen, read-only UI, offline conflict protection, ledger audit, and Rules enforcement across edits, invoices and course posting |
+| P13 | **Budget rollover preference + honest gating** | ✅ | 2026-09-03: Pro-gated toggle in Preferences (personal profile / household owner config via `updateConfiguration`); bank-remainder carry honours household entitlement expiry through `isProFeatureUnlocked` |
+| P14 | **Upcoming-bills card (Overview)** | ✅ | 2026-09-03: planned/partial fixed charges due within 7 days, due days resolved against the period window (custom month-start days included), `fixedBills` RBAC-gated |
 
 ## 🐞 Known Issues / Tech Debt
 

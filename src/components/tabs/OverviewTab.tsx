@@ -9,6 +9,7 @@ import {
   calculateEnvelopeSpent,
   calculateMonthlyDepositedSavings,
   getPlaceBalance,
+  getUpcomingBills,
   resolveMonthStrategy,
   totalCashOnHand,
   StrategyId,
@@ -109,6 +110,9 @@ export function OverviewTab({
   // outlive the budget period, so their lifetime balance (including "already
   // saved" bookkeeping) must not leak into the current month's progress.
   const depositedSavings = calculateMonthlyDepositedSavings(month);
+
+  // Fixed charges due within the next 7 days of this period (planned/partial).
+  const upcomingBills = getUpcomingBills(month, 7);
 
   // Recent Activity merges logged expenses with savings deposits/withdrawals,
   // newest first.
@@ -445,6 +449,54 @@ export function OverviewTab({
 
         {/* Right Column (Recent Activity) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* Upcoming bills — fixed charges coming due in the next 7 days of
+              this period. fixedBills is its own RBAC area, so members without
+              that grant never see what is about to be paid. */}
+          {canViewArea('fixedBills') && upcomingBills.length > 0 && (
+            <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-2xs p-4 sm:p-5 flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-base text-on-surface">
+                  {m.dashboard.upcomingBills}
+                </h3>
+                <button
+                  onClick={() => onSelectTab('fixed')}
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  {m.common.viewAll}
+                </button>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {upcomingBills.map((bill) => (
+                  <li
+                    key={bill.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-3 py-2.5 border border-outline-variant"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          bill.daysUntil === 0 ? 'bg-error/10 text-error' : 'bg-tertiary/10 text-tertiary'
+                        }`}
+                      >
+                        <AppIcon name="event_upcoming" className="text-[18px]" />
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-bold text-on-surface truncate">{bill.name}</span>
+                        <span className={`text-[11px] font-semibold ${bill.daysUntil === 0 ? 'text-error' : 'text-on-surface-variant'}`}>
+                          {bill.daysUntil === 0
+                            ? m.dashboard.dueToday
+                            : t(m.dashboard.dueInDays, { days: bill.daysUntil })}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="font-mono font-bold text-sm text-on-surface shrink-0">
+                      {format(bill.remaining)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 h-full">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-base text-on-surface">

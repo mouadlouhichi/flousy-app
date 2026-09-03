@@ -35,15 +35,27 @@ import {
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
-  const strategies: StrategyId[] = ['50-30-20', '70-20-10', '80-20', 'zero-based', 'envelope', 'pay-first', 'custom'];
+  // '80-20' was removed 2026-09-03 (its ratios were identical to 50/30/20);
+  // legacy months migrate on read — covered in the normalization suite below.
+  const strategies: StrategyId[] = ['50-30-20', '70-20-10', 'zero-based', 'envelope', 'pay-first', 'custom'];
   const testIncomes = [1, 7, 12345, 1000001, 4500];
 
   it('strategy ratios sum to exactly 1.0 (100%)', () => {
     strategies.forEach((stratId) => {
       const s = STRATEGIES[stratId];
+      assert.ok(s, `strategy ${stratId} should exist`);
       const sum = s.needsRatio + s.wantsRatio + s.savingsRatio;
       assert.ok(Math.abs(sum - 1.0) < 1e-5);
     });
+  });
+
+  it("legacy '80-20' months migrate to 50/30/20 without changing the numbers", () => {
+    const legacy = normalizeMonth({ strategyId: '80-20', totalBudget: 10000 }, '2026-09');
+    assert.equal(legacy.strategyId, '50-30-20');
+    // Same envelopes the removed preset produced.
+    const { needs, wants, savings } = calculateEnvelopeAmounts(10000, '50-30-20');
+    assert.equal(legacy.monthlySavingsTarget, savings);
+    assert.equal(needs + wants + savings, 10000);
   });
 
   it('envelope amounts sum to exactly the income with no rounding leak across all 4 strategies × 5 test incomes', () => {

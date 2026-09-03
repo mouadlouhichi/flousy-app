@@ -264,7 +264,10 @@
     "adjustCashBalances": "Ajuster les soldes de trésorerie",
     "deposit": "Dépôt",
     "withdrawal": "Retrait",
-    "savingsActivity": "Épargne"
+    "savingsActivity": "Épargne",
+    "upcomingBills": "Factures à venir",
+    "dueToday": "Dû aujourd’hui",
+    "dueInDays": "Dû dans {days} jours"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -431,7 +434,10 @@
       "addCategory": "Ajouter Catégorie",
       "chooseIcon": "Choisir une Icône",
       "errorDuplicate": "La catégorie \"{name}\" existe déjà",
-      "errorEmpty": "Veuillez saisir un nom de catégorie valide"
+      "errorEmpty": "Veuillez saisir un nom de catégorie valide",
+      "envelopeLabel": "Enveloppe",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "importCsv": {
       "title": "Importer Transactions CSV",
@@ -501,7 +507,9 @@
       "receivedAmount": "Montant reçu",
       "receivedShort": "Reçu",
       "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
-      "carriedOver": "Solde reporté"
+      "carriedOver": "Solde reporté",
+      "multiSourceProTitle": "Plusieurs sources de revenus est une fonction Pro",
+      "multiSourceProBody": "Démarrez votre essai gratuit de 90 jours pour suivre plusieurs revenus."
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -564,7 +572,10 @@
       "sortAmountLow": "Montant : croissant",
       "sortName": "Nom A–Z",
       "clearDates": "Effacer les dates",
-      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie."
+      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie.",
+      "envelopeLabel": "Classer {category} en besoins ou envies",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",
@@ -677,7 +688,11 @@
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
       "fixedAmount": "Fixe : {amount}",
-      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres."
+      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres.",
+      "rangeLabel": "Période affichée",
+      "last6Months": "6 mois",
+      "last12Months": "12 mois",
+      "netSaved": "Épargne nette"
     }
   },
   "courses": {
@@ -777,7 +792,13 @@
     "householdInvitation": "Invitation du foyer",
     "openToJoinAs": "Vous pouvez rejoindre en tant que {role}.",
     "budgetHealth": "État du budget",
-    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté."
+    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté.",
+    "reminders": "Rappels",
+    "billDueToday": "Dû aujourd’hui",
+    "billDueInDays": "Dû dans {days} jours",
+    "goalNear": "Financé à {percent} — presque terminé",
+    "trialEndingTitle": "Essai Pro bientôt terminé",
+    "trialEndingDays": "Il reste {days} jours à votre essai Pro"
   },
   "legal": {
     "eyebrow": "Juridique",
@@ -1750,7 +1771,10 @@
     "avatarSaveError": "Impossible d’enregistrer cette photo de profil.",
     "upgradeToPro": "Voir SmartJib Pro",
     "monthStartDatePersonalScope": "Personnel",
-    "monthStartDateHouseholdScope": "Foyer"
+    "monthStartDateHouseholdScope": "Foyer",
+    "rolloverTitle": "Report du budget",
+    "rolloverDesc": "Reportez les budgets de catégories non utilisés vers le mois suivant.",
+    "rolloverProHint": "Le Pro permet de reporter les budgets non utilisés vers le mois suivant."
   },
   "household": {
     "title": "Collaboration du foyer",

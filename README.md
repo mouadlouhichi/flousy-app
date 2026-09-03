@@ -70,8 +70,8 @@ An eligible account can start **one 90-day Pro trial**:
 Pro currently unlocks:
 
 - barcode-assisted shopping-course entry;
-- six-month trends and analytics views;
-- multiple income-source management;
+- six- and twelve-month trends and analytics views with a net-savings rate;
+- multiple income-source management (the first source is free);
 - bulk CSV import;
 - category caps and budget rollover;
 - shared Household workspaces.
@@ -97,7 +97,12 @@ code must never grant a paid entitlement.
 
 ### Budgeting and accounting
 
-- Four strategies: 50/30/20, zero-based, envelope and pay-yourself-first.
+- Six strategies: 50/30/20, 70/20/10, zero-based, envelope, pay-yourself-first
+  and a custom split (the legacy 80/20 preset — numerically identical to
+  50/30/20 — was removed; existing months migrate automatically).
+- Explicit needs/wants envelope per category: the keyword-based guess only
+  seeds new categories, and every classification is stable across renames
+  and locales.
 - Needs, wants and savings envelopes with exact remainder handling.
 - Configurable variable and fixed categories, icons and colours.
 - Bank, home, wallet and custom money places.
@@ -109,6 +114,8 @@ code must never grant a paid entitlement.
 - Configurable budget-month start day and historical currency snapshots.
 - Personal and owner-controlled Household month close/reopen; closed periods are
   read-only across ordinary edits, course posting and invoice approval.
+- Open debts and credits carry across period rollover with their payment
+  history, so multi-month repayment happens in the period the payment is made.
 
 ### Household collaboration
 

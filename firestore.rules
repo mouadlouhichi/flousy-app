@@ -244,7 +244,7 @@ service cloud.firestore {
           'incomeSources',
           'variableExpenses', 'variableCategoryBases', 'categoryBudgets', 'rolloverFromPrevious',
           'fixedExpenses', 'fixedCategoryBases',
-          'activeCategories', 'categoryColors', 'categoryIcons',
+          'activeCategories', 'categoryColors', 'categoryIcons', 'categoryEnvelopes',
           'savingsActivity', 'monthlySavingsTarget',
           'debts'
         ])
@@ -258,7 +258,7 @@ service cloud.firestore {
         && (p.get('fixedBills', 'none') == 'editAll'
           || !changed.hasAny(['fixedExpenses', 'fixedCategoryBases']))
         && (p.get('expenses', 'none') == 'editAll' || p.get('fixedBills', 'none') == 'editAll'
-          || !changed.hasAny(['activeCategories', 'categoryColors', 'categoryIcons']))
+          || !changed.hasAny(['activeCategories', 'categoryColors', 'categoryIcons', 'categoryEnvelopes']))
         && (p.get('savings', 'none') == 'editAll'
           || !changed.hasAny(['savingsActivity', 'monthlySavingsTarget']))
         && (p.get('debts', 'none') == 'editAll' || !changed.hasAny(['debts']));

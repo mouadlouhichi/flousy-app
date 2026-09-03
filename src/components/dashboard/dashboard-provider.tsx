@@ -24,6 +24,7 @@ import {
   UserProfile,
   type MonthConfiguration,
   normalizeMonth,
+  setCategoryEnvelope,
   calculateEnvelopeAmounts,
   updateSavingsActivityEntry,
   deleteSavingsActivityEntry,
@@ -32,6 +33,7 @@ import {
   updateMoneyPlaces,
   updateBudgetStrategy,
   carryOverFixedExpenses,
+  carryOverDebts,
   buildRolloverSeed,
   calculateReceivedIncome,
   adjustPlaceBalance,
@@ -60,7 +62,7 @@ import {
 } from '../../lib/month-cache';
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
-import { householdStorageKey } from '../../lib/household';
+import { householdStorageKey, isProFeatureUnlocked } from '../../lib/household';
 import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-access';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
@@ -108,6 +110,8 @@ interface DashboardContextType {
   // Multi-month trends
   trendsMonths: { monthKey: string; month: MonthBudget }[];
   trendsLoading: boolean;
+  trendsMonthCount: 6 | 12;
+  setTrendsMonthCount: (count: 6 | 12) => void;
 
   // Persistence helpers
   updateAndSaveMonth: (month: MonthBudget, area?: HouseholdArea) => void;
@@ -129,7 +133,9 @@ interface DashboardContextType {
   handleSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
 
   // Category handlers
-  handleAddCategory: (name: string, color: string, icon: string) => void;
+  handleAddCategory: (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => void;
+  /** Explicit needs/wants override for one category (envelope classification). */
+  handleSetCategoryEnvelope: (category: string, envelope: 'needs' | 'wants') => void;
 
   // CSV import handlers
   handleBatchImportVariable: (newExpenses: VariableExpense[]) => void;
@@ -578,7 +584,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Pro (and household, itself a Pro feature) opens a new period with the
     // previous period's remaining bank balance carried over as an explicit
     // "Carried over" income line; Free starts fresh at the full salary.
-    const carryRemaining = workspace === 'household' || isPro;
+    // Entitlement-aware on both axes: an expired household entitlement must
+    // fall back to free-tier behaviour, exactly like every other Pro feature.
+    const carryRemaining = isProFeatureUnlocked(isPro, workspace, household);
     const storageKey = householdStorageKey(householdId, currentMonthKey);
     const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
     if (cached) {
@@ -611,14 +619,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             if (loadStillActive()) setLoading(false);
             return;
           }
-          const fresh = normalizeMonth(
+          const fresh = carryOverDebts(normalizeMonth(
             previousMonth
               ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
               : { totalBudget: 0 },
             currentMonthKey,
             activeProfile,
             previousMonth,
-          );
+          ), previousMonth);
           setMonth(fresh);
           persist(fresh);
         }
@@ -653,14 +661,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setMonth(local);
             persist(local);
           } else {
-            const clean = normalizeMonth(
+            const clean = carryOverDebts(normalizeMonth(
               previousMonth
                 ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
                 : { totalBudget: 0 },
               currentMonthKey,
               activeProfile,
               previousMonth,
-            );
+            ), previousMonth);
             setMonth(clean);
             persist(clean);
           }
@@ -672,14 +680,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         if (!loadStillActive()) return;
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
-        const next = local ?? normalizeMonth(
+        const next = local ?? carryOverDebts(normalizeMonth(
           previousMonth
             ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
             : { totalBudget: 0 },
           currentMonthKey,
           activeProfile,
           previousMonth,
-        );
+        ), previousMonth);
         setMonth(next);
         persist(next);
         setLoading(false);
@@ -1008,6 +1016,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
             updateAndSaveMonth(withCarry, 'fixedBills');
           }
+          // Open debts ride along the same fresh-month path (deterministic
+          // carry ids make this idempotent for concurrent retries).
+          const base = withCarry.fixedExpenses.length > month.fixedExpenses.length ? withCarry : month;
+          const withDebts = carryOverDebts(base, prev);
+          if ((withDebts.debts || []).length > (base.debts || []).length) {
+            updateAndSaveMonth(withDebts, 'debts');
+          }
         }
       } else {
         try {
@@ -1017,6 +1032,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             const withCarry = carryOverFixedExpenses(month, prev);
             if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
               updateAndSaveMonth(withCarry, 'fixedBills');
+            }
+            const base = withCarry.fixedExpenses.length > month.fixedExpenses.length ? withCarry : month;
+            const withDebts = carryOverDebts(base, prev);
+            if ((withDebts.debts || []).length > (base.debts || []).length) {
+              updateAndSaveMonth(withDebts, 'debts');
             }
           }
         } catch {
@@ -1049,19 +1069,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonthKey, loading, month?.totalBudget, month?.fixedExpenses?.length, month?.variableExpenses?.length]);
 
-  // Load multi-month data when the Trends screen is active
+  // Load multi-month data when the Trends screen is active. The range is
+  // user-selectable (6 or 12 months); it lives in state so switching refetches.
   const onTrendsScreen = getScreenIdFromPath(pathname) === 'trends';
+  const [trendsMonthCount, setTrendsMonthCount] = useState<6 | 12>(6);
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
       (householdId
-        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6, profileRef.current)
-        : fetchMonthsForTrends(user?.uid, currentMonthKey, 6, profileRef.current))
+        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, trendsMonthCount, profileRef.current)
+        : fetchMonthsForTrends(user?.uid, currentMonthKey, trendsMonthCount, profileRef.current))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
-  }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
+  }, [onTrendsScreen, currentMonthKey, trendsMonthCount, user?.uid, householdId, month.totalBudget]);
 
   // Apply a month key immediately: persist it, paint any cached document so
   // the skeleton never flashes on a month the user has already opened, then
@@ -1191,7 +1213,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Categories Handlers
   const handleAddCategory = useCallback(
-    (name: string, color: string, icon: string) => {
+    (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => {
       const nextCats = Array.from(new Set([...(month.activeCategories || []), name]));
       const nextColors = { ...(month.categoryColors || {}), [name]: color };
       const nextIcons = { ...(month.categoryIcons || {}), [name]: icon };
@@ -1201,10 +1223,43 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         activeCategories: nextCats,
         categoryColors: nextColors,
         categoryIcons: nextIcons,
+        // Explicit classification wins from the moment the category exists.
+        ...(envelope ? { categoryEnvelopes: { ...(month.categoryEnvelopes || {}), [name]: envelope } } : {}),
       };
       updateAndSaveMonth(updated, 'settings');
+      // Remember the classification for future periods (personal workspace).
+      if (envelope && profile && workspace === 'personal') {
+        updateProfileData({
+          ...profile,
+          defaultCategoryEnvelopes: { ...(profile.defaultCategoryEnvelopes || {}), [name]: envelope },
+        }).catch(() => { /* month-level override already applies */ });
+      }
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, profile, workspace, updateProfileData],
+  );
+
+  // Explicit envelope override for a category. Persisted on the month document
+  // (and as a profile default for future months) so classification is stable
+  // across renames and locales instead of being re-derived from the name.
+  const handleSetCategoryEnvelope = useCallback(
+    (category: string, envelope: 'needs' | 'wants') => {
+      const next = setCategoryEnvelope(month, category, envelope);
+      if (next !== month) {
+        updateAndSaveMonth(next, 'settings');
+        // Remember the choice for future periods (personal workspace only:
+        // household configuration is owner-authored on the household doc).
+        if (profile && workspace === 'personal') {
+          const nextDefaults = {
+            ...(profile.defaultCategoryEnvelopes || {}),
+            [category]: envelope,
+          };
+          updateProfileData({ ...profile, defaultCategoryEnvelopes: nextDefaults }).catch(() => {
+            /* the month-level override still applies; profile default is a bonus */
+          });
+        }
+      }
+    },
+    [month, updateAndSaveMonth, profile, workspace, updateProfileData],
   );
 
   // CSV Import Handlers
@@ -1390,6 +1445,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isMounted,
       trendsMonths,
       trendsLoading,
+      trendsMonthCount,
+      setTrendsMonthCount,
       updateAndSaveMonth,
       updateAndSaveGoals,
       updateAndSaveFinance,
@@ -1406,6 +1463,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
+      handleSetCategoryEnvelope,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -1470,6 +1528,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isMounted,
       trendsMonths,
       trendsLoading,
+      trendsMonthCount,
+      setTrendsMonthCount,
       updateAndSaveMonth,
       updateAndSaveGoals,
       updateAndSaveFinance,
@@ -1486,6 +1546,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
+      handleSetCategoryEnvelope,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,

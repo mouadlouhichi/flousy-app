@@ -12,6 +12,11 @@ import { getSourcePeriod } from '../../lib/utils';
 import { useLanguage } from '../../lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { formatLocalizedDayOfMonth, localizeIncomeSourceName } from '../../lib/localized-labels';
+import { useAuth } from '../../lib/auth-context';
+import { useHousehold } from '../../lib/household-context';
+import { isProFeatureUnlocked } from '../../lib/household';
+import { isProUser } from '../../lib/pro-features';
+import { useDashboard } from '../dashboard/dashboard-provider';
 
 interface IncomeSourcesModalProps {
   isOpen: boolean;
@@ -54,6 +59,14 @@ export function IncomeSourcesModal({
   const { format, symbol } = useCurrency();
   const { messages: m, t, language, intlLocale } = useLanguage();
   const copy = m.modals.incomeSources;
+  const { profile } = useAuth();
+  const { workspace, household } = useHousehold();
+  const { openProModal } = useDashboard();
+  // Multiple income sources are a Pro capability (household members inherit
+  // the owner's entitlement). Re-resolved per render so a trial that expires
+  // while the modal is open cannot be outrun by a stale boolean.
+  const multiSourceUnlocked = isProFeatureUnlocked(isProUser(profile), workspace, household);
+  const canAddSources = multiSourceUnlocked;
   const statusOptions = [
     { value: 'planned', label: copy.statusPlanned },
     { value: 'partial', label: copy.statusPartial },
@@ -177,6 +190,8 @@ export function IncomeSourcesModal({
 
   // ── Add new source ──
   const handleAddSource = () => {
+    // The first source is free; each additional one needs an active entitlement.
+    if (sources.length >= 1 && !canAddSources) return;
     const trimmedName = newName.trim();
     const parsedAmount = parseFloat(newAmount);
 
@@ -521,7 +536,26 @@ export function IncomeSourcesModal({
         )}
 
         {/* ── Add New Source ── */}
-        {!readOnly && (
+        {!readOnly && sources.length >= 1 && !canAddSources ? (
+          <div className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <AppIcon name="workspace_premium" className="text-[20px]" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-on-surface">{copy.multiSourceProTitle}</p>
+                <p className="text-xs text-on-surface-variant">{copy.multiSourceProBody}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={openProModal}
+              className="shrink-0 px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-full hover:bg-primary/90 transition-all"
+            >
+              {m.profile.links.pro}
+            </button>
+          </div>
+        ) : !readOnly && (
         <div className="p-4 bg-surface-container rounded-2xl border border-dashed border-outline-variant">
           <div className="flex flex-col gap-3">
             <span className="text-[11px] font-extrabold tracking-wider text-primary uppercase">

@@ -4,7 +4,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
 import Link from 'next/link';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateSavingsRate, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
@@ -20,6 +20,9 @@ interface TrendsTabProps {
   trendsLoading: boolean;
   profile: UserProfile | null;
   onOpenProModal: () => void;
+  /** Selected history window; switching triggers a provider refetch. */
+  trendsMonthCount?: 6 | 12;
+  onSetTrendsMonthCount?: (count: 6 | 12) => void;
 }
 
 const CHART_COLORS = [
@@ -29,7 +32,7 @@ const CHART_COLORS = [
   '#d946ef', '#a855f7', '#14b8a6', '#f43f5e',
 ];
 
-export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
+export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal, trendsMonthCount = 6, onSetTrendsMonthCount }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
   const { workspace, household, canViewArea } = useHousehold();
@@ -87,7 +90,12 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   const monthOverMonth = trendsMonths.map(({ monthKey, month: m }) => {
     const s = calculateEnvelopeSpent(m);
     const env = calculateEnvelopeAmounts(m.totalBudget, m.strategyId, m.customRatios);
+    // Achieved net savings: received income minus needs/wants spending. Null
+    // when nothing was received (the rate would be meaningless).
+    const achieved = calculateSavingsRate(m);
     return {
+      netSaved: achieved?.net ?? 0,
+      netSavedRate: achieved?.rate ?? null,
       monthKey,
       label: (() => {
         const [y, num] = monthKey.split('-').map(Number);
@@ -204,19 +212,40 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           Budget / spent / remaining per month are `expenses` figures. */}
       {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
             <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.monthOverMonth}</h3>
           </div>
-          {showUpgrade && (
-            <button
-              onClick={onOpenProModal}
-              className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
-            >
-              {m.tabs.trends.proLabel}
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {onSetTrendsMonthCount && (
+              <div className="flex rounded-full border border-outline-variant overflow-hidden" role="group" aria-label={m.tabs.trends.rangeLabel}>
+                {([6, 12] as const).map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => onSetTrendsMonthCount(count)}
+                    aria-pressed={trendsMonthCount === count}
+                    className={`px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
+                      trendsMonthCount === count
+                        ? 'bg-primary text-on-primary'
+                        : 'bg-surface text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    {count === 6 ? m.tabs.trends.last6Months : m.tabs.trends.last12Months}
+                  </button>
+                ))}
+              </div>
+            )}
+            {showUpgrade && (
+              <button
+                onClick={onOpenProModal}
+                className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+              >
+                {m.tabs.trends.proLabel}
+              </button>
+            )}
+          </div>
         </div>
 
         {trendsLoading ? (
@@ -260,6 +289,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     <th className="text-end py-2 px-3">{m.tabs.trends.budget}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.spent}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.remaining}</th>
+                    <th className="text-end py-2 px-3">{m.tabs.trends.netSaved}</th>
                     <th className="text-end py-2 ps-3">{m.tabs.trends.savingsPercent}</th>
                   </tr>
                 </thead>
@@ -270,6 +300,11 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalBudget)}</td>
                       <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalSpent)}</td>
                       <td className="py-2 px-3 text-end font-mono text-primary">{format(m.remaining)}</td>
+                      <td className="py-2 px-3 text-end font-mono text-on-surface">
+                        {m.netSavedRate !== null
+                          ? `${format(m.netSaved)} (${new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.netSavedRate)})`
+                          : '—'}
+                      </td>
                       <td className="py-2 ps-3 text-end font-mono text-on-surface">
                         {m.totalBudget > 0
                           ? new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.savings / m.totalBudget)

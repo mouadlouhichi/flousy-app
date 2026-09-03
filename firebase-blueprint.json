@@ -348,6 +348,9 @@
         "note": {
           "type": "string",
           "maxLength": 250
+        },
+        "carriedFromId": {
+          "type": "string"
         }
       },
       "required": [
@@ -710,6 +713,9 @@
           },
           "description": "Pro feature: default per-category budgets applied to new months"
         },
+        "defaultCategoryEnvelopes": {
+          "type": "object"
+        },
         "enableRollover": {
           "type": "boolean",
           "description": "Pro feature: carry unused category budget into the next month"
@@ -833,6 +839,9 @@
         "customRatios": {
           "$ref": "#/definitions/CustomRatios",
           "description": "Definable Needs/Wants/Savings split, applied when strategyId is 'custom'"
+        },
+        "categoryEnvelopes": {
+          "type": "object"
         },
         "monthlySavingsTarget": {
           "type": "number",

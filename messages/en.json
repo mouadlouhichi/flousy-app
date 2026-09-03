@@ -264,7 +264,10 @@
     "adjustCashBalances": "Adjust cash balances",
     "deposit": "Deposit",
     "withdrawal": "Withdrawal",
-    "savingsActivity": "Savings"
+    "savingsActivity": "Savings",
+    "upcomingBills": "Upcoming bills",
+    "dueToday": "Due today",
+    "dueInDays": "Due in {days} days"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",
@@ -431,7 +434,10 @@
       "addCategory": "Add Category",
       "chooseIcon": "Choose Icon",
       "errorDuplicate": "Category \"{name}\" already exists",
-      "errorEmpty": "Enter a valid category name"
+      "errorEmpty": "Enter a valid category name",
+      "envelopeLabel": "Envelope",
+      "envelopeNeeds": "Needs",
+      "envelopeWants": "Wants"
     },
     "importCsv": {
       "title": "Import CSV Transactions",
@@ -501,7 +507,9 @@
       "receivedAmount": "Amount received",
       "receivedShort": "Received",
       "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
-      "carriedOver": "Carried over"
+      "carriedOver": "Carried over",
+      "multiSourceProTitle": "Multiple income sources are a Pro feature",
+      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams."
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -564,7 +572,10 @@
       "sortAmountLow": "Amount: low to high",
       "sortName": "Name A–Z",
       "clearDates": "Clear dates",
-      "categoryBudgetsHint": "Set spending limits for each category."
+      "categoryBudgetsHint": "Set spending limits for each category.",
+      "envelopeLabel": "Classify {category} as needs or wants",
+      "envelopeNeeds": "Needs",
+      "envelopeWants": "Wants"
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
@@ -677,7 +688,11 @@
       "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
       "variableAmount": "Variable: {amount}",
       "fixedAmount": "Fixed: {amount}",
-      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures."
+      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures.",
+      "rangeLabel": "History range",
+      "last6Months": "6 months",
+      "last12Months": "12 months",
+      "netSaved": "Net saved"
     }
   },
   "courses": {
@@ -777,7 +792,13 @@
     "householdInvitation": "Household invitation",
     "openToJoinAs": "Open to join as {role}.",
     "budgetHealth": "Budget health",
-    "allHealthy": "All budget envelopes are healthy! No overspending detected."
+    "allHealthy": "All budget envelopes are healthy! No overspending detected.",
+    "reminders": "Reminders",
+    "billDueToday": "Due today",
+    "billDueInDays": "Due in {days} days",
+    "goalNear": "{percent} funded — almost there",
+    "trialEndingTitle": "Pro trial ending soon",
+    "trialEndingDays": "{days} days left in your Pro trial"
   },
   "legal": {
     "eyebrow": "Legal",
@@ -1750,7 +1771,10 @@
     "avatarSaveError": "Unable to save this profile photo.",
     "upgradeToPro": "View SmartJib Pro",
     "monthStartDatePersonalScope": "Personal",
-    "monthStartDateHouseholdScope": "Household"
+    "monthStartDateHouseholdScope": "Household",
+    "rolloverTitle": "Budget rollover",
+    "rolloverDesc": "Carry unused category budgets into the next month.",
+    "rolloverProHint": "Pro unlocks carrying unused category budgets into the next month."
   },
   "household": {
     "title": "Household collaboration",

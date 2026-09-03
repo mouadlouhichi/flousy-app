@@ -86,7 +86,10 @@ export interface CustomRatios {
 /** Fallback split used when a custom strategy has no (valid) ratios yet. */
 export const DEFAULT_CUSTOM_RATIOS: CustomRatios = { needs: 0.5, wants: 0.3, savings: 0.2 };
 
-export const STRATEGIES: Record<StrategyId, Strategy> = {
+export const STRATEGIES: Record<Exclude<StrategyId, '80-20'>, Strategy> & {
+  /** Removed preset; legacy documents migrate to 50/30/20 on read. */
+  '80-20'?: Strategy;
+} = {
   '50-30-20': {
     id: '50-30-20',
     name: '50/30/20 Rule',
@@ -103,14 +106,10 @@ export const STRATEGIES: Record<StrategyId, Strategy> = {
     wantsRatio: 0.20,
     savingsRatio: 0.10,
   },
-  '80-20': {
-    id: '80-20',
-    name: '80/20 Rule',
-    description: 'Simple approach: Spend 80% on Needs & Wants, save 20%. Flexible and easy.',
-    needsRatio: 0.50,
-    wantsRatio: 0.30,
-    savingsRatio: 0.20,
-  },
+  // '80-20' was removed (2026-09-03): its ratios were identical to 50/30/20,
+  // so the choice silently produced the same numbers. Legacy months are
+  // migrated to '50-30-20' by normalizeMonth(); the StrategyId stays in the
+  // union so old documents remain readable.
   'zero-based': {
     id: 'zero-based',
     name: 'Zero-Based Budgeting',
@@ -392,6 +391,12 @@ export interface DebtItem {
   dueDate?: string;
   payments?: DebtPayment[];
   note?: string;
+  /**
+   * Identity of the debt this copy was carried forward from. Open debts ride
+   * along the period rollover (like recurring bills); the deterministic chain
+   * keeps retries idempotent while payment history accumulates across periods.
+   */
+  carriedFromId?: string;
 }
 
 export interface AccountTransfer {
@@ -438,6 +443,12 @@ export interface MonthBudget {
   strategyId: StrategyId;
   /** Allocation used when `strategyId === 'custom'` (fractions summing to 1). */
   customRatios?: CustomRatios;
+  /**
+   * Explicit needs/wants assignment per category. Absent names fall back to
+   * the localized keyword guess in `bucketOf` — the override exists so custom
+   * and renamed categories classify correctly (and stably) in every locale.
+   */
+  categoryEnvelopes?: Record<string, Envelope>;
   monthlySavingsTarget: number;
   variableExpenses: VariableExpense[];
   fixedExpenses: FixedExpense[];
@@ -483,6 +494,8 @@ export interface UserProfile {
   activeWorkspace?: 'personal' | 'household';
   householdIds?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
+  /** Needs/wants defaults that persist across months (explicit envelope override). */
+  defaultCategoryEnvelopes?: Record<string, Envelope>;
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
   /** Day of the month the PERSONAL budget month starts. Mirrors the
@@ -642,6 +655,169 @@ export function bucketOf(categoryName: string, kind: ExpenseKind): Envelope {
 }
 
 /**
+ * Resolve a category's envelope: an explicit user override wins, the localized
+ * keyword guess only seeds categories the user never classified. This is the
+ * single classification entry point for money maths — never call `bucketOf`
+ * directly when a month (or profile defaults) is available.
+ */
+export function envelopeFor(
+  envelopes: Record<string, Envelope> | null | undefined,
+  categoryName: string,
+  kind: ExpenseKind,
+): Envelope {
+  const explicit = envelopes?.[categoryName];
+  return explicit === 'needs' || explicit === 'wants' || explicit === 'savings'
+    ? explicit
+    : bucketOf(categoryName, kind);
+}
+
+/** Set (or, with null, clear) one category's explicit envelope on a month. */
+export function setCategoryEnvelope(
+  month: MonthBudget,
+  category: string,
+  envelope: Envelope | null,
+): MonthBudget {
+  const current = { ...(month.categoryEnvelopes || {}) };
+  if (envelope === null) delete current[category];
+  else current[category] = envelope;
+  return {
+    ...month,
+    categoryEnvelopes: current,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Parse a stored fixed-charge due day: "1st"/"15th", "15" or YYYY-MM-DD. */
+function dueDayOfMonth(value: string | undefined): number | null {
+  if (!value) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (iso) return Number(iso[3]);
+  const ordinal = /^(\d{1,2})(?:st|nd|rd|th)?\b/i.exec(value.trim());
+  if (!ordinal) return null;
+  const day = Number(ordinal[1]);
+  return day >= 1 && day <= 31 ? day : null;
+}
+
+export interface UpcomingBill {
+  id: string;
+  name: string;
+  /** Resolved calendar date (YYYY-MM-DD) inside the month's period. */
+  date: string;
+  daysUntil: number;
+  /** Amount still to pay (amount − paidAmount). */
+  remaining: number;
+}
+
+/**
+ * Fixed charges that come due within `withinDays` days of `today`.
+ *
+ * Due-day semantics: an ordinal like "15th" (or an explicit ISO date) is
+ * resolved against the month's period window, so a period starting on the
+ * 25th correctly finds the "1st" bill in the following calendar month.
+ * Only `planned`/`partial` charges are upcoming — paid and skipped are not.
+ */
+export function getUpcomingBills(
+  month: MonthBudget,
+  withinDays: number,
+  today: Date = new Date(),
+): UpcomingBill[] {
+  const start = month.periodStartDate
+    ? new Date(`${month.periodStartDate}T00:00:00Z`)
+    : null;
+  const end = month.periodEndDate
+    ? new Date(`${month.periodEndDate}T00:00:00Z`)
+    : null;
+  if (!start || Number.isNaN(start.getTime())) return [];
+
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const bills: UpcomingBill[] = [];
+
+  for (const bill of month.fixedExpenses || []) {
+    if (bill.status !== 'planned' && bill.status !== 'partial') continue;
+    const day = dueDayOfMonth(bill.date);
+    if (!day) continue;
+
+    // Resolve the day-of-month against the period window: try the start
+    // month, then the next month (periods may span a calendar boundary).
+    let due = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), day));
+    if (due < start) {
+      due = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, day));
+    }
+    if (end && due > end) continue;
+
+    const daysUntil = Math.round((due.getTime() - todayUtc) / 86_400_000);
+    if (daysUntil < 0 || daysUntil > withinDays) continue;
+
+    bills.push({
+      id: bill.id,
+      name: bill.name,
+      date: due.toISOString().slice(0, 10),
+      daysUntil,
+      remaining: money(Math.max(0, bill.amount - fixedPaidAmount(bill))),
+    });
+  }
+
+  return bills.sort((a, b) => a.daysUntil - b.daysUntil || a.name.localeCompare(b.name));
+}
+
+/**
+ * Net savings rate of a period: money received minus needs/wants spending,
+ * over money received. Null when no income was received (rate undefined).
+ */
+export function calculateSavingsRate(
+  month: MonthBudget,
+): { net: number; rate: number } | null {
+  const received = calculateReceivedIncome(month);
+  if (received <= 0) return null;
+  const { totalSpent } = calculateEnvelopeSpent(month);
+  const net = money(Math.max(0, received - totalSpent));
+  return { net, rate: net / received };
+}
+
+/**
+ * Carry OPEN debts into a new period so obligations outlive the budget month
+ * (mirroring global savings goals). Settled debts stay behind as history;
+ * payment history travels with the debt so the outstanding balance is
+ * preserved. Deterministic IDs make concurrent retries idempotent.
+ */
+export function carryOverDebts(
+  newMonth: MonthBudget,
+  previousMonth: MonthBudget | null | undefined,
+): MonthBudget {
+  if (!previousMonth) return newMonth;
+  const openDebts = (previousMonth.debts || []).filter((debt) => debt.status !== 'settled');
+  if (openDebts.length === 0) return newMonth;
+
+  const period = newMonth.periodKey || newMonth.periodStartDate?.slice(0, 7) || 'next';
+  // A debt already carried into this period keeps its id; match on the carry
+  // chain (carriedFromId or original id) so re-running never duplicates.
+  const presentBases = new Set(
+    (newMonth.debts || []).map((debt) => debt.carriedFromId || debt.id),
+  );
+  const toCarry = openDebts.filter((debt) => {
+    const base = debt.carriedFromId || debt.id;
+    return !presentBases.has(base);
+  });
+  if (toCarry.length === 0) return newMonth;
+
+  const carried: DebtItem[] = toCarry.map((debt) => {
+    const base = debt.carriedFromId || debt.id;
+    return {
+      ...debt,
+      id: `debt-carry-${base}-${period}`,
+      carriedFromId: base,
+      payments: (debt.payments || []).map((payment) => ({ ...payment })),
+    };
+  });
+
+  return {
+    ...newMonth,
+    debts: [...carried, ...(newMonth.debts || [])],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
  * Calculates total spent by envelope in a given month.
  */
 export function calculateEnvelopeSpent(month: MonthBudget): { needs: number; wants: number; savings: number; totalSpent: number } {
@@ -649,14 +825,14 @@ export function calculateEnvelopeSpent(month: MonthBudget): { needs: number; wan
   let wants = 0;
 
   for (const exp of month.variableExpenses || []) {
-    const bucket = bucketOf(exp.type, 'variable');
+    const bucket = envelopeFor(month.categoryEnvelopes, exp.type, 'variable');
     if (bucket === 'needs') needs += exp.amount;
     else if (bucket === 'wants') wants += exp.amount;
   }
 
   for (const exp of month.fixedExpenses || []) {
     const paid = fixedPaidAmount(exp);
-    const bucket = bucketOf(exp.type, 'fixed');
+    const bucket = envelopeFor(month.categoryEnvelopes, exp.type, 'fixed');
     if (bucket === 'needs') needs += paid;
     else if (bucket === 'wants') wants += paid;
   }
@@ -675,15 +851,16 @@ export function calculateCategoryBudgets(
   strategyId: StrategyId,
   categories: string[],
   kind: ExpenseKind = 'variable',
-  customRatios?: Partial<CustomRatios> | null
+  customRatios?: Partial<CustomRatios> | null,
+  envelopes?: Record<string, Envelope> | null,
 ): Record<string, number> {
   const { needs, wants } = calculateEnvelopeAmounts(income, strategyId, customRatios);
   const result: Record<string, number> = {};
 
   if (!categories || categories.length === 0) return result;
 
-  const needsCats = categories.filter((c) => bucketOf(c, kind) === 'needs');
-  const wantsCats = categories.filter((c) => bucketOf(c, kind) === 'wants');
+  const needsCats = categories.filter((c) => envelopeFor(envelopes, c, kind) === 'needs');
+  const wantsCats = categories.filter((c) => envelopeFor(envelopes, c, kind) === 'wants');
 
   const distribute = (total: number, cats: string[]) => {
     if (cats.length === 0) return;
@@ -1734,7 +1911,10 @@ export function normalizeMonth(
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
-  const strategyId: StrategyId = raw?.strategyId || '50-30-20';
+  // Legacy '80-20' months migrate to 50/30/20: the removed preset stored the
+  // exact same ratios, so this changes the label, never the numbers.
+  const rawStrategyId = raw?.strategyId === '80-20' ? '50-30-20' : raw?.strategyId;
+  const strategyId: StrategyId = rawStrategyId || '50-30-20';
   // Persisted per-month custom split; only meaningful for the custom strategy
   // but kept around so switching back and forth doesn't lose the definition.
   const customRatios =
@@ -1777,6 +1957,36 @@ export function normalizeMonth(
     'Dining Out': 'local_dining',
     Shopping: 'shopping_bag',
     Subscriptions: 'movie',
+  };
+
+  // Explicit envelope defaults for the built-in categories. These match the
+  // historical keyword classification, so existing budgets do not shift; they
+  // simply become stable overrides instead of name-derived guesses.
+  const seedEnvelopes: Record<string, Envelope> = {
+    Groceries: 'needs',
+    Transport: 'needs',
+    Rent: 'needs',
+    Health: 'needs',
+    Utilities: 'needs',
+    Entertainment: 'wants',
+    'Dining Out': 'wants',
+    Shopping: 'wants',
+    Subscriptions: 'wants',
+  };
+  const sanitizeEnvelopes = (input: unknown): Record<string, Envelope> => {
+    if (!input || typeof input !== 'object') return {};
+    const result: Record<string, Envelope> = {};
+    for (const [name, value] of Object.entries(input as Record<string, unknown>)) {
+      if (name && (value === 'needs' || value === 'wants' || value === 'savings')) {
+        result[name] = value;
+      }
+    }
+    return result;
+  };
+  const categoryEnvelopes: Record<string, Envelope> = {
+    ...seedEnvelopes,
+    ...sanitizeEnvelopes(userProfile?.defaultCategoryEnvelopes),
+    ...sanitizeEnvelopes(raw?.categoryEnvelopes),
   };
 
   const totalBudget = safeStoredMoney(raw?.totalBudget);
@@ -1911,6 +2121,7 @@ export function normalizeMonth(
     ...(placeBalances && Object.keys(placeBalances).length > 0 ? { placeBalances } : {}),
     strategyId,
     ...(customRatios ? { customRatios } : {}),
+    categoryEnvelopes,
     monthlySavingsTarget: safeStoredMoney(raw?.monthlySavingsTarget, defaultEnvelopes.savings),
     variableExpenses,
     fixedExpenses,
@@ -2070,6 +2281,7 @@ export function buildRolloverSeed(
     activeCategories: previousMonth.activeCategories,
     categoryIcons: previousMonth.categoryIcons,
     categoryColors: previousMonth.categoryColors,
+    categoryEnvelopes: previousMonth.categoryEnvelopes,
   };
 }
 

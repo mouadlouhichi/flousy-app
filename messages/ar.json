@@ -264,7 +264,10 @@
     "adjustCashBalances": "تعديل أرصدة الأموال",
     "deposit": "إيداع",
     "withdrawal": "سحب",
-    "savingsActivity": "الادخار"
+    "savingsActivity": "الادخار",
+    "upcomingBills": "فواتير قادمة",
+    "dueToday": "يُستحق اليوم",
+    "dueInDays": "يُستحق خلال {days} أيام"
   },
   "budgetPlan": {
     "totalIncome": "إجمالي الدخل",
@@ -431,7 +434,10 @@
       "addCategory": "إضافة فئة",
       "chooseIcon": "اختر رمزاً",
       "errorDuplicate": "الفئة \"{name}\" موجودة بالفعل",
-      "errorEmpty": "أدخل اسم فئة صالح"
+      "errorEmpty": "أدخل اسم فئة صالح",
+      "envelopeLabel": "الظرف",
+      "envelopeNeeds": "احتياجات",
+      "envelopeWants": "رغبات"
     },
     "importCsv": {
       "title": "استيراد معاملات CSV",
@@ -501,7 +507,9 @@
       "receivedAmount": "المبلغ المستلم",
       "receivedShort": "مستلم",
       "cashAdjustmentError": "سيؤدي هذا التغيير إلى خفض الدخل المستلم إلى أقل من الأموال التي تم إنفاقها. أضف أموالًا أو طابق رصيد البنك أولًا.",
-      "carriedOver": "رصيد مرحّل"
+      "carriedOver": "رصيد مرحّل",
+      "multiSourceProTitle": "تعدد مصادر الدخل ميزة Pro",
+      "multiSourceProBody": "ابدأ تجربة Pro المجانية لمدة 90 يومًا لتتبع عدة مصادر دخل."
     },
     "pro": {
       "title": "الترقية إلى سمارت جيب برو",
@@ -564,7 +572,10 @@
       "sortAmountLow": "المبلغ: من الأدنى",
       "sortName": "الاسم أ–ي",
       "clearDates": "مسح التواريخ",
-      "categoryBudgetsHint": "حدّد حدود الإنفاق لكل فئة."
+      "categoryBudgetsHint": "حدّد حدود الإنفاق لكل فئة.",
+      "envelopeLabel": "تصنيف {category} كاحتياجات أو رغبات",
+      "envelopeNeeds": "احتياجات",
+      "envelopeWants": "رغبات"
     },
     "fixed": {
       "totalCommitments": "الالتزامات الثابتة الشهرية",
@@ -677,7 +688,11 @@
       "advancedAnalytics": "التحليلات المتقدمة مثل اتجاهات عدة أشهر، وتوزيع مصادر الدخل، وإنفاق أفراد الأسرة متاحة في برو.",
       "variableAmount": "متغير: {amount}",
       "fixedAmount": "ثابت: {amount}",
-      "chartAltText": "مخطط أعمدة لإجمالي الإنفاق الشهري. يعرض الجدول أدناه الأرقام نفسها."
+      "chartAltText": "مخطط أعمدة لإجمالي الإنفاق الشهري. يعرض الجدول أدناه الأرقام نفسها.",
+      "rangeLabel": "النطاق الزمني",
+      "last6Months": "6 أشهر",
+      "last12Months": "12 شهرًا",
+      "netSaved": "صافي التوفير"
     }
   },
   "courses": {
@@ -777,7 +792,13 @@
     "householdInvitation": "دعوة للانضمام إلى الأسرة",
     "openToJoinAs": "يمكنك الانضمام بصفتك {role}.",
     "budgetHealth": "صحة الميزانية",
-    "allHealthy": "كل مخصصات الميزانية بحالة جيدة! لم يُكتشف أي تجاوز للإنفاق."
+    "allHealthy": "كل مخصصات الميزانية بحالة جيدة! لم يُكتشف أي تجاوز للإنفاق.",
+    "reminders": "تذكيرات",
+    "billDueToday": "يُستحق اليوم",
+    "billDueInDays": "يُستحق خلال {days} أيام",
+    "goalNear": "تم تمويله بنسبة {percent} — أوشك على الاكتمال",
+    "trialEndingTitle": "تجربة Pro تنتهي قريبًا",
+    "trialEndingDays": "تبقى {days} أيام في تجربة Pro"
   },
   "legal": {
     "eyebrow": "قانوني",
@@ -1750,7 +1771,10 @@
     "avatarSaveError": "تعذر حفظ صورة الملف الشخصي هذه.",
     "upgradeToPro": "عرض SmartJib Pro",
     "monthStartDatePersonalScope": "شخصي",
-    "monthStartDateHouseholdScope": "الأسرة"
+    "monthStartDateHouseholdScope": "الأسرة",
+    "rolloverTitle": "ترحيل الميزانية",
+    "rolloverDesc": "رحّل ميزانيات الفئات غير المستخدمة إلى الشهر التالي.",
+    "rolloverProHint": "ميزة Pro تتيح ترحيل الميزانيات غير المستخدمة إلى الشهر التالي."
   },
   "household": {
     "title": "التعاون الأسري",

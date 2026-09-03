@@ -9,7 +9,7 @@ import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
@@ -31,7 +31,7 @@ interface ExpenseModalProps {
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
   /** Adds a variable-expense category to the current month from this form. */
-  onAddCategory?: (name: string, color: string, icon: string) => void;
+  onAddCategory?: (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => void;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
   periodStartDate?: string;
@@ -103,6 +103,8 @@ export function ExpenseModal({
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [customCategoryIcon, setCustomCategoryIcon] = useState('shopping_bag');
+  // null = seed from the localized keyword guess; the user's pick wins.
+  const [customCategoryEnvelope, setCustomCategoryEnvelope] = useState<'needs' | 'wants' | null>(null);
   const [categoryError, setCategoryError] = useState('');
 
   useEffect(() => {
@@ -167,6 +169,7 @@ export function ExpenseModal({
     setShowCategoryForm(false);
     setCustomCategoryName('');
     setCustomCategoryIcon('shopping_bag');
+    setCustomCategoryEnvelope(null);
     setCategoryError('');
   };
 
@@ -200,7 +203,9 @@ export function ExpenseModal({
       return;
     }
 
-    onAddCategory(trimmed, color, customCategoryIcon);
+    const guessed = bucketOf(trimmed, 'variable');
+    const envelope = customCategoryEnvelope ?? (guessed === 'wants' ? 'wants' : 'needs');
+    onAddCategory(trimmed, color, customCategoryIcon, envelope);
     setType(trimmed);
     resetCategoryForm();
   };
@@ -385,41 +390,43 @@ export function ExpenseModal({
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary">
                     {e.newExpenseCategory}
                   </span>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="text"
-                      value={customCategoryName}
-                      onChange={(event) => {
-                        setCustomCategoryName(event.target.value);
-                        if (categoryError) setCategoryError('');
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          handleAddCategory();
-                        }
-                        if (event.key === 'Escape') resetCategoryForm();
-                      }}
-                      placeholder={e.customCategoryPlaceholder}
-                      aria-label={m.modals.categories.categoryName}
-                      autoFocus
-                      className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
-                    />
-                    <div className="flex gap-2 sm:shrink-0">
-                      <button
-                        type="button"
-                        onClick={handleAddCategory}
-                        className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
-                      >
-                        {m.common.add}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resetCategoryForm}
-                        className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
-                      >
-                        {m.common.cancel}
-                      </button>
+                  <div className="flex flex-col gap-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={customCategoryName}
+                        onChange={(event) => {
+                          setCustomCategoryName(event.target.value);
+                          if (categoryError) setCategoryError('');
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleAddCategory();
+                          }
+                          if (event.key === 'Escape') resetCategoryForm();
+                        }}
+                        placeholder={e.customCategoryPlaceholder}
+                        aria-label={m.modals.categories.categoryName}
+                        autoFocus
+                        className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
+                      />
+                      <div className="flex gap-2 sm:shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleAddCategory}
+                          className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                        >
+                          {m.common.add}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetCategoryForm}
+                          className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
+                        >
+                          {m.common.cancel}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -428,6 +435,36 @@ export function ExpenseModal({
                       {categoryError}
                     </p>
                   )}
+
+                  {/* Envelope classification: seeded from the keyword guess,
+                      the explicit choice is persisted with the category. */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-bold text-on-surface-variant">
+                      {m.modals.categories.envelopeLabel}
+                    </span>
+                    <div className="flex items-center gap-1" role="group" aria-label={m.modals.categories.envelopeLabel}>
+                      {(['needs', 'wants'] as const).map((env) => {
+                        const effective = customCategoryEnvelope ?? bucketOf(customCategoryName.trim() || 'x', 'variable');
+                        return (
+                          <button
+                            key={env}
+                            type="button"
+                            onClick={() => setCustomCategoryEnvelope(env)}
+                            aria-pressed={effective === env}
+                            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all ${
+                              effective === env
+                                ? env === 'needs'
+                                  ? 'bg-primary text-on-primary'
+                                  : 'bg-tertiary text-on-tertiary'
+                                : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                            }`}
+                          >
+                            {env === 'needs' ? m.modals.categories.envelopeNeeds : m.modals.categories.envelopeWants}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   <CategoryIconPicker value={customCategoryIcon} onChange={setCustomCategoryIcon} />
                 </div>
