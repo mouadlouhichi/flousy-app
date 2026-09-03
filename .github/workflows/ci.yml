@@ -28,7 +28,19 @@ jobs:
         run: npm ci
 
       - name: Production dependency audit
-        run: npm audit --omit=dev
+        # `npm audit` exits 1 for a real advisory and for an unreachable advisory service.
+        # Those have opposite meanings for a release - one must be fixed, the other must
+        # not be held against the code - so the gate keeps the JSON report and publishes the
+        # one line that distinguishes them, rather than leaving it in a log nobody can open.
+        run: |
+          set -o pipefail
+          report="${RUNNER_TEMP:-/tmp}/audit.json"
+          if npm audit --omit=dev > "$report.raw" 2>&1; then exit 0; fi
+          cat "$report.raw"
+          npm audit --omit=dev --json > "$report" 2>&1 || true
+          summary="$(node scripts/audit-summary.mjs "$report" 2>&1 | head -c 1200 || true)"
+          printf '::error title=Dependency audit verdict::%s\n' "$summary"
+          exit 1
 
       - name: Lint, normal and strict typecheck, and unit tests
         run: npm run check
