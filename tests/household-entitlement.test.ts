@@ -319,33 +319,18 @@ describe('rules and client read the same entitlement', () => {
       'function householdMonthGate(hid, grantsChecked) {',
       'function householdLedgerGate(hid) {',
       'function householdSavingsGate(hid) {',
+      'function monthUpdateAuthorized(hid) {',
     ]) {
       const gate = body(signature);
       assert.equal((gate.match(/householdAccess\(hid\)/g) ?? []).length, 1, signature);
       assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
     }
-    // The two documents a flush advances alongside the ledger row must not ask the
-    // entitlement question again: the row's own create rule is where the household,
-    // the membership row and the payer's profile are read, a row is immutable, and a
-    // batch is atomic - so a document that names a row this caller wrote is already
-    // authorized. Re-deriving it here is what pushed a three-document flush over the
-    // budget, and an over-budget request denies the whole write.
-    for (const signature of [
-      'function monthUpdateAuthorized(hid, key) {',
-      'function savingsMutationAuthorized(hid) {',
-    ]) {
-      const authorized = body(signature);
-      assert.doesNotMatch(authorized, /householdAccess\(|householdEntitled\(|activeProEntitlement\(|profileIsPro\(/, signature);
-      assert.match(authorized, /row\.actorId == request\.auth\.uid/, signature);
-      assert.match(authorized, /row\.workspaceId == hid/, signature);
-    }
-    // The writer test exists once, for the rule that creates a month document; the
-    // documents a flush advances derive from the row instead of the entitlement.
-    assert.equal((rulesSource.match(/monthWriterOk\(/g) ?? []).length, 2);
+    // The writer test itself exists once, and the month rules share it.
+    assert.equal((rulesSource.match(/monthWriterOk\(/g) ?? []).length, 3);
     assert.match(body('function monthWriterOk(access, grantsChecked) {'), /access\.paid && \(access\.owner \|\| access\.editor/);
     assert.match(
       rulesSource,
-      /allow update: if monthUpdateAuthorized\(hid, key\)\n\s*&& isValidMonthId\(key\)/,
+      /allow update: if monthUpdateAuthorized\(hid\)\n\s*&& isValidMonthId\(key\)/,
     );
     // And no rule reads a mutation's ledger row through a hand-built path twice.
     assert.doesNotMatch(

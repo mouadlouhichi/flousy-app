@@ -397,95 +397,45 @@ service cloud.firestore {
       let usable = key is string && key.size() > 0 && key.size() <= 160;
       let path = ledgerPath(hid, usable ? key : 'absent');
       let present = usable && existsAfter(path);
-      // The row is read once and decomposed here so the documents it authorizes can
-      // ask it their questions without each re-reading it: repeated `getAfter`
-      // results for the same path are cached by the engine, but every call site
-      // still pays for the path and the lookup in the request's expression budget.
-      let row = present ? getAfter(path).data : {};
       return {
         present: present,
-        kind: row.get('kind', ''),
-        actorId: row.get('actorId', ''),
-        workspace: row.get('workspace', ''),
-        workspaceId: row.get('workspaceId', ''),
-        monthKey: row.get('monthKey', ''),
-        baseRevision: row.get('baseRevision', -1),
-        nextRevision: row.get('nextRevision', -1)
+        kind: present ? getAfter(path).data.get('kind', '') : ''
       };
     }
     /**
-     * Everything the shared month document's update rule asks, in one pass.
-     *
-     * It is deliberately derived from the ledger row rather than from the
-     * household: the row is immutable (`allow update: if false`, and deletable only
-     * once its target document is gone), it can only have been created by a caller
-     * the ledger rule let write this workspace - which is where the household root,
-     * the membership row and the sponsor's profile are read - and a batch commits
-     * atomically, so a month document that names a row is a month document the row's
-     * own rule has already authorized. Re-deriving the entitlement here would ask
-     * the same three documents again, once per document in the flush: rules inline
-     * every call into one per-request budget of 1000 expressions and 20 document
-     * reads shared by the whole write, and an over-budget request is reported to the
-     * client as a plain denial. That is what made an outbox flush fail.
-     *
-     * What stays enforced here: the row was written by this caller, for this
-     * workspace and this document, it names the revision being left and the one
-     * being written (so a row cannot be consumed twice or for a later state), a
-     * bootstrap row never replays a month, closing and reopening carry their own
-     * kind, and a custom member may only touch the areas they were granted.
+     * Everything the shared month document's update rule asks, in one pass: who
+     * pays for the workspace and who may write it, the ledger row replaying the
+     * mutation, the period's transition and the revision. It is a single function
+     * because rules inline every call into one per-request budget of 1000 evaluated
+     * expressions - a flush then writes the ledger row, the month and the savings
+     * document from the same budget, and asking the household root twice per
+     * document is what made an outbox flush fail. Closing and reopening need their
+     * own ledger kind; only the household's owner may change period state without
+     * it, and a bootstrap row never replays a month.
      */
-    function monthUpdateAuthorized(hid, key) {
+    function monthUpdateAuthorized(hid) {
+      let access = householdAccess(hid);
       let row = mutationLedger(hid);
       let wasClosed = periodClosed(existing());
       let willBeClosed = periodClosed(incoming());
       let revWas = existing().get('revision', -1);
       let revNext = incoming().get('revision', 0);
-      let member = memberDocument(hid);
-      return row.present
-        && row.actorId == request.auth.uid
-        && row.workspace == 'household' && row.workspaceId == hid
-        && row.monthKey == key
-        && row.kind != 'bootstrap'
-        // A document written before `revision` carried a number has nothing for the
-        // row to line up with; every later write has to be the successor of what is
-        // stored, and of what the row says it was replacing.
-        && ((revWas == -1 && revNext == 1)
-          || (revWas is int && revNext == revWas + 1 && row.baseRevision == revWas
-            && row.nextRevision == revNext))
-        // Ordinary finance writes need no period rights; changing the period's state
-        // needs the operation's own ledger kind, and editing a closed period at all
-        // stays with the household's owner.
-        && ((!wasClosed && !willBeClosed) || householdOwner(hid))
+      return monthWriterOk(access, true)
+        && row.present && row.kind != 'bootstrap'
+        && ((!wasClosed && !willBeClosed) || access.owner)
         && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly())
         && ((!wasClosed && !willBeClosed)
           || (!wasClosed && willBeClosed && row.kind == 'month-close')
           || (wasClosed && !willBeClosed && row.kind == 'month-reopen'))
-        && (!isCustomMember(member) || customMonthChangesGranted(member.get('permissions', {})));
+        // `revision` starts at 1 and moves by exactly one, so a document written
+        // before the field carried a number accepts 1 and every later write has to
+        // be the successor of what is stored.
+        && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
     }
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
     function savingsMutationAgrees(hid, bootstrapAllowed) {
       let row = mutationLedger(hid);
       return row.present && (bootstrapAllowed || row.kind != 'savings-bootstrap');
-    }
-    /**
-     * The goals document is advanced by the mutation its ledger row records, on the
-     * same reasoning as the month document's update rule: the row is immutable, it
-     * names this caller and this workspace, and only the ledger rule - which reads
-     * the household, the membership row and the sponsor's profile - can have created
-     * it. What is enforced here is that the row was meant for the goals document,
-     * that it is not a seeding row, and that a custom member holds the savings grant.
-     */
-    function savingsMutationAuthorized(hid) {
-      let row = mutationLedger(hid);
-      let member = memberDocument(hid);
-      return row.present
-        && row.actorId == request.auth.uid
-        && row.workspace == 'household' && row.workspaceId == hid
-        // A row either names the goals document itself or is the combined
-        // month-and-goals mutation the commit writes both documents under.
-        && (row.monthKey == 'savings' || row.kind == 'month-and-savings')
-        && row.kind != 'bootstrap' && row.kind != 'savings-bootstrap'
-        && (!isCustomMember(member) || member.get('permissions', {}).get('savings', 'none') == 'editAll');
     }
     /**
      * A ledger row is accepted once the document it advances has taken the mutation,
@@ -960,7 +910,7 @@ service cloud.firestore {
           && !periodClosed(incoming())
           && incoming().revision == 1
           && mutationLedger(hid).present;
-        allow update: if monthUpdateAuthorized(hid, key)
+        allow update: if monthUpdateAuthorized(hid)
           && isValidMonthId(key)
           && validMonthDocument();
         allow delete: if householdOwner(hid);
@@ -977,8 +927,9 @@ service cloud.firestore {
         // `lastMutationId` is bounded by `mutationLedger()`, which has to read the
         // row anyway; a key too long to have been accepted by the ledger rules can
         // never name a row, so it is refused there rather than here.
-        allow update: if savingsMutationAuthorized(hid)
+        allow update: if householdSavingsGate(hid)
           && validRevisionBump()
+          && savingsMutationAgrees(hid, false)
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if householdOwner(hid);
       }
