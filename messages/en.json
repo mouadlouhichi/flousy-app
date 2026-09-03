@@ -1695,6 +1695,17 @@
       "restorePartial": "Restore stopped partway through. Select the same file again to resume safely.",
       "restoreFailed": "The backup could not be restored. Check its currency and budget-period settings.",
       "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
+      "syncFromPersonal": "Sync personal → household",
+      "syncFromPersonalDescription": "Add your personal expenses, bills, incomes and debts to the household budget. Existing records are kept; balances are never touched.",
+      "syncFromHousehold": "Sync household → personal",
+      "syncFromHouseholdDescription": "Add household expenses, bills, incomes and debts to your personal budget. Existing records are kept; balances are never touched.",
+      "syncRunning": "Syncing…",
+      "syncComplete": "Synced {months} month(s): {incomes} incomes, {expenses} expenses, {fixed} fixed bills, {debts} debts.",
+      "syncNothingNew": "Nothing new to sync — every record is already there.",
+      "syncErrorCurrency": "Both workspaces must use the same currency before syncing.",
+      "syncErrorPeriod": "Both workspaces must start the budget month on the same day before syncing.",
+      "syncPartial": "Sync stopped after {months} month(s). Running it again is safe.",
+      "syncFailed": "The sync could not be completed. Please try again.",
       "personalWorkspace": "Personal workspace"
     },
     "moneySources": {

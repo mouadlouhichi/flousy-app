@@ -34,6 +34,11 @@ import {
   type MonthConfiguration,
 } from './store';
 import { FINANCE_BACKUP_FORMAT, FINANCE_BACKUP_VERSION, type FinanceBackup } from './finance-backup';
+import {
+  emptyWorkspaceSyncCounts,
+  mergeSourceTransactionsIntoMonth,
+  type WorkspaceSyncCounts,
+} from './workspace-sync';
 import { PRO_TRIAL_DURATION_MS, resolveProEntitlement } from './pro-features';
 
 export enum OperationType {
@@ -525,6 +530,102 @@ export async function restoreFinanceBackup(
   }
 
   return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
+}
+
+export type WorkspaceSyncErrorCode = 'currency-mismatch' | 'period-mismatch' | 'incomplete';
+
+export class WorkspaceSyncError extends Error {
+  constructor(
+    public readonly code: WorkspaceSyncErrorCode,
+    message: string,
+    public readonly counts?: WorkspaceSyncCounts,
+    public readonly failedMonth?: string,
+  ) {
+    super(message);
+    this.name = 'WorkspaceSyncError';
+  }
+}
+
+/**
+ * On-demand transaction sync between the two workspaces of one account
+ * (personal → household or household → personal).
+ *
+ * Each source period is merged into the matching target period through the
+ * same revisioned transaction path as interactive edits: records keep their
+ * ids (so re-running the sync never duplicates), records the target already
+ * has are skipped, and balances/transfers/adjustments/goals are never
+ * touched. Currency and budget-period start day must match, exactly like a
+ * backup restore, because a period key covers different date ranges
+ * otherwise.
+ */
+export async function syncWorkspaceTransactions(
+  uid: string,
+  source: FinanceTarget,
+  target: FinanceTarget,
+  sourceConfiguration?: MonthConfiguration | null,
+  targetConfiguration?: MonthConfiguration | null,
+): Promise<WorkspaceSyncCounts> {
+  if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
+  if (source.workspace === target.workspace) {
+    throw new Error('Workspace sync copies between a personal and a household workspace.');
+  }
+  const sourceCurrency = sourceConfiguration?.currency;
+  const targetCurrency = targetConfiguration?.currency;
+  if (sourceCurrency && targetCurrency && sourceCurrency !== targetCurrency) {
+    throw new WorkspaceSyncError('currency-mismatch', 'Both workspaces must use the same currency to sync.');
+  }
+  const sourceStartDay = Number(sourceConfiguration?.monthStartDate || 1);
+  const targetStartDay = Number(targetConfiguration?.monthStartDate || 1);
+  if (sourceStartDay !== targetStartDay) {
+    throw new WorkspaceSyncError('period-mismatch', 'Both workspaces must share the same budget-period start day to sync.');
+  }
+
+  const monthCollection = source.workspace === 'household'
+    ? collection(db, 'households', source.householdId, 'months')
+    : collection(db, 'users', source.uid, 'months');
+  const snapshots = await getDocs(monthCollection);
+
+  const counts = emptyWorkspaceSyncCounts();
+  const runId = Date.now().toString(36);
+  const monthEntries = snapshots.docs
+    .map((snapshot) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.id)
+      ? [snapshot.id, normalizeMonth(snapshot.data() as MonthBudget, snapshot.id, sourceConfiguration)] as const
+      : null))
+    .filter((entry): entry is readonly [string, MonthBudget] => entry !== null)
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  for (const [monthKey, sourceMonth] of monthEntries) {
+    const state = await getFinanceState(target.workspace, target.workspace === 'household' ? target.householdId : target.uid, monthKey, targetConfiguration);
+    const merged = mergeSourceTransactionsIntoMonth(state.month, sourceMonth);
+    if (!merged) continue;
+    const mutationId = `wssync-${source.workspace}-${monthKey}-${runId}`
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 160);
+    try {
+      await commitFinanceMutation({
+        version: 1,
+        id: mutationId,
+        workspace: target.workspace,
+        workspaceId: target.workspace === 'household' ? target.householdId : target.uid,
+        actorId: uid,
+        monthKey,
+        baseMonth: state.month,
+        nextMonth: merged.month,
+        createdAt: new Date().toISOString(),
+        attempts: 0,
+      }, targetConfiguration);
+    } catch (error) {
+      console.error('Workspace sync stopped:', error);
+      throw new WorkspaceSyncError('incomplete', `Workspace sync stopped at ${monthKey}; re-running it is safe.`, counts, monthKey);
+    }
+    counts.months += 1;
+    counts.incomes += merged.counts.incomes;
+    counts.variableExpenses += merged.counts.variableExpenses;
+    counts.fixedExpenses += merged.counts.fixedExpenses;
+    counts.debts += merged.counts.debts;
+  }
+
+  return counts;
 }
 
 // Savings Goals Subscription & Save

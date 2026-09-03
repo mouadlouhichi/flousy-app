@@ -1695,6 +1695,17 @@
       "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
       "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
       "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
+      "syncFromPersonal": "Synchroniser personnel → ménage",
+      "syncFromPersonalDescription": "Ajouter vos dépenses, factures, revenus et dettes personnels au budget du ménage. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
+      "syncFromHousehold": "Synchroniser ménage → personnel",
+      "syncFromHouseholdDescription": "Ajouter les dépenses, factures, revenus et dettes du ménage à votre budget personnel. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
+      "syncRunning": "Synchronisation…",
+      "syncComplete": "{months} mois synchronisé(s) : {incomes} revenus, {expenses} dépenses, {fixed} factures fixes, {debts} dettes.",
+      "syncNothingNew": "Rien de nouveau à synchroniser — tous les enregistrements y sont déjà.",
+      "syncErrorCurrency": "Les deux espaces de travail doivent utiliser la même devise avant la synchronisation.",
+      "syncErrorPeriod": "Les deux espaces de travail doivent commencer le mois budgétaire le même jour avant la synchronisation.",
+      "syncPartial": "La synchronisation s'est arrêtée après {months} mois. La relancer est sans risque.",
+      "syncFailed": "La synchronisation n'a pas pu être terminée. Veuillez réessayer.",
       "personalWorkspace": "Espace personnel"
     },
     "moneySources": {
