@@ -1411,6 +1411,25 @@ service cloud.firestore {
       allow delete: if householdOwner(existing().get('householdId', ''));
     }
 
+    /* DIAG PROBES (temporary, removed before merge). Each path isolates one
+     * helper so the emulator can say whether it evaluates cleanly or aborts. */
+    match /diag/{probeId} {
+      allow read: if signedIn();
+      allow update: if probeId == 'p1' && monthFinanceWriterFacts('home').paid;
+      allow update: if probeId == 'p2' && monthOrdinaryUpdateOk('home');
+      allow update: if probeId == 'p3' && activeProEntitlement('owner');
+      allow update: if probeId == 'p4' && householdAccess('home').paid;
+      allow update: if probeId == 'p5' && monthUpdateByCustomMember('home');
+      allow update: if probeId == 'p6' && monthCloseReopenByOwner('home');
+      allow update: if probeId == 'p7' && mutationLedger('home').present;
+      allow update: if probeId == 'p8' && memberUpdateByOwner('home');
+      allow update: if probeId == 'p9' && invitationJoinOk('home');
+      allow update: if probeId == 'p10' && householdSponsorBindingValid(incoming(), request.auth.uid);
+      allow create: if probeId == 'p11' && monthCreateByFinanceWriter('home');
+      allow create: if probeId == 'p12' && householdLedgerGate('home');
+      allow create: if probeId == 'p13' && memberCreateByInvitee('home', request.auth.uid);
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
