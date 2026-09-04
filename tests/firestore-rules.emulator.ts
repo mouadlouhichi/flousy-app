@@ -8,12 +8,16 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
@@ -947,6 +951,30 @@ describe('household plan-owner authorization and recovery', () => {
     await assertFails(updateDoc(doc(owner, 'households/home'), { currency: 'EUR' }));
     // ...but the workspace's own data never becomes unreadable.
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
+  });
+
+  it('refuses an invitation query filtered by household, and allows the one the teardown uses', async () => {
+    // A query is authorized against `allow list` without reading documents, so
+    // the query's constraints must imply the rule. householdInvites allows
+    // listing by `createdBy == request.auth.uid` only. Filtering by
+    // householdId - which the workspace teardown used to do as its very first
+    // step - is refused outright, taking the whole delete with it.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'householdInvites/invite-1'), {
+        householdId: 'home',
+        createdBy: 'owner',
+        email: 'guest@example.com',
+        role: 'editor',
+        status: 'pending',
+        expiresAtMs: Date.now() + 86_400_000,
+      });
+    });
+    const owner = asUser('owner');
+    const invites = collection(owner, 'householdInvites');
+    await assertFails(getDocs(query(invites, where('householdId', '==', 'home'))));
+    await assertSucceeds(getDocs(query(invites, where('createdBy', '==', 'owner'))));
   });
 
   it('only lets a savings ledger row go once the savings document it describes is gone', async () => {

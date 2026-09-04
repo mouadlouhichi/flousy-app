@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   AREA_LEVEL_OPTIONS,
   HOUSEHOLD_AREAS,
@@ -482,5 +483,45 @@ describe('Editing-gate entitlement truth (owner profile vs projection)', () => {
   it('a non-owner member is judged by the projection (their only local truth)', () => {
     assert.equal(householdEntitlementForEditor(activeProjection, expiredProfile, false, now), true);
     assert.equal(householdEntitlementForEditor(staleProjection, activeProfile, false, now), false);
+  });
+});
+
+describe('tearing down a workspace only issues queries the rules can authorize', () => {
+  // Deleting a household failed with a generic error for a brand-new workspace.
+  // The teardown's FIRST step queried `householdInvites` filtered by
+  // `householdId`, but a Firestore query is authorized against `allow list`
+  // WITHOUT reading any document: the query's own constraints have to imply the
+  // rule. `allow list` on householdInvites permits only
+  // `createdBy == request.auth.uid`, or a match on the caller's own email -
+  // there is no `householdId` branch. So the query was refused outright and the
+  // delete died before touching a single document, regardless of the order of
+  // everything after it.
+  const source = readFileSync(new URL('../src/lib/db.ts', import.meta.url), 'utf8');
+  const teardown = source.slice(
+    source.indexOf('export async function deleteHouseholdWorkspace'),
+    source.indexOf('export async function saveHouseholdMember'),
+  );
+
+  it('lists invitations by a field the list rule actually allows', () => {
+    assert.ok(teardown.includes("where('createdBy', '==', actorUid)"),
+      'invites must be listed by createdBy, the only constraint allow list accepts');
+    assert.doesNotMatch(teardown, /where\('householdId'/,
+      'listing invites by householdId is unauthorizable and refuses the whole teardown');
+  });
+
+  it('still only deletes invitations belonging to this household', () => {
+    // Narrowing the query widened what comes back, so the household filter has
+    // to be reapplied client-side or a teardown would delete another
+    // workspace's pending invitations.
+    assert.match(teardown, /invite\.data\(\)\?\.householdId === householdId/);
+  });
+
+  it('keeps the savings document ahead of the ledger sweep', () => {
+    // The other half of the ordering contract: a savings-kind ledger row is
+    // only deletable once data/savings is gone.
+    const savings = teardown.indexOf("'data', 'savings'");
+    const ledger = teardown.indexOf("wipe('ledger')");
+    assert.ok(savings > 0 && ledger > 0 && savings < ledger,
+      'data/savings must be deleted before the ledger rows that describe it');
   });
 });
