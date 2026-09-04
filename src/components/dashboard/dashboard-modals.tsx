@@ -278,9 +278,6 @@ export function DashboardModals() {
         <SettingsModal
           isOpen={dashboard.isSettingsModalOpen}
           onClose={dashboard.closeSettingsModal}
-          month={month}
-          goals={goals}
-          monthKey={currentMonthKey}
           onOpenProModal={() => {
             dashboard.closeSettingsModal();
             dashboard.openProModal();

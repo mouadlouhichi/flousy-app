@@ -5,6 +5,7 @@ import { SegmentedControl } from '../ui/segmented-control';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { CustomInput } from '../ui/CustomInput';
+import { DatePicker } from '../ui/date-picker';
 import { CustomSelect } from '../ui/CustomSelect';
 import { MoneyPlace, SavingGoal, SavingsActivityEntry } from '../../lib/store';
 import { AmountSymbol } from '../ui/amount-symbol';
@@ -53,7 +54,7 @@ export function SavingsDepositModal({
   onDelete,
 }: SavingsDepositModalProps) {
   const { symbol, format } = useCurrency();
-  const { messages: m, t } = useLanguage();
+  const { messages: m, t, intlLocale } = useLanguage();
   const s = m.modals.savings;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -220,12 +221,13 @@ export function SavingsDepositModal({
           options={moneyPlaceOptions}
         />
 
-        {/* Date */}
-        <CustomInput
+        {/* Date — same popover calendar the expense form uses, so the
+            edit flow matches the system design instead of a native input. */}
+        <DatePicker
           label={m.common.date}
-          type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={setDate}
+          locale={intlLocale}
         />
 
         {selectedGoal && (

@@ -13,6 +13,9 @@ import { trackEvent } from '@/lib/analytics';
 import { MonthlyStartDateControl } from '../monthly-start-date-control';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useHousehold } from '@/lib/household-context';
+import { isProFeatureUnlocked } from '@/lib/household';
+import { isProUser } from '@/lib/pro-features';
+import { Switch } from '@/components/ui/switch';
 
 type Theme = 'light' | 'dark' | 'system';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -47,6 +50,10 @@ export function PreferencesPanel() {
   const savedTheme = profile?.theme || 'system';
   const savedMonthStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
   const canConfigureBudget = workspace === 'personal' || isOwner;
+  const savedRollover = workspace === 'household' ? household?.enableRollover || false : profile?.enableRollover || false;
+  // Budget rollover is a Pro capability; household members inherit the owner's
+  // active entitlement, and an expired entitlement disables the toggle again.
+  const rolloverUnlocked = isProFeatureUnlocked(isProUser(profile), workspace, household);
 
   // Preference changes remain local until the user explicitly saves them.
   // This makes the button meaningful and avoids a partial preference update.
@@ -54,6 +61,7 @@ export function PreferencesPanel() {
   const [draftLanguage, setDraftLanguage] = useState(language);
   const [draftTheme, setDraftTheme] = useState<Theme>(savedTheme);
   const [draftMonthStartDate, setDraftMonthStartDate] = useState<number | undefined>(savedMonthStartDate);
+  const [draftRollover, setDraftRollover] = useState<boolean>(savedRollover);
   const [hasStartedEditing, setHasStartedEditing] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -70,11 +78,13 @@ export function PreferencesPanel() {
     setDraftMonthStartDate(savedMonthStartDate);
   }, [configuredCurrency, hasStartedEditing, language, savedMonthStartDate, savedTheme]);
 
+  const rolloverChanged = rolloverUnlocked && draftRollover !== savedRollover;
   const hasChanges =
     draftCurrency !== configuredCurrency ||
     draftLanguage !== language ||
     draftTheme !== savedTheme ||
-    draftMonthStartDate !== savedMonthStartDate;
+    draftMonthStartDate !== savedMonthStartDate ||
+    rolloverChanged;
 
   const beginEditing = () => {
     setHasStartedEditing(true);
@@ -106,12 +116,14 @@ export function PreferencesPanel() {
         ...(themeChanged ? { theme: draftTheme } : {}),
         ...(workspace === 'personal' && currencyChanged ? { currency: draftCurrency } : {}),
         ...(workspace === 'personal' && monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
+        ...(workspace === 'personal' && rolloverChanged ? { enableRollover: draftRollover } : {}),
       };
       if (Object.keys(profilePatch).length > 0) await updateProfileData(profilePatch);
-      if (workspace === 'household' && (currencyChanged || monthStartDateChanged)) {
+      if (workspace === 'household' && (currencyChanged || monthStartDateChanged || rolloverChanged)) {
         await updateConfiguration({
           ...(currencyChanged ? { currency: draftCurrency } : {}),
           ...(monthStartDateChanged ? { monthStartDate: draftMonthStartDate } : {}),
+          ...(rolloverChanged ? { enableRollover: draftRollover } : {}),
         });
       }
 
@@ -236,6 +248,37 @@ export function PreferencesPanel() {
             setDraftMonthStartDate(day);
           }}
         />
+      </fieldset>
+
+      {/*
+        Budget rollover (Pro): carry unused category budgets into the next
+        period. Locked without an active entitlement — the hint says so rather
+        than silently ignoring the switch.
+      */}
+      <fieldset disabled={!canConfigureBudget || !rolloverUnlocked} className="p-4 disabled:opacity-60">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold text-on-surface flex items-center gap-1.5">
+              {p.rolloverTitle}
+              {!rolloverUnlocked && (
+                <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-extrabold uppercase tracking-wide">
+                  {m.profile.free}
+                </span>
+              )}
+            </span>
+            <span className="text-xs text-on-surface-variant mt-0.5">
+              {rolloverUnlocked ? p.rolloverDesc : p.rolloverProHint}
+            </span>
+          </div>
+          <Switch
+            checked={draftRollover}
+            onCheckedChange={(next) => {
+              beginEditing();
+              setDraftRollover(next);
+            }}
+            aria-label={p.rolloverTitle}
+          />
+        </div>
       </fieldset>
 
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">

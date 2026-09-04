@@ -56,7 +56,10 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   sendResetEmail: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
-  updateProfileData: (data: Partial<UserProfile>) => Promise<void>;
+  updateProfileData: (
+    data: Partial<UserProfile>,
+    householdIdChange?: { add?: string; remove?: string },
+  ) => Promise<void>;
   deleteAccount: (password?: string) => Promise<DeletionReport>;
   deleteAllData: () => Promise<DeletionReport>;
   profileUnavailable: boolean;
@@ -352,9 +355,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfileData = async (data: Partial<UserProfile>) => {
+  const updateProfileData = async (
+    data: Partial<UserProfile>,
+    householdIdChange?: { add?: string; remove?: string },
+  ) => {
     if (user) {
-      await setUserProfile(user.uid, data);
+      // `householdIdChange` writes householdIds atomically server-side; the
+      // computed array in `data` only mirrors the expected result locally.
+      await setUserProfile(user.uid, data, householdIdChange);
       const next = (prev: UserProfile | null) => (prev ? { ...prev, ...data } : null);
       setProfile(next);
       const current = next(profile);

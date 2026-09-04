@@ -7,6 +7,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
+import { resolveProEntitlement } from '@/lib/pro-features';
 import { useDashboard } from './dashboard-provider';
 import { ProfileAvatar } from './profile-avatar';
 import {
@@ -35,6 +36,7 @@ export function DashboardHeader() {
   const { messages: m, language, intlLocale, isRTL } = useLanguage();
   const {
     month,
+    goals,
     user,
     profile,
     currentMonthKey,
@@ -186,7 +188,15 @@ export function DashboardHeader() {
             <AppIcon name="lock_open" className="text-[18px]" />
           </button>
         )}
-        <BudgetAlerts month={month} />
+        <BudgetAlerts
+          month={month}
+          goals={goals}
+          entitlement={
+            profile
+              ? resolveProEntitlement(profile)
+              : null
+          }
+        />
 
         {canAddExpense && <button
           onClick={() => openExpenseModal()}

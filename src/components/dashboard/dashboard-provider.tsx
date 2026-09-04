@@ -24,6 +24,7 @@ import {
   UserProfile,
   type MonthConfiguration,
   normalizeMonth,
+  setCategoryEnvelope,
   calculateEnvelopeAmounts,
   updateSavingsActivityEntry,
   deleteSavingsActivityEntry,
@@ -32,6 +33,7 @@ import {
   updateMoneyPlaces,
   updateBudgetStrategy,
   carryOverFixedExpenses,
+  carryOverDebts,
   buildRolloverSeed,
   calculateReceivedIncome,
   adjustPlaceBalance,
@@ -60,13 +62,17 @@ import {
 } from '../../lib/month-cache';
 import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
-import { householdStorageKey } from '../../lib/household';
+import { householdStorageKey, isProFeatureUnlocked } from '../../lib/household';
 import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-access';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
+import { useToast } from '@/hooks/use-toast';
+import { resolveProEntitlement } from '../../lib/pro-features';
+import { diagnoseHouseholdWriteDenial } from '../../lib/household-entitlement';
 import { useLanguage } from '../../lib/i18n-context';
 import {
   FinanceConflictError,
+  planFlushAttempts,
   listFinanceMutations,
   newFinanceMutationId,
   putFinanceMutation,
@@ -108,6 +114,8 @@ interface DashboardContextType {
   // Multi-month trends
   trendsMonths: { monthKey: string; month: MonthBudget }[];
   trendsLoading: boolean;
+  trendsMonthCount: 6 | 12;
+  setTrendsMonthCount: (count: 6 | 12) => void;
 
   // Persistence helpers
   updateAndSaveMonth: (month: MonthBudget, area?: HouseholdArea) => void;
@@ -129,7 +137,9 @@ interface DashboardContextType {
   handleSaveIncomeSources: (sources: IncomeSource[], total: number) => void;
 
   // Category handlers
-  handleAddCategory: (name: string, color: string, icon: string) => void;
+  handleAddCategory: (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => void;
+  /** Explicit needs/wants override for one category (envelope classification). */
+  handleSetCategoryEnvelope: (category: string, envelope: 'needs' | 'wants') => void;
 
   // CSV import handlers
   handleBatchImportVariable: (newExpenses: VariableExpense[]) => void;
@@ -214,9 +224,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     householdAccess,
     canEditArea,
     canViewArea,
+    rebindHouseholdSponsor,
+    repairHouseholdAccess,
   } = useHousehold();
   const { configuredCurrency, setPeriodCurrency } = useCurrency();
   const { messages: m } = useLanguage();
+  const { toast } = useToast();
   const householdId = workspace === 'household' ? profile?.activeHouseholdId : undefined;
   const budgetStartDate = workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate;
   const budgetProfile: MonthConfiguration | null = useMemo(() => (
@@ -278,6 +291,20 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   goalsRef.current = goals;
   const [loading, setLoading] = useState<boolean>(true);
   const [syncState, setSyncState] = useState<FinanceSyncState>('local');
+  // permission-denied is deterministic; do not toast it on every retry
+  const deniedToastAtRef = useRef(0);
+  // ...and do not re-attempt a household entitlement repair on every retry
+  // either: it is a write, and a refused one stays refused until the data
+  // behind it changes.
+  const sponsorRebindAtRef = useRef(0);
+  // One self-repair per flush cycle: writing the owner's membership row is a
+  // Firestore round trip, and a queue of refused mutations must not turn it into
+  // a write per item.
+  const accessRepairAtRef = useRef(0);
+  // Parked conflicts are re-attempted once per change, not once per flush: a
+  // second attempt that clashes again is a real clash and goes back to review.
+  const retriedConflictsRef = useRef<Set<string>>(new Set());
+  const conflictToastAtRef = useRef(0);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [pendingMutations, setPendingMutations] = useState(0);
   const [outboxHydrated, setOutboxHydrated] = useState(false);
@@ -578,7 +605,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Pro (and household, itself a Pro feature) opens a new period with the
     // previous period's remaining bank balance carried over as an explicit
     // "Carried over" income line; Free starts fresh at the full salary.
-    const carryRemaining = workspace === 'household' || isPro;
+    // Entitlement-aware on both axes: an expired household entitlement must
+    // fall back to free-tier behaviour, exactly like every other Pro feature.
+    const carryRemaining = isProFeatureUnlocked(isPro, workspace, household);
     const storageKey = householdStorageKey(householdId, currentMonthKey);
     const cached = readCachedMonth(storageKey, currentMonthKey, activeProfile);
     if (cached) {
@@ -611,14 +640,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             if (loadStillActive()) setLoading(false);
             return;
           }
-          const fresh = normalizeMonth(
+          const fresh = carryOverDebts(normalizeMonth(
             previousMonth
               ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
               : { totalBudget: 0 },
             currentMonthKey,
             activeProfile,
             previousMonth,
-          );
+          ), previousMonth);
           setMonth(fresh);
           persist(fresh);
         }
@@ -653,14 +682,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             setMonth(local);
             persist(local);
           } else {
-            const clean = normalizeMonth(
+            const clean = carryOverDebts(normalizeMonth(
               previousMonth
                 ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
                 : { totalBudget: 0 },
               currentMonthKey,
               activeProfile,
               previousMonth,
-            );
+            ), previousMonth);
             setMonth(clean);
             persist(clean);
           }
@@ -672,14 +701,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         if (!loadStillActive()) return;
         const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
-        const next = local ?? normalizeMonth(
+        const next = local ?? carryOverDebts(normalizeMonth(
           previousMonth
             ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
             : { totalBudget: 0 },
           currentMonthKey,
           activeProfile,
           previousMonth,
-        );
+        ), previousMonth);
         setMonth(next);
         persist(next);
         setLoading(false);
@@ -740,16 +769,31 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     let latestCurrent: MonthBudget | null = null;
     let latestGoals: SavingGoal[] | null = null;
     try {
-      const queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      let queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
       if (isActiveTarget()) setPendingMutations(queued.length);
-      for (const mutation of queued) {
-        if (mutation.lastError === 'conflict') {
-          if (isActiveTarget()) {
-            setSyncState('conflict');
-            setSyncError('Your local edit conflicts with a newer change from another device.');
-          }
-          break;
+      // A parked conflict is re-attempted exactly once per change. The merge used
+      // to compare records as text, and Firestore returns a document's fields in
+      // its own order, so deleting a row this app had just added read as a clash
+      // with another device - a queue parked over a change nothing else touched,
+      // with discard as its only exit. Compared by content now, that item commits;
+      // a genuine clash fails again and is parked for good, where review applies.
+      const parked = queued.filter((mutation) => mutation.lastError === 'conflict'
+        && !retriedConflictsRef.current.has(mutation.id));
+      if (parked.length > 0) {
+        for (const mutation of parked) {
+          retriedConflictsRef.current.add(mutation.id);
+          await putFinanceMutation({ ...mutation, lastError: undefined });
         }
+        queued = await listFinanceMutations({ actorId: user.uid, workspace, workspaceId });
+      }
+      // A conflicted mutation can only be resolved by its author (discard it
+      // or keep the cloud copy). It must NOT abort the whole flush: mutations
+      // for other months are independent, and used to queue up forever
+      // behind a stuck conflict at the head of the queue.
+      const { attempt: flushable, reviewMonths } = planFlushAttempts(queued);
+      const runtimeConflicts = new Set<string>();
+      for (const mutation of flushable) {
+        if (runtimeConflicts.has(mutation.monthKey)) continue;
         try {
           let timeoutId: ReturnType<typeof setTimeout> | undefined;
           const timeout = new Promise<never>((_, reject) => {
@@ -772,20 +816,116 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           if (result.goals) latestGoals = result.goals;
         } catch (error) {
           const conflict = error instanceof FinanceConflictError;
+          const denied = (error as { code?: string })?.code === 'permission-denied';
           await putFinanceMutation({
             ...mutation,
             attempts: mutation.attempts + 1,
             lastError: conflict ? 'conflict' : (error instanceof Error ? error.message : String(error)),
           });
+          if (conflict) {
+            // Skip this month's chain (later mutations build on its local
+            // state) and keep flushing OTHER months; the review state is
+            // surfaced once after the loop.
+            runtimeConflicts.add(mutation.monthKey);
+            continue;
+          }
           if (isActiveTarget()) {
-            setSyncState(conflict ? 'conflict' : 'failed');
-            setSyncError(
-              conflict
-                ? 'Your local edit conflicts with a newer change from another device.'
-                : 'Could not sync. Your change is safely queued on this device.',
-            );
+            setSyncState('failed');
+            // permission-denied means the rules rejected the write itself.
+            // A profile that is plainly Pro plus a refusal is a household
+            // problem - the workspace is paid for by another account, or by a
+            // plan the deployed rules cannot see - and never an expired trial.
+            // NOTE: entitlement fields live on the AUTH profile; the workspace
+            // budgetProfile (profileRef) deliberately drops them, so it must
+            // never be used for this check.
+            const profileIsPro = resolveProEntitlement(profile).isPro;
+            const denial = workspace === 'household' && profileIsPro
+              ? diagnoseHouseholdWriteDenial({ household, profile, uid: user?.uid, isOwner })
+              : null;
+            // A rebindable household is the one state the app can fix by
+            // itself, so try before narrating: the refused write is still
+            // queued, and after a successful rebind it can commit.
+            if (denial === 'sponsor-rebindable' && Date.now() - sponsorRebindAtRef.current > 15000) {
+              sponsorRebindAtRef.current = Date.now();
+              const outcome = await rebindHouseholdSponsor();
+              if (outcome === 'repaired') {
+                if (isActiveTarget()) {
+                  setSyncState('pending');
+                  setSyncError(m.sync.sponsorRebound);
+                }
+                toast({ description: m.sync.sponsorRebound });
+                // Re-enter this flush from its own `finally`, so the replay
+                // runs with the current workspace's queue rather than this
+                // (soon stale) closure.
+                flushRequestedRef.current = true;
+                break;
+              }
+            }
+            // An active plan, a sponsor bound to this account and still a refusal is
+            // the owner's own membership row missing: `householdEditor()` in the
+            // published rules reads it, and the rules let an owner write it for
+            // themselves without any entitlement check. That is a repair this client
+            // can perform against a rules deployment older than this build, so try it
+            // before concluding the deployment is the problem.
+            let accessBlocked = false;
+            if ((denial === 'rules-behind' || denial === 'unknown') && isOwner
+              && householdId && Date.now() - accessRepairAtRef.current > 15000) {
+              accessRepairAtRef.current = Date.now();
+              const repair = await repairHouseholdAccess();
+              accessBlocked = repair.membership === 'blocked';
+              if (repair.changed) {
+                if (isActiveTarget()) {
+                  setSyncState('pending');
+                  setSyncError(m.sync.accessRestored);
+                }
+                toast({ description: m.sync.accessRestored });
+                // Same trick as the sponsor rebind: re-enter the flush from its own
+                // `finally` so the queue replays against current state.
+                flushRequestedRef.current = true;
+                break;
+              }
+            }
+
+            const deniedMessage = !profileIsPro
+              ? `${m.pro.trialExpiredTitle} ${m.sync.blockedEntitlement}`
+              // A row the household recorded as inactive is neither this account's
+              // plan nor the deployment: only another owner may re-activate it.
+              : accessBlocked
+                ? m.sync.membershipBlocked
+                : denial === 'sponsor-rebindable'
+                ? m.sync.restoreAccessHint
+                : denial === 'sponsor-unreadable'
+                  ? m.sync.sponsorUnreadable
+                  : denial === 'sponsor-lapsed'
+                    ? m.sync.sponsorLapsed
+                    : denial === 'profile-invalid'
+                      ? m.sync.profileInvalid
+                      : workspace === 'household'
+                        // A refusal this client cannot explain is one the deployed
+                        // rules cause: they cannot store or read a plan owner.
+                        ? m.sync.rulesBehind
+                        : m.sync.queuedLocally;
+            setSyncError(denied ? deniedMessage : '');
+            if (denied && Date.now() - deniedToastAtRef.current > 30000) {
+              deniedToastAtRef.current = Date.now();
+              toast({ variant: 'destructive', title: m.sync.failed, description: deniedMessage });
+            }
           }
           break;
+        }
+      }
+
+      // Surface review-needed state once, without blocking anything else.
+      if ((reviewMonths.length > 0 || runtimeConflicts.size > 0) && isActiveTarget()) {
+        setSyncState('conflict');
+        setSyncError(m.sync.conflictDetail);
+        if (Date.now() - conflictToastAtRef.current > 30000) {
+          conflictToastAtRef.current = Date.now();
+          toast({
+            variant: 'destructive',
+            title: m.sync.conflict,
+            description: m.sync.conflictDetail,
+          });
         }
       }
 
@@ -810,9 +950,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           setSyncError(null);
         } else if (remaining.some((mutation) => mutation.lastError === 'conflict')) {
           setSyncState('conflict');
-          setSyncError('Your local edit conflicts with a newer change from another device.');
+          setSyncError(m.sync.conflictDetail);
         } else {
-          setSyncState((current) => current === 'failed' ? current : 'pending');
+          setSyncState((current) => (current === 'failed' || current === 'conflict') ? current : 'pending');
         }
       }
     } finally {
@@ -825,7 +965,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         queueMicrotask(() => { void flushLatestRef.current(); });
       }
     }
-  }, [user, workspace, workspaceId, outboxHydrated, currentMonthKey, householdId]);
+  }, [
+    user,
+    profile,
+    workspace,
+    workspaceId,
+    outboxHydrated,
+    currentMonthKey,
+    householdId,
+    household,
+    isOwner,
+    rebindHouseholdSponsor,
+    repairHouseholdAccess,
+    m,
+    toast,
+  ]);
   flushLatestRef.current = flushOutbox;
 
   useEffect(() => {
@@ -1008,6 +1162,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
             updateAndSaveMonth(withCarry, 'fixedBills');
           }
+          // Open debts ride along the same fresh-month path (deterministic
+          // carry ids make this idempotent for concurrent retries).
+          const base = withCarry.fixedExpenses.length > month.fixedExpenses.length ? withCarry : month;
+          const withDebts = carryOverDebts(base, prev);
+          if ((withDebts.debts || []).length > (base.debts || []).length) {
+            updateAndSaveMonth(withDebts, 'debts');
+          }
         }
       } else {
         try {
@@ -1017,6 +1178,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             const withCarry = carryOverFixedExpenses(month, prev);
             if (withCarry.fixedExpenses.length > month.fixedExpenses.length) {
               updateAndSaveMonth(withCarry, 'fixedBills');
+            }
+            const base = withCarry.fixedExpenses.length > month.fixedExpenses.length ? withCarry : month;
+            const withDebts = carryOverDebts(base, prev);
+            if ((withDebts.debts || []).length > (base.debts || []).length) {
+              updateAndSaveMonth(withDebts, 'debts');
             }
           }
         } catch {
@@ -1049,19 +1215,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonthKey, loading, month?.totalBudget, month?.fixedExpenses?.length, month?.variableExpenses?.length]);
 
-  // Load multi-month data when the Trends screen is active
+  // Load multi-month data when the Trends screen is active. The range is
+  // user-selectable (6 or 12 months); it lives in state so switching refetches.
   const onTrendsScreen = getScreenIdFromPath(pathname) === 'trends';
+  const [trendsMonthCount, setTrendsMonthCount] = useState<6 | 12>(6);
   useEffect(() => {
     if (onTrendsScreen && month.totalBudget > 0) {
       setTrendsLoading(true);
       (householdId
-        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, 6, profileRef.current)
-        : fetchMonthsForTrends(user?.uid, currentMonthKey, 6, profileRef.current))
+        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, trendsMonthCount, profileRef.current)
+        : fetchMonthsForTrends(user?.uid, currentMonthKey, trendsMonthCount, profileRef.current))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
-  }, [onTrendsScreen, currentMonthKey, user?.uid, householdId, month.totalBudget]);
+  }, [onTrendsScreen, currentMonthKey, trendsMonthCount, user?.uid, householdId, month.totalBudget]);
 
   // Apply a month key immediately: persist it, paint any cached document so
   // the skeleton never flashes on a month the user has already opened, then
@@ -1191,7 +1359,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Categories Handlers
   const handleAddCategory = useCallback(
-    (name: string, color: string, icon: string) => {
+    (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => {
       const nextCats = Array.from(new Set([...(month.activeCategories || []), name]));
       const nextColors = { ...(month.categoryColors || {}), [name]: color };
       const nextIcons = { ...(month.categoryIcons || {}), [name]: icon };
@@ -1201,10 +1369,43 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         activeCategories: nextCats,
         categoryColors: nextColors,
         categoryIcons: nextIcons,
+        // Explicit classification wins from the moment the category exists.
+        ...(envelope ? { categoryEnvelopes: { ...(month.categoryEnvelopes || {}), [name]: envelope } } : {}),
       };
       updateAndSaveMonth(updated, 'settings');
+      // Remember the classification for future periods (personal workspace).
+      if (envelope && profile && workspace === 'personal') {
+        updateProfileData({
+          ...profile,
+          defaultCategoryEnvelopes: { ...(profile.defaultCategoryEnvelopes || {}), [name]: envelope },
+        }).catch(() => { /* month-level override already applies */ });
+      }
     },
-    [month, updateAndSaveMonth],
+    [month, updateAndSaveMonth, profile, workspace, updateProfileData],
+  );
+
+  // Explicit envelope override for a category. Persisted on the month document
+  // (and as a profile default for future months) so classification is stable
+  // across renames and locales instead of being re-derived from the name.
+  const handleSetCategoryEnvelope = useCallback(
+    (category: string, envelope: 'needs' | 'wants') => {
+      const next = setCategoryEnvelope(month, category, envelope);
+      if (next !== month) {
+        updateAndSaveMonth(next, 'settings');
+        // Remember the choice for future periods (personal workspace only:
+        // household configuration is owner-authored on the household doc).
+        if (profile && workspace === 'personal') {
+          const nextDefaults = {
+            ...(profile.defaultCategoryEnvelopes || {}),
+            [category]: envelope,
+          };
+          updateProfileData({ ...profile, defaultCategoryEnvelopes: nextDefaults }).catch(() => {
+            /* the month-level override still applies; profile default is a bonus */
+          });
+        }
+      }
+    },
+    [month, updateAndSaveMonth, profile, workspace, updateProfileData],
   );
 
   // CSV Import Handlers
@@ -1390,6 +1591,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isMounted,
       trendsMonths,
       trendsLoading,
+      trendsMonthCount,
+      setTrendsMonthCount,
       updateAndSaveMonth,
       updateAndSaveGoals,
       updateAndSaveFinance,
@@ -1406,6 +1609,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
+      handleSetCategoryEnvelope,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,
@@ -1470,6 +1674,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isMounted,
       trendsMonths,
       trendsLoading,
+      trendsMonthCount,
+      setTrendsMonthCount,
       updateAndSaveMonth,
       updateAndSaveGoals,
       updateAndSaveFinance,
@@ -1486,6 +1692,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       handleUpdateProfile,
       handleSaveIncomeSources,
       handleAddCategory,
+      handleSetCategoryEnvelope,
       handleBatchImportVariable,
       handleBatchImportFixed,
       openExpenseModal,

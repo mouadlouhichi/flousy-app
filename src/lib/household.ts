@@ -1,6 +1,46 @@
-import type { FixedCategoryItem, MoneyPlace, MoneyPlaceConfig, MonthBudget, UserProfile } from './store';
+import {
+  DEFAULT_MONEY_PLACES,
+  fixedPaidAmount,
+  type FixedCategoryItem,
+  type MoneyPlace,
+  type MoneyPlaceConfig,
+  type MonthBudget,
+  type UserProfile,
+} from './store';
+import { HOUSEHOLD_DEFAULT_CATEGORIES } from './schema-migrations';
 import type { HouseholdPermissions } from './household-rbac';
 import { resolveProEntitlement } from './pro-features';
+
+/**
+ * Read a stored household document into the shape the app renders.
+ *
+ * The defaults for fields a legacy document never stored come from
+ * `schema-migrations.ts`, the same place the backfill reads them: the reader
+ * papers over a household written before `moneyPlaces` existed, which is exactly
+ * why the gap stays invisible until a write to that document is refused. Both
+ * halves - tolerant read and repair - must agree on the value, or the migration
+ * would visibly change somebody's budget.
+ */
+export function normalizeHousehold(id: string, value: Partial<Household>): Household {
+  return {
+    ...value,
+    id,
+    name: value.name || 'Household',
+    ownerId: value.ownerId || '',
+    planOwnerId: value.planOwnerId || value.ownerId || '',
+    entitlementOwnerId: value.entitlementOwnerId || value.planOwnerId || value.ownerId || '',
+    currency: value.currency || 'MAD',
+    moneyPlaces: value.moneyPlaces?.length
+      ? value.moneyPlaces
+      : DEFAULT_MONEY_PLACES.map((place) => ({ ...place })),
+    activeCategories: value.activeCategories?.length
+      ? value.activeCategories
+      : [...HOUSEHOLD_DEFAULT_CATEGORIES],
+    createdAt: value.createdAt || new Date(0).toISOString(),
+    updatedAt: value.updatedAt || value.createdAt || new Date(0).toISOString(),
+    schemaVersion: Math.max(2, value.schemaVersion || 0),
+  };
+}
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
@@ -86,6 +126,102 @@ export function actorForMonth<T extends MonthBudget>(month: T, userId?: string):
   return { ...month, updatedAt: new Date().toISOString(), ...(userId ? { updatedByUserId: userId } : {}) };
 }
 
+/** One active collaborator's paid total and settle-up balance for a period. */
+export interface MemberContribution {
+  member: HouseholdMember;
+  paid: number;
+  /** paid - equalShare, cent-rounded. Positive = paid more than the share. */
+  balance: number;
+}
+
+/**
+ * Settle-up summary behind "This month's contributions".
+ *
+ * Attribution precedence per payment (variable amount / fixed paid amount):
+ * 1. `payerMemberId` names an active collaborator (status 'active', role not
+ *    'profile') -> that member.
+ * 2. `payerMemberId == 'household'` -> pooled funds; shown for completeness,
+ *    excluded from the equal-share split.
+ * 3. `payerMemberId` is the default `'self'` (or absent) -> resolved through
+ *    the audit stamp `createdByUserId` to the member row carrying that uid.
+ *    This is what makes the panel work for the default expense flow, where
+ *    nobody taps a named payer badge: 'self' means "the member who recorded
+ *    it paid from their own pocket".
+ * 4. Anything else (unresolvable 'self', inactive or profile-role payers,
+ *    legacy ids) -> unattributed; visible, excluded from the split.
+ *
+ * The equal share divides only the attributed total between active
+ * collaborators, so pooled/unattributed money can never distort balances.
+ */
+export interface HouseholdContributions {
+  rows: MemberContribution[];
+  equalShare: number;
+  /** Paid from pooled household funds ('household' payer). */
+  pooledTotal: number;
+  /** Paid but attributed to nobody eligible for the split. */
+  unattributedTotal: number;
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export function computeHouseholdContributions(
+  month: Pick<MonthBudget, 'variableExpenses' | 'fixedExpenses'> | undefined | null,
+  members: HouseholdMember[],
+): HouseholdContributions {
+  const collaborators = members.filter((member) => member.status === 'active' && member.role !== 'profile');
+  const byMemberId = new Map(collaborators.map((member) => [member.id, member]));
+  const byUserId = new Map(
+    collaborators.filter((member) => member.userId).map((member) => [member.userId as string, member]),
+  );
+  const paidByMemberId = new Map<string, number>(collaborators.map((member) => [member.id, 0]));
+  let pooledTotal = 0;
+  let unattributedTotal = 0;
+
+  const attribute = (payerMemberId: string | undefined, createdByUserId: string | undefined, amount: number) => {
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return;
+    const named = payerMemberId ? byMemberId.get(payerMemberId) : undefined;
+    if (named) {
+      paidByMemberId.set(named.id, (paidByMemberId.get(named.id) || 0) + amount);
+      return;
+    }
+    if (payerMemberId === 'household') {
+      pooledTotal += amount;
+      return;
+    }
+    if ((!payerMemberId || payerMemberId === 'self') && createdByUserId) {
+      const author = byUserId.get(createdByUserId);
+      if (author) {
+        paidByMemberId.set(author.id, (paidByMemberId.get(author.id) || 0) + amount);
+        return;
+      }
+    }
+    unattributedTotal += amount;
+  };
+
+  for (const expense of month?.variableExpenses || []) {
+    attribute(expense?.payerMemberId, expense?.createdByUserId, expense?.amount);
+  }
+  for (const bill of month?.fixedExpenses || []) {
+    attribute(bill?.payerMemberId, bill?.createdByUserId, fixedPaidAmount(bill));
+  }
+
+  const attributedTotal = collaborators.reduce((sum, member) => sum + (paidByMemberId.get(member.id) || 0), 0);
+  const equalShare = collaborators.length ? attributedTotal / collaborators.length : 0;
+  const rows = collaborators.map((member) => {
+    const paid = paidByMemberId.get(member.id) || 0;
+    return { member, paid: roundMoney(paid), balance: roundMoney(paid - equalShare) };
+  });
+
+  return {
+    rows,
+    equalShare: roundMoney(equalShare),
+    pooledTotal: roundMoney(pooledTotal),
+    unattributedTotal: roundMoney(unattributedTotal),
+  };
+}
+
 export interface HouseholdInvoice {
   id: string;
   name: string;
@@ -144,14 +280,42 @@ export function canShowProUpgrade(
 }
 
 /** Resolve the provider-neutral entitlement projection stored on a household. */
+/**
+ * Entitlement truth for the household EDITING gate.
+ *
+ * Firestore rules decide every household write by reading the OWNER'S
+ * PROFILE (activeProEntitlement) - the household's own projection is an
+ * immutable creation-day copy that can lag the profile. When the current
+ * user IS the owner we therefore evaluate their profile directly, so the
+ * client pauses editing at exactly the moment the server starts rejecting
+ * writes (no doomed edit attempts that queue and fail with 403). A
+ * non-owner member cannot read the owner's profile, so the projection is
+ * their best local truth; a stale projection for a member surfaces as a
+ * permission error handled at the sync layer.
+ */
+export function householdEntitlementForEditor(
+  household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
+  editorProfile: Parameters<typeof resolveProEntitlement>[0],
+  isOwner: boolean,
+  nowMs = Date.now(),
+): boolean {
+  if (isOwner) return resolveProEntitlement(editorProfile, nowMs).isPro;
+  return isHouseholdEntitlementActive(household, nowMs);
+}
+
 export function isHouseholdEntitlementActive(
   household: Pick<Household, 'entitlementSource' | 'entitlementStatus' | 'entitlementEndsAtMs'> | null | undefined,
   nowMs = Date.now(),
 ): boolean {
   if (!household) return false;
-  // Households created before expiry-aware launch trials have no projection.
-  // Preserve their data and access; all new households carry the immutable one.
-  if (!household.entitlementSource && !household.entitlementEndsAtMs) return true;
+  // Rules treat an absent expiry as unbounded: only an explicitly negative
+  // status (projected by the Admin SDK) withdraws access. Households created
+  // before expiry-aware launch trials carry no projection at all and keep
+  // their data and access.
+  if (household.entitlementEndsAtMs == null) {
+    if (!household.entitlementSource) return true;
+    return household.entitlementStatus !== 'past_due' && household.entitlementStatus !== 'expired';
+  }
   return resolveProEntitlement({
     plan: 'pro',
     entitlementSource: household.entitlementSource,

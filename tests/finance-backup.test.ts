@@ -1,0 +1,745 @@
+import { CSV_EXPORT_TITLE } from '../src/lib/csv-import';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  FINANCE_BACKUP_FORMAT,
+  FINANCE_BACKUP_VERSION,
+  InvalidFinanceBackupError,
+  MAX_MONTH_BACKUP_BYTES,
+  parseFinanceBackup,
+  planFinanceBackupRestore,
+  readFinanceBackup,
+  serializeFinanceBackup,
+} from '../src/lib/finance-backup';
+import { normalizeMonth } from '../src/lib/store';
+import type { FinanceBackup } from '../src/lib/finance-backup';
+import type { MonthBudget } from '../src/lib/store';
+
+/** A well-formed month, shaped like exportFinanceBackup's normalized output. */
+function validMonth(): Record<string, unknown> {
+  return {
+    schemaVersion: 2,
+    revision: 3,
+    lastMutationId: 'mutation-1',
+    periodKey: '2026-07',
+    periodStartDay: 1,
+    periodStartDate: '2026-07-01',
+    periodEndDate: '2026-07-31',
+    currency: 'MAD',
+    periodStatus: 'open',
+    totalBudget: 5000,
+    incomeSources: [
+      {
+        id: 'main-income',
+        name: 'Primary Income',
+        amount: 5000,
+        status: 'paid',
+        receivedAmount: 5000,
+        recurring: true,
+      },
+    ],
+    bankPart: 5000,
+    homePart: 0,
+    walletPart: 0,
+    strategyId: '50-30-20',
+    categoryEnvelopes: { Rent: 'needs' },
+    monthlySavingsTarget: 1000,
+    variableExpenses: [
+      { id: 'v1', name: 'Coffee', amount: 12, type: 'Dining Out', date: '2026-07-02', place: 'wallet' },
+    ],
+    fixedExpenses: [
+      {
+        id: 'f1', name: 'Rent', amount: 900, type: 'Rent', date: '1st', place: 'bank',
+        status: 'paid', paidAmount: 900, templateId: 'f1', recurring: true, person: 'Self',
+      },
+    ],
+    variableCategoryBases: {},
+    fixedCategoryBases: {},
+    activeCategories: ['Rent'],
+    categoryColors: { Rent: '#8b5cf6' },
+    categoryIcons: {},
+    debts: [
+      {
+        id: 'd1', name: 'Ali', amount: 200, type: 'debt', status: 'open', date: '2026-07-01',
+        payments: [{ id: 'p1', amount: 50, date: '2026-07-02', place: 'bank' }],
+      },
+    ],
+    transfers: [
+      { id: 't1', from: 'bank', to: 'wallet', amount: 100, date: '2026-07-03T10:00:00.000Z' },
+    ],
+    // Signed delta that reconciles: the balance dropped by exactly 50.
+    balanceAdjustments: [
+      {
+        id: 'a1', place: 'home', previousBalance: 300, newBalance: 250, delta: -50,
+        reason: 'reconciliation', date: '2026-07-03T10:00:00.000Z',
+      },
+    ],
+    savingsActivity: [
+      { id: 's1', goalId: 'g1', goalName: 'Bike', type: 'deposit', amount: 100, date: '2026-07-03T10:00:00.000Z', place: 'bank' },
+    ],
+    updatedAt: '2026-07-20T10:00:00.000Z',
+    updatedByUserId: 'user-1',
+  };
+}
+
+function validBackup(): Record<string, unknown> {
+  return {
+    format: FINANCE_BACKUP_FORMAT,
+    version: 1,
+    id: 'backup-1',
+    exportedAt: '2026-08-01T00:00:00.000Z',
+    workspace: { type: 'personal', id: 'user-1' },
+    configuration: {
+      // Finance-only keys survive; identity/entitlement keys must not.
+      currency: 'MAD',
+      theme: 'dark',
+      language: 'en',
+      monthStartDate: 1,
+      moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Rent'],
+      plan: 'pro',
+      displayName: 'Should Be Stripped',
+      householdIds: ['household-1'],
+      entitlementSource: 'stripe',
+    },
+    months: { '2026-07': validMonth() },
+    goals: [
+      { id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true },
+    ],
+    products: [
+      {
+        barcode: '6111234567890', name: 'Milk', source: 'manual',
+        createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z',
+      },
+    ],
+    sessions: [
+      {
+        id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
+        endedAt: '2026-07-02T18:30:00.000Z', date: '2026-07-02', currency: 'MAD', place: 'wallet',
+        items: [
+          { key: '6111234567890', barcode: '6111234567890', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 },
+        ],
+        total: 17,
+      },
+    ],
+  };
+}
+
+function serialize(backup: Record<string, unknown>): string {
+  return JSON.stringify(backup);
+}
+
+function expectRejected(json: Record<string, unknown>, fragment: string) {
+  assert.throws(
+    () => parseFinanceBackup(serialize(json)),
+    (err: unknown) => {
+      assert.ok(err instanceof InvalidFinanceBackupError);
+      assert.match(err.message, new RegExp(fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      return true;
+    },
+    `expected rejection mentioning "${fragment}"`,
+  );
+}
+
+describe('Finance backup deep validation (M1)', () => {
+  it('accepts a well-formed backup and keeps finance-only configuration', () => {
+    const parsed = parseFinanceBackup(serialize(validBackup()));
+    assert.strictEqual(Object.keys(parsed.months).length, 1);
+    const month = parsed.months['2026-07'] as MonthBudget;
+    assert.strictEqual(month.totalBudget, 5000);
+    assert.strictEqual(month.balanceAdjustments?.[0].delta, -50);
+    assert.strictEqual(parsed.goals.length, 1);
+    assert.strictEqual(parsed.products?.length, 1);
+    assert.strictEqual(parsed.sessions?.length, 1);
+
+    const config = parsed.configuration as Record<string, unknown>;
+    assert.strictEqual(config.currency, 'MAD');
+    assert.strictEqual(config.theme, 'dark');
+    assert.strictEqual(config.monthStartDate, 1);
+    assert.deepStrictEqual(config.moneyPlaces, [{ id: 'bank', name: 'Bank', icon: 'account_balance' }]);
+    // Identity and entitlement material never rides in through a backup.
+    assert.ok(!('plan' in config));
+    assert.ok(!('displayName' in config));
+    assert.ok(!('householdIds' in config));
+    assert.ok(!('entitlementSource' in config));
+  });
+
+  it('rejects payloads that are not a backup at all', () => {
+    assert.throws(() => parseFinanceBackup('not json'), InvalidFinanceBackupError);
+    assert.throws(() => parseFinanceBackup('[]'), InvalidFinanceBackupError);
+    // A file from another tool is refused, whatever it calls itself.
+    expectRejected({ format: 'some-other-tool', note: 'my groceries' }, 'not a SmartJib backup');
+  });
+
+  it('reads an unmarked file that is shaped like one, and says so', () => {
+    // Exports survive being renamed, re-saved, or written by a build that had not
+    // settled on the format marker; the data is the user's either way.
+    const backup = validBackup();
+    delete backup.format;
+    delete backup.version;
+    const { backup: read, notices } = readFinanceBackup(JSON.stringify(backup));
+    assert.ok(Object.keys(read.months).length > 0);
+    assert.deepEqual(notices.map((notice) => notice.code), ['unmarkedFile']);
+  });
+
+  it('rejects malformed month keys', () => {
+    const backup = validBackup();
+    backup.months = { '2026-7': validMonth() };
+    expectRejected(backup, 'Invalid month entry');
+  });
+
+  it('drops fields this version does not know instead of refusing the file', () => {
+    // A backup written by a newer app can carry fields this one has never heard of.
+    // They must never reach Firestore - that is the property the strict parser
+    // existed for - and dropping them keeps the file importable; the report is what
+    // tells the user that something was not understood.
+    const backup = validBackup();
+    (backup.months as Record<string, unknown>)['2026-07'] = {
+      ...validMonth(),
+      evilKey: true,
+      receipts: [{ id: 'r1' }],
+    };
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    const month = read.months['2026-07'] as unknown as Record<string, unknown>;
+    assert.equal(month.evilKey, undefined);
+    assert.equal(month.receipts, undefined);
+    const notice = notices.find((entry) => entry.code === 'unrecognizedFields');
+    assert.ok(notice && notice.count === 2);
+    assert.ok(notice?.fields?.some((field) => field.endsWith('evilKey')));
+  });
+
+  it('rejects duplicate entity ids inside one collection', () => {
+    const backup = validBackup();
+    const month = validMonth();
+    month.variableExpenses = [
+      { id: 'v1', name: 'A', amount: 1, type: 'Rent', date: '2026-07-01', place: 'bank' },
+      { id: 'v1', name: 'B', amount: 2, type: 'Rent', date: '2026-07-01', place: 'bank' },
+    ];
+    (backup.months as Record<string, unknown>)['2026-07'] = month;
+    expectRejected(backup, 'duplicate id: v1');
+  });
+
+  it('rejects duplicate session line keys and product barcodes', () => {
+    const line = { key: 'k1', name: 'Milk', qty: 1, unitPrice: 5, lineTotal: 5 };
+    const duplicateLines = {
+      ...validBackup(),
+      sessions: [{
+        id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
+        date: '2026-07-02', currency: 'MAD', place: 'wallet', items: [line, { ...line }], total: 10,
+      }],
+    };
+    expectRejected(duplicateLines, 'duplicate key: k1');
+
+    const product = {
+      barcode: '6111234567890', name: 'Milk', source: 'manual',
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    };
+    expectRejected({ ...validBackup(), products: [product, { ...product }] }, 'duplicate barcode');
+  });
+
+  it('enforces lifecycle money semantics on income and fixed charges', () => {
+    const overReceived = validBackup();
+    overReceived.months = {
+      '2026-07': {
+        ...validMonth(),
+        incomeSources: [{ id: 'i1', name: 'Salary', amount: 100, status: 'paid', receivedAmount: 150 }],
+      },
+    };
+    expectRejected(overReceived, 'cannot exceed the expected amount');
+
+    const plannedWithProgress = validBackup();
+    plannedWithProgress.months = {
+      '2026-07': {
+        ...validMonth(),
+        incomeSources: [{ id: 'i1', name: 'Salary', amount: 100, status: 'planned', receivedAmount: 40 }],
+      },
+    };
+    expectRejected(plannedWithProgress, 'records progress on a planned record');
+
+    const overPaid = validBackup();
+    overPaid.months = {
+      '2026-07': {
+        ...validMonth(),
+        fixedExpenses: [{ id: 'f1', name: 'Rent', amount: 100, type: 'Rent', place: 'bank', status: 'partial', paidAmount: 101 }],
+      },
+    };
+    expectRejected(overPaid, 'cannot exceed the expected amount');
+  });
+
+  it('rejects non-reconciling balance adjustments', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(),
+        balanceAdjustments: [{
+          id: 'a1', place: 'home', previousBalance: 300, newBalance: 250, delta: -70,
+          reason: 'reconciliation', date: '2026-07-03T10:00:00.000Z',
+        }],
+      },
+    };
+    expectRejected(backup, 'does not reconcile');
+  });
+
+  it('rejects debt payment histories that mint cash', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(),
+        debts: [{
+          id: 'd1', name: 'Ali', amount: 100, type: 'debt', status: 'open', date: '2026-07-01',
+          payments: [
+            { id: 'p1', amount: 80, date: '2026-07-02', place: 'bank' },
+            { id: 'p2', amount: 40, date: '2026-07-03', place: 'bank' },
+          ],
+        }],
+      },
+    };
+    expectRejected(backup, 'payments exceed the original amount');
+  });
+
+  it('rejects transfers that move money inside one place', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(),
+        transfers: [{ id: 't1', from: 'bank', to: 'bank', amount: 10, date: '2026-07-03T10:00:00.000Z' }],
+      },
+    };
+    expectRejected(backup, 'two different money places');
+  });
+
+  it('rejects custom ratios that do not sum to 1', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(),
+        strategyId: 'custom',
+        customRatios: { needs: 0.5, wants: 0.3, savings: 0.3 },
+      },
+    };
+    expectRejected(backup, 'summing to 1');
+  });
+
+  it('reopens a closed period whose audit trail the file lost', () => {
+    // Firestore Rules refuse a closed period without who closed it and when, so
+    // accepting it as closed would abort the restore over a bookkeeping field. The
+    // period comes back open, and the dialog says so.
+    const backup = validBackup();
+    backup.months = { '2026-07': { ...validMonth(), periodStatus: 'closed' } };
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    assert.equal(read.months['2026-07'].periodStatus, 'open');
+    assert.equal((read.months['2026-07'] as unknown as Record<string, unknown>).closedAt, undefined);
+    const notice = notices.find((entry) => entry.code === 'reopenedPeriods');
+    assert.deepEqual(notice?.fields, ['2026-07']);
+  });
+
+  it('keeps a closed period that does carry its audit trail', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(), periodStatus: 'closed',
+        closedAt: '2026-08-01T00:00:00.000Z', closedByUserId: 'someone',
+      },
+    };
+    const { backup: read, notices } = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    assert.equal(read.months['2026-07'].periodStatus, 'closed');
+    assert.equal(notices.find((entry) => entry.code === 'reopenedPeriods'), undefined);
+  });
+
+  it('enforces the Firestore money bound (max 1e9)', () => {
+    const backup = validBackup();
+    backup.months = { '2026-07': { ...validMonth(), totalBudget: 2_000_000_000 } };
+    expectRejected(backup, 'between 0 and 1000000000');
+  });
+
+  it('reconciles session line and bill totals with the lines they come from', () => {
+    const badLine = validBackup();
+    badLine.sessions = [{
+      id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
+      date: '2026-07-02', currency: 'MAD', place: 'wallet',
+      items: [{ key: 'k1', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 18 }],
+      total: 18,
+    }];
+    const reconciled = readFinanceBackup(serializeFinanceBackup(badLine as unknown as FinanceBackup));
+    // 2 × 8.5 is the line, and the bill is the sum of its lines.
+    assert.equal(reconciled.backup.sessions?.[0].total, 17);
+    assert.ok(reconciled.notices.some((notice) => notice.code === 'recalculatedTotals'));
+
+    const badTotal = validBackup();
+    badTotal.sessions = [{
+      id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
+      date: '2026-07-02', currency: 'MAD', place: 'wallet',
+      items: [{ key: 'k1', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
+      total: 20,
+    }];
+    // The bill is derived from its lines, so the bill moves and the lines do not.
+    const rebilled = readFinanceBackup(serializeFinanceBackup(badTotal as unknown as FinanceBackup));
+    assert.equal(rebilled.backup.sessions?.[0].total, 17);
+    assert.equal(rebilled.backup.sessions?.[0].items[0].lineTotal, 17);
+  });
+
+  it('rejects a product barcode that is not a barcode, and keys a missing one', () => {
+    const backup = validBackup();
+    backup.products = [{
+      barcode: '1234', name: 'Milk', source: 'manual',
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    expectRejected(backup, '8 or 13 digits');
+
+    const unbarcoded = validBackup();
+    unbarcoded.products = [{ name: 'Milk' }];
+    const read = readFinanceBackup(serializeFinanceBackup(unbarcoded as unknown as FinanceBackup));
+    assert.match(read.backup.products?.[0].barcode ?? '', /^\d{13}$/);
+    assert.ok(read.notices.some((notice) => notice.code === 'generatedIds'));
+  });
+
+  it('rejects collections above their safety cardinality', () => {
+    const tooManyGoals = validBackup();
+    tooManyGoals.goals = Array.from({ length: 201 }, (_, i) => ({
+      id: `g-${i}`, name: `Goal ${i}`, target: 100, current: 0, source: 'bank', active: true,
+    }));
+    expectRejected(tooManyGoals, 'at most 200 entries');
+  });
+
+  it('rejects months above the conservative document-size ceiling', () => {
+    const backup = validBackup();
+    const filler = Array.from({ length: 2000 }, (_, i) => ({
+      id: `v-${i}`,
+      name: `Expense number ${i} with a longer descriptive name`,
+      amount: 10,
+      type: 'Rent',
+      date: '2026-07-02',
+      place: 'bank',
+      note: 'x'.repeat(400),
+    }));
+    backup.months = { '2026-07': { ...validMonth(), variableExpenses: filler } };
+    const serialized = serialize(backup);
+    assert.ok(serialized.length > MAX_MONTH_BACKUP_BYTES);
+    assert.throws(() => parseFinanceBackup(serialized), InvalidFinanceBackupError);
+  });
+
+  it('accepts a normalized empty month (zero budget, default income semantics)', () => {
+    const backup = validBackup();
+    backup.months = {
+      '2026-07': {
+        ...validMonth(),
+        totalBudget: 0,
+        incomeSources: [{ id: 'main-income', name: 'Primary Income', amount: 0, status: 'paid' }],
+        bankPart: 0,
+        monthlySavingsTarget: 0,
+      },
+    };
+    const parsed = parseFinanceBackup(serialize(backup));
+    assert.strictEqual((parsed.months['2026-07'] as MonthBudget).totalBudget, 0);
+    // Absent receivedAmount on a paid source defaults to its full amount (0).
+    assert.strictEqual(parsed.months['2026-07'].incomeSources?.[0].receivedAmount, 0);
+  });
+
+  it('sanitizes configuration shapes instead of trusting them', () => {
+    const backup = validBackup();
+    (backup.configuration as Record<string, unknown>).moneyPlaces = [
+      { id: 'bank', name: 'Bank', icon: 'account_balance', ownerId: 'evil' },
+    ];
+    const sanitized = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    // An id another account owns is not configuration; it is dropped, not obeyed.
+    assert.deepEqual(sanitized.backup.configuration.moneyPlaces, [
+      { id: 'bank', name: 'Bank', icon: 'account_balance' },
+    ]);
+    assert.ok(sanitized.notices.some((notice) => notice.code === 'unrecognizedFields'));
+
+    const backup2 = validBackup();
+    (backup2.configuration as Record<string, unknown>).defaultCategoryBudgets = { Rent: -5 };
+    expectRejected(backup2, 'between 0 and 1000000000');
+  });
+});
+
+/**
+ * The other half of a backup: what the app *writes* must be what the app can
+ * `parseFinanceBackup` accepts, so a file you exported is a file you can restore.
+ * Validation-only tests can drift from the exporter: a field the month schema
+ * gains (a receipt URL, a payer on a shared expense) that the backup whitelist
+ * does not know is a backup that cannot be re-imported, and the user finds out at
+ * the worst possible moment. So this goes through `normalizeMonth()` - the same
+ * normalization `exportFinanceBackup()` runs over every stored document - rather
+ * than a hand-tuned fixture.
+ */
+describe('an exported backup re-imports (M-)', () => {
+  /** Every field the live app can put on a month document. */
+  function storedMonth(): Record<string, unknown> {
+    return {
+      ...validMonth(),
+      variableExpenses: [
+        {
+          id: 'v1', name: 'Coffee', amount: 12, type: 'Dining Out', date: '2026-07-02', place: 'wallet',
+          note: 'receipt kept', tags: ['work', 'solo'], receiptUrl: 'https://example.test/r.png',
+          payerMemberId: 'user-1', sourceType: 'invoice', sourceId: 'inv-1',
+          importFingerprint: 'abc1234', createdByUserId: 'user-1', updatedByUserId: 'user-1',
+        },
+      ],
+      fixedExpenses: [
+        {
+          id: 'f1', name: 'Rent', amount: 900, type: 'Rent', date: '1st', place: 'bank', base: 900,
+          person: 'Self', payerMemberId: 'user-1', recurring: true, templateId: 'f1',
+          status: 'paid', paidAmount: 900, paidAt: '2026-07-01', receiptUrl: 'https://example.test/lease.png',
+          sourceType: 'csv', sourceId: 'csv-1', importFingerprint: 'def5678',
+          createdByUserId: 'user-1', updatedByUserId: 'user-1',
+        },
+      ],
+      customRatios: { needs: 0.5, wants: 0.3, savings: 0.2 },
+      categoryBudgets: { Rent: 900 },
+      rolloverFromPrevious: { Rent: 50 },
+      placeBalances: { custom: 10 },
+    };
+  }
+
+  function exportedBackup(): FinanceBackup {
+    const normalized = normalizeMonth(storedMonth() as unknown as MonthBudget, '2026-07', undefined);
+    return {
+      format: FINANCE_BACKUP_FORMAT,
+      version: FINANCE_BACKUP_VERSION,
+      id: 'backup-2',
+      exportedAt: '2026-08-01T00:00:00.000Z',
+      workspace: { type: 'personal', id: 'user-1', name: 'Personal' },
+      // The exporter archives the whole profile document; the parser keeps the
+      // finance-only subset, and that asymmetry has to stay one-directional.
+      configuration: {
+        currency: 'MAD',
+        monthStartDate: 1,
+        theme: 'dark',
+        language: 'fr',
+        moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+        activeCategories: ['Rent'],
+        enableRollover: true,
+        defaultCategoryBudgets: { Rent: 900 },
+        plan: 'pro',
+        entitlementSource: 'stripe',
+        entitlementStatus: 'active',
+        displayName: 'Should Be Stripped',
+        householdIds: ['household-1'],
+        activeHouseholdId: 'household-1',
+        onboardingComplete: true,
+      } as FinanceBackup['configuration'],
+      months: { '2026-07': normalized as MonthBudget },
+      goals: [{ id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true, category: 'fun', deposited: 40 }],
+      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
+      sessions: [{
+        id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z', endedAt: '2026-07-02T18:30:00.000Z',
+        date: '2026-07-02', currency: 'MAD', place: 'wallet', total: 17,
+        items: [{ key: '6111234567890', barcode: '6111234567890', name: 'Milk', category: 'Dairy', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
+        loggedWorkspace: 'personal', loggedWorkspaceId: 'user-1', loggedMonthKey: '2026-07',
+        loggedMutationId: 'mutation-1', loggedExpenseId: 'v1', loggedAt: '2026-07-02T18:31:00.000Z',
+      }],
+    } as unknown as FinanceBackup;
+  }
+
+  it('accepts its own export, entity fields and all', () => {
+    const restored = parseFinanceBackup(serializeFinanceBackup(exportedBackup()));
+    const month = restored.months['2026-07'] as unknown as Record<string, unknown>;
+    const expenses = month.variableExpenses as Record<string, unknown>[];
+    assert.equal(expenses[0].receiptUrl, 'https://example.test/r.png');
+    assert.deepEqual(expenses[0].tags, ['work', 'solo']);
+    assert.equal(expenses[0].payerMemberId, 'user-1');
+    assert.equal((month.fixedExpenses as Record<string, unknown>[])[0].paidAt, '2026-07-01');
+    assert.equal(month.customRatios ? Object.keys(month.customRatios as object).length : 0, 3);
+    assert.deepEqual(month.categoryBudgets, { Rent: 900 });
+    assert.deepEqual(restored.goals.map((goal) => goal.name), ['Bike']);
+    assert.equal(restored.products?.[0].barcode, '6111234567890');
+    assert.equal(restored.sessions?.[0].total, 17);
+    // Identity and entitlement data never come back through a restore.
+    assert.equal((restored.configuration as Record<string, unknown>).plan, undefined);
+    assert.equal((restored.configuration as Record<string, unknown>).displayName, undefined);
+    assert.equal((restored.configuration as Record<string, unknown>).currency, 'MAD');
+    // A valid export stays valid: parsing is a fixed point on this shape, which
+    // is what "restore the backup, export again, restore again" depends on.
+    const reparsed = parseFinanceBackup(serializeFinanceBackup(restored));
+    assert.deepEqual(reparsed.months, restored.months);
+    assert.deepEqual(reparsed.goals, restored.goals);
+    // Nothing had to be forgiven: an export of this build imports into this build
+    // without a single notice, so every report the tolerant parser can make means a
+    // real difference between the file and the account reading it.
+    const roundTrip = readFinanceBackup(serializeFinanceBackup(restored));
+    assert.deepEqual(roundTrip.notices, []);
+    const plan = planFinanceBackupRestore(roundTrip.backup, {
+      workspace: 'personal', isOwner: false, currency: 'MAD', monthStartDate: 1,
+    });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.notices, []);
+  });
+});
+
+/**
+ * The other direction of the same contract: a file a user exported in one account -
+ * often an older build, often the workspace they no longer have - and wants back in
+ * a new one. This is where a strict parser stops protecting anyone and starts
+ * locking people out of their own numbers, so the tolerance below is the feature,
+ * and every forgiveness has to be reported rather than hidden.
+ */
+describe('importing a backup into another account', () => {
+  /** A household file as an older build wrote it: no ids on its rows, fields the
+   *  new app has not heard of, and no values for the columns it later required. */
+  function foreignHouseholdFile(): Record<string, unknown> {
+    return {
+      format: FINANCE_BACKUP_FORMAT,
+      version: FINANCE_BACKUP_VERSION,
+      id: 'flatmate-export',
+      exportedAt: '2026-07-01T00:00:00.000Z',
+      workspace: { type: 'household', id: 'household-1', name: 'Flatmates' },
+      configuration: {
+        currency: 'MAD',
+        monthStartDate: 1,
+        sharedBudgetNote: 'added by a newer build',
+        moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance', ownerId: 'someone-else' }],
+      },
+      months: {
+        '2026-06': {
+          periodKey: '2026-06',
+          schemaVersion: 2,
+          revision: 1,
+          lastMutationId: 'older-build',
+          totalBudget: 1000,
+          incomeSources: [{ name: 'Salary', amount: 1000, status: 'paid', receivedAmount: 1000 }],
+          variableExpenses: [
+            { name: 'Bread', amount: 10, type: 'Groceries', date: '2026-06-05', place: 'wallet', legacyFlag: true },
+          ],
+          fixedExpenses: [],
+          debts: [],
+          transfers: [],
+          balanceAdjustments: [],
+          savingsActivity: [],
+          variableCategoryBases: {},
+          fixedCategoryBases: {},
+          activeCategories: ['Groceries'],
+          categoryColors: {},
+          categoryIcons: {},
+        },
+      },
+      goals: [{ name: 'Trip', target: 5000, current: 100 }],
+    };
+  }
+
+  it('reads the file, keeps its numbers and forgives only what it reports', () => {
+    const { backup, notices } = readFinanceBackup(JSON.stringify(foreignHouseholdFile()));
+    const month = backup.months['2026-06'] as unknown as Record<string, unknown>;
+    const codes = notices.map((notice) => notice.code);
+    assert.ok(codes.includes('unrecognizedFields'), codes.join(','));
+    assert.ok(codes.includes('generatedIds'), codes.join(','));
+    assert.ok(codes.includes('completedFields'), codes.join(','));
+    // Amounts are never invented: the file says 1000, so the period says 1000.
+    assert.equal(month.totalBudget, 1000);
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].amount, 10);
+    assert.equal((month.incomeSources as Record<string, unknown>[])[0].receivedAmount, 1000);
+    // A field this build does not know is gone rather than on its way to Firestore,
+    // and an id the file lost is regenerated from the row's position.
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].legacyFlag, undefined);
+    assert.equal((month.variableExpenses as Record<string, unknown>[])[0].id, 'backup-entry-0');
+    assert.equal(backup.goals[0].id, 'backup-entry-0');
+    assert.equal((backup.configuration as Record<string, unknown>).sharedBudgetNote, undefined);
+    assert.deepEqual(backup.configuration.moneyPlaces, [{ id: 'bank', name: 'Bank', icon: 'account_balance' }]);
+    // The values the app later made required take the defaults of a new period.
+    assert.equal(month.strategyId, '50-30-20');
+    assert.equal(month.monthlySavingsTarget, 0);
+    assert.equal(month.bankPart, 0);
+  });
+
+  it('stays a fixed point once repaired, so re-exporting the import is safe', () => {
+    const once = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const twice = parseFinanceBackup(serializeFinanceBackup(once));
+    assert.deepEqual(twice.months, once.months);
+    assert.deepEqual(twice.goals, once.goals);
+    assert.deepEqual(twice.configuration, once.configuration);
+  });
+
+  it('plans the retarget into a personal account and says which one it came from', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const plan = planFinanceBackupRestore(backup, { workspace: 'personal', isOwner: false, currency: 'MAD' });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.counts, { months: 1, goals: 1, products: 0, sessions: 0 });
+    assert.deepEqual(plan.notices.map((notice) => notice.code), ['retargeted']);
+    assert.equal(plan.notices[0].params.from, 'Flatmates');
+  });
+
+  it('warns about a different currency and period start without refusing them', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const plan = planFinanceBackupRestore(backup, {
+      workspace: 'personal', isOwner: false, currency: 'EUR', monthStartDate: 15,
+    });
+    assert.equal(plan.canRestore, true);
+    assert.deepEqual(plan.notices.map((notice) => notice.code), ['retargeted', 'currencyDiffers', 'monthStartDiffers']);
+    assert.equal(plan.notices[1].params.from, 'MAD');
+    assert.equal(plan.notices[1].params.to, 'EUR');
+  });
+
+  it('refuses to put another member\'s numbers into a shared workspace they do not own', () => {
+    const backup = readFinanceBackup(JSON.stringify(foreignHouseholdFile())).backup;
+    const member = planFinanceBackupRestore(backup, {
+      workspace: 'household', isOwner: false, currency: 'MAD', name: 'Flatmates',
+    });
+    assert.equal(member.canRestore, false);
+    assert.ok(member.notices.some((notice) => notice.code === 'householdOwnerOnly'));
+    const owner = planFinanceBackupRestore(backup, {
+      workspace: 'household', isOwner: true, currency: 'MAD', name: 'Flatmates',
+    });
+    assert.equal(owner.canRestore, true);
+    // Same workspace type, so there is nothing to retarget.
+    assert.equal(owner.notices.some((notice) => notice.code === 'retargeted'), false);
+  });
+
+  it('reads a file written by a newer build instead of refusing it', () => {
+    const newer = { ...foreignHouseholdFile(), version: FINANCE_BACKUP_VERSION + 3 };
+    const { backup, notices } = readFinanceBackup(JSON.stringify(newer));
+    assert.ok(Object.keys(backup.months).length === 1);
+    assert.equal(notices.find((notice) => notice.code === 'newerVersion')?.fields?.[0], String(FINANCE_BACKUP_VERSION + 3));
+  });
+});
+
+describe('every refusal says why', () => {
+  const refused = (text: string) => {
+    try {
+      readFinanceBackup(text);
+    } catch (error) {
+      assert.ok(error instanceof InvalidFinanceBackupError, String(error));
+      return (error as InvalidFinanceBackupError).message;
+    }
+    throw new Error('expected the file to be refused');
+  };
+
+  it('names an empty file as an empty file', () => {
+    assert.match(refused('   '), /empty/i);
+  });
+
+  it('names a file that is not JSON at all', () => {
+    assert.match(refused('i wrote my budget in a notebook'), /not JSON/i);
+  });
+
+  it('sends the app\'s own CSV report to the reader that handles it', () => {
+    // The same data, another format: a user picking their CSV export in the backup
+    // dialog is one sentence away from concluding their numbers are gone.
+    const csv = [`"${CSV_EXPORT_TITLE}"`, 'Date,Name,Amount'].join('\n');
+    assert.match(refused(csv), /CSV import screen/);
+  });
+
+  it('never refuses a file without a reason', () => {
+    // The contract the dialog renders on: a file is either accepted (with the
+    // notices saying what was forgiven) or refused with a message naming the part
+    // that failed. An unexplained refusal is the bug being removed.
+    const inputs = [
+      JSON.stringify({ months: {}, goals: ['a string, not a goal'] }),
+      JSON.stringify({ months: { '2026-01': 'not a month' } }),
+      JSON.stringify({ months: { '2026-1': {} } }),
+      JSON.stringify({ configuration: 'mad' }),
+      JSON.stringify({ goals: { named: true } }),
+      JSON.stringify({ months: { '2026-01': { totalBudget: -5 } } }),
+      '[]',
+      'null',
+      '"just a string"',
+    ];
+    for (const input of inputs) {
+      try {
+        readFinanceBackup(input);
+      } catch (error) {
+        assert.ok(error instanceof InvalidFinanceBackupError, `raw failure for ${input}: ${String(error)}`);
+        assert.ok(error.message.trim().length > 0, `reasonless refusal for ${input}`);
+      }
+    }
+  });
+});

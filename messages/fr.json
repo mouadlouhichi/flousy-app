@@ -264,7 +264,10 @@
     "adjustCashBalances": "Ajuster les soldes de trésorerie",
     "deposit": "Dépôt",
     "withdrawal": "Retrait",
-    "savingsActivity": "Épargne"
+    "savingsActivity": "Épargne",
+    "upcomingBills": "Factures à venir",
+    "dueToday": "Dû aujourd’hui",
+    "dueInDays": "Dû dans {days} jours"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -431,14 +434,18 @@
       "addCategory": "Ajouter Catégorie",
       "chooseIcon": "Choisir une Icône",
       "errorDuplicate": "La catégorie \"{name}\" existe déjà",
-      "errorEmpty": "Veuillez saisir un nom de catégorie valide"
+      "errorEmpty": "Veuillez saisir un nom de catégorie valide",
+      "envelopeLabel": "Enveloppe",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "importCsv": {
       "title": "Importer Transactions CSV",
       "variableExpenses": "Dépenses Variables",
       "fixedBills": "Factures Fixes",
       "uploadLabel": "Cliquez pour télécharger un CSV ou glissez-déposez",
-      "supportedColumns": "Colonnes supportées : Nom, Montant, Date, Catégorie, Emplacement, Note, Personne",
+      "noExportSection": "Cette exportation SmartJib ne contient aucune {section} à importer.",
+      "supportedColumns": "Colonnes prises en charge : Nom, Montant, Date, Catégorie, Emplacement, Note, Personne — ou la fiche mensuelle exportée par cette application",
       "preview": "Aperçu ({count} transactions)",
       "total": "Total : {amount}",
       "importButton": "Importer {count} Éléments",
@@ -501,7 +508,9 @@
       "receivedAmount": "Montant reçu",
       "receivedShort": "Reçu",
       "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
-      "carriedOver": "Solde reporté"
+      "carriedOver": "Solde reporté",
+      "multiSourceProTitle": "Plusieurs sources de revenus est une fonction Pro",
+      "multiSourceProBody": "Démarrez votre essai gratuit de 90 jours pour suivre plusieurs revenus."
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -564,7 +573,10 @@
       "sortAmountLow": "Montant : croissant",
       "sortName": "Nom A–Z",
       "clearDates": "Effacer les dates",
-      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie."
+      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie.",
+      "envelopeLabel": "Classer {category} en besoins ou envies",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",
@@ -677,7 +689,11 @@
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
       "fixedAmount": "Fixe : {amount}",
-      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres."
+      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres.",
+      "rangeLabel": "Période affichée",
+      "last6Months": "6 mois",
+      "last12Months": "12 mois",
+      "netSaved": "Épargne nette"
     }
   },
   "courses": {
@@ -777,7 +793,13 @@
     "householdInvitation": "Invitation du foyer",
     "openToJoinAs": "Vous pouvez rejoindre en tant que {role}.",
     "budgetHealth": "État du budget",
-    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté."
+    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté.",
+    "reminders": "Rappels",
+    "billDueToday": "Dû aujourd’hui",
+    "billDueInDays": "Dû dans {days} jours",
+    "goalNear": "Financé à {percent} — presque terminé",
+    "trialEndingTitle": "Essai Pro bientôt terminé",
+    "trialEndingDays": "Il reste {days} jours à votre essai Pro"
   },
   "legal": {
     "eyebrow": "Juridique",
@@ -1672,8 +1694,47 @@
       "backupInvalid": "Ce fichier n’est pas une sauvegarde SmartJib valide et prise en charge.",
       "restoreComplete": "{months} périodes et {goals} objectifs restaurés.",
       "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
+      "restoreStoppedAfter": "{months} période(s) ont été appliquées avant l'arrêt à {period}. Sélectionner à nouveau le même fichier reprend à ce point.",
+      "restoreStoppedFirst": "Rien n'a été appliqué : l'arrêt s'est produit à {period}.",
+      "restoreDenied": "L'espace de travail a refusé l'écriture. Si vous en êtes le propriétaire, ouvrez la carte Espace de travail de ce profil et lancez sa réparation d'accès avant de réessayer.",
       "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
       "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
+      "restoreCounts": "Exportée le {exportedAt} : {months} périodes, {goals} objectifs d'épargne, {products} produits, {sessions} sessions d'achat.",
+      "backupInvalidDetail": "Ce fichier n'a pas été accepté : {reason}",
+      "backupInvalidReasons": {
+        "emptyFile": "Le fichier est vide.",
+        "notJson": "Le fichier n'est pas au format JSON : ce n'est pas une sauvegarde que l'application peut lire.",
+        "csvReport": "C'est un rapport CSV SmartJib. Importez-le depuis l'écran d'importation CSV.",
+        "unreadable": "Le fichier n'a pas pu être lu comme sauvegarde."
+      },
+      "backupPlanNotices": {
+        "retargeted": "Cette sauvegarde provient de {from} ; elle sera restaurée dans {to}.",
+        "currencyDiffers": "Les montants du fichier sont en {from} alors que cet espace utilise {to}. Ils sont restaurés tels qu'enregistrés.",
+        "monthStartDiffers": "Les périodes du fichier commencent le jour {from}, celles de cet espace le jour {to}. Chaque période restaurée garde son propre jour de début.",
+        "householdOwnerOnly": "Seul le propriétaire de cet espace partagé peut restaurer une sauvegarde, car elle modifie ce que tous ses membres voient."
+      },
+      "backupReportNotices": {
+        "unrecognizedFields": "{count} champ(s) inconnus de cette version ont été ignorés : {fields}",
+        "completedFields": "{count} période(s) sans valeur ont été complétées comme une nouvelle période SmartJib.",
+        "generatedIds": "{count} enregistrement(s) avaient perdu leur identifiant ; un nouveau leur a été attribué.",
+        "recalculatedTotals": "{count} facture(s) d'achat dont le total ne correspondait pas aux lignes ont été recalculées.",
+        "reopenedPeriods": "{count} période(s) clôturée(s) ont été rouvertes, le fichier ne gardant pas la trace de leur clôture : {fields}",
+        "newerVersion": "Ce fichier provient d'un SmartJib plus récent (version {fields}) ; tout ce que cette version comprend a été restauré.",
+        "unmarkedFile": "Ce fichier n'est pas marqué comme une sauvegarde SmartJib ; ses périodes et objectifs ont été lus tels quels."
+      },
+      "syncRunning": "Synchronisation…",
+      "syncComplete": "{months} mois synchronisé(s) : {incomes} revenus, {expenses} dépenses, {fixed} factures fixes, {debts} dettes.",
+      "syncNothingNew": "Rien de nouveau à synchroniser — tous les enregistrements y sont déjà.",
+      "syncErrorCurrency": "Les deux espaces de travail doivent utiliser la même devise avant la synchronisation.",
+      "syncErrorPeriod": "Les deux espaces de travail doivent commencer le mois budgétaire le même jour avant la synchronisation.",
+      "syncPartial": "La synchronisation s'est arrêtée après {months} mois. La relancer est sans risque.",
+      "syncPartialNothingAt": "Rien n'a encore été copié : {period} a déjà échoué.",
+      "syncSkippedClosed": "Rien n'a été copié : {periods} période(s) de l'espace de travail cible sont clôturées. Rouvrez une période pour copier dedans.",
+      "syncSkippedSome": "{periods} période(s) clôturée(s) dans la cible ont été laissées de côté.",
+      "syncPartialNothing": "Rien n'a encore été copié : la première période a déjà échoué.",
+      "syncRestoreOffer": "Lancez d'abord « {action} » ci-dessous : c'est la réparation que l'application peut effectuer depuis le navigateur.",
+      "syncRestoreOfferFrozen": "Lancez d'abord « {action} » ci-dessous : elle peut remettre votre ligne de membre, rien d'autre. Le champ du titulaire du plan que la synchronisation exige aussi est gelé par les règles publiées ; seul un déploiement des règles ou le script de maintenance le modifie.",
+      "syncFailed": "La synchronisation n'a pas pu être terminée. Veuillez réessayer.",
       "personalWorkspace": "Espace personnel"
     },
     "moneySources": {
@@ -1681,6 +1742,7 @@
       "nameRequired": "Donnez un nom à cette source d’argent.",
       "duplicateName": "Ce nom est déjà utilisé.",
       "uniqueName": "Saisissez un nom unique.",
+      "limitReached": "Vous avez atteint la limite de {count} sources d'argent. Supprimez-en une pour en ajouter une autre.",
       "exampleName": "ex. PayPal, Coffre, Revolut",
       "addSource": "Ajouter une source",
       "addMoneySource": "Ajouter une source d’argent",
@@ -1693,6 +1755,7 @@
       "chooseIcon": "Choisir une icône"
     },
     "workspace": {
+      "schemaGaps": "Le document de cet espace de travail est antérieur à {fields} ; aucun écran ne peut les remplir depuis l'application. Le script de maintenance les complète : npm run db:migrate -- --dry-run liste les documents, --apply les écrit.",
       "mySmartJib": "Mon SmartJib",
       "personalDashboard": "Tableau de bord personnel privé",
       "householdDashboard": "Tableau de bord du foyer",
@@ -1702,7 +1765,14 @@
       "convertToHouseholdHint": "Transformez votre espace privé en foyer partagé. Vous configurerez ensuite le budget du foyer.",
       "removeHousehold": "Supprimer l’espace foyer",
       "leaveHousehold": "Quitter l’espace foyer",
-      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici."
+      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici.",
+      "syncTitle": "Synchroniser les espaces",
+      "syncDescription": "Un appui copie les transactions dans les deux sens entre cet espace et {household} : dépenses, factures fixes, revenus et dettes. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
+      "syncAction": "Synchroniser",
+      "syncStartTitle": "Aligner le début du mois budgétaire",
+      "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
+      "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace.",
+      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif."
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",
@@ -1750,7 +1820,10 @@
     "avatarSaveError": "Impossible d’enregistrer cette photo de profil.",
     "upgradeToPro": "Voir SmartJib Pro",
     "monthStartDatePersonalScope": "Personnel",
-    "monthStartDateHouseholdScope": "Foyer"
+    "monthStartDateHouseholdScope": "Foyer",
+    "rolloverTitle": "Report du budget",
+    "rolloverDesc": "Reportez les budgets de catégories non utilisés vers le mois suivant.",
+    "rolloverProHint": "Le Pro permet de reporter les budgets non utilisés vers le mois suivant."
   },
   "household": {
     "title": "Collaboration du foyer",
@@ -1773,7 +1846,9 @@
     "restore": "Restaurer",
     "remove": "Supprimer",
     "monthlyContributions": "Contributions de ce mois",
-    "contributionGuide": "Le solde compare les dépenses réglées par chaque collaborateur actif avec une part égale. Utilisez-le comme guide de régularisation ; aucun argent n’est déplacé par SmartJib.",
+    "contributionGuide": "Le solde compare les dépenses réglées par chaque collaborateur actif avec une part égale. Utilisez-le comme guide de régularisation ; aucun argent n’est déplacé par SmartJib.",
+    "contributionsUnattributed": "Paiements non attribués",
+    "contributionsExcluded": "Les paiements du fonds commun et non attribués sont affichés par souci d’exhaustivité mais restent exclus de la répartition égalitaire.",
     "inviteMember": "Inviter un membre du foyer",
     "inviteDescription": "Choisissez son accès au lieu de lui attribuer un rôle familial fixe.",
     "fullName": "Nom complet",
@@ -1885,7 +1960,9 @@
     "trialExpiredBody": "Vos données restent en sécurité et disponibles. Les modifications réservées à Pro sont suspendues, tandis que l’offre gratuite continue de fonctionner.",
     "billingNotAvailable": "Les offres payantes ne sont pas encore disponibles. Vous ne serez jamais facturé sans choisir explicitement une offre après le lancement du paiement.",
     "noCardRequired": "Sans carte · sans renouvellement automatique · un essai par compte",
-    "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez."
+    "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez.",
+    "householdSponsorActive": "Parrainage Pro du ménage : actif jusqu'au {date}.",
+    "householdSponsorExpired": "Le parrainage Pro de ce ménage (enregistré à sa création) a expiré le {date}. Le parrain est fixé à la création — si votre abonnement est actif, le ménage doit être relié ou recréé."
   },
   "seo": {
     "titles": {
@@ -1915,7 +1992,21 @@
     "retry": "Réessayer",
     "useCloudCopy": "Ignorer les modifications locales",
     "pending": "En attente",
-    "local": "Enregistré sur cet appareil"
+    "local": "Enregistré sur cet appareil",
+    "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès.",
+    "sponsorRebound": "L'accès au budget partagé est rétabli — ce ménage fonctionne désormais sur votre abonnement Pro, et vos modifications en attente sont envoyées.",
+    "sponsorLapsed": "Ce ménage fonctionne sur l'abonnement Pro d'un autre compte, qui n'est plus actif. Tout reste consultable ; l'édition reprend dès que l'abonnement est renouvelé.",
+    "sponsorUnreadable": "Le budget partagé de ce ménage est payé par un autre compte que cet appareil ne peut pas consulter. Seul le propriétaire du ménage peut changer l'abonnement utilisé.",
+    "accessRestored": "Votre accès à cet espace de travail est rétabli. Les modifications en attente pendant le refus sont envoyées maintenant.",
+    "membershipBlocked": "Votre rôle dans cet espace de travail est marqué comme inactif, et les règles publiées ici n’autorisent qu’un propriétaire à le modifier. Demandez à un propriétaire de vous inviter à nouveau.",
+    "rulesBehind": "Les règles publiées sur ce projet ne peuvent pas enregistrer de souscripteur pour un foyer, et refusent donc l’écriture. Redéployez-les depuis la version de firestore.rules livrée avec cette application (firebase deploy --only firestore:rules).",
+    "profileInvalid": "L'abonnement de ce compte est enregistré dans une forme que l'application ne peut pas vérifier (un plan ou un statut non reconnu) ; le serveur ne l'appliquera donc pas au ménage. Corrigez les champs d'abonnement du profil dans la console Firebase, ou démarrez l'essai Pro depuis l'application.",
+    "restoreAccess": "Rétablir l'accès partagé",
+    "restoreAccessHint": "Les écritures sont refusées car l'abonnement Pro qui paie ce ménage appartient à un autre compte. Vous possédez ce ménage et votre abonnement est actif : il peut basculer sur le vôtre.",
+    "restoreAccessDone": "Le propriétaire de l'abonnement du ménage est à jour. Vos modifications partent à la prochaine synchronisation.",
+    "restoreAccessConsistent": "Ce ménage tourne déjà sur votre abonnement : le refus vient d'ailleurs.",
+    "restoreBindingFrozen": "Votre ligne de membre est rétablie, l'espace de travail s'ouvre de nouveau. La liaison du titulaire du plan reste refusée : les règles publiées gèlent ce champ à la valeur stockée, et aucun client léger ne peut la changer - ni cette réparation, ni un enregistrement depuis les paramètres. Déployez les règles de cette version ou exécutez le script de maintenance (npm run db:migrate -- --apply).",
+    "restoreAccessFailed": "Le serveur a refusé la modification ; le propriétaire de l'abonnement du ménage n'a pas pu être mis à jour."
   },
   "monthLock": {
     "closed": "Mois clôturé",

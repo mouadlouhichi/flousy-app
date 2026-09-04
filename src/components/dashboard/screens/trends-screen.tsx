@@ -11,7 +11,7 @@ import { SCREEN_AREA } from '@/lib/household-rbac';
 
 export function TrendsScreen() {
   const router = useRouter();
-  const { month, trendsMonths, trendsLoading, profile, isPro, authLoading, openProModal } =
+  const { month, trendsMonths, trendsLoading, trendsMonthCount, setTrendsMonthCount, profile, isPro, authLoading, openProModal } =
     useDashboard();
   const { workspace, household, canViewArea } = useHousehold();
   const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
@@ -42,6 +42,8 @@ export function TrendsScreen() {
       trendsLoading={trendsLoading}
       profile={profile}
       onOpenProModal={openProModal}
+      trendsMonthCount={trendsMonthCount}
+      onSetTrendsMonthCount={setTrendsMonthCount}
     />
   );
 }

@@ -7,6 +7,7 @@ import { ObservabilityReporter } from '@/components/observability-reporter';
 import { LightLanguageProvider } from '@/lib/i18n-light';
 import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SkipToContentLink } from '@/components/ui/skip-to-content';
+import { Toaster } from '@/components/ui/toaster';
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
@@ -140,6 +141,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <InstallBanner />
         </LightLanguageProvider>
+        <Toaster />
         <ServiceWorkerRegistrar />
         <ObservabilityReporter />
       </body>

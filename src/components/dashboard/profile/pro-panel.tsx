@@ -31,12 +31,47 @@ export function ProPanel() {
         )}
       </div>
 
-      {workspace === 'personal' && entitlement.status === 'trialing' && entitlement.endsAtMs && (
+      {/* The account's own entitlement, always visible in any workspace:
+          this is the diagnostic surface for "is my plan actually active?".
+          It used to render only in the personal workspace and only while
+          trialing, so an expired or never-claimed profile showed nothing. */}
+      {entitlement.isPro ? (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary">
-          {t(m.pro.trialEnds, {
-            date: formatShortDate(new Date(entitlement.endsAtMs).toISOString().slice(0, 10), intlLocale),
-            days: entitlement.daysRemaining,
-          })}
+          {entitlement.status === 'trialing' && entitlement.endsAtMs
+            ? t(m.pro.trialEnds, {
+                date: formatShortDate(new Date(entitlement.endsAtMs).toISOString().slice(0, 10), intlLocale),
+                days: entitlement.daysRemaining,
+              })
+            : m.pro.trialActiveTitle}
+        </div>
+      ) : entitlement.hasUsedTrial ? (
+        <div className="rounded-2xl border border-error/30 bg-error/5 px-4 py-3 text-sm font-semibold text-error">
+          {m.pro.trialExpiredTitle}
+          <span className="mt-1 block text-xs font-medium text-on-surface-variant">{m.pro.trialExpiredBody}</span>
+        </div>
+      ) : null}
+
+      {workspace === 'household' && household?.entitlementEndsAtMs && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            household.entitlementEndsAtMs > Date.now()
+              ? 'border-primary/25 bg-primary/5 text-primary'
+              : 'border-error/30 bg-error/5 text-error'
+          }`}
+        >
+          {household.entitlementEndsAtMs > Date.now()
+            ? t(m.pro.householdSponsorActive, {
+                date: formatShortDate(
+                  new Date(household.entitlementEndsAtMs).toISOString().slice(0, 10),
+                  intlLocale,
+                ),
+              })
+            : t(m.pro.householdSponsorExpired, {
+                date: formatShortDate(
+                  new Date(household.entitlementEndsAtMs).toISOString().slice(0, 10),
+                  intlLocale,
+                ),
+              })}
         </div>
       )}
 

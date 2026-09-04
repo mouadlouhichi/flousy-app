@@ -3,6 +3,32 @@ import type { MonthBudget, SavingGoal } from './store';
 export type FinanceSyncState = 'saved' | 'pending' | 'failed' | 'conflict' | 'local';
 export type FinanceWorkspace = 'personal' | 'household';
 
+/**
+ * Plan which queued mutations a flush may attempt.
+ *
+ * A mutation marked 'conflict' cannot commit until the user reviews it, and
+ * later mutations for the SAME month build on its local state, so they must
+ * wait with it. Mutations for OTHER months are independent: one stuck
+ * conflict used to abort the whole flush at the queue head, silently
+ * blocking every new edit in the workspace (queued forever behind an item
+ * that can never commit).
+ */
+export function planFlushAttempts<T extends { monthKey: string; lastError?: string }>(
+  mutations: T[],
+): { attempt: T[]; reviewMonths: string[] } {
+  const conflictedMonths = new Set<string>();
+  const attempt: T[] = [];
+  for (const mutation of mutations) {
+    if (mutation.lastError === 'conflict') {
+      conflictedMonths.add(mutation.monthKey);
+      continue;
+    }
+    if (conflictedMonths.has(mutation.monthKey)) continue;
+    attempt.push(mutation);
+  }
+  return { attempt, reviewMonths: [...conflictedMonths] };
+}
+
 export interface FinanceMutation {
   version: 1;
   id: string;
@@ -70,9 +96,47 @@ const MERGE_MAP_FIELDS = new Set([
 ]);
 const IGNORED_FIELDS = new Set(['updatedAt', 'updatedByUserId', 'revision', 'lastMutationId']);
 
+/**
+ * Content equality, deliberately not textual equality.
+ *
+ * Firestore hands back a document's fields in its own order, while a record the
+ * user added a moment ago is still in the order this app built it. Compared as
+ * `JSON.stringify` text, those two are different strings for identical content -
+ * and the merge only accepts a deletion when the cloud's copy still matches the
+ * base it started from. So deleting or editing anything that had been added in
+ * this session read as a clash with another device: "Changes need review" for a
+ * change nobody else made, on a single device, with the queue stuck behind it.
+ *
+ * Values are therefore compared as what they mean: maps by name and value in any
+ * order, arrays elementwise, and an absent key equal to a key holding `undefined`
+ * - which is exactly how the document stores it, since the writer drops
+ * `undefined` before the write.
+ */
+const ABSENT = Symbol('absent');
+
+/** A key that is not there and a key holding `undefined` are one thing: no value. */
+function valueAt(record: Record<string, unknown>, key: string): unknown {
+  if (!Object.prototype.hasOwnProperty.call(record, key)) return ABSENT;
+  return record[key] === undefined ? ABSENT : record[key];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function equal(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((item, index) => equal(item, right[index]));
+  }
+  if (isRecord(left) && isRecord(right)) {
+    for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+      if (!equal(valueAt(left, key), valueAt(right, key))) return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 function objectValue(value: unknown): Record<string, unknown> {

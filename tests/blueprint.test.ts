@@ -290,7 +290,9 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
 
   it('reuses the array caps enforced by firestore.rules', () => {
     const capFor = (field: string) =>
-      Number(rulesSource.match(new RegExp(`incoming\\(\\)\\.${field}\\.size\\(\\) <= (\\d+)`))?.[1]);
+      // Either spelling of the post-write document: the caps are the contract, the
+      // local name the rule binds it to is not.
+      Number(rulesSource.match(new RegExp(`(?:incoming\\(\\)|after)\\.${field}\\.size\\(\\) <= (\\d+)`))?.[1]);
 
     const monthProperties = blueprint.entities.MonthBudget.properties;
     assert.strictEqual(monthProperties.variableExpenses.maxItems, capFor('variableExpenses'));
@@ -314,9 +316,11 @@ describe('firebase-blueprint.json stays in sync with Firestore paths and rules',
     // New profiles always start free. The sole browser-side elevation is a
     // server-time-bounded launch trial whose end is exactly 90 days later.
     assert.match(rulesSource, /incoming\(\)\.plan == 'free'/);
-    assert.match(rulesSource, /existing\(\)\.plan == 'free'/);
-    assert.match(rulesSource, /incoming\(\)\.entitlementSource == 'launch_trial'/);
-    assert.match(rulesSource, /incoming\(\)\.entitlementEndsAtMs\s*\n\s*== incoming\(\)\.entitlementStartedAtMs \+ 7776000000/);
+    // The prior plan is read *totally*: a profile created and claimed in one `set()`
+    // has no existing document, and a property read there aborts the whole rule.
+    assert.match(rulesSource, /existing\(\)\.get\('plan', 'free'\) == 'free'/);
+    assert.match(rulesSource, /incoming\(\)(?:\.entitlementSource|\.get\('entitlementSource', ''\)) == 'launch_trial'/);
+    assert.match(rulesSource, /incoming\(\)(?:\.entitlementEndsAtMs|\.get\('entitlementEndsAtMs', 0\))\s*\n\s*== incoming\(\)(?:\.entitlementStartedAtMs|\.get\('entitlementStartedAtMs', -1\)) \+ 7776000000/);
     assert.match(rulesSource, /!entitlementFieldsChanged\(\) \|\| validLaunchTrialClaim\(\)/);
 
     const dbSource = readRepoFile('src/lib/db.ts');

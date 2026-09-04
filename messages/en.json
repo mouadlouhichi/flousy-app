@@ -264,7 +264,10 @@
     "adjustCashBalances": "Adjust cash balances",
     "deposit": "Deposit",
     "withdrawal": "Withdrawal",
-    "savingsActivity": "Savings"
+    "savingsActivity": "Savings",
+    "upcomingBills": "Upcoming bills",
+    "dueToday": "Due today",
+    "dueInDays": "Due in {days} days"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",
@@ -431,14 +434,18 @@
       "addCategory": "Add Category",
       "chooseIcon": "Choose Icon",
       "errorDuplicate": "Category \"{name}\" already exists",
-      "errorEmpty": "Enter a valid category name"
+      "errorEmpty": "Enter a valid category name",
+      "envelopeLabel": "Envelope",
+      "envelopeNeeds": "Needs",
+      "envelopeWants": "Wants"
     },
     "importCsv": {
       "title": "Import CSV Transactions",
       "variableExpenses": "Variable Expenses",
       "fixedBills": "Fixed Bills",
       "uploadLabel": "Click to upload CSV or drag and drop",
-      "supportedColumns": "Supported columns: Name, Amount, Date, Category, Place, Note, Person",
+      "noExportSection": "This SmartJib export contains no {section} to import.",
+      "supportedColumns": "Supported columns: Name, Amount, Date, Category, Place, Note, Person - or this app's own monthly export",
       "preview": "Preview ({count} transactions)",
       "total": "Total: {amount}",
       "importButton": "Import {count} Items",
@@ -501,7 +508,9 @@
       "receivedAmount": "Amount received",
       "receivedShort": "Received",
       "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
-      "carriedOver": "Carried over"
+      "carriedOver": "Carried over",
+      "multiSourceProTitle": "Multiple income sources are a Pro feature",
+      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams."
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -564,7 +573,10 @@
       "sortAmountLow": "Amount: low to high",
       "sortName": "Name A–Z",
       "clearDates": "Clear dates",
-      "categoryBudgetsHint": "Set spending limits for each category."
+      "categoryBudgetsHint": "Set spending limits for each category.",
+      "envelopeLabel": "Classify {category} as needs or wants",
+      "envelopeNeeds": "Needs",
+      "envelopeWants": "Wants"
     },
     "fixed": {
       "totalCommitments": "MONTHLY FIXED COMMITMENTS",
@@ -677,7 +689,11 @@
       "advancedAnalytics": "Advanced analytics such as multi-month trends, income source breakdowns, and household spending are available in Pro.",
       "variableAmount": "Variable: {amount}",
       "fixedAmount": "Fixed: {amount}",
-      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures."
+      "chartAltText": "Bar chart of total spending per month. The table below lists the same figures.",
+      "rangeLabel": "History range",
+      "last6Months": "6 months",
+      "last12Months": "12 months",
+      "netSaved": "Net saved"
     }
   },
   "courses": {
@@ -777,7 +793,13 @@
     "householdInvitation": "Household invitation",
     "openToJoinAs": "Open to join as {role}.",
     "budgetHealth": "Budget health",
-    "allHealthy": "All budget envelopes are healthy! No overspending detected."
+    "allHealthy": "All budget envelopes are healthy! No overspending detected.",
+    "reminders": "Reminders",
+    "billDueToday": "Due today",
+    "billDueInDays": "Due in {days} days",
+    "goalNear": "{percent} funded — almost there",
+    "trialEndingTitle": "Pro trial ending soon",
+    "trialEndingDays": "{days} days left in your Pro trial"
   },
   "legal": {
     "eyebrow": "Legal",
@@ -1672,8 +1694,47 @@
       "backupInvalid": "This file is not a supported or valid SmartJib backup.",
       "restoreComplete": "Restored {months} periods and {goals} goals.",
       "restorePartial": "Restore stopped partway through. Select the same file again to resume safely.",
+      "restoreStoppedAfter": "{months} period(s) were applied before it stopped at {period}. Selecting the same file again continues from there.",
+      "restoreStoppedFirst": "Nothing was applied - it stopped at {period}.",
+      "restoreDenied": "The workspace refused the write. If you own it, open the workspace card in this profile and run its access repair before trying again.",
       "restoreFailed": "The backup could not be restored. Check its currency and budget-period settings.",
       "restoreConfirm": "Restore {months} periods and {goals} goals into {workspace}? Included records will replace matching records; retries are safe.",
+      "restoreCounts": "Exported {exportedAt}: {months} periods, {goals} savings goals, {products} products, {sessions} shopping sessions.",
+      "backupInvalidDetail": "This file was not accepted: {reason}",
+      "backupInvalidReasons": {
+        "emptyFile": "The file is empty.",
+        "notJson": "The file is not JSON, so it is not a backup this app can read.",
+        "csvReport": "This is a SmartJib CSV report. Import it from the CSV import screen instead.",
+        "unreadable": "The file could not be read as a backup."
+      },
+      "backupPlanNotices": {
+        "retargeted": "This backup was exported from {from}; it will be restored into {to}.",
+        "currencyDiffers": "Amounts in the file are in {from} while this workspace uses {to}. They are restored exactly as they were recorded.",
+        "monthStartDiffers": "The file's budget periods start on day {from}, this workspace's on day {to}. Each restored period keeps its own start day.",
+        "householdOwnerOnly": "Only the owner of this shared workspace can restore a backup into it, because it changes what everyone in it sees."
+      },
+      "backupReportNotices": {
+        "unrecognizedFields": "Ignored {count} field(s) this version does not know: {fields}",
+        "completedFields": "Completed {count} period(s) that were missing values SmartJib fills in for a new period.",
+        "generatedIds": "Gave new identifiers to {count} record(s) whose file had lost theirs.",
+        "recalculatedTotals": "Recomputed {count} shopping bill(s) whose total did not match their lines.",
+        "reopenedPeriods": "Restored {count} closed period(s) as open, because the file did not carry the record of who closed them: {fields}",
+        "newerVersion": "This file was written by a newer SmartJib (version {fields}); everything it holds that this version understands was restored.",
+        "unmarkedFile": "This file is not marked as a SmartJib backup, so its periods and goals were read as they are."
+      },
+      "syncRunning": "Syncing…",
+      "syncComplete": "Synced {months} month(s): {incomes} incomes, {expenses} expenses, {fixed} fixed bills, {debts} debts.",
+      "syncNothingNew": "Nothing new to sync — every record is already there.",
+      "syncErrorCurrency": "Both workspaces must use the same currency before syncing.",
+      "syncErrorPeriod": "Both workspaces must start the budget month on the same day before syncing.",
+      "syncPartial": "Sync stopped after {months} month(s). Running it again is safe.",
+      "syncPartialNothingAt": "Nothing was copied yet - {period} already failed.",
+      "syncSkippedClosed": "Nothing was copied - {periods} period(s) of the target workspace are closed. Reopen a period to copy into it.",
+      "syncSkippedSome": "{periods} closed period(s) in the target were left out.",
+      "syncPartialNothing": "Nothing was copied yet - the first period already failed.",
+      "syncRestoreOffer": "Run \"{action}\" below first: it is the repair this app can perform from the browser.",
+      "syncRestoreOfferFrozen": "Run \"{action}\" below: it can put your membership row back, and nothing else. The plan-owner field the sync also needs is frozen by the published rules, so only a rules deploy or the maintenance script changes it.",
+      "syncFailed": "The sync could not be completed. Please try again.",
       "personalWorkspace": "Personal workspace"
     },
     "moneySources": {
@@ -1681,6 +1742,7 @@
       "nameRequired": "Give this money source a name.",
       "duplicateName": "That name is already used.",
       "uniqueName": "Enter a unique name.",
+      "limitReached": "You have reached the limit of {count} money sources. Remove one to add another.",
       "exampleName": "e.g. PayPal, Safe, Revolut",
       "addSource": "Add source",
       "addMoneySource": "Add money source",
@@ -1693,6 +1755,7 @@
       "chooseIcon": "Choose an icon"
     },
     "workspace": {
+      "schemaGaps": "This workspace's document predates {fields}, and no screen can fill those in from the app. The maintenance script completes them: npm run db:migrate -- --dry-run lists the documents, --apply writes them.",
       "mySmartJib": "My SmartJib",
       "personalDashboard": "Private personal dashboard",
       "householdDashboard": "Household Dashboard",
@@ -1702,7 +1765,14 @@
       "convertToHouseholdHint": "Turn your private workspace into a shared household. You'll set up the household budget next.",
       "removeHousehold": "Remove household workspace",
       "leaveHousehold": "Leave household workspace",
-      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here."
+      "removeHouseholdConfirm": "Remove this household workspace? Your personal budget stays. Shared household data will no longer be available here.",
+      "syncTitle": "Sync workspaces",
+      "syncDescription": "One tap copies transactions both ways between this workspace and {household}: expenses, fixed bills, incomes and debts. Existing records are kept; balances are never touched.",
+      "syncAction": "Sync now",
+      "syncStartTitle": "Align budget-month start",
+      "syncStartMessage": "Your personal budget month starts on day {personal}, but the household starts on day {householdDay}. Syncing will apply day {day} (this workspace's start) to the other workspace so periods line up. Future periods follow the new day; existing periods keep their recorded dates.",
+      "syncAlignedNote": "Budget-month start day {day} applied to the other workspace.",
+      "syncRequiresPro": "Syncing writes into the shared household budget, which needs an active Pro entitlement."
     },
     "pro": {
       "yourFeatures": "Your Pro Features",
@@ -1750,7 +1820,10 @@
     "avatarSaveError": "Unable to save this profile photo.",
     "upgradeToPro": "View SmartJib Pro",
     "monthStartDatePersonalScope": "Personal",
-    "monthStartDateHouseholdScope": "Household"
+    "monthStartDateHouseholdScope": "Household",
+    "rolloverTitle": "Budget rollover",
+    "rolloverDesc": "Carry unused category budgets into the next month.",
+    "rolloverProHint": "Pro unlocks carrying unused category budgets into the next month."
   },
   "household": {
     "title": "Household collaboration",
@@ -1774,6 +1847,8 @@
     "remove": "Remove",
     "monthlyContributions": "This month's contributions",
     "contributionGuide": "Balance compares each active collaborator’s paid expenses with an equal share. Use it as a settle-up guide; no money is moved by SmartJib.",
+    "contributionsUnattributed": "Unattributed payments",
+    "contributionsExcluded": "Household-funds and unattributed payments are shown for completeness but stay out of the equal-share split.",
     "inviteMember": "Invite a household member",
     "inviteDescription": "Choose their access instead of assigning a fixed family role.",
     "fullName": "Full name",
@@ -1885,7 +1960,9 @@
     "trialExpiredBody": "Your data is safe and remains available. Pro-only editing is paused, while the core free plan continues to work.",
     "billingNotAvailable": "Paid upgrades are not available yet. You will never be charged without explicitly choosing a plan after billing launches.",
     "noCardRequired": "No card required · no automatic renewal · one trial per account",
-    "trialError": "The trial could not be started. Check your connection and try again."
+    "trialError": "The trial could not be started. Check your connection and try again.",
+    "householdSponsorActive": "Household Pro sponsorship: active until {date}.",
+    "householdSponsorExpired": "This household's Pro sponsorship (recorded at creation) expired on {date}. A household's sponsor is fixed at creation — if your plan is active, the household must be re-linked or recreated."
   },
   "seo": {
     "titles": {
@@ -1915,7 +1992,21 @@
     "retry": "Retry",
     "useCloudCopy": "Discard local changes",
     "pending": "Pending",
-    "local": "Saved on this device"
+    "local": "Saved on this device",
+    "blockedEntitlement": "Editing the shared household budget needs an active Pro entitlement. Your change stays safely queued on this device and will sync once access is active again.",
+    "sponsorRebound": "Shared budget access restored — this household now runs on your Pro plan, and your queued changes are being sent.",
+    "sponsorLapsed": "This household runs on another account's Pro plan and that plan is no longer active. Everything stays readable; editing resumes once the plan is renewed.",
+    "sponsorUnreadable": "This household's shared budget is paid for by another account, which this device cannot inspect. Only the household owner can change whose plan it runs on.",
+    "accessRestored": "Restored your access to this workspace. Changes that were queued while it was refused are sending now.",
+    "membershipBlocked": "Your membership in this workspace is recorded as inactive, and the rules published here let only a workspace owner change that. Ask an owner to invite you again.",
+    "rulesBehind": "The rules published on this project cannot store a household plan owner, so they refuse the write. Redeploy them from the version of firestore.rules this build ships with (firebase deploy --only firestore:rules).",
+    "profileInvalid": "This account's plan is stored in a form the app cannot verify (an unrecognised plan or status value), so the server will not attach the household to it. Correct the plan fields on the user profile in the Firebase console, or start the Pro trial from the app.",
+    "restoreAccess": "Restore shared access",
+    "restoreAccessHint": "Writes here are refused because the Pro plan that pays for this household belongs to another account. You own this household and hold an active plan, so it can be switched to yours.",
+    "restoreAccessDone": "Household plan owner updated. Your queued changes go out on the next sync.",
+    "restoreAccessConsistent": "This household already runs on your plan, so the refusal came from somewhere else.",
+    "restoreBindingFrozen": "Your membership row is back, so the workspace opens again. The plan-owner binding is still refused: the published rules freeze that field to what is stored, and no browser client can change it - not this repair, not a save from Settings. Deploy the rules this build ships with, or run the maintenance script (npm run db:migrate -- --apply).",
+    "restoreAccessFailed": "The server refused the change, so this household's plan owner could not be updated."
   },
   "monthLock": {
     "closed": "Month closed",

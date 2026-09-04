@@ -10,8 +10,8 @@ import { useHousehold, type InviteRole } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
 import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
-import { fixedPaidAmount, type MonthBudget } from '@/lib/store';
-import { isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
+import { type MonthBudget } from '@/lib/store';
+import { computeHouseholdContributions, isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
 import {
   AREA_LEVEL_OPTIONS,
   DEFAULT_CUSTOM_PERMISSIONS,
@@ -110,31 +110,38 @@ export function HouseholdPanel({
     }
   };
 
-  const contributions = members
-    .filter((member) => member.status === 'active' && member.role !== 'profile')
-    .map((member) => ({
-      member,
-      total:
-        (month?.variableExpenses || [])
-          .filter((expense) => expense.payerMemberId === member.id)
-          .reduce((sum, expense) => sum + expense.amount, 0)
-        + (month?.fixedExpenses || [])
-          .filter((expense) => expense.payerMemberId === member.id)
-          .reduce((sum, expense) => sum + fixedPaidAmount(expense), 0),
-    }));
-  const paidTotal = contributions.reduce((sum, item) => sum + item.total, 0);
-  const equalShare = contributions.length ? paidTotal / contributions.length : 0;
+  // Settle-up math lives in a pure, tested helper: 'self' payers resolve via
+  // createdByUserId, pooled ('household') and unattributed payments stay out
+  // of the equal-share split but remain visible.
+  const contributions = computeHouseholdContributions(month, members);
   const roleOptions = [
     { value: 'contributor', label: h.contributor },
     { value: 'editor', label: h.fullAccess },
     { value: 'viewer', label: h.viewOnly },
     { value: 'custom', label: m.householdRoles.custom },
   ];
+  // One person, one row: an invited member's retired placeholder (email-keyed,
+  // status 'inactive') must not double the active membership claimed from the
+  // invitation. Hide a retired row only when an ACTIVE member already carries
+  // the same email — a genuinely retired member with a unique email stays
+  // listed so the owner can restore them.
+  const activeEmails = new Set(
+    members
+      .filter((member) => member.status === 'active' && member.email)
+      .map((member) => (member.email || '').trim().toLowerCase()),
+  );
+  const visibleMembers = members.filter((member) => {
+    if (member.status === 'active') return true;
+    const email = (member.email || '').trim().toLowerCase();
+    return !email || !activeEmails.has(email);
+  });
+
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
-    if (status === 'inactive') return m.common.inactive;
-    if (status === 'invited') return h.invited;
-    return status;
+    if (status === 'inactive') return m.common.inactive;    if (status === 'invited') return h.invited;
+    // Same reason as `localizeHouseholdRole`: an absent `status` is not the string
+    // "undefined", and this list is exactly where a legacy row is looked at.
+    return typeof status === 'string' ? status : '';
   };
 
   // An invitation link (?invite=CODE) is the one exception: that is how a
@@ -292,7 +299,7 @@ export function HouseholdPanel({
             </div>
 
             <div className="space-y-2">
-              {members.map((member) =>
+              {visibleMembers.map((member) =>
                 editingMember?.id === member.id ? (
                   <MemberEditor
                     key={member.id}
@@ -351,25 +358,41 @@ export function HouseholdPanel({
               )}
             </div>
 
-            {contributions.length > 0 && (
+            {workspace === 'household' && contributions.rows.length > 0 && (
               <div className="border-t border-outline-variant pt-4">
                 <p className="mb-2 font-bold">{h.monthlyContributions}</p>
                 <div className="space-y-2">
-                  {contributions.map(({ member, total }) => {
-                    const balance = total - equalShare;
-                    return (
-                      <div key={member.id} className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm">
-                        <span className="min-w-0 truncate">{member.displayName}</span>
-                        <span className="shrink-0 font-semibold tabular-nums">
-                          {format(total)} ·{' '}
-                          <span className={balance >= 0 ? 'text-primary' : 'text-error'}>
-                            {balance >= 0 ? '+' : '−'}{format(Math.abs(balance))}
-                          </span>
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {contributions.rows.map(({ member, paid, balance }) => (
+                    <div key={member.id} className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm">
+                      <span className="min-w-0 truncate">{member.displayName}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {format(paid)} ·{' '}
+                        {balance === 0 ? (
+                          <span className="font-medium text-on-surface-variant">{format(0)}</span>
+                        ) : balance > 0 ? (
+                          <span className="text-primary">+{format(balance)}</span>
+                        ) : (
+                          <span className="text-error">−{format(Math.abs(balance))}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  {contributions.pooledTotal > 0 && (
+                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
+                      <span className="min-w-0 truncate">{h.funds}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{format(contributions.pooledTotal)}</span>
+                    </div>
+                  )}
+                  {contributions.unattributedTotal > 0 && (
+                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
+                      <span className="min-w-0 truncate">{h.contributionsUnattributed}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{format(contributions.unattributedTotal)}</span>
+                    </div>
+                  )}
                 </div>
+                {(contributions.pooledTotal > 0 || contributions.unattributedTotal > 0) && (
+                  <p className="mt-2 text-xs text-on-surface-variant">{h.contributionsExcluded}</p>
+                )}
                 <p className="mt-2 text-xs text-on-surface-variant">{h.contributionGuide}</p>
               </div>
             )}

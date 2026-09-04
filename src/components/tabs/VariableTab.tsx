@@ -2,7 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
+import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, envelopeFor, UserProfile } from '../../lib/store';
 import { formatShortDate } from '../../lib/utils';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
@@ -28,6 +28,8 @@ interface VariableTabProps {
   onUpdateMonth: (month: MonthBudget) => void;
   onUpdateProfile: (profile: UserProfile) => void;
   onOpenProModal: () => void;
+  /** Explicit needs/wants override; absent when the member cannot edit settings. */
+  onSetCategoryEnvelope?: (category: string, envelope: 'needs' | 'wants') => void;
   /** False when the household role may read expenses but not change them. */
   canEdit?: boolean;
   /** Category budgets live in `settings`, a separate area from `expenses`. */
@@ -41,6 +43,7 @@ export function VariableTab({
   onUpdateMonth,
   onUpdateProfile,
   onOpenProModal,
+  onSetCategoryEnvelope,
   canEdit = true,
   canEditCategoryBudgets = true,
 }: VariableTabProps) {
@@ -212,20 +215,44 @@ export function VariableTab({
             const progress = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
             const isOverBudget = budget > 0 && spent > budget;
             const isEditing = editingCategory === category;
+            const envelope = envelopeFor(month.categoryEnvelopes, category, 'variable');
 
             return (
               <div key={category} className="flex flex-col gap-sm">
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-sm">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-center gap-sm min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <AppIcon 
                         name={month.categoryIcons?.[category] || 'category'} 
                         className="text-[18px] text-primary" 
                       />
                     </div>
-                    <span className="font-label-lg text-label-lg font-bold text-on-surface">
-                      {localizeCategoryName(category, m)}
-                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface truncate">
+                        {localizeCategoryName(category, m)}
+                      </span>
+                      {onSetCategoryEnvelope ? (
+                        <div className="flex items-center gap-1 mt-0.5" role="group" aria-label={t(m.tabs.variable.envelopeLabel, { category: localizeCategoryName(category, m) })}>
+                          {(['needs', 'wants'] as const).map((env) => (
+                            <button
+                              key={env}
+                              type="button"
+                              onClick={() => envelope !== env && onSetCategoryEnvelope(category, env)}
+                              aria-pressed={envelope === env}
+                              className={`px-2 py-0.5 rounded-full font-label-sm text-label-sm font-bold transition-all ${
+                                envelope === env
+                                  ? env === 'needs'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'bg-tertiary text-on-tertiary'
+                                  : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                              }`}
+                            >
+                              {env === 'needs' ? m.tabs.variable.envelopeNeeds : m.tabs.variable.envelopeWants}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   
                   {isEditing ? (

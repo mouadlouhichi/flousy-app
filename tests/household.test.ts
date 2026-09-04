@@ -30,10 +30,25 @@ import {
   canShowProUpgrade,
   isProFeatureUnlocked,
   isHouseholdEntitlementActive,
+  householdEntitlementForEditor,
   monthStartDateFor,
   normalizeHouseholdName,
   isAssignableMemberRole,
+  computeHouseholdContributions,
+  type HouseholdMember,
 } from '../src/lib/household';
+import { normalizeMonth } from '../src/lib/store';
+
+function makeMember(id: string, overrides: Partial<HouseholdMember> = {}): HouseholdMember {
+  return {
+    id,
+    displayName: id,
+    role: 'editor',
+    status: 'active',
+    avatarColor: '#00685f',
+    ...overrides,
+  };
+}
 
 describe('Household name validation', () => {
   it('trims valid names and enforces the Firestore size boundary', () => {
@@ -276,6 +291,21 @@ describe('Household storage and audit helpers', () => {
     assert.equal(isProFeatureUnlocked(false, 'personal', active, now), false);
     // Legacy households have no projection and retain access/data.
     assert.equal(isHouseholdEntitlementActive({}, now), true);
+    // Rules parity: an absent expiry is unbounded; only an explicitly
+    // negative status withdraws access.
+    assert.equal(isHouseholdEntitlementActive({ entitlementSource: 'launch_trial' }, now), true);
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'launch_trial', entitlementStatus: 'trialing' }, now),
+      true,
+    );
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'stripe', entitlementStatus: 'expired' }, now),
+      false,
+    );
+    assert.equal(
+      isHouseholdEntitlementActive({ entitlementSource: 'stripe', entitlementStatus: 'past_due' }, now),
+      false,
+    );
   });
 });
 
@@ -287,5 +317,170 @@ describe('Assignable member roles', () => {
     for (const role of ['owner', 'profile', '', 'admin']) {
       assert.equal(isAssignableMemberRole(role), false, role);
     }
+  });
+});
+
+describe('Household contribution settle-up math', () => {
+  const mouad = makeMember('mouad', { displayName: 'louhichi mouad', userId: 'uid-mouad', role: 'owner' });
+  const luigi = makeMember('luigi', { displayName: 'Luigi Family', userId: 'uid-luigi', role: 'editor' });
+  const members = [mouad, luigi];
+
+  it('attributes explicit payer ids and balances sum to zero', () => {
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'Groceries', amount: 300, type: 'Groceries', date: '2026-09-01', place: 'bank', payerMemberId: 'mouad' },
+        { id: 'e2', name: 'Bus', amount: 100, type: 'Transport', date: '2026-09-02', place: 'wallet', payerMemberId: 'luigi' },
+      ],
+    }, '2026-09');
+    const result = computeHouseholdContributions(month, members);
+    assert.equal(result.rows.length, 2);
+    assert.equal(result.rows[0].paid, 300);
+    assert.equal(result.rows[0].balance, 100);
+    assert.equal(result.rows[1].paid, 100);
+    assert.equal(result.rows[1].balance, -100);
+    assert.equal(Math.round(result.rows.reduce((sum, r) => sum + r.balance, 0) * 100) / 100, 0);
+    assert.equal(result.pooledTotal, 0);
+    assert.equal(result.unattributedTotal, 0);
+  });
+
+  it("resolves the default 'self' payer through createdByUserId", () => {
+    // The default expense flow: nobody taps a named payer badge.
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'Groceries', amount: 300, type: 'Groceries', date: '2026-09-01', place: 'bank', payerMemberId: 'self', createdByUserId: 'uid-mouad' },
+        { id: 'e2', name: 'Bus', amount: 100, type: 'Transport', date: '2026-09-02', place: 'wallet', payerMemberId: 'self', createdByUserId: 'uid-luigi' },
+      ],
+      fixedExpenses: [
+        { id: 'f1', name: 'Rent', amount: 1000, type: 'Rent', place: 'bank', status: 'paid', payerMemberId: 'self', createdByUserId: 'uid-mouad' },
+      ],
+    }, '2026-09');
+    const result = computeHouseholdContributions(month, members);
+    // mouad: 300 variable + 1000 fixed; luigi: 100. Total 1400, share 700.
+    assert.equal(result.rows[0].paid, 1300);
+    assert.equal(result.rows[1].paid, 100);
+    assert.equal(result.rows[0].balance, 600);
+    assert.equal(result.rows[1].balance, -600);
+    assert.equal(result.unattributedTotal, 0);
+  });
+
+  it("keeps pooled 'household' payments visible but out of the split", () => {
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'Groceries', amount: 300, type: 'Groceries', date: '2026-09-01', place: 'bank', payerMemberId: 'household' },
+        { id: 'e2', name: 'Bus', amount: 100, type: 'Transport', date: '2026-09-02', place: 'wallet', payerMemberId: 'mouad' },
+      ],
+    }, '2026-09');
+    const result = computeHouseholdContributions(month, members);
+    assert.equal(result.pooledTotal, 300);
+    assert.equal(result.unattributedTotal, 0);
+    // Only the attributed 100 is split: 50/50.
+    assert.equal(result.rows[0].paid, 100);
+    assert.equal(result.rows[0].balance, 50);
+    assert.equal(result.rows[1].paid, 0);
+    assert.equal(result.rows[1].balance, -50);
+  });
+
+  it('reports unresolvable payers as unattributed instead of hiding the money', () => {
+    const month = normalizeMonth({
+      variableExpenses: [
+        // 'self' with no resolvable audit stamp (legacy row).
+        { id: 'e1', name: 'Old', amount: 500, type: 'Other', date: '2026-09-01', place: 'bank', payerMemberId: 'self' },
+        // Payer was removed from the household (now inactive).
+        { id: 'e2', name: 'Gone', amount: 60, type: 'Other', date: '2026-09-02', place: 'bank', payerMemberId: 'ex-member' },
+        // Legacy personal payer id.
+        { id: 'e3', name: 'Legacy', amount: 40, type: 'Other', date: '2026-09-03', place: 'bank', payerMemberId: 'legacy-0' },
+        { id: 'e4', name: 'Mine', amount: 200, type: 'Other', date: '2026-09-04', place: 'bank', payerMemberId: 'mouad' },
+      ],
+    }, '2026-09');
+    const roster = [...members, makeMember('ex-member', { status: 'inactive' })];
+    const result = computeHouseholdContributions(month, roster);
+    assert.equal(result.unattributedTotal, 600);
+    // Only 200 is split; the 600 cannot silently distort anyone's balance.
+    assert.equal(result.rows[0].paid, 200);
+    assert.equal(result.rows[0].balance, 100);
+    assert.equal(result.rows[1].paid, 0);
+    assert.equal(result.rows[1].balance, -100);
+  });
+
+  it('counts fixed bills by lifecycle: planned 0, partial paidAmount, paid full', () => {
+    const month = normalizeMonth({
+      fixedExpenses: [
+        { id: 'f1', name: 'Rent', amount: 1000, type: 'Rent', place: 'bank', status: 'paid', payerMemberId: 'mouad' },
+        { id: 'f2', name: 'Net', amount: 200, type: 'Internet', place: 'bank', status: 'planned', payerMemberId: 'mouad' },
+        { id: 'f3', name: 'Gym', amount: 150, type: 'Gym', place: 'bank', status: 'partial', paidAmount: 50, payerMemberId: 'luigi' },
+      ],
+    }, '2026-09');
+    const result = computeHouseholdContributions(month, members);
+    assert.equal(result.rows[0].paid, 1000);
+    assert.equal(result.rows[1].paid, 50);
+    assert.equal(result.rows[0].balance, 475);
+    assert.equal(result.rows[1].balance, -475);
+  });
+
+  it('excludes profile-role placeholders from rows and from the split', () => {
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'Kid', amount: 80, type: 'Other', date: '2026-09-01', place: 'bank', payerMemberId: 'kid-profile' },
+        { id: 'e2', name: 'Mine', amount: 100, type: 'Other', date: '2026-09-02', place: 'bank', payerMemberId: 'mouad' },
+      ],
+    }, '2026-09');
+    const roster = [...members, makeMember('kid-profile', { role: 'profile', displayName: 'Kid' })];
+    const result = computeHouseholdContributions(month, roster);
+    assert.equal(result.rows.length, 2);
+    assert.equal(result.unattributedTotal, 80);
+    assert.equal(result.rows[0].balance, 50);
+    assert.equal(result.rows[1].balance, -50);
+  });
+
+  it('returns zero balances for an empty month and for a single member', () => {
+    const empty = computeHouseholdContributions(normalizeMonth({}, '2026-09'), members);
+    assert.deepEqual(empty.rows.map((r) => [r.paid, r.balance]), [[0, 0], [0, 0]]);
+    assert.equal(empty.pooledTotal, 0);
+    assert.equal(empty.unattributedTotal, 0);
+
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'Solo', amount: 999, type: 'Other', date: '2026-09-01', place: 'bank', payerMemberId: 'mouad' },
+      ],
+    }, '2026-09');
+    const solo = computeHouseholdContributions(month, [mouad]);
+    assert.equal(solo.rows[0].balance, 0);
+  });
+
+  it('keeps balances cent-precise on awkward splits', () => {
+    const month = normalizeMonth({
+      variableExpenses: [
+        { id: 'e1', name: 'A', amount: 100.01, type: 'Other', date: '2026-09-01', place: 'bank', payerMemberId: 'mouad' },
+        { id: 'e2', name: 'B', amount: 0.01, type: 'Other', date: '2026-09-02', place: 'bank', payerMemberId: 'luigi' },
+      ],
+    }, '2026-09');
+    const result = computeHouseholdContributions(month, members);
+    assert.equal(result.rows[0].balance, 50);
+    assert.equal(result.rows[1].balance, -50);
+  });
+});
+
+describe('Editing-gate entitlement truth (owner profile vs projection)', () => {
+  const now = Date.parse('2026-09-03T00:00:00Z');
+  const activeProfile = {
+    plan: 'pro',
+    entitlementSource: 'launch_trial',
+    entitlementStatus: 'trialing',
+    entitlementEndsAtMs: now + 30 * 24 * 60 * 60 * 1000,
+  };
+  const expiredProfile = { ...activeProfile, entitlementEndsAtMs: now - 1 };
+  const activeProjection = { entitlementEndsAtMs: now + 30 * 24 * 60 * 60 * 1000 };
+  const staleProjection = { entitlementEndsAtMs: now - 1 };
+
+  it('the owner is judged by their PROFILE, exactly like Firestore rules', () => {
+    // Rules read users/{ownerId}; a stale projection must not unlock editing.
+    assert.equal(householdEntitlementForEditor(staleProjection, activeProfile, true, now), true);
+    // An optimistic projection must not mask a lapsed profile: edits would 403.
+    assert.equal(householdEntitlementForEditor(activeProjection, expiredProfile, true, now), false);
+  });
+
+  it('a non-owner member is judged by the projection (their only local truth)', () => {
+    assert.equal(householdEntitlementForEditor(activeProjection, expiredProfile, false, now), true);
+    assert.equal(householdEntitlementForEditor(staleProjection, activeProfile, false, now), false);
   });
 });

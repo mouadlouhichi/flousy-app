@@ -4,28 +4,29 @@ import {
   DASHBOARD_NAV_ITEMS,
   PROFILE_SUBPAGE_NAV_ITEMS,
   getProfilePageTitle,
-  getProfileSubpageNavItems,
   getScreenIdFromPath,
+  getSidebarNavItems,
   getVisibleNavItems,
 } from '../src/components/dashboard/nav-items';
 
 describe('Profile subpage nav items', () => {
-  it('exposes the account pages for the grouped desktop sidebar', () => {
+  it('lists the profile subpages the Profile page links to', () => {
     assert.deepEqual(
-      getProfileSubpageNavItems(false).map((item) => item.id),
-      ['preferences', 'money-sources', 'data', 'account'],
+      PROFILE_SUBPAGE_NAV_ITEMS.map((item) => item.id),
+      ['preferences', 'money-sources', 'household', 'data', 'account'],
     );
   });
 
-  it('adds the household page only where household management is allowed', () => {
-    assert.ok(getProfileSubpageNavItems(true).some((item) => item.id === 'household'));
-    assert.ok(!getProfileSubpageNavItems(false).some((item) => item.id === 'household'));
-  });
-
-  it('never puts a profile subpage in the bottom nav', () => {
-    const navIds: string[] = getVisibleNavItems(true).map((item) => item.id);
-    for (const item of PROFILE_SUBPAGE_NAV_ITEMS) {
-      assert.ok(!navIds.includes(item.id), `${item.id} must stay in the sidebar`);
+  it('never puts a profile subpage in a navigation bar', () => {
+    // The Profile page (opened from the avatar/footer) owns these pages; the
+    // bottom nav and the desktop sidebar never list them.
+    for (const isPro of [false, true]) {
+      const navIds: string[] = getVisibleNavItems(isPro).map((item) => item.id);
+      const sidebarIds: string[] = getSidebarNavItems(isPro).map((item) => item.id);
+      for (const item of PROFILE_SUBPAGE_NAV_ITEMS) {
+        assert.ok(!navIds.includes(item.id), `${item.id} must stay off the bottom nav`);
+        assert.ok(!sidebarIds.includes(item.id), `${item.id} must stay off the sidebar`);
+      }
     }
   });
 
@@ -41,6 +42,18 @@ describe('Dashboard navigation items', () => {
   it('keeps the bottom nav focused at 5 destinations for free and PRO users', () => {
     assert.strictEqual(getVisibleNavItems(false).length, 5);
     assert.strictEqual(getVisibleNavItems(true).length, 5);
+  });
+
+  it('gives the desktop sidebar courses and analytics, never profile', () => {
+    const freeSidebar = getSidebarNavItems(false).map((item) => item.id);
+    assert.ok(freeSidebar.includes('courses'), 'courses is a sidebar destination');
+    assert.ok(!freeSidebar.includes('trends'), 'analytics stays Pro-gated');
+    assert.ok(!freeSidebar.includes('profile'), 'profile belongs to the footer');
+
+    const proSidebar = getSidebarNavItems(true).map((item) => item.id);
+    assert.deepEqual(proSidebar, [
+      'overview', 'fixed', 'variable', 'courses', 'savings', 'trends', 'debts',
+    ]);
   });
 
   it('never surfaces the profile page in the nav bars', () => {

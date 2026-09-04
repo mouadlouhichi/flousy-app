@@ -13,6 +13,7 @@ export function VariableScreen() {
     openProModal,
     updateAndSaveMonth,
     handleUpdateProfile,
+    handleSetCategoryEnvelope,
   } = useDashboard();
   const { canViewArea, canEditArea } = useHousehold();
   const area = SCREEN_AREA.variable!;
@@ -26,6 +27,7 @@ export function VariableScreen() {
       onUpdateMonth={(next) => updateAndSaveMonth(next, 'settings')}
       onUpdateProfile={handleUpdateProfile}
       onOpenProModal={openProModal}
+      onSetCategoryEnvelope={canEditArea('settings') ? handleSetCategoryEnvelope : undefined}
       canEdit={canEditArea('expenses', true)}
       canEditCategoryBudgets={canEditArea('settings')}
     />

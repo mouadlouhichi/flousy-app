@@ -40,7 +40,7 @@ export function FixedTab({ month, onOpenAddModal, onEditBill, canEdit = true }: 
             {format(totalFixed)}
           </h2>
           <p className="mt-1 text-xs font-bold text-primary">
-            {t(m.tabs.fixed.paidSummary, { amount: format(totalPaid) })}
+            {t(m.tabs.fixed.paidSummary, { paid: format(totalPaid), total: format(totalFixed) })}
           </p>
         </div>
         {canEdit && (

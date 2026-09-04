@@ -70,8 +70,8 @@ An eligible account can start **one 90-day Pro trial**:
 Pro currently unlocks:
 
 - barcode-assisted shopping-course entry;
-- six-month trends and analytics views;
-- multiple income-source management;
+- six- and twelve-month trends and analytics views with a net-savings rate;
+- multiple income-source management (the first source is free);
 - bulk CSV import;
 - category caps and budget rollover;
 - shared Household workspaces.
@@ -97,7 +97,12 @@ code must never grant a paid entitlement.
 
 ### Budgeting and accounting
 
-- Four strategies: 50/30/20, zero-based, envelope and pay-yourself-first.
+- Six strategies: 50/30/20, 70/20/10, zero-based, envelope, pay-yourself-first
+  and a custom split (the legacy 80/20 preset — numerically identical to
+  50/30/20 — was removed; existing months migrate automatically).
+- Explicit needs/wants envelope per category: the keyword-based guess only
+  seeds new categories, and every classification is stable across renames
+  and locales.
 - Needs, wants and savings envelopes with exact remainder handling.
 - Configurable variable and fixed categories, icons and colours.
 - Bank, home, wallet and custom money places.
@@ -109,6 +114,8 @@ code must never grant a paid entitlement.
 - Configurable budget-month start day and historical currency snapshots.
 - Personal and owner-controlled Household month close/reopen; closed periods are
   read-only across ordinary edits, course posting and invoice approval.
+- Open debts and credits carry across period rollover with their payment
+  history, so multi-month repayment happens in the period the payment is made.
 
 ### Household collaboration
 
@@ -290,6 +297,7 @@ arbitrary free text.
 | `npm run typecheck:strict` | Strict TypeScript check |
 | `npm test` | All non-emulator unit/regression suites |
 | `npm run test:rules` | Firestore Rules suite; requires a running Firestore emulator |
+| `npm run db:migrate` | Report or backfill fields missing from stored documents (dry-run by default; see Data model) |
 | `npm run check` | Lint + normal/strict typecheck + unit tests |
 | `npm audit --omit=dev` | Production dependency vulnerability gate |
 
@@ -341,6 +349,56 @@ householdInvites/{inviteId}         expiring invitation grant
 Modern persisted IDs use `crypto.randomUUID()` when available. Legacy records
 remain readable through normalisers; production changes must preserve that
 compatibility.
+
+### Adding a field to a persisted type
+
+Firestore stores what was written, so a field added to a type or to `firestore.rules`
+does not exist on documents created before it. Reads cannot fail for that reason: they
+return a document without the key, and the failure appears wherever the field is
+consumed. A feature that adds a required field therefore ships all five parts:
+
+1. **Reader** — the read path already has a default, or gains one
+   (`normalizeHousehold` in `src/lib/household.ts`, `normalizeMonth` in `src/lib/store.ts`).
+   Raw-cast subcollections (member rows, invitations) have no normaliser: check them.
+2. **Writer** — create the field on new documents. A patch-only writer never heals an old
+   document, because the patch is merged.
+3. **Rules** — read stored values as `existing().get('key', default)`, never
+   `existing().key`: a missing property aborts evaluation and the client receives a bare
+   `permission-denied`, which also blocks the write that would have healed the document.
+   Require the field in the create path only. Then run `node scripts/rules-totality.mjs`,
+   which fails when an `update` or `delete` rule reaches into a document without proving the
+   field is present — a `create` rule may require its fields, because the document does not
+   exist yet, and only the update path can strand somebody already using the app. Then run
+   `node scripts/rules-budget.mjs`: defaults cost expressions, so pay for them by folding
+   duplicated `exists()/get()` paths into a helper or removing checks another clause already
+   implies.
+4. **Repair** — add the field to `SCHEMA_MODELS` in `src/lib/schema-migrations.ts`:
+   `breaks` says what stops working, `repair` returns the value implied by the document,
+   and `repair: () => null` means "reported, never guessed". `tests/schema-migrations.test.ts`
+   fails if a normaliser defaults a field the registry does not repair, or if a registry
+   key stops matching the collection the rules actually match.
+5. **Backfill** — run the migration before deploying the rules that require the field:
+
+   ```bash
+   npm run db:migrate -- --project <project-id> --dry-run   # what would change
+   npm run db:migrate -- --project <project-id> --check     # what a save would be refused for
+   npm run db:migrate -- --project <project-id> --apply     # write the derived values
+   ```
+
+   `--collection households|householdMembers|householdInvites` narrows the run, and the
+   default is dry-run so an unattended invocation changes nothing. The script uses the
+   Firestore REST API with a short-lived token
+   (`gcloud auth print-access-token`), never a service-account key, and it writes only
+   values it can derive: anything else is listed as `unresolved` — "needs a decision" —
+   and left untouched.
+
+The owner-facing half of the same mechanism runs in the app: `subscribeHousehold` plans the
+repair from the stored document, and a household owner's session persists the derived values
+once and names what remains in the workspace card. That is how an account already in this
+state recovers without an operator. Deleting, renaming or re-typing a field is not covered
+by this path and is decided by hand — see
+[`AUDIT_MISSING_FIELDS_2026-09-03.md`](AUDIT_MISSING_FIELDS_2026-09-03.md) for the
+per-feature audit behind it.
 
 ## Internationalisation
 
