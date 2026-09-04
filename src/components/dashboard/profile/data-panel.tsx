@@ -13,7 +13,16 @@ import { useHousehold } from '@/lib/household-context';
 import { canExportAnything } from '@/lib/household-rbac';
 import { useDashboard } from '../dashboard-provider';
 import { exportFinanceBackup, FinanceRestoreIncompleteError, restoreFinanceBackup } from '@/lib/db';
-import { downloadJson, parseFinanceBackup, serializeFinanceBackup, type FinanceBackup } from '@/lib/finance-backup';
+import {
+  downloadJson,
+  InvalidFinanceBackupError,
+  planFinanceBackupRestore,
+  readFinanceBackup,
+  serializeFinanceBackup,
+  type BackupNotice,
+  type BackupPlan,
+  type FinanceBackup,
+} from '@/lib/finance-backup';
 import { useToast } from '@/hooks/use-toast';
 
 export function DataPanel() {
@@ -33,7 +42,7 @@ export function DataPanel() {
   const [deleteError, setDeleteError] = useState('');
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupNotice, setBackupNotice] = useState('');
-  const [pendingRestore, setPendingRestore] = useState<FinanceBackup | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<{ backup: FinanceBackup; lines: string[] } | null>(null);
 
   const handleExportCsv = () => {
     if (!canExport) return;
@@ -88,13 +97,65 @@ export function DataPanel() {
     if (!file) return;
     setBackupNotice('');
     try {
-      const backup = parseFinanceBackup(await file.text());
-      if (backup.workspace.type !== workspace) throw new Error('Workspace type mismatch.');
-      setPendingRestore(backup);
+      const { backup, notices } = readFinanceBackup(await file.text());
+      const plan = planFinanceBackupRestore(backup, {
+        workspace,
+        isOwner,
+        currency,
+        monthStartDate: financeConfiguration?.monthStartDate,
+        name: workspace === 'household' ? household?.name : undefined,
+      });
+      if (!plan.canRestore) {
+        // A shared workspace belongs to everyone in it, so only its owner may put
+        // somebody else's numbers into it - and any other reason the plan found has
+        // to be named too, or the user is left with a refusal and no cause.
+        const reasons = plan.notices.flatMap((notice) => {
+          const template = p.backupPlanNotices?.[notice.code];
+          return template ? [t(template, notice.params)] : [];
+        });
+        const description = reasons.length > 0 ? reasons.join(' ') : p.restoreFailed;
+        setBackupNotice(description);
+        toast({ variant: 'destructive', title: p.restoreBackup, description });
+        return;
+      }
+      setPendingRestore({
+        backup,
+        lines: [
+          t(p.restoreCounts, {
+            months: plan.counts.months,
+            goals: plan.counts.goals,
+            products: plan.counts.products,
+            sessions: plan.counts.sessions,
+            exportedAt: backup.exportedAt.slice(0, 10),
+          }),
+          ...notices.flatMap((notice) => {
+            const template = p.backupReportNotices?.[notice.code];
+            return template
+              ? [t(template, { count: notice.count, fields: (notice.fields ?? []).join(', ') })]
+              : [];
+          }),
+          ...plan.notices.flatMap((notice) => {
+            const template = p.backupPlanNotices?.[notice.code];
+            return template && notice.code !== 'householdOwnerOnly'
+              ? [t(template, notice.params)]
+              : [];
+          }),
+        ],
+      });
     } catch (error) {
       console.error('Backup validation failed:', error);
-      setBackupNotice(p.backupInvalid);
-      toast({ variant: 'destructive', title: p.restoreBackup, description: p.backupInvalid });
+      // Any failure carries its own explanation from here: a named refusal in the
+      // user's language, the reader's own words for a field it could not parse, and
+      // only as a last resort the bare "not a valid backup" notice.
+      const raw = error instanceof Error ? error.message.trim() : '';
+      const refusal = error instanceof InvalidFinanceBackupError ? error.refusal : undefined;
+      const template = refusal ? p.backupInvalidReasons?.[refusal] : undefined;
+      const reason = template
+        ? (refusal === 'unreadable' && raw ? `${t(template, {})}: ${raw}` : t(template, {}))
+        : raw;
+      const description = reason ? t(p.backupInvalidDetail, { reason }) : p.backupInvalid;
+      setBackupNotice(description);
+      toast({ variant: 'destructive', title: p.restoreBackup, description });
     }
   };
 
@@ -103,14 +164,27 @@ export function DataPanel() {
     setBackupBusy(true);
     setBackupNotice('');
     try {
-      const result = await restoreFinanceBackup(user.uid, financeTarget, pendingRestore, financeConfiguration);
+      const result = await restoreFinanceBackup(user.uid, financeTarget, pendingRestore.backup, financeConfiguration);
       setBackupNotice(t(p.restoreComplete, { months: result.restoredMonths, goals: result.restoredGoals }));
       toast({ title: p.restoreBackup, description: t(p.restoreComplete, { months: result.restoredMonths, goals: result.restoredGoals }) });
       setPendingRestore(null);
       trackEvent('restore_json_backup', { workspace });
     } catch (error) {
       console.error('Backup restore failed:', error);
-      const restoreError = error instanceof FinanceRestoreIncompleteError ? p.restorePartial : p.restoreFailed;
+      let restoreError = p.restoreFailed;
+      if (error instanceof FinanceRestoreIncompleteError) {
+        // How far it got and what stopped it, instead of one sentence for every
+        // failure: "select the file again" is the right advice for a connection
+        // that died mid-restore and the wrong one for a workspace that refuses
+        // the write, and only the first is fixed by trying.
+        const progress = error.completed.length > 0
+          ? t(p.restoreStoppedAfter, { months: error.completed.length, period: error.failed })
+          : t(p.restoreStoppedFirst, { period: error.failed });
+        const cause = (error.reason as { code?: string } | undefined)?.code === 'permission-denied'
+          ? p.restoreDenied
+          : (error.reason instanceof Error ? error.reason.message.trim() : '');
+        restoreError = cause ? `${progress} ${cause}` : progress;
+      }
       setBackupNotice(restoreError);
       toast({ variant: 'destructive', title: p.restoreBackup, description: restoreError });
     } finally {
@@ -209,11 +283,14 @@ export function DataPanel() {
         onConfirm={() => { void confirmRestore(); }}
         title={p.restoreBackup}
         message={pendingRestore
-          ? t(p.restoreConfirm, {
-              months: Object.keys(pendingRestore.months).length,
-              goals: pendingRestore.goals.length,
-              workspace: household?.name || p.personalWorkspace,
-            })
+          ? [
+              t(p.restoreConfirm, {
+                months: Object.keys(pendingRestore.backup.months).length,
+                goals: pendingRestore.backup.goals.length,
+                workspace: household?.name || p.personalWorkspace,
+              }),
+              ...pendingRestore.lines,
+            ].join('\n')
           : ''}
         confirmLabel={p.restoreBackup}
         isDestructive

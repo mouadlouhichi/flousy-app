@@ -1,0 +1,8 @@
+[
+  "update:items",
+  "update:lastMutationId",
+  "update:postedExpenseId",
+  "update:reviewedByUserId",
+  "update:status",
+  "update:total"
+]

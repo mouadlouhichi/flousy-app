@@ -1,7 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeMonth, type MonthBudget } from '../src/lib/store';
-import { mergeSourceTransactionsIntoMonth, planWorkspaceSyncAlignment } from '../src/lib/workspace-sync';
+import {
+  classifyWorkspaceSyncStop,
+  isClosedTargetConflict,
+  mergeSourceTransactionsIntoMonth,
+  planWorkspaceSyncAlignment,
+} from '../src/lib/workspace-sync';
+import { FinanceConflictError } from '../src/lib/finance-sync';
 
 function sourceMonth(): MonthBudget {
   return normalizeMonth({
@@ -139,5 +145,67 @@ describe('Budget-month start alignment (source point wins)', () => {
     const zero = planWorkspaceSyncAlignment(0, 1, 'personal');
     assert.equal(zero.day, 1);
     assert.equal(zero.aligned, true);
+  });
+});
+
+/**
+ * "Sync stopped after 0 month(s). Running it again is safe." was the whole answer
+ * for a workspace that refused the first write: a count where the cause belonged,
+ * and a retry suggestion for a refusal that retries identically. The classifier is
+ * what lets the card tell those apart.
+ */
+describe('naming what stopped a sync', () => {
+  it('separates a refusal from a target that moved and from the unexplained', () => {
+    assert.equal(classifyWorkspaceSyncStop({ reason: { code: 'permission-denied' } }).cause, 'refused');
+    assert.equal(
+      classifyWorkspaceSyncStop({
+        reason: new FinanceConflictError([{ path: 'variableExpenses.v-1', reason: 'changed-remotely' }]),
+      }).cause,
+      'changed-target',
+    );
+    assert.equal(classifyWorkspaceSyncStop({ reason: new Error('offline') }).cause, 'unexplained');
+    assert.equal(classifyWorkspaceSyncStop({}).cause, 'unexplained', 'an unknown failure is never presented as a refusal');
+  });
+
+  it('does not claim progress the sync never made', () => {
+    const firstWriteFailed = classifyWorkspaceSyncStop({ reason: { code: 'permission-denied' } });
+    assert.equal(firstWriteFailed.months, 0);
+    assert.equal(firstWriteFailed.failedMonth, '', 'a stop before any period began names no period');
+    assert.equal(classifyWorkspaceSyncStop({ counts: { months: NaN } }).months, 0);
+    assert.equal(classifyWorkspaceSyncStop({ counts: { months: -4 } }).months, 0);
+
+    const midway = classifyWorkspaceSyncStop({ counts: { months: 3 }, failedMonth: '2026-04' });
+    assert.equal(midway.months, 3);
+    assert.equal(midway.failedMonth, '2026-04');
+  });
+});
+
+/**
+ * A closed period in the target used to abort the whole two-way sync - it stopped
+ * at month 0, and the card's advice was to run it again, which stopped at month 0
+ * again. Skipping it is only correct if nothing else is mistaken for it, so the
+ * two are told apart here rather than in the loop.
+ */
+describe('a frozen target period, as opposed to a stalled sync', () => {
+  it('recognizes only the period-closed conflict', () => {
+    assert.equal(
+      isClosedTargetConflict(new FinanceConflictError([{ path: 'periodStatus', reason: 'period-closed' }])),
+      true,
+    );
+    assert.equal(
+      isClosedTargetConflict(new FinanceConflictError([{ path: 'variableExpenses.v-1', reason: 'changed-remotely' }])),
+      false,
+      'a month somebody else edited is still a review',
+    );
+    assert.equal(
+      isClosedTargetConflict(new FinanceConflictError([
+        { path: 'bankPart', reason: 'insufficient-funds' },
+        { path: 'periodStatus', reason: 'period-closed' },
+      ])),
+      true,
+      'a frozen period is frozen whatever else the merge reported',
+    );
+    assert.equal(isClosedTargetConflict(new Error('offline')), false);
+    assert.equal(isClosedTargetConflict(undefined), false);
   });
 });

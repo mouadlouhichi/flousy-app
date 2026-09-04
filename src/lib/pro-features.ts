@@ -31,12 +31,23 @@ export interface ProEntitlement {
 }
 
 /**
+ * Entitlement enums are compared by value, never by spelling: profiles edited
+ * in the Firebase console (or migrated by hand) carry `'Pro'`, `'Trialing '`
+ * and friends, and `firestore.rules` reads those tokens the same tolerant way
+ * (`tokenValue()` there). Diverging in either direction is what makes a
+ * workspace look unlocked in the UI and get 403 write after 403 write.
+ */
+export function entitlementToken(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+/**
  * Tolerant of casing/whitespace written by old clients or manual migrations.
  * Feature decisions must still go through `resolveProEntitlement`/`isProUser`,
  * because a launch-trial profile keeps `plan: 'pro'` after its access expires.
  */
 export function isProPlan(plan: unknown): boolean {
-  return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro';
+  return entitlementToken(plan) === 'pro';
 }
 
 function finiteMillis(value: unknown): number | null {
@@ -79,7 +90,7 @@ export function resolveProEntitlement(
   if (!profile) return free;
 
   const legacyTrial = legacyTrialWindow(profile);
-  const source = profile.entitlementSource;
+  const source = entitlementToken(profile.entitlementSource);
   const hasUsedTrial = source === 'launch_trial' || Boolean(legacyTrial);
   if (!isProPlan(profile.plan)) return { ...free, hasUsedTrial };
 
@@ -106,9 +117,10 @@ export function resolveProEntitlement(
     };
   }
 
-  const normalizedStatus = profile.entitlementStatus;
-  const statusAllowsAccess = normalizedStatus === undefined
-    || normalizedStatus === null
+  const normalizedStatus = profile.entitlementStatus == null
+    ? ''
+    : entitlementToken(profile.entitlementStatus);
+  const statusAllowsAccess = normalizedStatus === ''
     || normalizedStatus === 'active'
     || normalizedStatus === 'trialing'
     || normalizedStatus === 'grace_period'

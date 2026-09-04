@@ -440,3 +440,172 @@ legacy-entitlement Admin migration, orphan inventory, Firebase/email/DNS
 configuration, manual production journeys, and monitoring/App Check remain
 operator-owned per `PRODUCTION_CHECKLIST.md`. `npm run test:rules` (15
 tests) exists here but still needs a Java-capable runner.
+
+---
+
+## Addendum (2026-09-03): household writes refused while the plan is active
+
+**Reported symptom.** `Sync failed — Your Pro plan looks active, but the server
+still refuses this household write. … redeploy them (firebase deploy --only
+firestore:rules). (1)` — `sync.entitlementConflict`, thrown by the outbox flush
+whenever a queued household mutation came back `permission-denied` while
+`resolveProEntitlement(profile).isPro` was true. That message was an admission of
+ignorance: the client could not tell the two possible causes apart, so it blamed
+the deployment. The deployment was not the cause.
+
+**Root cause.** `householdEntitled()` asked "is the account in
+`households/{hid}.entitlementOwnerId` Pro?", and every step of that answer could
+abort the whole rule evaluation — which Firestore reports to the client as a bare
+`permission-denied`, with no detail at all:
+
+| What the rules read | Before | Why the client still believed it was Pro |
+| --- | --- | --- |
+| `.data.entitlementOwnerId` | missing on any household created before the field existed | `normalizeHousehold()` falls back to `planOwnerId`, then `ownerId` — client-side only, so "whose plan pays" disagrees with the server for every legacy household |
+| `.data.plan == 'pro'` | case- and space-sensitive | `isProPlan()` in `pro-features.ts` trims and lower-cases, so `plan: 'Pro'` typed into the console is Pro here and Free there |
+| `data.entitlementEndsAtMs > now` | `>` on whatever type the field happens to be | a cross-type comparison aborts evaluation; the client ignored a non-numeric value. Same for the `is number` tests on `entitlementStatus`/`entitlementSource`, which the client also does not enforce on read |
+| `get(/users/<sponsor>)` | an exception if that profile was deleted | the browser never reads a profile it is not signed into, so it cannot see the deletion |
+| the owner's membership row | `householdEditor` required it | `householdOwner()` did not, so an account that created its household before the owner row was batched into `members/` can still change its settings while every month write is refused |
+
+The denial also had no exit: the household root froze every `entitlement*` and
+`planOwnerId` key against a member of a household they do not sponsor, so an
+owner could not point their workspace back at a plan that exists, and
+`planOwnerId` could not be repaired at all.
+
+**Fix.**
+
+- `firestore.rules`: `userProfileData()`, `isProPlanValue()`, `tokenValue()`,
+  `millisOrMissing()`, `profileEntitlementEndsAtMs()` and `profileIsPro()` make
+  the entitlement path total — a missing profile, a missing key or a string where
+  a number belongs is a *false* answer, never an aborted evaluation — and they are
+  the same decisions `pro-features.ts` makes (`isProPlanValue` is pinned to
+  `isProPlan`, the status list to `isProEntitlementActive`, the expiry window to
+  `resolveProEntitlement`). Sponsor resolution falls back
+  `entitlementOwnerId → planOwnerId → ownerId`, skipping non-strings and empty
+  strings, exactly as the client already resolved it.
+- `firestore.rules`: `householdEditor()` is owner-inclusive so the owner of a
+  workspace is never locked out of it by a missing membership row, while
+  `householdMember()` still gates month/expense/income/transfer writes for
+  viewers, contributors and custom members; the tolerant member read makes the
+  legacy `owner` role string and member documents without a `userId` key work for
+  every area at once.
+- `firestore.rules`: `validHouseholdEntitlementProjection()` requires the sponsor
+  to be the creator and the projected status/source to mirror the sponsor's own
+  profile (with `active` accepted while the profile really is active, which is
+  what `resolveProEntitlement()` derives for an unbounded `admin`/`stripe` grant),
+  and rejects a stored expiry that is not exactly the profile's. Household config
+  validation from per-patch validation so a settings write no longer needs keys
+  an older document may lack.
+- `firestore.rules`: `householdSponsorBindingValid()` adds one narrow repair branch
+  to the household root — the owner may bind `entitlementOwnerId` (and its
+  projection) to *their own* account, only while their profile really is active,
+  only with the expiry copied exactly, and only touching those keys. Nothing
+  reachable from it widens anyone's access; it is what makes the legacy backfill
+  and the lapsed-sponsor recovery possible at all.
+- `src/lib/household-entitlement.ts` (new, pure): sponsor resolution, the
+  rules-legal projection builder shared by household creation and repair
+  (`buildHouseholdSponsorBinding`), a staleness gate, and
+  `diagnoseHouseholdWriteDenial()` — which says *which* state the user is in from
+  what the browser may legitimately read instead of guessing:
+  sponsor unset ⇒ `sponsor-unset`, foreign sponsor this owner can replace ⇒
+  `sponsor-rebindable`, foreign sponsor with nothing to bind ⇒ `sponsor-lapsed`,
+  member who cannot see the sponsor's profile ⇒ `sponsor-unreadable`, profile
+  storing an `entitlementSource`/`entitlementStatus` the schema cannot express ⇒
+  `profile-invalid` (a value typed into the console), sponsor already this
+  account ⇒ `rules-behind`, else `unknown`.
+- `dashboard-provider.tsx`: a denied household flush now attempts the rebind once
+  (15 s throttle), replays the queue through the existing `flushRequestedRef`
+  path when it succeeds, and only blames the deployed rules when the repair write
+  is itself refused — the one case where redeploying is the answer. The retired
+  `sync.entitlementConflict` is gone from all three catalogues and both call
+  sites (`finance-sync` lost its copy of the same claim, where `code` was already
+  discarded by `handleFirestoreError`).
+- `household-context.tsx`: `rebindHouseholdSponsor()` returns
+  `repaired / already-consistent / not-owner / no-entitlement / rejected-by-rules
+  / unavailable` so neither the toast nor the panel can claim success it did not
+  earn, and owners keep the readable projection in step with their profile (so
+  members stop seeing an editor the server refuses) without ever re-binding a
+  foreign sponsor automatically. `db.ts` gains `bindHouseholdSponsor()`, whose
+  `undefined`/`null` entries become `deleteField()` — half a projection is worse
+  than none. `workspace-panel.tsx` shows "Restore shared access" for exactly the
+  rebindable state, with en/fr/ar copy for each outcome (10 new `sync` keys per
+  locale, catalogue parity pinned by the suite).
+
+**Verification.** `npm run check`: lint (including the Firebase ANTLR rules
+parser) + `tsc` + `tsc --strict` + unit tests = **419 pass / 0 fail** (up from
+402), `npm run build` compiles. `tests/household-entitlement.test.ts` (17 cases)
+pins the client/rules contract, including the projection's key order read out of
+the rules file, so a change that only one side makes fails a test.
+`npm run test:rules` gains 6 emulator cases (22 total) for legacy households,
+console-cased plans, deleted sponsors, owner-without-membership-row, the rebind
+and its forged variants — still operator-run: this sandbox cannot reach
+`storage.googleapis.com` for the emulator jar, and the emulator needs a JRE that
+`apt` cannot fetch here.
+
+**Operator note.** The behaviour change lives in `firestore.rules`: it needs
+`firebase deploy --only firestore:rules`. No data migration is required — the
+rules now read the legacy documents the way the client already did — and the
+optional projection backfill happens on its own the next time each owner opens
+the app. If a household *still* reports this after the deploy, `rebound`/`rules
+behind` is now the honest answer rather than a guess, and the panel says so.
+
+**Deliberate, still open.** A profile whose Pro access rests only on the legacy
+`proTrialClaimedAt` marker (no `entitlementEndsAtMs`) is expiry-bound in the
+client and unbounded in the rules; the rules cannot parse that ISO string without
+`timestamp(string)`, which is not verifiable from this sandbox (grammar-only lint
+would not catch a bad function name, and deploy would). The asymmetry only ever
+favours an expired beta-trial account that the app already locks, and the
+Stripe/CMI seam that will project real expiries through the Admin SDK makes it
+moot.
+
+**The second failure mode: one budget per request.** With the entitlement chain
+made total, CI's emulator suite answered some shared writes with
+`permission-denied: … Unable to evaluate the expression as the maximum of 1000
+expressions to evaluate has been reached`. Firestore evaluates every document of
+a batch against a single expression budget and inlines every function call into
+its caller, and a flush writes three documents out of that one budget: the
+immutable ledger row, the month document it advances, and - for savings
+mutations - the goals document. Each of those rules then asked the same three
+questions separately (who pays for this workspace, does the caller's membership
+row allow it, which mutation is being replayed) and, clause by clause, asked them
+again: `periodClosed()` eight times in the months rule, the household root twice,
+the ledger row's path re-spelled inside every `exists()` and `getAfter()`.
+The rules now answer them once per document through `householdAccess()`, and read
+a mutation's row once through `mutationLedger()`, `monthUpdateAuthorized()` and
+`savingsMutationAgrees()`. `scripts/rules-budget.mjs` estimates that budget per
+rule, and the rules job records the estimate in its summary, because the
+emulator never says *which* rule asked for too much.
+
+The number to remember when adding a clause to a shared write: with three
+documents in one request, a rule that costs a few hundred expressions is what
+denies a paying user's sync - and a denial for exceeding the budget is
+indistinguishable, on the client, from a denial for lacking permission.
+Pending on this branch: CI's emulator run, which is the only place the budget can
+be measured.
+
+## A backup is portable, so the importer reads another account's file
+
+`profile.data.backupInvalid` ("This file is not a supported or valid SmartJib
+backup") was the single message for two different things: a file that is not a
+backup, and a backup this build would not sign off on. The second case is a user
+locked out of their own numbers - an older build wrote a field this one dropped, a
+household file opened in a personal account, a period missing a `strategyId` the
+newer app requires - and every one of them was a hard rejection.
+
+The parser now separates *unreadable* from *not mine*. Unreadable stays fatal: bad
+JSON, a file with no periods in it, amounts Firestore Rules would refuse,
+collections past their cardinality, a period that cannot fit one document, a
+barcode that names a different product than the file claims. Everything else is
+read and reported through `readFinanceBackup()`: unknown keys are dropped (never
+written, so a restore still cannot smuggle a field into a document), ids a file
+lost are regenerated from the row's position so re-importing the same file does not
+duplicate it, values a period cannot be without take the defaults `normalizeMonth()`
+uses, a closed period without its audit trail comes back open because the rules
+would not accept it otherwise, and a session bill is recomputed from its lines.
+`planFinanceBackupRestore()` decides the destination: a household file restores into
+a personal budget and back, each period keeping its own currency and start day,
+with the difference said out loud in the dialog; only the configuration is left
+behind on a retarget, because a household's shared places and defaults belong to its
+members. Restoring *into* a shared workspace stays owner-only - it changes what
+everyone in it sees - and the dialog now carries the parser's own reason instead of
+a shrug.
+

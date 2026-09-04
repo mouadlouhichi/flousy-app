@@ -13,6 +13,7 @@ import {
   runTransaction,
   arrayUnion,
   arrayRemove,
+  deleteField,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from './firebase';
 import {
@@ -36,6 +37,7 @@ import {
 import { FINANCE_BACKUP_FORMAT, FINANCE_BACKUP_VERSION, type FinanceBackup } from './finance-backup';
 import {
   emptyWorkspaceSyncCounts,
+  isClosedTargetConflict,
   mergeSourceTransactionsIntoMonth,
   type WorkspaceSyncCounts,
 } from './workspace-sync';
@@ -424,8 +426,20 @@ export async function exportFinanceBackup(
   };
 }
 
+/**
+ * A restore that applied some periods and then stopped. Re-running the same file
+ * is safe (each period's mutation id is derived from the backup, so an applied
+ * period is a no-op the second time), and that is the only thing the count of
+ * applied periods can honestly promise. `reason` is the error that stopped it:
+ * for a workspace refusing the write, "select the file again" is an instruction to
+ * repeat the failure, and the dialog says so only because the cause survived.
+ */
 export class FinanceRestoreIncompleteError extends Error {
-  constructor(public readonly completed: string[], public readonly failed: string) {
+  constructor(
+    public readonly completed: string[],
+    public readonly failed: string,
+    public readonly reason?: unknown,
+  ) {
     super(`Restore stopped after ${completed.length} periods; retrying the same backup is safe.`);
     this.name = 'FinanceRestoreIncompleteError';
   }
@@ -444,18 +458,16 @@ export async function restoreFinanceBackup(
 ): Promise<{ restoredMonths: number; restoredGoals: number }> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const firestore = db;
-  if (backup.workspace.type !== target.workspace) {
-    throw new Error('A backup can only be restored into the same workspace type.');
-  }
-  const backupCurrency = typeof backup.configuration.currency === 'string' ? backup.configuration.currency : undefined;
-  if (backupCurrency && currentConfiguration?.currency && backupCurrency !== currentConfiguration.currency) {
-    throw new Error('Backup currency differs from the destination. Migrate currency before restoring.');
-  }
-  const backupStartDay = Number(backup.configuration.monthStartDate || 1);
-  const currentStartDay = Number(currentConfiguration?.monthStartDate || 1);
-  if (backupStartDay !== currentStartDay) {
-    throw new Error('Backup budget-period settings differ from the destination.');
-  }
+  // The destination is the user's choice, not something this function re-litigates:
+  // the periods in a file are self-describing (each carries its own currency and
+  // start day), so a budget exported from a shared workspace restores into a
+  // personal one and the other way round, and a currency or period-start that
+  // differs from the destination is a thing to say out loud in the confirmation
+  // dialog - see planFinanceBackupRestore() - not a reason to refuse someone's own
+  // data. What must not travel is the *configuration*: a household's shared places
+  // and category defaults belong to the people who see them, and one member's
+  // personal settings file has no business rewriting a household's.
+  const retargeted = backup.workspace.type !== 'unknown' && backup.workspace.type !== target.workspace;
 
   const workspaceId = target.workspace === 'household' ? target.householdId : target.uid;
   const monthEntries = Object.entries(backup.months).sort(([left], [right]) => left.localeCompare(right));
@@ -488,7 +500,7 @@ export async function restoreFinanceBackup(
       completed.push(monthKey);
     } catch (error) {
       console.error('Backup restore stopped:', error);
-      throw new FinanceRestoreIncompleteError(completed, monthKey);
+      throw new FinanceRestoreIncompleteError(completed, monthKey, error);
     }
   }
 
@@ -509,6 +521,7 @@ export async function restoreFinanceBackup(
       await batch.commit();
     }
     const config = backup.configuration as Partial<UserProfile>;
+    if (retargeted) return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
     await setDoc(doc(firestore, 'users', uid), cleanUndefined({
       theme: config.theme,
       language: config.language,
@@ -520,6 +533,7 @@ export async function restoreFinanceBackup(
     }), { merge: true });
   } else {
     const config = backup.configuration as Record<string, unknown>;
+    if (retargeted) return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
     await setDoc(doc(firestore, 'households', target.householdId), cleanUndefined({
       defaultCategoryBudgets: config.defaultCategoryBudgets,
       enableRollover: config.enableRollover,
@@ -534,12 +548,21 @@ export async function restoreFinanceBackup(
 
 export type WorkspaceSyncErrorCode = 'currency-mismatch' | 'period-mismatch' | 'incomplete';
 
+/**
+ * A workspace sync that stopped partway. It is always safe to run again - records
+ * keep their ids - so the count of months already copied and the month that
+ * failed are the two facts that tell a user whether "run again" is the answer or
+ * merely the same refusal waiting for them. `reason` is whatever the write
+ * actually raised: `WorkspaceSyncError` is not the place to decide what a
+ * permission refusal means, but it is the place to stop losing it.
+ */
 export class WorkspaceSyncError extends Error {
   constructor(
     public readonly code: WorkspaceSyncErrorCode,
     message: string,
     public readonly counts?: WorkspaceSyncCounts,
     public readonly failedMonth?: string,
+    public readonly reason?: unknown,
   ) {
     super(message);
     this.name = 'WorkspaceSyncError';
@@ -586,6 +609,7 @@ export async function syncWorkspaceTransactions(
   const snapshots = await getDocs(monthCollection);
 
   const counts = emptyWorkspaceSyncCounts();
+  const skippedClosed: string[] = [];
   const runId = Date.now().toString(36);
   const monthEntries = snapshots.docs
     .map((snapshot) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.id)
@@ -615,8 +639,25 @@ export async function syncWorkspaceTransactions(
         attempts: 0,
       }, targetConfiguration);
     } catch (error) {
+      if (isClosedTargetConflict(error)) {
+        // A frozen period cannot take records, and used to abort the entire
+        // two-way sync at month 0 - "Sync stopped after 0 month(s). Running it
+        // again is safe", for a sync that would stop at the same month forever.
+        // The other periods still go through, and the count is the honest report.
+        skippedClosed.push(monthKey);
+        continue;
+      }
       console.error('Workspace sync stopped:', error);
-      throw new WorkspaceSyncError('incomplete', `Workspace sync stopped at ${monthKey}; re-running it is safe.`, counts, monthKey);
+      // A workspace that refuses the write and a connection that died both stop
+      // "after N months", and only one of them is helped by running it again: keep
+      // the raised error, so the card can name the cause instead of the count.
+      throw new WorkspaceSyncError(
+        'incomplete',
+        `Workspace sync stopped at ${monthKey}; re-running it is safe.`,
+        counts,
+        monthKey,
+        error,
+      );
     }
     counts.months += 1;
     counts.incomes += merged.counts.incomes;
@@ -625,6 +666,7 @@ export async function syncWorkspaceTransactions(
     counts.debts += merged.counts.debts;
   }
 
+  if (skippedClosed.length > 0) counts.skippedClosed = skippedClosed;
   return counts;
 }
 
@@ -1211,32 +1253,9 @@ export async function deleteUserBudgetData(uid: string): Promise<DeletionReport>
 // Household documents are deliberately separate from private user documents.
 // This lets rules grant access by membership without exposing a user's profile.
 import type { Household, HouseholdInvite, HouseholdMember } from './household';
+import { planDocumentMigration, type DocumentMigration } from './schema-migrations';
+import { normalizeHousehold } from './household';
 
-const HOUSEHOLD_DEFAULT_CATEGORIES = [
-  'Groceries', 'Transport', 'Rent', 'Entertainment', 'Health',
-  'Utilities', 'Dining Out', 'Shopping', 'Subscriptions',
-];
-
-function normalizeHousehold(id: string, value: Partial<Household>): Household {
-  return {
-    ...value,
-    id,
-    name: value.name || 'Household',
-    ownerId: value.ownerId || '',
-    planOwnerId: value.planOwnerId || value.ownerId || '',
-    entitlementOwnerId: value.entitlementOwnerId || value.planOwnerId || value.ownerId || '',
-    currency: value.currency || 'MAD',
-    moneyPlaces: value.moneyPlaces?.length
-      ? value.moneyPlaces
-      : DEFAULT_MONEY_PLACES.map((place) => ({ ...place })),
-    activeCategories: value.activeCategories?.length
-      ? value.activeCategories
-      : [...HOUSEHOLD_DEFAULT_CATEGORIES],
-    createdAt: value.createdAt || new Date(0).toISOString(),
-    updatedAt: value.updatedAt || value.createdAt || new Date(0).toISOString(),
-    schemaVersion: Math.max(2, value.schemaVersion || 0),
-  };
-}
 
 export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
 
@@ -1250,17 +1269,31 @@ export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
  * the first one — otherwise a slow connection logs people out of their shared
  * budget.
  */
+/**
+ * `onData` also receives what the stored document is missing. The caller decides
+ * whether it may act on that - only the household's owner can write these fields,
+ * and a member must not try - so the plan travels with the data instead of being
+ * applied here.
+ */
 export function subscribeHousehold(
   householdId: string | undefined,
-  onData: (household: Household | null) => void,
+  onData: (household: Household | null, migration: DocumentMigration | null) => void,
   onAccess: (access: HouseholdAccess) => void = () => {},
 ) {
-  if (!householdId || !isFirebaseConfigured || !db) { onData(null); return () => {}; }
+  if (!householdId || !isFirebaseConfigured || !db) { onData(null, null); return () => {}; }
   return onSnapshot(
     doc(db, 'households', householdId),
     (snap) => {
       onAccess('ok');
-      onData(snap.exists() ? normalizeHousehold(snap.id, snap.data() as Partial<Household>) : null);
+      if (!snap.exists()) { onData(null, null); return; }
+      const stored = snap.data() as Partial<Household>;
+      // The migration plan is read off the *stored* document, never the normalized
+      // one: normalizing first would report every household older than a field as
+      // complete, which is exactly the state that gets its writes refused.
+      onData(
+        normalizeHousehold(snap.id, stored),
+        planDocumentMigration('households', stored as Record<string, unknown>),
+      );
     },
     (err) => {
       const code = (err as { code?: string })?.code;
@@ -1330,9 +1363,85 @@ export async function saveHouseholdMember(householdId: string, member: Household
   await setDoc(doc(db, 'households', householdId, 'members', member.id), cleanUndefined(member), { merge: true });
 }
 
+/**
+ * The stored membership row of one account, as the database holds it.
+ *
+ * `get` on `members/{own uid}` is readable even when every other rule in the
+ * workspace denies that caller: the published rules allow `memberId ==
+ * request.auth.uid` unconditionally. So this is the one fact a locked-out owner
+ * can always establish about why they are locked out, and it is established
+ * rather than inferred from the roster subscription - which a member with no
+ * row cannot list either.
+ */
+export async function getHouseholdMember(
+  householdId: string,
+  memberId: string,
+): Promise<Record<string, unknown> | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  const snapshot = await getDoc(doc(db, 'households', householdId, 'members', memberId));
+  return snapshot.exists() ? (snapshot.data() as Record<string, unknown>) : null;
+}
+
+/**
+ * Write the household owner's own membership row, replacing whatever stub is in
+ * the way.
+ *
+ * The published rules refuse an *update* that would promote a row to `owner`
+ * (`resource.data.role != 'owner'` guards that branch), so a row written by the
+ * onboarding flow as a `profile` placeholder cannot be edited into an owner row
+ * from a client. Delete-then-set in one batch is accepted - the delete is allowed
+ * for any row that is not already an owner's, and the create branch for a
+ * household owner writing their own row needs no entitlement at all - and it is
+ * atomic, so a refusal leaves the previous row standing.
+ */
+export async function writeHouseholdOwnerMembership(
+  householdId: string,
+  member: HouseholdMember,
+  options: { replace?: boolean } = {},
+): Promise<void> {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const ref = doc(db, 'households', householdId, 'members', member.id);
+  if (!options.replace) {
+    await setDoc(ref, cleanUndefined(member));
+    return;
+  }
+  const batch = writeBatch(db);
+  batch.delete(ref);
+  batch.set(ref, cleanUndefined(member));
+  await batch.commit();
+}
+
 export async function saveHousehold(householdId: string, patch: Partial<Household>) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId), cleanUndefined({ ...patch, updatedAt: new Date().toISOString() }), { merge: true });
+}
+
+/**
+ * Bind a household's plan sponsor - and the readable projection members'
+ * clients gate on - to the calling account. `null` becomes `deleteField()`:
+ * a projection entry the sponsor's profile no longer carries is as wrong as a
+ * missing one, and `householdSponsorBindingValid()` in firestore.rules only
+ * accepts the document when every remaining value mirrors this account.
+ *
+ * This is the in-app recovery for the two states that used to strand a shared
+ * budget with a bare 403: a legacy household that never stored
+ * `entitlementOwnerId`, and one left behind a sponsor whose plan lapsed.
+ */
+export async function bindHouseholdSponsor(
+  householdId: string,
+  patch: {
+    entitlementOwnerId: string;
+    entitlementSource: string | null;
+    entitlementStatus: string | null;
+    entitlementEndsAtMs: number | null;
+  },
+): Promise<void> {
+  if (!isFirebaseConfigured || !db) throw new Error('Household collaboration needs Firebase.');
+  const data: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  for (const [key, value] of Object.entries(patch)) {
+    data[key] = value === undefined ? deleteField() : value;
+  }
+  await setDoc(doc(db, 'households', householdId), data, { merge: true });
 }
 
 export async function createHouseholdInvite(invite: HouseholdInvite, pendingMember?: HouseholdMember) {

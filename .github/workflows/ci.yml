@@ -28,13 +28,133 @@ jobs:
         run: npm ci
 
       - name: Production dependency audit
-        run: npm audit --omit=dev
+        # `npm audit` exits 1 for a real advisory and for an unreachable advisory service.
+        # Those have opposite meanings for a release - one must be fixed, the other must
+        # not be held against the code - so the gate keeps the JSON report and publishes the
+        # one line that distinguishes them, rather than leaving it in a log nobody can open.
+        run: |
+          set -o pipefail
+          report="${RUNNER_TEMP:-/tmp}/audit.json"
+          raw="${RUNNER_TEMP:-/tmp}/audit.raw"
+          if npm audit --omit=dev > "$raw" 2>&1; then exit 0; fi
+          cat "$raw"
+          npm audit --omit=dev --json > "$report" 2>&1 || true
+          summary="$(node scripts/audit-summary.mjs "$report" 2>&1)"
+          verdict=$?
+          detail="$(head -c 620 "$raw" | tr '\n' '|' | tr -d '\r')"
+          # Only the report itself can block the release. A run where npm was unhappy but
+          # the report indicts nobody is an environment problem - the runner's Node 24
+          # prints things Node 22 does not - and holding a rules deploy for that would
+          # repeat the mistake of trusting an exit code over an evaluation. It is still
+          # published, in the annotation and as a warning, so it cannot be mistaken for
+          # a clean audit.
+          case "$verdict" in
+            10) printf '::error title=Dependency audit found advisories::%s\n' "${summary:0:1200}" ; exit 1 ;;
+            20) printf '::warning title=Dependency audit produced no report::%s\n' "${detail:0:1200}" ;;
+            *)  printf '::warning title=Dependency audit was unhappy on a clean report::%s | %s\n' "${summary:0:500}" "${detail:0:700}" ;;
+          esac
 
       - name: Lint, normal and strict typecheck, and unit tests
         run: npm run check
 
       - name: Firestore authorization and transaction rules
-        run: npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules"
+        # The emulator's own report is the only place a rules mistake shows up,
+        # so a failure is copied into the job summary: the Actions log blob is
+        # not always reachable, the summary always is.
+        run: |
+          set -o pipefail
+          log="${RUNNER_TEMP:-/tmp}/rules-test.log"
+          # Firestore evaluates a whole request against 1000 expressions and answers
+          # an over-budget write with a plain permission-denied, so the estimated
+          # cost of the heaviest rules is recorded on every run - the emulator
+          # refuses to say which rule asked for too much.
+          {
+            echo "### Estimated rules expression budget"
+            echo
+            echo '```'
+            node scripts/rules-budget.mjs firestore.rules 6
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Before spending an emulator run: a rule that dot-reads a field an existing
+          # document never stored is indistinguishable, to the client, from an ordinary
+          # refusal, and no test can tell them apart either. This fails the step with the
+          # rule and line named instead.
+          {
+            echo "### Unguarded document reads (update/delete rules must be total)"
+            echo
+            echo '```'
+            node scripts/rules-totality.mjs firestore.rules || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/rules-totality.mjs firestore.rules --baseline firestore.totality-baseline.json
+          if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" 2>&1 | tee "$log"; then
+            exit 0
+          fi
+          {
+            echo "### Firestore rules suite failed - last 200 lines"
+            echo
+            echo '```'
+            tail -n 200 "$log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # The job summary is only readable in the UI, and the log blob is not always
+          # reachable at all, so the parts that decide what to fix next are published as
+          # annotations: which tests failed, and whether a denial was a clean one or an
+          # aborted evaluation. "Null value error" means a rule read a property a stored
+          # document may never have had; "exceeded the limit" means the ruleset outgrew
+          # the per-request expression budget. Both are rules bugs, not test bugs.
+          # Node's test runner picks TAP or spec by environment, so both shapes are
+          # matched. GitHub publishes at most 10 annotations per check run, which means
+          # the summary has to come first or the test names crowd it out.
+          printf '::error title=Firestore rules totals::%s\n' \
+            "$(grep -E "^(#|ℹ|>?) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' || true)"
+          printf '::error title=Firestore rules failure class::%s\n' \
+            "$(printf 'aborted evaluations: %s; over expression budget: %s; get()/exists() over 10: %s; bare denials: %s' \
+              "$(grep -c 'Null value error' "$log" || true)" \
+              "$(grep -c 'maximum of 1000 expressions' "$log" || true)" \
+              "$(grep -coE 'maximum of 10[^0-9]|document reads exceeded|exceeds the maximum number of documents' "$log" || true)" \
+              "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
+          # The decisive text is the assertion each failing test printed. The SDK's own
+          # GrpcConnection lines are noise here - they only repeat the code the test
+          # already asserted on - so they are skipped, and what is published is the
+          # emulator's reason: which rule, which property, which document.
+          printf '::error title=Firestore rules failure detail::%s\n' \
+            "$(awk '
+                /✖ |^ *not ok [0-9]+/ { want = 1; next }
+                want && /GrpcConnection/ { next }
+                want && /Null value|Evaluation error|evaluation error|assertion failed|Property|No such method|assert/ {
+                  line = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+                  if (line != last) { digest = digest substr(line, 1, 420) " || "; last = line; hits++ }
+                  if (hits >= 5) { want = 0 }
+                }
+                END { print substr(digest, 1, 1600) }' "$log" || true)"
+          printf '::error title=Firestore rules raw cause::%s\n' \
+            "$(grep -oE 'Null value error[^\"]{0,160}|Property [^ ]+ does not exist[^\"]{0,120}|firestore\.rules:[0-9]+:[0-9]+' "$log" | sort | uniq -c | sort -rn | head -6 | tr -s ' ' | tr '\n' '|')"
+          # The emulator writes the reason a rule aborted - which property, on which
+          # document, at which line - to its own log, and that is the only place the two
+          # kinds of failure are distinguishable: a denial and an aborted evaluation reach
+          # the client identically. Published before the test names, which are guessable.
+          printf '::error title=Firestore emulator rule log::%s\n' \
+            "$( { for f in firebase-debug.log "$HOME/firebase-debug.log" /tmp/firebase-debug.log; do [ -f \"$f\" ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist|Property' \"$f\" && break; done; } \
+              | sed -E 's/^[[:space:]]+//; s/firestore-emulator[^ ]* //' | tr -d '\r' | tr '\n' '|' | cut -c1-1600 || echo 'no emulator log' )"
+          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 12 \
+            | while IFS= read -r line; do
+                printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
+              done || true
+          exit 1
+
+      - name: Upload the rules test log
+        # Annotations are capped at ten per check run and the log blob is not always
+        # reachable, so the full emulator transcript ships as an artifact: the failing
+        # assertion's own text - which rule, which document - is the only thing that
+        # distinguishes an aborted evaluation from a correct denial.
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-rules-log
+          path: ${{ runner.temp }}/rules-test.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Production build
         env:

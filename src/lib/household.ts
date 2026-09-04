@@ -1,6 +1,46 @@
-import { fixedPaidAmount, type FixedCategoryItem, type MoneyPlace, type MoneyPlaceConfig, type MonthBudget, type UserProfile } from './store';
+import {
+  DEFAULT_MONEY_PLACES,
+  fixedPaidAmount,
+  type FixedCategoryItem,
+  type MoneyPlace,
+  type MoneyPlaceConfig,
+  type MonthBudget,
+  type UserProfile,
+} from './store';
+import { HOUSEHOLD_DEFAULT_CATEGORIES } from './schema-migrations';
 import type { HouseholdPermissions } from './household-rbac';
 import { resolveProEntitlement } from './pro-features';
+
+/**
+ * Read a stored household document into the shape the app renders.
+ *
+ * The defaults for fields a legacy document never stored come from
+ * `schema-migrations.ts`, the same place the backfill reads them: the reader
+ * papers over a household written before `moneyPlaces` existed, which is exactly
+ * why the gap stays invisible until a write to that document is refused. Both
+ * halves - tolerant read and repair - must agree on the value, or the migration
+ * would visibly change somebody's budget.
+ */
+export function normalizeHousehold(id: string, value: Partial<Household>): Household {
+  return {
+    ...value,
+    id,
+    name: value.name || 'Household',
+    ownerId: value.ownerId || '',
+    planOwnerId: value.planOwnerId || value.ownerId || '',
+    entitlementOwnerId: value.entitlementOwnerId || value.planOwnerId || value.ownerId || '',
+    currency: value.currency || 'MAD',
+    moneyPlaces: value.moneyPlaces?.length
+      ? value.moneyPlaces
+      : DEFAULT_MONEY_PLACES.map((place) => ({ ...place })),
+    activeCategories: value.activeCategories?.length
+      ? value.activeCategories
+      : [...HOUSEHOLD_DEFAULT_CATEGORIES],
+    createdAt: value.createdAt || new Date(0).toISOString(),
+    updatedAt: value.updatedAt || value.createdAt || new Date(0).toISOString(),
+    schemaVersion: Math.max(2, value.schemaVersion || 0),
+  };
+}
 
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
