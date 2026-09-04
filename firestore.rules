@@ -469,15 +469,6 @@ service cloud.firestore {
         paid: sponsor != '' && activeProEntitlement(sponsor)
       };
     }
-    /** The writer half of a month write, from answers the caller already holds. */
-    function monthWriterOk(access, grantsChecked) {
-      return access.paid && (access.owner || access.editor
-        || (access.custom && 'editAll' in access.permissions.values()
-          && (!grantsChecked || customMonthChangesGranted(access.permissions))));
-    }
-    function householdMonthGate(hid, grantsChecked) {
-      return monthWriterOk(householdAccess(hid), grantsChecked);
-    }
     function householdLedgerGate(hid) {
       let access = householdAccess(hid);
       // Custom members may ledger ordinary finance mutations; closing, reopening
@@ -525,16 +516,92 @@ service cloud.firestore {
      * own ledger kind; only the household's owner may change period state without
      * it, and a bootstrap row never replays a month.
      */
-    function monthUpdateAuthorized(hid) {
-      let access = householdAccess(hid);
+    /*
+     * Shared-month writes, split by writer kind.
+     *
+     * Rules inline every call into ONE per-request budget of 1000 evaluated
+     * expressions, and an over-budget request is refused with a bare
+     * `permission-denied` before any branch runs. Folded into a single
+     * function these cost ~1574 (update) and ~1288 (create) - so importing a
+     * budget, flushing the outbox and deleting a workspace all failed on
+     * arithmetic rather than authorization, and the client reported it as
+     * "the published rules are behind" because a refusal it cannot explain is
+     * indistinguishable from a stale deployment.
+     *
+     * These helpers deliberately do NOT go through `householdAccess()`: that
+     * record resolves the owner, editor, custom and permission questions
+     * together, and each branch below needs only some of them. Reading the two
+     * documents directly is the same authorization, at a third of the cost.
+     */
+
+    /**
+     * Month-write facts, in two flavours so a branch never computes a fact it
+     * does not use. Rules evaluate the whole returned map, so a single
+     * all-purpose record charges every caller for the owner, editor, custom AND
+     * permission questions - which is what pushed these rules over the cap.
+     */
+
+    /** Owner/editor flavour: ownership, editorship and who pays. */
+    function monthFinanceWriterFacts(hid) {
+      let uid = signedIn() ? request.auth.uid : '';
+      let hPath = householdPath(hid);
+      let root = request.method == 'create'
+        ? (existsAfter(hPath) ? getAfter(hPath).data : {})
+        : (exists(hPath) ? get(hPath).data : {});
+      let mPath = memberPath(hid, uid);
+      let member = uid != '' && exists(mPath) ? get(mPath).data : {};
+      let role = member.get('role', '');
+      // Bound to a name: passed inline this expression is re-expanded at each of
+      // `userProfileData()`'s uses of it.
+      let sponsor = householdSponsor(root);
+      return {
+        owner: uid != '' && root.get('ownerId', '') == uid,
+        editor: member.get('status', '') == 'active' && (role == 'owner' || role == 'editor'),
+        paid: uid != '' && sponsor != '' && activeProEntitlement(sponsor)
+      };
+    }
+
+    /** Custom-member flavour: the grant map and who pays. */
+    function monthCustomWriterFacts(hid) {
+      let uid = signedIn() ? request.auth.uid : '';
+      let hPath = householdPath(hid);
+      let root = request.method == 'create'
+        ? (existsAfter(hPath) ? getAfter(hPath).data : {})
+        : (exists(hPath) ? get(hPath).data : {});
+      let mPath = memberPath(hid, uid);
+      let member = uid != '' && exists(mPath) ? get(mPath).data : {};
+      let sponsor = householdSponsor(root);
+      return {
+        custom: isCustomMember(member),
+        permissions: member.get('permissions', {}),
+        paid: uid != '' && sponsor != '' && activeProEntitlement(sponsor)
+      };
+    }
+
+    /**
+     * The ordinary case: an open period staying open. This is what an import,
+     * an outbox flush and every normal edit do, so it is kept as cheap as
+     * possible - no transition machinery, no ownership question.
+     */
+    function monthOrdinaryUpdateOk(hid) {
+      let row = mutationLedger(hid);
+      let revWas = existing().get('revision', -1);
+      let revNext = incoming().get('revision', 0);
+      return !periodClosed(existing())
+        && !periodClosed(incoming())
+        && row.present && row.kind != 'bootstrap'
+        && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
+    }
+
+    /** Ledger row, close/reopen transition and revision successor. */
+    function monthUpdatePreconditions(hid, isOwner) {
       let row = mutationLedger(hid);
       let wasClosed = periodClosed(existing());
       let willBeClosed = periodClosed(incoming());
       let revWas = existing().get('revision', -1);
       let revNext = incoming().get('revision', 0);
-      return monthWriterOk(access, true)
-        && row.present && row.kind != 'bootstrap'
-        && ((!wasClosed && !willBeClosed) || access.owner)
+      return row.present && row.kind != 'bootstrap'
+        && ((!wasClosed && !willBeClosed) || isOwner)
         && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly())
         && ((!wasClosed && !willBeClosed)
           || (!wasClosed && willBeClosed && row.kind == 'month-close')
@@ -544,6 +611,58 @@ service cloud.firestore {
         // be the successor of what is stored.
         && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
     }
+
+    /**
+     * Owner or editor making an ordinary edit to an open period. The common
+     * write, and the cheapest: closing and reopening go through
+     * `monthCloseReopenByOwner` below.
+     */
+    function monthOrdinaryUpdateByFinanceWriter(hid) {
+      let facts = monthFinanceWriterFacts(hid);
+      return facts.paid
+        && (facts.owner || facts.editor)
+        && monthOrdinaryUpdateOk(hid);
+    }
+
+    /** Closing or reopening a shared period: owner only, per the audit trail. */
+    function monthCloseReopenByOwner(hid) {
+      let facts = monthFinanceWriterFacts(hid);
+      return facts.paid
+        && facts.owner
+        && monthUpdatePreconditions(hid, true);
+    }
+
+    /**
+     * Custom member updating the shared month: every changed key must fall in a
+     * granted area, and the period must be open both before and after - closing
+     * and reopening are owner operations.
+     */
+    function monthUpdateByCustomMember(hid) {
+      let facts = monthCustomWriterFacts(hid);
+      return facts.paid
+        && facts.custom
+        && 'editAll' in facts.permissions.values()
+        && customMonthChangesGranted(facts.permissions)
+        && monthOrdinaryUpdateOk(hid);
+    }
+
+    /** Owner or editor creating (bootstrapping) a shared month document. */
+    function monthCreateByFinanceWriter(hid) {
+      let facts = monthFinanceWriterFacts(hid);
+      return facts.paid && (facts.owner || facts.editor);
+    }
+
+    /**
+     * Custom member bootstrapping a shared month. A valid month document
+     * structurally carries every area's keys, so creation cannot be split per
+     * grant - `editAll` in any area is the gate, exactly as before. Ongoing
+     * edits are the enforced surface (see the update rules).
+     */
+    function monthCreateByCustomMember(hid) {
+      let facts = monthCustomWriterFacts(hid);
+      return facts.paid && facts.custom && 'editAll' in facts.permissions.values();
+    }
+
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
     function savingsMutationAgrees(hid, bootstrapAllowed) {
       let row = mutationLedger(hid);
@@ -1097,15 +1216,28 @@ service cloud.firestore {
         // document: a valid month document structurally carries every area's
         // keys, so creation cannot be split per grant. Ongoing edits are the
         // enforced surface - see the update rule.
-        allow create: if householdMonthGate(hid, false)
+        allow create: if monthCreateByFinanceWriter(hid)
           && isValidMonthId(key)
           && validMonthDocument()
           && !periodClosed(incoming())
           && incoming().revision == 1
           && mutationLedger(hid).present;
-        allow update: if monthUpdateAuthorized(hid)
+        allow create: if monthCreateByCustomMember(hid)
           && isValidMonthId(key)
-          && validMonthDocument();
+          && validMonthDocument()
+          && !periodClosed(incoming())
+          && incoming().revision == 1
+          && mutationLedger(hid).present;
+        // Split by writer kind AND by what the write does. Firestore ORs the
+        // matching `allow update` statements, so this is the same authorization
+        // surface - but the common edit no longer pays for the close/reopen
+        // machinery, nor the owner path for the custom member's per-area diff.
+        allow update: if monthOrdinaryUpdateByFinanceWriter(hid)
+          && isValidMonthId(key) && validMonthDocument();
+        allow update: if monthUpdateByCustomMember(hid)
+          && isValidMonthId(key) && validMonthDocument();
+        allow update: if monthCloseReopenByOwner(hid)
+          && isValidMonthId(key) && validMonthDocument();
         allow delete: if householdOwner(hid);
       }
 

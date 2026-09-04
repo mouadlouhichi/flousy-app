@@ -2006,7 +2006,7 @@
     "sponsorUnreadable": "This household's shared budget is paid for by another account, which this device cannot inspect. Only the household owner can change whose plan it runs on.",
     "accessRestored": "Restored your access to this workspace. Changes that were queued while it was refused are sending now.",
     "membershipBlocked": "Your membership in this workspace is recorded as inactive, and the rules published here let only a workspace owner change that. Ask an owner to invite you again.",
-    "rulesBehind": "The rules published on this project cannot store a household plan owner, so they refuse the write. Redeploy them from the version of firestore.rules this build ships with (firebase deploy --only firestore:rules).",
+    "rulesBehind": "The shared workspace refused this write and the app cannot attribute it to your plan, your membership or the workspace itself. The usual cause is that the rules deployed on this project differ from the ones this build expects — redeploy them with \"firebase deploy --only firestore:rules\". Your changes are kept locally and will be sent once the write is accepted.",
     "profileInvalid": "This account's plan is stored in a form the app cannot verify (an unrecognised plan or status value), so the server will not attach the household to it. Correct the plan fields on the user profile in the Firebase console, or start the Pro trial from the app.",
     "restoreAccess": "Restore shared access",
     "restoreAccessHint": "Writes here are refused because the Pro plan that pays for this household belongs to another account. You own this household and hold an active plan, so it can be switched to yours.",

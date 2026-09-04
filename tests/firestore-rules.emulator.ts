@@ -371,6 +371,65 @@ describe('household invitations and RBAC rules', () => {
     await assertFails(getDoc(doc(contributor, 'households/home/months/2026-09')));
   });
 
+  it('lets an owner import months, flush the outbox and tear the workspace down', async () => {
+    // The three flows a real owner reported as broken, in the order they run.
+    // None of them was an authorization failure: the month rules folded every
+    // writer kind into one expression costing ~1574, over the 1000-expression
+    // per-request cap, so the engine refused them before evaluating anything.
+    await seedHousehold();
+    const owner = asUser('owner');
+
+    // 1. Import: create a month document that does not exist yet.
+    const importBatch = writeBatch(owner);
+    importBatch.set(doc(owner, 'households/home/ledger/import-1'),
+      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month'));
+    importBatch.set(doc(owner, 'households/home/months/2026-08'), validMonth(1, 'import-1'));
+    await assertSucceeds(importBatch.commit());
+
+    // 2. Sync: an ordinary edit to an open period, which is what an outbox
+    //    flush replays. This is the write the import failure cascaded from.
+    const flush = writeBatch(owner);
+    flush.set(doc(owner, 'households/home/ledger/flush-1'),
+      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month'));
+    flush.update(doc(owner, 'households/home/months/2026-08'), {
+      bankPart: 900, totalBudget: 1000, revision: 2, lastMutationId: 'flush-1',
+      updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(flush.commit());
+
+    // 3. Teardown: the owner deletes month documents, then the household root.
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/months/2026-08')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/months/2026-09')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home')));
+  });
+
+  it('lets an editor make an ordinary shared-month edit', async () => {
+    await seedHousehold();
+    const editor = asUser('editor');
+    const batch = writeBatch(editor);
+    batch.set(doc(editor, 'households/home/ledger/editor-edit'),
+      ledger('editor-edit', 'editor', 'household', 'home', 1, 2, 'month'));
+    batch.update(doc(editor, 'households/home/months/2026-09'), {
+      bankPart: 800, revision: 2, lastMutationId: 'editor-edit',
+      updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('still refuses a viewer and a non-member the same shared-month edit', async () => {
+    await seedHousehold();
+    for (const uid of ['viewer', 'contributor', 'stranger']) {
+      const db = asUser(uid);
+      const batch = writeBatch(db);
+      batch.set(doc(db, `households/home/ledger/${uid}-edit`),
+        ledger(`${uid}-edit`, uid, 'household', 'home', 1, 2, 'month'));
+      batch.update(doc(db, 'households/home/months/2026-09'), {
+        bankPart: 1, revision: 2, lastMutationId: `${uid}-edit`,
+      });
+      await assertFails(batch.commit());
+    }
+  });
+
   it('lets only the household owner close or reopen a shared period', async () => {
     await seedHousehold();
     const owner = asUser('owner');

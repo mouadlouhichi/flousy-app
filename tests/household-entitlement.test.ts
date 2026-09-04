@@ -318,22 +318,65 @@ describe('rules and client read the same entitlement', () => {
       return rulesSource.slice(at, rulesSource.indexOf('\n    }', at));
     };
     for (const signature of [
-      'function householdMonthGate(hid, grantsChecked) {',
       'function householdLedgerGate(hid) {',
       'function householdSavingsGate(hid) {',
-      'function monthUpdateAuthorized(hid) {',
     ]) {
       const gate = body(signature);
       assert.equal((gate.match(/householdAccess\(hid\)/g) ?? []).length, 1, signature);
       assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
     }
-    // The writer test itself exists once, and the month rules share it.
-    assert.equal((rulesSource.match(/monthWriterOk\(/g) ?? []).length, 3);
-    assert.match(body('function monthWriterOk(access, grantsChecked) {'), /access\.paid && \(access\.owner \|\| access\.editor/);
+    // The month rules resolve their facts through one of the two purpose-built
+    // records, exactly once. Deliberately NOT `householdAccess()`: that record
+    // answers the owner, editor, custom and permission questions together, and
+    // rules evaluate every field of a returned map — so a branch that needs
+    // only half of them still paid for all of them, which is what pushed the
+    // month rules over the 1000-expression cap and broke importing, syncing
+    // and deleting a shared workspace.
+    for (const signature of [
+      'function monthOrdinaryUpdateByFinanceWriter(hid) {',
+      'function monthCloseReopenByOwner(hid) {',
+      'function monthCreateByFinanceWriter(hid) {',
+    ]) {
+      const gate = body(signature);
+      assert.equal((gate.match(/monthFinanceWriterFacts\(hid\)/g) ?? []).length, 1, signature);
+      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+    }
+    for (const signature of [
+      'function monthUpdateByCustomMember(hid) {',
+      'function monthCreateByCustomMember(hid) {',
+    ]) {
+      const gate = body(signature);
+      assert.equal((gate.match(/monthCustomWriterFacts\(hid\)/g) ?? []).length, 1, signature);
+      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+    }
+    // Each facts record reads the household root and the member row once each.
+    for (const signature of [
+      'function monthFinanceWriterFacts(hid) {',
+      'function monthCustomWriterFacts(hid) {',
+    ]) {
+      const facts = body(signature);
+      assert.equal((facts.match(/householdPath\(hid\)/g) ?? []).length, 1, signature);
+      assert.equal((facts.match(/memberPath\(hid, uid\)/g) ?? []).length, 1, signature);
+      // The sponsor is named before being asked about: passed inline it is
+      // re-expanded at each of `userProfileData()`'s uses of it.
+      assert.match(facts, /let sponsor = householdSponsor\(root\);/, signature);
+    }
+    // The cheap, most common month write is stated before the expensive ones:
+    // Firestore ORs matching `allow` statements and `||` short-circuits.
     assert.match(
       rulesSource,
-      /allow update: if monthUpdateAuthorized\(hid\)\n\s*&& isValidMonthId\(key\)/,
+      /allow update: if monthOrdinaryUpdateByFinanceWriter\(hid\)\n\s*&& isValidMonthId\(key\) && validMonthDocument\(\);/,
     );
+    assert.ok(
+      rulesSource.indexOf('monthOrdinaryUpdateByFinanceWriter(hid)\n')
+        < rulesSource.indexOf('allow update: if monthCloseReopenByOwner(hid)'),
+      'the ordinary month write must be offered before the close/reopen branch',
+    );
+    // The superseded all-in-one gates are gone, not merely unused: leaving them
+    // in the file invites a future rule to call one and re-inherit the cost.
+    assert.doesNotMatch(rulesSource, /function monthUpdateAuthorized\(/);
+    assert.doesNotMatch(rulesSource, /function householdMonthGate\(/);
+    assert.doesNotMatch(rulesSource, /function monthWriterOk\(/);
     // And no rule reads a mutation's ledger row through a hand-built path twice.
     assert.doesNotMatch(
       rulesSource,

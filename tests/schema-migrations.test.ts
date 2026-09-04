@@ -246,6 +246,14 @@ describe('the model, the rules and the maintenance script agree', () => {
       'memberUpdateRetireInvited()',
       'memberUpdateLeave(memberId)',
       'memberUpdateRejoin(hid, memberId)',
+      // The month write an import, an outbox flush and every ordinary edit
+      // perform. This one was over the cap too: a budget import into a fresh
+      // shared workspace failed on arithmetic, and the client attributed it to
+      // a stale rules deployment because it could not attribute it to anything
+      // it knew about.
+      'monthOrdinaryUpdateByFinanceWriter(hid)',
+      'monthCreateByFinanceWriter(hid)',
+      'monthCreateByCustomMember(hid)',
     ];
     for (const marker of membershipRules) {
       const cost = costOf(marker);
@@ -263,7 +271,11 @@ describe('the model, the rules and the maintenance script agree', () => {
     // emulator suite to land safely.
     const bounds: [string, number][] = [
       ['householdUpdateAuthorized(hid)', 1100],
-      ['monthUpdateAuthorized(hid)', 1600],
+      // Still over the cap on their worst-case branch, and tracked so they
+      // cannot grow. `||` short-circuits, so these are reached only after the
+      // cheaper statements above have declined.
+      ['monthUpdateByCustomMember(hid)', 1300],
+      ['monthCloseReopenByOwner(hid)', 1200],
     ];
     for (const [marker, bound] of bounds) {
       const cost = costOf(marker);

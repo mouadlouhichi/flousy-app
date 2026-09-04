@@ -75,7 +75,19 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path,
   };
   console.error('Firestore Error Details:', errInfo);
-  throw new Error('A database error occurred. Please try again.');
+  // Preserve the Firestore error code on the rethrown error. Callers gate on
+  // `permission-denied` to tell "the rules refused this" from "the network
+  // failed", and flattening every failure into one opaque Error is what left a
+  // refused workspace teardown indistinguishable from a transient blip - and
+  // reported to the user as the wrong cause entirely.
+  const wrapped = new Error('A database error occurred. Please try again.') as Error & {
+    code?: string;
+    cause?: unknown;
+  };
+  const code = (error as { code?: string })?.code;
+  if (code) wrapped.code = code;
+  wrapped.cause = error;
+  throw wrapped;
 }
 
 function cleanUndefined<T>(obj: T): T {
