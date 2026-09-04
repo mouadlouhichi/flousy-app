@@ -100,7 +100,7 @@ jobs:
             "$(printf 'aborted evaluations: %s; over expression budget: %s; get()/exists() over 10: %s; bare denials: %s' \
               "$(grep -c 'Null value error' "$log" || true)" \
               "$(grep -c 'maximum of 1000 expressions' "$log" || true)" \
-              "$(grep -ciE 'maximum of 10|document reads exceeded|exceeds the maximum' "$log" || true)" \
+              "$(grep -coE 'maximum of 10[^0-9]|document reads exceeded|exceeds the maximum number of documents' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
           # The decisive text is the assertion each failing test printed. The SDK's own
           # GrpcConnection lines are noise here - they only repeat the code the test
