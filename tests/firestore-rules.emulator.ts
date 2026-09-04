@@ -15,12 +15,14 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
+import { normalizeMonth, type MonthBudget } from '../src/lib/store';
 
 const projectId = process.env.GCLOUD_PROJECT || 'smartjib-rules-test';
 let environment: RulesTestEnvironment;
@@ -1026,5 +1028,209 @@ describe('household plan-owner authorization and recovery', () => {
     await assertFails(deleteDoc(savingsLedger));
     await assertSucceeds(deleteDoc(doc(owner, 'households/home/data/savings')));
     await assertSucceeds(deleteDoc(savingsLedger));
+  });
+});
+
+/*
+ * Regression for the production refusal of 2026-09-04:
+ *
+ *   [household-month-write] refused  households/<hid>/months/2026-08
+ *     mutationId: bootstrap-<uuid>, code: permission-denied
+ *   [import] personal -> household import failed  code: permission-denied
+ *
+ * with a diagnostic context in which every input was right: the caller owned the
+ * household, held an `owner/active` membership row, was the household's sponsor,
+ * and the sponsor profile was `pro / launch_trial / trialing` with an end time in
+ * the future. The rules refused anyway, because the helpers that answer those
+ * questions returned map literals with BARE keys (`{ owner: ..., paid: ... }`),
+ * and the rules language resolves a bare key as an expression - the function
+ * `owner(uid)`, an unbound name, or the `let present` boolean - not as the string.
+ * Building the record aborted ("Null value error" / "Type error. Received: [bool]
+ * Expected: [string]"), and an aborted rule is a bare permission-denied.
+ *
+ * These cases write what `saveHouseholdMonthBudget()` and the outbox actually
+ * write - a `runTransaction` carrying a full `normalizeMonth()` document and a
+ * `bootstrap` ledger row - and go through every record-returning helper:
+ * `monthFinanceWriterFacts`, `monthCustomWriterFacts`, `mutationLedger`,
+ * `householdAccess` and `householdRootFacts`.
+ */
+describe('household month bootstrap by an entitled launch-trial owner (map-literal regression)', () => {
+  const HID = '74d7b746-7544-4e82-ab77-ab15df9fa980';
+  const OWNER = '06LjPNwwSsP2zsPTJwlhQvd942E2';
+  const TRIAL_MS = 7_776_000_000;
+
+  function launchTrialProfile(nowMs: number) {
+    return {
+      plan: 'pro', currency: 'MAD', onboardingComplete: true, displayName: 'Owner',
+      entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+      entitlementStartedAtMs: nowMs, entitlementEndsAtMs: nowMs + TRIAL_MS,
+    };
+  }
+
+  async function seedReportedHousehold(extraMembers: Record<string, Record<string, unknown>> = {}) {
+    const nowMs = Date.now();
+    await seed(async (db) => {
+      await setDoc(doc(db, `users/${OWNER}`), launchTrialProfile(nowMs));
+      await setDoc(doc(db, `households/${HID}`), {
+        id: HID, name: 'Home', ownerId: OWNER, planOwnerId: OWNER, entitlementOwnerId: OWNER,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing', entitlementEndsAtMs: nowMs + TRIAL_MS,
+        currency: 'MAD', monthStartDate: 1, schemaVersion: 2, onboardingComplete: true,
+        moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+        activeCategories: ['Groceries'], createdAt: new Date().toISOString(),
+      });
+      await setDoc(doc(db, `households/${HID}/members/${OWNER}`), {
+        id: OWNER, userId: OWNER, email: `${OWNER}@example.com`, displayName: 'Owner',
+        role: 'owner', status: 'active', joinedAt: new Date().toISOString(),
+      });
+      for (const [uid, member] of Object.entries(extraMembers)) {
+        await setDoc(doc(db, `households/${HID}/members/${uid}`), {
+          id: uid, userId: uid, email: `${uid}@example.com`, displayName: uid,
+          status: 'active', joinedAt: new Date().toISOString(), ...member,
+        });
+      }
+    });
+  }
+
+  /** A personal month as the app stores it: what the import reads and copies. */
+  function personalMonth(monthKey: string, extra: Partial<MonthBudget> = {}) {
+    const raw: Partial<MonthBudget> = {
+      totalBudget: 12000, bankPart: 9000, homePart: 0, walletPart: 500,
+      strategyId: '50-30-20', monthlySavingsTarget: 2400,
+      placeBalances: { cash_jar: 150 },
+      variableExpenses: [{ id: 'v1', name: 'Groceries', amount: 320.5, type: 'Groceries', date: `${monthKey}-03`, place: 'bank', person: 'Self' }],
+      fixedExpenses: [{ id: 'f1', name: 'Rent', amount: 4000, type: 'Housing', date: `${monthKey}-01`, place: 'bank', paidAmount: 4000 }],
+      activeCategories: ['Groceries', 'Housing'],
+      ...extra,
+    };
+    return normalizeMonth(raw, monthKey);
+  }
+
+  /** Byte-for-byte the transaction `saveHouseholdMonthBudget()` runs. */
+  function bootstrapMonth(db: Firestore, uid: string, hid: string, monthKey: string, month: ReturnType<typeof normalizeMonth>, mutationId = `bootstrap-${monthKey}-${uid}`) {
+    return runTransaction(db, async (transaction) => {
+      const monthRef = doc(db, `households/${hid}/months/${monthKey}`);
+      const snapshot = await transaction.get(monthRef);
+      if (snapshot.exists()) return false;
+      const next = JSON.parse(JSON.stringify({
+        ...normalizeMonth(month, monthKey),
+        revision: 1,
+        lastMutationId: mutationId,
+        updatedByUserId: uid,
+        updatedAt: new Date().toISOString(),
+      }));
+      transaction.set(monthRef, next);
+      transaction.set(doc(db, `households/${hid}/ledger/${mutationId}`), {
+        mutationId, actorId: uid, workspace: 'household', workspaceId: hid, monthKey,
+        kind: 'bootstrap', baseRevision: 0, nextRevision: 1, createdAt: next.updatedAt,
+      });
+      return true;
+    });
+  }
+
+  it('lets the reported owner import two personal months in parallel, exactly as the onboarding import does', async () => {
+    await seedReportedHousehold();
+    const owner = asUser(OWNER);
+    // `importPersonalBudgetIntoHousehold` fires one transaction per month and
+    // awaits them together; the report named 2026-08 first and 2026-09 second.
+    await assertSucceeds(Promise.all([
+      bootstrapMonth(owner, OWNER, HID, '2026-08', personalMonth('2026-08')),
+      bootstrapMonth(owner, OWNER, HID, '2026-09', personalMonth('2026-09')),
+    ]));
+    const stored = await getDoc(doc(owner, `households/${HID}/months/2026-08`));
+    if (stored.data()?.revision !== 1 || stored.data()?.periodStatus !== 'open') {
+      throw new Error(`bootstrap did not land: ${JSON.stringify(stored.data())}`);
+    }
+  });
+
+  it('then lets the same owner flush an ordinary edit and close the period through the record helpers', async () => {
+    await seedReportedHousehold();
+    const owner = asUser(OWNER);
+    await assertSucceeds(bootstrapMonth(owner, OWNER, HID, '2026-09', personalMonth('2026-09')));
+
+    // Outbox flush: `monthFinanceWriterFacts` + `mutationLedger` (`present`/`kind`).
+    const flush = writeBatch(owner);
+    flush.set(doc(owner, `households/${HID}/ledger/flush-1`), {
+      ...ledger('flush-1', OWNER, 'household', HID, 1, 2, 'month'),
+    });
+    flush.update(doc(owner, `households/${HID}/months/2026-09`), {
+      bankPart: 8500, revision: 2, lastMutationId: 'flush-1', updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(flush.commit());
+
+    // Close: `monthCloseReopenByOwner` -> `monthUpdatePreconditions` -> `mutationLedger`.
+    const close = writeBatch(owner);
+    close.set(doc(owner, `households/${HID}/ledger/close-1`), ledger('close-1', OWNER, 'household', HID, 2, 3, 'month-close'));
+    close.update(doc(owner, `households/${HID}/months/2026-09`), {
+      periodStatus: 'closed', closedAt: new Date().toISOString(), closedByUserId: OWNER,
+      revision: 3, lastMutationId: 'close-1', updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(close.commit());
+  });
+
+  it('still refuses the same bootstrap from a stranger, a viewer and an expired trial', async () => {
+    await seedReportedHousehold({ viewer: { role: 'viewer' } });
+    await assertFails(bootstrapMonth(asUser('stranger'), 'stranger', HID, '2026-08', personalMonth('2026-08')));
+    await assertFails(bootstrapMonth(asUser('viewer'), 'viewer', HID, '2026-08', personalMonth('2026-08')));
+
+    // Same household, sponsor trial over: the record's `paid` fact must now say no,
+    // and say it as a decision rather than an abort.
+    await seed(async (db) => {
+      await updateDoc(doc(db, `users/${OWNER}`), { entitlementEndsAtMs: Date.now() - 1 });
+    });
+    await assertFails(bootstrapMonth(asUser(OWNER), OWNER, HID, '2026-08', personalMonth('2026-08')));
+  });
+
+  it('a bootstrap row can seed a month but never replay over one', async () => {
+    await seedReportedHousehold();
+    const owner = asUser(OWNER);
+    await assertSucceeds(bootstrapMonth(owner, OWNER, HID, '2026-09', personalMonth('2026-09')));
+    // A retry of the import is a no-op by design (`snapshot.exists()` short-circuits);
+    // a forced overwrite carrying a `bootstrap` row must be refused by `mutationLedger.kind`.
+    const overwrite = writeBatch(owner);
+    overwrite.set(doc(owner, `households/${HID}/ledger/bootstrap-again`), ledger('bootstrap-again', OWNER, 'household', HID, 1, 2, 'bootstrap'));
+    overwrite.update(doc(owner, `households/${HID}/months/2026-09`), {
+      bankPart: 1, revision: 2, lastMutationId: 'bootstrap-again',
+    });
+    await assertFails(overwrite.commit());
+  });
+
+  it('a custom member holding editAll bootstraps and edits through the custom-writer record', async () => {
+    await seedReportedHousehold({
+      clerk: { role: 'custom', permissions: { expenses: 'editAll', budget: 'editAll', savings: 'none', debts: 'none', invoices: 'none' } },
+    });
+    const clerk = asUser('clerk');
+    await assertSucceeds(bootstrapMonth(clerk, 'clerk', HID, '2026-08', personalMonth('2026-08')));
+    const edit = writeBatch(clerk);
+    edit.set(doc(clerk, `households/${HID}/ledger/clerk-1`), ledger('clerk-1', 'clerk', 'household', HID, 1, 2, 'month'));
+    edit.update(doc(clerk, `households/${HID}/months/2026-08`), {
+      bankPart: 100, revision: 2, lastMutationId: 'clerk-1',
+    });
+    await assertSucceeds(edit.commit());
+  });
+
+  it('importing a personal month that was closed keeps it closed in the household', async () => {
+    // `normalizeMonth` carries `periodStatus: 'closed'` across; the create rule
+    // must accept a closed bootstrap as long as its audit fields are present,
+    // otherwise the import silently drops every closed month.
+    await seedReportedHousehold();
+    const owner = asUser(OWNER);
+    const closed = personalMonth('2026-07', {
+      periodStatus: 'closed', closedAt: '2026-08-01T00:00:00.000Z', closedByUserId: OWNER,
+    });
+    await assertSucceeds(bootstrapMonth(owner, OWNER, HID, '2026-07', closed));
+    // ...but a closed month with no record of who closed it is a malformed document.
+    const orphan = personalMonth('2026-06', { periodStatus: 'closed' });
+    await assertFails(bootstrapMonth(owner, OWNER, HID, '2026-06', orphan));
+  });
+
+  it('the owner manages membership rows through the root-facts record', async () => {
+    // `householdRootFacts` is the same shape of helper, used by the member rules.
+    await seedReportedHousehold({ editor: { role: 'editor' } });
+    const owner = asUser(OWNER);
+    await assertSucceeds(updateDoc(doc(owner, `households/${HID}/members/editor`), { role: 'viewer' }));
+    await assertSucceeds(setDoc(doc(owner, `households/${HID}/members/profile-kid`), {
+      id: 'profile-kid', displayName: 'Kid', role: 'profile', status: 'active',
+      joinedAt: new Date().toISOString(),
+    }));
   });
 });

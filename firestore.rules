@@ -451,6 +451,19 @@ service cloud.firestore {
     // permission-denied, which is the least diagnosable failure a client can be given.
     // The `create` case reads the after-state because a household and its owner's
     // membership row are written in one batch by both onboarding and this app's repair.
+    //
+    // MAP LITERAL KEYS ARE QUOTED, HERE AND IN EVERY RECORD BELOW. In the rules
+    // language `{ owner: ... }` is not a JavaScript object: the map-literal grammar
+    // takes an *expression* on each side of the colon, so a bare `owner` is resolved
+    // as a name - `owner(uid)` the function, an unbound identifier, or the value of a
+    // `let` binding of the same name - instead of the string 'owner'. The engine then
+    // aborts building the map ("Null value error", or "Type error. Received: [bool]
+    // Expected: [string]" when the key happened to be bound to a boolean, exactly what
+    // `present: present` produced in `mutationLedger`). An aborted rule is reported to
+    // the client as a bare permission-denied, which is how every shared month write
+    // - import, outbox flush, close/reopen, membership edit - failed for an owner whose
+    // entitlement, membership and ownership were all in order (CI run 33893291607).
+    // `tests/firestore-rules.emulator.ts` drives every record-returning helper.
     function householdRootFacts(hid) {
       let uid = signedIn() ? request.auth.uid : '';
       let path = householdPath(hid);
@@ -458,9 +471,9 @@ service cloud.firestore {
         ? (existsAfter(path) ? getAfter(path).data : {})
         : (exists(path) ? get(path).data : {});
       return {
-        owner: uid != '' && root.get('ownerId', '') == uid,
-        signedIn: uid != '',
-        paid: uid != '' && activeProEntitlement(householdSponsor(root))
+        'owner': uid != '' && root.get('ownerId', '') == uid,
+        'signedIn': uid != '',
+        'paid': uid != '' && activeProEntitlement(householdSponsor(root))
       };
     }
     function householdAccess(hid) {
@@ -485,12 +498,12 @@ service cloud.firestore {
       // the plan that pays for it.
       let sponsor = householdSponsor(root);
       return {
-        owner: uid != '' && root.get('ownerId', '') == uid,
-        editor: member.get('status', '') == 'active'
+        'owner': uid != '' && root.get('ownerId', '') == uid,
+        'editor': member.get('status', '') == 'active'
           && (role == 'owner' || role == 'editor'),
-        custom: isCustomMember(member),
-        permissions: member.get('permissions', {}),
-        paid: sponsor != '' && activeProEntitlement(sponsor)
+        'custom': isCustomMember(member),
+        'permissions': member.get('permissions', {}),
+        'paid': sponsor != '' && activeProEntitlement(sponsor)
       };
     }
     function householdLedgerGate(hid) {
@@ -525,8 +538,8 @@ service cloud.firestore {
       let path = ledgerPath(hid, usable ? key : 'absent');
       let present = usable && existsAfter(path);
       return {
-        present: present,
-        kind: present ? getAfter(path).data.get('kind', '') : ''
+        'present': present,
+        'kind': present ? getAfter(path).data.get('kind', '') : ''
       };
     }
     /**
@@ -579,9 +592,9 @@ service cloud.firestore {
       // `userProfileData()`'s uses of it.
       let sponsor = householdSponsor(root);
       return {
-        owner: uid != '' && root.get('ownerId', '') == uid,
-        editor: member.get('status', '') == 'active' && (role == 'owner' || role == 'editor'),
-        paid: uid != '' && sponsor != '' && activeProEntitlement(sponsor)
+        'owner': uid != '' && root.get('ownerId', '') == uid,
+        'editor': member.get('status', '') == 'active' && (role == 'owner' || role == 'editor'),
+        'paid': uid != '' && sponsor != '' && activeProEntitlement(sponsor)
       };
     }
 
@@ -596,9 +609,9 @@ service cloud.firestore {
       let member = uid != '' && exists(mPath) ? get(mPath).data : {};
       let sponsor = householdSponsor(root);
       return {
-        custom: isCustomMember(member),
-        permissions: member.get('permissions', {}),
-        paid: uid != '' && sponsor != '' && activeProEntitlement(sponsor)
+        'custom': isCustomMember(member),
+        'permissions': member.get('permissions', {}),
+        'paid': uid != '' && sponsor != '' && activeProEntitlement(sponsor)
       };
     }
 
@@ -682,10 +695,20 @@ service cloud.firestore {
         && customMonthChangesGranted(facts.permissions);
     }
 
-    /** Owner or editor creating (bootstrapping) a shared month document. */
+    /**
+     * Owner or editor creating (bootstrapping) a shared month document.
+     * Importing a personal budget copies each month as `normalizeMonth()` stores
+     * it, `periodStatus` included, so an archived (closed) month arrives closed.
+     * Only the owner may put a shared period into that state - closing is an
+     * owner operation everywhere else in this file - so a closed bootstrap is
+     * accepted from the owner and refused from an editor, instead of the create
+     * rule refusing every closed month and the import silently losing them.
+     */
     function monthCreateByFinanceWriter(hid) {
       let facts = monthFinanceWriterFacts(hid);
-      return facts.paid && (facts.owner || facts.editor);
+      return facts.paid
+        && (facts.owner || facts.editor)
+        && (facts.owner || !periodClosed(incoming()));
     }
 
     /**
@@ -1297,10 +1320,11 @@ service cloud.firestore {
         // document: a valid month document structurally carries every area's
         // keys, so creation cannot be split per grant. Ongoing edits are the
         // enforced surface - see the update rule.
+        // The finance-writer branch decides the closed case itself (owner only);
+        // `validMonthDocument()` still demands `closedAt`/`closedByUserId` of it.
         allow create: if monthCreateByFinanceWriter(hid)
           && isValidMonthId(key)
           && validMonthDocument()
-          && !periodClosed(incoming())
           && incoming().revision == 1
           && mutationLedger(hid).present;
         allow create: if monthCreateByCustomMember(hid)
@@ -1409,23 +1433,6 @@ service cloud.firestore {
           && incoming().get('status', '') == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));
       allow delete: if householdOwner(existing().get('householdId', ''));
-    }
-
-    /* DIAG PROBES (temporary, removed before merge). Each path isolates one
-     * primitive so the emulator can say whether it evaluates cleanly or aborts. */
-    match /diag/{probeId} {
-      allow update: if probeId == 'p20' && exists(householdPath('home'));
-      allow update: if probeId == 'p21' && exists(memberPath('home', 'owner'));
-      allow update: if probeId == 'p22' && get(householdPath('home')).data.get('ownerId', '') == request.auth.uid;
-      allow update: if probeId == 'p23' && get(memberPath('home', 'owner')).data.get('role', '') == 'owner';
-      allow update: if probeId == 'p24' && householdSponsor(get(householdPath('home')).data) == 'owner';
-      allow update: if probeId == 'p25' && get(ledgerPath('home', 'seed-mutation')).data.get('kind', '') == 'month';
-      allow update: if probeId == 'p26' && existsAfter(ledgerPath('home', 'seed-mutation'));
-      allow update: if probeId == 'p27' && mutationLedger('home').kind == 'month';
-      allow update: if probeId == 'p28' && incoming().get('lastMutationId', '') == 'seed-mutation'
-        && incoming().get('revision', 0) is int;
-      allow update: if probeId == 'p29' && isEmail('a@b.c');
-      allow update: if probeId == 'p30' && periodClosed(incoming()) == false;
     }
 
     match /{document=**} {
