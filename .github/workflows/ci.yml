@@ -75,6 +75,18 @@ jobs:
             node scripts/rules-budget.mjs firestore.rules 6
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # Before spending an emulator run: a rule that dot-reads a field an existing
+          # document never stored is indistinguishable, to the client, from an ordinary
+          # refusal, and no test can tell them apart either. This fails the step with the
+          # rule and line named instead.
+          {
+            echo "### Unguarded document reads (update/delete rules must be total)"
+            echo
+            echo '```'
+            node scripts/rules-totality.mjs firestore.rules || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/rules-totality.mjs firestore.rules
           if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" 2>&1 | tee "$log"; then
             exit 0
           fi

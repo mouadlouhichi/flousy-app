@@ -487,6 +487,43 @@ service cloud.firestore {
      * repetition. The path is built once here, the row is read once, and the shape
      * of the key is checked with it.
      */
+    // The personal workspace's audit row, consulted once. `usable` is checked before the
+    // key reaches a path, and a row that is absent or unreachable answers as `{present:
+    // false, kind: ''}` - a refusal the app can name, never an aborted evaluation.
+    // The personal month write as one expression, so the audit row is consulted once. The
+    // rule needs that row four times - present, not-bootstrap, and which way the period
+    // moved - and a rule cannot bind a name in a `match` block, so the wrapper exists for
+    // the binding alone. Every read underneath it is defaulted: a month patch that omits
+    // `revision` or `lastMutationId` is refused as the incomplete write it is, instead of
+    // aborting the rule and reporting a permission-denied the app cannot explain.
+    function personalMonthUpdateOk(uid) {
+      let after = incoming();
+      let before = existing();
+      let ledger = personalMutationLedger(uid);
+      return validMonthDocument()
+        && validPeriodStateTransition()
+        && ((!('revision' in before) && after.get('revision', 0) == 1)
+          || ('revision' in before
+            && before.revision is int
+            && after.get('revision', 0) == before.revision + 1))
+        && ledger.present
+        && ledger.kind != 'bootstrap'
+        && ((!periodClosed(before) && !periodClosed(after))
+          || (!periodClosed(before) && periodClosed(after) && ledger.kind == 'month-close')
+          || (periodClosed(before) && !periodClosed(after) && ledger.kind == 'month-reopen'));
+    }
+
+    function personalMutationLedger(uid) {
+      let key = incoming().get('lastMutationId', '');
+      let usable = key is string && key.size() > 0 && key.size() <= 160;
+      let path = /databases/$(database)/documents/users/$(uid)/ledger/$(usable ? key : 'absent');
+      let present = usable && existsAfter(path);
+      return {
+        present: present,
+        kind: present ? getAfter(path).data.get('kind', '') : ''
+      };
+    }
+
     function mutationLedger(hid) {
       let key = incoming().get('lastMutationId', '');
       // A key that could not have been accepted by the ledger rules is refused here
@@ -748,19 +785,7 @@ service cloud.firestore {
           && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId));
         allow update: if owner(uid)
           && isValidMonthId(key)
-          && validMonthDocument()
-          && validPeriodStateTransition()
-          && ((!('revision' in existing()) && incoming().revision == 1)
-            || ('revision' in existing()
-              && existing().revision is int
-              && incoming().revision == existing().revision + 1))
-          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') != 'bootstrap'
-          && ((!periodClosed(existing()) && !periodClosed(incoming()))
-            || (!periodClosed(existing()) && periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') == 'month-close')
-            || (periodClosed(existing()) && !periodClosed(incoming())
-              && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') == 'month-reopen'));
+          && personalMonthUpdateOk(uid);
         allow delete: if owner(uid);
       }
 
@@ -778,11 +803,8 @@ service cloud.firestore {
             || ('revision' in existing()
               && existing().revision is int
               && incoming().revision == existing().revision + 1))
-          && incoming().lastMutationId is string
-          && incoming().lastMutationId.size() > 0
-          && incoming().lastMutationId.size() <= 160
-          && existsAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId))
-          && getAfter(/databases/$(database)/documents/users/$(uid)/ledger/$(incoming().lastMutationId)).data.get('kind', '') != 'savings-bootstrap'
+          && personalMutationLedger(uid).present
+          && personalMutationLedger(uid).kind != 'savings-bootstrap'
           && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
         allow delete: if owner(uid);
       }
@@ -830,9 +852,9 @@ service cloud.firestore {
           && incoming().items is list
           && incoming().items.size() <= 500;
         allow update: if owner(uid)
-          && isMoney(incoming().total)
-          && incoming().items is list
-          && incoming().items.size() <= 500
+          && isMoney(incoming().get('total', null))
+          && incoming().get('items', []) is list
+          && incoming().get('items', []).size() <= 500
           && (!('status' in incoming()) || incoming().status in ['active', 'completed']);
         allow delete: if owner(uid);
       }
@@ -996,13 +1018,13 @@ service cloud.firestore {
             || (incoming().receiptUrl is string && incoming().receiptUrl.size() <= 120000));
         allow update: if householdWriter(hid)
           && existing().get('status', '') == 'submitted'
-          && incoming().status in ['approved', 'rejected']
+          && incoming().get('status', '') in ['approved', 'rejected']
           && incoming().diff(existing()).affectedKeys().hasOnly([
             'status', 'reviewedAt', 'reviewedByUserId', 'postedExpenseId', 'postedMonthKey'
           ])
-          && incoming().reviewedByUserId == request.auth.uid
-          && (incoming().status == 'rejected'
-            || (incoming().postedExpenseId == 'invoice-' + invoiceId
+          && incoming().get('reviewedByUserId', '') == request.auth.uid
+          && (incoming().get('status', '') == 'rejected'
+            || (incoming().get('postedExpenseId', '') == 'invoice-' + invoiceId
               && invoicePostedMonthOk(hid, invoiceId)));
         allow delete: if householdOwner(hid)
           || (householdMember(hid)
@@ -1020,7 +1042,7 @@ service cloud.firestore {
           && isValidMonthId(key)
           && validMonthDocument()
           && !periodClosed(incoming())
-          && incoming().revision == 1
+          && incoming().get('revision', 0) == 1
           && mutationLedger(hid).present;
         allow update: if monthUpdateAuthorized(hid)
           && isValidMonthId(key)

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   HOUSEHOLD_DEFAULT_AVATAR_COLOR,
@@ -240,6 +240,19 @@ describe('the model, the rules and the maintenance script agree', () => {
       const cost = costOf(marker);
       assert.ok(cost <= bound, `${marker} costs ${cost} expressions, over its recorded bound of ${bound}`);
     }
+  });
+
+  it('leaves no update or delete rule able to abort on a missing field', () => {
+    // The one property that separates "this write is not allowed" from "we could not
+    // decide" is whether a rule reaches into a document without proving the field is
+    // there. On a create that is harmless - the document does not exist yet, and refusing a
+    // write that omits a required key is the point. On an update it is the exact shape of
+    // the complaint this whole pass exists to answer: the user already has the document, a
+    // new feature added a field their copy never stored, and the rule aborts into a bare
+    // permission-denied. `scripts/rules-totality.mjs` follows the helper calls, because a
+    // rule that looks total can abort three functions deep in a profile read.
+    const result = spawnSync('node', ['scripts/rules-totality.mjs', 'firestore.rules'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `rules abort on missing fields:\n${result.stdout}`);
   });
 
   it('lists no field the household type does not have', () => {

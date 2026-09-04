@@ -365,9 +365,13 @@ consumed. A feature that adds a required field therefore ships all five parts:
 3. **Rules** — read stored values as `existing().get('key', default)`, never
    `existing().key`: a missing property aborts evaluation and the client receives a bare
    `permission-denied`, which also blocks the write that would have healed the document.
-   Require the field in the create path only, then run `node scripts/rules-budget.mjs` —
-   defaults cost expressions, so pay for them by folding duplicated `exists()/get()` paths
-   into a helper or removing checks another clause already implies.
+   Require the field in the create path only. Then run `node scripts/rules-totality.mjs`,
+   which fails when an `update` or `delete` rule reaches into a document without proving the
+   field is present — a `create` rule may require its fields, because the document does not
+   exist yet, and only the update path can strand somebody already using the app. Then run
+   `node scripts/rules-budget.mjs`: defaults cost expressions, so pay for them by folding
+   duplicated `exists()/get()` paths into a helper or removing checks another clause already
+   implies.
 4. **Repair** — add the field to `SCHEMA_MODELS` in `src/lib/schema-migrations.ts`:
    `breaks` says what stops working, `repair` returns the value implied by the document,
    and `repair: () => null` means "reported, never guessed". `tests/schema-migrations.test.ts`
