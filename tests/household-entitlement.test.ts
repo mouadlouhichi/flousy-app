@@ -562,3 +562,30 @@ describe('a freshly created household accuses nobody', () => {
   });
 });
 
+describe('the owner membership row can be torn down by its own holder', () => {
+  it('exempts self-deletion from the owner-row protection', () => {
+    // The reported teardown failure was
+    //   [household-delete] refused: households/<hid>/members/<own uid>
+    // with callerIsOwner true, sponsorIsCaller true and an active plan - i.e.
+    // nothing to do with entitlement. `allow delete` on a member row required
+    // `role != 'owner'`, which is exactly the row a workspace teardown must
+    // remove last, so deleting a household could never complete.
+    const start = rulesSource.indexOf('match /members/{memberId} {');
+    const block = rulesSource.slice(start, rulesSource.indexOf('match /invoices/{invoiceId} {', start));
+    const rule = block.slice(block.indexOf('allow delete:'));
+    assert.match(rule, /memberId == request\.auth\.uid/,
+      'an owner must be able to delete their own row or the workspace cannot be removed');
+    assert.match(rule, /resource\.data\.get\('role', ''\) != 'owner'/,
+      "and another owner's row must stay protected");
+  });
+
+  it('still resolves ownership without the membership row', () => {
+    // What makes the exemption safe: ownership is read off the household root,
+    // so removing the row cannot lock the owner out mid-teardown.
+    const gate = rulesSource.slice(rulesSource.indexOf('function householdOwner(hid) {'));
+    const body = gate.slice(0, gate.indexOf('\n    }'));
+    assert.match(body, /ownerId/);
+    assert.doesNotMatch(body, /memberPath\(|memberDocument\(/,
+      'householdOwner must not depend on the row the teardown deletes');
+  });
+});

@@ -953,6 +953,33 @@ describe('household plan-owner authorization and recovery', () => {
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
   });
 
+  it('lets an owner delete their own membership row, but nobody else delete an owner row', async () => {
+    // Tearing down a workspace has to remove the founder's own row. The rule
+    // used to forbid deleting ANY role:'owner' row, so the teardown always
+    // failed on the last member and the household could never be removed -
+    // this is the refusal the reported log named. Self-deletion strands
+    // nobody: householdOwner() reads `ownerId` off the root, not the member
+    // row, so the owner keeps full access and can write the row back.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'users/second'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'households/home/members/owner'), {
+        userId: 'owner', role: 'owner', status: 'active', displayName: 'Owner',
+      });
+      await setDoc(doc(db, 'households/home/members/second'), {
+        userId: 'second', role: 'owner', status: 'active', displayName: 'Second',
+      });
+    });
+    const owner = asUser('owner');
+    // A co-owner's row is still protected from another owner.
+    await assertFails(deleteDoc(doc(owner, 'households/home/members/second')));
+    // The caller's own owner row is removable, and the household root - which
+    // the teardown deletes next - remains deletable without it.
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/members/owner')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home')));
+  });
+
   it('refuses an invitation query filtered by household, and allows the one the teardown uses', async () => {
     // A query is authorized against `allow list` without reading documents, so
     // the query's constraints must imply the rule. householdInvites allows

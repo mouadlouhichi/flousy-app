@@ -1241,7 +1241,16 @@ service cloud.firestore {
         allow update: if memberUpdateRetireInvited();
         allow update: if memberUpdateLeave(memberId);
         allow update: if memberUpdateRejoin(hid, memberId);
-        allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
+        // An owner row is protected from everyone - including another owner -
+        // EXCEPT its own holder. Tearing down a workspace has to remove the
+        // founder's row, and `role != 'owner'` refused exactly that, so the
+        // delete always failed on the last member and the household could
+        // never be removed. Self-deletion is safe to allow: `householdEditor`
+        // falls back to `householdOwner`, which reads `ownerId` off the root
+        // rather than the membership row, and `memberCreateSelfOwner` lets an
+        // owner write their own row back - so this can strand nobody.
+        allow delete: if householdOwner(hid)
+          && (resource.data.get('role', '') != 'owner' || memberId == request.auth.uid);
       }
 
       match /invoices/{invoiceId} {
