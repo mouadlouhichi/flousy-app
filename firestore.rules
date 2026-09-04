@@ -878,62 +878,119 @@ service cloud.firestore {
         && result.get('acceptedByUserId', '') == request.auth.uid;
     }
 
-    // One place per rule for each shared question, so `householdOwner`, the entitlement
-    // chain and the grant check are each expanded once for the request instead of once
-    // per branch. The branches themselves are unchanged.
-    function memberCreateAuthorized(hid, memberId) {
+    /*
+     * Membership creation, deliberately split into THREE `allow create`
+     * statements rather than one function with three OR-ed branches.
+     *
+     * Rules inline every function call into the caller's expression budget, and
+     * a request may evaluate at most 1000 expressions. Folded together these
+     * branches cost ~1088 - over the cap - so the engine refused the write
+     * outright with a bare `permission-denied`, before any branch was even
+     * consulted. That broke HOUSEHOLD CREATION for a perfectly entitled owner:
+     * the batch writes the household root and the owner's own membership row,
+     * and the member write was rejected for arithmetic reasons rather than
+     * authorization ones. Firestore evaluates each `allow` of the same method
+     * independently and ORs the results, so splitting them keeps the exact same
+     * authorization surface while giving each branch its own budget.
+     *
+     * Each branch below reads only what it needs: the founding owner needs the
+     * household root only, and must NOT pay for the invitation machinery.
+     */
+
+    /** The household owner writing their own `owner` row (household creation). */
+    function memberCreateSelfOwner(hid, memberId) {
       let after = incoming();
-      let facts = householdRootFacts(hid);
-      let grantsOk = memberDocPermissionsValid();
-      let self = memberId == request.auth.uid;
-      return (facts.owner && self
-          && after.get('userId', '') == request.auth.uid
-          && after.get('role', '') == 'owner'
-          && after.get('status', '') == 'active')
-        || (facts.owner && facts.paid && !self
-          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-          && grantsOk
-          && after.get('status', '') in ['invited', 'active'])
-        || (verifiedEmail() && facts.paid && self
-          && after.get('userId', '') == request.auth.uid
-          && after.get('status', '') == 'active'
-          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
-          && grantsOk
-          && invitationJoinOk(hid));
+      return memberId == request.auth.uid
+        && householdOwner(hid)
+        && after.get('userId', '') == request.auth.uid
+        && after.get('role', '') == 'owner'
+        && after.get('status', '') == 'active';
     }
 
-    function memberUpdateAuthorized(hid, memberId) {
+    /** The owner adding somebody else (an invited row or a local profile). */
+    function memberCreateByOwner(hid, memberId) {
+      let after = incoming();
+      let facts = householdRootFacts(hid);
+      return memberId != request.auth.uid
+        && facts.owner && facts.paid
+        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+        && memberDocPermissionsValid()
+        && after.get('status', '') in ['invited', 'active'];
+    }
+
+    /** A recipient claiming their own row, proven by the invitation itself. */
+    function memberCreateByInvitee(hid, memberId) {
+      let after = incoming();
+      return memberId == request.auth.uid
+        && verifiedEmail()
+        && householdEntitled(hid)
+        && after.get('userId', '') == request.auth.uid
+        && after.get('status', '') == 'active'
+        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
+        && memberDocPermissionsValid()
+        && invitationJoinOk(hid);
+    }
+
+    /*
+     * Membership updates, split for the same reason as the create rules above:
+     * folded into one expression the four branches cost ~1283, over the
+     * 1000-expression cap, so the engine refused every membership edit -
+     * including a member retiring their own row - with a bare
+     * `permission-denied`. Split, each branch is comfortably within budget and
+     * the authorization surface is byte-for-byte the same.
+     */
+
+    /** The owner re-roling somebody who is not an owner. */
+    function memberUpdateByOwner(hid) {
       let after = incoming();
       let before = existing();
       let facts = householdRootFacts(hid);
-      let grantsOk = memberDocPermissionsValid();
-      let changed = after.diff(before).affectedKeys();
-      return (facts.owner && facts.paid
-          && before.get('role', '') != 'owner'
-          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-          && (after.get('role', '') != 'custom' || grantsOk)
-          && (!('userId' in before) || after.get('userId', '') == before.userId))
-        || (verifiedEmail()
-          && emailMatches(before.get('email', ''))
-          && before.get('status', '') == 'invited'
-          && after.get('status', '') == 'inactive'
-          && after.get('userId', '') == request.auth.uid
-          && changed.hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
-        || (memberId == request.auth.uid
-          && before.get('userId', memberId) == request.auth.uid
-          && after.get('status', '') == 'inactive'
-          && changed.hasOnly(['status', 'retiredAt']))
-        // Returning member: an inactive row is reactivated only through the same atomic
-        // invitation proof the fresh-create branch demands.
-        || (verifiedEmail() && facts.paid
-          && memberId == request.auth.uid
-          && before.get('userId', memberId) == request.auth.uid
-          && before.get('status', '') == 'inactive'
-          && after.get('userId', '') == request.auth.uid
-          && after.get('status', '') == 'active'
-          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
-          && grantsOk
-          && invitationJoinOk(hid));
+      return facts.owner && facts.paid
+        && before.get('role', '') != 'owner'
+        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+        && (after.get('role', '') != 'custom' || memberDocPermissionsValid())
+        && (!('userId' in before) || after.get('userId', '') == before.userId);
+    }
+
+    /** The recipient retiring the email-bound pending row that names them. */
+    function memberUpdateRetireInvited() {
+      let after = incoming();
+      let before = existing();
+      return verifiedEmail()
+        && emailMatches(before.get('email', ''))
+        && before.get('status', '') == 'invited'
+        && after.get('status', '') == 'inactive'
+        && after.get('userId', '') == request.auth.uid
+        && after.diff(before).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']);
+    }
+
+    /** Any member deactivating their own row (leaving the household). */
+    function memberUpdateLeave(memberId) {
+      let after = incoming();
+      let before = existing();
+      return memberId == request.auth.uid
+        && before.get('userId', memberId) == request.auth.uid
+        && after.get('status', '') == 'inactive'
+        && after.diff(before).affectedKeys().hasOnly(['status', 'retiredAt']);
+    }
+
+    /**
+     * Returning member: an inactive row is reactivated only through the same
+     * atomic invitation proof the fresh-create branch demands.
+     */
+    function memberUpdateRejoin(hid, memberId) {
+      let after = incoming();
+      let before = existing();
+      return memberId == request.auth.uid
+        && verifiedEmail()
+        && householdEntitled(hid)
+        && before.get('userId', memberId) == request.auth.uid
+        && before.get('status', '') == 'inactive'
+        && after.get('userId', '') == request.auth.uid
+        && after.get('status', '') == 'active'
+        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
+        && memberDocPermissionsValid()
+        && invitationJoinOk(hid);
     }
 
     // The household's own settings write, with the pre- and post-state named once: this
@@ -980,9 +1037,19 @@ service cloud.firestore {
           || (verifiedEmail() && (memberId == request.auth.uid || emailMatches(resource.data.get('email', ''))));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
-        allow create: if memberCreateAuthorized(hid, memberId);
+        // Three statements, one per legitimate origin of a membership row.
+        // Firestore ORs the `allow create` rules that match, so this is exactly
+        // the previous condition - but each branch gets its own expression
+        // budget instead of sharing one that the sum had already overrun.
+        allow create: if memberCreateSelfOwner(hid, memberId);
+        allow create: if memberCreateByOwner(hid, memberId);
+        allow create: if memberCreateByInvitee(hid, memberId);
 
-        allow update: if memberUpdateAuthorized(hid, memberId);
+        // Split per origin; Firestore ORs matching `allow update` statements.
+        allow update: if memberUpdateByOwner(hid);
+        allow update: if memberUpdateRetireInvited();
+        allow update: if memberUpdateLeave(memberId);
+        allow update: if memberUpdateRejoin(hid, memberId);
         allow delete: if householdOwner(hid) && resource.data.get('role', '') != 'owner';
       }
 

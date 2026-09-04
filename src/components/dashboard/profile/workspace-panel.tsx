@@ -77,7 +77,12 @@ export function WorkspacePanel() {
     try {
       await create(householdName.trim() || profile?.displayName || m.profile.household);
       router.replace('/onboarding?scope=household');
-    } catch {
+    } catch (error) {
+      // Log the real cause. A bare `catch {}` here turned every refusal into
+      // the same generic notice, which is how an over-budget rules denial went
+      // undiagnosed: the user saw "something went wrong" and the console was
+      // empty. The message shown stays generic; the console gets the truth.
+      console.error('Household creation failed:', error);
       setNotice(m.household.genericError);
       toast({ variant: 'destructive', title: m.household.genericError });
     } finally {

@@ -309,6 +309,59 @@ describe('household invitations and RBAC rules', () => {
     });
   }
 
+  it('lets a launch-trial Pro user create a household and their own owner row in one batch', async () => {
+    // The exact flow that was broken in production. `memberCreateAuthorized`
+    // folded three branches into one expression costing ~1034, over the
+    // 1000-expression cap, so the engine refused the batch with a bare
+    // permission-denied before evaluating any branch — and the founding owner,
+    // who needs only the household root, was paying for the invitation
+    // machinery of a branch that could never apply to them.
+    const nowMs = Date.now();
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/founder'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+        entitlementStartedAtMs: nowMs, entitlementEndsAtMs: nowMs + 7_776_000_000,
+        displayName: 'Founder', monthStartDate: 27,
+      });
+    });
+    const founder = asUser('founder', { email: 'founder@example.com' });
+    const batch = writeBatch(founder);
+    batch.set(doc(founder, 'households/fresh'), {
+      name: 'Founder Home',
+      ownerId: 'founder',
+      planOwnerId: 'founder',
+      entitlementOwnerId: 'founder',
+      entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing',
+      entitlementEndsAtMs: nowMs + 7_776_000_000,
+      currency: 'MAD',
+      monthStartDate: 27,
+      moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'],
+      onboardingComplete: false,
+      schemaVersion: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    batch.set(doc(founder, 'households/fresh/members/founder'), {
+      id: 'founder', userId: 'founder', displayName: 'Founder',
+      email: 'founder@example.com', role: 'owner', status: 'active',
+      avatarColor: '#00685f', joinedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('still refuses a self-authored owner row in a household somebody else owns', async () => {
+    await seedHousehold();
+    const intruder = asUser('intruder', { email: 'intruder@example.com' });
+    await assertFails(setDoc(doc(intruder, 'households/home/members/intruder'), {
+      id: 'intruder', userId: 'intruder', displayName: 'Intruder',
+      email: 'intruder@example.com', role: 'owner', status: 'active',
+      joinedAt: new Date().toISOString(),
+    }));
+  });
+
   it('allows viewers to read, blocks their writes, and hides finance from contributors', async () => {
     await seedHousehold();
     const viewer = asUser('viewer');

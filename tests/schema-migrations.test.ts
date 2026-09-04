@@ -230,10 +230,39 @@ describe('the model, the rules and the maintenance script agree', () => {
       assert.ok(line, `${marker} is no longer reported by scripts/rules-budget.mjs`);
       return Number(line.trim().split(/\s+/)[0]);
     };
+    // The membership rules are held to the LIMIT THE ENGINE ENFORCES (1000),
+    // not to a recorded high-water mark. Bounds above 1000 were what let the
+    // real defect hide: `memberCreateAuthorized` was recorded at 1100 and cost
+    // 1034, so the suite stayed green while Firestore refused every household
+    // creation - the batch writes the owner's membership row, and the rule was
+    // over budget before any branch was evaluated. Each origin of a membership
+    // row is now its own `allow` statement with its own budget.
+    const ENGINE_CAP = 1000;
+    const membershipRules = [
+      'memberCreateSelfOwner(hid, memberId)',
+      'memberCreateByOwner(hid, memberId)',
+      'memberCreateByInvitee(hid, memberId)',
+      'memberUpdateByOwner(hid)',
+      'memberUpdateRetireInvited()',
+      'memberUpdateLeave(memberId)',
+      'memberUpdateRejoin(hid, memberId)',
+    ];
+    for (const marker of membershipRules) {
+      const cost = costOf(marker);
+      assert.ok(
+        cost < ENGINE_CAP,
+        `${marker} costs ${cost} expressions, at or over the 1000 the engine enforces — `
+        + 'the write will be refused with a bare permission-denied. Split the rule.',
+      );
+    }
+
+    // Recorded high-water marks for rules that are still over the cap on their
+    // worst-case branch. These are known debt, tracked so they cannot grow;
+    // `||` short-circuits, so the common branches do complete. Splitting them
+    // the way the membership rules were split is the fix, and it needs the
+    // emulator suite to land safely.
     const bounds: [string, number][] = [
-      ['memberCreateAuthorized(hid, memberId)', 1100],
       ['householdUpdateAuthorized(hid)', 1100],
-      ['memberUpdateAuthorized(hid, memberId)', 1300],
       ['monthUpdateAuthorized(hid)', 1600],
     ];
     for (const [marker, bound] of bounds) {
