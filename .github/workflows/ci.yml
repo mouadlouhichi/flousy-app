@@ -114,6 +114,18 @@ jobs:
               "$(grep -c 'maximum of 1000 expressions' "$log" || true)" \
               "$(grep -coE 'maximum of 10[^0-9]|document reads exceeded|exceeds the maximum number of documents' "$log" || true)" \
               "$(grep -c 'Missing or insufficient permissions' "$log" || true)")"
+          # DIAG (temporary): pair every emulator evaluation line with the test
+          # name and the test-file line of the assertion it belongs to, so the
+          # aborting request can be identified without the (unreachable) log blob.
+          dig="$(grep -nB1 -A4 -E 'Null value error|Unable to evaluate the expression|evaluation error at' "$log" \
+            | grep -vE 'GrpcConnection|--' | grep -vE '^[0-9]+- *$' \
+            | sed -E 's/^[0-9]+[-:][[:space:]]*//; s/[[:space:]]+$//' \
+            | tr -d '\r' | tr '\n' '|' || true)"
+          i=0
+          printf '%s' "$dig" | fold -w 1200 | head -n 5 | while IFS= read -r part; do
+            i=$((i+1))
+            printf '::error title=Firestore rules diag %s::%s\n' "$i" "$part"
+          done
           # The decisive text is the assertion each failing test printed. The SDK's own
           # GrpcConnection lines are noise here - they only repeat the code the test
           # already asserted on - so they are skipped, and what is published is the
@@ -137,10 +149,11 @@ jobs:
           printf '::error title=Firestore emulator rule log::%s\n' \
             "$( { for f in firebase-debug.log "$HOME/firebase-debug.log" /tmp/firebase-debug.log; do [ -f \"$f\" ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist|Property' \"$f\" && break; done; } \
               | sed -E 's/^[[:space:]]+//; s/firestore-emulator[^ ]* //' | tr -d '\r' | tr '\n' '|' | cut -c1-1600 || echo 'no emulator log' )"
-          grep -nE "not ok [0-9]+|✖ " "$log" | head -n 12 \
-            | while IFS= read -r line; do
-                printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
-              done || true
+          # DIAG (temporary): test names are inside the diag payloads above.
+          # grep -nE "not ok [0-9]+|✖ " "$log" | head -n 12 \
+          #   | while IFS= read -r line; do
+          #       printf '::error title=Firestore rules test::%s\n' "${line//$'\r'/}"
+          #     done || true
           exit 1
 
       - name: Upload the rules test log
