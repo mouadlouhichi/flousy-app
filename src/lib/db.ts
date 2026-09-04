@@ -1376,13 +1376,23 @@ export async function deleteHouseholdWorkspace(householdId: string): Promise<voi
     for (const invite of inviteSnap.docs) await deleteDoc(invite.ref);
     // Delete nested data while the owner membership still exists, then members,
     // then the household doc. Firestore delete rules cannot inspect incoming().
+    //
+    // ORDER IS LOAD-BEARING. A ledger row is an audit record that stays
+    // immutable while the financial document it describes exists: the rule
+    // only permits deleting it once `months/{monthKey}` (or `data/savings`,
+    // for a savings row) is already gone. Each delete is its own request, so
+    // `existsAfter` reflects what is actually in the database at that moment.
+    // Wiping `ledger` before `data/savings` therefore made every savings-kind
+    // ledger row permanently undeletable, the teardown threw on the first one,
+    // and the workspace could never be removed.
     await wipe('months');
     await wipe('invoices');
-    await wipe('ledger');
     // Deleting a missing document is already a successful no-op in Firestore;
     // any rejection here is a real teardown failure and must keep the owner
     // membership/workspace reachable for a retry.
     await deleteDoc(doc(db, 'households', householdId, 'data', 'savings'));
+    // Both financial documents are gone now, so every ledger row is deletable.
+    await wipe('ledger');
     await wipe('members');
     await deleteDoc(doc(db, 'households', householdId));
   } catch (err) {

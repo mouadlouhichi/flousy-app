@@ -244,6 +244,30 @@ service cloud.firestore {
         ];
     }
 
+    /**
+     * The period/audit half of the month shape check. Split out so a
+     * close/reopen - which may only touch period-state keys - does not also pay
+     * for re-validating money fields it cannot have changed. The cap is 1000
+     * expressions per request and an over-budget write is refused outright.
+     */
+    function validMonthPeriodFields() {
+      let after = incoming();
+      let revision = after.get('revision', 0);
+      let lastMutationId = after.get('lastMutationId', '');
+      let periodStatus = after.get('periodStatus', '');
+      let closedByUserId = after.get('closedByUserId', '');
+      return revision is int
+        && revision >= 1
+        && lastMutationId is string
+        && lastMutationId.size() > 0
+        && lastMutationId.size() <= 160
+        && (!('periodStatus' in after) || periodStatus in ['open', 'closed'])
+        && (!('periodStatus' in after)
+          || periodStatus != 'closed'
+          || (after.get('closedAt', '') is string && closedByUserId is string
+            && closedByUserId.size() > 0));
+    }
+
     function validMonthDocument() {
       // Every field is read once and named. A rules function inlines its arguments at
       // each use, so a validator that asks for `revision` twice pays for the read twice -
@@ -624,11 +648,20 @@ service cloud.firestore {
         && monthOrdinaryUpdateOk(hid);
     }
 
-    /** Closing or reopening a shared period: owner only, per the audit trail. */
+    /**
+     * Closing or reopening a shared period: owner only, per the audit trail.
+     * Reads the root once and never resolves the membership row - ownership is
+     * recorded on the household document itself, and `editor`/`custom` are
+     * irrelevant to a branch only an owner can take.
+     */
     function monthCloseReopenByOwner(hid) {
-      let facts = monthFinanceWriterFacts(hid);
-      return facts.paid
-        && facts.owner
+      let uid = signedIn() ? request.auth.uid : '';
+      let hPath = householdPath(hid);
+      let root = exists(hPath) ? get(hPath).data : {};
+      let sponsor = householdSponsor(root);
+      return uid != ''
+        && root.get('ownerId', '') == uid
+        && sponsor != '' && activeProEntitlement(sponsor)
         && monthUpdatePreconditions(hid, true);
     }
 
@@ -639,11 +672,14 @@ service cloud.firestore {
      */
     function monthUpdateByCustomMember(hid) {
       let facts = monthCustomWriterFacts(hid);
-      return facts.paid
-        && facts.custom
+      // Cheapest discriminators first: `customMonthChangesGranted` walks the
+      // whole changed-key set against nine area grants, so it must not be
+      // reached for a writer who was never a custom member to begin with.
+      return facts.custom
+        && facts.paid
         && 'editAll' in facts.permissions.values()
-        && customMonthChangesGranted(facts.permissions)
-        && monthOrdinaryUpdateOk(hid);
+        && monthOrdinaryUpdateOk(hid)
+        && customMonthChangesGranted(facts.permissions);
     }
 
     /** Owner or editor creating (bootstrapping) a shared month document. */
@@ -793,6 +829,15 @@ service cloud.firestore {
     // each bound once (`let`) to stay far below the 1000-expression cap.
     function customMonthChangesGranted(p) {
       let changed = incoming().diff(existing()).affectedKeys();
+      // Each grant is read ONCE into a name. `p.get(area, 'none')` appearing
+      // twice in the expression below is two map lookups against the same
+      // budget, and this function is charged to the tightest rule in the file.
+      let balances = p.get('balances', 'none');
+      let income = p.get('income', 'none');
+      let expenses = p.get('expenses', 'none');
+      let fixedBills = p.get('fixedBills', 'none');
+      let savings = p.get('savings', 'none');
+      let debts = p.get('debts', 'none');
       return changed.hasOnly([
           'schemaVersion', 'revision', 'lastMutationId', 'updatedAt', 'updatedByUserId',
           'bankPart', 'homePart', 'walletPart', 'placeBalances',
@@ -804,20 +849,20 @@ service cloud.firestore {
           'savingsActivity', 'monthlySavingsTarget',
           'debts'
         ])
-        && (p.get('balances', 'none') == 'editAll'
+        && (balances == 'editAll'
           || !changed.hasAny(['transfers', 'balanceAdjustments']))
-        && (p.get('balances', 'none') == 'editAll' || p.get('income', 'none') == 'editAll'
+        && (balances == 'editAll' || income == 'editAll'
           || !changed.hasAny(['totalBudget']))
-        && (p.get('income', 'none') == 'editAll' || !changed.hasAny(['incomeSources']))
-        && (p.get('expenses', 'none') == 'editAll'
+        && (income == 'editAll' || !changed.hasAny(['incomeSources']))
+        && (expenses == 'editAll'
           || !changed.hasAny(['variableExpenses', 'variableCategoryBases', 'categoryBudgets', 'rolloverFromPrevious']))
-        && (p.get('fixedBills', 'none') == 'editAll'
+        && (fixedBills == 'editAll'
           || !changed.hasAny(['fixedExpenses', 'fixedCategoryBases']))
-        && (p.get('expenses', 'none') == 'editAll' || p.get('fixedBills', 'none') == 'editAll'
+        && (expenses == 'editAll' || fixedBills == 'editAll'
           || !changed.hasAny(['activeCategories', 'categoryColors', 'categoryIcons', 'categoryEnvelopes']))
-        && (p.get('savings', 'none') == 'editAll'
+        && (savings == 'editAll'
           || !changed.hasAny(['savingsActivity', 'monthlySavingsTarget']))
-        && (p.get('debts', 'none') == 'editAll' || !changed.hasAny(['debts']));
+        && (debts == 'editAll' || !changed.hasAny(['debts']));
     }
 
     // Field-level shape checks, tolerating keys an older document never had:
@@ -1118,24 +1163,48 @@ service cloud.firestore {
     // because for an update of this very document the stored owner is `before`, which
     // keeps the same guarantee - a household that never stored `ownerId` cannot be
     // claimed, and can still be repaired, because the create rule pins it to the writer.
-    function householdUpdateAuthorized(hid) {
+    /*
+     * Household settings writes, split into two `allow update` statements.
+     *
+     * Folded together these cost ~1061 against the 1000-expression cap, so an
+     * over-budget request was refused before either branch ran - and the
+     * "Restore shared access" repair the UI points a locked-out owner at is
+     * precisely the second branch. The repair could never succeed, which is why
+     * the workspace card kept recommending it after it had already been tried.
+     *
+     * `householdOwner(hid)` is deliberately absent from both: for an update of
+     * this very document the stored owner is `before`, which keeps the same
+     * guarantee (a household that never stored `ownerId` cannot be claimed, and
+     * can still be repaired, because the create rule pins it to the writer)
+     * without a second read of the root.
+     */
+
+    /** Shared preconditions: the caller owns it and the patch is well shaped. */
+    function householdUpdateShapeOk() {
       let after = incoming();
       let before = existing();
-      let changed = after.diff(before).affectedKeys();
       return before.get('ownerId', '') == request.auth.uid
         && validHouseholdConfigFields(after)
-        && after.get('createdAt', '') == before.get('createdAt', '')
-        && (
-          // Ordinary configuration write: identity and entitlement fields are
-          // frozen, and the workspace must currently hold an entitlement.
-          (householdEntitledFor(before)
-            && !changed.hasAny([
-              'entitlementOwnerId', 'planOwnerId',
-              'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
-            ]))
-          // ...or the one repair that must stay possible while it does not.
-          || householdSponsorBindingValid(after, request.auth.uid)
-        );
+        && after.get('createdAt', '') == before.get('createdAt', '');
+    }
+
+    /**
+     * Ordinary configuration write: identity and entitlement fields are frozen,
+     * and the workspace must currently hold an entitlement.
+     */
+    function householdConfigUpdateOk() {
+      return householdUpdateShapeOk()
+        && householdEntitledFor(existing())
+        && !incoming().diff(existing()).affectedKeys().hasAny([
+          'entitlementOwnerId', 'planOwnerId',
+          'entitlementSource', 'entitlementStatus', 'entitlementEndsAtMs'
+        ]);
+    }
+
+    /** The one repair that must stay possible while the workspace has no plan. */
+    function householdSponsorRepairOk() {
+      return householdUpdateShapeOk()
+        && householdSponsorBindingValid(incoming(), request.auth.uid);
     }
 
     match /households/{hid} {
@@ -1147,7 +1216,10 @@ service cloud.firestore {
         && boundedText(incoming().name, 100)
         && validHouseholdConfig(incoming())
         && validHouseholdEntitlementProjection(incoming(), request.auth.uid);
-      allow update: if householdUpdateAuthorized(hid);
+      // Two statements; Firestore ORs the matching ones. The ordinary write is
+      // offered first because it is by far the more common.
+      allow update: if householdConfigUpdateOk();
+      allow update: if householdSponsorRepairOk();
       allow delete: if householdOwner(hid);
 
       match /members/{memberId} {
@@ -1236,8 +1308,11 @@ service cloud.firestore {
           && isValidMonthId(key) && validMonthDocument();
         allow update: if monthUpdateByCustomMember(hid)
           && isValidMonthId(key) && validMonthDocument();
+        // Close/reopen may only move period-state keys, so the money-shape
+        // checks in `validMonthDocument()` cannot be violated by it and are not
+        // charged to this branch's budget.
         allow update: if monthCloseReopenByOwner(hid)
-          && isValidMonthId(key) && validMonthDocument();
+          && isValidMonthId(key) && validMonthPeriodFields();
         allow delete: if householdOwner(hid);
       }
 

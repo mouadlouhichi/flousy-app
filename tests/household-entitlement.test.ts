@@ -334,12 +334,22 @@ describe('rules and client read the same entitlement', () => {
     // and deleting a shared workspace.
     for (const signature of [
       'function monthOrdinaryUpdateByFinanceWriter(hid) {',
-      'function monthCloseReopenByOwner(hid) {',
       'function monthCreateByFinanceWriter(hid) {',
     ]) {
       const gate = body(signature);
       assert.equal((gate.match(/monthFinanceWriterFacts\(hid\)/g) ?? []).length, 1, signature);
       assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+    }
+    // Closing and reopening a period is narrower still: ownership is recorded
+    // on the household root, so this branch reads the root directly and never
+    // resolves a membership row at all. Editor and custom grants cannot reach
+    // it, which is precisely what keeps it inside the expression budget.
+    {
+      const gate = body('function monthCloseReopenByOwner(hid) {');
+      assert.doesNotMatch(gate, /monthFinanceWriterFacts\(|monthCustomWriterFacts\(|householdAccess\(|memberDocument\(/,
+        'the close/reopen branch must not resolve membership it does not consult');
+      assert.match(gate, /root\.get\('ownerId', ''\) == uid/);
+      assert.match(gate, /activeProEntitlement\(sponsor\)/);
     }
     for (const signature of [
       'function monthUpdateByCustomMember(hid) {',

@@ -948,4 +948,28 @@ describe('household plan-owner authorization and recovery', () => {
     // ...but the workspace's own data never becomes unreadable.
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
   });
+
+  it('only lets a savings ledger row go once the savings document it describes is gone', async () => {
+    // Tearing a workspace down is many separate requests, not one batch, so
+    // `existsAfter` sees live state on each. A savings ledger row may only be
+    // deleted after `data/savings`; deleting the ledger first - as the client
+    // used to - leaves rows that can never be removed and a delete that can
+    // never finish. This pins the dependency order the client must follow.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'households/home/data/savings'), {
+        goals: [], revision: 1, lastMutationId: 'savings-1',
+      });
+      await setDoc(doc(db, 'households/home/ledger/savings-1'), {
+        ...ledger('savings-1', 'owner', 'household', 'home', 0, 1, 'savings'),
+        monthKey: 'savings',
+      });
+    });
+    const owner = asUser('owner');
+    const savingsLedger = doc(owner, 'households/home/ledger/savings-1');
+    await assertFails(deleteDoc(savingsLedger));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/data/savings')));
+    await assertSucceeds(deleteDoc(savingsLedger));
+  });
 });

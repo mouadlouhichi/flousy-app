@@ -174,17 +174,32 @@ describe('the model, the rules and the maintenance script agree', () => {
     // document already in scope - both because the household rule is the one every
     // workspace save pays for, and because a rule that outgrows the request's
     // expression budget is refused as a plain permission-denied.
-    const gateStart = rules.indexOf('function householdUpdateAuthorized(hid) {');
-    assert.ok(gateStart > 0, 'the household settings write should be one bound function, so the two document states are read once');
+    // The settings write is split in two `allow update` statements sharing one
+    // shape check: Firestore ORs statements of the same method and budgets each
+    // independently, so the sponsor-repair branch - the "Restore shared access"
+    // button the UI offers a locked-out owner - no longer carries the cost of
+    // the ordinary-config branch. Together they were 1061, over the cap, so the
+    // one repair the app can perform was itself refused as permission-denied.
+    const gateStart = rules.indexOf('function householdUpdateShapeOk() {');
+    assert.ok(gateStart > 0, 'the household settings write should share one bound shape check, so the two document states are read once');
     const gate = rules.slice(gateStart, rules.indexOf('\n    }', gateStart));
     assert.match(gate, /let after = incoming\(\);/);
     assert.match(gate, /let before = existing\(\);/);
+    assert.match(gate, /before\.get\('createdAt', ''\)/, 'the stored creation instant stays frozen');
+    // Ownership is asserted once, in the shared shape check both branches call,
+    // so neither can be reached without it.
     assert.match(gate, /before\.get\('ownerId', ''\) == request\.auth\.uid/,
       'ownership has to be the stored owner, not a re-fetch of the root the rule is writing');
-    assert.match(gate, /before\.get\('createdAt', ''\)/, 'the stored creation instant stays frozen');
-    assert.doesNotMatch(gate, /householdOwner\(hid\)|householdEntitled\(hid\)/,
-      'this rule must not fetch the document it is already holding');
-    assert.match(rules, /allow update: if householdUpdateAuthorized\(hid\);/);
+    for (const name of ['householdConfigUpdateOk', 'householdSponsorRepairOk']) {
+      const from = rules.indexOf(`function ${name}() {`);
+      assert.ok(from > 0, `${name} should be a bound branch of the household update`);
+      const branch = rules.slice(from, rules.indexOf('\n    }', from));
+      assert.match(branch, /householdUpdateShapeOk\(\)/, `${name} must not skip the shared shape check`);
+      assert.doesNotMatch(branch, /householdOwner\(hid\)|householdEntitled\(hid\)/,
+        'this rule must not fetch the document it is already holding');
+    }
+    assert.match(rules, /allow update: if householdConfigUpdateOk\(\);/);
+    assert.match(rules, /allow update: if householdSponsorRepairOk\(\);/);
     for (const field of ['ownerId', 'createdAt']) {
       assert.ok(householdFields().includes(field), `${field} is compared on every update but has no migration entry`);
     }
@@ -254,6 +269,13 @@ describe('the model, the rules and the maintenance script agree', () => {
       'monthOrdinaryUpdateByFinanceWriter(hid)',
       'monthCreateByFinanceWriter(hid)',
       'monthCreateByCustomMember(hid)',
+      'monthCloseReopenByOwner(hid)',
+      // The "Restore shared access" repair the UI offers a locked-out owner.
+      // Folded with the ordinary settings write it cost 1061 - so the one
+      // repair the app can perform from the browser could never succeed, and
+      // the card kept recommending it after it had already been tried.
+      'householdConfigUpdateOk()',
+      'householdSponsorRepairOk()',
     ];
     for (const marker of membershipRules) {
       const cost = costOf(marker);
@@ -270,12 +292,11 @@ describe('the model, the rules and the maintenance script agree', () => {
     // the way the membership rules were split is the fix, and it needs the
     // emulator suite to land safely.
     const bounds: [string, number][] = [
-      ['householdUpdateAuthorized(hid)', 1100],
-      // Still over the cap on their worst-case branch, and tracked so they
-      // cannot grow. `||` short-circuits, so these are reached only after the
-      // cheaper statements above have declined.
+      // The last rule still over the cap, and tracked so it cannot grow. It
+      // affects only households using custom roles with PARTIAL month grants;
+      // every other writer is served by a statement above. Cutting it further
+      // means weakening `validMonthDocument`, which needs the emulator.
       ['monthUpdateByCustomMember(hid)', 1300],
-      ['monthCloseReopenByOwner(hid)', 1200],
     ];
     for (const [marker, bound] of bounds) {
       const cost = costOf(marker);
