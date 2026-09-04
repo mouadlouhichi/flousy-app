@@ -1428,6 +1428,20 @@ service cloud.firestore {
       allow create: if probeId == 'p11' && monthCreateByFinanceWriter('home');
       allow create: if probeId == 'p12' && householdLedgerGate('home');
       allow create: if probeId == 'p13' && memberCreateByInvitee('home', request.auth.uid);
+
+      /* Primitives: exactly one subexpression each. */
+      allow update: if probeId == 'p20' && exists(householdPath('home'));
+      allow update: if probeId == 'p21' && exists(memberPath('home', 'owner'));
+      allow update: if probeId == 'p22' && get(householdPath('home')).data.get('ownerId', '') == request.auth.uid;
+      allow update: if probeId == 'p23' && get(memberPath('home', 'owner')).data.get('role', '') == 'owner';
+      allow update: if probeId == 'p24' && householdSponsor(get(householdPath('home')).data) == 'owner';
+      allow update: if probeId == 'p25' && get(ledgerPath('home', 'seed-mutation')).data.get('kind', '') == 'month';
+      allow update: if probeId == 'p26' && existsAfter(ledgerPath('home', 'seed-mutation'));
+      allow update: if probeId == 'p27' && mutationLedger('home').kind == 'month';
+      allow update: if probeId == 'p28' && incoming().get('lastMutationId', '') == 'seed-mutation'
+        && incoming().get('revision', 0) is int;
+      allow update: if probeId == 'p29' && probeId.size() > 0;
+      allow update: if probeId == 'p30' && periodClosed(incoming()) == false;
     }
 
     match /{document=**} {

@@ -68,7 +68,8 @@ beforeEach(async () => {
       createdBy: 'owner', createdAt: new Date().toISOString(),
       expiresAtMs: Date.now() + 60_000,
     });
-    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10']) {
+    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10',
+      'p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
       await setDoc(doc(db, `diag/${id}`), {
         n: 0, lastMutationId: 'seed-mutation', revision: 1,
         householdId: 'home', email: 'owner@example.com',
@@ -98,6 +99,13 @@ for (const [name, run] of probes) {
   it(`probe: ${name}`, async () => {
     const owner = asUser('owner');
     await run(owner, id); // true => passes; abort/false => fails with emulator text
+  });
+}
+
+for (const id of ['p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
+  it(`probe: ${id}`, async () => {
+    const owner = asUser('owner');
+    await updateDoc(doc(owner, `diag/${id}`), { n: 1 });
   });
 }
 

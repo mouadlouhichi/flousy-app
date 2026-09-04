@@ -122,7 +122,7 @@ jobs:
             | sed -E 's/^[0-9]+[-:][[:space:]]*//; s/[[:space:]]+$//' \
             | tr -d '\r' | tr '\n' '|' || true)"
           i=0
-          printf '%s' "$dig" | fold -w 1200 | head -n 5 | while IFS= read -r part; do
+          printf '%s' "$dig" | fold -w 1000 | head -n 8 | while IFS= read -r part; do
             i=$((i+1))
             printf '::error title=Firestore rules diag %s::%s\n' "$i" "$part"
           done
