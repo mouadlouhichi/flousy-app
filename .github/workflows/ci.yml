@@ -135,7 +135,7 @@ jobs:
           # kinds of failure are distinguishable: a denial and an aborted evaluation reach
           # the client identically. Published before the test names, which are guessable.
           printf '::error title=Firestore emulator rule log::%s\n' \
-            "$( { [ -f firebase-debug.log ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist' firebase-debug.log; } \
+            "$( { for f in firebase-debug.log "$HOME/firebase-debug.log" /tmp/firebase-debug.log; do [ -f \"$f\" ] && grep -B2 -A6 -m2 -E 'Null value|Evaluation error|does not exist|Property' \"$f\" && break; done; } \
               | sed -E 's/^[[:space:]]+//; s/firestore-emulator[^ ]* //' | tr -d '\r' | tr '\n' '|' | cut -c1-1600 || echo 'no emulator log' )"
           grep -nE "not ok [0-9]+|✖ " "$log" | head -n 12 \
             | while IFS= read -r line; do

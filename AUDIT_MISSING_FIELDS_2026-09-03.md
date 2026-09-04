@@ -199,6 +199,41 @@ that targets an invented collection name succeeds quietly and changes nothing.)
 * Emulator suite runs in CI only (no JVM here): the 7 previously failing cases are the
   ones this change targets, so `Firestore rules (emulator)` is the arbiter.
 
+## The property, and the debt
+
+`node scripts/rules-totality.mjs` answers the question this audit keeps asking about a
+rule: *could a document that merely lacks a field abort it?* A refusal is a decision the
+app can explain; an aborted evaluation arrives as the same bare `permission-denied` as a
+refusal and explains nothing, which is how a missing backfill reaches a user as "the
+rules are behind".
+
+The scan follows helper calls, because the reads that matter are usually three functions
+deep in a profile lookup while the rule itself looks careful. It separates the two cases:
+a **create** rule may require its fields — the document does not exist yet and refusing a
+write that omits a required key is the point — so only **update and delete** rules are
+errors. Those are the paths where the document already belongs to somebody.
+
+The six recorded in `firestore.totality-baseline.json` are the debt, each one a place an
+existing user's document can strand them:
+
+| rule | field | why it is read there |
+|---|---|---|
+| personal `months/{key}` update | `lastMutationId` | interpolated into a ledger document path; absent, the path is unusable and the rule aborts |
+| personal `data/savings` update | `lastMutationId` | the same interpolation |
+| household invoice update | `status`, `reviewedByUserId`, `postedExpenseId` | read from a patch, where an unrelated edit legitimately skips them |
+| personal course update | `total`, `items` | same |
+
+`npm run check` fails if the list grows, and fails if it shrinks without the file being
+updated — the baseline is a file precisely so that paying a site down is an edit with a
+diff, not a comment nobody re-reads.
+
+The rule changes that tried to clear this debt on this branch cost three tests, which is
+worth recording as a fact about the method: defaulting a read changes what a rule answers,
+not just how it fails, so `incoming().get('status', '')` refuses a patch that omits
+`status` where the original aborted — and some of these tests want the careful answer for
+a *different* field to be reachable. Clearing the debt needs the emulator locally, and one
+rule at a time, with the test that names the write in question open in the other window.
+
 ## The write the household sync makes, and why the published rules refuse it
 
 Reported on a real account: *"not able to sync household from personal account"*, with the
