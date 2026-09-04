@@ -66,9 +66,8 @@ beforeEach(async () => {
       createdBy: 'owner', createdAt: new Date().toISOString(),
       expiresAtMs: Date.now() + 60_000,
     });
-    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9',
-      'p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
-      await setDoc(doc(db, `diag/${id}/doc`), {
+    for (const id of ['p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
+      await setDoc(doc(db, `diag/${id}`), {
         n: 0, lastMutationId: 'seed-mutation', revision: 1,
         householdId: 'home', email: 'owner@example.com',
       });
@@ -79,15 +78,6 @@ beforeEach(async () => {
 after(async () => { await environment.cleanup(); });
 
 const probes = [
-  ['p1 facts.paid', 'monthFinanceWriterFacts.paid'],
-  ['p2 monthOrdinaryUpdateOk', 'monthOrdinaryUpdateOk'],
-  ['p3 activeProEntitlement', 'activeProEntitlement'],
-  ['p4 householdAccess.paid', 'householdAccess.paid'],
-  ['p5 monthUpdateByCustomMember', 'monthUpdateByCustomMember'],
-  ['p6 monthCloseReopenByOwner', 'monthCloseReopenByOwner'],
-  ['p7 mutationLedger.present', 'mutationLedger.present'],
-  ['p8 memberUpdateByOwner', 'memberUpdateByOwner'],
-  ['p9 invitationJoinOk', 'invitationJoinOk'],
   ['p20 exists household', 'exists(householdPath)'],
   ['p21 exists member', 'exists(memberPath)'],
   ['p22 get household.ownerId', 'get(household).ownerId'],
@@ -97,7 +87,7 @@ const probes = [
   ['p26 existsAfter ledger', 'existsAfter(ledger)'],
   ['p27 mutationLedger.kind', 'mutationLedger.kind'],
   ['p28 incoming fields', 'incoming fields'],
-  ['p29 id.size', 'id.size'],
+  ['p29 isEmail', 'isEmail'],
   ['p30 periodClosed(incoming)', 'periodClosed(incoming)'],
 ];
 
@@ -105,11 +95,11 @@ for (const [name] of probes) {
   const id = name.split(' ')[0];
   it(`probe: ${name}`, async () => {
     const owner = asUser('owner');
-    await updateDoc(doc(owner, `diag/${id}/doc`), { n: 1, revision: 2 });
+    await updateDoc(doc(owner, `diag/${id}`), { n: 1, revision: 2 });
   });
 }
 
 it('control: a stranger update to a diag doc is a plain permission-denied', async () => {
   const stranger = asUser('stranger');
-  await assertFails(updateDoc(doc(stranger, 'diag/p1/doc'), { n: 1 }));
+  await assertFails(updateDoc(doc(stranger, 'diag/p20'), { n: 1 }));
 });
