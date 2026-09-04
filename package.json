@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests firestore.rules --max-warnings 0",
     "test": "tsx --test tests/*.test.ts",
-    "test:rules": "tsx --test tests/firestore-rules.diag.emulator.ts",
+    "test:rules": "tsx --test tests/firestore-rules.emulator.ts",
     "db:migrate": "node scripts/db-migrations.mjs",
     "check": "npm run lint && npm run typecheck && npm run typecheck:strict && npm test",
     "lint:fix": "eslint src tests --fix",
