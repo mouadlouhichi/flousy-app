@@ -474,3 +474,91 @@ describe('planning the missing membership row', () => {
     assert.deepEqual(plan, { action: 'blocked', reason: 'owner-row-not-active' });
   });
 });
+
+describe('a freshly created household accuses nobody', () => {
+  // The workspace panel used to show a "Restore shared access" card reading
+  // "the Pro plan that pays for this household belongs to another account" to
+  // an owner who had just created the household seconds earlier, on their own
+  // plan, with no write having been refused at all. Two bugs met:
+  //
+  //  * `diagnoseHouseholdWriteDenial` answers the question "given that a write
+  //    was refused, why?" - its fallthrough is `rules-behind`, never "nothing
+  //    is wrong". The panel called it unconditionally, so a perfectly healthy
+  //    household reported `rules-behind` at rest.
+  //  * The card was then shown for `rules-behind`/`unknown`, i.e. for exactly
+  //    the state the diagnosis reports when it has found nothing.
+  //
+  // The panel no longer renders that card, and the diagnosis is consulted only
+  // from a `permission-denied` handler. These assertions pin the shape of the
+  // household `create()` writes so the "another account" wording can never be
+  // reached for a self-sponsored workspace.
+  const uid = 'owner-1';
+  const profiles: [string, Record<string, unknown>][] = [
+    ['an unbounded grant carrying no status or expiry', { plan: 'pro' }],
+    ['a paid subscription', {
+      plan: 'pro', entitlementSource: 'stripe', entitlementStatus: 'active',
+      entitlementEndsAtMs: Date.now() + 30 * 86_400_000,
+    }],
+    ['the launch trial', {
+      plan: 'pro', entitlementSource: 'launch_trial', entitlementStatus: 'active',
+      entitlementEndsAtMs: Date.now() + 5 * 86_400_000,
+    }],
+  ];
+
+  for (const [label, profile] of profiles) {
+    it(`binds cleanly to its creator on ${label}`, () => {
+      const binding = buildHouseholdSponsorBinding(profile, uid);
+      assert.equal(binding.bindable, true, 'the creator must be able to sponsor');
+      assert.deepEqual(binding.rejectedFields, []);
+      // Exactly the document `household-context.create()` stores.
+      const household = {
+        ownerId: uid,
+        planOwnerId: uid,
+        ...householdSponsorProjectionFields(binding),
+      };
+      // The sponsor is the creator, and the stored projection already matches
+      // the profile - so there is nothing for a repair to do.
+      assert.equal(householdSponsorId(household), uid);
+      assert.equal(householdSponsorBindingIsStale(household, binding), false,
+        'a household written by create() is never stale the moment it is created');
+      // And the sponsor-related denials, the ones whose copy blames another
+      // account or a lapsed plan, are unreachable for it.
+      const denial = diagnoseHouseholdWriteDenial({ household, profile, uid, isOwner: true });
+      assert.ok(
+        !['sponsor-rebindable', 'sponsor-lapsed', 'sponsor-unset', 'sponsor-unreadable'].includes(denial),
+        `a self-sponsored household must not be diagnosed as ${denial}`,
+      );
+    });
+  }
+
+  it('never offers the sponsor repair to the account that already sponsors', () => {
+    // `sponsor-rebindable` is what drives the "belongs to another account"
+    // copy. It is returned only when the stored sponsor is somebody else.
+    const profile = { plan: 'pro' };
+    const binding = buildHouseholdSponsorBinding(profile, uid);
+    const mine = { ownerId: uid, planOwnerId: uid, ...householdSponsorProjectionFields(binding) };
+    assert.notEqual(
+      diagnoseHouseholdWriteDenial({ household: mine, profile, uid, isOwner: true }),
+      'sponsor-rebindable',
+    );
+    const theirs = { ...mine, entitlementOwnerId: 'someone-else' };
+    assert.equal(
+      diagnoseHouseholdWriteDenial({ household: theirs, profile, uid, isOwner: true }),
+      'sponsor-rebindable',
+      'and it stays available for the case it actually describes',
+    );
+  });
+
+  it('has no standing "restore shared access" card left to mis-fire', () => {
+    const panel = readFileSync(
+      new URL('../src/components/dashboard/profile/workspace-panel.tsx', import.meta.url),
+      'utf8',
+    );
+    // The card rendered from state computed at rest, with no refusal in hand.
+    assert.doesNotMatch(panel, /canRestoreSharedAccess|sponsorStale|restoreSharedAccess/,
+      'the panel must not decide at rest that shared access needs restoring');
+    // The remaining reference is inside the permission-denied handler.
+    assert.match(panel, /code !== 'permission-denied'/);
+  });
+});
+
