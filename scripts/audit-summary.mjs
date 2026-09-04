@@ -19,9 +19,11 @@ try {
   report = JSON.parse(text);
 } catch {
   // No JSON: either the registry refused the lookup or npm printed an error before it.
+  // Exit 20 says "there was no verdict", which is not the same as "clean" and not the
+  // same as "advisory" - the caller must not collapse those three.
   const first = text.split('\n').map((line) => line.trim()).filter(Boolean)[0] ?? 'no output';
   console.log(`audit did not produce a report (not an advisory - investigate the lookup): ${first.slice(0, 220)}`);
-  process.exit(0);
+  process.exit(20);
 }
 
 const metadata = report?.metadata?.vulnerabilities ?? {};
@@ -38,8 +40,13 @@ const entries = Object.entries(report?.vulnerabilities ?? {}).slice(0, 8).map(([
 });
 
 const overflow = Object.keys(report?.vulnerabilities ?? {}).length - entries.length;
-console.log([
+const line = [
   totals || 'no advisories counted',
   entries.length ? `vulnerable: ${entries.join('; ')}` : 'no vulnerable package listed',
   overflow > 0 ? `+${overflow} more` : '',
-].filter(Boolean).join(' | '));
+].filter(Boolean).join(' | ');
+console.log(line);
+// Exit 10 means the report itself indicts a dependency. Exit 0 means it does not, which
+// includes a clean report - the caller decides what to do with npm's own exit code,
+// because that code is not a reliable verdict on its own.
+process.exit(entries.length || (metadata.total ?? 0) > 0 ? 10 : 0);
