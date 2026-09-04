@@ -19,7 +19,9 @@ const baselineArg = process.argv.indexOf('--baseline');
 const writeArg = process.argv.indexOf('--write');
 const baselinePath = (baselineArg >= 0 ? process.argv[baselineArg + 1] : null)
   ?? (writeArg >= 0 ? process.argv[writeArg + 1] ?? 'firestore.totality-baseline.json' : null);
-const src = fs.readFileSync(file, 'utf8').replace(/\/\/[^\n]*/g, ' ');
+// Comments carry the reasoning for these rules, so they are full of the very shapes this
+// scan looks for - strip both comment styles first or the documentation reads as debt.
+const src = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
 
 function sliceBody(open) {
   let depth = 0;
@@ -70,11 +72,25 @@ function unguarded(body, extraDocs = new Set()) {
   const docs = new Set([...docNames(body), ...extraDocs]);
   const docRe = new RegExp(`(?:${DOC.source.slice(0, DOC.source.length)}${docs.size ? `|${[...docs].join('|')})` : '})'}`, 'g');
   const found = [];
-  const re = /(?:incoming\(\)|existing\(\)|[A-Za-z_]\w*(?:\s*\.\s*data)?|\bresource\.data)\s*\.\s*([A-Za-z_]\w*)/g;
+  // Two shapes: a document expression read directly (`incoming().plan`, `after.role`), and a
+  // snapshot read through `.data` (`getAfter(path).data.revision`). The second is the one
+  // that strands an existing user, because the document being read is somebody else's -
+  // a sponsor profile, the month row this write is checking against - and a rule has no
+  // way to know which fields a legacy copy of it ever stored.
+  const re = /(?:incoming\(\)|existing\(\)|[A-Za-z_]\w*(?:\s*\.\s*data)?|\bresource\.data)\s*\.\s*([A-Za-z_]\w*)|\.data\s*\.\s*([A-Za-z_]\w*)/g;
   let m;
   while ((m = re.exec(body))) {
-    const field = m[1];
-    if (METHODS.has(field)) continue; // a method call on the document, not a field read
+    const field = m[1] ?? m[2];
+    if (!field || METHODS.has(field)) continue; // a method call on the document, not a field read
+    if (m[2]) {
+      // `.data.<field>` - the receiver is whatever snapshot produced it.
+      const receiver = body.slice(Math.max(0, m.index - 160), m.index + '.data'.length).match(/[A-Za-z_]\w*\s*\([^()]*\)\s*\.data$/)?.[0]
+        ?? body.slice(Math.max(0, m.index - 160), m.index + '.data'.length).match(/\w+\.data$/)?.[0]
+        ?? '<snapshot>.data';
+      const guardedField = new RegExp(`['"]${field}['"]\\s+in\\s+[^)]{0,200}\\)\\.data`).test(body);
+      if (!guardedField) found.push({ field, receiver, line: src.slice(0, bodyStart(body) + m.index).split('\n').length });
+      continue;
+    }
     const receiver = m[0].replace(/\s*\.\s*\w+$/, '').trim();
     const isDocExpr = docs.has(receiver) || /incoming\(\)|existing\(\)|\.data$/.test(receiver);
     if (!isDocExpr) continue;
