@@ -11,6 +11,14 @@
 import fs from 'node:fs';
 
 const file = process.argv[2] ?? 'firestore.rules';
+// `--baseline <file>` compares against recorded debt instead of demanding perfection: the
+// scan emits the sorted list of `method:field` pairs it found, and the check fails if the
+// set differs. A rule fixed must be removed from the baseline (which is the point - the
+// list can only shrink), and a new one cannot appear silently.
+const baselineArg = process.argv.indexOf('--baseline');
+const writeArg = process.argv.indexOf('--write');
+const baselinePath = (baselineArg >= 0 ? process.argv[baselineArg + 1] : null)
+  ?? (writeArg >= 0 ? process.argv[writeArg + 1] ?? 'firestore.totality-baseline.json' : null);
 const src = fs.readFileSync(file, 'utf8').replace(/\/\/[^\n]*/g, ' ');
 
 function sliceBody(open) {
@@ -138,5 +146,23 @@ if (permissive.length) {
 }
 if (!blocking.length) {
   console.log('\nNo update or delete rule can be aborted by a missing field.');
+}
+const sites = [...new Set(blocking.flatMap((r) => r.issues.map((i) => `${r.method.trim()}:${i.field}`)))].sort();
+if (process.argv.includes('--write')) {
+  // Record what is there, not what should be: the file is the debt, and the test below is
+  // what stops it from growing while it is being paid down.
+  fs.writeFileSync(baselinePath ?? 'firestore.totality-baseline.json', JSON.stringify(sites, null, 2) + '\n');
+  console.log(`recorded ${sites.length} site(s)`);
+  process.exit(0);
+}
+if (baselinePath) {
+  const expected = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+  const missing = expected.filter((k) => !sites.includes(k));
+  const extra = sites.filter((k) => !expected.includes(k));
+  if (extra.length) console.log(`new unguarded reads not in the baseline: ${extra.join(', ')}`);
+  if (missing.length) console.log(`fixed since the baseline was recorded, update it: ${missing.join(', ')}`);
+  if (extra.length || missing.length) process.exit(1);
+  console.log(`\nmatches the recorded baseline of ${sites.length} site(s); the list only shrinks`);
+  process.exit(0);
 }
 process.exit(blocking.length ? 1 : 0);

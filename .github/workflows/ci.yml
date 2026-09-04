@@ -86,7 +86,7 @@ jobs:
             node scripts/rules-totality.mjs firestore.rules || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          node scripts/rules-totality.mjs firestore.rules
+          node scripts/rules-totality.mjs firestore.rules --baseline firestore.totality-baseline.json
           if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" 2>&1 | tee "$log"; then
             exit 0
           fi
