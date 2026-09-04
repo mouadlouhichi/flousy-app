@@ -49,4 +49,15 @@ describe('parseAmountInput — audit P1: locale-aware amount parsing', () => {
     assert.ok(Number.isNaN(parseAmountInput(null)));
     assert.ok(Number.isNaN(parseAmountInput(undefined)));
   });
+
+  it('rejects scientific notation rather than mangling it into a real number', () => {
+    // Stripping the letter turned "1e5" into "15" — a plausible wrong amount,
+    // which is worse than a visible rejection.
+    assert.ok(Number.isNaN(parseAmountInput('1e5')));
+    assert.ok(Number.isNaN(parseAmountInput('2.5E3')));
+    assert.ok(Number.isNaN(parseAmountInput('1e-3')));
+    // Currency letters around a plain number are still fine.
+    assert.equal(parseAmountInput('1500 MAD'), 1500);
+    assert.equal(parseAmountInput('DH 250'), 250);
+  });
 });

@@ -1900,7 +1900,14 @@
       "approve": "Approuver",
       "reject": "Refuser",
       "reviewError": "La facture n’a pas pu être traitée. Réessayez.",
-      "postsToMonth": "Comptabilisée dans {month}"
+      "postsToMonth": "Comptabilisée dans {month}",
+      "mineTitle": "Mes soumissions",
+      "mineEmpty": "Vous n'avez encore soumis aucune facture.",
+      "statusSubmitted": "En attente de révision",
+      "statusApproved": "Approuvée",
+      "statusRejected": "Refusée",
+      "withdraw": "Retirer",
+      "withdrawFailed": "Impossible de retirer la facture. Veuillez réessayer."
     },
     "invited": "Invité",
     "invitationCount": "{count, plural, one {# invitation au foyer} other {# invitations au foyer}}",

@@ -1900,7 +1900,14 @@
       "approve": "Approve",
       "reject": "Reject",
       "reviewError": "The invoice could not be reviewed. Try again.",
-      "postsToMonth": "Posts to {month}"
+      "postsToMonth": "Posts to {month}",
+      "mineTitle": "My submissions",
+      "mineEmpty": "You have not submitted any invoices yet.",
+      "statusSubmitted": "Pending review",
+      "statusApproved": "Approved",
+      "statusRejected": "Rejected",
+      "withdraw": "Withdraw",
+      "withdrawFailed": "Unable to withdraw the invoice. Please try again."
     },
     "invited": "Invited",
     "invitationCount": "{count, plural, one {# household invitation} other {# household invitations}}",

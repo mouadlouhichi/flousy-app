@@ -89,7 +89,21 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    "img-src 'self' data: https:",
+    // Narrowed from a blanket `https:`. Remote images come from exactly three
+    // places: identity-provider avatars (Google/Gravatar), Open Food Facts
+    // product photos, and analytics pixels. Everything the user uploads is a
+    // `data:` URL stored on their own profile, so no other origin is needed.
+    [
+      "img-src 'self' data: blob:",
+      'https://*.googleusercontent.com',
+      'https://*.gstatic.com',
+      'https://www.gravatar.com',
+      'https://*.openfoodfacts.org',
+      'https://*.openbeautyfacts.org',
+      'https://*.openproductsfacts.org',
+      'https://*.google-analytics.com',
+      'https://*.googletagmanager.com',
+    ].join(' '),
     `connect-src ${connect.join(' ')}`,
     // The PWA service worker and any future module workers are same-origin.
     "worker-src 'self'",

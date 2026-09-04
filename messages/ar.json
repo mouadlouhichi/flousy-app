@@ -1900,7 +1900,14 @@
       "approve": "قبول",
       "reject": "رفض",
       "reviewError": "تعذّرت مراجعة الفاتورة. حاول مرة أخرى.",
-      "postsToMonth": "ستُسجّل في {month}"
+      "postsToMonth": "ستُسجّل في {month}",
+      "mineTitle": "طلباتي",
+      "mineEmpty": "لم تقم بإرسال أي فاتورة بعد.",
+      "statusSubmitted": "في انتظار المراجعة",
+      "statusApproved": "تمت الموافقة",
+      "statusRejected": "مرفوضة",
+      "withdraw": "سحب",
+      "withdrawFailed": "تعذر سحب الفاتورة. يرجى المحاولة مرة أخرى."
     },
     "invited": "مدعو",
     "invitationCount": "{count, plural, one {# دعوة للأسرة} two {# دعوتان للأسرة} few {# دعوات للأسرة} many {# دعوة للأسرة} other {# دعوة للأسرة}}",

@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { isRateLimited } from '@/lib/server/rate-limit';
+import { checkArcjet } from '@/lib/server/arcjet';
 
 /**
  * Barcode lookup proxy — Open Food Facts, server-side fetch.
@@ -61,29 +63,15 @@ function cacheSet(key: string, body: unknown): void {
  * hold an edge function for tens of seconds at a time. The route is unauthenticated
  * by design (it returns public product data, no user data), which makes a per-IP
  * budget plus one shared deadline the only bound on that cost.
+ *
+ * The budget goes through the SHARED limiter: a private per-instance `Map`
+ * meant 60/min *per lambda*, reset on every cold start, and it never became
+ * durable when Upstash was configured for the other routes.
  */
 const LOOKUPS_PER_MINUTE = 60;
 const GLOBAL_DEADLINE_MS = 12_000;
-const hitsByIp = new Map<string, { at: number; count: number }>();
 
-function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = hitsByIp.get(ip);
-  if (!entry || now - entry.at >= 60_000) {
-    hitsByIp.set(ip, { at: now, count: 1 });
-  } else {
-    entry.count += 1;
-  }
-  // Bound the map itself; stale buckets are worthless.
-  if (hitsByIp.size > 10_000) {
-    for (const [key, value] of hitsByIp) {
-      if (now - value.at >= 60_000) hitsByIp.delete(key);
-    }
-  }
-  return hitsByIp.get(ip)!.count > LOOKUPS_PER_MINUTE;
-}
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code') ?? '';
   if (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code)) {
@@ -94,7 +82,14 @@ export async function GET(request: Request) {
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     request.headers.get('x-real-ip') ||
     'local';
-  if (rateLimited(ip)) {
+  const arcjet = await checkArcjet(request);
+  if (arcjet.denied) {
+    return NextResponse.json(
+      { status: 0, found: false, product: null, error: 'blocked' },
+      { status: 403 },
+    );
+  }
+  if (await isRateLimited('barcode', ip, LOOKUPS_PER_MINUTE, 60_000)) {
     return NextResponse.json(
       { status: 0, found: false, product: null, error: 'too many lookups' },
       { status: 429, headers: { 'Retry-After': '60' } },

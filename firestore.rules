@@ -8,6 +8,20 @@ service cloud.firestore {
         && request.auth.token.email is string;
     }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    // Email identity is compared case-insensitively. The client lowercases on
+    // write and on query, but the `email` claim is echoed from the identity
+    // provider and is NOT guaranteed lowercase for every provider or import
+    // path. A verbatim comparison made invite discovery return nothing and the
+    // acceptance batch deny for a token carrying `Foo@Example.com` - a failure
+    // indistinguishable from an expired invite, with nothing to diagnose it.
+    // Total on purpose: `.lower()` on a non-string aborts evaluation, and an
+    // aborted rule reaches the client as a bare permission-denied.
+    function emailMatches(value) {
+      return signedIn()
+        && request.auth.token.email is string
+        && value is string
+        && value.lower() == request.auth.token.email.lower();
+    }
     function isMoney(value) { return value is number && value >= 0 && value <= 1000000000; }
     function isPositiveMoney(value) { return isMoney(value) && value > 0; }
     // `id is string` first: `matches()` on a field the document never stored aborts the
@@ -853,10 +867,10 @@ service cloud.firestore {
         ? getAfter(invitePath).data : {};
       // A custom member may only join with exactly the grants the owner put on the
       // invitation - never a self-authored variation.
-      return after.get('email', '') == request.auth.token.email
+      return emailMatches(after.get('email', ''))
         && offered.get('householdId', '') == hid
         && offered.get('status', '') == 'pending'
-        && offered.get('email', '') == request.auth.token.email
+        && emailMatches(offered.get('email', ''))
         && offered.get('role', '') == after.get('role', '')
         && after.get('permissions', {}) == offered.get('permissions', {})
         && offered.get('expiresAtMs', 0) > request.time.toMillis()
@@ -900,7 +914,7 @@ service cloud.firestore {
           && (after.get('role', '') != 'custom' || grantsOk)
           && (!('userId' in before) || after.get('userId', '') == before.userId))
         || (verifiedEmail()
-          && before.get('email', '') == request.auth.token.email
+          && emailMatches(before.get('email', ''))
           && before.get('status', '') == 'invited'
           && after.get('status', '') == 'inactive'
           && after.get('userId', '') == request.auth.uid
@@ -963,7 +977,7 @@ service cloud.firestore {
       match /members/{memberId} {
         allow get: if householdFinanceReader(hid)
           || householdOwner(hid)
-          || (verifiedEmail() && (memberId == request.auth.uid || resource.data.get('email', '') == request.auth.token.email));
+          || (verifiedEmail() && (memberId == request.auth.uid || emailMatches(resource.data.get('email', ''))));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
         allow create: if memberCreateAuthorized(hid, memberId);
@@ -1066,11 +1080,11 @@ service cloud.firestore {
 
     match /householdInvites/{inviteId} {
       allow get: if verifiedEmail()
-        && (resource.data.get('email', '') == request.auth.token.email
+        && (emailMatches(resource.data.get('email', ''))
           || householdOwner(resource.data.get('householdId', '')));
       allow list: if signedIn()
         && (resource.data.get('createdBy', '') == request.auth.uid
-          || (verifiedEmail() && resource.data.get('email', '') == request.auth.token.email));
+          || (verifiedEmail() && emailMatches(resource.data.get('email', ''))));
       allow create: if signedIn()
         && householdOwner(incoming().householdId)
         && householdEntitled(incoming().householdId)
@@ -1090,12 +1104,12 @@ service cloud.firestore {
           // empty id is checked before it reaches a path: a malformed path aborts the rule,
           // which is the failure this pass exists to remove.
           && existing().get('householdId', '') != ''
-          && existing().get('email', '') == request.auth.token.email
+          && emailMatches(existing().get('email', ''))
           && existing().get('status', '') == 'pending'
           && existing().get('expiresAtMs', 0) > request.time.toMillis()
           && incoming().get('status', '') == 'accepted'
           && incoming().get('acceptedByUserId', '') == request.auth.uid
-          && incoming().get('acceptedEmail', '') == request.auth.token.email
+          && emailMatches(incoming().get('acceptedEmail', ''))
           && existsAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid))
           && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('inviteId', '') == inviteId
           && getAfter(/databases/$(database)/documents/households/$(existing().get('householdId', ''))/members/$(request.auth.uid)).data.get('role', '') == existing().get('role', '')
@@ -1107,7 +1121,7 @@ service cloud.firestore {
           // empty id is checked before it reaches a path: a malformed path aborts the rule,
           // which is the failure this pass exists to remove.
           && existing().get('householdId', '') != ''
-          && existing().get('email', '') == request.auth.token.email
+          && emailMatches(existing().get('email', ''))
           && existing().get('status', '') == 'pending'
           && incoming().get('status', '') == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));

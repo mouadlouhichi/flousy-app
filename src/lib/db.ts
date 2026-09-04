@@ -1303,12 +1303,32 @@ export function subscribeHousehold(
   );
 }
 
-export function subscribeHouseholdMembers(householdId: string | undefined, onData: (members: HouseholdMember[]) => void) {
+/**
+ * Roster subscription.
+ *
+ * Listing members is a finance-reader privilege, so a contributor (or a custom
+ * member without `members` view) is denied here. That denial must be reported
+ * rather than flattened into an empty roster: callers derive the *current
+ * user's own role* from this list, and an empty list is indistinguishable from
+ * "you have no membership", which downgrades a legitimate member to no
+ * permissions at all. `onDenied` lets the caller fall back to the own-row
+ * `get`, which the rules always allow.
+ */
+export function subscribeHouseholdMembers(
+  householdId: string | undefined,
+  onData: (members: HouseholdMember[]) => void,
+  onDenied?: () => void,
+) {
   if (!householdId || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
   return onSnapshot(
     collection(db, 'households', householdId, 'members'),
     (snap) => onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember))),
     (err) => {
+      const code = (err as { code?: string })?.code;
+      if (code === 'permission-denied') {
+        onDenied?.();
+        return;
+      }
       console.error('Error listening to household members:', err);
       onData([]);
     },
@@ -1643,6 +1663,41 @@ export function subscribeHouseholdInvoices(householdId: string, onData: (invoice
   if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
   return onSnapshot(collection(db, 'households', householdId, 'invoices'), (snap) => onData(snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseholdInvoice))));
 }
+/**
+ * A single submitter's own invoices.
+ *
+ * The rules already permit this (`submitterId == request.auth.uid` on both
+ * `get` and `list`) but nothing used it, so a contributor submitted receipts
+ * into a void: no pending/approved/rejected state and no way to withdraw a
+ * mistake. The `where` clause is required, not an optimisation - it is what
+ * makes the query provably safe under the rule.
+ */
+export function subscribeMyHouseholdInvoices(
+  householdId: string,
+  submitterId: string,
+  onData: (invoices: HouseholdInvoice[]) => void,
+) {
+  if (!isFirebaseConfigured || !db || !submitterId) { onData([]); return () => {}; }
+  return onSnapshot(
+    query(
+      collection(db, 'households', householdId, 'invoices'),
+      where('submitterId', '==', submitterId),
+      limit(200),
+    ),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() } as HouseholdInvoice))),
+    (err) => {
+      console.error('Error listening to own household invoices:', err);
+      onData([]);
+    },
+  );
+}
+
+/** Withdraw an own submission. Rules allow it only while `status == 'submitted'`. */
+export async function withdrawHouseholdInvoice(householdId: string, invoiceId: string) {
+  if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
+  await deleteDoc(doc(db, 'households', householdId, 'invoices', invoiceId));
+}
+
 export async function saveHouseholdInvoice(householdId: string, invoice: HouseholdInvoice) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId, 'invoices', invoice.id), cleanUndefined(invoice));

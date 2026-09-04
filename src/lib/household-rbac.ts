@@ -155,6 +155,13 @@ export function permissionsFor(
   if (role === 'custom') {
     return sanitizePermissions(custom ?? LEGACY_CUSTOM_FALLBACK);
   }
+  // `profile` is a placeholder row written by onboarding (and accepted by the
+  // rules' member-create branch) for a person who is not yet a member. It
+  // carries no grants. Stated explicitly so it is never mistaken for the
+  // "unknown role" fall-through below and accidentally given one.
+  if (role === 'profile') return none();
+  // Unknown or absent role: no access. Note that an absent role can also mean
+  // the roster was unreadable — callers must not infer "not a member" from it.
   return none();
 }
 

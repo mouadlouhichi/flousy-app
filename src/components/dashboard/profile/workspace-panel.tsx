@@ -9,6 +9,7 @@ import { useDashboard } from '../dashboard-provider';
 import { useHousehold, type HouseholdAccessRepair } from '@/lib/household-context';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ContributorInvoiceForm } from '../contributor-invoice-form';
+import { MyInvoiceSubmissions } from '../my-invoice-submissions';
 import { HouseholdInvoiceReview } from '../household-invoice-review';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
@@ -423,6 +424,7 @@ export function WorkspacePanel() {
       )}
 
       <ContributorInvoiceForm />
+      <MyInvoiceSubmissions />
       <HouseholdInvoiceReview />
 
       {notice && (
