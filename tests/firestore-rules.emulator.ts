@@ -8,12 +8,16 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
+  getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
@@ -309,6 +313,59 @@ describe('household invitations and RBAC rules', () => {
     });
   }
 
+  it('lets a launch-trial Pro user create a household and their own owner row in one batch', async () => {
+    // The exact flow that was broken in production. `memberCreateAuthorized`
+    // folded three branches into one expression costing ~1034, over the
+    // 1000-expression cap, so the engine refused the batch with a bare
+    // permission-denied before evaluating any branch — and the founding owner,
+    // who needs only the household root, was paying for the invitation
+    // machinery of a branch that could never apply to them.
+    const nowMs = Date.now();
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/founder'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+        entitlementStartedAtMs: nowMs, entitlementEndsAtMs: nowMs + 7_776_000_000,
+        displayName: 'Founder', monthStartDate: 27,
+      });
+    });
+    const founder = asUser('founder', { email: 'founder@example.com' });
+    const batch = writeBatch(founder);
+    batch.set(doc(founder, 'households/fresh'), {
+      name: 'Founder Home',
+      ownerId: 'founder',
+      planOwnerId: 'founder',
+      entitlementOwnerId: 'founder',
+      entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing',
+      entitlementEndsAtMs: nowMs + 7_776_000_000,
+      currency: 'MAD',
+      monthStartDate: 27,
+      moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Groceries'],
+      onboardingComplete: false,
+      schemaVersion: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    batch.set(doc(founder, 'households/fresh/members/founder'), {
+      id: 'founder', userId: 'founder', displayName: 'Founder',
+      email: 'founder@example.com', role: 'owner', status: 'active',
+      avatarColor: '#00685f', joinedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('still refuses a self-authored owner row in a household somebody else owns', async () => {
+    await seedHousehold();
+    const intruder = asUser('intruder', { email: 'intruder@example.com' });
+    await assertFails(setDoc(doc(intruder, 'households/home/members/intruder'), {
+      id: 'intruder', userId: 'intruder', displayName: 'Intruder',
+      email: 'intruder@example.com', role: 'owner', status: 'active',
+      joinedAt: new Date().toISOString(),
+    }));
+  });
+
   it('allows viewers to read, blocks their writes, and hides finance from contributors', async () => {
     await seedHousehold();
     const viewer = asUser('viewer');
@@ -316,6 +373,65 @@ describe('household invitations and RBAC rules', () => {
     await assertSucceeds(getDoc(doc(viewer, 'households/home/months/2026-09')));
     await assertFails(updateDoc(doc(viewer, 'households/home/months/2026-09'), { bankPart: 1 }));
     await assertFails(getDoc(doc(contributor, 'households/home/months/2026-09')));
+  });
+
+  it('lets an owner import months, flush the outbox and tear the workspace down', async () => {
+    // The three flows a real owner reported as broken, in the order they run.
+    // None of them was an authorization failure: the month rules folded every
+    // writer kind into one expression costing ~1574, over the 1000-expression
+    // per-request cap, so the engine refused them before evaluating anything.
+    await seedHousehold();
+    const owner = asUser('owner');
+
+    // 1. Import: create a month document that does not exist yet.
+    const importBatch = writeBatch(owner);
+    importBatch.set(doc(owner, 'households/home/ledger/import-1'),
+      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month'));
+    importBatch.set(doc(owner, 'households/home/months/2026-08'), validMonth(1, 'import-1'));
+    await assertSucceeds(importBatch.commit());
+
+    // 2. Sync: an ordinary edit to an open period, which is what an outbox
+    //    flush replays. This is the write the import failure cascaded from.
+    const flush = writeBatch(owner);
+    flush.set(doc(owner, 'households/home/ledger/flush-1'),
+      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month'));
+    flush.update(doc(owner, 'households/home/months/2026-08'), {
+      bankPart: 900, totalBudget: 1000, revision: 2, lastMutationId: 'flush-1',
+      updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(flush.commit());
+
+    // 3. Teardown: the owner deletes month documents, then the household root.
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/months/2026-08')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/months/2026-09')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home')));
+  });
+
+  it('lets an editor make an ordinary shared-month edit', async () => {
+    await seedHousehold();
+    const editor = asUser('editor');
+    const batch = writeBatch(editor);
+    batch.set(doc(editor, 'households/home/ledger/editor-edit'),
+      ledger('editor-edit', 'editor', 'household', 'home', 1, 2, 'month'));
+    batch.update(doc(editor, 'households/home/months/2026-09'), {
+      bankPart: 800, revision: 2, lastMutationId: 'editor-edit',
+      updatedAt: new Date().toISOString(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('still refuses a viewer and a non-member the same shared-month edit', async () => {
+    await seedHousehold();
+    for (const uid of ['viewer', 'contributor', 'stranger']) {
+      const db = asUser(uid);
+      const batch = writeBatch(db);
+      batch.set(doc(db, `households/home/ledger/${uid}-edit`),
+        ledger(`${uid}-edit`, uid, 'household', 'home', 1, 2, 'month'));
+      batch.update(doc(db, 'households/home/months/2026-09'), {
+        bankPart: 1, revision: 2, lastMutationId: `${uid}-edit`,
+      });
+      await assertFails(batch.commit());
+    }
   });
 
   it('lets only the household owner close or reopen a shared period', async () => {
@@ -835,5 +951,80 @@ describe('household plan-owner authorization and recovery', () => {
     await assertFails(updateDoc(doc(owner, 'households/home'), { currency: 'EUR' }));
     // ...but the workspace's own data never becomes unreadable.
     await assertSucceeds(getDoc(doc(owner, 'households/home')));
+  });
+
+  it('lets an owner delete their own membership row, but nobody else delete an owner row', async () => {
+    // Tearing down a workspace has to remove the founder's own row. The rule
+    // used to forbid deleting ANY role:'owner' row, so the teardown always
+    // failed on the last member and the household could never be removed -
+    // this is the refusal the reported log named. Self-deletion strands
+    // nobody: householdOwner() reads `ownerId` off the root, not the member
+    // row, so the owner keeps full access and can write the row back.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'users/second'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'households/home/members/owner'), {
+        userId: 'owner', role: 'owner', status: 'active', displayName: 'Owner',
+      });
+      await setDoc(doc(db, 'households/home/members/second'), {
+        userId: 'second', role: 'owner', status: 'active', displayName: 'Second',
+      });
+    });
+    const owner = asUser('owner');
+    // A co-owner's row is still protected from another owner.
+    await assertFails(deleteDoc(doc(owner, 'households/home/members/second')));
+    // The caller's own owner row is removable, and the household root - which
+    // the teardown deletes next - remains deletable without it.
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/members/owner')));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home')));
+  });
+
+  it('refuses an invitation query filtered by household, and allows the one the teardown uses', async () => {
+    // A query is authorized against `allow list` without reading documents, so
+    // the query's constraints must imply the rule. householdInvites allows
+    // listing by `createdBy == request.auth.uid` only. Filtering by
+    // householdId - which the workspace teardown used to do as its very first
+    // step - is refused outright, taking the whole delete with it.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'householdInvites/invite-1'), {
+        householdId: 'home',
+        createdBy: 'owner',
+        email: 'guest@example.com',
+        role: 'editor',
+        status: 'pending',
+        expiresAtMs: Date.now() + 86_400_000,
+      });
+    });
+    const owner = asUser('owner');
+    const invites = collection(owner, 'householdInvites');
+    await assertFails(getDocs(query(invites, where('householdId', '==', 'home'))));
+    await assertSucceeds(getDocs(query(invites, where('createdBy', '==', 'owner'))));
+  });
+
+  it('only lets a savings ledger row go once the savings document it describes is gone', async () => {
+    // Tearing a workspace down is many separate requests, not one batch, so
+    // `existsAfter` sees live state on each. A savings ledger row may only be
+    // deleted after `data/savings`; deleting the ledger first - as the client
+    // used to - leaves rows that can never be removed and a delete that can
+    // never finish. This pins the dependency order the client must follow.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/owner'), { plan: 'pro', currency: 'MAD', onboardingComplete: true });
+      await setDoc(doc(db, 'households/home'), householdDoc());
+      await setDoc(doc(db, 'households/home/data/savings'), {
+        goals: [], revision: 1, lastMutationId: 'savings-1',
+      });
+      await setDoc(doc(db, 'households/home/ledger/savings-1'), {
+        ...ledger('savings-1', 'owner', 'household', 'home', 0, 1, 'savings'),
+        monthKey: 'savings',
+      });
+    });
+    const owner = asUser('owner');
+    const savingsLedger = doc(owner, 'households/home/ledger/savings-1');
+    await assertFails(deleteDoc(savingsLedger));
+    await assertSucceeds(deleteDoc(doc(owner, 'households/home/data/savings')));
+    await assertSucceeds(deleteDoc(savingsLedger));
   });
 });

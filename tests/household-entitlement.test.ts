@@ -318,22 +318,75 @@ describe('rules and client read the same entitlement', () => {
       return rulesSource.slice(at, rulesSource.indexOf('\n    }', at));
     };
     for (const signature of [
-      'function householdMonthGate(hid, grantsChecked) {',
       'function householdLedgerGate(hid) {',
       'function householdSavingsGate(hid) {',
-      'function monthUpdateAuthorized(hid) {',
     ]) {
       const gate = body(signature);
       assert.equal((gate.match(/householdAccess\(hid\)/g) ?? []).length, 1, signature);
       assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
     }
-    // The writer test itself exists once, and the month rules share it.
-    assert.equal((rulesSource.match(/monthWriterOk\(/g) ?? []).length, 3);
-    assert.match(body('function monthWriterOk(access, grantsChecked) {'), /access\.paid && \(access\.owner \|\| access\.editor/);
+    // The month rules resolve their facts through one of the two purpose-built
+    // records, exactly once. Deliberately NOT `householdAccess()`: that record
+    // answers the owner, editor, custom and permission questions together, and
+    // rules evaluate every field of a returned map — so a branch that needs
+    // only half of them still paid for all of them, which is what pushed the
+    // month rules over the 1000-expression cap and broke importing, syncing
+    // and deleting a shared workspace.
+    for (const signature of [
+      'function monthOrdinaryUpdateByFinanceWriter(hid) {',
+      'function monthCreateByFinanceWriter(hid) {',
+    ]) {
+      const gate = body(signature);
+      assert.equal((gate.match(/monthFinanceWriterFacts\(hid\)/g) ?? []).length, 1, signature);
+      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+    }
+    // Closing and reopening a period is narrower still: ownership is recorded
+    // on the household root, so this branch reads the root directly and never
+    // resolves a membership row at all. Editor and custom grants cannot reach
+    // it, which is precisely what keeps it inside the expression budget.
+    {
+      const gate = body('function monthCloseReopenByOwner(hid) {');
+      assert.doesNotMatch(gate, /monthFinanceWriterFacts\(|monthCustomWriterFacts\(|householdAccess\(|memberDocument\(/,
+        'the close/reopen branch must not resolve membership it does not consult');
+      assert.match(gate, /root\.get\('ownerId', ''\) == uid/);
+      assert.match(gate, /activeProEntitlement\(sponsor\)/);
+    }
+    for (const signature of [
+      'function monthUpdateByCustomMember(hid) {',
+      'function monthCreateByCustomMember(hid) {',
+    ]) {
+      const gate = body(signature);
+      assert.equal((gate.match(/monthCustomWriterFacts\(hid\)/g) ?? []).length, 1, signature);
+      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+    }
+    // Each facts record reads the household root and the member row once each.
+    for (const signature of [
+      'function monthFinanceWriterFacts(hid) {',
+      'function monthCustomWriterFacts(hid) {',
+    ]) {
+      const facts = body(signature);
+      assert.equal((facts.match(/householdPath\(hid\)/g) ?? []).length, 1, signature);
+      assert.equal((facts.match(/memberPath\(hid, uid\)/g) ?? []).length, 1, signature);
+      // The sponsor is named before being asked about: passed inline it is
+      // re-expanded at each of `userProfileData()`'s uses of it.
+      assert.match(facts, /let sponsor = householdSponsor\(root\);/, signature);
+    }
+    // The cheap, most common month write is stated before the expensive ones:
+    // Firestore ORs matching `allow` statements and `||` short-circuits.
     assert.match(
       rulesSource,
-      /allow update: if monthUpdateAuthorized\(hid\)\n\s*&& isValidMonthId\(key\)/,
+      /allow update: if monthOrdinaryUpdateByFinanceWriter\(hid\)\n\s*&& isValidMonthId\(key\) && validMonthDocument\(\);/,
     );
+    assert.ok(
+      rulesSource.indexOf('monthOrdinaryUpdateByFinanceWriter(hid)\n')
+        < rulesSource.indexOf('allow update: if monthCloseReopenByOwner(hid)'),
+      'the ordinary month write must be offered before the close/reopen branch',
+    );
+    // The superseded all-in-one gates are gone, not merely unused: leaving them
+    // in the file invites a future rule to call one and re-inherit the cost.
+    assert.doesNotMatch(rulesSource, /function monthUpdateAuthorized\(/);
+    assert.doesNotMatch(rulesSource, /function householdMonthGate\(/);
+    assert.doesNotMatch(rulesSource, /function monthWriterOk\(/);
     // And no rule reads a mutation's ledger row through a hand-built path twice.
     assert.doesNotMatch(
       rulesSource,
@@ -419,5 +472,120 @@ describe('planning the missing membership row', () => {
       member: row({ status: 'removed' }),
     });
     assert.deepEqual(plan, { action: 'blocked', reason: 'owner-row-not-active' });
+  });
+});
+
+describe('a freshly created household accuses nobody', () => {
+  // The workspace panel used to show a "Restore shared access" card reading
+  // "the Pro plan that pays for this household belongs to another account" to
+  // an owner who had just created the household seconds earlier, on their own
+  // plan, with no write having been refused at all. Two bugs met:
+  //
+  //  * `diagnoseHouseholdWriteDenial` answers the question "given that a write
+  //    was refused, why?" - its fallthrough is `rules-behind`, never "nothing
+  //    is wrong". The panel called it unconditionally, so a perfectly healthy
+  //    household reported `rules-behind` at rest.
+  //  * The card was then shown for `rules-behind`/`unknown`, i.e. for exactly
+  //    the state the diagnosis reports when it has found nothing.
+  //
+  // The panel no longer renders that card, and the diagnosis is consulted only
+  // from a `permission-denied` handler. These assertions pin the shape of the
+  // household `create()` writes so the "another account" wording can never be
+  // reached for a self-sponsored workspace.
+  const uid = 'owner-1';
+  const profiles: [string, Record<string, unknown>][] = [
+    ['an unbounded grant carrying no status or expiry', { plan: 'pro' }],
+    ['a paid subscription', {
+      plan: 'pro', entitlementSource: 'stripe', entitlementStatus: 'active',
+      entitlementEndsAtMs: Date.now() + 30 * 86_400_000,
+    }],
+    ['the launch trial', {
+      plan: 'pro', entitlementSource: 'launch_trial', entitlementStatus: 'active',
+      entitlementEndsAtMs: Date.now() + 5 * 86_400_000,
+    }],
+  ];
+
+  for (const [label, profile] of profiles) {
+    it(`binds cleanly to its creator on ${label}`, () => {
+      const binding = buildHouseholdSponsorBinding(profile, uid);
+      assert.equal(binding.bindable, true, 'the creator must be able to sponsor');
+      assert.deepEqual(binding.rejectedFields, []);
+      // Exactly the document `household-context.create()` stores.
+      const household = {
+        ownerId: uid,
+        planOwnerId: uid,
+        ...householdSponsorProjectionFields(binding),
+      };
+      // The sponsor is the creator, and the stored projection already matches
+      // the profile - so there is nothing for a repair to do.
+      assert.equal(householdSponsorId(household), uid);
+      assert.equal(householdSponsorBindingIsStale(household, binding), false,
+        'a household written by create() is never stale the moment it is created');
+      // And the sponsor-related denials, the ones whose copy blames another
+      // account or a lapsed plan, are unreachable for it.
+      const denial = diagnoseHouseholdWriteDenial({ household, profile, uid, isOwner: true });
+      assert.ok(
+        !['sponsor-rebindable', 'sponsor-lapsed', 'sponsor-unset', 'sponsor-unreadable'].includes(denial),
+        `a self-sponsored household must not be diagnosed as ${denial}`,
+      );
+    });
+  }
+
+  it('never offers the sponsor repair to the account that already sponsors', () => {
+    // `sponsor-rebindable` is what drives the "belongs to another account"
+    // copy. It is returned only when the stored sponsor is somebody else.
+    const profile = { plan: 'pro' };
+    const binding = buildHouseholdSponsorBinding(profile, uid);
+    const mine = { ownerId: uid, planOwnerId: uid, ...householdSponsorProjectionFields(binding) };
+    assert.notEqual(
+      diagnoseHouseholdWriteDenial({ household: mine, profile, uid, isOwner: true }),
+      'sponsor-rebindable',
+    );
+    const theirs = { ...mine, entitlementOwnerId: 'someone-else' };
+    assert.equal(
+      diagnoseHouseholdWriteDenial({ household: theirs, profile, uid, isOwner: true }),
+      'sponsor-rebindable',
+      'and it stays available for the case it actually describes',
+    );
+  });
+
+  it('has no standing "restore shared access" card left to mis-fire', () => {
+    const panel = readFileSync(
+      new URL('../src/components/dashboard/profile/workspace-panel.tsx', import.meta.url),
+      'utf8',
+    );
+    // The card rendered from state computed at rest, with no refusal in hand.
+    assert.doesNotMatch(panel, /canRestoreSharedAccess|sponsorStale|restoreSharedAccess/,
+      'the panel must not decide at rest that shared access needs restoring');
+    // The remaining reference is inside the permission-denied handler.
+    assert.match(panel, /code !== 'permission-denied'/);
+  });
+});
+
+describe('the owner membership row can be torn down by its own holder', () => {
+  it('exempts self-deletion from the owner-row protection', () => {
+    // The reported teardown failure was
+    //   [household-delete] refused: households/<hid>/members/<own uid>
+    // with callerIsOwner true, sponsorIsCaller true and an active plan - i.e.
+    // nothing to do with entitlement. `allow delete` on a member row required
+    // `role != 'owner'`, which is exactly the row a workspace teardown must
+    // remove last, so deleting a household could never complete.
+    const start = rulesSource.indexOf('match /members/{memberId} {');
+    const block = rulesSource.slice(start, rulesSource.indexOf('match /invoices/{invoiceId} {', start));
+    const rule = block.slice(block.indexOf('allow delete:'));
+    assert.match(rule, /memberId == request\.auth\.uid/,
+      'an owner must be able to delete their own row or the workspace cannot be removed');
+    assert.match(rule, /resource\.data\.get\('role', ''\) != 'owner'/,
+      "and another owner's row must stay protected");
+  });
+
+  it('still resolves ownership without the membership row', () => {
+    // What makes the exemption safe: ownership is read off the household root,
+    // so removing the row cannot lock the owner out mid-teardown.
+    const gate = rulesSource.slice(rulesSource.indexOf('function householdOwner(hid) {'));
+    const body = gate.slice(0, gate.indexOf('\n    }'));
+    assert.match(body, /ownerId/);
+    assert.doesNotMatch(body, /memberPath\(|memberDocument\(/,
+      'householdOwner must not depend on the row the teardown deletes');
   });
 });

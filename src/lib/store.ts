@@ -627,31 +627,61 @@ export function bucketOf(categoryName: string, kind: ExpenseKind): Envelope {
   // language the app is used in. The English list alone made a French "Salle de
   // sport" a want and an Arabic "إيجار" a want as well, which skewed the 50/30/20
   // split for exactly the households that rename their categories.
-  const fixedWants = [
-    'subscription', 'subscriptions', 'netflix', 'spotify', 'entertainment', 'leisure', 'gym', 'hobbies',
-    'loisirs', 'abonnement', 'abonnements', 'cinéma', 'cinema', 'salle de sport', 'sport', 'vacances',
-    'اشتراك', 'اشتراكات', 'ترفيه', 'رياضة', 'نادي', 'صالة', 'هوايات', 'سينما',
-  ];
-  const variableNeeds = [
-    'groceries', 'food', 'food & drink', 'alimentation', 'health', 'santé', 'medical', 'pharmacy',
-    'transport', 'transportation', 'car', 'fuel', 'utilities', 'housing', 'rent',
-    'courses', 'épicerie', 'medecin', 'médecin', 'pharmacie', 'essence', 'carburant',
-    'loyer', 'électricité', 'eau', 'gaz', 'scolarité', 'école',
-    'بقالة', 'طعام', 'غذاء', 'صحة', 'دواء', 'صيدلية', 'نقل', 'سيارة', 'بنزين', 'وقود',
-    'كهرباء', 'ماء', 'غاز', 'إيجار', 'ايجار', 'سكن', 'مدرسة', 'تعليم',
+  // Needs are checked BEFORE wants and independently of `kind`. Splitting the
+  // lists per kind used to file "Medicine" (variable) under wants and
+  // "Disney+" (fixed) under needs — an essential purchase is essential whether
+  // it is billed monthly or paid ad hoc. `kind` now only decides the fallback
+  // for names no keyword recognises.
+  //
+  // Order matters: "transport" contains the substring "sport", so the needs
+  // pass must run first for it to classify correctly.
+  const needsKeywords = [
+    // food & household
+    'groceries', 'food', 'food & drink', 'alimentation', 'courses', 'épicerie', 'epicerie',
+    'بقالة', 'طعام', 'غذاء', 'سوق',
+    // health
+    'health', 'santé', 'sante', 'medical', 'medicine', 'medication', 'pharmacy', 'pharmacie',
+    'medecin', 'médecin', 'doctor', 'dentist', 'dentiste', 'médicament', 'medicament',
+    'clinic', 'clinique', 'hospital', 'hôpital', 'hopital', 'insurance', 'assurance', 'mutuelle',
+    'صحة', 'دواء', 'أدوية', 'ادوية', 'صيدلية', 'طبيب', 'أسنان', 'اسنان', 'مستشفى', 'عيادة', 'تأمين',
+    // transport
+    'transport', 'transportation', 'car', 'fuel', 'essence', 'carburant', 'gasoline', 'petrol',
+    'bus', 'train', 'tram', 'taxi', 'parking', 'péage', 'peage',
+    'نقل', 'سيارة', 'بنزين', 'وقود', 'حافلة', 'قطار', 'طاكسي', 'مواصلات',
+    // housing & utilities
+    'utilities', 'utility', 'housing', 'rent', 'loyer', 'mortgage', 'crédit immobilier',
+    'electricity', 'electric', 'électricité', 'electricite', 'water', 'eau', 'gas', 'gaz',
+    'internet', 'wifi', 'adsl', 'fibre', 'fiber', 'phone bill', 'facture',
+    'كهرباء', 'ماء', 'غاز', 'إيجار', 'ايجار', 'سكن', 'كراء', 'أنترنت', 'انترنت', 'فاتورة',
+    // childcare & education
+    'school', 'school fees', 'tuition', 'scolarité', 'scolarite', 'école', 'ecole', 'education',
+    'university', 'université', 'universite', 'daycare', 'nursery', 'crèche', 'creche',
+    'childcare', 'diaper', 'diapers', 'couches', 'baby formula', 'lait infantile',
+    'مدرسة', 'تعليم', 'دراسة', 'جامعة', 'حضانة', 'روض', 'حفاضات', 'حفاظات',
+    // obligations
+    'loan', 'prêt', 'pret', 'debt', 'tax', 'impôt', 'impot', 'zakat',
+    'قرض', 'دين', 'ضريبة', 'زكاة',
   ];
 
-  if (kind === 'fixed') {
-    if (fixedWants.some((w) => name.includes(w))) {
-      return 'wants';
-    }
-    return 'needs';
-  } else {
-    if (variableNeeds.some((n) => name.includes(n))) {
-      return 'needs';
-    }
-    return 'wants';
-  }
+  const wantsKeywords = [
+    'subscription', 'subscriptions', 'abonnement', 'abonnements',
+    'netflix', 'spotify', 'disney', 'shahid', 'canal+', 'canal +', 'osn', 'prime video',
+    'apple tv', 'youtube premium', 'deezer', 'anghami', 'streaming',
+    'entertainment', 'leisure', 'loisirs', 'divertissement', 'hobbies', 'hobby',
+    'gym', 'fitness', 'salle de sport', 'sport', 'club',
+    'cinema', 'cinéma', 'restaurant', 'cafe', 'café', 'coffee', 'fast food', 'takeaway',
+    'vacances', 'holiday', 'travel', 'trip', 'tourism', 'shopping', 'clothes', 'clothing',
+    'vêtements', 'vetements', 'beauty', 'cosmetics', 'gaming', 'games',
+    'اشتراك', 'اشتراكات', 'ترفيه', 'رياضة', 'نادي', 'صالة', 'هوايات', 'سينما',
+    'مطعم', 'مقهى', 'قهوة', 'عطلة', 'سفر', 'تسوق', 'ملابس', 'تجميل', 'ألعاب',
+  ];
+
+  if (needsKeywords.some((n) => name.includes(n))) return 'needs';
+  if (wantsKeywords.some((w) => name.includes(w))) return 'wants';
+
+  // Unrecognised: a recurring commitment is more likely essential, a one-off
+  // discretionary. This preserves the historical default for unknown names.
+  return kind === 'fixed' ? 'needs' : 'wants';
 }
 
 /**
@@ -698,6 +728,18 @@ function dueDayOfMonth(value: string | undefined): number | null {
   return day >= 1 && day <= 31 ? day : null;
 }
 
+/**
+ * Resolve a day-of-month against a specific calendar month, clamping to that
+ * month's last day. A charge due on the 31st falls on Feb 28 (or 29), Apr 30,
+ * and so on — the behaviour a bank applies to a month-end standing order.
+ * Without the clamp `Date.UTC(2026, 8, 31)` overflows into 2026-10-01 and the
+ * charge silently escapes its own period window.
+ */
+export function resolveDueDate(year: number, monthIndex: number, day: number): Date {
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, monthIndex, Math.min(day, lastDay)));
+}
+
 export interface UpcomingBill {
   id: string;
   name: string;
@@ -739,9 +781,9 @@ export function getUpcomingBills(
 
     // Resolve the day-of-month against the period window: try the start
     // month, then the next month (periods may span a calendar boundary).
-    let due = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), day));
+    let due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth(), day);
     if (due < start) {
-      due = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, day));
+      due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth() + 1, day);
     }
     if (end && due > end) continue;
 
@@ -789,32 +831,70 @@ export function carryOverDebts(
   if (openDebts.length === 0) return newMonth;
 
   const period = newMonth.periodKey || newMonth.periodStartDate?.slice(0, 7) || 'next';
+  const baseOf = (debt: DebtItem) => debt.carriedFromId || debt.id;
+
   // A debt already carried into this period keeps its id; match on the carry
   // chain (carriedFromId or original id) so re-running never duplicates.
-  const presentBases = new Set(
-    (newMonth.debts || []).map((debt) => debt.carriedFromId || debt.id),
-  );
-  const toCarry = openDebts.filter((debt) => {
-    const base = debt.carriedFromId || debt.id;
-    return !presentBases.has(base);
-  });
-  if (toCarry.length === 0) return newMonth;
+  const existing = new Map<string, DebtItem>();
+  for (const debt of newMonth.debts || []) existing.set(baseOf(debt), debt);
 
-  const carried: DebtItem[] = toCarry.map((debt) => {
-    const base = debt.carriedFromId || debt.id;
-    return {
+  const carried: DebtItem[] = [];
+  let reconciled = false;
+
+  const merged = (newMonth.debts || []).map((debt) => {
+    const source = openDebts.find((candidate) => baseOf(candidate) === baseOf(debt));
+    if (!source) return debt;
+    // The copy already exists in this period, but the origin may have gained
+    // payments since it was carried (a back-dated correction in the previous
+    // month). Union the histories by payment id so the newest period always
+    // holds the complete, authoritative balance instead of silently diverging.
+    const next = mergeDebtPayments(debt, source);
+    if (next !== debt) reconciled = true;
+    return next;
+  });
+
+  for (const debt of openDebts) {
+    if (existing.has(baseOf(debt))) continue;
+    const base = baseOf(debt);
+    carried.push({
       ...debt,
       id: `debt-carry-${base}-${period}`,
       carriedFromId: base,
       payments: (debt.payments || []).map((payment) => ({ ...payment })),
-    };
-  });
+    });
+  }
+
+  if (carried.length === 0 && !reconciled) return newMonth;
 
   return {
     ...newMonth,
-    debts: [...carried, ...(newMonth.debts || [])],
+    debts: [...carried, ...merged],
     updatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Union the payment history of an origin debt into its carried copy, keyed by
+ * payment id. Returns the original object unchanged when nothing is missing so
+ * callers can cheaply detect a no-op.
+ */
+function mergeDebtPayments(target: DebtItem, source: DebtItem): DebtItem {
+  const sourcePayments = source.payments || [];
+  if (sourcePayments.length === 0) return target;
+
+  const seen = new Set((target.payments || []).map((payment) => payment.id));
+  const missing = sourcePayments.filter((payment) => !seen.has(payment.id));
+  if (missing.length === 0) return target;
+
+  const payments = [
+    ...(target.payments || []),
+    ...missing.map((payment) => ({ ...payment })),
+  ].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  const next: DebtItem = { ...target, payments };
+  // A debt fully covered by the union is settled, not open.
+  if (debtOutstanding(next) <= 0) next.status = 'settled';
+  return next;
 }
 
 /**

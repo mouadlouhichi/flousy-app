@@ -200,10 +200,53 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [trackedHouseholdId]);
 
-  useEffect(
-    () => subscribeHouseholdMembers(trackedHouseholdId, setMembers),
-    [trackedHouseholdId],
-  );
+  /**
+   * Own membership row, resolved directly when the roster listener is denied.
+   *
+   * Listing `members` requires finance-read access, so a contributor — and any
+   * custom member without `members: view` — never receives the roster. Treating
+   * that denial as an empty roster used to erase the user's own role, which
+   * collapsed their permissions to `none` and made `isContributor` false, so
+   * the provider then subscribed a household month it is not allowed to read.
+   * The own-row `get` is always permitted (`memberId == request.auth.uid`), so
+   * fall back to it and keep the role intact.
+   */
+  const [ownMember, setOwnMember] = useState<HouseholdMember | null>(null);
+
+  useEffect(() => {
+    if (!trackedHouseholdId) {
+      setMembers([]);
+      setOwnMember(null);
+      return;
+    }
+    let active = true;
+    const unsubscribe = subscribeHouseholdMembers(
+      trackedHouseholdId,
+      (next) => {
+        if (!active) return;
+        setMembers(next);
+        setOwnMember(null); // roster is authoritative when readable
+      },
+      () => {
+        if (!active) return;
+        setMembers([]);
+        const uid = user?.uid;
+        if (!uid) return;
+        getHouseholdMember(trackedHouseholdId, uid)
+          .then((row) => {
+            if (!active || !row) return;
+            setOwnMember({ id: uid, ...(row as object) } as HouseholdMember);
+          })
+          .catch(() => {
+            /* own row unreadable too: genuinely not a member */
+          });
+      },
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [trackedHouseholdId, user?.uid]);
 
   useEffect(() => {
     // Invitation discovery itself is protected by verified-email rules. Avoid
@@ -215,10 +258,15 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     return subscribePendingHouseholdInvites(user.email, setPendingInvites);
   }, [user?.email, user?.emailVerified]);
 
-  const myMember = members.find((member) => member.userId === user?.uid || member.id === user?.uid);
+  const myMember = members.find((member) => member.userId === user?.uid || member.id === user?.uid)
+    ?? ownMember
+    ?? undefined;
+  // `planOwnerId` is the BILLING sponsor, not an authorization fact: rules
+  // compare only `ownerId` (`householdUpdateAuthorized`). Including it here
+  // handed a sponsor a full owner UI whose every management write was refused
+  // with a generic error. Ownership must be derived exactly as the server does.
   const isOwner = Boolean(
     household?.ownerId === user?.uid
-      || household?.planOwnerId === user?.uid
       || myMember?.role === 'owner',
   );
   const memberRole: HouseholdRole | undefined = isOwner ? 'owner' : myMember?.role;

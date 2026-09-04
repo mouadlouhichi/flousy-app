@@ -216,3 +216,27 @@ for (const r of [...rules].sort((a, b) => b.reads - a.reads).slice(0, limit)) {
   const flag = r.reads > 10 ? (r.reads > 20 ? '  OVER BOTH' : '  over 10') : '';
   console.log(String(r.reads).padStart(4), `L${String(r.line).padStart(3)}`, r.method.padEnd(14), r.text, flag);
 }
+
+// Fail the build on a rule that cannot be evaluated. Over the 1000-expression budget the
+// engine refuses the request *before* testing any branch, so the app sees a bare
+// permission-denied with nothing to attribute it to - the exact symptom that made importing,
+// syncing and deleting a shared workspace fail with "something went wrong". Estimated cost is
+// an approximation, so the gate is a ratchet: known-over rules are listed here with the
+// reason they are tolerable, and anything new, or any listed rule that grows, fails.
+const KNOWN_OVER = new Map([
+  // Reached only by a custom-role member holding PARTIAL month grants: `||` short-circuits,
+  // so every other writer is authorized by a cheaper statement before this one is tried.
+  ['monthUpdateByCustomMember(hid)', 1300],
+]);
+const offenders = rules
+  .filter((r) => r.cost > 1000)
+  .map((r) => ({ r, key: [...KNOWN_OVER.keys()].find((k) => r.text.startsWith(k)) }))
+  .filter(({ r, key }) => key === undefined || r.cost > KNOWN_OVER.get(key));
+if (offenders.length > 0) {
+  console.error('\nover the 1000-expression budget (these are refused before any branch runs):');
+  for (const { r, key } of offenders) {
+    const bound = key === undefined ? 'not allowlisted' : `allowlisted at ${KNOWN_OVER.get(key)}, now higher`;
+    console.error(String(r.cost).padStart(6), `L${r.line}`, r.method, r.text, `- ${bound}`);
+  }
+  process.exit(1);
+}

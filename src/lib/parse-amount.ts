@@ -45,6 +45,10 @@ export function parseAmountInput(raw: string | number | null | undefined): numbe
   s = s.replace(/\u066b/g, '.').replace(/\u066c/g, '');
   // Grouping spaces (regular, NBSP, thin space, narrow NBSP) and apostrophes.
   s = s.replace(/[\s\u00a0\u2009\u202f'’]/g, '');
+  // Scientific notation is not a money format, and stripping the letter turns
+  // it into a plausible WRONG number rather than an obvious rejection:
+  // "1e5" would become "15". Refuse it instead of silently mangling it.
+  if (/\d\s*[eE]\s*[+-]?\d/.test(s)) return NaN;
   // Drop currency symbols/letters; keep digits, separators and leading minus.
   s = s.replace(/[^0-9.,-]/g, '');
   if (!/[0-9]/.test(s)) return NaN;

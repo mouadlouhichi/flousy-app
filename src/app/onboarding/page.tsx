@@ -160,6 +160,7 @@ function OnboardingFlow() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [incomeError, setIncomeError] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   // Clean numeric string parsing for income (handles comma/formatting)
   // Locale-aware parsing: accepts French decimal commas, grouping spaces and
@@ -296,6 +297,7 @@ function OnboardingFlow() {
       return;
     }
     setIsImporting(true);
+    setImportError('');
     const today = new Date();
     const monthKey = getCurrentMonthKey(monthStartDate, today);
     try {
@@ -324,14 +326,37 @@ function OnboardingFlow() {
               if (local) {
                 await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
               }
-            } catch { /* ignore */ }
+            } catch (err) {
+              console.error('[import] current month copy failed', { monthKey, householdId }, err);
+            }
             await markHouseholdOnboarded();
           })(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 6000)),
+          // 30s, not 6s. The import is one write per personal month plus the
+          // savings goals, each a separate transaction; on a cold connection
+          // six seconds routinely elapsed before the first one landed, and the
+          // timeout then looked exactly like a refusal.
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 30000)),
         ]);
       } catch (e) {
-        console.warn('Personal import skipped or failed:', e);
-        try { await markHouseholdOnboarded(); } catch { /* ignore */ }
+        // This used to be a console.warn that then marked onboarding complete
+        // regardless, so a refused or timed-out import sent the user to an
+        // empty dashboard with no error anywhere and the workspace flagged as
+        // successfully set up. Surface it, and do NOT claim success.
+        const code = (e as { code?: string })?.code;
+        console.error('[import] personal -> household import failed', {
+          householdId,
+          uid: user.uid,
+          monthKey,
+          code: code ?? null,
+          cause: (e as { cause?: unknown })?.cause ?? null,
+        }, e);
+        setImportError(
+          code === 'permission-denied'
+            ? m.household.genericError
+            : (e as Error)?.message || m.household.genericError,
+        );
+        setIsImporting(false);
+        return;
       }
     }
     goDashboard();
@@ -453,6 +478,19 @@ function OnboardingFlow() {
             />
           </div>
         </div>
+        )}
+
+        {importError && (
+          <div className="mb-6 rounded-2xl border border-error/40 bg-error-container/40 p-4 text-center">
+            <p className="text-[14px] font-bold text-on-error-container">{importError}</p>
+            <button
+              type="button"
+              onClick={handleImportPersonal}
+              className="mt-3 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary"
+            >
+              {m.common.retry}
+            </button>
+          </div>
         )}
 
         {isImporting && (

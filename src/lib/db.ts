@@ -75,7 +75,19 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path,
   };
   console.error('Firestore Error Details:', errInfo);
-  throw new Error('A database error occurred. Please try again.');
+  // Preserve the Firestore error code on the rethrown error. Callers gate on
+  // `permission-denied` to tell "the rules refused this" from "the network
+  // failed", and flattening every failure into one opaque Error is what left a
+  // refused workspace teardown indistinguishable from a transient blip - and
+  // reported to the user as the wrong cause entirely.
+  const wrapped = new Error('A database error occurred. Please try again.') as Error & {
+    code?: string;
+    cause?: unknown;
+  };
+  const code = (error as { code?: string })?.code;
+  if (code) wrapped.code = code;
+  wrapped.cause = error;
+  throw wrapped;
 }
 
 function cleanUndefined<T>(obj: T): T {
@@ -647,7 +659,15 @@ export async function syncWorkspaceTransactions(
         skippedClosed.push(monthKey);
         continue;
       }
-      console.error('Workspace sync stopped:', error);
+      console.error('[workspace-sync] stopped', {
+        monthKey,
+        mutationId,
+        targetWorkspace: target.workspace,
+        code: (error as { code?: string })?.code ?? null,
+        context: target.workspace === 'household'
+          ? await describeHouseholdWriteContext(target.householdId)
+          : { workspace: 'personal', uid: target.uid },
+      }, error);
       // A workspace that refuses the write and a connection that died both stop
       // "after N months", and only one of them is helped by running it again: keep
       // the raised error, so the card can name the cause instead of the count.
@@ -765,6 +785,72 @@ export async function importPersonalBudgetIntoHousehold(uid: string, householdId
     }),
   );
   await Promise.all(writes);
+}
+
+/**
+ * Why a shared-workspace write was refused, from what the browser may read.
+ *
+ * Firestore returns a bare `permission-denied` with no indication of which
+ * clause declined, so the only way to make these reports actionable is to dump
+ * the inputs the rules actually consult: the caller, the household's stored
+ * sponsor, and whether that sponsor's plan reads as active on this client. If
+ * the client thinks it is Pro and the server disagrees, the mismatch is in
+ * these fields.
+ */
+export async function describeHouseholdWriteContext(householdId: string): Promise<Record<string, unknown>> {
+  const uid = auth?.currentUser?.uid ?? null;
+  const context: Record<string, unknown> = {
+    householdId,
+    uid,
+    emailVerified: auth?.currentUser?.emailVerified ?? null,
+  };
+  if (!isFirebaseConfigured || !db) return { ...context, firebase: 'not-configured' };
+  try {
+    const root = await getDoc(doc(db, 'households', householdId));
+    context.householdExists = root.exists();
+    if (root.exists()) {
+      const data = root.data() as Record<string, unknown>;
+      context.ownerId = data.ownerId ?? null;
+      context.callerIsOwner = data.ownerId === uid;
+      // The sponsor chain the rules use: entitlementOwnerId || planOwnerId || ownerId.
+      const sponsor = (data.entitlementOwnerId || data.planOwnerId || data.ownerId || '') as string;
+      context.sponsorId = sponsor || null;
+      context.sponsorIsCaller = Boolean(sponsor) && sponsor === uid;
+      context.householdProjection = {
+        entitlementOwnerId: data.entitlementOwnerId ?? null,
+        entitlementSource: data.entitlementSource ?? null,
+        entitlementStatus: data.entitlementStatus ?? null,
+        entitlementEndsAtMs: data.entitlementEndsAtMs ?? null,
+      };
+    }
+    if (uid) {
+      const member = await getDoc(doc(db, 'households', householdId, 'members', uid));
+      context.membership = member.exists()
+        ? { role: member.data()?.role ?? null, status: member.data()?.status ?? null }
+        : 'missing';
+      // `activeProEntitlement()` reads the SPONSOR's profile, which is only
+      // readable when the sponsor is the caller. Say so rather than guess.
+      const sponsorId = context.sponsorId as string | null;
+      if (sponsorId && sponsorId === uid) {
+        const profile = await getDoc(doc(db, 'users', uid));
+        const p = (profile.data() ?? {}) as Record<string, unknown>;
+        context.sponsorProfile = {
+          plan: p.plan ?? null,
+          entitlementSource: p.entitlementSource ?? null,
+          entitlementStatus: p.entitlementStatus ?? null,
+          entitlementEndsAtMs: p.entitlementEndsAtMs ?? null,
+          endsInFuture: typeof p.entitlementEndsAtMs === 'number'
+            ? p.entitlementEndsAtMs > Date.now()
+            : null,
+        };
+      } else {
+        context.sponsorProfile = 'unreadable (sponsor is another account)';
+      }
+    }
+  } catch (err) {
+    context.diagnosticError = err instanceof Error ? err.message : String(err);
+  }
+  return context;
 }
 
 export async function getMonthBudget(
@@ -1303,12 +1389,32 @@ export function subscribeHousehold(
   );
 }
 
-export function subscribeHouseholdMembers(householdId: string | undefined, onData: (members: HouseholdMember[]) => void) {
+/**
+ * Roster subscription.
+ *
+ * Listing members is a finance-reader privilege, so a contributor (or a custom
+ * member without `members` view) is denied here. That denial must be reported
+ * rather than flattened into an empty roster: callers derive the *current
+ * user's own role* from this list, and an empty list is indistinguishable from
+ * "you have no membership", which downgrades a legitimate member to no
+ * permissions at all. `onDenied` lets the caller fall back to the own-row
+ * `get`, which the rules always allow.
+ */
+export function subscribeHouseholdMembers(
+  householdId: string | undefined,
+  onData: (members: HouseholdMember[]) => void,
+  onDenied?: () => void,
+) {
   if (!householdId || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
   return onSnapshot(
     collection(db, 'households', householdId, 'members'),
     (snap) => onData(snap.docs.map((item) => ({ id: item.id, ...item.data() } as HouseholdMember))),
     (err) => {
+      const code = (err as { code?: string })?.code;
+      if (code === 'permission-denied') {
+        onDenied?.();
+        return;
+      }
       console.error('Error listening to household members:', err);
       onData([]);
     },
@@ -1328,32 +1434,70 @@ export async function createHousehold(ownerId: string, household: Household, own
 /** Owner teardown: drop members/months/savings/invoices then the household doc. */
 export async function deleteHouseholdWorkspace(householdId: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
+  const actorUid = auth?.currentUser?.uid ?? '';
   const wipe = async (col: string) => {
     if (!db) return;
     const snap = await getDocs(collection(db, 'households', householdId, col));
-    for (const item of snap.docs) await deleteDoc(item.ref);
+    for (const item of snap.docs) {
+      try {
+        await deleteDoc(item.ref);
+      } catch (err) {
+        // Name the document that was refused. A teardown is dozens of
+        // single-document requests and the thrown error says only
+        // "permission-denied"; without the path there is no way to tell which
+        // rule declined, which is what made this failure undiagnosable.
+        console.error(`[household-delete] refused: households/${householdId}/${col}/${item.id}`, err);
+        throw err;
+      }
+    }
   };
   try {
     // Top-level invites reference this household; rules only let the owner
     // delete them while the household root still exists, so they go first —
     // otherwise the teardown would strand pending invites that keep pointing
     // at a deleted workspace.
+    //
+    // Queried by `createdBy`, NOT by `householdId`. A Firestore query is
+    // authorized against `allow list` without reading any document, so the
+    // query's own constraints must imply the rule: `allow list` on
+    // householdInvites permits `createdBy == request.auth.uid` (or a match on
+    // the caller's own email) and has no `householdId` branch at all. Listing
+    // by householdId is therefore refused outright — and because this was the
+    // FIRST step of the teardown, the whole delete failed before touching a
+    // single document, no matter what the rest of the ordering did.
     const inviteSnap = await getDocs(
-      query(collection(db, 'householdInvites'), where('householdId', '==', householdId)),
+      query(collection(db, 'householdInvites'), where('createdBy', '==', actorUid)),
     );
-    for (const invite of inviteSnap.docs) await deleteDoc(invite.ref);
+    for (const invite of inviteSnap.docs) {
+      if (invite.data()?.householdId === householdId) await deleteDoc(invite.ref);
+    }
     // Delete nested data while the owner membership still exists, then members,
     // then the household doc. Firestore delete rules cannot inspect incoming().
+    //
+    // ORDER IS LOAD-BEARING. A ledger row is an audit record that stays
+    // immutable while the financial document it describes exists: the rule
+    // only permits deleting it once `months/{monthKey}` (or `data/savings`,
+    // for a savings row) is already gone. Each delete is its own request, so
+    // `existsAfter` reflects what is actually in the database at that moment.
+    // Wiping `ledger` before `data/savings` therefore made every savings-kind
+    // ledger row permanently undeletable, the teardown threw on the first one,
+    // and the workspace could never be removed.
     await wipe('months');
     await wipe('invoices');
-    await wipe('ledger');
     // Deleting a missing document is already a successful no-op in Firestore;
     // any rejection here is a real teardown failure and must keep the owner
     // membership/workspace reachable for a retry.
     await deleteDoc(doc(db, 'households', householdId, 'data', 'savings'));
+    // Both financial documents are gone now, so every ledger row is deletable.
+    await wipe('ledger');
     await wipe('members');
     await deleteDoc(doc(db, 'households', householdId));
   } catch (err) {
+    console.error('[household-delete] teardown failed', {
+      householdId,
+      code: (err as { code?: string })?.code ?? null,
+      context: await describeHouseholdWriteContext(householdId),
+    }, err);
     handleFirestoreError(err, OperationType.DELETE, `households/${householdId}`);
   }
 }
@@ -1564,6 +1708,17 @@ export async function saveHouseholdMonthBudget(
       createdAt: next.updatedAt,
     });
     return true;
+  }).catch(async (err) => {
+    // The import writes one of these per personal month. Without the month key
+    // and the entitlement inputs, a failure here is a bare permission-denied
+    // that says nothing about which document or which clause refused it.
+    console.error('[household-month-write] refused', {
+      path: `households/${householdId}/months/${monthKey}`,
+      mutationId,
+      code: (err as { code?: string })?.code ?? null,
+      context: await describeHouseholdWriteContext(householdId),
+    }, err);
+    throw err;
   });
 }
 export async function getHouseholdMonthBudget(
@@ -1643,6 +1798,41 @@ export function subscribeHouseholdInvoices(householdId: string, onData: (invoice
   if (!isFirebaseConfigured || !db) { onData([]); return () => {}; }
   return onSnapshot(collection(db, 'households', householdId, 'invoices'), (snap) => onData(snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseholdInvoice))));
 }
+/**
+ * A single submitter's own invoices.
+ *
+ * The rules already permit this (`submitterId == request.auth.uid` on both
+ * `get` and `list`) but nothing used it, so a contributor submitted receipts
+ * into a void: no pending/approved/rejected state and no way to withdraw a
+ * mistake. The `where` clause is required, not an optimisation - it is what
+ * makes the query provably safe under the rule.
+ */
+export function subscribeMyHouseholdInvoices(
+  householdId: string,
+  submitterId: string,
+  onData: (invoices: HouseholdInvoice[]) => void,
+) {
+  if (!isFirebaseConfigured || !db || !submitterId) { onData([]); return () => {}; }
+  return onSnapshot(
+    query(
+      collection(db, 'households', householdId, 'invoices'),
+      where('submitterId', '==', submitterId),
+      limit(200),
+    ),
+    (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() } as HouseholdInvoice))),
+    (err) => {
+      console.error('Error listening to own household invoices:', err);
+      onData([]);
+    },
+  );
+}
+
+/** Withdraw an own submission. Rules allow it only while `status == 'submitted'`. */
+export async function withdrawHouseholdInvoice(householdId: string, invoiceId: string) {
+  if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
+  await deleteDoc(doc(db, 'households', householdId, 'invoices', invoiceId));
+}
+
 export async function saveHouseholdInvoice(householdId: string, invoice: HouseholdInvoice) {
   if (!isFirebaseConfigured || !db) return;
   await setDoc(doc(db, 'households', householdId, 'invoices', invoice.id), cleanUndefined(invoice));
