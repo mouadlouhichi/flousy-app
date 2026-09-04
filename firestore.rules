@@ -1411,38 +1411,28 @@ service cloud.firestore {
       allow delete: if householdOwner(existing().get('householdId', ''));
     }
 
-    /* DIAG PROBES (temporary, removed before merge). Each path isolates one
-     * helper so the emulator can say whether it evaluates cleanly or aborts. */
-    match /diag/{probeId} {
-      allow read: if signedIn();
-      allow update: if probeId == 'p1' && monthFinanceWriterFacts('home').paid;
-      allow update: if probeId == 'p2' && monthOrdinaryUpdateOk('home');
-      allow update: if probeId == 'p3' && activeProEntitlement('owner');
-      allow update: if probeId == 'p4' && householdAccess('home').paid;
-      allow update: if probeId == 'p5' && monthUpdateByCustomMember('home');
-      allow update: if probeId == 'p6' && monthCloseReopenByOwner('home');
-      allow update: if probeId == 'p7' && mutationLedger('home').present;
-      allow update: if probeId == 'p8' && memberUpdateByOwner('home');
-      allow update: if probeId == 'p9' && invitationJoinOk('home');
-      allow update: if probeId == 'p10' && householdSponsorBindingValid(incoming(), request.auth.uid);
-      allow create: if probeId == 'p11' && monthCreateByFinanceWriter('home');
-      allow create: if probeId == 'p12' && householdLedgerGate('home');
-      allow create: if probeId == 'p13' && memberCreateByInvitee('home', request.auth.uid);
-
-      /* Primitives: exactly one subexpression each. */
-      allow update: if probeId == 'p20' && exists(householdPath('home'));
-      allow update: if probeId == 'p21' && exists(memberPath('home', 'owner'));
-      allow update: if probeId == 'p22' && get(householdPath('home')).data.get('ownerId', '') == request.auth.uid;
-      allow update: if probeId == 'p23' && get(memberPath('home', 'owner')).data.get('role', '') == 'owner';
-      allow update: if probeId == 'p24' && householdSponsor(get(householdPath('home')).data) == 'owner';
-      allow update: if probeId == 'p25' && get(ledgerPath('home', 'seed-mutation')).data.get('kind', '') == 'month';
-      allow update: if probeId == 'p26' && existsAfter(ledgerPath('home', 'seed-mutation'));
-      allow update: if probeId == 'p27' && mutationLedger('home').kind == 'month';
-      allow update: if probeId == 'p28' && incoming().get('lastMutationId', '') == 'seed-mutation'
-        && incoming().get('revision', 0) is int;
-      allow update: if probeId == 'p29' && probeId.size() > 0;
-      allow update: if probeId == 'p30' && periodClosed(incoming()) == false;
-    }
+    /* DIAG PROBES (temporary, removed before merge). One collection per probe
+     * so the emulator's per-request evaluation line is a single statement. */
+    match /diag/p1/{id} { allow update: if monthFinanceWriterFacts('home').paid; }
+    match /diag/p2/{id} { allow update: if monthOrdinaryUpdateOk('home'); }
+    match /diag/p3/{id} { allow update: if activeProEntitlement('owner'); }
+    match /diag/p4/{id} { allow update: if householdAccess('home').paid; }
+    match /diag/p5/{id} { allow update: if monthUpdateByCustomMember('home'); }
+    match /diag/p6/{id} { allow update: if monthCloseReopenByOwner('home'); }
+    match /diag/p7/{id} { allow update: if mutationLedger('home').present; }
+    match /diag/p8/{id} { allow update: if memberUpdateByOwner('home'); }
+    match /diag/p9/{id} { allow update: if invitationJoinOk('home'); }
+    match /diag/p20/{id} { allow update: if exists(householdPath('home')); }
+    match /diag/p21/{id} { allow update: if exists(memberPath('home', 'owner')); }
+    match /diag/p22/{id} { allow update: if get(householdPath('home')).data.get('ownerId', '') == request.auth.uid; }
+    match /diag/p23/{id} { allow update: if get(memberPath('home', 'owner')).data.get('role', '') == 'owner'; }
+    match /diag/p24/{id} { allow update: if householdSponsor(get(householdPath('home')).data) == 'owner'; }
+    match /diag/p25/{id} { allow update: if get(ledgerPath('home', 'seed-mutation')).data.get('kind', '') == 'month'; }
+    match /diag/p26/{id} { allow update: if existsAfter(ledgerPath('home', 'seed-mutation')); }
+    match /diag/p27/{id} { allow update: if mutationLedger('home').kind == 'month'; }
+    match /diag/p28/{id} { allow update: if incoming().get('lastMutationId', '') == 'seed-mutation' && incoming().get('revision', 0) is int; }
+    match /diag/p29/{id} { allow update: if id.size() > 0; }
+    match /diag/p30/{id} { allow update: if periodClosed(incoming()) == false; }
 
     match /{document=**} {
       allow read, write: if false;

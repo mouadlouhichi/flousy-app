@@ -1,12 +1,10 @@
-// DIAG (temporary): one `it` per helper probe. A probe that aborts prints its
-// emulator evaluation text through the failing assertion; a probe that
-// evaluates cleanly to true passes silently. This is how the aborting
-// subexpression is isolated without a local emulator.
+// DIAG (temporary): one `it` per helper probe, each writing to its own
+// collection with a single `allow` statement. The emulator's per-request
+// evaluation line is then one short status per probe.
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { readFileSync } from 'node:fs';
 import {
   assertFails,
-  assertSucceeds,
   initializeTestEnvironment,
   type RulesTestContext,
   type RulesTestEnvironment,
@@ -68,12 +66,11 @@ beforeEach(async () => {
       createdBy: 'owner', createdAt: new Date().toISOString(),
       expiresAtMs: Date.now() + 60_000,
     });
-    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10',
+    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9',
       'p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
-      await setDoc(doc(db, `diag/${id}`), {
+      await setDoc(doc(db, `diag/${id}/doc`), {
         n: 0, lastMutationId: 'seed-mutation', revision: 1,
         householdId: 'home', email: 'owner@example.com',
-        inviteId: id == 'p9' ? 'invite-ok' : '',
       });
     }
   });
@@ -81,49 +78,38 @@ beforeEach(async () => {
 
 after(async () => { await environment.cleanup(); });
 
-const probes: [string, (db: Firestore, id: string) => Promise<unknown>][] = [
-  ['p1 facts.paid', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p2 monthOrdinaryUpdateOk', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1, revision: 2 })],
-  ['p3 activeProEntitlement', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p4 householdAccess.paid', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p5 monthUpdateByCustomMember', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p6 monthCloseReopenByOwner', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1, revision: 2 })],
-  ['p7 mutationLedger.present', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p8 memberUpdateByOwner', async (db, id) => updateDoc(doc(db, `diag/${id}`), { role: 'viewer', n: 1 })],
-  ['p9 invitationJoinOk', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p10 householdSponsorBindingValid', async (db, id) => updateDoc(doc(db, `diag/${id}`), { n: 1 })],
+const probes = [
+  ['p1 facts.paid', 'monthFinanceWriterFacts.paid'],
+  ['p2 monthOrdinaryUpdateOk', 'monthOrdinaryUpdateOk'],
+  ['p3 activeProEntitlement', 'activeProEntitlement'],
+  ['p4 householdAccess.paid', 'householdAccess.paid'],
+  ['p5 monthUpdateByCustomMember', 'monthUpdateByCustomMember'],
+  ['p6 monthCloseReopenByOwner', 'monthCloseReopenByOwner'],
+  ['p7 mutationLedger.present', 'mutationLedger.present'],
+  ['p8 memberUpdateByOwner', 'memberUpdateByOwner'],
+  ['p9 invitationJoinOk', 'invitationJoinOk'],
+  ['p20 exists household', 'exists(householdPath)'],
+  ['p21 exists member', 'exists(memberPath)'],
+  ['p22 get household.ownerId', 'get(household).ownerId'],
+  ['p23 get member.role', 'get(member).role'],
+  ['p24 sponsor', 'householdSponsor(get(household))'],
+  ['p25 get ledger.kind', 'get(ledger).kind'],
+  ['p26 existsAfter ledger', 'existsAfter(ledger)'],
+  ['p27 mutationLedger.kind', 'mutationLedger.kind'],
+  ['p28 incoming fields', 'incoming fields'],
+  ['p29 id.size', 'id.size'],
+  ['p30 periodClosed(incoming)', 'periodClosed(incoming)'],
 ];
 
-for (const [name, run] of probes) {
+for (const [name] of probes) {
   const id = name.split(' ')[0];
   it(`probe: ${name}`, async () => {
     const owner = asUser('owner');
-    await run(owner, id); // true => passes; abort/false => fails with emulator text
-  });
-}
-
-for (const id of ['p20', 'p21', 'p22', 'p23', 'p24', 'p25', 'p26', 'p27', 'p28', 'p29', 'p30']) {
-  it(`probe: ${id}`, async () => {
-    const owner = asUser('owner');
-    await updateDoc(doc(owner, `diag/${id}`), { n: 1 });
-  });
-}
-
-// creates with no pre-seeded doc
-const creates: [string, (db: Firestore, id: string) => Promise<unknown>][] = [
-  ['p11 monthCreateByFinanceWriter', async (db, id) => setDoc(doc(db, `diag/${id}`), { n: 1 })],
-  ['p12 householdLedgerGate', async (db, id) => setDoc(doc(db, `diag/${id}`), { kind: 'month', n: 1 })],
-  ['p13 memberCreateByInvitee', async (db, id) => setDoc(doc(db, `diag/${id}`), { n: 1 })],
-];
-for (const [name, run] of creates) {
-  const id = name.split(' ')[0];
-  it(`probe: ${name}`, async () => {
-    const owner = asUser('owner');
-    await run(owner, id);
+    await updateDoc(doc(owner, `diag/${id}/doc`), { n: 1, revision: 2 });
   });
 }
 
 it('control: a stranger update to a diag doc is a plain permission-denied', async () => {
   const stranger = asUser('stranger');
-  await assertFails(updateDoc(doc(stranger, 'diag/p1'), { n: 1 }));
+  await assertFails(updateDoc(doc(stranger, 'diag/p1/doc'), { n: 1 }));
 });
