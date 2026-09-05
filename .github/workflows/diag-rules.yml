@@ -1,0 +1,56 @@
+name: diag-rules-temp
+
+# TEMPORARY diagnostic workflow for the shared-workspace close investigation.
+# It runs the Firestore rules emulator suite and publishes the full failure
+# output as check-run annotations (the Actions log blob is not reachable from
+# the sandbox). MUST BE DELETED before this branch merges - it exists only to
+# carry the engine's exact error text back to the fixer.
+
+on:
+  push:
+    branches: ['arena/01a06edb-flousy-app']
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run rules suite and publish full failure text
+        run: |
+          log="${RUNNER_TEMP:-/tmp}/diag-rules.log"
+          if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" > "$log" 2>&1; then
+            printf '::notice title=diag totals::suite passed\n'
+            exit 0
+          fi
+          grep -E "^(#|ℹ) *(tests|pass|fail) +[0-9]+" "$log" | tr -d '\r' | tr '\n' ' ' > "${RUNNER_TEMP:-/tmp}/totals.txt" || true
+          printf '::error title=diag totals::%s\n' "$(cat "${RUNNER_TEMP:-/tmp}/totals.txt")"
+          # The SDK assertion errors carry the backend's per-rule verdicts
+          # ("false for 'update' @ L1340", "evaluation error at ...", "maximum
+          # of 1000 expressions ..."). GrpcConnection lines only repeat the
+          # code, node:internal lines are stack noise - both are dropped so the
+          # verdicts fit into annotations.
+          grep -a -v -E "GrpcConnection|node:internal|at async|at file:" "$log" \
+            | grep -a -E "not ok|✖|failing|passing|Null value|NullValue|evaluation error|Evaluation|for '(create|update|get|delete|read|write|list)'|Error|error at|expected|actual|assert" \
+            | tr '\n' '|' | tr -d '\r' | head -c 22000 > "${RUNNER_TEMP:-/tmp}/digest.txt" || true
+          split -C 2500 --numeric-suffixes=1 "${RUNNER_TEMP:-/tmp}/digest.txt" "${RUNNER_TEMP:-/tmp}/chunk-" || true
+          for f in "${RUNNER_TEMP:-/tmp}"/chunk-*; do
+            n=$(basename "$f" | sed 's/chunk-//')
+            printf '::error title=diag close-rules %s::%s\n' "$n" "$(cat "$f")"
+          done
