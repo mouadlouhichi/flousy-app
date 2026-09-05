@@ -18,6 +18,7 @@ import {
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
+import { PlaceHistoryModal } from '../modals/PlaceHistoryModal';
 import { useHousehold } from '@/lib/household-context';
 import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
@@ -70,6 +71,8 @@ export function OverviewTab({
   const canEditBalances = canEditArea(AMOUNT_AREA.totalCashOnHand);
   const canSeeExpenses = canViewArea(AMOUNT_AREA.variableExpense);
   const canEditExpenses = canEditArea(AMOUNT_AREA.variableExpense, true);
+  const canSeeFixed = canViewArea(AMOUNT_AREA.fixedBill);
+  const canSeeIncome = canViewArea(AMOUNT_AREA.incomeSource);
   const canSeeSavings = canViewArea(AMOUNT_AREA.savingsGoal);
   const canEditSavings = canEditArea(AMOUNT_AREA.savingsGoal, true);
   const redacted = '••••';
@@ -79,6 +82,7 @@ export function OverviewTab({
   const [draftBudget, setDraftBudget] = useState(String(month.totalBudget || 0));
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+  const [historyPlaceId, setHistoryPlaceId] = useState<string | null>(null);
 
   const { needs, wants, savings } = calculateEnvelopeAmounts(
     month.totalBudget,
@@ -181,43 +185,54 @@ export function OverviewTab({
   return (
     <>
     <div className="flex flex-col gap-6 pb-24">
-      {/* Money place cards */}
+      {/* Money place cards — the wide left button opens that source's statement. */}
       <div className="flex flex-col gap-3">
         {places.map((place, index) => {
           const tone = placeCardTones[index % placeCardTones.length];
           const balance = getPlaceBalance(month, place.id);
           const parts = formatParts(balance);
+          const placeTitle = localizePlaceName(place.id, place.name, m);
           return (
             <div
               key={place.id}
-              className={`p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between ${tone.wrap} transition-all`}
+              className={`p-4 sm:p-5 bg-surface-container rounded-3xl border border-outline-variant shadow-2xs flex items-center justify-between gap-3 ${tone.wrap} transition-all`}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-10 h-10 rounded-2xl ${tone.icon} flex items-center justify-center shadow-2xs shrink-0`}>
+              <button
+                type="button"
+                disabled={!canSeeBalances}
+                onClick={canSeeBalances ? () => setHistoryPlaceId(place.id) : undefined}
+                aria-label={canSeeBalances ? t(m.moneyHistory.openHistory, { name: placeTitle }) : undefined}
+                className="flex flex-1 min-w-0 items-center gap-3 text-start rounded-xl disabled:cursor-default focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all"
+              >
+                <span className={`w-10 h-10 rounded-2xl ${tone.icon} flex items-center justify-center shadow-2xs shrink-0`}>
                   <AppIcon name={place.icon} className="text-[20px]" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-base text-on-surface truncate">{localizePlaceName(place.id, place.name, m)}</span>
-                  <div className="flex items-baseline gap-1">
+                </span>
+                <span className="flex flex-1 flex-col min-w-0">
+                  <span className="font-bold text-base text-on-surface truncate">{placeTitle}</span>
+                  <span className="flex items-baseline gap-1">
                     <span className="text-xl font-bold text-on-surface font-mono">
                       {canSeeBalances ? parts.amount : redacted}
                     </span>
                     <span className="text-xs font-semibold text-on-surface-variant">
                       {canSeeBalances ? parts.currency : ''}
                     </span>
-                  </div>
-                </div>
-              </div>
+                  </span>
+                </span>
+                {canSeeBalances && (
+                  <AppIcon
+                    name="chevron_right"
+                    className="text-[18px] shrink-0 text-on-surface-variant rtl:rotate-180"
+                  />
+                )}
+              </button>
               {canEditBalances && (
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={onOpenMoveMoneyModal}
-                    className={`text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
-                  >
-                    <span>{m.dashboard.move}</span>
-                    <AppIcon name="swap_horiz" className="text-[14px]" />
-                  </button>
-                </div>
+                <button
+                  onClick={onOpenMoveMoneyModal}
+                  className={`shrink-0 text-xs font-bold ${tone.action} hover:underline cursor-pointer flex items-center gap-1`}
+                >
+                  <span>{m.dashboard.move}</span>
+                  <AppIcon name="swap_horiz" className="text-[14px]" />
+                </button>
               )}
             </div>
           );
@@ -623,6 +638,20 @@ export function OverviewTab({
         </div>
       </div>
     </div>
+    {historyPlaceId && (
+      <PlaceHistoryModal
+        isOpen
+        onClose={() => setHistoryPlaceId(null)}
+        month={month}
+        placeId={historyPlaceId}
+        include={{
+          expenses: canSeeExpenses,
+          fixedBills: canSeeFixed,
+          income: canSeeIncome,
+          savings: canSeeSavings,
+        }}
+      />
+    )}
     {isStrategyModalOpen && onUpdateStrategy && (
         <StrategySelectorModal
           isOpen={isStrategyModalOpen}

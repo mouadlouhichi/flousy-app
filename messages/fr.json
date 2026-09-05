@@ -879,6 +879,19 @@
     "home": "Maison",
     "wallet": "Portefeuille"
   },
+  "moneyHistory": {
+    "openHistory": "Historique de {name}",
+    "currentBalance": "Solde actuel",
+    "openingBalance": "Solde initial",
+    "empty": "Aucune opération pour cette période pour le moment",
+    "income": "Revenu",
+    "transferTo": "Vers {place}",
+    "transferFrom": "Depuis {place}",
+    "savingsDeposit": "Dépôt d'épargne",
+    "savingsWithdrawal": "Retrait d'épargne",
+    "adjustment": "Ajustement de solde",
+    "reconciliation": "Rapprochement"
+  },
   "pwa": {
     "installApp": "Installer l'App",
     "installBanner": "Installez SmartJib pour la meilleure expérience",

@@ -879,6 +879,19 @@
     "home": "المنزل",
     "wallet": "المحفظة"
   },
+  "moneyHistory": {
+    "openHistory": "سجل حركات {name}",
+    "currentBalance": "الرصيد الحالي",
+    "openingBalance": "الرصيد الافتتاحي",
+    "empty": "لا توجد حركات في هذه الفترة بعد",
+    "income": "دخل",
+    "transferTo": "إلى {place}",
+    "transferFrom": "من {place}",
+    "savingsDeposit": "إيداع في الادخار",
+    "savingsWithdrawal": "سحب من الادخار",
+    "adjustment": "تعديل الرصيد",
+    "reconciliation": "تسوية الرصيد"
+  },
   "pwa": {
     "installApp": "تثبيت التطبيق",
     "installBanner": "ثبّت سمارت جيب للحصول على أفضل تجربة",
