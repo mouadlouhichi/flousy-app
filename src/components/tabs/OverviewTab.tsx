@@ -220,8 +220,8 @@ export function OverviewTab({
                 </span>
                 {canSeeBalances && (
                   <AppIcon
-                    name="chevron_right"
-                    className="text-[18px] shrink-0 text-on-surface-variant rtl:rotate-180"
+                    name="history"
+                    className="text-[18px] shrink-0 text-on-surface-variant"
                   />
                 )}
               </button>
