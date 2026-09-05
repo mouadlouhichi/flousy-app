@@ -16,7 +16,8 @@ Legend: ✅ done · ⚙️ done, needs production config · ⚠️ platform-limi
 | Unlimited history | ✅ | Month switcher / Trends | Free = current + 2 previous months (`isWithinFreeHistory`) |
 | Debt payoff planner | ✅ | Debts → `debt-payoff-planner.tsx` | Snowball / avalanche, payoff date; budget & method saved on profile |
 | Savings goal projections | ✅ | Savings → `goal-projection.tsx` | Pace, ETA, optional target date, required/month |
-| Recurring payments calendar | ✅ | `upcoming-payments-calendar.tsx` | From fixed-bill schedule |
+| Recurring payments calendar | ✅ | Fixed → List/Calendar toggle, `cash-flow-calendar.tsx`; timeline in Reminders (`upcoming-payments-calendar.tsx`) | Month grid of bills (due day) + income (pay day); tap a day for details |
+| Cash-flow forecast ("X left on the 25th") | ✅ Pro | same calendar, `buildCashFlowForecast()` | Cash today − daily burn − unpaid bills + expected income, per day; end-of-period, lowest dip, next bill |
 | Custom reports (place / tag / member) | ✅ | Trends → `custom-report-card.tsx`, `buildCustomReport()` | 1–12 month range, one AND filter, deltas vs previous window |
 | Unlimited categories | ✅ | Category add | Free cap `FREE_CATEGORY_LIMIT = 10` |
 | Merchant → category auto-suggest | ✅ | Expense sheet | From the month's history (`suggestCategory`) |

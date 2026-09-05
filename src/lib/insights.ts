@@ -13,6 +13,7 @@ import {
   calculateReceivedIncome,
   debtOutstanding,
   fixedPaidAmount,
+  incomeReceivedAmount,
   money,
   totalCashOnHand,
 } from './store';
@@ -583,4 +584,172 @@ export function reportDimensionValues(months: MonthBudget[], dimension: ReportDi
     }
   }
   return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Cash-flow calendar & forecast                                             */
+/* ------------------------------------------------------------------------ */
+
+export interface CalendarEvent {
+  id: string;
+  kind: 'bill' | 'income';
+  name: string;
+  /** Positive amount of the movement; sign is implied by `kind`. */
+  amount: number;
+  /** Amount still outstanding (bill) or still expected (income). 0 once settled. */
+  pending: number;
+  settled: boolean;
+  category?: string;
+}
+
+export interface CashFlowDay {
+  /** YYYY-MM-DD (UTC). */
+  date: string;
+  /** Position in the period, 1-based. */
+  dayIndex: number;
+  isToday: boolean;
+  isPast: boolean;
+  events: CalendarEvent[];
+  /** Projected cash on hand at the end of this day (past days repeat today's balance). */
+  balance: number;
+}
+
+export interface CashFlowForecast {
+  days: CashFlowDay[];
+  /** Cash across all money places today. */
+  startingCash: number;
+  /** Projected cash at the end of the period. */
+  endBalance: number;
+  /** Lowest projected balance and when it happens. */
+  lowest: { date: string; balance: number };
+  /** Next unpaid bill after today, if any. */
+  nextBill: (CalendarEvent & { date: string; daysUntil: number }) | null;
+  /** Total unpaid bills still ahead. */
+  pendingBills: number;
+  /** Income still expected this period. */
+  pendingIncome: number;
+  /** Average variable spend per elapsed day, used for the daily drift. */
+  dailyBurn: number;
+}
+
+function isoOfUtc(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function dayOfMonthFrom(value: string | undefined): number | null {
+  if (!value) return null;
+  const iso = /^\d{4}-(\d{2})-(\d{2})/.exec(value);
+  if (iso) return Number(iso[2]);
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null;
+}
+
+/** Place a day-of-month on the first date ≥ `start` inside the window; clamp to `end`. */
+function placeInWindow(day: number | null, start: number, end: number): number {
+  if (!day) return start;
+  const s = new Date(start);
+  const attempt = (y: number, m: number) => {
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return Date.UTC(y, m, Math.min(day, last));
+  };
+  let due = attempt(s.getUTCFullYear(), s.getUTCMonth());
+  if (due < start) due = attempt(s.getUTCFullYear(), s.getUTCMonth() + 1);
+  return Math.min(Math.max(due, start), end);
+}
+
+/**
+ * Day-by-day cash projection for the period: today's cash on hand, minus the
+ * average variable burn each remaining day, minus each unpaid bill on its due
+ * date, plus each not-yet-received income on its pay day. Answers "how much
+ * will I have left on the 25th?" and where the balance dips lowest.
+ */
+export function buildCashFlowForecast(month: MonthBudget, today: Date = new Date()): CashFlowForecast {
+  const { start, end } = periodWindow(month);
+  const now = utcDay(today);
+  const clampedNow = Math.min(Math.max(now, start), end);
+  const daysElapsed = Math.max(1, Math.round((clampedNow - start) / DAY_MS) + 1);
+
+  const variableSpent = (month.variableExpenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+  const dailyBurn = money(variableSpent / daysElapsed);
+
+  const eventsByDate = new Map<string, CalendarEvent[]>();
+  const push = (dateMs: number, event: CalendarEvent) => {
+    const key = isoOfUtc(dateMs);
+    const list = eventsByDate.get(key) || [];
+    list.push(event);
+    eventsByDate.set(key, list);
+  };
+
+  for (const bill of month.fixedExpenses || []) {
+    const pending = money(Math.max(0, bill.amount - fixedPaidAmount(bill)));
+    const settled = bill.status === 'paid' || bill.status === 'skipped' || pending <= 0;
+    push(placeInWindow(dayOfMonthFrom(bill.date), start, end), {
+      id: bill.id,
+      kind: 'bill',
+      name: bill.name,
+      amount: bill.amount,
+      pending: settled ? 0 : pending,
+      settled,
+      category: bill.type,
+    });
+  }
+  for (const source of month.incomeSources || []) {
+    const received = incomeReceivedAmount(source);
+    const pending = money(Math.max(0, (source.amount || 0) - received));
+    const settled = source.status === 'skipped' || pending <= 0;
+    push(placeInWindow(source.payDay ?? null, start, end), {
+      id: source.id,
+      kind: 'income',
+      name: source.name,
+      amount: source.amount || 0,
+      pending: settled ? 0 : pending,
+      settled,
+    });
+  }
+
+  const startingCash = signedMoney(totalCashOnHand(month));
+  const days: CashFlowDay[] = [];
+  let balance = startingCash;
+  let lowest = { date: isoOfUtc(clampedNow), balance: startingCash };
+  let pendingBills = 0;
+  let pendingIncome = 0;
+  let nextBill: CashFlowForecast['nextBill'] = null;
+
+  for (let ms = start, index = 1; ms <= end; ms += DAY_MS, index += 1) {
+    const date = isoOfUtc(ms);
+    const events = eventsByDate.get(date) || [];
+    const isToday = ms === clampedNow;
+    const isPast = ms < clampedNow;
+    if (!isPast) {
+      // Today's variable spend is already reflected in the cash balance.
+      if (!isToday) balance -= dailyBurn;
+      for (const event of events) {
+        if (event.settled) continue;
+        if (event.kind === 'bill') {
+          balance -= event.pending;
+          pendingBills += event.pending;
+          if (!nextBill && ms > clampedNow) {
+            nextBill = { ...event, date, daysUntil: Math.round((ms - clampedNow) / DAY_MS) };
+          }
+        } else {
+          balance += event.pending;
+          pendingIncome += event.pending;
+        }
+      }
+      balance = signedMoney(balance);
+      if (balance < lowest.balance) lowest = { date, balance };
+    }
+    days.push({ date, dayIndex: index, isToday, isPast, events, balance: isPast ? startingCash : balance });
+  }
+
+  return {
+    days,
+    startingCash,
+    endBalance: days.length ? days[days.length - 1]!.balance : startingCash,
+    lowest,
+    nextBill,
+    pendingBills: money(pendingBills),
+    pendingIncome: money(pendingIncome),
+    dailyBurn,
+  };
 }

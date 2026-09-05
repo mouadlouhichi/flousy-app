@@ -2276,5 +2276,27 @@
     "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
     "empty": "Rien ne correspond à cette sélection pour l'instant.",
     "unassigned": "Non attribué"
+  },
+  "cashFlow": {
+    "title": "Calendrier des paiements",
+    "cashToday": "Trésorerie aujourd'hui",
+    "endOfPeriod": "Fin de période",
+    "lowestOn": "Plus bas le {date}",
+    "nextBillIn": "{count, plural, =0 {Prochaine facture aujourd'hui} =1 {Prochaine facture demain} other {Prochaine facture dans # jours}}",
+    "noMoreBills": "Plus de factures",
+    "lockedTitle": "Voyez ce qu'il vous restera n'importe quel jour",
+    "lockedBody": "Pro projette votre trésorerie jour par jour à partir des factures à venir, des revenus attendus et de votre rythme de dépenses.",
+    "legendBill": "Facture due",
+    "legendIncome": "Revenu attendu",
+    "legendSettled": "Réglé",
+    "projectedBalance": "Trésorerie prévue",
+    "nothingPlanned": "Rien de prévu ce jour.",
+    "income": "Revenu",
+    "paid": "Payé",
+    "received": "Reçu",
+    "due": "À payer",
+    "expected": "Attendu",
+    "viewList": "Liste",
+    "viewCalendar": "Calendrier"
   }
 }

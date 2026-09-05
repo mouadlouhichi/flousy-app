@@ -2276,5 +2276,27 @@
     "totalCount": "{count, plural, one {معاملة واحدة} two {معاملتان} few {# معاملات} many {# معاملة} other {# معاملة}}",
     "empty": "لا شيء يطابق هذا الاختيار بعد.",
     "unassigned": "غير محدد"
+  },
+  "cashFlow": {
+    "title": "تقويم المدفوعات",
+    "cashToday": "النقد اليوم",
+    "endOfPeriod": "نهاية الفترة",
+    "lowestOn": "الأدنى في {date}",
+    "nextBillIn": "{count, plural, =0 {الفاتورة القادمة اليوم} =1 {الفاتورة القادمة غدًا} other {الفاتورة القادمة بعد # أيام}}",
+    "noMoreBills": "لا فواتير أخرى",
+    "lockedTitle": "اعرف كم سيتبقى لديك في أي يوم",
+    "lockedBody": "يتوقع Pro نقدك يومًا بيوم من الفواتير القادمة والدخل المتوقع ووتيرة إنفاقك.",
+    "legendBill": "فاتورة مستحقة",
+    "legendIncome": "دخل متوقع",
+    "legendSettled": "تمت التسوية",
+    "projectedBalance": "النقد المتوقع",
+    "nothingPlanned": "لا شيء مخطط لهذا اليوم.",
+    "income": "دخل",
+    "paid": "مدفوع",
+    "received": "مستلم",
+    "due": "مستحق",
+    "expected": "متوقع",
+    "viewList": "قائمة",
+    "viewCalendar": "تقويم"
   }
 }

@@ -2276,5 +2276,27 @@
     "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
     "empty": "Nothing matches this selection yet.",
     "unassigned": "Unassigned"
+  },
+  "cashFlow": {
+    "title": "Payments calendar",
+    "cashToday": "Cash today",
+    "endOfPeriod": "End of period",
+    "lowestOn": "Lowest on {date}",
+    "nextBillIn": "{count, plural, =0 {Next bill today} =1 {Next bill tomorrow} other {Next bill in # days}}",
+    "noMoreBills": "No more bills",
+    "lockedTitle": "See how much you'll have left on any day",
+    "lockedBody": "Pro projects your cash day by day from upcoming bills, expected income and your spending pace.",
+    "legendBill": "Bill due",
+    "legendIncome": "Income expected",
+    "legendSettled": "Settled",
+    "projectedBalance": "Projected cash",
+    "nothingPlanned": "Nothing planned this day.",
+    "income": "Income",
+    "paid": "Paid",
+    "received": "Received",
+    "due": "Due",
+    "expected": "Expected",
+    "viewList": "List",
+    "viewCalendar": "Calendar"
   }
 }
