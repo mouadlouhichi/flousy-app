@@ -1,7 +1,7 @@
-const CACHE_NAME = 'flousy-v6';
+const CACHE_NAME = 'flousy-v7';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
-const HTML_CACHE_NAME = 'flousy-html-v6';
+const HTML_CACHE_NAME = 'flousy-html-v7';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -64,6 +64,13 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// A hashed chunk that 404s means the document that referenced it belongs to a
+// previous deploy (the classic "module factory is not available" error).
+// Drop every cached document so the next navigation fetches a fresh shell.
+async function purgeStaleDocuments() {
+  await caches.delete(HTML_CACHE_NAME);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -122,6 +129,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Immutable Next.js chunks: cache-first; a 404 means the shell is stale.
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.status === 404) {
+            event.waitUntil(purgeStaleDocuments());
+            return response;
+          }
+          if (response.status === 200) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+          }
+          return response;
+        }).catch(() => new Response('', { status: 504, statusText: 'Offline' }));
+      })
+    );
+    return;
+  }
+
   // Stale-while-revalidate for static assets.
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
@@ -133,8 +161,14 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        // respondWith() must always resolve to a Response: returning
+        // `undefined` here (cache miss + network failure) throws
+        // "Failed to convert value to 'Response'" and fails the request twice.
+        .catch(() => cachedResponse || new Response('', { status: 504, statusText: 'Offline' }));
 
+      // Next.js chunks are content-hashed and immutable, so the cache copy is
+      // always correct. Everything else is served from cache while a fresh
+      // copy is fetched in the background.
       return cachedResponse || networkFetch;
     })
   );

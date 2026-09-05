@@ -79,13 +79,22 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
    * and `object-src`/`base-uri`/`form-action` stay locked down. Revisit when
    * Next.js supports hash-based CSP for prerendered output.
    */
+  // Vercel preview deployments inject the Live feedback toolbar (script +
+  // websocket + iframe). Allowed only where VERCEL_ENV === 'preview'; the
+  // production CSP is unchanged.
+  const preview = process.env.VERCEL_ENV === 'preview';
+  const liveScript = preview ? ' https://vercel.live' : '';
   const scriptSrc = isDev
     ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://www.googletagmanager.com`
     // `'wasm-unsafe-eval'` only permits WebAssembly compilation (the receipt
     // OCR worker); it does not re-enable string eval.
-    : `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://www.googletagmanager.com`;
+    : `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://www.googletagmanager.com${liveScript}`;
 
-  const connect = authDomain ? [...CONNECT_SOURCES, `https://${authDomain}`] : CONNECT_SOURCES;
+  const connect = [
+    ...CONNECT_SOURCES,
+    ...(authDomain ? [`https://${authDomain}`] : []),
+    ...(preview ? ['https://vercel.live', 'wss://*.pusher.com', 'https://*.pusher.com'] : []),
+  ];
 
   return [
     "default-src 'self'",
@@ -118,7 +127,7 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
     // wildcard `https://*.google.com` also allow-listed every other Google
     // property (including attacker-reachable user content on googleusercontent
     // redirects) for no benefit.
-    `frame-src 'self' https://accounts.google.com https://*.firebaseapp.com${authDomain ? ` https://${authDomain}` : ''}`,
+    `frame-src 'self' https://accounts.google.com https://*.firebaseapp.com${authDomain ? ` https://${authDomain}` : ''}${preview ? ' https://vercel.live' : ''}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
