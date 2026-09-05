@@ -33,9 +33,12 @@ jobs:
         run: npm ci
 
       - name: Run rules suite and publish full failure text
+        env:
+          DIAG_PATTERN: 'import months|editAll bootstraps'
         run: |
           log="${RUNNER_TEMP:-/tmp}/diag-rules.log"
-          if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npm run test:rules" > "$log" 2>&1; then
+          pattern="${DIAG_PATTERN:-.}"
+          if npx --yes firebase-tools@15 emulators:exec --only firestore --project smartjib-rules-test "npx tsx --test --test-name-pattern='$pattern' tests/firestore-rules.emulator.ts" > "$log" 2>&1; then
             printf '::notice title=diag totals::suite passed\n'
             exit 0
           fi
