@@ -1,0 +1,512 @@
+{
+  "format": "smartjib-finance-backup",
+  "version": 1,
+  "id": "28e191ac-38aa-4b60-b12c-d342cd4c9042",
+  "exportedAt": "2026-09-03T19:47:58.151Z",
+  "workspace": {
+    "type": "household",
+    "id": "b639024d-3249-4131-8331-30199838db36",
+    "name": "Family"
+  },
+  "configuration": {
+    "onboardingComplete": true,
+    "updatedAt": "2026-09-03T19:47:57.687Z",
+    "monthStartDate": 25,
+    "ownerId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+    "name": "Family",
+    "planOwnerId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+    "createdAt": "2026-09-01T01:47:47.944Z",
+    "entitlementEndsAtMs": null,
+    "entitlementOwnerId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+    "entitlementSource": null,
+    "entitlementStatus": "active"
+  },
+  "months": {
+    "2026-08": {
+      "updatedAt": "2026-09-02T10:47:38.892Z",
+      "fixedExpenses": [
+        {
+          "id": "3o8hq1o",
+          "name": "Rent",
+          "amount": 3416.5,
+          "type": "Rent",
+          "date": "1st",
+          "place": "bank",
+          "person": "Self",
+          "recurring": true,
+          "templateId": "3o8hq1o",
+          "status": "paid",
+          "paidAmount": 3416.5
+        },
+        {
+          "id": "4otkr3i",
+          "name": "Wife hwij",
+          "amount": 300,
+          "type": "Wife",
+          "date": "1st",
+          "place": "wallet",
+          "person": "Self",
+          "recurring": false,
+          "templateId": "4otkr3i",
+          "status": "paid",
+          "paidAmount": 300
+        },
+        {
+          "id": "nsdeij9",
+          "name": "Zone Fight Gym",
+          "amount": 3000,
+          "type": "Gym",
+          "date": "30th",
+          "place": "bank",
+          "person": "Me",
+          "recurring": false,
+          "templateId": "nsdeij9",
+          "status": "paid",
+          "paidAmount": 3000
+        },
+        {
+          "id": "qi373k9",
+          "name": "Salary",
+          "amount": 1100,
+          "type": "Wife",
+          "date": "30th",
+          "place": "wallet",
+          "person": "Me",
+          "recurring": false,
+          "templateId": "qi373k9",
+          "status": "paid",
+          "paidAmount": 1100
+        }
+      ],
+      "incomeSources": [
+        {
+          "id": "main-income",
+          "name": "Primary Income",
+          "amount": 25500,
+          "status": "paid",
+          "receivedAmount": 25500,
+          "recurring": true
+        }
+      ],
+      "categoryColors": {
+        "Groceries": "#f97316",
+        "Transport": "#3b82f6",
+        "Rent": "#8b5cf6",
+        "Entertainment": "#ec4899",
+        "Health": "#10b981",
+        "Utilities": "#eab308",
+        "Dining Out": "#ef4444",
+        "Shopping": "#06b6d4",
+        "Subscriptions": "#6366f1",
+        "Restaurant": "#f43f5e",
+        "King": "#00685f",
+        "Course": "#a855f7",
+        "Abonnement": "#b05e3d"
+      },
+      "totalBudget": 25614,
+      "strategyId": "50-30-20",
+      "categoryIcons": {
+        "Groceries": "restaurant",
+        "Transport": "directions_car",
+        "Rent": "home",
+        "Entertainment": "sports_esports",
+        "Health": "favorite",
+        "Utilities": "bolt",
+        "Dining Out": "local_dining",
+        "Shopping": "shopping_bag",
+        "Subscriptions": "movie",
+        "Restaurant": "local_dining",
+        "King": "fitness_center",
+        "Course": "shopping_bag",
+        "Abonnement": "wifi"
+      },
+      "savingsActivity": [
+        {
+          "id": "sav-1788026499921-vkjbe",
+          "goalId": "u7p6qlr",
+          "goalName": "Ard Doar",
+          "type": "deposit",
+          "amount": 400,
+          "date": "2026-08-28T11:00:00.000Z",
+          "place": "bank"
+        }
+      ],
+      "updatedByUserId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+      "debts": [],
+      "walletPart": 629,
+      "variableCategoryBases": {},
+      "monthlySavingsTarget": 5123,
+      "variableExpenses": [
+        {
+          "id": "wd46y8e",
+          "name": "Gaufrette",
+          "amount": 31,
+          "type": "Food",
+          "date": "2026-09-02",
+          "place": "wallet",
+          "person": "Self",
+          "payerMemberId": "self",
+          "createdByUserId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+          "updatedByUserId": "jExRN4CDQXQ0UgeayR0lwzPDvke2",
+          "tags": []
+        },
+        {
+          "id": "s8fohj4",
+          "name": "Bim",
+          "amount": 18.9,
+          "type": "Course",
+          "date": "2026-09-02",
+          "place": "bank",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "m4hm6vi",
+          "name": "Fruit",
+          "amount": 40,
+          "type": "Course",
+          "date": "2026-09-01",
+          "place": "wallet",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "z9jv12n",
+          "name": "Gazoil",
+          "amount": 306,
+          "type": "Transport",
+          "date": "2026-09-01",
+          "place": "bank",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "z28htev",
+          "name": "California market",
+          "amount": 445,
+          "type": "Course",
+          "date": "2026-09-01",
+          "place": "wallet",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "qr4ml1a",
+          "name": "Viande",
+          "amount": 200,
+          "type": "Course",
+          "date": "2026-09-01",
+          "place": "wallet",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "yq9ccr9",
+          "name": "Kazyon",
+          "amount": 19.9,
+          "type": "Course",
+          "date": "2026-08-31",
+          "place": "bank",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "omtcee8",
+          "name": "Orange",
+          "amount": 199,
+          "type": "Abonnement",
+          "date": "2026-08-31",
+          "place": "bank",
+          "person": "Self",
+          "tags": []
+        },
+        {
+          "id": "8fv2tu7",
+          "name": "Hammam",
+          "amount": 50,
+          "type": "King",
+          "date": "2026-08-28",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "r1gtto7",
+          "name": "Makhbaza",
+          "amount": 20,
+          "type": "Course",
+          "date": "2026-08-29",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "7l3o2yv",
+          "name": "Autoroute",
+          "amount": 10,
+          "type": "Transport",
+          "date": "2026-08-29",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "kccotru",
+          "name": "Ghrama",
+          "amount": 20,
+          "type": "Entertainment",
+          "date": "2026-08-30",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "an6geuz",
+          "name": "Gasoil",
+          "amount": 200,
+          "type": "Transport",
+          "date": "2026-08-30",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "va6cram",
+          "name": "Goufrette",
+          "amount": 55,
+          "type": "Course",
+          "date": "2026-08-30",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "nu2y9yz",
+          "name": "Dinner rudi",
+          "amount": 100,
+          "type": "King",
+          "date": "2026-08-29",
+          "place": "wallet",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "xuw11xq",
+          "name": "Autoroute",
+          "amount": 50,
+          "type": "Transport",
+          "date": "2026-08-30",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "dkmx2nl",
+          "name": "Internet’s wife",
+          "amount": 10,
+          "type": "Utilities",
+          "date": "2026-08-29",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "5mbsqcv",
+          "name": "Ashokai",
+          "amount": 298,
+          "type": "Restaurant",
+          "date": "2026-08-28",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "bycherg",
+          "name": "Wow",
+          "amount": 110,
+          "type": "Entertainment",
+          "date": "2026-08-28",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "2jgymah",
+          "name": "Srreetfood",
+          "amount": 129,
+          "type": "Restaurant",
+          "date": "2026-08-28",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        },
+        {
+          "id": "ycxwu7h",
+          "name": "Carrefour",
+          "amount": 132.6,
+          "type": "Course",
+          "date": "2026-08-28",
+          "place": "bank",
+          "person": "Me",
+          "tags": []
+        }
+      ],
+      "fixedCategoryBases": {},
+      "homePart": 0,
+      "activeCategories": [
+        "Food",
+        "Transport",
+        "Rent",
+        "Entertainment",
+        "Health",
+        "Utilities",
+        "Restaurant",
+        "Course",
+        "King",
+        "Abonnement"
+      ],
+      "categoryBudgets": {
+        "Food": 2000
+      },
+      "bankPart": 14324.1,
+      "schemaVersion": 2,
+      "revision": 0,
+      "periodKey": "2026-08",
+      "periodStartDay": 25,
+      "periodStartDate": "2026-08-25",
+      "periodEndDate": "2026-09-24",
+      "currency": "MAD",
+      "periodStatus": "open",
+      "categoryEnvelopes": {
+        "Groceries": "needs",
+        "Transport": "needs",
+        "Rent": "needs",
+        "Health": "needs",
+        "Utilities": "needs",
+        "Entertainment": "wants",
+        "Dining Out": "wants",
+        "Shopping": "wants",
+        "Subscriptions": "wants"
+      },
+      "transfers": [],
+      "balanceAdjustments": []
+    },
+    "2026-09": {
+      "monthlySavingsTarget": 0,
+      "strategyId": "50-30-20",
+      "debts": [],
+      "totalBudget": 0,
+      "savingsActivity": [],
+      "homePart": 0,
+      "bankPart": 0,
+      "fixedCategoryBases": {},
+      "categoryIcons": {
+        "Groceries": "restaurant",
+        "Transport": "directions_car",
+        "Rent": "home",
+        "Entertainment": "sports_esports",
+        "Health": "favorite",
+        "Utilities": "bolt",
+        "Dining Out": "local_dining",
+        "Shopping": "shopping_bag",
+        "Subscriptions": "movie"
+      },
+      "incomeSources": [
+        {
+          "amount": 0,
+          "name": "Primary Income",
+          "id": "main-income",
+          "status": "paid",
+          "receivedAmount": 0,
+          "recurring": true
+        }
+      ],
+      "activeCategories": [
+        "Groceries",
+        "Transport",
+        "Rent",
+        "Entertainment",
+        "Health",
+        "Utilities",
+        "Dining Out",
+        "Shopping",
+        "Subscriptions"
+      ],
+      "fixedExpenses": [],
+      "categoryColors": {
+        "Groceries": "#f97316",
+        "Transport": "#3b82f6",
+        "Rent": "#8b5cf6",
+        "Entertainment": "#ec4899",
+        "Health": "#10b981",
+        "Utilities": "#eab308",
+        "Dining Out": "#ef4444",
+        "Shopping": "#06b6d4",
+        "Subscriptions": "#6366f1"
+      },
+      "updatedAt": "2026-08-31T23:05:23.672Z",
+      "walletPart": 0,
+      "categoryBudgets": {},
+      "variableCategoryBases": {},
+      "variableExpenses": [],
+      "schemaVersion": 2,
+      "revision": 0,
+      "periodKey": "2026-09",
+      "periodStartDay": 25,
+      "periodStartDate": "2026-09-25",
+      "periodEndDate": "2026-10-24",
+      "currency": "MAD",
+      "periodStatus": "open",
+      "categoryEnvelopes": {
+        "Groceries": "needs",
+        "Transport": "needs",
+        "Rent": "needs",
+        "Health": "needs",
+        "Utilities": "needs",
+        "Entertainment": "wants",
+        "Dining Out": "wants",
+        "Shopping": "wants",
+        "Subscriptions": "wants"
+      },
+      "transfers": [],
+      "balanceAdjustments": []
+    }
+  },
+  "goals": [
+    {
+      "id": "u7p6qlr",
+      "name": "Ard Doar",
+      "target": 135400,
+      "current": 135400,
+      "source": "bank",
+      "active": true,
+      "deposited": 400
+    },
+    {
+      "id": "z3rlhzh",
+      "name": "Emergency Found",
+      "target": 40000,
+      "current": 2200,
+      "source": "bank",
+      "active": true
+    },
+    {
+      "id": "7bluo8r",
+      "name": "Ard Borouil",
+      "target": 76000,
+      "current": 76000,
+      "source": "bank",
+      "active": true,
+      "deposited": 0
+    },
+    {
+      "id": "0vfddjt",
+      "name": "Health",
+      "target": 3000,
+      "current": 800,
+      "source": "bank",
+      "active": true,
+      "deposited": 0
+    }
+  ]
+}
