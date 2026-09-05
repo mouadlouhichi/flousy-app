@@ -897,6 +897,7 @@ service cloud.firestore {
           || (data.activeCategories is list && data.activeCategories.size() <= 100))
         && (!('monthStartDate' in data)
           || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
+        && (!('kind' in data) || data.kind in ['household', 'business'])
         && (!('entitlementSource' in data)
           || tokenValue(data.entitlementSource) in ['launch_trial', 'stripe', 'cmi', 'admin'])
         && (!('entitlementStatus' in data)

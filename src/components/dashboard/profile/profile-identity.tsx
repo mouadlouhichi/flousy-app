@@ -206,9 +206,9 @@ export function ProfileIdentity() {
                   {isPro ? p.links.pro : p.free}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-surface-variant px-2.5 py-1 text-[11px] font-bold leading-none text-on-surface-variant ring-1 ring-inset ring-outline-variant">
-                  <AppIcon name={workspace === 'household' ? 'family_restroom' : 'person'} className="text-[13px]" />
+                  <AppIcon name={workspace === 'household' ? (household?.kind === 'business' ? 'storefront' : 'family_restroom') : 'person'} className="text-[13px]" />
                   {workspaceLabel}
-                  {workspace === 'household' && memberRole ? ` · ${localizeHouseholdRole(memberRole, m)}` : ''}
+                  {workspace === 'household' && household?.kind !== 'business' && memberRole ? ` · ${localizeHouseholdRole(memberRole, m)}` : ''}
                 </span>
               </div>
             </>

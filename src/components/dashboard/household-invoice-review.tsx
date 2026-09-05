@@ -26,7 +26,7 @@ export function HouseholdInvoiceReview() {
   // Reviewing household submissions only makes sense inside the household
   // workspace; the personal workspace never shows this queue even though the
   // household document stays subscribed in the background.
-  const canReview = workspace === 'household' && canEditArea(TOOL_AREA.invoices);
+  const canReview = workspace === 'household' && household?.kind !== 'business' && canEditArea(TOOL_AREA.invoices);
   const [invoices, setInvoices] = useState<HouseholdInvoice[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

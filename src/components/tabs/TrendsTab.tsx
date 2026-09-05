@@ -13,6 +13,7 @@ import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { CustomReportCard } from '../dashboard/custom-report-card';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -444,6 +445,19 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Custom reports by place / tag / member (Pro) ── */}
+      {canSeeExpenses && (
+        <CustomReportCard
+          months={[
+            { monthKey: month.periodKey || 'current', month },
+            ...trendsMonths.filter((entry) => entry.month.periodKey !== month.periodKey),
+          ]}
+          unlocked={proUnlocked}
+          onUpgrade={onOpenProModal}
+          canSeeFixedBills={canSeeFixedBills}
+        />
       )}
 
       {/* ── Household Spending Breakdown ── */}

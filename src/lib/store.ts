@@ -366,6 +366,9 @@ export interface SavingsActivityEntry {
    * into. Older entries may omit it — the goal's source place is used then.
    */
   place?: MoneyPlace;
+  /** Household member who made the deposit (shared goals contribution split). */
+  actorMemberId?: string;
+  actorName?: string;
 }
 
 export type DebtType = 'debt' | 'credit';
@@ -1579,7 +1582,8 @@ export function fundGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  sourcePlace: MoneyPlace
+  sourcePlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const actualAmount = positiveMoney(amount);
   const currentBalance = getPlaceBalance(month, sourcePlace);
@@ -1599,6 +1603,8 @@ export function fundGoal(
       amount: actualAmount,
       date: new Date().toISOString(),
       place: sourcePlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 
@@ -1622,7 +1628,8 @@ export function withdrawGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  targetPlace: MoneyPlace
+  targetPlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const goal = goals.find((g) => g.id === goalId);
   if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
@@ -1640,6 +1647,8 @@ export function withdrawGoal(
       amount: actualWithdraw,
       date: new Date().toISOString(),
       place: targetPlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 

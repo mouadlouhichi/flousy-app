@@ -80,3 +80,57 @@ describe('monthly report', () => {
     assert.ok(html.includes('Generated 2026-03-31'));
   });
 });
+
+describe('custom reports', () => {
+  const a = emptyMonth('2026-01');
+  a.variableExpenses = [
+    { id: '1', name: 'Taxi', amount: 100, place: 'Wallet', type: 'Transport', date: '2026-01-04', tags: ['voyage'], payerMemberId: 'm1' },
+    { id: '2', name: 'Hotel', amount: 900, place: 'Bank', type: 'Travel', date: '2026-01-05', tags: ['voyage', 'work'], payerMemberId: 'm2' },
+    { id: '3', name: 'Marjane', amount: 300, place: 'Bank', type: 'Groceries', date: '2026-01-10', payerMemberId: 'm1' },
+  ];
+  a.fixedExpenses = [{ id: 'f1', name: 'Rent', amount: 3000, type: 'Rent', dueDay: 1, status: 'paid', paidAmount: 3000 } as never];
+
+  it('groups by place, tag and member with correct totals', async () => {
+    const { buildCustomReport, reportDimensionValues } = await import('../src/lib/insights');
+    const byPlace = buildCustomReport([a], { dimension: 'place' });
+    assert.equal(byPlace.total, 1300); // fixed bills carry no place
+    assert.equal(byPlace.rows[0]?.key, 'Bank');
+    assert.equal(byPlace.rows[0]?.amount, 1200);
+
+    const byTag = buildCustomReport([a], { dimension: 'tag', scope: 'variable' });
+    assert.equal(byTag.rows.find((r) => r.key === 'voyage')?.amount, 1000);
+    assert.equal(byTag.rows.find((r) => r.key === '—')?.amount, 300);
+
+    const byMember = buildCustomReport([a], { dimension: 'member' });
+    assert.equal(byMember.rows.find((r) => r.key === 'm1')?.amount, 400);
+    assert.equal(byMember.total, 4300); // rent counted (no payer → '—')
+
+    const filtered = buildCustomReport([a], { dimension: 'member', filters: { tag: 'voyage' } });
+    assert.equal(filtered.total, 1000);
+    assert.deepEqual(reportDimensionValues([a], 'tag'), ['voyage', 'work']);
+  });
+
+  it('exposes previous-window amounts for deltas', async () => {
+    const { buildCustomReport } = await import('../src/lib/insights');
+    const prev = emptyMonth('2025-12');
+    prev.variableExpenses = [{ id: 'p', name: 'Taxi', amount: 50, place: 'Wallet', type: 'Transport', date: '2025-12-04' }];
+    const report = buildCustomReport([a], { dimension: 'place', previousMonths: [prev] });
+    assert.equal(report.previous.get('Wallet'), 50);
+  });
+});
+
+describe('shared goal contributions', () => {
+  it('attributes deposits to the acting member and nets withdrawals', async () => {
+    const { fundGoal, withdrawGoal } = await import('../src/lib/store');
+    type SavingGoal = import('../src/lib/store').SavingGoal;
+    const { goalContributions } = await import('../src/components/tabs/SavingsTab');
+    let month = emptyMonth('2026-03');
+    month.bankPart = 5000;
+    let goals: SavingGoal[] = [{ id: 'g', name: 'Trip', target: 3000, current: 0, source: 'bank', active: true }];
+    ({ month, goals } = fundGoal(month, goals, 'g', 1000, 'bank', { memberId: 'm1', name: 'Sara' }));
+    ({ month, goals } = fundGoal(month, goals, 'g', 500, 'bank', { memberId: 'm2', name: 'Youssef' }));
+    ({ month, goals } = withdrawGoal(month, goals, 'g', 200, 'bank', { memberId: 'm1', name: 'Sara' }));
+    const split = goalContributions([month], 'g');
+    assert.deepEqual(split.map((c) => [c.name, c.amount]), [['Sara', 800], ['Youssef', 500]]);
+  });
+});

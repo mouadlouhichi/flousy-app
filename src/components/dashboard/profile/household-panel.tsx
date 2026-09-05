@@ -298,6 +298,10 @@ export function HouseholdPanel({
               </p>
             </div>
 
+            {household.kind === 'business' ? (
+              <p className="rounded-xl border border-outline-variant bg-surface-container p-4 text-xs leading-5 text-on-surface-variant">{h.businessSolo}</p>
+            ) : (
+            <>
             <div className="space-y-2">
               {visibleMembers.map((member) =>
                 editingMember?.id === member.id ? (
@@ -532,6 +536,8 @@ export function HouseholdPanel({
                 )}
 
               </div>
+            )}
+            </>
             )}
           </>
         )}

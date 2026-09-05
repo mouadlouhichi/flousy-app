@@ -458,3 +458,116 @@ export function searchTransactions(
 export function monthNetFlow(month: MonthBudget): number {
   return signedMoney(calculateReceivedIncome(month) - calculateEnvelopeSpent(month).totalSpent);
 }
+
+// ── Custom reports (Pro) ─────────────────────────────────────────────────
+
+export type ReportDimension = 'category' | 'place' | 'tag' | 'member';
+export type ReportScope = 'variable' | 'fixed' | 'all';
+
+export interface ReportRow {
+  key: string;
+  amount: number;
+  count: number;
+  share: number;
+}
+
+export interface CustomReport {
+  rows: ReportRow[];
+  total: number;
+  count: number;
+  /** Rows whose key is the same dimension over the previous window (for deltas). */
+  previous: Map<string, number>;
+}
+
+function reportKeys(
+  dimension: ReportDimension,
+  item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string },
+): string[] {
+  switch (dimension) {
+    case 'category':
+      return [item.type || '—'];
+    case 'place':
+      return [item.place || '—'];
+    case 'tag':
+      return item.tags && item.tags.length > 0 ? item.tags : ['—'];
+    case 'member':
+      return [item.payerMemberId || item.person || '—'];
+  }
+}
+
+/**
+ * Aggregate spending by a chosen dimension over a set of months. `filters`
+ * restrict the rows that are counted (AND-ed): e.g. category = Groceries AND
+ * tag = voyage grouped by member. Fixed bills carry no tags/places, so they
+ * only participate in the category and member dimensions.
+ */
+export function buildCustomReport(
+  months: MonthBudget[],
+  options: {
+    dimension: ReportDimension;
+    scope?: ReportScope;
+    filters?: Partial<Record<ReportDimension, string>>;
+    previousMonths?: MonthBudget[];
+  },
+): CustomReport {
+  const scope = options.scope || 'all';
+  const filters = options.filters || {};
+
+  const matches = (item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string }) =>
+    (Object.keys(filters) as ReportDimension[]).every((dim) => {
+      const wanted = filters[dim];
+      return !wanted || reportKeys(dim, item).includes(wanted);
+    });
+
+  const aggregate = (set: MonthBudget[]) => {
+    const map = new Map<string, ReportRow>();
+    let total = 0;
+    let count = 0;
+    const add = (item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string }, amount: number) => {
+      if (amount <= 0 || !matches(item)) return;
+      const keys = reportKeys(options.dimension, item);
+      // A tagged expense with N tags is counted once per tag, but only once in
+      // the total, so shares can exceed 100 % only in the tag dimension.
+      for (const key of keys) {
+        const row = map.get(key) || { key, amount: 0, count: 0, share: 0 };
+        row.amount += amount;
+        row.count += 1;
+        map.set(key, row);
+      }
+      total += amount;
+      count += 1;
+    };
+    for (const month of set) {
+      if (scope !== 'fixed') {
+        for (const exp of month.variableExpenses || []) add(exp, exp.amount);
+      }
+      if (scope !== 'variable' && options.dimension !== 'place' && options.dimension !== 'tag') {
+        for (const bill of month.fixedExpenses || []) add(bill, fixedPaidAmount(bill));
+      }
+    }
+    return { map, total, count };
+  };
+
+  const current = aggregate(months);
+  const rows = Array.from(current.map.values())
+    .map((row) => ({ ...row, share: current.total > 0 ? row.amount / current.total : 0 }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const previous = new Map<string, number>();
+  if (options.previousMonths?.length) {
+    for (const row of aggregate(options.previousMonths).map.values()) previous.set(row.key, row.amount);
+  }
+  return { rows, total: current.total, count: current.count, previous };
+}
+
+/** Distinct values available for a dimension in the given months (filter pickers). */
+export function reportDimensionValues(months: MonthBudget[], dimension: ReportDimension): string[] {
+  const values = new Set<string>();
+  for (const month of months) {
+    for (const exp of month.variableExpenses || []) reportKeys(dimension, exp).forEach((k) => k !== '—' && values.add(k));
+    if (dimension === 'category' || dimension === 'member') {
+      for (const bill of month.fixedExpenses || []) reportKeys(dimension, bill).forEach((k) => k !== '—' && values.add(k));
+    }
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}

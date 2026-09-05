@@ -392,6 +392,13 @@
         "date": {
           "type": "string",
           "description": "ISO timestamp of the transaction"
+        },
+        "actorMemberId": {
+          "type": "string",
+          "description": "Household member who made the movement (shared goal contributions)."
+        },
+        "actorName": {
+          "type": "string"
         }
       },
       "required": [
@@ -1186,6 +1193,14 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "household",
+            "business"
+          ],
+          "description": "household = shared family budget; business = second solo workspace (auto-entrepreneur). Missing = household."
         }
       },
       "required": [

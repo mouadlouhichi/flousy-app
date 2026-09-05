@@ -1361,6 +1361,44 @@ export type HouseholdAccess = 'ok' | 'denied' | 'unavailable';
  * and a member must not try - so the plan travels with the data instead of being
  * applied here.
  */
+/** Minimal projection used by the workspace switcher for every linked workspace. */
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  kind: 'household' | 'business';
+  ownerId: string;
+}
+
+/**
+ * Listen to the name/kind of every household the profile links to. Denied or
+ * missing documents are dropped silently (a stale `householdIds` entry must
+ * not break the switcher); the active workspace keeps its own full listener.
+ */
+export function subscribeWorkspaceSummaries(
+  householdIds: string[],
+  onData: (summaries: WorkspaceSummary[]) => void,
+) {
+  if (!isFirebaseConfigured || !db || householdIds.length === 0) { onData([]); return () => {}; }
+  const current = new Map<string, WorkspaceSummary>();
+  const emit = () => onData(householdIds.flatMap((id) => (current.has(id) ? [current.get(id)!] : [])));
+  const unsubscribes = householdIds.map((id) => onSnapshot(
+    doc(db!, 'households', id),
+    (snap) => {
+      if (!snap.exists()) { current.delete(id); emit(); return; }
+      const data = snap.data() as Partial<Household>;
+      current.set(id, {
+        id,
+        name: data.name || 'Household',
+        kind: data.kind === 'business' ? 'business' : 'household',
+        ownerId: data.ownerId || '',
+      });
+      emit();
+    },
+    () => { current.delete(id); emit(); },
+  ));
+  return () => unsubscribes.forEach((fn) => fn());
+}
+
 export function subscribeHousehold(
   householdId: string | undefined,
   onData: (household: Household | null, migration: DocumentMigration | null) => void,

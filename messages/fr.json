@@ -623,7 +623,9 @@
       "noDeposits": "Aucun dépôt enregistré ce mois-ci.",
       "useDeposit": "Utilisez Dépôt sur un objectif ci-dessus pour placer de l’argent dans l’épargne.",
       "editDeposit": "Modifier le dépôt",
-      "editWithdrawal": "Modifier le retrait"
+      "editWithdrawal": "Modifier le retrait",
+      "contributors": "Contributions",
+      "unknownContributor": "Membre"
     },
     "debts": {
       "debtsIOwe": "Dettes (je dois)",
@@ -1793,7 +1795,12 @@
       "syncStartTitle": "Aligner le début du mois budgétaire",
       "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
       "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace.",
-      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif."
+      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif.",
+      "businessDashboard": "Espace pro (auto-entrepreneur)",
+      "addBusiness": "Ajouter un espace pro",
+      "addBusinessHint": "Séparez les revenus et dépenses de votre activité de votre budget personnel : mêmes outils, avec ses propres mois, catégories et rapports.",
+      "businessNamePlaceholder": "ex. Mon activité auto-entrepreneur",
+      "businessDefaultName": "Mon activité"
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",
@@ -1984,7 +1991,8 @@
     "copied": "Copié",
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
     "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre.",
-    "contributor": "Contributeur"
+    "contributor": "Contributeur",
+    "businessSolo": "Cet espace pro est individuel : il n'a ni membres ni invitations. Passez à votre espace foyer pour gérer les membres."
   },
   "consent": {
     "title": "Confidentialité",
@@ -2236,5 +2244,36 @@
     "rateNote": "Taux {rate} · {date}",
     "unavailable": "Les taux en direct ne sont pas disponibles hors ligne.",
     "amount": "Montant"
+  },
+  "barcode": {
+    "title": "Scanner un produit",
+    "scanProduct": "Scanner le code-barres",
+    "hint": "Visez le code-barres ; le nom du produit se remplit automatiquement.",
+    "lookingUp": "Recherche du produit…",
+    "notFound": "Aucun produit trouvé pour {code}. Saisissez le nom.",
+    "cameraDenied": "L'accès à la caméra a été refusé.",
+    "cameraUnavailable": "Aucune caméra disponible sur cet appareil."
+  },
+  "reports": {
+    "title": "Rapport personnalisé",
+    "locked": "Ventilez les dépenses par lieu d'argent, tag ou membre du foyer sur la période de votre choix, avec comparaison à la période précédente.",
+    "groupBy": "Grouper par",
+    "byCategory": "Catégorie",
+    "byPlace": "Lieu d'argent",
+    "byTag": "Tag",
+    "byMember": "Membre",
+    "scope": "Inclure",
+    "scopeAll": "Toutes les dépenses",
+    "scopeVariable": "Variables seulement",
+    "scopeFixed": "Charges fixes seulement",
+    "range": "Période",
+    "monthsShort": "{count} M",
+    "filter": "Filtrer par",
+    "noFilter": "Aucun filtre",
+    "filterValue": "Valeur",
+    "any": "Toutes",
+    "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "empty": "Rien ne correspond à cette sélection pour l'instant.",
+    "unassigned": "Non attribué"
   }
 }

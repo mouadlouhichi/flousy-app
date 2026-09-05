@@ -1285,3 +1285,57 @@ describe('household month bootstrap by an entitled launch-trial owner (map-liter
     }));
   });
 });
+
+describe('Pro profile preferences and workspace kind', () => {
+  it('accepts bounded reminder / planner fields and refuses malformed ones', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/prefs-user'), { plan: 'free', currency: 'MAD', onboardingComplete: true });
+    });
+    const db = asUser('prefs-user');
+    const subscription = (n: number) => ({
+      endpoint: `https://push.example/${n}`, keys: { p256dh: 'k', auth: 'a' }, label: 'Chrome', createdAt: new Date().toISOString(),
+    });
+
+    await assertSucceeds(updateDoc(doc(db, 'users/prefs-user'), {
+      reminderPrefs: { billsEnabled: true, billLeadDays: [0, 1, 3], goalsEnabled: false, emailDigest: false, hour: 9 },
+      pushSubscriptions: [subscription(1)],
+      timezone: 'Africa/Casablanca',
+      email: 'prefs@example.com',
+      goalTargetDates: { 'goal-1': '2027-06-01' },
+      debtPayoffBudget: 1500,
+      debtPayoffMethod: 'avalanche',
+    }));
+
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), {
+      pushSubscriptions: Array.from({ length: 11 }, (_, i) => subscription(i)),
+    }));
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), { debtPayoffMethod: 'random' }));
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), { debtPayoffBudget: -5 }));
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), { reminderPrefs: 'yes' }));
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), { timezone: 'x'.repeat(65) }));
+    // Preferences never open the entitlement door.
+    await assertFails(updateDoc(doc(db, 'users/prefs-user'), { reminderPrefs: { billsEnabled: true }, plan: 'pro' }));
+  });
+
+  it('lets a Pro owner create a business workspace and refuses an unknown kind', async () => {
+    const startedAtMs = Date.now();
+    const endsAtMs = startedAtMs + 30 * 24 * 60 * 60 * 1000;
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/biz-owner'), {
+        plan: 'pro', currency: 'MAD', onboardingComplete: true,
+        entitlementSource: 'launch_trial', entitlementStatus: 'trialing',
+        entitlementStartedAtMs: startedAtMs, entitlementEndsAtMs: endsAtMs,
+      });
+    });
+    const db = asUser('biz-owner');
+    const base = {
+      name: 'Mon activité', ownerId: 'biz-owner', planOwnerId: 'biz-owner',
+      entitlementOwnerId: 'biz-owner', entitlementSource: 'launch_trial',
+      entitlementStatus: 'trialing', entitlementEndsAtMs: endsAtMs,
+      currency: 'MAD', moneyPlaces: [{ id: 'bank', name: 'Bank', icon: 'account_balance' }],
+      activeCategories: ['Fournitures'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    await assertSucceeds(setDoc(doc(db, 'households/biz-1'), { ...base, kind: 'business' }));
+    await assertFails(setDoc(doc(db, 'households/biz-2'), { ...base, kind: 'corporate' }));
+  });
+});

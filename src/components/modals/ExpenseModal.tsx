@@ -6,6 +6,7 @@ import { DatePicker } from '../ui/date-picker';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
 import { CustomInput } from '../ui/CustomInput';
+import { ExpenseBarcodeScanner } from './expense-barcode-scanner';
 import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
@@ -118,6 +119,7 @@ export function ExpenseModal({
   const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [ocrResult, setOcrResult] = useState<ReceiptParse | null>(null);
   const [ocrError, setOcrError] = useState<string>('');
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [typeTouched, setTypeTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -596,6 +598,28 @@ export function ExpenseModal({
           placeholder={e.notePlaceholder}
           rows={2}
         />
+
+        {/* ── Barcode → product name (Pro) ── */}
+        {isPro && !initialExpense && (
+          scannerOpen ? (
+            <ExpenseBarcodeScanner
+              onClose={() => setScannerOpen(false)}
+              onProduct={(product) => {
+                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+                setScannerOpen(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface px-3 py-2.5 text-xs font-bold text-on-surface-variant hover:bg-surface-variant/30"
+            >
+              <AppIcon name="scan_barcode" className="text-[18px] text-primary" />
+              {m.barcode.scanProduct}
+            </button>
+          )
+        )}
 
         {/* ── Tags (Pro) ── */}
         {isPro && (

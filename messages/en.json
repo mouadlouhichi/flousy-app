@@ -623,7 +623,9 @@
       "noDeposits": "No deposits logged this month.",
       "useDeposit": "Use Deposit on a goal above to move money into savings.",
       "editDeposit": "Edit deposit",
-      "editWithdrawal": "Edit withdrawal"
+      "editWithdrawal": "Edit withdrawal",
+      "contributors": "Who contributed",
+      "unknownContributor": "Member"
     },
     "debts": {
       "debtsIOwe": "Debts (I owe)",
@@ -1793,7 +1795,12 @@
       "syncStartTitle": "Align budget-month start",
       "syncStartMessage": "Your personal budget month starts on day {personal}, but the household starts on day {householdDay}. Syncing will apply day {day} (this workspace's start) to the other workspace so periods line up. Future periods follow the new day; existing periods keep their recorded dates.",
       "syncAlignedNote": "Budget-month start day {day} applied to the other workspace.",
-      "syncRequiresPro": "Syncing writes into the shared household budget, which needs an active Pro entitlement."
+      "syncRequiresPro": "Syncing writes into the shared household budget, which needs an active Pro entitlement.",
+      "businessDashboard": "Business workspace (auto-entrepreneur)",
+      "addBusiness": "Add a business workspace",
+      "addBusinessHint": "Keep your activity's income and expenses separate from your personal budget — same tools, its own months, categories and reports.",
+      "businessNamePlaceholder": "e.g. My auto-entrepreneur activity",
+      "businessDefaultName": "My business"
     },
     "pro": {
       "yourFeatures": "Your Pro Features",
@@ -1984,7 +1991,8 @@
     "copied": "Copied",
     "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
     "inviteCodeHint": "Anyone with this code can join from Household → Join.",
-    "contributor": "Contributor"
+    "contributor": "Contributor",
+    "businessSolo": "This is a solo business workspace: it has no members or invitations. Switch to your household workspace to manage the family roster."
   },
   "consent": {
     "title": "Privacy controls",
@@ -2236,5 +2244,36 @@
     "rateNote": "Rate {rate} · {date}",
     "unavailable": "Live rates are unavailable offline.",
     "amount": "Amount"
+  },
+  "barcode": {
+    "title": "Scan a product",
+    "scanProduct": "Scan product barcode",
+    "hint": "Point the camera at the barcode; the product name fills in automatically.",
+    "lookingUp": "Looking up product…",
+    "notFound": "No product found for {code}. Type the name instead.",
+    "cameraDenied": "Camera access was denied.",
+    "cameraUnavailable": "No camera available on this device."
+  },
+  "reports": {
+    "title": "Custom report",
+    "locked": "Break spending down by money place, tag or household member over any range — and compare with the previous period.",
+    "groupBy": "Group by",
+    "byCategory": "Category",
+    "byPlace": "Money place",
+    "byTag": "Tag",
+    "byMember": "Member",
+    "scope": "Include",
+    "scopeAll": "All spending",
+    "scopeVariable": "Variable only",
+    "scopeFixed": "Fixed bills only",
+    "range": "Range",
+    "monthsShort": "{count}M",
+    "filter": "Filter by",
+    "noFilter": "No filter",
+    "filterValue": "Value",
+    "any": "Any",
+    "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "empty": "Nothing matches this selection yet.",
+    "unassigned": "Unassigned"
   }
 }

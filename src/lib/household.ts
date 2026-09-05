@@ -26,6 +26,7 @@ export function normalizeHousehold(id: string, value: Partial<Household>): House
     ...value,
     id,
     name: value.name || 'Household',
+    kind: value.kind === 'business' ? 'business' : 'household',
     ownerId: value.ownerId || '',
     planOwnerId: value.planOwnerId || value.ownerId || '',
     entitlementOwnerId: value.entitlementOwnerId || value.planOwnerId || value.ownerId || '',
@@ -45,9 +46,18 @@ export function normalizeHousehold(id: string, value: Partial<Household>): House
 export type HouseholdRole = 'owner' | 'editor' | 'contributor' | 'viewer' | 'custom' | 'profile';
 export type HouseholdMemberStatus = 'active' | 'invited' | 'inactive';
 
+/**
+ * What a shared-workspace document is used for. `household` is the family
+ * budget; `business` is a second solo budget (auto-entrepreneur, side
+ * activity) that reuses the same documents, rules and RBAC but is not meant
+ * to be shared. Absent on older documents = 'household'.
+ */
+export type WorkspaceKind = 'household' | 'business';
+
 export interface Household {
   id?: string;
   name: string;
+  kind?: WorkspaceKind;
   ownerId: string;
   planOwnerId: string;
   createdAt: string;

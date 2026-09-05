@@ -87,7 +87,7 @@ const DebtModal = dynamic(
  */
 export function DashboardModals() {
   const dashboard = useDashboard();
-  const { canEditArea, canViewArea } = useHousehold();
+  const { canEditArea, canViewArea, workspace, members } = useHousehold();
   // Income is viewable in read-only mode: the modal shows the sources without
   // any affordance that would write them.
   const incomeReadOnly = !canEditArea('income');
@@ -163,7 +163,15 @@ export function DashboardModals() {
     trackEvent('move_money');
   };
 
-  // Savings handlers
+  // Savings handlers — in a household every deposit is attributed to the
+  // member who made it so the goal card can show who contributed what.
+  const goalActor = workspace === 'household' && dashboard.user
+    ? {
+        memberId: members.find((mem) => mem.userId === dashboard.user?.uid || mem.id === dashboard.user?.uid)?.id || dashboard.user.uid,
+        name: members.find((mem) => mem.userId === dashboard.user?.uid || mem.id === dashboard.user?.uid)?.displayName
+          || dashboard.profile?.displayName || undefined,
+      }
+    : undefined;
   const handleSaveGoal = (goal: SavingGoal, deductFromPlace?: MoneyPlace | null) => {
     // Moves the goal's opening/edited balance out of the chosen money place
     // when the transfer checkbox was checked, and tracks how much of the
@@ -173,13 +181,13 @@ export function DashboardModals() {
   };
 
   const handleFundGoal = (goalId: string, amount: number, sourcePlace: MoneyPlace) => {
-    const res = fundGoal(month, goals, goalId, amount, sourcePlace);
+    const res = fundGoal(month, goals, goalId, amount, sourcePlace, goalActor);
     updateAndSaveFinance(res.month, res.goals);
     trackEvent('fund_goal');
   };
 
   const handleWithdrawGoal = (goalId: string, amount: number, targetPlace: MoneyPlace) => {
-    const res = withdrawGoal(month, goals, goalId, amount, targetPlace);
+    const res = withdrawGoal(month, goals, goalId, amount, targetPlace, goalActor);
     updateAndSaveFinance(res.month, res.goals);
     trackEvent('withdraw_goal');
   };

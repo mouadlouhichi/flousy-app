@@ -46,6 +46,7 @@ export function SavingsScreen() {
       projectionsUnlocked={proUnlocked}
       onUpgrade={openProModal}
       paceMonths={paceMonths}
+      showContributors={workspace === 'household'}
     />
   );
 }
