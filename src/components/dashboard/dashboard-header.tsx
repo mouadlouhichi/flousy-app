@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { resolveProEntitlement } from '@/lib/pro-features';
@@ -49,15 +47,10 @@ export function DashboardHeader() {
     syncState,
     pendingMutations,
     retrySync,
-    closeCurrentMonth,
   } = useDashboard();
 
-  const { workspace, isOwner, canEditArea } = useHousehold();
-  // Native `window.confirm` can't match the design system (and is blocked in
-  // some webviews) — closing the month goes through the shared ConfirmDialog.
-  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const { workspace, canEditArea } = useHousehold();
   const monthIsClosed = month.periodStatus === 'closed';
-  const canManageMonth = workspace === 'personal' || isOwner;
   const canAddExpense = !monthIsClosed && !!profile && (workspace === 'personal' || canEditArea('expenses', true));
 
   const activeScreen = getScreenIdFromPath(pathname);
@@ -189,28 +182,6 @@ export function DashboardHeader() {
           <span>{m.sync[syncState]}</span>
           {pendingMutations > 0 && <span>({pendingMutations})</span>}
         </button>
-        {canManageMonth && !monthIsClosed && (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowCloseConfirm(true)}
-              disabled={!isMounted || syncState === 'failed' || syncState === 'conflict'}
-              className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label={m.monthLock.close}
-              title={m.monthLock.close}
-            >
-              <AppIcon name="lock_open" className="text-[18px]" />
-            </button>
-            <ConfirmDialog
-              isOpen={showCloseConfirm}
-              onClose={() => setShowCloseConfirm(false)}
-              onConfirm={closeCurrentMonth}
-              title={m.monthLock.close}
-              message={m.monthLock.closeConfirm}
-              confirmLabel={m.monthLock.close}
-            />
-          </>
-        )}
         <BudgetAlerts
           month={month}
           goals={goals}

@@ -1654,6 +1654,7 @@
     "hints": {
       "budgetStarts": "يبدأ في {day}",
       "locations": "{count, plural, one {# موقع} two {# موقعين} few {# مواقع} many {# موقعًا} other {# موقع}}",
+      "closeMonth": "جعل الشهر المحدد للقراءة فقط",
       "personalAndHousehold": "لوحة شخصية والأسرة",
       "planIncomeInsights": "الخطة ومصادر الدخل والتحليلات",
       "exportImportDelete": "تصدير واستيراد وحذف",

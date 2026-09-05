@@ -31,3 +31,5 @@ Likewise leave `RESEND_API_KEY` unset: the contact spec asserts the truthful
   that names the support address.
 - `demo-journey.spec.ts` — demo mode entry from /login and arrival in
   onboarding, plus a returning-session redirect to the dashboard.
+- `profile-month-lock.spec.ts` — closing the selected month from Profile
+  settings (not the header), canceling confirmation, and reopening it.
