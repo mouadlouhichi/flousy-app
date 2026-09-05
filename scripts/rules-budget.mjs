@@ -10,7 +10,48 @@
 //   node scripts/rules-budget.mjs [file] [rulesToShow]
 import fs from 'node:fs';
 
-const src = fs.readFileSync(process.argv[2] ?? 'firestore.rules', 'utf8');
+// Comments are prose, not code, and they have to be gone before anything is SPLIT. The
+// body of a function is cut into statements on `;` and the tokens are then counted, so a
+// semicolon in a sentence ended a rule early and an apostrophe in one opened a string
+// that never closed: the expression written below such a comment was silently dropped
+// from its own cost, and a rules change that blew the budget could pass the gate this
+// script exists to enforce. Stripping first, quote-aware so a `//` inside a string
+// literal survives, and blank rather than deleted so the reported line numbers stay true.
+function withoutComments(text) {
+  let out = '';
+  let quote = null;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote) {
+      out += c;
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      quote = c;
+      out += c;
+      continue;
+    }
+    if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+      out += '\n';
+      continue;
+    }
+    if (c === '/' && text[i + 1] === '*') {
+      i += 2;
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) {
+        if (text[i] === '\n') out += '\n';
+        i += 1;
+      }
+      i += 1;
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
+const src = withoutComments(fs.readFileSync(process.argv[2] ?? 'firestore.rules', 'utf8'));
 
 function splitTop(text, seps) {
   const out = [];
@@ -199,6 +240,7 @@ while ((m = ruleRe.exec(src))) {
     method: m[1].trim(),
     cost: exprCost(m[2], new Set(), 0, []),
     reads: ruleReads(m[2]),
+    full: m[2].trim(),
     text: m[2].trim().slice(0, 44),
   });
 }
@@ -223,20 +265,64 @@ for (const r of [...rules].sort((a, b) => b.reads - a.reads).slice(0, limit)) {
 // syncing and deleting a shared workspace fail with "something went wrong". Estimated cost is
 // an approximation, so the gate is a ratchet: known-over rules are listed here with the
 // reason they are tolerable, and anything new, or any listed rule that grows, fails.
-const KNOWN_OVER = new Map([
-  // Reached only by a custom-role member holding PARTIAL month grants: `||` short-circuits,
-  // so every other writer is authorized by a cheaper statement before this one is tried.
-  ['monthUpdateByCustomMember(hid)', 1300],
-]);
+// The rules whose worst-case estimate exceeds the cap, with the bound they are held to.
+// Each entry matches on the method and the head of its own condition, because several
+// personal rules begin with the same `owner(uid)` and a name prefix alone would let one
+// entry shield another. These are estimates of a FULL expansion - every arm of every
+// `&&`, `||` and `?:`, which the engine does not evaluate once it knows the answer - so
+// they sit above the 1000 the engine enforces while the writes they gate succeed: what
+// decides that is `npm run test:rules`, and CI runs it against the emulator. The bounds
+// below are therefore ratchets on the estimate: a listed rule that grows fails the build,
+// and so does any rule that is over the cap without being listed here.
+const KNOWN_OVER = [
+  {
+    method: 'update',
+    head: /^monthUpdateShared\(hid\)/,
+    bound: 1830,
+    why: 'the one shared-month update statement: facts, ledger row, revision, the close/reopen arm and the custom member\'s per-area grant walk, all expanded',
+  },
+  {
+    method: 'create',
+    head: /^monthCreateShared\(hid\)/,
+    bound: 1130,
+    why: 'the one shared-month create statement, which pays for the document shape check on top of the writer facts',
+  },
+  {
+    method: 'update',
+    head: /^memberUpdateShared\(hid, memberId\)/,
+    bound: 1540,
+    why: 'four membership-update origins answered from one root read',
+  },
+  {
+    method: 'create',
+    head: /^memberCreateShared\(hid, memberId\)/,
+    bound: 1460,
+    why: 'three membership-create origins answered from one root read',
+  },
+  {
+    method: 'update',
+    head: /^owner\(uid\)[\s\S]*isValidMonthId\(key\)[\s\S]*validMonthDocument/,
+    bound: 1110,
+    why: 'the personal month update, which validates the whole document in the same statement',
+  },
+];
+const matchesKnown = (rule) => KNOWN_OVER.find((k) => k.method === rule.method && k.head.test(rule.full));
+
+// A rule is only *reported* when its estimate exceeds the cap the engine enforces; a
+// rule that is over the cap and not listed above, or listed and now larger than its
+// bound, fails the build.
 const offenders = rules
   .filter((r) => r.cost > 1000)
-  .map((r) => ({ r, key: [...KNOWN_OVER.keys()].find((k) => r.text.startsWith(k)) }))
-  .filter(({ r, key }) => key === undefined || r.cost > KNOWN_OVER.get(key));
+  .map((r) => ({ r, known: matchesKnown(r) }))
+  .filter(({ r, known }) => !known || r.cost > known.bound);
+
 if (offenders.length > 0) {
   console.error('\nover the 1000-expression budget (these are refused before any branch runs):');
-  for (const { r, key } of offenders) {
-    const bound = key === undefined ? 'not allowlisted' : `allowlisted at ${KNOWN_OVER.get(key)}, now higher`;
-    console.error(String(r.cost).padStart(6), `L${r.line}`, r.method, r.text, `- ${bound}`);
+  for (const { r, known } of offenders) {
+    const bound = known
+      ? `held to ${known.bound} expressions, now ${r.cost} - ${known.why}`
+      : 'not allowlisted in scripts/rules-budget.mjs';
+    console.error(String(r.cost).padStart(6), `L${r.line}`, r.method, r.text.replace(/\n.*/s, ''), `- ${bound}`);
   }
   process.exit(1);
 }

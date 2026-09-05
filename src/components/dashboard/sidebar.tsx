@@ -80,8 +80,10 @@ export function Sidebar() {
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
+  // Tonal step above the page surface (container-high) plus a soft edge
+  // shadow, so the rail reads as chrome rather than flat background.
   return (
-    <aside className="hidden md:flex flex-col w-64 border-e border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 start-0 z-30">
+    <aside className="hidden md:flex flex-col w-64 border-e border-outline-variant/40 bg-surface-container-high shadow-[1px_0_16px_rgba(23,29,28,0.10)] shrink-0 fixed top-0 bottom-0 start-0 z-30">
       {/* Brand Logo */}
       <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
         <Image
@@ -175,7 +177,7 @@ export function Sidebar() {
       {/* Bottom Profile Footer — whole row opens the profile page. Shares
           the sidebar's sliding active pill so Profile doesn't leave Overview
           (or whichever tab you came from) looking selected. */}
-      <div className="p-4 border-t border-surface-variant/50 bg-surface-container/20">
+      <div className="p-4 border-t border-outline-variant/40 bg-surface-container-low/70">
         <Link
           href="/dashboard/profile"
           prefetch={true}

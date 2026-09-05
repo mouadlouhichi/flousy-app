@@ -224,83 +224,97 @@ describe('the model, the rules and the maintenance script agree', () => {
   });
 
   it('keeps the rules a workspace save depends on inside their recorded budget', () => {
-    // Firestore charges one request a shared budget of 1000 expressions and answers an
-    // over-budget write with a plain permission-denied - at the client, indistinguishable
-    // from a rule that simply dislikes the document. The number the script reports is a
-    // worst case, because `||` short-circuits at evaluation time, so this pins each rule
-    // to the bound this branch reached rather than to the theoretical cap: the household
-    // member and settings writes - the two writes the workspace flow cannot do without -
-    // fit the cap outright. A bound may only move down - except where the rule traded
-    // expressions for totality, which is the one direction worth paying for: a rule that
-    // reads `after.get('role', '')` instead of `after.role` costs four expressions rather
-    // than three and answers "no, that member row is malformed" instead of aborting, and
-    // an aborted rule denies the request exactly as loudly as a refusal while telling the
-    // user nothing. Raise a bound deliberately, with the rule that grew named in the diff,
-    // and read the `over expression budget` count the rules job publishes: that is the
-    // number the engine actually enforces.
+    // Firestore charges ONE request the expressions it evaluates across every `allow`
+    // statement it consults, and answers an over-budget request with a plain
+    // permission-denied - at the client, indistinguishable from a rule that simply
+    // dislikes the document. The number `scripts/rules-budget.mjs` reports is a worst
+    // case, because it expands every call and both arms of every `&&`, `||` and `?:`
+    // while the engine stops as soon as the answer is known. So the bounds below are a
+    // ratchet on the estimate - and the suite that decides whether a write is possible
+    // at all is `npm run test:rules`, which CI runs against the emulator.
+    //
+    // What this test holds in place is the SHAPE those bounds are a worst case OF: one
+    // statement per method per shared document, dispatching inside one facts record. The
+    // month and member rules were split by writer kind once, on the theory that each
+    // `allow` of a method gets its own budget. It does not, so the split paid for the
+    // household root, the membership row and the sponsor's profile once per statement,
+    // and six emulator cases aborted with `maximum of 1000 expressions to evaluate has
+    // been reached` while every authorization fact in the request was in order (CI run
+    // 33928520670). Re-splitting is a regression here, not a remedy, which is why the
+    // statements are counted as well as costed. A bound may only move down - except
+    // where the rule traded expressions for totality: a rule that reads
+    // `after.get('role', '')` instead of `after.role` costs four expressions rather
+    // than three and answers "no, that member row is malformed" instead of aborting,
+    // and an aborted rule denies the request exactly as loudly as a refusal while
+    // telling the user nothing. Raise a bound deliberately, with the rule that grew
+    // named in the diff, and read the `over expression budget` count the rules job
+    // publishes: that is the number the engine actually enforces.
     const report = execFileSync('node', ['scripts/rules-budget.mjs', 'firestore.rules', '200'], { encoding: 'utf8' });
-    const lines = report.split('\n');
+    // Only the per-statement section: the helper section above it lists one call's
+    // expansion, and the reads section below it repeats the same rule names.
+    const ruleLines = report
+      .split('\nrule cost (highest first):\n')[1]
+      .split('\nrule reads')[0]
+      .split('\n');
     const costOf = (marker: string) => {
-      const line = lines.find((candidate) => candidate.includes(marker));
-      assert.ok(line, `${marker} is no longer reported by scripts/rules-budget.mjs`);
+      const line = ruleLines.find((candidate) => candidate.includes(marker));
+      assert.ok(line, `${marker} is no longer an \`allow\` statement this script can see - a shared write must be one statement per method, named as it is here`);
       return Number(line.trim().split(/\s+/)[0]);
     };
-    // The membership rules are held to the LIMIT THE ENGINE ENFORCES (1000),
-    // not to a recorded high-water mark. Bounds above 1000 were what let the
-    // real defect hide: `memberCreateAuthorized` was recorded at 1100 and cost
-    // 1034, so the suite stayed green while Firestore refused every household
-    // creation - the batch writes the owner's membership row, and the rule was
-    // over budget before any branch was evaluated. Each origin of a membership
-    // row is now its own `allow` statement with its own budget.
-    const ENGINE_CAP = 1000;
-    const membershipRules = [
-      'memberCreateSelfOwner(hid, memberId)',
-      'memberCreateByOwner(hid, memberId)',
-      'memberCreateByInvitee(hid, memberId)',
-      'memberUpdateByOwner(hid)',
-      'memberUpdateRetireInvited()',
-      'memberUpdateLeave(memberId)',
-      'memberUpdateRejoin(hid, memberId)',
-      // The month write an import, an outbox flush and every ordinary edit
-      // perform. This one was over the cap too: a budget import into a fresh
-      // shared workspace failed on arithmetic, and the client attributed it to
-      // a stale rules deployment because it could not attribute it to anything
-      // it knew about.
-      'monthOrdinaryUpdateByFinanceWriter(hid)',
-      'monthCreateByFinanceWriter(hid)',
-      'monthCreateByCustomMember(hid)',
-      'monthCloseReopenByOwner(hid)',
-      // The "Restore shared access" repair the UI offers a locked-out owner.
-      // Folded with the ordinary settings write it cost 1061 - so the one
-      // repair the app can perform from the browser could never succeed, and
-      // the card kept recommending it after it had already been tried.
-      'householdConfigUpdateOk()',
-      'householdSponsorRepairOk()',
-    ];
-    for (const marker of membershipRules) {
-      const cost = costOf(marker);
-      assert.ok(
-        cost < ENGINE_CAP,
-        `${marker} costs ${cost} expressions, at or over the 1000 the engine enforces — `
-        + 'the write will be refused with a bare permission-denied. Split the rule.',
-      );
-    }
-
-    // Recorded high-water marks for rules that are still over the cap on their
-    // worst-case branch. These are known debt, tracked so they cannot grow;
-    // `||` short-circuits, so the common branches do complete. Splitting them
-    // the way the membership rules were split is the fix, and it needs the
-    // emulator suite to land safely.
     const bounds: [string, number][] = [
-      // The last rule still over the cap, and tracked so it cannot grow. It
-      // affects only households using custom roles with PARTIAL month grants;
-      // every other writer is served by a statement above. Cutting it further
-      // means weakening `validMonthDocument`, which needs the emulator.
-      ['monthUpdateByCustomMember(hid)', 1300],
+      // The month write an import, an outbox flush and every ordinary edit performs,
+      // and the create that bootstraps a month. The update dispatches close/reopen
+      // inside itself for the same reason it is one statement: the household root, the
+      // member row and the sponsor's profile are read once for the whole request.
+      ['monthUpdateShared(hid)', 1830],
+      ['monthCreateShared(hid)', 1130],
+      // Every origin of a membership row - the founder writing their own owner row,
+      // the owner adding somebody else, the invitee claiming theirs - answered by one
+      // statement each, from one read of the household root.
+      ['memberCreateShared(hid, memberId)', 1460],
+      ['memberUpdateShared(hid, memberId)', 1540],
+      // The household's own settings write and the "Restore shared access" repair the
+      // UI offers a locked-out owner. Folded with the settings write it cost 1061 - so
+      // the one repair the app can perform from the browser could never succeed, and
+      // the card kept recommending it after it had already been tried.
+      ['householdConfigUpdateOk()', 1000],
+      ['householdSponsorRepairOk()', 1000],
+      // The two documents a flush writes beside the month: the audit row and the
+      // goals balance. Each answers its own three questions - who signed in, whether
+      // the household is paid for, and what the caller's row grants - from ONE read
+      // of the household root, the membership row and the incoming document, and
+      // each stays inside the cap outright. They are where a future "let me also
+      // check the payer's profile here" would first show up.
+      ['householdLedgerGate(hid, mutationId)', 700],
+      ['householdSavingsGate(hid)', 670],
     ];
     for (const [marker, bound] of bounds) {
       const cost = costOf(marker);
-      assert.ok(cost <= bound, `${marker} costs ${cost} expressions, over its recorded bound of ${bound}`);
+      assert.ok(
+        cost <= bound,
+        `${marker} costs ${cost} expressions, over its recorded bound of ${bound}${bound < 1000 ? ' - and under the cap the engine enforces' : ''}. `
+        + 'Cutting cost means reading fewer fields, never splitting the statement: a request is '
+        + 'charged every `allow` it consults, so a second statement buys back the whole bill.',
+      );
+    }
+    // The superseded split is not merely unused, it is gone: a rule left in the file
+    // invites a future write to call it and re-inherit the request-wide bill. Pinned
+    // here rather than in the rules so the reason travels with the number.
+    for (const gone of [
+      'memberCreateSelfOwner', 'memberCreateByOwner', 'memberCreateByInvitee',
+      'memberUpdateByOwner', 'memberUpdateRetireInvited', 'memberUpdateLeave', 'memberUpdateRejoin',
+    ]) {
+      assert.doesNotMatch(rules, new RegExp(`function ${gone}\\(`),
+        `${gone}() is a per-origin member statement; the engine charges the request every statement it evaluates`);
+    }
+    for (const [marker, expected] of [
+      ['allow create: if memberCreateShared', 1],
+      ['allow update: if memberUpdateShared', 1],
+      ['allow create: if monthCreateShared', 1],
+      ['allow update: if monthUpdateShared', 1],
+    ] as [string, number][]) {
+      assert.equal((rules.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length, expected,
+        `${marker} must appear exactly ${expected} time(s): splitting it re-reads the household root, the membership row and the sponsor's profile per statement`);
     }
   });
 

@@ -317,76 +317,109 @@ describe('rules and client read the same entitlement', () => {
       assert.notEqual(at, -1, signature);
       return rulesSource.slice(at, rulesSource.indexOf('\n    }', at));
     };
-    for (const signature of [
-      'function householdLedgerGate(hid) {',
-      'function householdSavingsGate(hid) {',
-    ]) {
+    // The two household-wide gates decide ownership and the entitlement from ONE read
+    // of the household root and delegate the membership question to exactly one read
+    // of the caller's row. `householdEntitled()`, `householdOwner()` and
+    // `memberDocument()` each fetch a document the gate is already holding, and
+    // `householdAccess()` answered four questions where a write asks two - rules
+    // evaluate every field of a returned map, so a branch needing half of them still
+    // paid for all of them.
+    for (const [gateName, memberHelper] of [
+      ['householdLedgerGate', 'ledgerMemberWriteOk'],
+      ['householdSavingsGate', 'savingsMemberWriteOk'],
+    ] as [string, string][]) {
+      const signature = `function ${gateName}(hid`;
       const gate = body(signature);
-      assert.equal((gate.match(/householdAccess\(hid\)/g) ?? []).length, 1, signature);
-      assert.doesNotMatch(gate, /householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+      assert.equal((gate.match(/householdPath\(hid\)/g) ?? []).length, 1, signature);
+      assert.match(gate, /let sponsor = householdSponsor\(root\);/, signature);
+      assert.match(gate, /activeProEntitlement\(sponsor\)/, signature);
+      assert.ok(gate.includes(`${memberHelper}(hid, uid`),
+        `${signature} must ask membership once, through ${memberHelper}()`);
+      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+      // ...and the helper it delegates to reads the member row once, not per clause.
+      const helper = body(`function ${memberHelper}(hid, uid`);
+      assert.equal((helper.match(/memberPath\(hid, uid\)/g) ?? []).length, 1, memberHelper);
+      assert.doesNotMatch(helper, /householdAccess\(|householdEntitled\(|householdOwner\(|householdPath\(/, memberHelper);
     }
-    // The month rules resolve their facts through one of the two purpose-built
-    // records, exactly once. Deliberately NOT `householdAccess()`: that record
-    // answers the owner, editor, custom and permission questions together, and
-    // rules evaluate every field of a returned map — so a branch that needs
-    // only half of them still paid for all of them, which is what pushed the
-    // month rules over the 1000-expression cap and broke importing, syncing
-    // and deleting a shared workspace.
+    // One statement per method, dispatching inside ONE facts record. The shared month
+    // rules were once split by writer kind - three `allow update` statements and two
+    // `allow create` - on the theory that each statement gets its own expression
+    // budget. It does not: a request is charged every `allow` statement it consults,
+    // so the split paid for the household root, the membership row and the sponsor's
+    // profile once per statement, and importing a budget, flushing the outbox and
+    // closing a period aborted with "maximum of 1000 expressions to evaluate has been
+    // reached" while every authorization fact in the request was in order (CI run
+    // 33928520670). `npm run test:rules` is what proves this, and it is the gate.
+    // The personal months document keeps its own statements at the other end of the
+    // file, so the block is located from the shared write it must contain.
+    const sharedMonthAt = rulesSource.indexOf('allow create: if monthCreateShared(hid)');
+    assert.notEqual(sharedMonthAt, -1, 'the shared month write must go through monthCreateShared()');
+    const monthBlock = rulesSource.slice(
+      rulesSource.lastIndexOf('match /months/{key} {', sharedMonthAt),
+      rulesSource.indexOf('match /data/savings {', sharedMonthAt),
+    );
+    assert.equal((monthBlock.match(/allow update:/g) ?? []).length, 1,
+      'a second shared month update statement buys back the budget the split cost');
+    assert.equal((monthBlock.match(/allow create:/g) ?? []).length, 1,
+      'a second shared month create statement buys back the budget the split cost');
     for (const signature of [
-      'function monthOrdinaryUpdateByFinanceWriter(hid) {',
-      'function monthCreateByFinanceWriter(hid) {',
+      'function monthUpdateShared(hid) {',
+      'function monthCreateShared(hid) {',
     ]) {
       const gate = body(signature);
-      assert.equal((gate.match(/monthFinanceWriterFacts\(hid\)/g) ?? []).length, 1, signature);
+      assert.equal((gate.match(/monthWriteFacts\(hid\)/g) ?? []).length, 1, signature);
       assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
     }
-    // Closing and reopening a period is narrower still: ownership is recorded
-    // on the household root, so this branch reads the root directly and never
-    // resolves a membership row at all. Editor and custom grants cannot reach
-    // it, which is precisely what keeps it inside the expression budget.
+    // The facts record reads the household root and the member row once each, and
+    // names the sponsor before asking about it: passed inline it is re-expanded at
+    // each of `userProfileData()`'s uses of it.
     {
-      const gate = body('function monthCloseReopenByOwner(hid) {');
-      assert.doesNotMatch(gate, /monthFinanceWriterFacts\(|monthCustomWriterFacts\(|householdAccess\(|memberDocument\(/,
-        'the close/reopen branch must not resolve membership it does not consult');
-      assert.match(gate, /root\.get\('ownerId', ''\) == uid/);
-      assert.match(gate, /activeProEntitlement\(sponsor\)/);
+      const facts = body('function monthWriteFacts(hid) {');
+      assert.equal((facts.match(/householdPath\(hid\)/g) ?? []).length, 1, 'monthWriteFacts');
+      assert.equal((facts.match(/memberPath\(hid, uid\)/g) ?? []).length, 1, 'monthWriteFacts');
+      assert.match(facts, /let sponsor = householdSponsor\(root\);/, 'monthWriteFacts');
     }
-    for (const signature of [
-      'function monthUpdateByCustomMember(hid) {',
-      'function monthCreateByCustomMember(hid) {',
+    // Inside the one statement the dispatch still runs cheapest first, because the
+    // short-circuit that keeps the common write inside the budget now lives in the
+    // expression rather than in the statement order: the entitlement, then the
+    // replayed ledger row, then the rare transition, and the per-area grant walk -
+    // which visits every changed key - only for a writer who is actually a custom
+    // member. The document-shape check follows the same dispatch: a transition may
+    // only move period-state keys, so it is not charged `validMonthDocument()`.
+    {
+      const gate = body('function monthUpdateShared(hid) {');
+      assert.ok(gate.indexOf('facts.paid') < gate.indexOf('customMonthChangesGranted'),
+        'facts.paid is the cheapest discriminator and must be asked before the grant walk');
+      assert.ok(gate.indexOf('facts.custom') < gate.indexOf('customMonthChangesGranted'),
+        'the grant walk must not be reached for a writer who is not a custom member');
+      // ...and the document-shape check is chosen by the transition the dispatch
+      // already computed, from the `wasClosed`/`willBeClosed` in scope, rather than
+      // re-deriving both documents' period state in the statement above it. A
+      // transition may only move period-state keys, so the money checks in
+      // `validMonthDocument()` cannot be violated by it and it is validated as period
+      // fields only; an ordinary edit keeps the full document check. Each exactly
+      // once, because this is the tightest budget in the file.
+      assert.equal((gate.match(/validMonthDocument\(\)/g) ?? []).length, 1,
+        'the ordinary edit must pay the full shape check once, not once per arm');
+      assert.equal((gate.match(/validMonthPeriodFields\(\)/g) ?? []).length, 1,
+        'the transition must be validated as period fields once');
+      assert.match(gate, /\? \(facts\.owner[\s\S]*&& validMonthPeriodFields\(\)\)/,
+        'the close/reopen arm is the one validated as period fields only');
+    }
+    // The superseded gates are gone, not merely unused: leaving either wrong shape in
+    // the file invites a future rule to call one and re-inherit its cost. The folded
+    // all-in-one gate charged every branch for the others; the per-statement split
+    // charged the request for each statement. Both are recorded here so neither
+    // returns as the "optimization" that fixes the other.
+    for (const gone of [
+      'monthUpdateAuthorized', 'householdMonthGate', 'monthWriterOk', 'householdAccess',
+      'monthFinanceWriterFacts', 'monthCustomWriterFacts', 'monthOrdinaryUpdateByFinanceWriter',
+      'monthCreateByFinanceWriter', 'monthCreateByCustomMember', 'monthUpdateByCustomMember',
+      'monthCloseReopenByOwner',
     ]) {
-      const gate = body(signature);
-      assert.equal((gate.match(/monthCustomWriterFacts\(hid\)/g) ?? []).length, 1, signature);
-      assert.doesNotMatch(gate, /householdAccess\(|householdEntitled\(|householdOwner\(|memberDocument\(/, signature);
+      assert.doesNotMatch(rulesSource, new RegExp(`function ${gone}\\(`),
+        `${gone}() is a superseded month-gate shape; calling it re-buys the budget bug it was written to fix`);
     }
-    // Each facts record reads the household root and the member row once each.
-    for (const signature of [
-      'function monthFinanceWriterFacts(hid) {',
-      'function monthCustomWriterFacts(hid) {',
-    ]) {
-      const facts = body(signature);
-      assert.equal((facts.match(/householdPath\(hid\)/g) ?? []).length, 1, signature);
-      assert.equal((facts.match(/memberPath\(hid, uid\)/g) ?? []).length, 1, signature);
-      // The sponsor is named before being asked about: passed inline it is
-      // re-expanded at each of `userProfileData()`'s uses of it.
-      assert.match(facts, /let sponsor = householdSponsor\(root\);/, signature);
-    }
-    // The cheap, most common month write is stated before the expensive ones:
-    // Firestore ORs matching `allow` statements and `||` short-circuits.
-    assert.match(
-      rulesSource,
-      /allow update: if monthOrdinaryUpdateByFinanceWriter\(hid\)\n\s*&& isValidMonthId\(key\) && validMonthDocument\(\);/,
-    );
-    assert.ok(
-      rulesSource.indexOf('monthOrdinaryUpdateByFinanceWriter(hid)\n')
-        < rulesSource.indexOf('allow update: if monthCloseReopenByOwner(hid)'),
-      'the ordinary month write must be offered before the close/reopen branch',
-    );
-    // The superseded all-in-one gates are gone, not merely unused: leaving them
-    // in the file invites a future rule to call one and re-inherit the cost.
-    assert.doesNotMatch(rulesSource, /function monthUpdateAuthorized\(/);
-    assert.doesNotMatch(rulesSource, /function householdMonthGate\(/);
-    assert.doesNotMatch(rulesSource, /function monthWriterOk\(/);
     // And no rule reads a mutation's ledger row through a hand-built path twice.
     assert.doesNotMatch(
       rulesSource,
