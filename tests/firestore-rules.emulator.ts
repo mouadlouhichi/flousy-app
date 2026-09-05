@@ -50,12 +50,16 @@ const ledger = (
   baseRevision: number,
   nextRevision: number,
   kind = 'month',
+  // The month the mutation advances: `mutationTargetAgrees` refuses a row
+  // whose month does not name it back, so a row replayed for any other month
+  // must say so - exactly as the client's outbox does.
+  monthKey = '2026-09',
 ) => ({
   mutationId,
   actorId,
   workspace,
   workspaceId,
-  monthKey: '2026-09',
+  monthKey,
   kind,
   baseRevision,
   nextRevision,
@@ -388,7 +392,7 @@ describe('household invitations and RBAC rules', () => {
     // 1. Import: create a month document that does not exist yet.
     const importBatch = writeBatch(owner);
     importBatch.set(doc(owner, 'households/home/ledger/import-1'),
-      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month'));
+      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month', '2026-08'));
     importBatch.set(doc(owner, 'households/home/months/2026-08'), validMonth(1, 'import-1'));
     await assertSucceeds(importBatch.commit());
 
@@ -396,7 +400,7 @@ describe('household invitations and RBAC rules', () => {
     //    flush replays. This is the write the import failure cascaded from.
     const flush = writeBatch(owner);
     flush.set(doc(owner, 'households/home/ledger/flush-1'),
-      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month'));
+      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month', '2026-08'));
     flush.update(doc(owner, 'households/home/months/2026-08'), {
       bankPart: 900, totalBudget: 1000, revision: 2, lastMutationId: 'flush-1',
       updatedAt: new Date().toISOString(),
@@ -1245,7 +1249,7 @@ describe('household month bootstrap by an entitled launch-trial owner (map-liter
     const clerk = asUser('clerk');
     await assertSucceeds(bootstrapMonth(clerk, 'clerk', HID, '2026-08', personalMonth('2026-08')));
     const edit = writeBatch(clerk);
-    edit.set(doc(clerk, `households/${HID}/ledger/clerk-1`), ledger('clerk-1', 'clerk', 'household', HID, 1, 2, 'month'));
+    edit.set(doc(clerk, `households/${HID}/ledger/clerk-1`), ledger('clerk-1', 'clerk', 'household', HID, 1, 2, 'month', '2026-08'));
     edit.update(doc(clerk, `households/${HID}/months/2026-08`), {
       bankPart: 100, revision: 2, lastMutationId: 'clerk-1',
     });

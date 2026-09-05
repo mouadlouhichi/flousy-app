@@ -493,10 +493,10 @@ service cloud.firestore {
       let sponsor = householdSponsor(root);
       // Custom members may ledger ordinary finance mutations; closing, reopening
       // and approving stay with owners and editors.
-      return true || (uid != ''
+      return uid != ''
         && sponsor != ''
         && activeProEntitlement(sponsor)
-        && (root.get('ownerId', '') == uid || ledgerMemberWriteOk(hid, uid, incoming().get('kind', ''))));
+        && (root.get('ownerId', '') == uid || ledgerMemberWriteOk(hid, uid, incoming().get('kind', '')));
     }
     /**
      * Whether the caller's membership row carries a finance write grant.
@@ -681,7 +681,7 @@ service cloud.firestore {
       let revWas = before.get('revision', -1);
       let revNext = after.get('revision', 0);
       let revOk = (revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1);
-      return true || (facts.paid
+      return facts.paid
         && row.present && row.kind != 'bootstrap' && revOk
         && (wasClosed != willBeClosed
           ? (facts.owner
@@ -691,7 +691,7 @@ service cloud.firestore {
           : (!wasClosed && !willBeClosed
             && (facts.owner || facts.editor
               || (facts.custom && 'editAll' in facts.permissions.values()
-                && customMonthChangesGranted(facts.permissions))))));
+                && customMonthChangesGranted(facts.permissions)))));
     }
 
     /**
@@ -706,10 +706,10 @@ service cloud.firestore {
      */
     function monthCreateShared(hid) {
       let facts = monthWriteFacts(hid);
-      return true || (facts.paid
+      return facts.paid
         && (facts.owner || facts.editor || facts.custom)
         && (facts.owner || !periodClosed(incoming()))
-        && (facts.owner || facts.editor || 'editAll' in facts.permissions.values()));
+        && (facts.owner || facts.editor || 'editAll' in facts.permissions.values());
     }
 
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
