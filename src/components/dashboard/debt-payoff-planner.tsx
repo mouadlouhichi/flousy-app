@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { planDebtPayoff, type PayoffMethod } from '@/lib/insights';
 import type { MonthBudget } from '@/lib/store';
 import { ProLockedCard } from './pro-locked-card';
+import { DebtPayoffChart } from '../charts/debt-payoff-chart';
 
 interface DebtPayoffPlannerProps {
   month: MonthBudget;
@@ -31,6 +32,13 @@ export function DebtPayoffPlanner({ month, unlocked, onUpgrade }: DebtPayoffPlan
     const [y, mo] = iso.split('-').map(Number);
     return new Date(y, mo - 1, 1).toLocaleDateString(intlLocale, { month: 'long', year: 'numeric' });
   };
+  const shortMonth = (iso: string) => {
+    const [y, mo] = iso.split('-').map(Number);
+    return new Date(y, mo - 1, 1).toLocaleDateString(intlLocale, { month: 'short', year: '2-digit' });
+  };
+  const compactAxis = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  const debtNames = Object.fromEntries((month.debts || []).map((d) => [d.id, d.name]));
 
   const persist = (patch: { debtPayoffBudget?: number; debtPayoffMethod?: PayoffMethod }) => {
     if (!profile) return;
@@ -98,6 +106,12 @@ export function DebtPayoffPlanner({ month, unlocked, onUpgrade }: DebtPayoffPlan
         </div>
       ) : (
         <p className="mt-4 text-sm text-on-surface-variant">{p.noBudget}</p>
+      )}
+
+      {plan.steps.length > 0 && (
+        <div className="mt-4">
+          <DebtPayoffChart plan={plan} debtNames={debtNames} format={format} compactAxis={compactAxis} monthLabel={shortMonth} />
+        </div>
       )}
 
       {plan.steps.length > 0 && (

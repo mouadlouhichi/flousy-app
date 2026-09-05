@@ -2243,7 +2243,8 @@
     "to": "To",
     "rateNote": "Rate {rate} · {date}",
     "unavailable": "Live rates are unavailable offline.",
-    "amount": "Amount"
+    "amount": "Amount",
+    "swap": "Swap currencies"
   },
   "barcode": {
     "title": "Scan a product",

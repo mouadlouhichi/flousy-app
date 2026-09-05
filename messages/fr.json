@@ -2243,7 +2243,8 @@
     "to": "Vers",
     "rateNote": "Taux {rate} · {date}",
     "unavailable": "Les taux en direct ne sont pas disponibles hors ligne.",
-    "amount": "Montant"
+    "amount": "Montant",
+    "swap": "Inverser les devises"
   },
   "barcode": {
     "title": "Scanner un produit",

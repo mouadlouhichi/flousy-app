@@ -16,20 +16,31 @@ export function CurrencyConverter() {
   const [from, setFrom] = useState(currency || 'MAD');
   const [to, setTo] = useState(currency === 'EUR' ? 'MAD' : 'EUR');
   const [amount, setAmount] = useState('1000');
-  const [rates, setRates] = useState<{ base: string; date: string | null; rates: Record<string, number> } | null>(null);
+  // Rates cached per base so swapping is instant and never flashes "loading".
+  const [ratesByBase, setRatesByBase] = useState<Record<string, { date: string | null; rates: Record<string, number> }>>({});
   const [error, setError] = useState(false);
+  const swap = () => {
+    const nextFrom = to;
+    const nextTo = from;
+    setFrom(nextFrom);
+    setTo(nextTo);
+  };
 
   useEffect(() => {
+    if (ratesByBase[from]) return;
     let cancelled = false;
     setError(false);
     fetch(`/api/fx?base=${encodeURIComponent(from)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fx'))))
-      .then((data) => { if (!cancelled) setRates(data); })
+      .then((data: { base: string; date: string | null; rates: Record<string, number> }) => {
+        if (!cancelled) setRatesByBase((prev) => ({ ...prev, [data.base]: { date: data.date, rates: data.rates } }));
+      })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [from]);
+  }, [from, ratesByBase]);
 
-  const rate = rates?.base === from ? rates.rates[to] : undefined;
+  const rates = ratesByBase[from];
+  const rate = from === to ? 1 : rates?.rates[to];
   const value = Number(amount.replace(',', '.')) || 0;
   const converted = useMemo(() => (rate ? value * rate : null), [rate, value]);
   const fmt = (v: number, code: string) => {
@@ -50,11 +61,12 @@ export function CurrencyConverter() {
         <CustomSelect label={m.fx.from} value={from} onChange={setFrom} options={OPTIONS} />
         <button
           type="button"
-          aria-label="swap"
-          onClick={() => { setFrom(to); setTo(from); }}
+          aria-label={m.fx.swap}
+          title={m.fx.swap}
+          onClick={swap}
           className="mb-1 flex size-9 items-center justify-center rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface"
         >
-          <AppIcon name="swap_horiz" className="text-[18px]" />
+          <AppIcon name="currency_exchange" className="text-[18px]" />
         </button>
         <CustomSelect label={m.fx.to} value={to} onChange={setTo} options={OPTIONS} />
       </div>

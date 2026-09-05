@@ -168,6 +168,8 @@ export interface PayoffPlan {
   monthsToDebtFree: number | null;
   debtFreeOn: string | null;
   steps: PayoffStep[];
+  /** Remaining balance per debt at the end of each month (month 0 = today). */
+  timeline: Array<{ month: string; total: number; balances: Record<string, number> }>;
 }
 
 /**
@@ -193,8 +195,9 @@ export function planDebtPayoff(
   );
 
   const steps: PayoffStep[] = [];
+  const timeline: PayoffPlan['timeline'] = [];
   if (budget <= 0 || ordered.length === 0) {
-    return { method, monthlyBudget: budget, totalOutstanding, monthsToDebtFree: null, debtFreeOn: null, steps };
+    return { method, monthlyBudget: budget, totalOutstanding, monthsToDebtFree: null, debtFreeOn: null, steps, timeline };
   }
 
   const balances = ordered.map((d) => d.outstanding);
@@ -204,6 +207,13 @@ export function planDebtPayoff(
     const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + offset, 1));
     return d.toISOString().slice(0, 10);
   };
+
+  const snapshot = (offset: number) => {
+    const record: Record<string, number> = {};
+    ordered.forEach((d, i) => { record[d.id] = balances[i]; });
+    timeline.push({ month: monthLabel(offset), total: money(balances.reduce((a, b) => a + b, 0)), balances: record });
+  };
+  snapshot(0);
 
   while (monthIndex < 600 && balances.some((b) => b > 0)) {
     monthIndex += 1;
@@ -223,6 +233,8 @@ export function planDebtPayoff(
         });
       }
     }
+    // The chart stays readable: cap the series at 60 points (5 years).
+    if (monthIndex <= 60) snapshot(monthIndex);
   }
 
   const done = balances.every((b) => b <= 0);
@@ -233,6 +245,7 @@ export function planDebtPayoff(
     monthsToDebtFree: done ? monthIndex : null,
     debtFreeOn: done ? monthLabel(monthIndex) : null,
     steps,
+    timeline,
   };
 }
 

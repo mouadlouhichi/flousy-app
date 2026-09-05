@@ -1,6 +1,7 @@
 'use client';
 
 import { AppIcon } from '@/components/ui/app-icon';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -66,22 +67,20 @@ export function GoalProjection({ goal, monthlyDeposits, unlocked, onUpgrade, can
           <span className="font-mono text-on-surface-variant">{t(p.goalPace, { amount: format(projection.monthlyPace) })}</span>
         )}
       </p>
-      <label className="flex items-center justify-between gap-2 text-on-surface-variant">
-        <span>{p.goalTargetDate}</span>
-        <input
-          type="date"
+      <div className="flex flex-col gap-1">
+        <DatePicker
+          label={p.goalTargetDate}
           value={targetDate || ''}
           disabled={!canEdit}
-          onChange={(e) => {
+          onChange={(nextDate) => {
             if (!profile) return;
             const next = { ...(profile.goalTargetDates || {}) };
-            if (e.target.value) next[goal.id] = e.target.value;
+            if (nextDate) next[goal.id] = nextDate;
             else delete next[goal.id];
             void updateProfileData({ goalTargetDates: next }).catch(() => {});
           }}
-          className="rounded-lg border border-outline-variant bg-surface px-2 py-1 text-xs text-on-surface outline-none focus:border-primary"
         />
-      </label>
+      </div>
       {projection.requiredPerMonth !== null && targetDate && (
         <p className="font-semibold text-on-surface">
           {t(p.goalRequired, { amount: format(projection.requiredPerMonth), date: monthLabel(targetDate.slice(0, 7) + '-01') })}

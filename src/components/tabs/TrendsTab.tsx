@@ -14,6 +14,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 import { CustomReportCard } from '../dashboard/custom-report-card';
+import { MonthTrendChart } from '../charts/month-trend-chart';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -122,8 +123,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       : 0
     : 0;
 
-  // Max spent for bar chart scaling
-  const maxSpent = Math.max(...monthOverMonth.map((m) => m.totalSpent), 1);
+  const compactAxis = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
   return (
     <div className="space-y-6 pb-24">
@@ -260,26 +261,12 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
              table — the accessible "chart". */
           <div className="space-y-4">
             <p className="sr-only">{m.tabs.trends.chartAltText}</p>
-            <div aria-hidden="true" className="flex items-end gap-2 sm:gap-3 h-48">
-              {monthOverMonth.map((m, idx) => {
-                const heightPct = Math.max(8, (m.totalSpent / maxSpent) * 100);
-                const isCurrent = idx === monthOverMonth.length - 1;
-                return (
-                  <div key={m.monthKey} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="w-full truncate text-center text-[10px] font-bold font-mono text-on-surface-variant">{format(m.totalSpent)}</span>
-                    <div
-                      className={`w-full rounded-lg transition-all duration-300 ${
-                        isCurrent ? 'bg-primary' : 'bg-primary/40'
-                      }`}
-                      style={{ height: `${heightPct}%`, minHeight: '16px' }}
-                    />
-                    <span className={`text-[10px] font-bold ${isCurrent ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      {m.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <MonthTrendChart
+              data={monthOverMonth}
+              format={format}
+              compactAxis={compactAxis}
+              labels={{ spent: m.tabs.trends.spent, budget: m.tabs.trends.budget, netSaved: m.tabs.trends.netSaved }}
+            />
 
             {/* Trend summary table */}
             <div className="overflow-x-auto">
