@@ -24,17 +24,33 @@ export function BlogArticle({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (post) document.title = `${post.title} · ${m.common.appName}`;
-    // `post` is rebuilt from the catalog on every render, so depending on it (or
-    // on the object identity the rule suggests) would re-run this on each paint;
-    // the title only needs to follow the values it actually reads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m.common.appName, post?.title]);
 
-  // The server page already verifies the slug for static generation. This
-  // fallback keeps the client render safe if a stale route is ever restored.
   if (!post) return null;
 
   const BackIcon = isRTL ? ArrowRight : ArrowLeft;
+
+  // Semantic internal linking map per slug
+  const contextualLinks: Record<string, { href: string; anchor: string; context: string }> = {
+    'what-its-for-vs-where-it-is': {
+      href: '/features/track-bank-home-wallet',
+      anchor: 'track bank, home, and wallet as separate balances',
+      context: 'This separation is the core of SmartJib — learn how to',
+    },
+    'pick-a-budgeting-style': {
+      href: '/budgeting-methods',
+      anchor: 'compare 4 budgeting methods: 50/30/20, zero-based, envelope and pay-yourself-first',
+      context: 'Not sure which split fits your Moroccan salary? You can',
+    },
+    'track-cash-wallet-spending': {
+      href: '/features/expense-tracking',
+      anchor: 'track wallet spending without mixing it with your bank balance',
+      context: 'If cash keeps disappearing, learn how to',
+    },
+  };
+
+  const ctx = contextualLinks[slug];
 
   return (
     <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
@@ -75,6 +91,11 @@ export function BlogArticle({ slug }: { slug: string }) {
               {post.excerpt}
             </p>
 
+            {/* Money page link in first 100 words for PageRank flow */}
+            <p className="mt-6 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              This guide is part of <Link href="/" className="text-foreground underline underline-offset-4 hover:no-underline">SmartJib — a free private budget tracker for Morocco</Link> that supports <Link href="/features/multi-currency-mad" className="text-foreground underline underline-offset-4 hover:no-underline">MAD, dirham and 12 currencies</Link> without bank connections. Learn more about <Link href="/budgeting-methods" className="text-foreground underline underline-offset-4 hover:no-underline">budgeting methods like 50/30/20</Link>.
+            </p>
+
             <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-foreground/10 pt-6 font-mono text-sm text-muted-foreground">
               <span>{s.byAuthor}</span>
               <span aria-hidden="true" className="text-foreground/20">
@@ -90,6 +111,16 @@ export function BlogArticle({ slug }: { slug: string }) {
         </header>
 
         <div className="mx-auto max-w-3xl px-6 pb-24 lg:px-12 lg:pb-32">
+          {ctx && (
+            <div className="mb-10 border-s-4 border-primary bg-foreground/[0.03] px-6 py-4 text-sm leading-relaxed">
+              {ctx.context}{' '}
+              <Link href={ctx.href} className="font-medium text-foreground underline underline-offset-4 hover:no-underline">
+                {ctx.anchor}
+              </Link>
+              {' '}in SmartJib.
+            </div>
+          )}
+
           {post.sections.map((section) => (
             <section key={section.heading} className="mb-12 last:mb-0">
               <h2 className="mb-5 font-display text-2xl tracking-tight text-foreground sm:text-3xl">
@@ -125,13 +156,25 @@ export function BlogArticle({ slug }: { slug: string }) {
 
           <div className="mt-16 border-y border-foreground/10 py-8">
             <p className="mb-5 text-muted-foreground">{s.articleCtaDescription}</p>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-accent-foreground"
-            >
-              {s.startBudgeting}
-              <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-6 py-3 text-sm font-medium hover:border-foreground/30"
+              >
+                Explore SmartJib features
+                <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-accent-foreground"
+              >
+                {s.startBudgeting}
+                <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
+              </Link>
+            </div>
+            <p className="mt-6 text-xs text-muted-foreground">
+              Also: <Link href="/features/multi-currency-mad" className="underline underline-offset-4 hover:no-underline">Budget tracker MAD guide</Link> · <Link href="/budgeting-methods" className="underline underline-offset-4 hover:no-underline">4 budgeting methods explained</Link> · <Link href="/about" className="underline underline-offset-4 hover:no-underline">Why SmartJib is private by design</Link>
+            </p>
           </div>
         </div>
       </article>
@@ -162,7 +205,7 @@ export function BlogArticle({ slug }: { slug: string }) {
                   className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:underline"
                   aria-label={t(s.readArticleAria, { title: relatedPost.title })}
                 >
-                  {s.readArticle}
+                  Read: {relatedPost.title}
                   <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />
                 </Link>
               </article>

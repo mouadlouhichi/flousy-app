@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useLightLanguage } from "@/lib/i18n-light";
 
 const CURRENCY_CODES = [
@@ -50,8 +51,22 @@ export function IntegrationsSection() {
             {m.landing.integrations.titleLine2}
           </h2>
           <p className="text-xl text-muted-foreground">
-{m.landing.integrations.description}
+            {m.landing.integrations.description}
           </p>
+          {/* Semantic internal linking for Morocco SEO */}
+          <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
+            Built for Morocco — track in <Link href="/features/multi-currency-mad" className="text-foreground underline underline-offset-4 hover:no-underline">MAD and dirham with our multi-currency budget tracker</Link>. 
+            Learn how <Link href="/features/track-bank-home-wallet" className="text-foreground underline underline-offset-4 hover:no-underline">bank, home and wallet balances stay separate</Link> and 
+            <Link href="/blog" className="text-foreground underline underline-offset-4 hover:no-underline"> read budgeting guides for cash spending</Link>.
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/features/multi-currency-mad" className="inline-flex items-center rounded-full border border-foreground/10 px-4 py-2 text-xs font-medium hover:border-foreground/30 transition-colors">
+              Explore MAD & dirham support →
+            </Link>
+            <Link href="/budgeting-methods" className="inline-flex items-center rounded-full border border-foreground/10 px-4 py-2 text-xs font-medium hover:border-foreground/30 transition-colors">
+              4 budgeting methods →
+            </Link>
+          </div>
         </div>
 
       </div>
