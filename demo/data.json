@@ -101,7 +101,10 @@
         "Restaurant": "#f43f5e",
         "King": "#00685f",
         "Course": "#a855f7",
-        "Abonnement": "#b05e3d"
+        "Abonnement": "#b05e3d",
+        "Food": "#ea580c",
+        "Wife": "#65a30d",
+        "Gym": "#0d9488"
       },
       "totalBudget": 25614,
       "strategyId": "50-30-20",
@@ -118,7 +121,10 @@
         "Restaurant": "local_dining",
         "King": "fitness_center",
         "Course": "shopping_bag",
-        "Abonnement": "wifi"
+        "Abonnement": "wifi",
+        "Food": "restaurant",
+        "Wife": "person",
+        "Gym": "fitness_center"
       },
       "savingsActivity": [
         {
@@ -363,7 +369,9 @@
         "Restaurant",
         "Course",
         "King",
-        "Abonnement"
+        "Abonnement",
+        "Wife",
+        "Gym"
       ],
       "categoryBudgets": {
         "Food": 2000
