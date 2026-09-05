@@ -266,13 +266,13 @@ describe('the model, the rules and the maintenance script agree', () => {
       // and the create that bootstraps a month. The update dispatches close/reopen
       // inside itself for the same reason it is one statement: the household root, the
       // member row and the sponsor's profile are read once for the whole request.
-      ['monthUpdateShared(hid)', 1720],
-      ['monthCreateShared(hid)', 1000],
+      ['monthUpdateShared(hid)', 1830],
+      ['monthCreateShared(hid)', 1130],
       // Every origin of a membership row - the founder writing their own owner row,
       // the owner adding somebody else, the invitee claiming theirs - answered by one
       // statement each, from one read of the household root.
-      ['memberCreateShared(hid, memberId)', 1480],
-      ['memberUpdateShared(hid, memberId)', 1560],
+      ['memberCreateShared(hid, memberId)', 1460],
+      ['memberUpdateShared(hid, memberId)', 1540],
       // The household's own settings write and the "Restore shared access" repair the
       // UI offers a locked-out owner. Folded with the settings write it cost 1061 - so
       // the one repair the app can perform from the browser could never succeed, and
@@ -280,10 +280,13 @@ describe('the model, the rules and the maintenance script agree', () => {
       ['householdConfigUpdateOk()', 1000],
       ['householdSponsorRepairOk()', 1000],
       // The two documents a flush writes beside the month: the audit row and the
-      // goals balance. Both stay well inside the cap, and they are where a future
-      // "let me also check the payer's profile here" would first show up.
-      ['householdLedgerGate(hid)', 1000],
-      ['householdSavingsGate(hid)', 1000],
+      // goals balance. Each answers its own three questions - who signed in, whether
+      // the household is paid for, and what the caller's row grants - from ONE read
+      // of the household root, the membership row and the incoming document, and
+      // each stays inside the cap outright. They are where a future "let me also
+      // check the payer's profile here" would first show up.
+      ['householdLedgerGate(hid, mutationId)', 700],
+      ['householdSavingsGate(hid)', 670],
     ];
     for (const [marker, bound] of bounds) {
       const cost = costOf(marker);

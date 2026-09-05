@@ -229,14 +229,18 @@ service cloud.firestore {
     // rather than trusted, because the row is the replay guard for the month document.
     function ledgerRowAgrees(scopeId, mutationId, workspace) {
       let row = incoming();
+      // Both revision fields are asked twice; this rule shares its request's budget
+      // with the month or savings document the row exists to justify, and a `.get()`
+      // chain is an expansion each time it is spelled out.
+      let baseRevision = row.get('baseRevision', -1);
       return row.get('mutationId', '') == mutationId
         && row.get('actorId', '') == request.auth.uid
         && row.get('workspace', '') == workspace
         && row.get('workspaceId', '') == scopeId
         && row.get('monthKey', '') is string
-        && row.get('baseRevision', -1) is int
-        && row.get('baseRevision', -1) >= 0
-        && row.get('nextRevision', 0) == row.get('baseRevision', -1) + 1
+        && baseRevision is int
+        && baseRevision >= 0
+        && row.get('nextRevision', 0) == baseRevision + 1
         && row.get('createdAt', '') is string
         && row.get('kind', '') in [
           'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
@@ -477,15 +481,28 @@ service cloud.firestore {
       };
     }
     /**
-     * Who may file a ledger row. Staged so the common case stays cheap: the
-     * owner is decided from the household root alone, editors add one
-     * membership read, custom writers add their grant check. The entitlement
-     * (the sponsor's profile) is the same read the paired month/savings write
-     * performs - the request budget counts both statements, so neither side
-     * may re-derive the other's answers through a shared all-purpose record.
+     * Who may file a ledger row, and whether THIS row is fit to be filed: the
+     * owner is decided from the household root alone, editors add one membership
+     * read, custom writers add their grant check, and the row's own shape and the
+     * document it advances are answered from the same read of `incoming()`. The
+     * entitlement (the sponsor's profile) is the same read the paired month/savings
+     * write performs - the request budget counts both statements, so neither side may
+     * re-derive the other's answers through a shared all-purpose record, and neither
+     * may ask the incoming document twice for its own.
      */
-    function householdLedgerGate(hid) {
+    function householdLedgerGate(hid, mutationId) {
       let uid = signedIn() ? request.auth.uid : '';
+      // The row is read once and answered in full here: `ledgerRowAgrees` and
+      // `mutationTargetAgrees` each asked for `incoming()` themselves when this lived
+      // in three statements, and a create is charged to the same request budget as the
+      // month or savings write it files, so the repeats were paid twice per flush.
+      let row = incoming();
+      let kind = row.get('kind', '');
+      let monthKey = row.get('monthKey', '');
+      let baseRevision = row.get('baseRevision', -1);
+      let target = monthKey == 'savings'
+        ? savingsPath(hid)
+        : monthPath(hid, monthKey is string && isValidMonthId(monthKey) ? monthKey : '0000-00');
       let hPath = householdPath(hid);
       let root = request.method == 'create'
         ? (existsAfter(hPath) ? getAfter(hPath).data : {})
@@ -496,7 +513,24 @@ service cloud.firestore {
       return uid != ''
         && sponsor != ''
         && activeProEntitlement(sponsor)
-        && (root.get('ownerId', '') == uid || ledgerMemberWriteOk(hid, uid, incoming().get('kind', '')));
+        && (root.get('ownerId', '') == uid || ledgerMemberWriteOk(hid, uid, kind))
+        // A ledger row is accepted once the document it advances has taken the
+        // mutation, which is what makes a replay idempotent instead of double-posted.
+        && row.get('mutationId', '') == mutationId
+        && row.get('actorId', '') == request.auth.uid
+        && row.get('workspace', '') == 'household'
+        && row.get('workspaceId', '') == hid
+        && monthKey is string
+        && baseRevision is int
+        && baseRevision >= 0
+        && row.get('nextRevision', 0) == baseRevision + 1
+        && row.get('createdAt', '') is string
+        && kind in [
+          'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings',
+          'month-close', 'month-reopen', 'course-post', 'invoice-approval'
+        ]
+        && existsAfter(target)
+        && getAfter(target).data.get('lastMutationId', '') == mutationId;
     }
     /**
      * Whether the caller's membership row carries a finance write grant.
@@ -529,10 +563,14 @@ service cloud.firestore {
         ? (existsAfter(hPath) ? getAfter(hPath).data : {})
         : (exists(hPath) ? get(hPath).data : {});
       let sponsor = householdSponsor(root);
+      // The goals bound is the same question on both methods, so it is answered here,
+      // where the document is already in hand, instead of once per statement.
+      let after = incoming();
       return uid != ''
         && sponsor != ''
         && activeProEntitlement(sponsor)
-        && (root.get('ownerId', '') == uid || savingsMemberWriteOk(hid, uid));
+        && (root.get('ownerId', '') == uid || savingsMemberWriteOk(hid, uid))
+        && (!('goals' in after) || (after.goals is list && after.goals.size() <= 200));
     }
     function savingsMemberWriteOk(hid, uid) {
       let mPath = memberPath(hid, uid);
@@ -649,15 +687,25 @@ service cloud.firestore {
       let revOk = (revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1);
       return facts.paid
         && row.present && row.kind != 'bootstrap' && revOk
+        // The document-shape check is chosen by the same transition the writer
+        // dispatch is, from `wasClosed`/`willBeClosed` that are already bound here.
+        // Asked at the statement instead, it cost two more reads of both documents
+        // (`periodClosed(existing()) == periodClosed(incoming())`) on top of the
+        // check itself, and this is the tightest budget in the file. A transition may
+        // only move period-state keys, so the money-shape checks cannot be violated by
+        // it and it is validated as period fields only; an ordinary edit keeps the
+        // full document check.
         && (wasClosed != willBeClosed
           ? (facts.owner
             && ((!wasClosed && willBeClosed && row.kind == 'month-close')
               || (wasClosed && !willBeClosed && row.kind == 'month-reopen'))
-            && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly()))
+            && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly())
+            && validMonthPeriodFields())
           : (!wasClosed && !willBeClosed
             && (facts.owner || facts.editor
               || (facts.custom && 'editAll' in facts.permissions.values()
-                && customMonthChangesGranted(facts.permissions)))));
+                && customMonthChangesGranted(facts.permissions)))
+            && validMonthDocument()));
     }
 
     /**
@@ -672,9 +720,15 @@ service cloud.firestore {
      */
     function monthCreateShared(hid) {
       let facts = monthWriteFacts(hid);
+      // Named once: the revision check and the closed-period question below both ask
+      // the incoming document, as does the shape check in the statement. A rules
+      // argument is re-expanded at each use, so three `incoming()` calls cost three.
+      let after = incoming();
       return facts.paid
+        && after.get('revision', 0) == 1
+        && mutationLedger(hid).present
         && (facts.owner || facts.editor || facts.custom)
-        && (facts.owner || !periodClosed(incoming()))
+        && (facts.owner || !periodClosed(after))
         && (facts.owner || facts.editor || 'editAll' in facts.permissions.values());
     }
 
@@ -682,18 +736,6 @@ service cloud.firestore {
     function savingsMutationAgrees(hid, bootstrapAllowed) {
       let row = mutationLedger(hid);
       return row.present && (bootstrapAllowed || row.kind != 'savings-bootstrap');
-    }
-    /**
-     * A ledger row is accepted once the document it advances has taken the mutation,
-     * which is what makes a replay idempotent instead of double-posted.
-     */
-    function mutationTargetAgrees(hid, mutationId) {
-      let key = incoming().get('monthKey', '');
-      let target = key == 'savings'
-        ? savingsPath(hid)
-        : monthPath(hid, key is string && isValidMonthId(key) ? key : '0000-00');
-      return existsAfter(target)
-        && getAfter(target).data.get('lastMutationId', '') == mutationId;
     }
     /**
      * `revision` starts at 1 and moves by exactly one, so a document written before
@@ -1233,17 +1275,14 @@ service cloud.firestore {
         // documents once.
         allow create: if monthCreateShared(hid)
           && isValidMonthId(key)
-          && validMonthDocument()
-          && incoming().revision == 1
-          && mutationLedger(hid).present;
-        // A transition (close/reopen) may only move period-state keys, so the
-        // money-shape checks in `validMonthDocument()` cannot be violated by it
-        // and it is validated as period fields only; an ordinary edit keeps the
-        // full document check. The dispatch mirrors `monthUpdateShared`.
+          && validMonthDocument();
+        // Everything the write has to answer - writer, ledger row, revision,
+        // transition and the document shape that follows from it - is inside
+        // `monthUpdateShared`, so the household root, the membership row, the
+        // sponsor's profile and both month states are each read once for the whole
+        // request. The statement keeps only what the path variable is needed for.
         allow update: if monthUpdateShared(hid)
-          && isValidMonthId(key)
-          && (periodClosed(existing()) == periodClosed(incoming())
-            ? validMonthDocument() : validMonthPeriodFields());
+          && isValidMonthId(key);
         allow delete: if householdOwner(hid);
       }
 
@@ -1253,15 +1292,13 @@ service cloud.firestore {
           || (customMember(hid) && customLevel(hid, 'savings') != 'none');
         allow create: if householdSavingsGate(hid)
           && incoming().revision == 1
-          && savingsMutationAgrees(hid, true)
-          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+          && savingsMutationAgrees(hid, true);
         // `lastMutationId` is bounded by `mutationLedger()`, which has to read the
         // row anyway; a key too long to have been accepted by the ledger rules can
         // never name a row, so it is refused there rather than here.
         allow update: if householdSavingsGate(hid)
           && validRevisionBump()
-          && savingsMutationAgrees(hid, false)
-          && (!('goals' in incoming()) || (incoming().goals is list && incoming().goals.size() <= 200));
+          && savingsMutationAgrees(hid, false);
         allow delete: if householdOwner(hid);
       }
 
@@ -1271,9 +1308,7 @@ service cloud.firestore {
         // a period and approving invoices remain owner/editor ledger kinds.
         // The month/savings documents named by the mutation enforce the
         // per-area grants - the ledger row is bookkeeping for sync.
-        allow create: if householdLedgerGate(hid)
-          && ledgerRowAgrees(hid, mutationId, 'household')
-          && mutationTargetAgrees(hid, mutationId);
+        allow create: if householdLedgerGate(hid, mutationId);
         allow update: if false;
         allow delete: if householdOwner(hid)
           && ((existing().get('monthKey', '') == 'savings'

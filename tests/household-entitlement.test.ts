@@ -328,7 +328,7 @@ describe('rules and client read the same entitlement', () => {
       ['householdLedgerGate', 'ledgerMemberWriteOk'],
       ['householdSavingsGate', 'savingsMemberWriteOk'],
     ] as [string, string][]) {
-      const signature = `function ${gateName}(hid) {`;
+      const signature = `function ${gateName}(hid`;
       const gate = body(signature);
       assert.equal((gate.match(/householdPath\(hid\)/g) ?? []).length, 1, signature);
       assert.match(gate, /let sponsor = householdSponsor\(root\);/, signature);
@@ -392,9 +392,19 @@ describe('rules and client read the same entitlement', () => {
         'facts.paid is the cheapest discriminator and must be asked before the grant walk');
       assert.ok(gate.indexOf('facts.custom') < gate.indexOf('customMonthChangesGranted'),
         'the grant walk must not be reached for a writer who is not a custom member');
-      assert.match(monthBlock,
-        /periodClosed\(existing\(\)\) == periodClosed\(incoming\(\)\)\n\s*\? validMonthDocument\(\) : validMonthPeriodFields\(\)/,
-        'a close/reopen transition must be validated as period fields only');
+      // ...and the document-shape check is chosen by the transition the dispatch
+      // already computed, from the `wasClosed`/`willBeClosed` in scope, rather than
+      // re-deriving both documents' period state in the statement above it. A
+      // transition may only move period-state keys, so the money checks in
+      // `validMonthDocument()` cannot be violated by it and it is validated as period
+      // fields only; an ordinary edit keeps the full document check. Each exactly
+      // once, because this is the tightest budget in the file.
+      assert.equal((gate.match(/validMonthDocument\(\)/g) ?? []).length, 1,
+        'the ordinary edit must pay the full shape check once, not once per arm');
+      assert.equal((gate.match(/validMonthPeriodFields\(\)/g) ?? []).length, 1,
+        'the transition must be validated as period fields once');
+      assert.match(gate, /\? \(facts\.owner[\s\S]*&& validMonthPeriodFields\(\)\)/,
+        'the close/reopen arm is the one validated as period fields only');
     }
     // The superseded gates are gone, not merely unused: leaving either wrong shape in
     // the file invites a future rule to call one and re-inherit its cost. The folded
