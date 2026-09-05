@@ -50,7 +50,7 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
         )}
       </div>
 
-      <div className={unlocked ? '' : 'select-none blur-[6px] pointer-events-none'} aria-hidden={!unlocked}>
+      <div className={unlocked ? '' : 'min-h-[188px] select-none blur-[6px] pointer-events-none'} aria-hidden={!unlocked}>
         <div className="mt-3 flex items-baseline gap-1.5">
           <span className="font-mono text-3xl font-extrabold text-on-surface">{perDay.amount}</span>
           <span className="text-sm font-semibold text-on-surface-variant">{perDay.currency}</span>
@@ -79,7 +79,7 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
       </div>
 
       {!unlocked && (
-        <div className="absolute inset-x-0 bottom-0 top-12 flex flex-col items-center justify-center gap-2 bg-surface/60 px-5 text-center backdrop-blur-[2px]">
+        <div className="absolute inset-x-0 bottom-0 top-14 flex flex-col items-center justify-center gap-2.5 bg-surface/60 px-5 py-4 text-center backdrop-blur-[2px]">
           <span className="flex size-10 items-center justify-center rounded-full border border-outline-variant bg-surface shadow-sm">
             <AppIcon name="lock" className="text-[18px] text-primary" />
           </span>

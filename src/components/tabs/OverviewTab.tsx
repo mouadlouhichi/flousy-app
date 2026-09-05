@@ -452,6 +452,10 @@ export function OverviewTab({
               </div>
             </div>
           </div>
+          {/* Net worth lives in the left column so both columns fill the same
+              height on desktop (the right one already carries Safe-to-spend
+              and Recent Activity). */}
+          {canSeeBalances && canSeeSavings && <NetWorthCard month={month} goals={goals} />}
         </div>
 
         {/* Right Column (Recent Activity) */}
@@ -634,7 +638,6 @@ export function OverviewTab({
               </div>
             )}
           </div>
-          {canSeeBalances && canSeeSavings && <NetWorthCard month={month} goals={goals} />}
         </div>
       </div>
     </div>
