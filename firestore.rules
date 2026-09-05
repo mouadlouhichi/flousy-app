@@ -628,40 +628,6 @@ service cloud.firestore {
     }
 
     /**
-     * The ordinary case: an open period staying open. This is what an import,
-     * an outbox flush and every normal edit do, so it is kept as cheap as
-     * possible - no transition machinery, no ownership question.
-     */
-    function monthOrdinaryUpdateOk(hid) {
-      let row = mutationLedger(hid);
-      let revWas = existing().get('revision', -1);
-      let revNext = incoming().get('revision', 0);
-      return !periodClosed(existing())
-        && !periodClosed(incoming())
-        && row.present && row.kind != 'bootstrap'
-        && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
-    }
-
-    /** Ledger row, close/reopen transition and revision successor. */
-    function monthUpdatePreconditions(hid, isOwner) {
-      let row = mutationLedger(hid);
-      let wasClosed = periodClosed(existing());
-      let willBeClosed = periodClosed(incoming());
-      let revWas = existing().get('revision', -1);
-      let revNext = incoming().get('revision', 0);
-      return row.present && row.kind != 'bootstrap'
-        && ((!wasClosed && !willBeClosed) || isOwner)
-        && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly())
-        && ((!wasClosed && !willBeClosed)
-          || (!wasClosed && willBeClosed && row.kind == 'month-close')
-          || (wasClosed && !willBeClosed && row.kind == 'month-reopen'))
-        // `revision` starts at 1 and moves by exactly one, so a document written
-        // before the field carried a number accepts 1 and every later write has to
-        // be the successor of what is stored.
-        && ((revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1));
-    }
-
-    /**
      * THE shared-month update check: one statement, one facts computation.
      * Closing or reopening a shared period is owner-only with a month-close or
      * month-reopen ledger kind, per the audit trail; anything else is an
