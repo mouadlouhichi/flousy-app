@@ -236,6 +236,7 @@ export const SCREEN_AREA: Partial<Record<string, HouseholdArea>> = {
   debts: 'debts',
   trends: 'analytics',
   courses: 'expenses',
+  search: 'expenses',
 };
 
 /** Entry points that are not screens (sidebar quick tools, profile links). */

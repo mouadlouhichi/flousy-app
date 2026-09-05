@@ -934,7 +934,21 @@ service cloud.firestore {
           || (incoming().displayName is string && incoming().displayName.size() <= 120))
         && (!('activeWorkspace' in incoming()) || incoming().activeWorkspace in ['personal', 'household'])
         && (!('householdIds' in incoming())
-          || (incoming().householdIds is list && incoming().householdIds.size() <= 50));
+          || (incoming().householdIds is list && incoming().householdIds.size() <= 50))
+        // Reminder / push / planner preferences: bounded shapes only. The
+        // subscription list is capped so a profile cannot become a push relay.
+        && (!('pushSubscriptions' in incoming())
+          || (incoming().pushSubscriptions is list && incoming().pushSubscriptions.size() <= 10))
+        && (!('reminderPrefs' in incoming()) || incoming().reminderPrefs is map)
+        && (!('goalTargetDates' in incoming()) || incoming().goalTargetDates is map)
+        && (!('timezone' in incoming())
+          || (incoming().timezone is string && incoming().timezone.size() <= 64))
+        && (!('email' in incoming())
+          || (incoming().email is string && incoming().email.size() <= 254))
+        && (!('debtPayoffBudget' in incoming())
+          || (incoming().debtPayoffBudget is number && incoming().debtPayoffBudget >= 0))
+        && (!('debtPayoffMethod' in incoming())
+          || incoming().debtPayoffMethod in ['snowball', 'avalanche']);
       allow delete: if owner(uid);
 
       match /months/{key} {

@@ -1493,7 +1493,10 @@
     "customBudgetMonth": "شهر ميزانية مخصص",
     "openProfileAccount": "فتح الملف الشخصي والحساب",
     "freePlan": "الخطة المجانية",
-    "proPlan": "خطة برو"
+    "proPlan": "خطة برو",
+    "security": "الأمان",
+    "reminders": "التذكيرات",
+    "search": "بحث"
   },
   "notifications": {
     "emailVerificationPrompt": "يرجى تأكيد عنوان بريدك الإلكتروني لحماية حسابك.",
@@ -1649,7 +1652,10 @@
       "household": "الأسرة",
       "pro": "برو",
       "data": "البيانات",
-      "account": "الحساب"
+      "account": "الحساب",
+      "security": "الأمان وقفل التطبيق",
+      "reminders": "التذكيرات",
+      "search": "بحث"
     },
     "hints": {
       "budgetStarts": "يبدأ في {day}",
@@ -1675,7 +1681,13 @@
       "workspaceDescription": "بدّل بين لوحتك الشخصية ولوحة الأسرة.",
       "backToProfile": "العودة إلى الملف الشخصي",
       "householdTitle": "إدارة المنزل",
-      "householdDescription": "الأعضاء والدعوات والوصول المشترك."
+      "householdDescription": "الأعضاء والدعوات والوصول المشترك.",
+      "securityTitle": "الأمان",
+      "securityDescription": "قفل التطبيق وحماية الجهاز.",
+      "remindersTitle": "التذكيرات",
+      "remindersDescription": "إشعارات الفواتير والادخار.",
+      "searchTitle": "بحث",
+      "searchDescription": "اعثر على أي معاملة عبر كل شهورك."
     },
     "account": {
       "privacy": "الخصوصية",
@@ -1734,7 +1746,17 @@
       "syncSkippedSome": "تم استبعاد {periods} فترة مغلقة في الهدف.",
       "syncPartialNothing": "لم يُنسخ أي شيء بعد — لقد فشل أول شهر بالفعل.",
       "syncFailed": "تعذّر إكمال المزامنة. حاول مرة أخرى.",
-      "personalWorkspace": "المساحة الشخصية"
+      "personalWorkspace": "المساحة الشخصية",
+      "driveTitle": "نسخ احتياطي على Google Drive",
+      "driveBackup": "نسخ احتياطي إلى Google Drive",
+      "driveRestore": "استعادة من Google Drive",
+      "driveHint": "تُحفظ في مجلد خاص بالتطبيق على Drive. يحتفظ بآخر 5 نسخ.",
+      "driveDone": "تم حفظ النسخة الاحتياطية على Google Drive ({name}).",
+      "driveEmpty": "لم يتم العثور على نسخ احتياطية لـ SmartJib في هذا الـ Drive.",
+      "driveNotConfigured": "النسخ الاحتياطي إلى Google Drive غير مُعدّ في هذا النشر.",
+      "driveDenied": "لم يُمنح الوصول إلى Google Drive.",
+      "drivePick": "اختر نسخة لاستعادتها",
+      "driveRestorePrefix": "الأحدث: {date}"
     },
     "moneySources": {
       "description": "هذه هي المواقع النقدية التي تنفق منها — البنك أو المنزل أو المحفظة أو أي صندوق تضيفه. تؤدي إزالة أحدها إلى نقل الرصيد المتبقي إلى أول مصدر متبقٍ.",
@@ -1783,6 +1805,38 @@
       "analyticsInsights": "التحليلات والرؤى",
       "privateWorkspaceHint": "تُطبّق ترقيات برو على مساحة عملك الخاصة. بدّل إلى {workspace} لإدارة خطتك الشخصية أو ترقيتها.",
       "features": {
+        "safeToSpend": {
+          "title": "المتاح للإنفاق",
+          "description": "اعرف بالضبط كم يمكنك إنفاقه يوميًا حتى يوم الراتب وأين ستكون في نهاية الشهر."
+        },
+        "reminders": {
+          "title": "تذكيرات الفواتير",
+          "description": "تنبيهات فورية وبريدية قبل استحقاق الكراء والهاتف والفواتير."
+        },
+        "history": {
+          "title": "سجل غير محدود",
+          "description": "تصفّح وقارن جميع فتراتك السابقة وليس آخر ثلاث فقط."
+        },
+        "appLock": {
+          "title": "قفل التطبيق",
+          "description": "احمِ ميزانيتك برمز PIN أو البصمة / Face ID على هذا الجهاز."
+        },
+        "debtPlanner": {
+          "title": "خطة سداد الديون",
+          "description": "طريقة كرة الثلج أو الانهيار مع تاريخ التحرر لكل دين."
+        },
+        "search": {
+          "title": "البحث والوسوم",
+          "description": "اعثر على أي معاملة في كل الشهور بالاسم أو الفئة أو #الوسم."
+        },
+        "reports": {
+          "title": "تقرير شهري PDF",
+          "description": "كشف شهري قابل للمشاركة يتضمن الأظرف والفئات وصافي الثروة."
+        },
+        "receiptOcr": {
+          "title": "مسح الإيصال",
+          "description": "صوّر الإيصال ودع SmartJib يقرأ المجموع واسم المتجر."
+        },
         "courseScan": {
           "title": "مسح مشتريات الباركود",
           "description": "امسح البقالة أثناء التسوق ودع سمارت جيب ينشئ الفاتورة تلقائيًا."
@@ -1968,7 +2022,9 @@
     "noCardRequired": "دون بطاقة · دون تجديد تلقائي · تجربة واحدة لكل حساب",
     "trialError": "تعذر بدء التجربة. تحقق من اتصالك وحاول مرة أخرى.",
     "householdSponsorActive": "رعاية Pro للأسرة: نشطة حتى {date}.",
-    "householdSponsorExpired": "انتهت رعاية Pro لهذه الأسرة (المسجلة عند إنشائها) في {date}. يُحدد الراعي عند الإنشاء — إذا كان اشتراكك نشطًا فيجب إعادة ربط الأسرة أو إنشاؤها من جديد."
+    "householdSponsorExpired": "انتهت رعاية Pro لهذه الأسرة (المسجلة عند إنشائها) في {date}. يُحدد الراعي عند الإنشاء — إذا كان اشتراكك نشطًا فيجب إعادة ربط الأسرة أو إنشاؤها من جديد.",
+    "headline": "شارك ميزانيتك، لا تفوّت فاتورة، واعرف نهاية شهرك.",
+    "plannedPrice": "السعر المخطط بعد الإطلاق: ابتداءً من 19 درهم/شهر. مستخدمو التجربة يحتفظون بكل الميزات حتى نهايتها."
   },
   "seo": {
     "titles": {
@@ -2017,5 +2073,168 @@
     "reopenConfirm": "هل تريد إعادة فتح هذا الشهر والسماح بالتعديلات مجددًا؟",
     "closedDetail": "هذا الشهر مغلق وسجلاته المالية متاحة للقراءة فقط.",
     "editBlocked": "تم إغلاق هذا الشهر. أعد فتحه قبل إجراء أي تعديلات."
+  },
+  "insights": {
+    "safeToSpendTitle": "المتاح للإنفاق",
+    "perDay": "{amount} / يوم",
+    "daysLeft": "{count, plural, =1 {يوم واحد متبقٍ} =2 {يومان متبقيان} few {# أيام متبقية} many {# يومًا متبقيًا} other {# يوم متبقٍ}}",
+    "remaining": "المتبقي في الميزانية",
+    "upcomingBills": "فواتير لم تُدفع بعد",
+    "projectedEnd": "توقع نهاية الشهر",
+    "statusOk": "على المسار الصحيح",
+    "statusTight": "الوضع يضيق",
+    "statusOver": "متجه لتجاوز الميزانية",
+    "burnRate": "تنفق {amount} / يوم",
+    "lockedTitle": "اعرف ما يمكنك إنفاقه اليوم بأمان",
+    "lockedBody": "يحسب Pro مصروفك اليومي من المتبقي والفواتير القادمة والأيام حتى الراتب.",
+    "unlock": "افتح مع Pro",
+    "netWorthTitle": "صافي الثروة",
+    "assets": "الأصول",
+    "liabilities": "الالتزامات",
+    "cash": "النقد",
+    "savings": "الادخار",
+    "owedToMe": "مستحق لي",
+    "iOwe": "عليّ",
+    "historyLockedTitle": "الشهور الأقدم ميزة Pro",
+    "historyLockedBody": "الخطة المجانية تحتفظ بآخر {count} فترات. Pro يفتح كامل السجل والاتجاهات متعددة الشهور.",
+    "categoryLimitTitle": "تم بلوغ حد الفئات",
+    "categoryLimitBody": "الخطة المجانية تشمل {count} فئات مخصصة. Pro يزيل الحد.",
+    "suggestedCategory": "مقترح: {category}",
+    "applySuggestion": "استخدام"
+  },
+  "appLock": {
+    "title": "قفل التطبيق",
+    "description": "طلب رمز PIN أو البصمة عند فتح SmartJib على هذا الجهاز.",
+    "enable": "تفعيل قفل التطبيق",
+    "disable": "إلغاء قفل التطبيق",
+    "setPin": "اختر رمز PIN (4 إلى 8 أرقام)",
+    "confirmPin": "تأكيد الرمز",
+    "pinMismatch": "الرمزان غير متطابقين.",
+    "pinInvalid": "استخدم 4 إلى 8 أرقام.",
+    "wrongPin": "رمز خاطئ. حاول مجددًا.",
+    "enterPin": "أدخل رمز PIN",
+    "unlock": "فتح",
+    "useBiometric": "البصمة / Face ID",
+    "biometricToggle": "الفتح بالبصمة",
+    "biometricUnavailable": "الفتح بالبصمة غير متاح في هذا المتصفح.",
+    "biometricFailed": "فشل الفتح بالبصمة. أدخل رمز PIN.",
+    "timeout": "القفل بعد",
+    "timeoutNow": "في كل مرة",
+    "timeout1m": "دقيقة واحدة",
+    "timeout5m": "5 دقائق",
+    "timeout15m": "15 دقيقة",
+    "lockedHeading": "SmartJib مقفل",
+    "signOutInstead": "تسجيل الخروج بدلًا من ذلك",
+    "forgotHint": "نسيت الرمز؟ سجّل الخروج ثم الدخول لإعادة تعيينه.",
+    "enabled": "قفل التطبيق مفعّل على هذا الجهاز."
+  },
+  "reminders": {
+    "title": "التذكيرات",
+    "description": "احصل على تنبيه قبل استحقاق الفواتير وعندما يقترب هدف ادخار من الاكتمال.",
+    "billsToggle": "تذكيرات الفواتير",
+    "goalsToggle": "محطات أهداف الادخار",
+    "emailToggle": "ملخص يومي بالبريد",
+    "leadDays": "ذكّرني",
+    "lead0": "في نفس اليوم",
+    "lead1": "قبل يوم",
+    "lead3": "قبل 3 أيام",
+    "lead7": "قبل أسبوع",
+    "pushTitle": "الإشعارات الفورية على هذا الجهاز",
+    "pushEnable": "تفعيل على هذا الجهاز",
+    "pushDisable": "إيقاف على هذا الجهاز",
+    "pushEnabled": "مفعّلة على هذا الجهاز",
+    "pushDenied": "الإشعارات محظورة في إعدادات المتصفح.",
+    "pushUnsupported": "هذا المتصفح لا يدعم الإشعارات الفورية.",
+    "pushIosInstall": "على iPhone، أضف SmartJib إلى الشاشة الرئيسية أولًا (مشاركة ← إضافة إلى الشاشة الرئيسية) لتلقي الإشعارات.",
+    "pushNotConfigured": "إرسال الإشعارات غير مهيأ على هذا الخادم بعد؛ التذكيرات داخل التطبيق وبالبريد تعمل.",
+    "devices": "الأجهزة التي تتلقى التذكيرات",
+    "remove": "إزالة",
+    "test": "إرسال إشعار تجريبي",
+    "testSent": "تم إرسال الإشعار التجريبي.",
+    "billTitle": "فاتورة مستحقة",
+    "billToday": "{name} ({amount}) مستحقة اليوم.",
+    "billTomorrow": "{name} ({amount}) مستحقة غدًا.",
+    "billInDays": "{name} ({amount}) مستحقة خلال {days} أيام.",
+    "goalTitle": "اقتربت!",
+    "goalBody": "{name} ممول بنسبة {percent}% — إيداع واحد آخر وينتهي.",
+    "trialTitle": "تجربة Pro تنتهي قريبًا",
+    "trialBody": "بقي {days} أيام من Pro. بياناتك آمنة في كل الأحوال.",
+    "calendarTitle": "المدفوعات القادمة",
+    "calendarEmpty": "لا فواتير مخططة هذه الفترة.",
+    "calendarPaid": "مدفوعة",
+    "calendarDue": "تستحق {date}",
+    "calendarOverdue": "متأخرة",
+    "saved": "تم حفظ إعدادات التذكير."
+  },
+  "planner": {
+    "title": "خطة سداد الديون",
+    "method": "الطريقة",
+    "snowball": "كرة الثلج (الأصغر أولًا)",
+    "avalanche": "الانهيار (الأكبر أولًا)",
+    "monthlyBudget": "ميزانية السداد الشهرية",
+    "debtFreeOn": "بلا ديون بحلول {date}",
+    "debtFreeIn": "{count, plural, =1 {خلال شهر} =2 {خلال شهرين} few {خلال # أشهر} many {خلال # شهرًا} other {خلال # شهر}}",
+    "noBudget": "حدد مبلغًا شهريًا لرؤية تاريخ التحرر من الديون.",
+    "noDebts": "لا ديون مفتوحة — لا شيء للتخطيط.",
+    "paidOffOn": "سُدد {date}",
+    "goalEta": "بهذه الوتيرة: {date}",
+    "goalPace": "{amount} / شهر",
+    "goalNoPace": "سجّل إيداعًا لرؤية التوقع.",
+    "goalTargetDate": "التاريخ المستهدف",
+    "goalRequired": "يلزم {amount} / شهر لبلوغ {date}",
+    "goalDone": "تم بلوغ الهدف"
+  },
+  "search": {
+    "title": "بحث",
+    "placeholder": "ابحث في المعاملات أو الفئات أو #الوسوم…",
+    "loading": "جارٍ تحميل الشهور…",
+    "empty": "لا نتائج لـ «{query}».",
+    "hint": "اكتب حرفين على الأقل. استخدم #وسم للتصفية حسب الوسم.",
+    "results": "{count, plural, =1 {نتيجة واحدة} =2 {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
+    "kindVariable": "مصروف",
+    "kindFixed": "مصروف ثابت",
+    "kindDebt": "دين",
+    "tags": "الوسوم",
+    "tagsPlaceholder": "أضف وسومًا (مفصولة بفواصل)",
+    "open": "بحث"
+  },
+  "report": {
+    "title": "التقرير الشهري",
+    "download": "تحميل تقرير PDF",
+    "generating": "جارٍ تجهيز التقرير…",
+    "hint": "كشف قابل للطباعة لهذه الفترة: الدخل والأظرف والفئات والفواتير والادخار وصافي الثروة.",
+    "period": "الفترة",
+    "income": "الدخل المستلم",
+    "spent": "المصروف",
+    "saved": "المدّخر",
+    "leftover": "المتبقي",
+    "envelopes": "الأظرف",
+    "categories": "الإنفاق حسب الفئة",
+    "bills": "المصاريف الثابتة",
+    "goals": "أهداف الادخار",
+    "generatedBy": "أُنشئ بواسطة SmartJib في {date}",
+    "budget": "الميزانية",
+    "status": "الحالة",
+    "category": "الفئة",
+    "amount": "المبلغ",
+    "name": "الاسم"
+  },
+  "ocr": {
+    "scanReceipt": "مسح الإيصال",
+    "scanning": "جارٍ قراءة الإيصال… {percent}%",
+    "found": "تم العثور على المجموع {amount}",
+    "foundMerchant": "المتجر: {merchant}",
+    "notFound": "تعذر قراءة المجموع. أدخل المبلغ يدويًا.",
+    "apply": "استخدام هذه القيم",
+    "proHint": "مسح الإيصال ميزة Pro.",
+    "failed": "فشل مسح الإيصال. جرّب صورة أوضح."
+  },
+  "fx": {
+    "title": "محوّل العملات",
+    "from": "من",
+    "to": "إلى",
+    "rateNote": "السعر {rate} · {date}",
+    "unavailable": "الأسعار المباشرة غير متاحة دون اتصال.",
+    "amount": "المبلغ"
   }
 }

@@ -211,6 +211,8 @@ export function DashboardModals() {
           onDelete={handleDeleteVariableExpense}
           initialExpense={dashboard.selectedExpense}
           categories={month.activeCategories || []}
+          history={month.variableExpenses || []}
+          prefill={dashboard.expensePrefill}
           categoryColors={month.categoryColors}
           categoryIcons={month.categoryIcons}
           onAddCategory={canEditArea('settings') ? handleAddCategory : undefined}

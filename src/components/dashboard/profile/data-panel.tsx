@@ -24,15 +24,68 @@ import {
   type FinanceBackup,
 } from '@/lib/finance-backup';
 import { useToast } from '@/hooks/use-toast';
+import { buildReportModel, openPrintableReport, renderReportHtml } from '@/lib/report';
+import {
+  downloadDriveBackup,
+  isDriveBackupConfigured,
+  listDriveBackups,
+  requestDriveToken,
+  uploadDriveBackup,
+  type DriveBackupFile,
+} from '@/lib/drive-backup';
+import { localizeBillCategory, localizeCategoryName, localizeStrategy } from '@/lib/localized-labels';
+import { resolveMonthStrategy } from '@/lib/store';
+import { isProFeatureUnlocked } from '@/lib/household';
+import { isProUser } from '@/lib/pro-features';
 
 export function DataPanel() {
   const { deleteAllData, user, profile } = useAuth();
   const { workspace, household, isOwner, canEditArea, exportSections } = useHousehold();
-  const { messages: m, isRTL, t } = useLanguage();
+  const { messages: m, isRTL, t, intlLocale, language } = useLanguage();
   const p = m.profile.data;
   const { toast } = useToast();
-  const { currency } = useCurrency();
-  const { month, goals, currentMonthKey, openCsvModal } = useDashboard();
+  const { currency, format } = useCurrency();
+  const { month, goals, currentMonthKey, openCsvModal, openProModal } = useDashboard();
+  const reportUnlocked = isProFeatureUnlocked(isProUser(profile), workspace, household);
+
+  const handleReport = () => {
+    if (!canExport) return;
+    if (!reportUnlocked) {
+      openProModal();
+      return;
+    }
+    const statusNames: Record<string, string> = {
+      planned: m.tabs.fixed.status.planned,
+      partial: m.tabs.fixed.status.partial,
+      paid: m.tabs.fixed.status.paid,
+      skipped: m.modals.fixed.statusSkipped,
+    };
+    const periodLabel = month.periodStartDate && month.periodEndDate
+      ? `${month.periodStartDate} → ${month.periodEndDate}`
+      : currentMonthKey;
+    const model = buildReportModel(month, exportSections.savings ? goals : [], {
+      periodLabel,
+      strategyName: localizeStrategy(resolveMonthStrategy(month).id, m, intlLocale).name,
+      envelopeNames: { needs: m.budgetPlan.needs, wants: m.budgetPlan.wants, savings: m.budgetPlan.savings },
+      categoryName: (name) => localizeCategoryName(name, m) || localizeBillCategory(name, m),
+      statusName: (status) => statusNames[status] || status,
+    });
+    if (!exportSections.fixedBills) model.bills = [];
+    if (!exportSections.expenses) model.categories = [];
+    const r = m.report;
+    const html = renderReportHtml(model, {
+      title: r.title, period: r.period, income: r.income, spent: r.spent, saved: r.saved, leftover: r.leftover,
+      envelopes: r.envelopes, categories: r.categories, bills: r.bills, goals: r.goals,
+      netWorth: m.insights.netWorthTitle, assets: m.insights.assets, liabilities: m.insights.liabilities,
+      budget: r.budget, status: r.status, category: r.category, amount: r.amount, name: r.name, generatedBy: r.generatedBy,
+      needs: m.budgetPlan.needs, wants: m.budgetPlan.wants, savings: m.budgetPlan.savings,
+    }, format, {
+      dir: isRTL ? 'rtl' : 'ltr',
+      lang: language,
+      generatedAt: new Date().toLocaleDateString(intlLocale, { dateStyle: 'long' }),
+    });
+    if (openPrintableReport(html)) trackEvent('export_pdf_report');
+  };
   // The CSV contains balances, fixed bills, expenses and savings: in a
   // household each section is filtered by the member's RBAC area, so a
   // download can never reveal a figure that is hidden on screen.
@@ -95,9 +148,81 @@ export function DataPanel() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    await stageRestore(await file.text());
+  };
+
+  // Google Drive (app-private folder). Token lives only in this closure.
+  const driveConfigured = isDriveBackupConfigured();
+  const [driveFiles, setDriveFiles] = useState<DriveBackupFile[] | null>(null);
+  const [driveToken, setDriveToken] = useState<string | null>(null);
+
+  const driveError = (error: unknown) => {
+    const code = error instanceof Error ? error.message : '';
+    const description = code === 'drive-not-configured' ? p.driveNotConfigured : p.driveDenied;
+    setBackupNotice(description);
+    toast({ variant: 'destructive', title: p.driveTitle, description });
+  };
+
+  const handleDriveBackup = async () => {
+    if (!user || !financeTarget) return;
+    setBackupBusy(true);
     setBackupNotice('');
     try {
-      const { backup, notices } = readFinanceBackup(await file.text());
+      const token = driveToken || await requestDriveToken(user.email || undefined);
+      setDriveToken(token);
+      const backup = await exportFinanceBackup(user.uid, financeTarget, financeConfiguration);
+      const file = await uploadDriveBackup(token, workspace, serializeFinanceBackup(backup));
+      const description = t(p.driveDone, { name: file.name });
+      setBackupNotice(description);
+      toast({ title: p.driveTitle, description });
+      trackEvent('export_drive_backup', { workspace });
+    } catch (error) {
+      console.error('Drive backup failed:', error);
+      setDriveToken(null);
+      driveError(error);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleDriveList = async () => {
+    if (!user) return;
+    setBackupBusy(true);
+    setBackupNotice('');
+    try {
+      const token = driveToken || await requestDriveToken(user.email || undefined);
+      setDriveToken(token);
+      const files = await listDriveBackups(token);
+      setDriveFiles(files);
+      if (files.length === 0) setBackupNotice(p.driveEmpty);
+    } catch (error) {
+      console.error('Drive list failed:', error);
+      setDriveToken(null);
+      driveError(error);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleDriveRestore = async (file: DriveBackupFile) => {
+    if (!driveToken) return;
+    setBackupBusy(true);
+    try {
+      const text = await downloadDriveBackup(driveToken, file.id);
+      setDriveFiles(null);
+      await stageRestore(text);
+    } catch (error) {
+      console.error('Drive download failed:', error);
+      driveError(error);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  async function stageRestore(text: string) {
+    setBackupNotice('');
+    try {
+      const { backup, notices } = readFinanceBackup(text);
       const plan = planFinanceBackupRestore(backup, {
         workspace,
         isOwner,
@@ -157,7 +282,7 @@ export function DataPanel() {
       setBackupNotice(description);
       toast({ variant: 'destructive', title: p.restoreBackup, description });
     }
-  };
+  }
 
   const confirmRestore = async () => {
     if (!user || !financeTarget || !pendingRestore || !canRestore) return;
@@ -210,6 +335,32 @@ export function DataPanel() {
           className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
         />
       </button>}
+      {canExport && (
+        <button
+          type="button"
+          onClick={handleReport}
+          className="group flex w-full items-center justify-between rounded-2xl border border-outline-variant bg-surface-container p-4 transition-colors hover:bg-surface-container-high"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-variant transition-colors group-hover:bg-primary/10">
+              <AppIcon name="picture_as_pdf" className="text-[20px] text-primary" />
+            </span>
+            <span className="flex flex-col items-start">
+              <span className="text-sm font-medium text-on-surface">{m.report.download}</span>
+              <span className="text-xs text-on-surface-variant">{m.report.hint}</span>
+            </span>
+          </span>
+          <span className="flex items-center gap-1">
+            {!reportUnlocked && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">Pro</span>
+            )}
+            <AppIcon
+              name="chevron_right"
+              className={`text-[20px] text-on-surface-variant transition-transform ${isRTL ? 'rotate-180 group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`}
+            />
+          </span>
+        </button>
+      )}
       {canImport && (
         <button
           type="button"
@@ -251,6 +402,53 @@ export function DataPanel() {
           </span>
           <AppIcon name="upload_file" className="text-[20px] text-on-surface-variant" />
         </label>
+      )}
+      {driveConfigured && (canExport || canRestore) && (
+        <div className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10"><AppIcon name="cloud_upload" className="text-[20px] text-primary" /></span>
+            <span className="text-start"><span className="block text-sm font-medium text-on-surface">{p.driveTitle}</span><span className="block text-xs text-on-surface-variant">{p.driveHint}</span></span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canExport && (
+              <button
+                type="button"
+                disabled={!user || backupBusy}
+                onClick={() => { void handleDriveBackup(); }}
+                className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
+              >
+                {p.driveBackup}
+              </button>
+            )}
+            {canRestore && (
+              <button
+                type="button"
+                disabled={!user || backupBusy}
+                onClick={() => { void handleDriveList(); }}
+                className="rounded-xl border border-outline-variant px-3 py-2 text-xs font-bold text-on-surface disabled:opacity-50"
+              >
+                {p.driveRestore}
+              </button>
+            )}
+          </div>
+          {driveFiles && driveFiles.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1">
+              <p className="text-xs font-bold text-on-surface-variant">{p.drivePick}</p>
+              {driveFiles.map((file) => (
+                <button
+                  key={file.id}
+                  type="button"
+                  disabled={backupBusy}
+                  onClick={() => { void handleDriveRestore(file); }}
+                  className="flex items-center justify-between rounded-xl bg-surface px-3 py-2 text-start text-xs hover:bg-surface-container-high disabled:opacity-50"
+                >
+                  <span className="truncate font-medium text-on-surface">{file.name.replace('smartjib-backup-', '')}</span>
+                  <span className="ms-2 shrink-0 text-on-surface-variant">{new Date(file.modifiedTime).toLocaleDateString()}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       {backupNotice && <p role="status" className="px-1 text-xs font-bold text-on-surface-variant">{backupNotice}</p>}
 

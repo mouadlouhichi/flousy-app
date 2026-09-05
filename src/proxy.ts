@@ -61,6 +61,10 @@ const CONNECT_SOURCES = [
   'https://*.analytics.google.com',
   'https://*.googletagmanager.com',
   'https://*.openfoodfacts.org',
+  // Receipt OCR language models (tesseract.js), fetched by the OCR worker.
+  'https://tessdata.projectnaptha.com',
+  // Google Identity Services token client (Drive backup consent).
+  'https://accounts.google.com',
 ];
 
 function buildCsp(isDev: boolean, authDomain?: string): string {
@@ -76,8 +80,10 @@ function buildCsp(isDev: boolean, authDomain?: string): string {
    * Next.js supports hash-based CSP for prerendered output.
    */
   const scriptSrc = isDev
-    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`
-    : `script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.googletagmanager.com`;
+    ? `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://www.googletagmanager.com`
+    // `'wasm-unsafe-eval'` only permits WebAssembly compilation (the receipt
+    // OCR worker); it does not re-enable string eval.
+    : `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://www.googletagmanager.com`;
 
   const connect = authDomain ? [...CONNECT_SOURCES, `https://${authDomain}`] : CONNECT_SOURCES;
 

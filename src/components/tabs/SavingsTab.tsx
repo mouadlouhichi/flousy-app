@@ -23,6 +23,11 @@ interface SavingsTabProps {
   /** Open the editor for a logged deposit / withdrawal. */
   onEditDeposit?: (entry: SavingsActivityEntry) => void;
   canEdit?: boolean;
+  /** Pro projection ("at this pace you reach the goal by …"). */
+  projectionsUnlocked?: boolean;
+  onUpgrade?: () => void;
+  /** Months (oldest → newest, current last) used to measure the deposit pace. */
+  paceMonths?: MonthBudget[];
 }
 
 const formatEntryDate = (value: string, intlLocale: string): string => {
@@ -30,6 +35,17 @@ const formatEntryDate = (value: string, intlLocale: string): string => {
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
 };
+
+import { GoalProjection } from '../dashboard/goal-projection';
+
+function goalNetDeposits(month: MonthBudget, goalId: string): number {
+  let net = 0;
+  for (const entry of month.savingsActivity || []) {
+    if (entry.goalId !== goalId) continue;
+    net += entry.type === 'deposit' ? entry.amount : -entry.amount;
+  }
+  return Math.max(0, net);
+}
 
 export function SavingsTab({
   goals,
@@ -40,6 +56,9 @@ export function SavingsTab({
   month,
   onEditDeposit,
   canEdit = true,
+  projectionsUnlocked = false,
+  onUpgrade,
+  paceMonths,
 }: SavingsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -137,6 +156,13 @@ export function SavingsTab({
                   <div className="flex justify-end font-label-sm text-label-sm font-bold text-secondary">
                     {t(m.tabs.savings.percentReached, { percent: formatLocalizedPercent(pct, intlLocale) })}
                   </div>
+                  <GoalProjection
+                    goal={goal}
+                    monthlyDeposits={(paceMonths || (month ? [month] : [])).map((mo) => goalNetDeposits(mo, goal.id))}
+                    unlocked={projectionsUnlocked}
+                    onUpgrade={onUpgrade ?? (() => {})}
+                    canEdit={canEdit}
+                  />
                 </div>
 
                 {/* Quick Fund & Withdraw Actions */}

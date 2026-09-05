@@ -1493,7 +1493,10 @@
     "customBudgetMonth": "Custom budget month",
     "openProfileAccount": "Open profile and account",
     "freePlan": "Free plan",
-    "proPlan": "Pro plan"
+    "proPlan": "Pro plan",
+    "security": "Security",
+    "reminders": "Reminders",
+    "search": "Search"
   },
   "notifications": {
     "emailVerificationPrompt": "Please verify your email address to secure your account.",
@@ -1649,7 +1652,10 @@
       "household": "Household",
       "pro": "Pro",
       "data": "Data",
-      "account": "Account"
+      "account": "Account",
+      "security": "Security & app lock",
+      "reminders": "Reminders",
+      "search": "Search"
     },
     "hints": {
       "budgetStarts": "starts {day}",
@@ -1675,7 +1681,13 @@
       "workspaceDescription": "Switch between your personal dashboard and household.",
       "backToProfile": "Back to profile",
       "householdTitle": "Manage household",
-      "householdDescription": "Members, invitations, and shared access."
+      "householdDescription": "Members, invitations, and shared access.",
+      "securityTitle": "Security",
+      "securityDescription": "App lock and device protection.",
+      "remindersTitle": "Reminders",
+      "remindersDescription": "Bill and savings notifications.",
+      "searchTitle": "Search",
+      "searchDescription": "Find any transaction across all your months."
     },
     "account": {
       "privacy": "Privacy",
@@ -1734,7 +1746,17 @@
       "syncSkippedSome": "{periods} closed period(s) in the target were left out.",
       "syncPartialNothing": "Nothing was copied yet - the first period already failed.",
       "syncFailed": "The sync could not be completed. Please try again.",
-      "personalWorkspace": "Personal workspace"
+      "personalWorkspace": "Personal workspace",
+      "driveTitle": "Google Drive backup",
+      "driveBackup": "Back up to Google Drive",
+      "driveRestore": "Restore from Google Drive",
+      "driveHint": "Stored in a private app folder on your Drive. Keeps the last 5 copies.",
+      "driveDone": "Backup saved to Google Drive ({name}).",
+      "driveEmpty": "No SmartJib backups found on this Drive.",
+      "driveNotConfigured": "Google Drive backup is not configured on this deployment.",
+      "driveDenied": "Google Drive access was not granted.",
+      "drivePick": "Pick a backup to restore",
+      "driveRestorePrefix": "Latest: {date}"
     },
     "moneySources": {
       "description": "These are the cash locations you spend from — Bank, Home, Wallet, or any jar you add. Removing one moves leftover cash into the first remaining source.",
@@ -1783,6 +1805,38 @@
       "analyticsInsights": "Analytics & Insights",
       "privateWorkspaceHint": "Pro upgrades apply to your private workspace. Switch to {workspace} to manage or upgrade your personal plan.",
       "features": {
+        "safeToSpend": {
+          "title": "Safe to Spend",
+          "description": "See exactly how much you can spend per day until payday, and where you will land at month end."
+        },
+        "reminders": {
+          "title": "Bill Reminders",
+          "description": "Push and email reminders before rent, phone and utility bills are due."
+        },
+        "history": {
+          "title": "Unlimited History",
+          "description": "Browse and compare every past budget period, not just the last three."
+        },
+        "appLock": {
+          "title": "App Lock",
+          "description": "Protect your budget with a PIN or fingerprint / Face ID on this device."
+        },
+        "debtPlanner": {
+          "title": "Debt Payoff Planner",
+          "description": "Snowball or avalanche plan with a debt-free date for every loan."
+        },
+        "search": {
+          "title": "Search & Tags",
+          "description": "Find any transaction across all months by name, category or #tag."
+        },
+        "reports": {
+          "title": "PDF Monthly Report",
+          "description": "Shareable monthly statement with envelopes, categories and net worth."
+        },
+        "receiptOcr": {
+          "title": "Receipt Scan",
+          "description": "Photograph a receipt and let SmartJib read the total and merchant for you."
+        },
         "courseScan": {
           "title": "Barcode Course Scanning",
           "description": "Scan groceries as you shop and let SmartJib build the bill automatically."
@@ -1968,7 +2022,9 @@
     "noCardRequired": "No card required · no automatic renewal · one trial per account",
     "trialError": "The trial could not be started. Check your connection and try again.",
     "householdSponsorActive": "Household Pro sponsorship: active until {date}.",
-    "householdSponsorExpired": "This household's Pro sponsorship (recorded at creation) expired on {date}. A household's sponsor is fixed at creation — if your plan is active, the household must be re-linked or recreated."
+    "householdSponsorExpired": "This household's Pro sponsorship (recorded at creation) expired on {date}. A household's sponsor is fixed at creation — if your plan is active, the household must be re-linked or recreated.",
+    "headline": "Share your budget, never miss a bill, see your month end.",
+    "plannedPrice": "Planned price after launch: from 19 MAD/month. Trial users keep every feature until their trial ends."
   },
   "seo": {
     "titles": {
@@ -2017,5 +2073,168 @@
     "reopenConfirm": "Reopen this month and allow changes again?",
     "closedDetail": "This month is closed and its financial records are read-only.",
     "editBlocked": "This month was closed. Reopen it before making changes."
+  },
+  "insights": {
+    "safeToSpendTitle": "Safe to spend",
+    "perDay": "{amount} / day",
+    "daysLeft": "{count, plural, =1 {1 day left} other {# days left}}",
+    "remaining": "Left in budget",
+    "upcomingBills": "Bills still to pay",
+    "projectedEnd": "Projected month end",
+    "statusOk": "On track",
+    "statusTight": "Getting tight",
+    "statusOver": "Heading over budget",
+    "burnRate": "Spending {amount} / day",
+    "lockedTitle": "See what you can safely spend today",
+    "lockedBody": "Pro computes your daily allowance from what is left, the bills still to come and the days until payday.",
+    "unlock": "Unlock with Pro",
+    "netWorthTitle": "Net worth",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "cash": "Cash",
+    "savings": "Savings",
+    "owedToMe": "Owed to me",
+    "iOwe": "I owe",
+    "historyLockedTitle": "Older months are a Pro feature",
+    "historyLockedBody": "The free plan keeps your last {count} periods at hand. Pro unlocks your full history and multi-month trends.",
+    "categoryLimitTitle": "Category limit reached",
+    "categoryLimitBody": "The free plan includes {count} custom categories. Pro removes the limit.",
+    "suggestedCategory": "Suggested: {category}",
+    "applySuggestion": "Use"
+  },
+  "appLock": {
+    "title": "App lock",
+    "description": "Ask for a PIN or biometric unlock when opening SmartJib on this device.",
+    "enable": "Enable app lock",
+    "disable": "Disable app lock",
+    "setPin": "Choose a PIN (4–8 digits)",
+    "confirmPin": "Confirm PIN",
+    "pinMismatch": "PINs do not match.",
+    "pinInvalid": "Use 4 to 8 digits.",
+    "wrongPin": "Wrong PIN. Try again.",
+    "enterPin": "Enter your PIN",
+    "unlock": "Unlock",
+    "useBiometric": "Use fingerprint / Face ID",
+    "biometricToggle": "Biometric unlock",
+    "biometricUnavailable": "Biometric unlock is not available on this browser.",
+    "biometricFailed": "Biometric unlock failed. Enter your PIN.",
+    "timeout": "Lock after",
+    "timeoutNow": "Every time",
+    "timeout1m": "1 minute",
+    "timeout5m": "5 minutes",
+    "timeout15m": "15 minutes",
+    "lockedHeading": "SmartJib is locked",
+    "signOutInstead": "Sign out instead",
+    "forgotHint": "Forgot your PIN? Sign out and back in to reset it.",
+    "enabled": "App lock is on for this device."
+  },
+  "reminders": {
+    "title": "Reminders",
+    "description": "Get notified before bills are due and when a savings goal is almost complete.",
+    "billsToggle": "Bill reminders",
+    "goalsToggle": "Savings goal milestones",
+    "emailToggle": "Daily email digest",
+    "leadDays": "Remind me",
+    "lead0": "On the day",
+    "lead1": "1 day before",
+    "lead3": "3 days before",
+    "lead7": "1 week before",
+    "pushTitle": "Push notifications on this device",
+    "pushEnable": "Enable on this device",
+    "pushDisable": "Turn off on this device",
+    "pushEnabled": "Enabled on this device",
+    "pushDenied": "Notifications are blocked in your browser settings.",
+    "pushUnsupported": "This browser does not support push notifications.",
+    "pushIosInstall": "On iPhone, add SmartJib to your Home Screen first (Share → Add to Home Screen) to receive notifications.",
+    "pushNotConfigured": "Push delivery is not configured on this server yet; in-app and email reminders still work.",
+    "devices": "Devices receiving reminders",
+    "remove": "Remove",
+    "test": "Send a test notification",
+    "testSent": "Test notification sent.",
+    "billTitle": "Bill due",
+    "billToday": "{name} ({amount}) is due today.",
+    "billTomorrow": "{name} ({amount}) is due tomorrow.",
+    "billInDays": "{name} ({amount}) is due in {days} days.",
+    "goalTitle": "Almost there!",
+    "goalBody": "{name} is {percent}% funded — one more deposit and it's done.",
+    "trialTitle": "Your Pro trial ends soon",
+    "trialBody": "{days} days of Pro left. Your data stays safe either way.",
+    "calendarTitle": "Upcoming payments",
+    "calendarEmpty": "No planned bills this period.",
+    "calendarPaid": "Paid",
+    "calendarDue": "Due {date}",
+    "calendarOverdue": "Overdue",
+    "saved": "Reminder settings saved."
+  },
+  "planner": {
+    "title": "Debt payoff plan",
+    "method": "Method",
+    "snowball": "Snowball (smallest first)",
+    "avalanche": "Avalanche (largest first)",
+    "monthlyBudget": "Monthly payoff budget",
+    "debtFreeOn": "Debt-free by {date}",
+    "debtFreeIn": "{count, plural, =1 {in 1 month} other {in # months}}",
+    "noBudget": "Set a monthly amount to see your debt-free date.",
+    "noDebts": "No open debts — nothing to plan.",
+    "paidOffOn": "Cleared {date}",
+    "goalEta": "At this pace: {date}",
+    "goalPace": "{amount} / month",
+    "goalNoPace": "Log a deposit to see a projection.",
+    "goalTargetDate": "Target date",
+    "goalRequired": "Needs {amount} / month to hit {date}",
+    "goalDone": "Goal reached"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search transactions, categories or #tags…",
+    "loading": "Loading months…",
+    "empty": "No results for “{query}”.",
+    "hint": "Type at least 2 characters. Use #tag to filter by tag.",
+    "results": "{count, plural, =1 {1 result} other {# results}}",
+    "kindVariable": "Expense",
+    "kindFixed": "Fixed charge",
+    "kindDebt": "Debt",
+    "tags": "Tags",
+    "tagsPlaceholder": "Add tags (comma separated)",
+    "open": "Search"
+  },
+  "report": {
+    "title": "Monthly report",
+    "download": "Download PDF report",
+    "generating": "Preparing report…",
+    "hint": "A printable statement of this period: income, envelopes, categories, bills, savings and net worth.",
+    "period": "Period",
+    "income": "Income received",
+    "spent": "Spent",
+    "saved": "Saved",
+    "leftover": "Left over",
+    "envelopes": "Envelopes",
+    "categories": "Spending by category",
+    "bills": "Fixed charges",
+    "goals": "Savings goals",
+    "generatedBy": "Generated by SmartJib on {date}",
+    "budget": "Budget",
+    "status": "Status",
+    "category": "Category",
+    "amount": "Amount",
+    "name": "Name"
+  },
+  "ocr": {
+    "scanReceipt": "Scan receipt",
+    "scanning": "Reading receipt… {percent}%",
+    "found": "Found total {amount}",
+    "foundMerchant": "Merchant: {merchant}",
+    "notFound": "Could not read a total. Enter the amount manually.",
+    "apply": "Use these values",
+    "proHint": "Receipt scanning is a Pro feature.",
+    "failed": "Receipt scan failed. Try a sharper photo."
+  },
+  "fx": {
+    "title": "Currency converter",
+    "from": "From",
+    "to": "To",
+    "rateNote": "Rate {rate} · {date}",
+    "unavailable": "Live rates are unavailable offline.",
+    "amount": "Amount"
   }
 }

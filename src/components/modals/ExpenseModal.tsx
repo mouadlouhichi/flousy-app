@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { DatePicker } from '../ui/date-picker';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
+import { CustomInput } from '../ui/CustomInput';
 import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
@@ -14,6 +15,14 @@ import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
+import { suggestCategory } from '../../lib/insights';
+import { recognizeReceipt, type ReceiptParse } from '../../lib/receipt-ocr';
+
+function parseTags(input: string): string[] {
+  return Array.from(new Set(
+    input.split(/[,\s]+/).map((tag) => tag.replace(/^#/, '').trim().toLowerCase()).filter((tag) => tag.length > 0 && tag.length <= 24),
+  )).slice(0, 10);
+}
 import { isProFeatureUnlocked } from '../../lib/household';
 import { useHousehold } from '../../lib/household-context';
 import { useAuth } from '../../lib/auth-context';
@@ -32,6 +41,10 @@ interface ExpenseModalProps {
   categoryIcons?: Record<string, string>;
   /** Adds a variable-expense category to the current month from this form. */
   onAddCategory?: (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => void;
+  /** Past expenses used to suggest a category for a known merchant. */
+  history?: Array<{ name: string; type: string }>;
+  /** Seed for a NEW expense (share target / shortcut); ignored when editing. */
+  prefill?: { name?: string; amount?: number } | null;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
   periodStartDate?: string;
@@ -70,6 +83,8 @@ export function ExpenseModal({
   categoryColors = {},
   categoryIcons = {},
   onAddCategory,
+  history = [],
+  prefill = null,
   placeBalances,
   periodStartDate,
   periodEndDate,
@@ -99,6 +114,11 @@ export function ExpenseModal({
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [receiptBusy, setReceiptBusy] = useState<boolean>(false);
   const [receiptError, setReceiptError] = useState<string>('');
+  const [tagsInput, setTagsInput] = useState('');
+  const [ocrProgress, setOcrProgress] = useState<number | null>(null);
+  const [ocrResult, setOcrResult] = useState<ReceiptParse | null>(null);
+  const [ocrError, setOcrError] = useState<string>('');
+  const [typeTouched, setTypeTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -119,9 +139,11 @@ export function ExpenseModal({
       setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
       setReceiptError('');
+      setTagsInput((initialExpense.tags || []).join(', '));
+      setTypeTouched(true);
     } else {
-      setName('');
-      setAmount('');
+      setName(prefill?.name || '');
+      setAmount(prefill?.amount && Number.isFinite(prefill.amount) ? String(prefill.amount) : '');
       setType(categories[0] || 'Groceries');
       setPlace(defaultPlace);
       setDate(defaultDate);
@@ -130,7 +152,12 @@ export function ExpenseModal({
       setPayerMemberId('self');
       setReceiptUrl(undefined);
       setReceiptError('');
+      setTagsInput('');
+      setTypeTouched(false);
     }
+    setOcrProgress(null);
+    setOcrResult(null);
+    setOcrError('');
     setErrors({});
     setShowCategoryForm(false);
     setCustomCategoryName('');
@@ -165,6 +192,39 @@ export function ExpenseModal({
     }
   };
 
+  // Category suggestion from the merchant history (Pro): only while the user
+  // has not picked a category themselves for this entry.
+  const suggested = isPro && !typeTouched && name.trim().length >= 2
+    ? suggestCategory(name, history)
+    : null;
+  const suggestion = suggested && suggested !== type && categories.includes(suggested) ? suggested : null;
+
+  const runOcr = async (source: File | string) => {
+    setOcrError('');
+    setOcrResult(null);
+    setOcrProgress(0);
+    try {
+      const ocrLanguage = intlLocale.startsWith('ar') ? 'ar' : intlLocale.startsWith('fr') ? 'fr' : 'en';
+      const parsed = await recognizeReceipt(source, ocrLanguage, setOcrProgress);
+      setOcrResult(parsed);
+      if (parsed.total === null) setOcrError(m.ocr.notFound);
+    } catch {
+      setOcrError(m.ocr.failed);
+    } finally {
+      setOcrProgress(null);
+    }
+  };
+
+  const applyOcr = () => {
+    if (!ocrResult) return;
+    if (ocrResult.total !== null && !amount) setAmount(String(ocrResult.total));
+    if (ocrResult.merchant && !name) setName(ocrResult.merchant);
+    if (ocrResult.date && (!periodStartDate || ocrResult.date >= periodStartDate) && (!periodEndDate || ocrResult.date <= periodEndDate)) {
+      setDate(ocrResult.date);
+    }
+    setOcrResult(null);
+  };
+
   const resetCategoryForm = () => {
     setShowCategoryForm(false);
     setCustomCategoryName('');
@@ -180,6 +240,7 @@ export function ExpenseModal({
       return;
     }
     setType(value);
+    setTypeTouched(true);
     if (showCategoryForm) resetCategoryForm();
   };
 
@@ -275,6 +336,7 @@ export function ExpenseModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
+      ...(isPro && parseTags(tagsInput).length ? { tags: parseTags(tagsInput) } : {}),
     };
 
     onSave(newExpense);
@@ -359,6 +421,22 @@ export function ExpenseModal({
 
         {/* ── Category — add a new one inline, like fixed charges ── */}
         <div className="flex flex-col gap-2">
+          {suggestion && (
+            <button
+              type="button"
+              onClick={() => {
+                setType(suggestion);
+                setTypeTouched(true);
+              }}
+              className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs"
+            >
+              <span className="flex items-center gap-1.5 font-semibold text-on-surface">
+                <AppIcon name="auto_awesome" className="text-[16px] text-primary" />
+                {t(m.insights.suggestedCategory, { category: localizeCategoryName(suggestion, m) })}
+              </span>
+              <span className="font-bold text-primary">{m.insights.applySuggestion}</span>
+            </button>
+          )}
           <ChoiceChips
             label={e.category}
             value={type}
@@ -519,6 +597,16 @@ export function ExpenseModal({
           rows={2}
         />
 
+        {/* ── Tags (Pro) ── */}
+        {isPro && (
+          <CustomInput
+            label={m.search.tags}
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder={m.search.tagsPlaceholder}
+          />
+        )}
+
         {/* ── Receipt Attachment ── */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
@@ -538,14 +626,25 @@ export function ExpenseModal({
                     <img src={receiptUrl} alt={e.receiptPreview} className="w-12 h-12 object-cover rounded-lg" />
                     <span className="font-body-sm text-body-sm text-on-surface font-bold">{e.receiptAttached}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setReceiptUrl(undefined)}
-                    className="tap-target p-1.5 text-error hover:bg-error-container/20 rounded-lg"
-                    aria-label={e.removeReceipt}
-                  >
-                    <AppIcon name="close" className=" text-[18px]" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void runOcr(receiptUrl)}
+                      disabled={ocrProgress !== null}
+                      className="tap-target flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      <AppIcon name="document_scanner" className="text-[18px]" />
+                      {ocrProgress !== null ? t(m.ocr.scanning, { percent: ocrProgress }) : m.ocr.scanReceipt}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptUrl(undefined)}
+                      className="tap-target p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                      aria-label={e.removeReceipt}
+                    >
+                      <AppIcon name="close" className=" text-[18px]" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
@@ -566,6 +665,18 @@ export function ExpenseModal({
                 <p role="alert" className="text-xs font-bold text-error">
                   {receiptErrorMessage(receiptError, m.receipt.tooLarge)}
                 </p>
+              )}
+              {ocrError && <p role="alert" className="text-xs font-bold text-error">{ocrError}</p>}
+              {ocrResult && ocrResult.total !== null && (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2">
+                  <div className="min-w-0 text-xs">
+                    <p className="font-bold text-on-surface">{t(m.ocr.found, { amount: format(ocrResult.total) })}</p>
+                    {ocrResult.merchant && <p className="truncate text-on-surface-variant">{t(m.ocr.foundMerchant, { merchant: ocrResult.merchant })}</p>}
+                  </div>
+                  <button type="button" onClick={applyOcr} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-on-primary">
+                    {m.ocr.apply}
+                  </button>
+                </div>
               )}
             </>
           ) : (

@@ -42,6 +42,7 @@ export function DashboardHeader() {
     currentMonthKey,
     handlePrevMonth,
     handleNextMonth,
+    canGoPrevMonth,
     openExpenseModal,
     isMounted,
     syncState,
@@ -118,10 +119,14 @@ export function DashboardHeader() {
       >
         <button
           onClick={handlePrevMonth}
-          className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+          className="relative p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
           aria-label={m.navigation.previousMonth}
+          title={canGoPrevMonth ? undefined : m.insights.historyLockedTitle}
         >
           <AppIcon name={isRTL ? 'chevron_right' : 'chevron_left'} className=" text-[16px] sm:text-[18px]" />
+          {!canGoPrevMonth && (
+            <AppIcon name="lock" className="absolute -end-0.5 -top-0.5 text-[10px] text-primary" />
+          )}
         </button>
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod && periodStart && periodEnd ? (
@@ -196,6 +201,19 @@ export function DashboardHeader() {
               : null
           }
         />
+
+        <Link
+          href="/dashboard/search"
+          prefetch={true}
+          aria-label={m.search.open}
+          title={m.search.title}
+          aria-current={activeScreen === 'search' ? 'page' : undefined}
+          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+            activeScreen === 'search' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant'
+          }`}
+        >
+          <AppIcon name="search" className="text-[18px]" />
+        </Link>
 
         {canAddExpense && <button
           onClick={() => openExpenseModal()}

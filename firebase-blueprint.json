@@ -595,6 +595,32 @@
         "reason",
         "date"
       ]
+    },
+    "PushSubscriptionRecord": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "keys": {
+          "type": "object",
+          "properties": {
+            "p256dh": {
+              "type": "string"
+            },
+            "auth": {
+              "type": "string"
+            }
+          }
+        },
+        "label": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "title": "PushSubscriptionRecord"
     }
   },
   "entities": {
@@ -745,6 +771,63 @@
             "$ref": "#/definitions/MoneyPlaceConfig"
           },
           "description": "Cash locations (Bank, Home, Wallet, plus any the user added)"
+        },
+        "reminderPrefs": {
+          "type": "object",
+          "description": "Pro: reminder channel preferences (bills / goals / email digest).",
+          "properties": {
+            "billsEnabled": {
+              "type": "boolean"
+            },
+            "billLeadDays": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "goalsEnabled": {
+              "type": "boolean"
+            },
+            "emailDigest": {
+              "type": "boolean"
+            },
+            "hour": {
+              "type": "number"
+            }
+          }
+        },
+        "pushSubscriptions": {
+          "type": "array",
+          "description": "Pro: Web Push subscriptions of this account's devices (max 10).",
+          "items": {
+            "$ref": "#/definitions/PushSubscriptionRecord"
+          }
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone used by the reminder dispatcher."
+        },
+        "email": {
+          "type": "string",
+          "description": "Sign-in email, copied only when the email digest is enabled."
+        },
+        "goalTargetDates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Pro: savings goal target dates (goalId → YYYY-MM-DD)."
+        },
+        "debtPayoffBudget": {
+          "type": "number",
+          "description": "Pro: monthly amount committed to the debt payoff plan."
+        },
+        "debtPayoffMethod": {
+          "type": "string",
+          "enum": [
+            "snowball",
+            "avalanche"
+          ]
         }
       },
       "required": [

@@ -11,8 +11,16 @@ export function SavingsScreen() {
     month,
     openSavingsModal,
     openSavingsEntryModal,
+    proUnlocked,
+    openProModal,
+    trendsMonths,
   } = useDashboard();
   const { workspace, canViewArea, canEditArea } = useHousehold();
+  // Pace = trailing months (loader returns newest first) oldest → newest, then current.
+  const paceMonths = [
+    ...trendsMonths.filter((entry) => entry.month.periodKey !== month.periodKey).map((entry) => entry.month).reverse(),
+    month,
+  ];
   const { messages: m } = useLanguage();
   const canView = workspace === 'personal' || canViewArea('savings');
   const canEdit = workspace === 'personal' || canEditArea('savings', true);
@@ -35,6 +43,9 @@ export function SavingsScreen() {
       onOpenWithdrawModal={(goal) => canEdit && openSavingsModal('withdraw', goal)}
       onOpenEditGoal={(goal) => canEdit && openSavingsModal('edit', goal)}
       onEditDeposit={(entry) => canEdit && openSavingsEntryModal(entry)}
+      projectionsUnlocked={proUnlocked}
+      onUpgrade={openProModal}
+      paceMonths={paceMonths}
     />
   );
 }

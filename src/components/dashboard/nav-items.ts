@@ -2,6 +2,7 @@ import { EN_MESSAGES, type Messages } from '@/lib/i18n-core';
 
 export type DashboardScreenId =
   | 'overview'
+  | 'search'
   | 'fixed'
   | 'variable'
   | 'courses'
@@ -81,6 +82,14 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     mobileIcon: 'account_balance',
   },
   {
+    id: 'search',
+    href: '/dashboard/search',
+    sidebarIcon: 'search',
+    mobileIcon: 'search',
+    // Opened from the header search button.
+    hiddenFromNav: true,
+  },
+  {
     id: 'profile',
     href: '/dashboard/profile',
     sidebarIcon: 'person',
@@ -93,6 +102,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
 
 const NAVIGATION_LABEL_KEYS: Record<DashboardScreenId, keyof Messages['navigation']> = {
   overview: 'overview',
+  search: 'search',
   fixed: 'fixedBills',
   variable: 'variableExpenses',
   courses: 'courses',
@@ -104,6 +114,7 @@ const NAVIGATION_LABEL_KEYS: Record<DashboardScreenId, keyof Messages['navigatio
 
 const NAVIGATION_TITLE_KEYS: Record<DashboardScreenId, keyof Messages['navigation']> = {
   overview: 'dashboardOverview',
+  search: 'search',
   fixed: 'fixedBills',
   variable: 'variableExpenses',
   courses: 'courseSession',
@@ -155,7 +166,7 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
  */
 export function getSidebarNavItems(isPro: boolean): DashboardNavItem[] {
   return DASHBOARD_NAV_ITEMS.filter(
-    (item) => item.id !== 'profile' && (!item.proOnly || isPro),
+    (item) => item.id !== 'profile' && item.id !== 'search' && (!item.proOnly || isPro),
   );
 }
 
@@ -177,6 +188,8 @@ export const PROFILE_SUBPAGE_NAV_ITEMS: ProfileSubpageNavItem[] = [
   { id: 'preferences', href: '/dashboard/profile/preferences', icon: 'tune', labelKey: 'preferences' },
   { id: 'money-sources', href: '/dashboard/profile/money-sources', icon: 'account_balance_wallet', labelKey: 'moneySources' },
   { id: 'household', href: '/dashboard/profile/household', icon: 'family_restroom', labelKey: 'household', proOrHouseholdOnly: true },
+  { id: 'reminders', href: '/dashboard/profile/reminders', icon: 'notifications_active', labelKey: 'reminders' },
+  { id: 'security', href: '/dashboard/profile/security', icon: 'lock', labelKey: 'security' },
   { id: 'data', href: '/dashboard/profile/data', icon: 'database', labelKey: 'data' },
   { id: 'account', href: '/dashboard/profile/account', icon: 'manage_accounts', labelKey: 'account' },
 ];
@@ -187,6 +200,8 @@ const PROFILE_PAGE_TITLE_KEYS: Record<string, keyof Messages['navigation']> = {
   '/dashboard/profile/money-sources': 'moneySources',
   '/dashboard/profile/workspace': 'workspace',
   '/dashboard/profile/pro': 'pro',
+  '/dashboard/profile/reminders': 'reminders',
+  '/dashboard/profile/security': 'security',
   '/dashboard/profile/data': 'data',
   '/dashboard/profile/account': 'account',
 };

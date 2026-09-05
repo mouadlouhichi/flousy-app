@@ -3,6 +3,8 @@
 import React from 'react';
 import { DashboardProvider } from './dashboard-provider';
 import { DashboardShell } from './dashboard-shell';
+import { AppLockGate } from './app-lock-gate';
+import { ReminderRunner } from './reminder-runner';
 
 /**
  * Client boundary for the dashboard route group: provides the shared
@@ -11,7 +13,10 @@ import { DashboardShell } from './dashboard-shell';
 export function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   return (
     <DashboardProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <AppLockGate>
+        <ReminderRunner />
+        <DashboardShell>{children}</DashboardShell>
+      </AppLockGate>
     </DashboardProvider>
   );
 }

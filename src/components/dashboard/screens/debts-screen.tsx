@@ -5,9 +5,10 @@ import { useDashboard } from '../dashboard-provider';
 import { useHousehold } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { deleteDebtPayment, recordDebtPayment, type DebtPayment } from '@/lib/store';
+import { DebtPayoffPlanner } from '../debt-payoff-planner';
 
 export function DebtsScreen() {
-  const { month, openDebtModal, updateAndSaveMonth, user } = useDashboard();
+  const { month, openDebtModal, updateAndSaveMonth, user, proUnlocked, openProModal } = useDashboard();
   const { workspace, canViewArea, canEditArea } = useHousehold();
   const { messages: m } = useLanguage();
   const canView = workspace === 'personal' || canViewArea('debts');
@@ -21,6 +22,8 @@ export function DebtsScreen() {
   );
 
   return (
+    <div className="flex flex-col gap-6">
+    <DebtPayoffPlanner month={month} unlocked={proUnlocked} onUpgrade={openProModal} />
     <DebtsTab
       month={month}
       canEdit={canEdit}
@@ -38,5 +41,6 @@ export function DebtsScreen() {
         updateAndSaveMonth(deleteDebtPayment(month, debtId, paymentId), 'debts');
       }}
     />
+    </div>
   );
 }

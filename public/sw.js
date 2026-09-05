@@ -1,7 +1,7 @@
-const CACHE_NAME = 'flousy-v5';
+const CACHE_NAME = 'flousy-v6';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
-const HTML_CACHE_NAME = 'flousy-html-v5';
+const HTML_CACHE_NAME = 'flousy-html-v6';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -138,4 +138,57 @@ self.addEventListener('fetch', (event) => {
       return cachedResponse || networkFetch;
     })
   );
+});
+
+// ---------------------------------------------------------------------------
+// Web Push (bill reminders). The payload is a small JSON object built by
+// /api/reminders/dispatch: { title, body, url, tag }. No financial detail
+// beyond what the user opted into is ever pushed.
+// ---------------------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'SmartJib';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || '',
+      tag: payload.tag || undefined,
+      icon: '/web-app-manifest-192x192.png',
+      badge: '/favicon-96x96.png',
+      data: { url: payload.url || '/dashboard' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/dashboard', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
+
+// Background sync hook: when the browser regains connectivity it pings the
+// open clients so the IndexedDB mutation outbox flushes even if the tab was
+// throttled (Chromium/Android only; other engines ignore the event).
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'flousy-flush-outbox') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'FLUSH_OUTBOX' }));
+      })
+    );
+  }
 });
