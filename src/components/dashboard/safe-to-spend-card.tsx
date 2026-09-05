@@ -31,7 +31,7 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
       : { ring: 'border-primary/30', chip: 'bg-primary/10 text-primary', icon: 'check_circle', label: i.statusOk };
 
   return (
-    <section className={`relative overflow-hidden rounded-3xl border ${unlocked ? tone.ring : 'border-outline-variant'} bg-surface-container p-5 shadow-2xs`}>
+    <section className={`relative flex shrink-0 flex-col rounded-3xl border ${unlocked ? tone.ring : 'border-outline-variant'} bg-surface-container p-5 shadow-2xs`}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-bold text-base text-on-surface">
           <AppIcon name="speed" className="text-[20px] text-primary" />
@@ -50,7 +50,7 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
         )}
       </div>
 
-      <div className={unlocked ? '' : 'select-none blur-[6px] pointer-events-none'} aria-hidden={!unlocked}>
+      <div className={`flex flex-col ${unlocked ? '' : 'select-none blur-[6px] pointer-events-none'}`} aria-hidden={!unlocked}>
         {/* Hero figure: the one number the card exists for. */}
         <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="font-mono text-[2rem] font-extrabold leading-none tracking-tight text-on-surface sm:text-4xl">
@@ -89,7 +89,7 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
       </div>
 
       {!unlocked && (
-        <div className="absolute inset-x-0 bottom-0 top-14 flex flex-col items-center justify-center gap-2.5 bg-surface/60 px-5 py-4 text-center backdrop-blur-[2px]">
+        <div className="absolute inset-x-0 bottom-0 top-14 flex flex-col items-center justify-center gap-2.5 overflow-hidden rounded-b-3xl bg-surface/60 px-5 py-4 text-center backdrop-blur-[2px]">
           <span className="flex size-10 items-center justify-center rounded-full border border-outline-variant bg-surface shadow-sm">
             <AppIcon name="lock" className="text-[18px] text-primary" />
           </span>
