@@ -99,5 +99,8 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.5",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
