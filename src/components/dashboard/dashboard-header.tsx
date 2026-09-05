@@ -126,18 +126,23 @@ export function DashboardHeader() {
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod && periodStart && periodEnd ? (
             <>
-              <span className="hidden whitespace-nowrap sm:inline">
-                {periodStart.month} <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+              {/* Flex alignment keeps the day badge from lifting above the date text. */}
+              <span className="hidden items-center gap-1 whitespace-nowrap sm:inline-flex">
+                <span>{periodStart.month}</span>
+                <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
                   <AppIcon
                     name="loop"
                     className="shrink-0 text-[14px] text-primary"
                     aria-label={m.navigation.customBudgetMonth}
                   />
                   <span>{periodStart.day}</span>
-                </span> → {periodEnd.month} {periodEnd.day}
+                </span>
+                <span>→</span>
+                <span>{periodEnd.month} {periodEnd.day}</span>
               </span>
-              <span className="whitespace-nowrap sm:hidden">
-                {periodEnd.month} <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap sm:hidden">
+                <span>{periodEnd.month}</span>
+                <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
                   <AppIcon
                     name="loop"
                     className="shrink-0 text-[12px] text-primary"

@@ -33,3 +33,5 @@ Likewise leave `RESEND_API_KEY` unset: the contact spec asserts the truthful
   onboarding, plus a returning-session redirect to the dashboard.
 - `profile-month-lock.spec.ts` — closing the selected month from Profile
   settings (not the header), canceling confirmation, and reopening it.
+- `dashboard-header.spec.ts` — custom budget-period text and day-badge
+  alignment on desktop and mobile in English, French, and Arabic.
