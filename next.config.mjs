@@ -12,6 +12,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 // ignores it. Re-add it together with a Dockerfile if the app is ever
 // self-hosted.
 const nextConfig = {
+  // Allow development assets and hot reload through the browser preview proxy.
+  allowedDevOrigins: ['*.e2b.app'],
   reactStrictMode: true,
   poweredByHeader: false, // stop advertising "X-Powered-By: Next.js"
   async headers() {

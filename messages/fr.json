@@ -1654,6 +1654,7 @@
     "hints": {
       "budgetStarts": "commence le {day}",
       "locations": "{count, plural, one {# emplacement} other {# emplacements}}",
+      "closeMonth": "Passer le mois sélectionné en lecture seule",
       "personalAndHousehold": "Tableau de bord personnel et foyer",
       "planIncomeInsights": "Forfait, sources de revenus et analyses",
       "exportImportDelete": "Exporter, importer, supprimer",

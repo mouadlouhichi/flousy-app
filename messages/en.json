@@ -1654,6 +1654,7 @@
     "hints": {
       "budgetStarts": "starts {day}",
       "locations": "{count, plural, one {# location} other {# locations}}",
+      "closeMonth": "Make the selected month read-only",
       "personalAndHousehold": "Personal dashboard & household",
       "planIncomeInsights": "Plan, income sources & insights",
       "exportImportDelete": "Export, import, delete",

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppIcon } from '@/components/ui/app-icon';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ProfileIdentity } from '../profile/profile-identity';
 import { useMoneyPlaces } from '@/lib/use-money-places';
 import { useDashboard } from '../dashboard-provider';
@@ -33,8 +34,11 @@ export function ProfileScreen() {
   const { currency } = useCurrency();
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
-  const { month, isPro, openIncomeModal, openProModal } = useDashboard();
-  const { workspace, household, canViewArea } = useHousehold();
+  const { month, isPro, openIncomeModal, openProModal, closeCurrentMonth, isMounted, syncState } = useDashboard();
+  const { workspace, household, isOwner, canViewArea } = useHousehold();
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const monthIsClosed = month.periodStatus === 'closed';
+  const canManageMonth = workspace === 'personal' || isOwner;
   const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   // Profile is the member's own account page, so it is never blocked wholesale.
   // Individual entries that lead into a household area are gated instead.
@@ -52,6 +56,7 @@ export function ProfileScreen() {
   type HubItem = {
     href?: string;
     onClick?: () => void;
+    disabled?: boolean;
     icon: string;
     title: string;
     hint: string;
@@ -82,6 +87,14 @@ export function ProfileScreen() {
           icon: 'account_balance_wallet',
           title: p.links.moneySources,
           hint: t(p.hints.locations, { count: places.length }),
+        },
+        {
+          onClick: () => setShowCloseConfirm(true),
+          icon: 'lock_open',
+          title: m.monthLock.close,
+          hint: p.hints.closeMonth,
+          hidden: !canManageMonth || monthIsClosed,
+          disabled: !isMounted || syncState === 'failed' || syncState === 'conflict',
         },
       ],
     },
@@ -180,7 +193,13 @@ export function ProfileScreen() {
                   );
                 }
                 return (
-                  <button key={item.title} type="button" onClick={item.onClick} className={rowClass}>
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={item.onClick}
+                    disabled={item.disabled}
+                    className={`${rowClass} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface-container`}
+                  >
                     {body}
                   </button>
                 );
@@ -189,6 +208,17 @@ export function ProfileScreen() {
           </section>
         ))}
       </div>
+
+      {canManageMonth && !monthIsClosed && (
+        <ConfirmDialog
+          isOpen={showCloseConfirm}
+          onClose={() => setShowCloseConfirm(false)}
+          onConfirm={closeCurrentMonth}
+          title={m.monthLock.close}
+          message={m.monthLock.closeConfirm}
+          confirmLabel={m.monthLock.close}
+        />
+      )}
     </div>
   );
 }
