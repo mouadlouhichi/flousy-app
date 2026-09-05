@@ -476,50 +476,71 @@ service cloud.firestore {
         'paid': uid != '' && activeProEntitlement(householdSponsor(root))
       };
     }
-    function householdAccess(hid) {
+    /**
+     * Who may file a ledger row. Staged so the common case stays cheap: the
+     * owner is decided from the household root alone, editors add one
+     * membership read, custom writers add their grant check. The entitlement
+     * (the sponsor's profile) is the same read the paired month/savings write
+     * performs - the request budget counts both statements, so neither side
+     * may re-derive the other's answers through a shared all-purpose record.
+     */
+    function householdLedgerGate(hid) {
       let uid = signedIn() ? request.auth.uid : '';
-      // Paths are built once: a `get()` and the `exists()` that guards it would
-      // otherwise construct the same path twice, and every shared write builds all
-      // three of them.
       let hPath = householdPath(hid);
-      // `getAfter` because a household can be created in the same batch as its
-      // owner's membership row, where the root does not exist yet for `get()`.
       let root = request.method == 'create'
         ? (existsAfter(hPath) ? getAfter(hPath).data : {})
         : (exists(hPath) ? get(hPath).data : {});
-      let mPath = memberPath(hid, uid);
-      let member = uid != '' && exists(mPath) ? get(mPath).data : {};
-      let role = member.get('role', '');
-      // Whether somebody in this household pays for it is asked once per rule and
-      // shared by all three writer branches, and it is asked of the payer's profile
-      // rather than of the projection on the household: a projection is only ever
-      // written after being verified against that profile, but nothing forces it to
-      // be refreshed when the profile changes, and a shared write must not outlive
-      // the plan that pays for it.
       let sponsor = householdSponsor(root);
-      return {
-        'owner': uid != '' && root.get('ownerId', '') == uid,
-        'editor': member.get('status', '') == 'active'
-          && (role == 'owner' || role == 'editor'),
-        'custom': isCustomMember(member),
-        'permissions': member.get('permissions', {}),
-        'paid': sponsor != '' && activeProEntitlement(sponsor)
-      };
-    }
-    function householdLedgerGate(hid) {
-      let access = householdAccess(hid);
       // Custom members may ledger ordinary finance mutations; closing, reopening
       // and approving stay with owners and editors.
-      let ordinaryKind = incoming().get('kind', '') in [
-        'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post'
-      ];
-      return access.paid && (access.owner || access.editor
-        || (access.custom && 'editAll' in access.permissions.values() && ordinaryKind));
+      return uid != ''
+        && sponsor != ''
+        && activeProEntitlement(sponsor)
+        && (root.get('ownerId', '') == uid || ledgerMemberWriteOk(hid, uid, incoming().get('kind', '')));
     }
+    /**
+     * Whether the caller's membership row carries a finance write grant.
+     * Owner-equivalent rows count as editors; a custom row needs `editAll`
+     * somewhere for the ledger (the month/savings documents named by the
+     * mutation enforce the per-area grants), and only for an ordinary ledger
+     * kind - closing, reopening and approving stay with owners and editors.
+     */
+    function ledgerMemberWriteOk(hid, uid, kind) {
+      let mPath = memberPath(hid, uid);
+      let member = exists(mPath) ? get(mPath).data : {};
+      let role = member.get('role', '');
+      return member.get('status', '') == 'active'
+        && (role == 'owner' || role == 'editor'
+          || (role == 'custom'
+            && kind in [
+              'bootstrap', 'savings-bootstrap', 'savings', 'month', 'month-and-savings', 'course-post'
+            ]
+            && 'editAll' in member.get('permissions', {}).values()));
+    }
+    /**
+     * Who may write the savings document. Same staging as the ledger gate:
+     * the owner is decided from the root alone; anyone else needs their
+     * membership row, and a custom writer needs the savings grant.
+     */
     function householdSavingsGate(hid) {
-      let access = householdAccess(hid);
-      return access.paid && (access.owner || access.editor
-        || (access.custom && access.permissions.get('savings', 'none') == 'editAll'));
+      let uid = signedIn() ? request.auth.uid : '';
+      let hPath = householdPath(hid);
+      let root = request.method == 'create'
+        ? (existsAfter(hPath) ? getAfter(hPath).data : {})
+        : (exists(hPath) ? get(hPath).data : {});
+      let sponsor = householdSponsor(root);
+      return uid != ''
+        && sponsor != ''
+        && activeProEntitlement(sponsor)
+        && (root.get('ownerId', '') == uid || savingsMemberWriteOk(hid, uid));
+    }
+    function savingsMemberWriteOk(hid, uid) {
+      let mPath = memberPath(hid, uid);
+      let member = exists(mPath) ? get(mPath).data : {};
+      let role = member.get('role', '');
+      return member.get('status', '') == 'active'
+        && (role == 'owner' || role == 'editor'
+          || (role == 'custom' && member.get('permissions', {}).get('savings', 'none') == 'editAll'));
     }
     /**
      * The ledger row a shared finance write is being replayed for. Rules have no
@@ -554,32 +575,37 @@ service cloud.firestore {
      * it, and a bootstrap row never replays a month.
      */
     /*
-     * Shared-month writes, split by writer kind.
+     * Shared-month writes go through ONE statement per method.
      *
-     * Rules inline every call into ONE per-request budget of 1000 evaluated
-     * expressions, and an over-budget request is refused with a bare
-     * `permission-denied` before any branch runs. Folded into a single
-     * function these cost ~1574 (update) and ~1288 (create) - so importing a
-     * budget, flushing the outbox and deleting a workspace all failed on
-     * arithmetic rather than authorization, and the client reported it as
-     * "the published rules are behind" because a refusal it cannot explain is
+     * A request shares ONE budget of 1000 evaluated expressions across every
+     * `allow` statement it evaluates - there is no per-statement budget, and
+     * an over-budget request is refused with a bare `permission-denied`. The
+     * month rules were once split by writer kind (three update statements, two
+     * create statements) on the theory that each branch gets its own budget;
+     * the split tripled the bill instead - the household root, the membership
+     * row and the sponsor's profile were re-read per statement - and importing
+     * a budget, flushing the outbox and closing a period all failed on
+     * arithmetic rather than authorization, which the client reported as "the
+     * published rules are behind" because a refusal it cannot explain is
      * indistinguishable from a stale deployment.
-     *
-     * These helpers deliberately do NOT go through `householdAccess()`: that
-     * record resolves the owner, editor, custom and permission questions
-     * together, and each branch below needs only some of them. Reading the two
-     * documents directly is the same authorization, at a third of the cost.
      */
 
     /**
-     * Month-write facts, in two flavours so a branch never computes a fact it
-     * does not use. Rules evaluate the whole returned map, so a single
-     * all-purpose record charges every caller for the owner, editor, custom AND
-     * permission questions - which is what pushed these rules over the cap.
+     * Everything a shared month write asks about its writer, read ONCE. A
+     * request shares ONE 1000-expression budget across every `allow` statement
+     * it evaluates - there is no per-statement budget, so splitting one rule
+     * into three statements triples the bill instead of partitioning it: the
+     * household root, the membership row and the sponsor's profile were read
+     * three times over, and every shared month write (import, outbox flush,
+     * close/reopen) was refused on arithmetic rather than authorization. There
+     * is exactly one `allow create` and one `allow update` on the month
+     * document for this reason, and both go through this record.
+     *
+     * MAP LITERAL KEYS ARE QUOTED. `{ owner: ... }` is not a JavaScript
+     * object: a bare key is resolved as a name, the engine aborts building the
+     * map, and the client sees a bare permission-denied.
      */
-
-    /** Owner/editor flavour: ownership, editorship and who pays. */
-    function monthFinanceWriterFacts(hid) {
+    function monthWriteFacts(hid) {
       let uid = signedIn() ? request.auth.uid : '';
       let hPath = householdPath(hid);
       let root = request.method == 'create'
@@ -588,28 +614,14 @@ service cloud.firestore {
       let mPath = memberPath(hid, uid);
       let member = uid != '' && exists(mPath) ? get(mPath).data : {};
       let role = member.get('role', '');
+      let active = member.get('status', '') == 'active';
       // Bound to a name: passed inline this expression is re-expanded at each of
       // `userProfileData()`'s uses of it.
       let sponsor = householdSponsor(root);
       return {
         'owner': uid != '' && root.get('ownerId', '') == uid,
-        'editor': member.get('status', '') == 'active' && (role == 'owner' || role == 'editor'),
-        'paid': uid != '' && sponsor != '' && activeProEntitlement(sponsor)
-      };
-    }
-
-    /** Custom-member flavour: the grant map and who pays. */
-    function monthCustomWriterFacts(hid) {
-      let uid = signedIn() ? request.auth.uid : '';
-      let hPath = householdPath(hid);
-      let root = request.method == 'create'
-        ? (existsAfter(hPath) ? getAfter(hPath).data : {})
-        : (exists(hPath) ? get(hPath).data : {});
-      let mPath = memberPath(hid, uid);
-      let member = uid != '' && exists(mPath) ? get(mPath).data : {};
-      let sponsor = householdSponsor(root);
-      return {
-        'custom': isCustomMember(member),
+        'editor': active && (role == 'owner' || role == 'editor'),
+        'custom': active && role == 'custom',
         'permissions': member.get('permissions', {}),
         'paid': uid != '' && sponsor != '' && activeProEntitlement(sponsor)
       };
@@ -650,76 +662,54 @@ service cloud.firestore {
     }
 
     /**
-     * Owner or editor making an ordinary edit to an open period. The common
-     * write, and the cheapest: closing and reopening go through
-     * `monthCloseReopenByOwner` below.
+     * THE shared-month update check: one statement, one facts computation.
+     * Closing or reopening a shared period is owner-only with a month-close or
+     * month-reopen ledger kind, per the audit trail; anything else is an
+     * ordinary edit to an open period by an owner, an editor, or a custom
+     * member inside their per-area grants. The cheapest discriminator runs
+     * first: transitions are rare, ordinary edits are the common case, and the
+     * custom grant walk is the most expensive check - it must not be reached
+     * for a writer who was never a custom member to begin with.
      */
-    function monthOrdinaryUpdateByFinanceWriter(hid) {
-      let facts = monthFinanceWriterFacts(hid);
+    function monthUpdateShared(hid) {
+      let facts = monthWriteFacts(hid);
+      let row = mutationLedger(hid);
+      let before = existing();
+      let after = incoming();
+      let wasClosed = periodClosed(before);
+      let willBeClosed = periodClosed(after);
+      let revWas = before.get('revision', -1);
+      let revNext = after.get('revision', 0);
+      let revOk = (revWas == -1 && revNext == 1) || (revWas is int && revNext == revWas + 1);
       return facts.paid
-        && (facts.owner || facts.editor)
-        && monthOrdinaryUpdateOk(hid);
+        && row.present && row.kind != 'bootstrap' && revOk
+        && (wasClosed != willBeClosed
+          ? (facts.owner
+            && ((!wasClosed && willBeClosed && row.kind == 'month-close')
+              || (wasClosed && !willBeClosed && row.kind == 'month-reopen'))
+            && periodTransitionOk(wasClosed, willBeClosed, periodStateOnly()))
+          : (!wasClosed && !willBeClosed
+            && (facts.owner || facts.editor
+              || (facts.custom && 'editAll' in facts.permissions.values()
+                && customMonthChangesGranted(facts.permissions)))));
     }
 
     /**
-     * Closing or reopening a shared period: owner only, per the audit trail.
-     * Reads the root once and never resolves the membership row - ownership is
-     * recorded on the household document itself, and `editor`/`custom` are
-     * irrelevant to a branch only an owner can take.
+     * Bootstrapping a shared month document (import, or a custom member's
+     * first write). A valid month document structurally carries every area's
+     * keys, so creation cannot be split per grant - `editAll` in any area is
+     * the gate for custom writers, exactly as for updates. Only the owner may
+     * bootstrap a closed period: closing is an owner operation everywhere else
+     * in this file, so a closed bootstrap is accepted from the owner and
+     * refused from an editor, instead of the create rule refusing every closed
+     * month and the import silently losing them.
      */
-    function monthCloseReopenByOwner(hid) {
-      let uid = signedIn() ? request.auth.uid : '';
-      let hPath = householdPath(hid);
-      let root = exists(hPath) ? get(hPath).data : {};
-      let sponsor = householdSponsor(root);
-      return uid != ''
-        && root.get('ownerId', '') == uid
-        && sponsor != '' && activeProEntitlement(sponsor)
-        && monthUpdatePreconditions(hid, true);
-    }
-
-    /**
-     * Custom member updating the shared month: every changed key must fall in a
-     * granted area, and the period must be open both before and after - closing
-     * and reopening are owner operations.
-     */
-    function monthUpdateByCustomMember(hid) {
-      let facts = monthCustomWriterFacts(hid);
-      // Cheapest discriminators first: `customMonthChangesGranted` walks the
-      // whole changed-key set against nine area grants, so it must not be
-      // reached for a writer who was never a custom member to begin with.
-      return facts.custom
-        && facts.paid
-        && 'editAll' in facts.permissions.values()
-        && monthOrdinaryUpdateOk(hid)
-        && customMonthChangesGranted(facts.permissions);
-    }
-
-    /**
-     * Owner or editor creating (bootstrapping) a shared month document.
-     * Importing a personal budget copies each month as `normalizeMonth()` stores
-     * it, `periodStatus` included, so an archived (closed) month arrives closed.
-     * Only the owner may put a shared period into that state - closing is an
-     * owner operation everywhere else in this file - so a closed bootstrap is
-     * accepted from the owner and refused from an editor, instead of the create
-     * rule refusing every closed month and the import silently losing them.
-     */
-    function monthCreateByFinanceWriter(hid) {
-      let facts = monthFinanceWriterFacts(hid);
+    function monthCreateShared(hid) {
+      let facts = monthWriteFacts(hid);
       return facts.paid
-        && (facts.owner || facts.editor)
-        && (facts.owner || !periodClosed(incoming()));
-    }
-
-    /**
-     * Custom member bootstrapping a shared month. A valid month document
-     * structurally carries every area's keys, so creation cannot be split per
-     * grant - `editAll` in any area is the gate, exactly as before. Ongoing
-     * edits are the enforced surface (see the update rules).
-     */
-    function monthCreateByCustomMember(hid) {
-      let facts = monthCustomWriterFacts(hid);
-      return facts.paid && facts.custom && 'editAll' in facts.permissions.values();
+        && (facts.owner || facts.editor || facts.custom)
+        && (facts.owner || !periodClosed(incoming()))
+        && (facts.owner || facts.editor || 'editAll' in facts.permissions.values());
     }
 
     /** A bootstrap row seeds the goals document; it may never rewrite it. */
@@ -1066,118 +1056,76 @@ service cloud.firestore {
     }
 
     /*
-     * Membership creation, deliberately split into THREE `allow create`
-     * statements rather than one function with three OR-ed branches.
+     * Membership creation from its three legitimate origins, sharing one read
+     * of the household root and the sponsor's profile: the founder writing
+     * their own owner row, the owner adding somebody else, and a recipient
+     * claiming their row through an invitation.
      *
-     * Rules inline every function call into the caller's expression budget, and
-     * a request may evaluate at most 1000 expressions. Folded together these
-     * branches cost ~1088 - over the cap - so the engine refused the write
-     * outright with a bare `permission-denied`, before any branch was even
-     * consulted. That broke HOUSEHOLD CREATION for a perfectly entitled owner:
-     * the batch writes the household root and the owner's own membership row,
-     * and the member write was rejected for arithmetic reasons rather than
-     * authorization ones. Firestore evaluates each `allow` of the same method
-     * independently and ORs the results, so splitting them keeps the exact same
-     * authorization surface while giving each branch its own budget.
-     *
-     * Each branch below reads only what it needs: the founding owner needs the
-     * household root only, and must NOT pay for the invitation machinery.
+     * A request shares ONE 1000-expression budget across every `allow`
+     * statement it evaluates - there is no per-statement budget, so one
+     * statement per method reads those documents once instead of three times.
+     * The invitee path reuses the root record's `paid` answer instead of
+     * re-asking `householdEntitled()`: the sponsor's entitlement does not
+     * depend on who is calling, and the household already exists when a row
+     * is claimed through it.
      */
-
-    /** The household owner writing their own `owner` row (household creation). */
-    function memberCreateSelfOwner(hid, memberId) {
+    function memberCreateShared(hid, memberId) {
       let after = incoming();
-      return memberId == request.auth.uid
-        && householdOwner(hid)
-        && after.get('userId', '') == request.auth.uid
-        && after.get('role', '') == 'owner'
-        && after.get('status', '') == 'active';
-    }
-
-    /** The owner adding somebody else (an invited row or a local profile). */
-    function memberCreateByOwner(hid, memberId) {
-      let after = incoming();
+      let uid = signedIn() ? request.auth.uid : '';
       let facts = householdRootFacts(hid);
-      return memberId != request.auth.uid
-        && facts.owner && facts.paid
-        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-        && memberDocPermissionsValid()
-        && after.get('status', '') in ['invited', 'active'];
-    }
-
-    /** A recipient claiming their own row, proven by the invitation itself. */
-    function memberCreateByInvitee(hid, memberId) {
-      let after = incoming();
-      return memberId == request.auth.uid
-        && verifiedEmail()
-        && householdEntitled(hid)
-        && after.get('userId', '') == request.auth.uid
-        && after.get('status', '') == 'active'
-        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
-        && memberDocPermissionsValid()
-        && invitationJoinOk(hid);
+      return (memberId == uid && householdOwner(hid)
+          && after.get('userId', '') == uid
+          && after.get('role', '') == 'owner'
+          && after.get('status', '') == 'active')
+        || (uid != '' && memberId != uid && facts.owner && facts.paid
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && memberDocPermissionsValid()
+          && after.get('status', '') in ['invited', 'active'])
+        || (memberId == uid && verifiedEmail() && facts.paid
+          && after.get('userId', '') == uid
+          && after.get('status', '') == 'active'
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
+          && memberDocPermissionsValid()
+          && invitationJoinOk(hid));
     }
 
     /*
-     * Membership updates, split for the same reason as the create rules above:
-     * folded into one expression the four branches cost ~1283, over the
-     * 1000-expression cap, so the engine refused every membership edit -
-     * including a member retiring their own row - with a bare
-     * `permission-denied`. Split, each branch is comfortably within budget and
-     * the authorization surface is byte-for-byte the same.
+     * Membership updates from their four origins, sharing one root record:
+     * the owner re-roling somebody who is not an owner, the recipient retiring
+     * the email-bound pending row that names them, any member deactivating
+     * their own row (leaving), and an inactive member rejoining through the
+     * same atomic invitation proof a fresh claim demands. The rejoin path
+     * reuses the root record's `paid` answer for the same reason as the
+     * invitee create path above.
      */
-
-    /** The owner re-roling somebody who is not an owner. */
-    function memberUpdateByOwner(hid) {
+    function memberUpdateShared(hid, memberId) {
       let after = incoming();
       let before = existing();
+      let uid = signedIn() ? request.auth.uid : '';
       let facts = householdRootFacts(hid);
-      return facts.owner && facts.paid
-        && before.get('role', '') != 'owner'
-        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
-        && (after.get('role', '') != 'custom' || memberDocPermissionsValid())
-        && (!('userId' in before) || after.get('userId', '') == before.userId);
-    }
-
-    /** The recipient retiring the email-bound pending row that names them. */
-    function memberUpdateRetireInvited() {
-      let after = incoming();
-      let before = existing();
-      return verifiedEmail()
-        && emailMatches(before.get('email', ''))
-        && before.get('status', '') == 'invited'
-        && after.get('status', '') == 'inactive'
-        && after.get('userId', '') == request.auth.uid
-        && after.diff(before).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']);
-    }
-
-    /** Any member deactivating their own row (leaving the household). */
-    function memberUpdateLeave(memberId) {
-      let after = incoming();
-      let before = existing();
-      return memberId == request.auth.uid
-        && before.get('userId', memberId) == request.auth.uid
-        && after.get('status', '') == 'inactive'
-        && after.diff(before).affectedKeys().hasOnly(['status', 'retiredAt']);
-    }
-
-    /**
-     * Returning member: an inactive row is reactivated only through the same
-     * atomic invitation proof the fresh-create branch demands.
-     */
-    function memberUpdateRejoin(hid, memberId) {
-      let after = incoming();
-      let before = existing();
-      return memberId == request.auth.uid
-        && verifiedEmail()
-        && householdEntitled(hid)
-        && before.get('userId', memberId) == request.auth.uid
-        && before.get('status', '') == 'inactive'
-        && after.get('userId', '') == request.auth.uid
-        && after.get('status', '') == 'active'
-        && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
-        && memberDocPermissionsValid()
-        && invitationJoinOk(hid);
+      return (facts.owner && facts.paid
+          && before.get('role', '') != 'owner'
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom', 'profile']
+          && (after.get('role', '') != 'custom' || memberDocPermissionsValid())
+          && (!('userId' in before) || after.get('userId', '') == before.userId))
+        || (verifiedEmail()
+          && emailMatches(before.get('email', ''))
+          && before.get('status', '') == 'invited'
+          && after.get('status', '') == 'inactive'
+          && after.get('userId', '') == request.auth.uid
+          && after.diff(before).affectedKeys().hasOnly(['status', 'userId', 'retiredAt', 'joinedAt']))
+        || (memberId == uid
+          && before.get('userId', memberId) == request.auth.uid
+          && after.get('status', '') == 'inactive'
+          && after.diff(before).affectedKeys().hasOnly(['status', 'retiredAt']))
+        || (memberId == uid && verifiedEmail() && facts.paid
+          && before.get('userId', memberId) == request.auth.uid
+          && before.get('status', '') == 'inactive'
+          && after.get('userId', '') == request.auth.uid
+          && after.get('status', '') == 'active'
+          && after.get('role', '') in ['editor', 'viewer', 'contributor', 'custom']
+          && memberDocPermissionsValid()
+          && invitationJoinOk(hid));
     }
 
     // The household's own settings write, with the pre- and post-state named once: this
@@ -1251,27 +1199,21 @@ service cloud.firestore {
           || (verifiedEmail() && (memberId == request.auth.uid || emailMatches(resource.data.get('email', ''))));
         allow list: if householdFinanceReader(hid) || householdOwner(hid);
 
-        // Three statements, one per legitimate origin of a membership row.
-        // Firestore ORs the `allow create` rules that match, so this is exactly
-        // the previous condition - but each branch gets its own expression
-        // budget instead of sharing one that the sum had already overrun.
-        allow create: if memberCreateSelfOwner(hid, memberId);
-        allow create: if memberCreateByOwner(hid, memberId);
-        allow create: if memberCreateByInvitee(hid, memberId);
-
-        // Split per origin; Firestore ORs matching `allow update` statements.
-        allow update: if memberUpdateByOwner(hid);
-        allow update: if memberUpdateRetireInvited();
-        allow update: if memberUpdateLeave(memberId);
-        allow update: if memberUpdateRejoin(hid, memberId);
+        // One statement per method: the request budget is shared across every
+        // matching `allow`, so the per-origin dispatch lives inside
+        // `memberCreateShared` / `memberUpdateShared`, which read the household
+        // root and the sponsor's profile once instead of per branch.
+        allow create: if memberCreateShared(hid, memberId);
+        allow update: if memberUpdateShared(hid, memberId);
         // An owner row is protected from everyone - including another owner -
         // EXCEPT its own holder. Tearing down a workspace has to remove the
         // founder's row, and `role != 'owner'` refused exactly that, so the
         // delete always failed on the last member and the household could
         // never be removed. Self-deletion is safe to allow: `householdEditor`
         // falls back to `householdOwner`, which reads `ownerId` off the root
-        // rather than the membership row, and `memberCreateSelfOwner` lets an
-        // owner write their own row back - so this can strand nobody.
+        // rather than the membership row, and the self path of
+        // `memberCreateShared` lets an owner write their own row back - so
+        // this can strand nobody.
         allow delete: if householdOwner(hid)
           && (resource.data.get('role', '') != 'owner' || memberId == request.auth.uid);
       }
@@ -1316,36 +1258,26 @@ service cloud.firestore {
 
       match /months/{key} {
         allow read: if householdFinanceReader(hid) || householdOwner(hid) || customFinanceViewer(hid);
-        // A custom month writer may create (bootstrap) a missing month
-        // document: a valid month document structurally carries every area's
-        // keys, so creation cannot be split per grant. Ongoing edits are the
-        // enforced surface - see the update rule.
-        // The finance-writer branch decides the closed case itself (owner only);
-        // `validMonthDocument()` still demands `closedAt`/`closedByUserId` of it.
-        allow create: if monthCreateByFinanceWriter(hid)
+        // One statement per method. A request shares ONE 1000-expression
+        // budget across every `allow` statement it evaluates - splitting by
+        // writer kind tripled the bill (the root, membership row and profile
+        // were re-read per statement) and refused every shared month write on
+        // arithmetic rather than authorization. The writer dispatch lives
+        // inside `monthCreateShared` / `monthUpdateShared`, which read those
+        // documents once.
+        allow create: if monthCreateShared(hid)
           && isValidMonthId(key)
           && validMonthDocument()
           && incoming().revision == 1
           && mutationLedger(hid).present;
-        allow create: if monthCreateByCustomMember(hid)
+        // A transition (close/reopen) may only move period-state keys, so the
+        // money-shape checks in `validMonthDocument()` cannot be violated by it
+        // and it is validated as period fields only; an ordinary edit keeps the
+        // full document check. The dispatch mirrors `monthUpdateShared`.
+        allow update: if monthUpdateShared(hid)
           && isValidMonthId(key)
-          && validMonthDocument()
-          && !periodClosed(incoming())
-          && incoming().revision == 1
-          && mutationLedger(hid).present;
-        // Split by writer kind AND by what the write does. Firestore ORs the
-        // matching `allow update` statements, so this is the same authorization
-        // surface - but the common edit no longer pays for the close/reopen
-        // machinery, nor the owner path for the custom member's per-area diff.
-        allow update: if monthOrdinaryUpdateByFinanceWriter(hid)
-          && isValidMonthId(key) && validMonthDocument();
-        allow update: if monthUpdateByCustomMember(hid)
-          && isValidMonthId(key) && validMonthDocument();
-        // Close/reopen may only move period-state keys, so the money-shape
-        // checks in `validMonthDocument()` cannot be violated by it and are not
-        // charged to this branch's budget.
-        allow update: if monthCloseReopenByOwner(hid)
-          && isValidMonthId(key) && validMonthPeriodFields();
+          && (periodClosed(existing()) == periodClosed(incoming())
+            ? validMonthDocument() : validMonthPeriodFields());
         allow delete: if householdOwner(hid);
       }
 

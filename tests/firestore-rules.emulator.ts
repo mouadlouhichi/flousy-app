@@ -50,12 +50,16 @@ const ledger = (
   baseRevision: number,
   nextRevision: number,
   kind = 'month',
+  // The month the mutation advances: `mutationTargetAgrees` refuses a row
+  // whose month does not name it back, so a row replayed for any other month
+  // must say so - exactly as the client's outbox does.
+  monthKey = '2026-09',
 ) => ({
   mutationId,
   actorId,
   workspace,
   workspaceId,
-  monthKey: '2026-09',
+  monthKey,
   kind,
   baseRevision,
   nextRevision,
@@ -388,7 +392,7 @@ describe('household invitations and RBAC rules', () => {
     // 1. Import: create a month document that does not exist yet.
     const importBatch = writeBatch(owner);
     importBatch.set(doc(owner, 'households/home/ledger/import-1'),
-      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month'));
+      ledger('import-1', 'owner', 'household', 'home', 0, 1, 'month', '2026-08'));
     importBatch.set(doc(owner, 'households/home/months/2026-08'), validMonth(1, 'import-1'));
     await assertSucceeds(importBatch.commit());
 
@@ -396,7 +400,7 @@ describe('household invitations and RBAC rules', () => {
     //    flush replays. This is the write the import failure cascaded from.
     const flush = writeBatch(owner);
     flush.set(doc(owner, 'households/home/ledger/flush-1'),
-      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month'));
+      ledger('flush-1', 'owner', 'household', 'home', 1, 2, 'month', '2026-08'));
     flush.update(doc(owner, 'households/home/months/2026-08'), {
       bankPart: 900, totalBudget: 1000, revision: 2, lastMutationId: 'flush-1',
       updatedAt: new Date().toISOString(),
@@ -474,6 +478,50 @@ describe('household invitations and RBAC rules', () => {
       lastMutationId: 'shared-reopen',
     });
     await assertSucceeds(ownerReopen.commit());
+  });
+
+  it('accepts the close/reopen the client actually sends: full-document set in a transaction', async () => {
+    // commitFinanceMutation() writes the WHOLE month document with set(), never
+    // a key patch — so the close/reopen branches must accept that shape. The
+    // tests above only proved patches; a rule that demands patch-shaped writes
+    // would pass them and still refuse every real close from the app with a
+    // bare permission-denied the client can only report as "rules behind".
+    await seedHousehold();
+    const owner = asUser('owner');
+    const monthRef = doc(owner, 'households/home/months/2026-09');
+
+    const closeMonth = {
+      ...validMonth(2, 'owner-close'),
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'owner',
+      updatedByUserId: 'owner',
+    };
+    await assertSucceeds(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-close'),
+        ledger('owner-close', 'owner', 'household', 'home', 1, 2, 'month-close'));
+      tx.set(monthRef, closeMonth);
+    }));
+
+    // A close smuggling a finance change is not a state-only transition, even
+    // when it arrives as a full document: periodStateOnly() must refuse it.
+    await assertFails(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-dirty-close'),
+        ledger('owner-dirty-close', 'owner', 'household', 'home', 2, 3, 'month-close'));
+      tx.set(monthRef, { ...closeMonth, bankPart: 1, revision: 3, lastMutationId: 'owner-dirty-close' });
+    }));
+
+    // Reopen as a full-document set with the lock fields absent entirely.
+    const reopenMonth = {
+      ...validMonth(3, 'owner-reopen'),
+      periodStatus: 'open',
+      updatedByUserId: 'owner',
+    };
+    await assertSucceeds(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-reopen'),
+        ledger('owner-reopen', 'owner', 'household', 'home', 2, 3, 'month-reopen'));
+      tx.set(monthRef, reopenMonth);
+    }));
   });
 
   it('accepts only an unexpired, verified-email invitation in the same atomic batch', async () => {
@@ -1201,7 +1249,7 @@ describe('household month bootstrap by an entitled launch-trial owner (map-liter
     const clerk = asUser('clerk');
     await assertSucceeds(bootstrapMonth(clerk, 'clerk', HID, '2026-08', personalMonth('2026-08')));
     const edit = writeBatch(clerk);
-    edit.set(doc(clerk, `households/${HID}/ledger/clerk-1`), ledger('clerk-1', 'clerk', 'household', HID, 1, 2, 'month'));
+    edit.set(doc(clerk, `households/${HID}/ledger/clerk-1`), ledger('clerk-1', 'clerk', 'household', HID, 1, 2, 'month', '2026-08'));
     edit.update(doc(clerk, `households/${HID}/months/2026-08`), {
       bankPart: 100, revision: 2, lastMutationId: 'clerk-1',
     });

@@ -1,6 +1,7 @@
 'use client';
 
 import { AppIcon } from '@/components/ui/app-icon';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -210,40 +211,25 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
               <div className="space-y-1 border-b border-outline-variant pb-2">
                 <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.reminders}</p>
                 {reminders.map((reminder) => (
-                  <div
+                  <Alert
                     key={reminder.key}
-                    className={`p-2.5 rounded-xl border flex items-start gap-xs ${
-                      reminder.tone === 'warning'
-                        ? 'bg-secondary-container/40 border-secondary/50'
-                        : 'bg-surface border-outline-variant'
-                    }`}
+                    variant={reminder.tone === 'warning' ? 'warning' : 'info'}
                   >
-                    <AppIcon name={reminder.icon} className="text-[20px] shrink-0 mt-0.5 text-on-surface-variant" />
-                    <div className="min-w-0">
-                      <h5 className="font-label-md text-label-md font-bold text-on-surface truncate">{reminder.title}</h5>
-                      <p className="font-body-sm text-body-sm text-[12px] text-on-surface-variant">{reminder.message}</p>
-                    </div>
-                  </div>
+                    <AppIcon name={reminder.icon} />
+                    <AlertTitle className="truncate">{reminder.title}</AlertTitle>
+                    <AlertDescription>{reminder.message}</AlertDescription>
+                  </Alert>
                 ))}
               </div>
             )}
             <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.budgetHealth}</p>
             {alerts.length > 0 ? (
               alerts.map((a, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2.5 rounded-xl border flex items-start gap-xs ${
-                    a.severity === 'error'
-                      ? 'bg-error-container/40 border-error/50 text-on-error-container'
-                      : 'bg-tertiary-container/40 border-tertiary/50 text-on-tertiary-container'
-                  }`}
-                >
-                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} className=" text-[20px] shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-label-md text-label-md font-bold">{a.title}</h5>
-                    <p className="font-body-sm text-body-sm text-[12px] opacity-90">{a.message}</p>
-                  </div>
-                </div>
+                <Alert key={idx} variant={a.severity === 'error' ? 'destructive' : 'warning'}>
+                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} />
+                  <AlertTitle>{a.title}</AlertTitle>
+                  <AlertDescription>{a.message}</AlertDescription>
+                </Alert>
               ))
             ) : (
               <p className="font-body-sm text-body-sm text-on-surface-variant p-2 text-center">

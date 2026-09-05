@@ -40,6 +40,8 @@ import {
   Archive as ArchiveIcon,
   Cloud,
   CloudDownload,
+  CloudOff,
+  CloudUpload,
   Coffee,
   CreditCard,
   Activity,
@@ -72,6 +74,7 @@ import {
   Mail,
   Menu,
   Monitor,
+  MonitorSmartphone,
   Moon,
   Music,
   PackagePlus,
@@ -84,6 +87,7 @@ import {
   Plane,
   Phone,
   Receipt,
+  RefreshCwOff,
   Repeat2,
   Save,
   Scale,
@@ -107,6 +111,7 @@ import {
   Trash2,
   TrendingUp,
   Upload,
+  Undo,
   Package,
   User,
   Users,
@@ -181,6 +186,9 @@ const icons: Record<string, LucideIcon> = {
   chevron_right: ChevronRight,
   child_care: Baby,
   cloud_sync: Cloud,
+  cloud_done: Cloud,
+  cloud_off: CloudOff,
+  cloud_upload: CloudUpload,
   cloud_download: CloudDownload,
   content_cut: Scissors,
   close: X,
@@ -191,6 +199,7 @@ const icons: Record<string, LucideIcon> = {
   delete_forever: Trash2,
   description: FileText,
   desktop_windows: Monitor,
+  devices: MonitorSmartphone,
   directions_bike: Bike,
   directions_bus: BusFront,
   directions_car: Car,
@@ -289,9 +298,11 @@ const icons: Record<string, LucideIcon> = {
   subscriptions: Repeat2,
   swap_horiz: ArrowDownUp,
   sync: Repeat2,
+  sync_problem: RefreshCwOff,
   travel_explore: Plane,
   trending_up: TrendingUp,
   tune: SlidersHorizontal,
+  undo: Undo,
   upload_file: Upload,
   verified: CheckCircle2,
   warning: CircleAlert,
@@ -308,6 +319,11 @@ const icons: Record<string, LucideIcon> = {
 
 export function AppIcon({ name, title, ...props }: LucideProps & { name: string; title?: string }) {
   const Icon = icons[name] ?? icons.category;
+  // Fail loudly in dev: an unknown identifier silently renders the generic
+  // grid glyph in production, which is how missing icons go unnoticed.
+  if (process.env.NODE_ENV !== 'production' && !icons[name]) {
+    console.warn(`[AppIcon] Unknown icon "${name}" — add a mapping in app-icon.tsx.`);
+  }
   return (
     <Icon aria-hidden={props['aria-label'] ? undefined : true} {...props}>
       {title && <title>{title}</title>}
