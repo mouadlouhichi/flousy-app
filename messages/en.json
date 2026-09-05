@@ -879,6 +879,19 @@
     "home": "Home",
     "wallet": "Wallet"
   },
+  "moneyHistory": {
+    "openHistory": "View {name} history",
+    "currentBalance": "Current balance",
+    "openingBalance": "Opening balance",
+    "empty": "No transactions this period yet",
+    "income": "Income",
+    "transferTo": "To {place}",
+    "transferFrom": "From {place}",
+    "savingsDeposit": "Savings deposit",
+    "savingsWithdrawal": "Savings withdrawal",
+    "adjustment": "Balance adjustment",
+    "reconciliation": "Reconciliation"
+  },
   "pwa": {
     "installApp": "Install App",
     "installBanner": "Install SmartJib for the best experience",

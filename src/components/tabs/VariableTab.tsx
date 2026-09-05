@@ -14,8 +14,7 @@ import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { IconSelect } from '@/components/ui/icon-select';
-
-type ExpenseSort = 'newest' | 'oldest' | 'amountHigh' | 'amountLow' | 'name';
+import { ExpenseSort, sortVariableExpenses } from '@/lib/expense-sort';
 
 function expenseDay(date: string): string {
   return (date || '').slice(0, 10);
@@ -66,8 +65,8 @@ export function VariableTab({
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
 
-  const filteredExpenses = (month.variableExpenses || [])
-    .filter((exp) => {
+  const filteredExpenses = sortVariableExpenses(
+    (month.variableExpenses || []).filter((exp) => {
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
       const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
       const matchesSearch =
@@ -79,17 +78,10 @@ export function VariableTab({
       const matchesFrom = !dateFrom || day >= dateFrom;
       const matchesTo = !rangeEnd || day <= rangeEnd;
       return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
-    })
-    .sort((a, b) => {
-      // Dates are ISO timestamps, so comparing the full string orders by date
-      // *and* time (most-recent first for "newest"). Comparing only the day, as
-      // before, left same-day expenses in arbitrary order.
-      if (sortBy === 'oldest') return (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name);
-      if (sortBy === 'amountHigh') return b.amount - a.amount;
-      if (sortBy === 'amountLow') return a.amount - b.amount;
-      if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
-      return (b.date || '').localeCompare(a.date || '') || b.name.localeCompare(a.name);
-    });
+    }),
+    sortBy,
+    intlLocale,
+  );
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
 
