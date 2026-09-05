@@ -14,11 +14,11 @@ export function Navigation() {
   const isLoggedIn = Boolean(user || isDemo);
 
   const navLinks = [
-    { name: m.landing.nav.features, href: "/#features" },
-    { name: m.landing.nav.howItWorks, href: "/#how-it-works" },
-    { name: m.landing.nav.security, href: "/#security" },
+    { name: m.landing.nav.features, href: "/features" },
+    { name: "Budgeting Methods", href: "/budgeting-methods" },
+    { name: "MAD Guide", href: "/features/multi-currency-mad" },
     { name: m.landing.nav.pricing, href: "/#pricing" },
-    { name: m.landing.nav.faq, href: "/#faq" },
+    { name: "Blog", href: "/blog" },
   ];
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
