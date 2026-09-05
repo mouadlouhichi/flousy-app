@@ -133,17 +133,25 @@ export function DashboardHeader() {
         <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod && periodStart && periodEnd ? (
             <>
-              <span className="whitespace-nowrap">{periodStart.month}</span>
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
-                <AppIcon
-                  name="loop"
-                  className="shrink-0 text-[12px] text-primary sm:text-[14px]"
-                  aria-label={m.navigation.customBudgetMonth}
-                />
-                <span>{periodStart.day}</span>
-              </span>
               <span className="hidden whitespace-nowrap sm:inline">
-                → {periodEnd.month} {periodEnd.day}
+                {periodStart.month} <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                  <AppIcon
+                    name="loop"
+                    className="shrink-0 text-[14px] text-primary"
+                    aria-label={m.navigation.customBudgetMonth}
+                  />
+                  <span>{periodStart.day}</span>
+                </span> → {periodEnd.month} {periodEnd.day}
+              </span>
+              <span className="whitespace-nowrap sm:hidden">
+                {periodEnd.month} <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                  <AppIcon
+                    name="loop"
+                    className="shrink-0 text-[12px] text-primary"
+                    aria-label={m.navigation.customBudgetMonth}
+                  />
+                  <span>{periodEnd.day}</span>
+                </span>
               </span>
             </>
           ) : (
