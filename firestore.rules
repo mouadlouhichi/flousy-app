@@ -1344,7 +1344,11 @@ service cloud.firestore {
         // Close/reopen may only move period-state keys, so the money-shape
         // checks in `validMonthDocument()` cannot be violated by it and are not
         // charged to this branch's budget.
-        allow update: if monthCloseReopenByOwner(hid)
+        // PROBE (revert after diagnosis): disable the close branch to test whether
+        // the request budget is shared across `allow` statements. If the import
+        // test goes green with this off, the budget is per-request, not
+        // per-statement, and the split must be undone.
+        allow update: if false
           && isValidMonthId(key) && validMonthPeriodFields();
         allow delete: if householdOwner(hid);
       }
