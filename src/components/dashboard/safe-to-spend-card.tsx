@@ -50,28 +50,38 @@ export function SafeToSpendCard({ month, unlocked, onUpgrade }: SafeToSpendCardP
         )}
       </div>
 
-      <div className={unlocked ? '' : 'min-h-[188px] select-none blur-[6px] pointer-events-none'} aria-hidden={!unlocked}>
-        <div className="mt-3 flex items-baseline gap-1.5">
-          <span className="font-mono text-3xl font-extrabold text-on-surface">{perDay.amount}</span>
-          <span className="text-sm font-semibold text-on-surface-variant">{perDay.currency}</span>
-          <span className="ms-1 text-sm text-on-surface-variant">{t(i.perDay, { amount: '' }).trim()}</span>
+      <div className={unlocked ? '' : 'select-none blur-[6px] pointer-events-none'} aria-hidden={!unlocked}>
+        {/* Hero figure: the one number the card exists for. */}
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="font-mono text-[2rem] font-extrabold leading-none tracking-tight text-on-surface sm:text-4xl">
+            {perDay.amount}
+          </span>
+          <span className="text-sm font-semibold text-on-surface-variant">
+            {perDay.currency} {t(i.perDay, { amount: '' }).trim()}
+          </span>
         </div>
-        <p className="mt-0.5 text-xs font-semibold text-on-surface-variant">
-          {t(i.daysLeft, { count: s.daysLeft })} · {t(i.burnRate, { amount: format(s.burnRate) })}
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-on-surface-variant">
+          <span className="inline-flex items-center gap-1 font-semibold">
+            <AppIcon name="schedule" className="text-[14px]" />
+            {t(i.daysLeft, { count: s.daysLeft })}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{t(i.burnRate, { amount: format(s.burnRate) })}</span>
         </p>
 
-        <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-2xl bg-surface-container-high p-2.5">
-            <dt className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{i.remaining}</dt>
-            <dd className="mt-0.5 font-mono text-sm font-bold text-on-surface">{format(s.remainingBudget)}</dd>
+        {/* Breakdown: label + value on one line each, so nothing is ever cut. */}
+        <dl className="mt-4 divide-y divide-outline-variant/60 rounded-2xl border border-outline-variant/60 bg-surface-container-high/60">
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+            <dt className="text-xs font-semibold text-on-surface-variant">{i.remaining}</dt>
+            <dd className="font-mono text-sm font-bold text-on-surface">{format(s.remainingBudget)}</dd>
           </div>
-          <div className="rounded-2xl bg-surface-container-high p-2.5">
-            <dt className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{i.upcomingBills}</dt>
-            <dd className="mt-0.5 font-mono text-sm font-bold text-on-surface">{format(s.upcomingFixed)}</dd>
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+            <dt className="text-xs font-semibold text-on-surface-variant">{i.upcomingBills}</dt>
+            <dd className="font-mono text-sm font-bold text-on-surface">{s.upcomingFixed > 0 ? '−' : ''}{format(s.upcomingFixed)}</dd>
           </div>
-          <div className="rounded-2xl bg-surface-container-high p-2.5">
-            <dt className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{i.projectedEnd}</dt>
-            <dd className={`mt-0.5 font-mono text-sm font-bold ${s.projectedLeftover < 0 ? 'text-error' : 'text-on-surface'}`}>
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+            <dt className="text-xs font-bold text-on-surface">{i.projectedEnd}</dt>
+            <dd className={`font-mono text-sm font-extrabold ${s.projectedLeftover < 0 ? 'text-error' : 'text-primary'}`}>
               {s.projectedLeftover < 0 ? '−' : ''}{format(Math.abs(s.projectedLeftover))}
             </dd>
           </div>
