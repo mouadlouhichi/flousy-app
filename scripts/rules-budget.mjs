@@ -224,9 +224,26 @@ for (const r of [...rules].sort((a, b) => b.reads - a.reads).slice(0, limit)) {
 // an approximation, so the gate is a ratchet: known-over rules are listed here with the
 // reason they are tolerable, and anything new, or any listed rule that grows, fails.
 const KNOWN_OVER = new Map([
-  // Reached only by a custom-role member holding PARTIAL month grants: `||` short-circuits,
-  // so every other writer is authorized by a cheaper statement before this one is tried.
-  ['monthUpdateByCustomMember(hid)', 1300],
+  // One statement per method is the design, and these three are it: the shared month
+  // write (import, outbox flush, close/reopen) and the two membership writes a
+  // household cannot be created or edited without. Their numbers are the FOLDED
+  // statement's worst case, which is more than the engine evaluates - this estimator
+  // expands every call and both arms of every `&&`, `||` and `?:`, while Firestore
+  // stops as soon as the answer is known - so a bound here is a ratchet on the
+  // estimate, and `npm run test:rules` is what proves the request fits.
+  //
+  // They are not, and must not be read as, three rules that ought to be split. The
+  // month and member rules were once split by writer kind on the theory that each
+  // `allow` of a method gets its own budget; it does not - a request is charged every
+  // statement it consults - so the split re-read the household root, the membership
+  // row and the sponsor's profile once per statement and aborted six emulator cases
+  // with `maximum of 1000 expressions to evaluate has been reached` while every
+  // authorization fact in them was in order (CI run 33928520670). A listed rule that
+  // grows still fails; so does a re-split, which `tests/schema-migrations.test.ts`
+  // pins by counting the statements on these paths.
+  ['monthUpdateShared(hid)', 1720],
+  ['memberUpdateShared(hid, memberId)', 1560],
+  ['memberCreateShared(hid, memberId)', 1480],
 ]);
 const offenders = rules
   .filter((r) => r.cost > 1000)

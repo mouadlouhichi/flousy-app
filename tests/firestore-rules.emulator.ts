@@ -1099,8 +1099,10 @@ describe('household plan-owner authorization and recovery', () => {
  * These cases write what `saveHouseholdMonthBudget()` and the outbox actually
  * write - a `runTransaction` carrying a full `normalizeMonth()` document and a
  * `bootstrap` ledger row - and go through every record-returning helper:
- * `monthFinanceWriterFacts`, `monthCustomWriterFacts`, `mutationLedger`,
- * `householdAccess` and `householdRootFacts`.
+ * `monthWriteFacts`, `mutationLedger` and `householdRootFacts`. The month and
+ * member rules are one `allow` per method on purpose - a request is charged every
+ * statement it consults - so these cases are also the proof that the folded
+ * statement fits inside the 1000-expression budget the engine enforces.
  */
 describe('household month bootstrap by an entitled launch-trial owner (map-literal regression)', () => {
   const HID = '74d7b746-7544-4e82-ab77-ab15df9fa980';
@@ -1195,7 +1197,7 @@ describe('household month bootstrap by an entitled launch-trial owner (map-liter
     const owner = asUser(OWNER);
     await assertSucceeds(bootstrapMonth(owner, OWNER, HID, '2026-09', personalMonth('2026-09')));
 
-    // Outbox flush: `monthFinanceWriterFacts` + `mutationLedger` (`present`/`kind`).
+    // Outbox flush: `monthWriteFacts` + `mutationLedger` (`present`/`kind`).
     const flush = writeBatch(owner);
     flush.set(doc(owner, `households/${HID}/ledger/flush-1`), {
       ...ledger('flush-1', OWNER, 'household', HID, 1, 2, 'month'),
@@ -1205,7 +1207,8 @@ describe('household month bootstrap by an entitled launch-trial owner (map-liter
     });
     await assertSucceeds(flush.commit());
 
-    // Close: `monthCloseReopenByOwner` -> `monthUpdatePreconditions` -> `mutationLedger`.
+    // Close: the transition branch inside `monthUpdateShared`, which decides the
+    // owner, the ledger kind and `periodStateOnly()` from the same one read.
     const close = writeBatch(owner);
     close.set(doc(owner, `households/${HID}/ledger/close-1`), ledger('close-1', OWNER, 'household', HID, 2, 3, 'month-close'));
     close.update(doc(owner, `households/${HID}/months/2026-09`), {
