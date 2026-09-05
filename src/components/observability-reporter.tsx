@@ -49,19 +49,39 @@ function report(kind: string, message: string, stack?: string): void {
   }
 }
 
+/**
+ * Known Chrome DevTools bug (see GoogleChrome/web-vitals#792): with DevTools
+ * open, the Performance-panel integration injects its own copy of web-vitals
+ * as an anonymous `VM*` script, which throws
+ * `Cannot read properties of undefined (reading 'startTime')` from
+ * `reportAllChanges` on soft navigations. It originates in the browser — not
+ * in app code — so it must never be beaconed as an app error.
+ */
+function isDevToolsVitalsNoise(message: string, stack?: string): boolean {
+  return message.includes("reading 'startTime'") && (stack?.includes('reportAllChanges') ?? false);
+}
+
 export function ObservabilityReporter() {
   useReportWebVitals((metric) => {
-    // Consent-gated by trackEvent; whole-number values keep payloads tiny.
-    void trackEvent('web_vitals', {
-      metric: metric.name,
-      value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
-      rating: metric.rating,
-    });
+    try {
+      // Defensive: a malformed metric must never break rendering.
+      if (!metric || typeof metric.name !== 'string' || typeof metric.value !== 'number') return;
+      // Consent-gated by trackEvent; whole-number values keep payloads tiny.
+      void trackEvent('web_vitals', {
+        metric: metric.name,
+        value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+        rating: metric.rating,
+      });
+    } catch {
+      // Never let telemetry throw.
+    }
   });
 
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
-      report('error', event.message, event.error instanceof Error ? event.error.stack : undefined);
+      const stack = event.error instanceof Error ? event.error.stack : undefined;
+      if (typeof event.message === 'string' && isDevToolsVitalsNoise(event.message, stack)) return;
+      report('error', event.message, stack);
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, DASHBOARD_NAV_HREFS, getScreenIdFromPath } from './nav-items';
 import { Sidebar } from './sidebar';
@@ -200,11 +201,13 @@ function ClosedMonthBanner() {
   const { messages: m } = useLanguage();
   const { month, reopenCurrentMonth } = useDashboard();
   const { workspace, isOwner } = useHousehold();
+  // Hooks before the early return: the banner renders nothing for open months.
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   if (month.periodStatus !== 'closed') return null;
   const mayReopen = workspace === 'personal' || isOwner;
 
   return (
-    <div role="status" className="flex items-center justify-between gap-3 bg-tertiary-container px-margin-mobile py-2.5 text-on-tertiary-container">
+    <div role="status" className="flex items-center justify-between gap-3 border-b border-tertiary/30 bg-tertiary-container px-margin-mobile py-2.5 text-on-tertiary-container shadow-[0_1px_8px_rgba(23,29,28,0.08)]">
       <div className="flex min-w-0 items-center gap-2">
         <AppIcon name="lock" className="shrink-0 text-[18px]" />
         <div className="min-w-0">
@@ -213,15 +216,23 @@ function ClosedMonthBanner() {
         </div>
       </div>
       {mayReopen && (
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm(m.monthLock.reopenConfirm)) reopenCurrentMonth();
-          }}
-          className="shrink-0 rounded-full border border-current px-3 py-1.5 text-xs font-bold hover:bg-on-tertiary-container/10"
-        >
-          {m.monthLock.reopen}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setShowReopenConfirm(true)}
+            className="shrink-0 rounded-full border border-current px-3 py-1.5 text-xs font-bold hover:bg-on-tertiary-container/10"
+          >
+            {m.monthLock.reopen}
+          </button>
+          <ConfirmDialog
+            isOpen={showReopenConfirm}
+            onClose={() => setShowReopenConfirm(false)}
+            onConfirm={reopenCurrentMonth}
+            title={m.monthLock.reopen}
+            message={m.monthLock.reopenConfirm}
+            confirmLabel={m.monthLock.reopen}
+          />
+        </>
       )}
     </div>
   );

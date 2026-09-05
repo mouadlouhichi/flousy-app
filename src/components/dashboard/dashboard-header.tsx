@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { resolveProEntitlement } from '@/lib/pro-features';
@@ -51,6 +53,9 @@ export function DashboardHeader() {
   } = useDashboard();
 
   const { workspace, isOwner, canEditArea } = useHousehold();
+  // Native `window.confirm` can't match the design system (and is blocked in
+  // some webviews) — closing the month goes through the shared ConfirmDialog.
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const monthIsClosed = month.periodStatus === 'closed';
   const canManageMonth = workspace === 'personal' || isOwner;
   const canAddExpense = !monthIsClosed && !!profile && (workspace === 'personal' || canEditArea('expenses', true));
@@ -83,8 +88,10 @@ export function DashboardHeader() {
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
   const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
 
+  // Tonal step above the page (container-low) with a soft drop shadow so the
+  // bar stays legible over scrolled content instead of blending into it.
   return (
-    <header className="sticky top-0 z-20 bg-surface/80 backdrop-blur-md border-b border-surface-variant px-4 md:px-8 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-4 md:px-8 py-3 flex items-center justify-between">
       <div className="flex self-center gap-3 ">
         {/* Mobile Logo */}
         <div className="md:hidden flex items-center gap-2">
@@ -175,18 +182,26 @@ export function DashboardHeader() {
           {pendingMutations > 0 && <span>({pendingMutations})</span>}
         </button>
         {canManageMonth && !monthIsClosed && (
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(m.monthLock.closeConfirm)) closeCurrentMonth();
-            }}
-            disabled={!isMounted || syncState === 'failed' || syncState === 'conflict'}
-            className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={m.monthLock.close}
-            title={m.monthLock.close}
-          >
-            <AppIcon name="lock_open" className="text-[18px]" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCloseConfirm(true)}
+              disabled={!isMounted || syncState === 'failed' || syncState === 'conflict'}
+              className="flex size-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={m.monthLock.close}
+              title={m.monthLock.close}
+            >
+              <AppIcon name="lock_open" className="text-[18px]" />
+            </button>
+            <ConfirmDialog
+              isOpen={showCloseConfirm}
+              onClose={() => setShowCloseConfirm(false)}
+              onConfirm={closeCurrentMonth}
+              title={m.monthLock.close}
+              message={m.monthLock.closeConfirm}
+              confirmLabel={m.monthLock.close}
+            />
+          </>
         )}
         <BudgetAlerts
           month={month}
