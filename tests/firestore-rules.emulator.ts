@@ -476,6 +476,50 @@ describe('household invitations and RBAC rules', () => {
     await assertSucceeds(ownerReopen.commit());
   });
 
+  it('accepts the close/reopen the client actually sends: full-document set in a transaction', async () => {
+    // commitFinanceMutation() writes the WHOLE month document with set(), never
+    // a key patch — so the close/reopen branches must accept that shape. The
+    // tests above only proved patches; a rule that demands patch-shaped writes
+    // would pass them and still refuse every real close from the app with a
+    // bare permission-denied the client can only report as "rules behind".
+    await seedHousehold();
+    const owner = asUser('owner');
+    const monthRef = doc(owner, 'households/home/months/2026-09');
+
+    const closeMonth = {
+      ...validMonth(2, 'owner-close'),
+      periodStatus: 'closed',
+      closedAt: new Date().toISOString(),
+      closedByUserId: 'owner',
+      updatedByUserId: 'owner',
+    };
+    await assertSucceeds(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-close'),
+        ledger('owner-close', 'owner', 'household', 'home', 1, 2, 'month-close'));
+      tx.set(monthRef, closeMonth);
+    }));
+
+    // A close smuggling a finance change is not a state-only transition, even
+    // when it arrives as a full document: periodStateOnly() must refuse it.
+    await assertFails(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-dirty-close'),
+        ledger('owner-dirty-close', 'owner', 'household', 'home', 2, 3, 'month-close'));
+      tx.set(monthRef, { ...closeMonth, bankPart: 1, revision: 3, lastMutationId: 'owner-dirty-close' });
+    }));
+
+    // Reopen as a full-document set with the lock fields absent entirely.
+    const reopenMonth = {
+      ...validMonth(3, 'owner-reopen'),
+      periodStatus: 'open',
+      updatedByUserId: 'owner',
+    };
+    await assertSucceeds(runTransaction(owner, async (tx) => {
+      tx.set(doc(owner, 'households/home/ledger/owner-reopen'),
+        ledger('owner-reopen', 'owner', 'household', 'home', 2, 3, 'month-reopen'));
+      tx.set(monthRef, reopenMonth);
+    }));
+  });
+
   it('accepts only an unexpired, verified-email invitation in the same atomic batch', async () => {
     await seedHousehold();
     const invite = {
