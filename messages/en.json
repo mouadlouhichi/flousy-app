@@ -923,7 +923,10 @@
       "lightMode": "Light mode",
       "darkMode": "Dark mode",
       "openMenu": "Open menu",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "budgetingMethods": "Budgeting Methods",
+      "madGuide": "MAD Guide",
+      "blog": "Blog"
     },
     "hero": {
       "eyebrow": "Needs, wants, savings — and every money place.",
@@ -1283,7 +1286,48 @@
       "privacyPolicy": "Privacy policy",
       "termsOfService": "Terms of service",
       "cookiePolicy": "Cookie policy",
-      "copyright": "2026 SmartJib. All rights reserved."
+      "copyright": "2026 SmartJib. All rights reserved.",
+      "featuresHub": "Features Hub",
+      "madGuide": "Budget Tracker MAD & Dirham",
+      "bankWallet": "Bank, Home, Wallet Tracking",
+      "noBank": "No Bank Connection Privacy",
+      "allMethods": "All Methods Explained",
+      "envelope": "Envelope Budgeting",
+      "zeroBased": "Zero-Based Budgeting",
+      "guidesTips": "Budgeting Guides & Money Tips",
+      "purposeVsLocation": "Why Purpose vs Location Matters",
+      "freeMorocco": "Free Budget Tracker Morocco",
+      "privateTracker": "About Private Budget Tracker",
+      "budgetingMethodsTitle": "Budgeting Methods"
+    },
+    "guides": {
+      "eyebrow": "Budgeting Guides",
+      "titleLine1": "Learn to budget better,",
+      "titleLine2": "with MAD in mind.",
+      "description": "Short, practical guides from the SmartJib team. Built for Morocco's cash culture.",
+      "viewAll": "View all budgeting guides",
+      "madGuideCta": "Budget tracker MAD guide",
+      "methodsCta": "4 budgeting methods explained",
+      "items": [
+        {
+          "category": "Budgeting Foundations",
+          "title": "Why 'what it's for' and 'where it is' are two different questions",
+          "excerpt": "Most budgeting frustration comes from mixing up two things that should stay separate.",
+          "anchor": "Learn why purpose and location must stay separate"
+        },
+        {
+          "category": "Budgeting Methods",
+          "title": "Picking a budgeting style that actually fits you",
+          "excerpt": "50/30/20 isn't for everyone. How to think about which split fits how you actually live in Morocco.",
+          "anchor": "Compare 4 budgeting methods for Moroccan salaries"
+        },
+        {
+          "category": "Cash Tracking",
+          "title": "The wallet leak: where small cash spending quietly adds up",
+          "excerpt": "Card spending is easy to track. Cash is where budgets usually spring a leak.",
+          "anchor": "Track wallet spending without mixing bank balance"
+        }
+      ]
     }
   },
   "static": {
@@ -1429,6 +1473,81 @@
       "articleCtaDescription": "SmartJib keeps budget envelopes separate from bank, home, and wallet balances.",
       "startBudgeting": "Start budgeting free",
       "breadcrumb": "Breadcrumb"
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything you need to budget privately.",
+      "subtitle": "SmartJib separates what money is for from where it sits — with MAD support, no bank connections, and 4 budgeting methods built for Morocco's cash culture.",
+      "items": [
+        {
+          "title": "Multi-currency: MAD & Dirham",
+          "desc": "Track in MAD, dirham, EUR, USD and 9 more. Change display currency from Profile → Preferences.",
+          "anchor": "Budget tracker that supports MAD and dirham"
+        },
+        {
+          "title": "Bank, Home, Wallet Tracking",
+          "desc": "Your bank balance is not your budget. Track where money sits separately from what it's for.",
+          "anchor": "Track bank, home and wallet as separate balances"
+        },
+        {
+          "title": "Expense Tracking & Wallet Leak",
+          "desc": "Cash becomes invisible fast. Log purchases in seconds, choose payment place, and reconcile wallet weekly.",
+          "anchor": "Track wallet spending without mixing bank balance"
+        },
+        {
+          "title": "No Bank Connection — Private by Design",
+          "desc": "We never ask for bank login or card numbers. Manual entry, local cache, Firestore Rules isolation.",
+          "anchor": "Private budget tracker with no bank connection"
+        }
+      ],
+      "relatedTitle": "Learn more"
+    },
+    "features_mad": {
+      "eyebrow": "Features · Morocco",
+      "title": "Budget tracker that supports MAD and Moroccan dirham.",
+      "subtitle": "12 currencies formatted for your locale. Built for Morocco's cash culture — track bank, home and wallet separately in dirham without bank connections.",
+      "s1Title": "Why MAD support matters in Morocco",
+      "s1Body": "Most budget apps default to USD or EUR and treat MAD as an afterthought. SmartJib supports MAD as a first-class currency with proper Arabic/French number formatting via Intl.NumberFormat.",
+      "s2Title": "12 currencies supported",
+      "s3Title": "How to track in MAD",
+      "relatedTitle": "Related features"
+    },
+    "budgeting_methods": {
+      "eyebrow": "Budgeting Methods",
+      "title": "4 budgeting methods — pick the one that fits how you live.",
+      "subtitle": "SmartJib splits income into needs, wants, savings automatically. Choose a starting structure that matches your Moroccan salary, rent, and savings goal.",
+      "compareTitle": "Compare 4 budgeting methods",
+      "relatedTitle": "Related guides",
+      "methods": [
+        {
+          "slug": "50-30-20-rule",
+          "title": "50/30/20 Rule",
+          "desc": "50% needs, 30% wants, 20% savings. Balanced starting point.",
+          "anchor": "Learn 50/30/20 budgeting for Moroccan salaries",
+          "percent": "50/30/20"
+        },
+        {
+          "slug": "zero-based-budgeting",
+          "title": "Zero-Based Budgeting",
+          "desc": "60% needs, 25% wants, 15% savings. Give every dirham a job.",
+          "anchor": "Zero-based budgeting guide — give every MAD a job",
+          "percent": "60/25/15"
+        },
+        {
+          "slug": "envelope-budgeting",
+          "title": "Envelope Budgeting",
+          "desc": "55% needs, 35% wants, 10% savings. Visible limits.",
+          "anchor": "Envelope budgeting — visible limits for cash spending",
+          "percent": "55/35/10"
+        },
+        {
+          "slug": "pay-yourself-first",
+          "title": "Pay Yourself First",
+          "desc": "45% needs, 25% wants, 30% savings. Save first.",
+          "anchor": "Pay yourself first — save 30% before spending",
+          "percent": "45/25/30"
+        }
+      ]
     }
   },
   "strategies": {
