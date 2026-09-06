@@ -24,6 +24,8 @@ import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
+import { SafeToSpendCard } from '../dashboard/safe-to-spend-card';
+import { NetWorthCard } from '../dashboard/net-worth-card';
 
 function formatActivityDate(value: string, intlLocale: string): string {
   const [year, month, day] = value.split('-').map(Number);
@@ -43,6 +45,9 @@ interface OverviewTabProps {
   onUpdateStrategy?: (strategyId: StrategyId, customRatios?: CustomRatios) => void;
   /** Open the editor for a logged savings deposit / withdrawal. */
   onOpenEditSavings?: (entry: SavingsActivityEntry) => void;
+  /** Pro gate for the safe-to-spend forecast card. */
+  insightsUnlocked?: boolean;
+  onUpgrade?: () => void;
 }
 
 export function OverviewTab({
@@ -56,6 +61,8 @@ export function OverviewTab({
   onEditMoneyPlaces,
   onUpdateStrategy,
   onOpenEditSavings,
+  insightsUnlocked = false,
+  onUpgrade,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -460,10 +467,21 @@ export function OverviewTab({
               </div>
             </div>
           </div>
+          {/* Net worth lives in the left column so both columns fill the same
+              height on desktop (the right one already carries Safe-to-spend
+              and Recent Activity). */}
+          {canSeeBalances && canSeeSavings && <NetWorthCard month={month} goals={goals} />}
         </div>
 
         {/* Right Column (Recent Activity) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
+          {canSeeExpenses && canSeeBalances && (
+            <SafeToSpendCard
+              month={month}
+              unlocked={insightsUnlocked}
+              onUpgrade={onUpgrade ?? (() => {})}
+            />
+          )}
           {/* Upcoming bills — fixed charges coming due in the next 7 days of
               this period. fixedBills is its own RBAC area, so members without
               that grant never see what is about to be paid. */}

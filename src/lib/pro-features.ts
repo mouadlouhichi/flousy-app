@@ -144,13 +144,21 @@ export function resolveProEntitlement(
 }
 
 export type ProFeatureId =
+  | 'household'
+  | 'safeToSpend'
+  | 'reminders'
+  | 'history'
+  | 'appLock'
+  | 'debtPlanner'
+  | 'search'
+  | 'reports'
+  | 'receiptOcr'
   | 'courseScan'
   | 'trends'
   | 'incomeSources'
   | 'csv'
   | 'categoryBudgets'
-  | 'rollover'
-  | 'household';
+  | 'rollover';
 
 export interface ProFeature {
   id: ProFeatureId;
@@ -158,14 +166,23 @@ export interface ProFeature {
   icon: string;
 }
 
+/** Ordered by conversion weight: what sells the plan comes first. */
 export const PRO_FEATURES: ProFeature[] = [
+  { id: 'household', icon: 'family_restroom' },
+  { id: 'safeToSpend', icon: 'speed' },
+  { id: 'reminders', icon: 'notifications_active' },
+  { id: 'history', icon: 'history' },
+  { id: 'appLock', icon: 'lock' },
+  { id: 'debtPlanner', icon: 'flag' },
+  { id: 'search', icon: 'search' },
+  { id: 'reports', icon: 'picture_as_pdf' },
+  { id: 'receiptOcr', icon: 'document_scanner' },
   { id: 'courseScan', icon: 'scan_barcode' },
   { id: 'trends', icon: 'trending_up' },
   { id: 'incomeSources', icon: 'payments' },
   { id: 'csv', icon: 'upload_file' },
   { id: 'categoryBudgets', icon: 'category' },
   { id: 'rollover', icon: 'sync' },
-  { id: 'household', icon: 'family_restroom' },
 ];
 
 /**

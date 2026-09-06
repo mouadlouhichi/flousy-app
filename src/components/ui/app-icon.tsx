@@ -139,6 +139,12 @@ import {
   History as HistoryIcon,
   ZoomIn,
   ZoomOut,
+  ArrowLeftRight,
+  BellRing,
+  Fingerprint,
+  Gauge,
+  ScanText,
+  Table2,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
@@ -149,6 +155,16 @@ import {
  * away from Material Symbols.
  */
 const icons: Record<string, LucideIcon> = {
+  auto_awesome: Sparkles,
+  currency_exchange: ArrowLeftRight,
+  dataset: Table2,
+  document_scanner: ScanText,
+  fingerprint: Fingerprint,
+  history: History,
+  notifications_active: BellRing,
+  picture_as_pdf: FileText,
+  speed: Gauge,
+  storefront: Store,
   account_balance: Landmark,
   account_balance_wallet: WalletCards,
   add: CirclePlus,
@@ -223,7 +239,6 @@ const icons: Record<string, LucideIcon> = {
   grid_3x3: Grid3x3,
   group: Accessibility,
   health_and_safety: HeartPulse,
-  history: History,
   home: Home,
   hotel: BedDouble,
   info: Info,

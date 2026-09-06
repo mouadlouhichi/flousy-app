@@ -29,6 +29,7 @@ export function WorkspacePanel() {
   const {
     household,
     workspace,
+    workspaces,
     selectWorkspace,
     memberRole,
     isOwner,
@@ -42,19 +43,23 @@ export function WorkspacePanel() {
   const { toast } = useToast();
   const isPro = isProUser(profile);
   const [householdName, setHouseholdName] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   const hasHousehold = Boolean(profile?.activeHouseholdId || household?.id);
+  const activeId = profile?.activeHouseholdId;
+  const hasFamilyWorkspace = workspaces.some((ws) => ws.kind === 'household');
+  const businessCount = workspaces.filter((ws) => ws.kind === 'business').length;
   // Household management is Pro-only. A free user in their personal workspace
   // sees no manage-household entry, member roster or invitations at all.
   const canManageHousehold = isPro || workspace === 'household';
 
-  const switchWorkspace = async (next: 'personal' | 'household') => {
+  const switchWorkspace = async (next: 'personal' | 'household', id?: string) => {
     setNotice('');
     try {
-      await selectWorkspace(next);
+      await selectWorkspace(next, id);
     } catch {
       setNotice(m.household.genericError);
       toast({ variant: 'destructive', title: m.household.genericError });
@@ -77,6 +82,27 @@ export function WorkspacePanel() {
       // undiagnosed: the user saw "something went wrong" and the console was
       // empty. The message shown stays generic; the console gets the truth.
       console.error('Household creation failed:', error);
+      setNotice(m.household.genericError);
+      toast({ variant: 'destructive', title: m.household.genericError });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createBusinessWorkspace = async () => {
+    if (!isPro) {
+      openProModal();
+      return;
+    }
+    setBusy(true);
+    setNotice('');
+    try {
+      await create(businessName.trim() || p.businessDefaultName, 'business');
+      setBusinessName('');
+      trackEvent('create_business_workspace');
+      router.replace('/onboarding?scope=household');
+    } catch (error) {
+      console.error('Business workspace creation failed:', error);
       setNotice(m.household.genericError);
       toast({ variant: 'destructive', title: m.household.genericError });
     } finally {
@@ -279,17 +305,29 @@ export function WorkspacePanel() {
             <span className="flex items-center gap-2 font-bold"><AppIcon name="person" className="text-[19px]" />{p.mySmartJib}</span>
             <span className="text-xs text-on-surface-variant">{p.personalDashboard}</span>
           </button>
-          {hasHousehold && (
-            <div className={`relative rounded-xl border p-3 ${workspace === 'household' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}>
-              <button type="button" onClick={() => switchWorkspace('household')} className="w-full pe-10 text-start">
-                <span className="flex items-center gap-2 font-bold"><AppIcon name="inventory_2" className="text-[19px]" />{household?.name || p.householdDashboard}</span>
-                <span className="text-xs text-on-surface-variant">{t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })}</span>
-              </button>
-              <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="absolute end-1 top-1/2 -translate-y-1/2 p-2.5 text-error hover:text-error/70 disabled:opacity-50">
-                <AppIcon name="delete" className="text-[22px]" />
-              </button>
-            </div>
-          )}
+          {(workspaces.length > 0 ? workspaces : hasHousehold && activeId ? [{ id: activeId, name: household?.name || p.householdDashboard, kind: 'household' as const, ownerId: household?.ownerId || '' }] : []).map((ws) => {
+            const active = workspace === 'household' && activeId === ws.id;
+            const isBusiness = ws.kind === 'business';
+            return (
+              <div key={ws.id} className={`relative rounded-xl border p-3 ${active ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface text-on-surface'}`}>
+                <button type="button" onClick={() => switchWorkspace('household', ws.id)} className="w-full pe-10 text-start">
+                  <span className="flex items-center gap-2 font-bold"><AppIcon name={isBusiness ? 'storefront' : 'inventory_2'} className="text-[19px]" />{ws.name}</span>
+                  <span className="text-xs text-on-surface-variant">
+                    {isBusiness
+                      ? p.businessDashboard
+                      : active
+                        ? t(p.memberAccess, { role: memberRole ? localizeHouseholdRole(memberRole, m) : m.householdRoles.viewer })
+                        : p.householdDashboard}
+                  </span>
+                </button>
+                {active && (
+                  <button type="button" disabled={busy} onClick={() => setConfirmRemove(true)} aria-label={isOwner ? p.removeHousehold : p.leaveHousehold} className="absolute end-1 top-1/2 -translate-y-1/2 p-2.5 text-error hover:text-error/70 disabled:opacity-50">
+                    <AppIcon name="delete" className="text-[22px]" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -327,7 +365,33 @@ export function WorkspacePanel() {
         </section>
       )}
 
-      {!hasHousehold && (
+      {businessCount < 3 && (
+        <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
+          <p className="flex items-center gap-2 font-bold text-on-surface">
+            <AppIcon name="storefront" className="text-[20px] text-primary" />
+            {p.addBusiness}
+            {!isPro && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">Pro</span>}
+          </p>
+          <p className="mt-1 text-xs text-on-surface-variant">{p.addBusinessHint}</p>
+          <input
+            value={businessName}
+            onChange={(event) => setBusinessName(event.target.value)}
+            placeholder={p.businessNamePlaceholder}
+            aria-label={p.businessNamePlaceholder}
+            className="mt-3 w-full rounded-xl border border-outline-variant bg-surface p-3 text-sm"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { void createBusinessWorkspace(); }}
+            className="mt-3 w-full rounded-xl border border-primary py-3 text-sm font-bold text-primary disabled:opacity-50"
+          >
+            {p.addBusiness}
+          </button>
+        </section>
+      )}
+
+      {!hasFamilyWorkspace && !hasHousehold && (
         <section className="rounded-2xl border border-outline-variant bg-surface-container p-4">
           <p className="font-bold text-on-surface">{p.convertToHousehold}</p>
           <p className="mt-1 text-xs text-on-surface-variant">{p.convertToHouseholdHint}</p>

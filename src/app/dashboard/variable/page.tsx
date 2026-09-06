@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { VariableScreen } from '@/components/dashboard/screens/variable-screen';
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function VariableExpensesPage() {
-  return <VariableScreen />;
+  return (
+    <Suspense fallback={null}>
+      <VariableScreen />
+    </Suspense>
+  );
 }

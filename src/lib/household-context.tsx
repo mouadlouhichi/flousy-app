@@ -15,6 +15,8 @@ import {
   saveHouseholdMember,
   subscribeHousehold,
   subscribeHouseholdMembers,
+  subscribeWorkspaceSummaries,
+  type WorkspaceSummary,
   subscribePendingHouseholdInvites,
   writeHouseholdOwnerMembership,
   type HouseholdAccess,
@@ -36,6 +38,7 @@ import {
   type HouseholdMember,
   type HouseholdPayer,
   type HouseholdRole,
+  type WorkspaceKind,
 } from './household';
 import {
   hasFinanceView,
@@ -83,7 +86,10 @@ type HouseholdContextValue = {
   memberRole?: HouseholdRole;
   isContributor: boolean;
   workspace: 'personal' | 'household';
-  selectWorkspace: (workspace: 'personal' | 'household') => Promise<void>;
+  /** Every shared/business workspace this account is linked to (for the switcher). */
+  workspaces: WorkspaceSummary[];
+  /** Switch workspace; `householdId` picks one of several linked workspaces. */
+  selectWorkspace: (workspace: 'personal' | 'household', householdId?: string) => Promise<void>;
   canViewArea: (area: HouseholdArea) => boolean;
   canEditArea: (area: HouseholdArea, own?: boolean) => boolean;
   areaLevel: (area: HouseholdArea) => AccessLevel;
@@ -92,7 +98,7 @@ type HouseholdContextValue = {
   householdAccess: HouseholdAccess;
   payers: HouseholdPayer[];
   pendingInvites: HouseholdInvite[];
-  create: (name: string) => Promise<void>;
+  create: (name: string, kind?: WorkspaceKind) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
   renameHousehold: (name: string) => Promise<void>;
   invite: (name: string, email: string, role: InviteRole, permissions?: HouseholdPermissions) => Promise<string>;
@@ -158,6 +164,12 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
    */
   const [schema, setSchema] = useState<DocumentMigration | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const linkedIdsKey = (profile?.householdIds || []).join(',');
+  useEffect(() => {
+    const ids = linkedIdsKey ? linkedIdsKey.split(',') : [];
+    return subscribeWorkspaceSummaries(ids, setWorkspaces);
+  }, [linkedIdsKey]);
   const [pendingInvites, setPendingInvites] = useState<HouseholdInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [access, setAccess] = useState<HouseholdAccess>('ok');
@@ -340,7 +352,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     ];
   }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
 
-  const create = useCallback(async (name: string) => {
+  const create = useCallback(async (name: string, kind: WorkspaceKind = 'household') => {
     if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
     // The entitlement fields are written through the same builder the repair
     // path uses, because `validHouseholdEntitlementProjection()` in
@@ -354,6 +366,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
       user.uid,
       {
         name: name.trim() || m.profile.household,
+        kind,
         ownerId: user.uid,
         planOwnerId: user.uid,
         ...householdSponsorProjectionFields(binding),
@@ -471,8 +484,11 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     );
   }, [user, profile, updateProfileData, m.household.genericError, m.household.member]);
 
-  const selectWorkspace = useCallback(async (next: 'personal' | 'household') => {
-    const target = profile?.activeHouseholdId || profile?.householdIds?.[0];
+  const selectWorkspace = useCallback(async (next: 'personal' | 'household', targetId?: string) => {
+    const linked = profile?.householdIds || [];
+    const target = targetId && linked.includes(targetId)
+      ? targetId
+      : profile?.activeHouseholdId || linked[0];
     if (next === 'household' && !target) throw new Error(m.household.genericError);
     await updateProfileData({
       activeWorkspace: next,
@@ -695,6 +711,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     memberRole,
     isContributor,
     workspace,
+    workspaces,
     selectWorkspace,
     canViewArea,
     canEditArea,

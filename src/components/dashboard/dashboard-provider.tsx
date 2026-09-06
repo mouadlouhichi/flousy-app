@@ -64,6 +64,7 @@ import { getScreenIdFromPath } from './nav-items';
 import { useHousehold } from '../../lib/household-context';
 import { householdStorageKey, isProFeatureUnlocked } from '../../lib/household';
 import { resolveBulkImportAccess, type BulkImportArea } from '../../lib/import-access';
+import { FREE_CATEGORY_LIMIT, FREE_HISTORY_MONTHS, isWithinFreeHistory } from '../../lib/insights';
 import { isDemoMode, isOnboardingDoneLocally } from '../../lib/demo-mode';
 import { useCurrency } from '../../lib/currency-context';
 import { useToast } from '@/hooks/use-toast';
@@ -104,6 +105,12 @@ interface DashboardContextType {
   currentMonthKey: string;
   handlePrevMonth: () => void;
   handleNextMonth: () => void;
+  /** False when the previous month is behind the free-history wall. */
+  canGoPrevMonth: boolean;
+  /** Jump to any month key (respects the free-history wall). */
+  goToMonth: (monthKey: string) => void;
+  /** Effective Pro access (personal entitlement or household sponsor). */
+  proUnlocked: boolean;
 
   // Core data
   month: MonthBudget;
@@ -150,6 +157,9 @@ interface DashboardContextType {
   closeExpenseModal: () => void;
   isExpenseModalOpen: boolean;
   selectedExpense: VariableExpense | null;
+  /** Name/amount seed for a NEW expense (share target, shortcuts). */
+  expensePrefill: { name?: string; amount?: number } | null;
+  openExpenseModalWithPrefill: (prefill: { name?: string; amount?: number }) => void;
 
   openFixedModal: (bill?: FixedExpense | null) => void;
   closeFixedModal: () => void;
@@ -987,8 +997,28 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     void flushOutbox();
     const retryWhenOnline = () => { void flushOutbox(); };
     window.addEventListener('online', retryWhenOnline);
-    return () => window.removeEventListener('online', retryWhenOnline);
+    // Background Sync (Chromium/Android): the service worker pings us with
+    // FLUSH_OUTBOX when connectivity returns even if the tab was throttled.
+    const onSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'FLUSH_OUTBOX') void flushOutbox();
+    };
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
+    return () => {
+      window.removeEventListener('online', retryWhenOnline);
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+    };
   }, [outboxHydrated, user, workspaceId, flushOutbox]);
+
+  // Register a one-shot background sync whenever mutations are waiting.
+  useEffect(() => {
+    if (pendingMutations <= 0 || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        const sync = (registration as ServiceWorkerRegistration & { sync?: { register: (tag: string) => Promise<void> } }).sync;
+        return sync?.register('flousy-flush-outbox');
+      })
+      .catch(() => { /* unsupported engine or permission denied */ });
+  }, [pendingMutations]);
 
   /** Backstop for stale handlers and modals that outlive a role change. */
   const mayWriteArea = useCallback(
@@ -1217,19 +1247,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Load multi-month data when the Trends screen is active. The range is
   // user-selectable (6 or 12 months); it lives in state so switching refetches.
-  const onTrendsScreen = getScreenIdFromPath(pathname) === 'trends';
+  // Savings (goal pace) and Search (cross-month) reuse the same loader; the
+  // search screen wants the widest window a Pro account can see.
+  const activeScreenId = getScreenIdFromPath(pathname);
+  const onTrendsScreen = activeScreenId === 'trends';
+  const needsMultiMonth = onTrendsScreen || activeScreenId === 'savings' || activeScreenId === 'search';
   const [trendsMonthCount, setTrendsMonthCount] = useState<6 | 12>(6);
+  const multiMonthCount = activeScreenId === 'search' ? 12 : trendsMonthCount;
   useEffect(() => {
-    if (onTrendsScreen && month.totalBudget > 0) {
+    if (needsMultiMonth && month.totalBudget > 0) {
       setTrendsLoading(true);
       (householdId
-        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, trendsMonthCount, profileRef.current)
-        : fetchMonthsForTrends(user?.uid, currentMonthKey, trendsMonthCount, profileRef.current))
+        ? fetchHouseholdMonthsForTrends(householdId, currentMonthKey, multiMonthCount, profileRef.current)
+        : fetchMonthsForTrends(user?.uid, currentMonthKey, multiMonthCount, profileRef.current))
         .then((data) => setTrendsMonths(data))
         .catch(() => {})
         .finally(() => setTrendsLoading(false));
     }
-  }, [onTrendsScreen, currentMonthKey, trendsMonthCount, user?.uid, householdId, month.totalBudget]);
+  }, [needsMultiMonth, currentMonthKey, multiMonthCount, user?.uid, householdId, month.totalBudget]);
 
   // Apply a month key immediately: persist it, paint any cached document so
   // the skeleton never flashes on a month the user has already opened, then
@@ -1253,12 +1288,33 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [householdId],
   );
 
-  // Month navigation
-  const handlePrevMonth = useCallback(() => {
+  // Month navigation. History beyond FREE_HISTORY_MONTHS periods back is a
+  // Pro feature; the wall is measured from the live period, not the one being
+  // viewed, so a free user can always come back to today.
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
+  const prevMonthKey = useMemo(() => {
     const [y, m] = currentMonthKey.split('-').map(Number);
     const prevDate = new Date(y, m - 2, 1);
-    applyMonthKey(`${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`);
-  }, [applyMonthKey, currentMonthKey]);
+    return `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+  }, [currentMonthKey]);
+  const canGoPrevMonth = proUnlocked || isWithinFreeHistory(prevMonthKey, defaultMonthKey, FREE_HISTORY_MONTHS);
+  const goToMonth = useCallback(
+    (nextKey: string) => {
+      if (!proUnlocked && !isWithinFreeHistory(nextKey, defaultMonthKey, FREE_HISTORY_MONTHS)) {
+        toast({
+          title: m.insights.historyLockedTitle,
+          description: m.insights.historyLockedBody.replace('{count}', String(FREE_HISTORY_MONTHS)),
+        });
+        if (workspace === 'personal') setIsProModalOpen(true);
+        return;
+      }
+      applyMonthKey(nextKey);
+    },
+    [applyMonthKey, defaultMonthKey, m.insights.historyLockedBody, m.insights.historyLockedTitle, proUnlocked, toast, workspace],
+  );
+  const handlePrevMonth = useCallback(() => {
+    goToMonth(prevMonthKey);
+  }, [goToMonth, prevMonthKey]);
 
   const handleNextMonth = useCallback(() => {
     const [y, m] = currentMonthKey.split('-').map(Number);
@@ -1360,7 +1416,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // Categories Handlers
   const handleAddCategory = useCallback(
     (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => {
-      const nextCats = Array.from(new Set([...(month.activeCategories || []), name]));
+      const existing = month.activeCategories || [];
+      if (!existing.includes(name) && !proUnlocked && existing.length >= FREE_CATEGORY_LIMIT) {
+        toast({
+          title: m.insights.categoryLimitTitle,
+          description: m.insights.categoryLimitBody.replace('{count}', String(FREE_CATEGORY_LIMIT)),
+        });
+        if (workspace === 'personal') setIsProModalOpen(true);
+        return;
+      }
+      const nextCats = Array.from(new Set([...existing, name]));
       const nextColors = { ...(month.categoryColors || {}), [name]: color };
       const nextIcons = { ...(month.categoryIcons || {}), [name]: icon };
 
@@ -1381,7 +1446,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => { /* month-level override already applies */ });
       }
     },
-    [month, updateAndSaveMonth, profile, workspace, updateProfileData],
+    [month, updateAndSaveMonth, profile, workspace, updateProfileData, proUnlocked, toast, m.insights.categoryLimitTitle, m.insights.categoryLimitBody],
   );
 
   // Explicit envelope override for a category. Persisted on the month document
@@ -1450,12 +1515,21 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   // button is the friendly layer; this is what actually stops a write, so a
   // stale handler, a keyboard shortcut or a deep-linked entry point can never
   // reach an editor for an area the member does not hold.
+  const [expensePrefill, setExpensePrefill] = useState<{ name?: string; amount?: number } | null>(null);
   const openExpenseModal = useCallback((expense: VariableExpense | null = null) => {
     if (!mayWriteArea('expenses')) return;
+    setExpensePrefill(null);
     setSelectedExpense(expense);
     setIsExpenseModalOpen(true);
   }, [mayWriteArea]);
+  const openExpenseModalWithPrefill = useCallback((prefill: { name?: string; amount?: number }) => {
+    if (!mayWriteArea('expenses')) return;
+    setExpensePrefill(prefill);
+    setSelectedExpense(null);
+    setIsExpenseModalOpen(true);
+  }, [mayWriteArea]);
   const closeExpenseModal = useCallback(() => {
+    setExpensePrefill(null);
     setIsExpenseModalOpen(false);
     setSelectedExpense(null);
   }, []);
@@ -1585,6 +1659,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       currentMonthKey,
       handlePrevMonth,
       handleNextMonth,
+      canGoPrevMonth,
+      goToMonth,
+      proUnlocked,
       month,
       goals,
       loading,
@@ -1616,6 +1693,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       closeExpenseModal,
       isExpenseModalOpen,
       selectedExpense,
+      expensePrefill,
+      openExpenseModalWithPrefill,
       openFixedModal,
       closeFixedModal,
       isFixedModalOpen,
@@ -1668,6 +1747,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       currentMonthKey,
       handlePrevMonth,
       handleNextMonth,
+      canGoPrevMonth,
+      goToMonth,
+      proUnlocked,
       month,
       goals,
       loading,
@@ -1699,6 +1781,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       closeExpenseModal,
       isExpenseModalOpen,
       selectedExpense,
+      expensePrefill,
+      openExpenseModalWithPrefill,
       openFixedModal,
       closeFixedModal,
       isFixedModalOpen,

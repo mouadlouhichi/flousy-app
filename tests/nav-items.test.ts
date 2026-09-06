@@ -13,7 +13,7 @@ describe('Profile subpage nav items', () => {
   it('lists the profile subpages the Profile page links to', () => {
     assert.deepEqual(
       PROFILE_SUBPAGE_NAV_ITEMS.map((item) => item.id),
-      ['preferences', 'money-sources', 'household', 'data', 'account'],
+      ['preferences', 'money-sources', 'household', 'reminders', 'security', 'data', 'account'],
     );
   });
 

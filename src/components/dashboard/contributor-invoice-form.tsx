@@ -28,6 +28,7 @@ export function ContributorInvoiceForm() {
   // already hold `editAll` — for them the form would only create a self-review
   // loop, and outside the household workspace it has no destination at all.
   if (workspace !== 'household'
+    || household?.kind === 'business'
     || areaLevel(TOOL_AREA.invoices) !== 'editOwn'
     || !household
     || !user) return null;

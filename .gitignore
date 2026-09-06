@@ -17,3 +17,6 @@ tsconfig.tsbuildinfo
 # Playwright (CI-run browser E2E)
 /playwright-report/
 /test-results/
+
+# tesseract.js worker + wasm (copied by scripts/copy-tesseract.mjs)
+/public/tesseract/

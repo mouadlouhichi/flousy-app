@@ -37,6 +37,8 @@ export function LocalizedDocumentTitle() {
       '/dashboard/profile/money-sources': m.profile.subpages.moneySourcesTitle,
       '/dashboard/profile/preferences': m.profile.subpages.preferencesTitle,
       '/dashboard/profile/pro': m.profile.subpages.proTitle,
+      '/dashboard/profile/reminders': m.profile.subpages.remindersTitle,
+      '/dashboard/profile/security': m.profile.subpages.securityTitle,
       '/dashboard/profile/workspace': m.profile.subpages.workspaceTitle,
     };
 

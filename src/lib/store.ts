@@ -366,6 +366,9 @@ export interface SavingsActivityEntry {
    * into. Older entries may omit it — the goal's source place is used then.
    */
   place?: MoneyPlace;
+  /** Household member who made the deposit (shared goals contribution split). */
+  actorMemberId?: string;
+  actorName?: string;
 }
 
 export type DebtType = 'debt' | 'credit';
@@ -470,6 +473,14 @@ export interface MonthBudget {
   updatedByUserId?: string;
 }
 
+/** One browser/device subscribed to Web Push bill reminders. */
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  label: string;
+  createdAt: string;
+}
+
 export interface UserProfile {
   plan: 'free' | 'pro';
   /** Provider-neutral projection used by launch trials and future billing webhooks. */
@@ -505,6 +516,25 @@ export interface UserProfile {
   householdMonthStartDate?: number;
   /** Cash locations (Bank, Home, Wallet, plus any the user added). */
   moneyPlaces?: MoneyPlaceConfig[];
+  /** Reminder channel preferences (bills / goals / email digest). */
+  reminderPrefs?: {
+    billsEnabled?: boolean;
+    billLeadDays?: number[];
+    goalsEnabled?: boolean;
+    emailDigest?: boolean;
+    hour?: number;
+  };
+  /** Web Push subscriptions of this account's devices (endpoint + keys). */
+  pushSubscriptions?: PushSubscriptionRecord[];
+  /** IANA timezone the reminder dispatcher should use for "9am". */
+  timezone?: string;
+  /** Sign-in email, copied here only when the email digest is enabled. */
+  email?: string;
+  /** Optional target dates for savings goals (goalId → YYYY-MM-DD). */
+  goalTargetDates?: Record<string, string>;
+  /** Monthly amount the user commits to the debt payoff plan. */
+  debtPayoffBudget?: number;
+  debtPayoffMethod?: 'snowball' | 'avalanche';
 }
 
 /** Defaults used only when a period does not already contain its own snapshot. */
@@ -800,6 +830,45 @@ export function getUpcomingBills(
   }
 
   return bills.sort((a, b) => a.daysUntil - b.daysUntil || a.name.localeCompare(b.name));
+}
+
+export interface ScheduledBill extends UpcomingBill {
+  amount: number;
+  status: LifecycleStatus;
+  type: string;
+}
+
+/**
+ * Every fixed charge of the period placed on its resolved calendar date,
+ * regardless of status — the "upcoming payments" calendar. Charges without a
+ * parsable due day are listed on the period start so nothing disappears.
+ */
+export function getBillSchedule(month: MonthBudget, today: Date = new Date()): ScheduledBill[] {
+  const start = month.periodStartDate ? new Date(`${month.periodStartDate}T00:00:00Z`) : null;
+  const end = month.periodEndDate ? new Date(`${month.periodEndDate}T00:00:00Z`) : null;
+  if (!start || Number.isNaN(start.getTime())) return [];
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const bills: ScheduledBill[] = [];
+  for (const bill of month.fixedExpenses || []) {
+    const day = dueDayOfMonth(bill.date);
+    let due = start;
+    if (day) {
+      due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth(), day);
+      if (due < start) due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth() + 1, day);
+      if (end && due > end) due = end;
+    }
+    bills.push({
+      id: bill.id,
+      name: bill.name,
+      date: due.toISOString().slice(0, 10),
+      daysUntil: Math.round((due.getTime() - todayUtc) / 86_400_000),
+      remaining: money(Math.max(0, bill.amount - fixedPaidAmount(bill))),
+      amount: bill.amount,
+      status: bill.status || 'paid',
+      type: bill.type,
+    });
+  }
+  return bills.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
 }
 
 /**
@@ -1513,7 +1582,8 @@ export function fundGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  sourcePlace: MoneyPlace
+  sourcePlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const actualAmount = positiveMoney(amount);
   const currentBalance = getPlaceBalance(month, sourcePlace);
@@ -1533,6 +1603,8 @@ export function fundGoal(
       amount: actualAmount,
       date: new Date().toISOString(),
       place: sourcePlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 
@@ -1556,7 +1628,8 @@ export function withdrawGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  targetPlace: MoneyPlace
+  targetPlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const goal = goals.find((g) => g.id === goalId);
   if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
@@ -1574,6 +1647,8 @@ export function withdrawGoal(
       amount: actualWithdraw,
       date: new Date().toISOString(),
       place: targetPlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 

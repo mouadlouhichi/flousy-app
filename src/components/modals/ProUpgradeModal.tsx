@@ -127,6 +127,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             <AppIcon name={isPro ? 'verified' : 'workspace_premium'} className="text-[28px]" />
           </span>
           <h3 className="mt-4 text-xl font-extrabold text-on-surface">{statusTitle}</h3>
+          {!isPro && <p className="mt-1 text-sm font-bold text-primary">{m.pro.headline}</p>}
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-on-surface-variant">{statusBody}</p>
           <p className="mt-2 text-xs font-semibold text-on-surface-variant">{m.pro.noCardRequired}</p>
         </div>
@@ -173,6 +174,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             {m.pro.billingNotAvailable}
           </p>
         )}
+        {!isPro && <p className="text-center text-xs text-on-surface-variant">{m.pro.plannedPrice}</p>}
 
         {(error || claimState === 'claimed') && (
           <p role={error ? 'alert' : 'status'} className={`text-center text-sm font-semibold ${error ? 'text-error' : 'text-primary'}`}>

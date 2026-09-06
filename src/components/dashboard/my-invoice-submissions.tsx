@@ -31,7 +31,7 @@ export function MyInvoiceSubmissions() {
   const uid = user?.uid;
   // Same audience as the submission form: restricted members only. Reviewers
   // already see every submission, including their own, in the review panel.
-  const isSubmitter = workspace === 'household'
+  const isSubmitter = workspace === 'household' && household?.kind !== 'business'
     && areaLevel(TOOL_AREA.invoices) === 'editOwn';
 
   useEffect(() => {

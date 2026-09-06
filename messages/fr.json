@@ -623,7 +623,9 @@
       "noDeposits": "Aucun dépôt enregistré ce mois-ci.",
       "useDeposit": "Utilisez Dépôt sur un objectif ci-dessus pour placer de l’argent dans l’épargne.",
       "editDeposit": "Modifier le dépôt",
-      "editWithdrawal": "Modifier le retrait"
+      "editWithdrawal": "Modifier le retrait",
+      "contributors": "Contributions",
+      "unknownContributor": "Membre"
     },
     "debts": {
       "debtsIOwe": "Dettes (je dois)",
@@ -1625,7 +1627,10 @@
     "customBudgetMonth": "Mois budgétaire personnalisé",
     "openProfileAccount": "Ouvrir le profil et le compte",
     "freePlan": "Forfait gratuit",
-    "proPlan": "Forfait Pro"
+    "proPlan": "Forfait Pro",
+    "security": "Sécurité",
+    "reminders": "Rappels",
+    "search": "Recherche"
   },
   "notifications": {
     "emailVerificationPrompt": "Veuillez vérifier votre adresse e-mail pour sécuriser votre compte.",
@@ -1781,7 +1786,10 @@
       "household": "Foyer",
       "pro": "Pro",
       "data": "Données",
-      "account": "Compte"
+      "account": "Compte",
+      "security": "Sécurité & verrouillage",
+      "reminders": "Rappels",
+      "search": "Recherche"
     },
     "hints": {
       "budgetStarts": "commence le {day}",
@@ -1790,7 +1798,9 @@
       "personalAndHousehold": "Tableau de bord personnel et foyer",
       "planIncomeInsights": "Forfait, sources de revenus et analyses",
       "exportImportDelete": "Exporter, importer, supprimer",
-      "signOutDelete": "Se déconnecter et supprimer le compte"
+      "signOutDelete": "Se déconnecter et supprimer le compte",
+      "reminders": "Rappels de factures et d'objectifs, push et e-mail",
+      "security": "Verrouillage par code PIN ou empreinte / Face ID"
     },
     "subpages": {
       "accountTitle": "Compte",
@@ -1807,7 +1817,13 @@
       "workspaceDescription": "Basculez entre votre tableau personnel et votre foyer.",
       "backToProfile": "Retour au profil",
       "householdTitle": "Gérer le foyer",
-      "householdDescription": "Membres, invitations et accès partagé."
+      "householdDescription": "Membres, invitations et accès partagé.",
+      "securityTitle": "Sécurité",
+      "securityDescription": "Verrouillage de l'app et protection de l'appareil.",
+      "remindersTitle": "Rappels",
+      "remindersDescription": "Notifications de factures et d'épargne.",
+      "searchTitle": "Recherche",
+      "searchDescription": "Retrouvez n’importe quelle transaction dans tous vos mois."
     },
     "account": {
       "privacy": "Confidentialité",
@@ -1866,7 +1882,17 @@
       "syncSkippedSome": "{periods} période(s) clôturée(s) dans la cible ont été laissées de côté.",
       "syncPartialNothing": "Rien n'a encore été copié : la première période a déjà échoué.",
       "syncFailed": "La synchronisation n'a pas pu être terminée. Veuillez réessayer.",
-      "personalWorkspace": "Espace personnel"
+      "personalWorkspace": "Espace personnel",
+      "driveTitle": "Sauvegarde Google Drive",
+      "driveBackup": "Sauvegarder sur Google Drive",
+      "driveRestore": "Restaurer depuis Google Drive",
+      "driveHint": "Stockée dans un dossier privé de l'application sur votre Drive. Conserve les 5 dernières copies.",
+      "driveDone": "Sauvegarde enregistrée sur Google Drive ({name}).",
+      "driveEmpty": "Aucune sauvegarde SmartJib trouvée sur ce Drive.",
+      "driveNotConfigured": "La sauvegarde Google Drive n'est pas configurée sur ce déploiement.",
+      "driveDenied": "L'accès à Google Drive n'a pas été accordé.",
+      "drivePick": "Choisissez une sauvegarde à restaurer",
+      "driveRestorePrefix": "Dernière : {date}"
     },
     "moneySources": {
       "description": "Ce sont les emplacements d’argent depuis lesquels vous dépensez : Banque, Maison, Portefeuille ou toute réserve que vous ajoutez. En en supprimant un, le solde restant est déplacé vers la première source restante.",
@@ -1903,7 +1929,12 @@
       "syncStartTitle": "Aligner le début du mois budgétaire",
       "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
       "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace.",
-      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif."
+      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif.",
+      "businessDashboard": "Espace pro (auto-entrepreneur)",
+      "addBusiness": "Ajouter un espace pro",
+      "addBusinessHint": "Séparez les revenus et dépenses de votre activité de votre budget personnel : mêmes outils, avec ses propres mois, catégories et rapports.",
+      "businessNamePlaceholder": "ex. Mon activité auto-entrepreneur",
+      "businessDefaultName": "Mon activité"
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",
@@ -1915,6 +1946,38 @@
       "analyticsInsights": "Analyses et aperçus",
       "privateWorkspaceHint": "Les mises à niveau Pro s’appliquent à votre espace privé. Basculez vers {workspace} pour gérer ou mettre à niveau votre forfait personnel.",
       "features": {
+        "safeToSpend": {
+          "title": "Reste à dépenser",
+          "description": "Sachez exactement combien dépenser par jour jusqu'à la paie et où vous finirez le mois."
+        },
+        "reminders": {
+          "title": "Rappels de factures",
+          "description": "Rappels push et e-mail avant l'échéance du loyer, du téléphone et des factures."
+        },
+        "history": {
+          "title": "Historique illimité",
+          "description": "Parcourez et comparez toutes vos périodes passées, pas seulement les trois dernières."
+        },
+        "appLock": {
+          "title": "Verrouillage de l'app",
+          "description": "Protégez votre budget avec un code PIN ou l'empreinte / Face ID sur cet appareil."
+        },
+        "debtPlanner": {
+          "title": "Plan de remboursement",
+          "description": "Méthode boule de neige ou avalanche avec une date de libération pour chaque dette."
+        },
+        "search": {
+          "title": "Recherche & tags",
+          "description": "Retrouvez n'importe quelle transaction dans tous les mois par nom, catégorie ou #tag."
+        },
+        "reports": {
+          "title": "Rapport mensuel PDF",
+          "description": "Relevé mensuel partageable avec enveloppes, catégories et patrimoine net."
+        },
+        "receiptOcr": {
+          "title": "Scan de ticket",
+          "description": "Photographiez un ticket et laissez SmartJib lire le total et le commerçant."
+        },
         "courseScan": {
           "title": "Scan de courses par code-barres",
           "description": "Scannez vos courses pendant vos achats et laissez SmartJib créer le reçu automatiquement."
@@ -2062,7 +2125,8 @@
     "copied": "Copié",
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
     "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre.",
-    "contributor": "Contributeur"
+    "contributor": "Contributeur",
+    "businessSolo": "Cet espace pro est individuel : il n'a ni membres ni invitations. Passez à votre espace foyer pour gérer les membres."
   },
   "consent": {
     "title": "Confidentialité",
@@ -2100,7 +2164,9 @@
     "noCardRequired": "Sans carte · sans renouvellement automatique · un essai par compte",
     "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez.",
     "householdSponsorActive": "Parrainage Pro du ménage : actif jusqu'au {date}.",
-    "householdSponsorExpired": "Le parrainage Pro de ce ménage (enregistré à sa création) a expiré le {date}. Le parrain est fixé à la création — si votre abonnement est actif, le ménage doit être relié ou recréé."
+    "householdSponsorExpired": "Le parrainage Pro de ce ménage (enregistré à sa création) a expiré le {date}. Le parrain est fixé à la création — si votre abonnement est actif, le ménage doit être relié ou recréé.",
+    "headline": "Partagez votre budget, ne ratez aucune facture, voyez votre fin de mois.",
+    "plannedPrice": "Prix prévu après le lancement : à partir de 19 MAD/mois. Les utilisateurs en essai gardent toutes les fonctions jusqu'à la fin de l'essai."
   },
   "seo": {
     "titles": {
@@ -2149,5 +2215,222 @@
     "reopenConfirm": "Rouvrir ce mois et autoriser à nouveau les modifications ?",
     "closedDetail": "Ce mois est clôturé et ses données financières sont en lecture seule.",
     "editBlocked": "Ce mois a été clôturé. Rouvrez-le avant d’effectuer des modifications."
+  },
+  "insights": {
+    "safeToSpendTitle": "Reste à dépenser",
+    "perDay": "{amount} / jour",
+    "daysLeft": "{count, plural, =1 {1 jour restant} other {# jours restants}}",
+    "remaining": "Reste dans le budget",
+    "upcomingBills": "Factures à payer",
+    "projectedEnd": "Projection fin de mois",
+    "statusOk": "Dans les clous",
+    "statusTight": "Ça se resserre",
+    "statusOver": "Dépassement prévu",
+    "burnRate": "Dépense {amount} / jour",
+    "lockedTitle": "Sachez ce que vous pouvez dépenser aujourd'hui",
+    "lockedBody": "Pro calcule votre enveloppe quotidienne à partir du reste, des factures à venir et des jours jusqu'à la paie.",
+    "unlock": "Débloquer avec Pro",
+    "netWorthTitle": "Patrimoine net",
+    "assets": "Actifs",
+    "liabilities": "Passifs",
+    "cash": "Liquidités",
+    "savings": "Épargne",
+    "owedToMe": "On me doit",
+    "iOwe": "Je dois",
+    "historyLockedTitle": "Les anciens mois sont une fonction Pro",
+    "historyLockedBody": "Le plan gratuit garde vos {count} dernières périodes à portée de main. Pro débloque tout l'historique et les tendances.",
+    "categoryLimitTitle": "Limite de catégories atteinte",
+    "categoryLimitBody": "Le plan gratuit inclut {count} catégories personnalisées. Pro supprime la limite.",
+    "suggestedCategory": "Suggestion : {category}",
+    "applySuggestion": "Utiliser"
+  },
+  "appLock": {
+    "title": "Verrouillage de l'app",
+    "description": "Demander un code PIN ou une identification biométrique à l'ouverture de SmartJib sur cet appareil.",
+    "enable": "Activer le verrouillage",
+    "disable": "Désactiver le verrouillage",
+    "setPin": "Choisissez un PIN (4 à 8 chiffres)",
+    "confirmPin": "Confirmer le PIN",
+    "pinMismatch": "Les PIN ne correspondent pas.",
+    "pinInvalid": "Utilisez 4 à 8 chiffres.",
+    "wrongPin": "PIN incorrect. Réessayez.",
+    "enterPin": "Saisissez votre PIN",
+    "unlock": "Déverrouiller",
+    "useBiometric": "Empreinte / Face ID",
+    "biometricToggle": "Déverrouillage biométrique",
+    "biometricUnavailable": "Le déverrouillage biométrique n'est pas disponible sur ce navigateur.",
+    "biometricFailed": "Échec biométrique. Saisissez votre PIN.",
+    "timeout": "Verrouiller après",
+    "timeoutNow": "À chaque fois",
+    "timeout1m": "1 minute",
+    "timeout5m": "5 minutes",
+    "timeout15m": "15 minutes",
+    "lockedHeading": "SmartJib est verrouillé",
+    "signOutInstead": "Se déconnecter",
+    "forgotHint": "PIN oublié ? Déconnectez-vous puis reconnectez-vous pour le réinitialiser.",
+    "enabled": "Le verrouillage est actif sur cet appareil."
+  },
+  "reminders": {
+    "title": "Rappels",
+    "description": "Soyez prévenu avant l'échéance des factures et quand un objectif d'épargne est presque atteint.",
+    "billsToggle": "Rappels de factures",
+    "goalsToggle": "Étapes d'objectif d'épargne",
+    "emailToggle": "Résumé quotidien par e-mail",
+    "leadDays": "Me rappeler",
+    "lead0": "Le jour même",
+    "lead1": "1 jour avant",
+    "lead3": "3 jours avant",
+    "lead7": "1 semaine avant",
+    "pushTitle": "Notifications push sur cet appareil",
+    "pushEnable": "Activer sur cet appareil",
+    "pushDisable": "Désactiver sur cet appareil",
+    "pushEnabled": "Activées sur cet appareil",
+    "pushDenied": "Les notifications sont bloquées dans les réglages du navigateur.",
+    "pushUnsupported": "Ce navigateur ne prend pas en charge les notifications push.",
+    "pushIosInstall": "Sur iPhone, ajoutez d'abord SmartJib à l'écran d'accueil (Partager → Sur l'écran d'accueil) pour recevoir des notifications.",
+    "pushNotConfigured": "L'envoi push n'est pas encore configuré sur ce serveur ; les rappels in-app et e-mail fonctionnent.",
+    "devices": "Appareils recevant les rappels",
+    "remove": "Retirer",
+    "test": "Envoyer une notification test",
+    "testSent": "Notification test envoyée.",
+    "billTitle": "Facture à payer",
+    "billToday": "{name} ({amount}) est due aujourd'hui.",
+    "billTomorrow": "{name} ({amount}) est due demain.",
+    "billInDays": "{name} ({amount}) est due dans {days} jours.",
+    "goalTitle": "Presque !",
+    "goalBody": "{name} est financé à {percent}% — encore un dépôt et c'est fait.",
+    "trialTitle": "Votre essai Pro se termine bientôt",
+    "trialBody": "Il reste {days} jours de Pro. Vos données restent en sécurité quoi qu'il arrive.",
+    "calendarTitle": "Paiements à venir",
+    "calendarEmpty": "Aucune facture planifiée cette période.",
+    "calendarPaid": "Payée",
+    "calendarDue": "Échéance {date}",
+    "calendarOverdue": "En retard",
+    "saved": "Réglages des rappels enregistrés."
+  },
+  "planner": {
+    "title": "Plan de remboursement",
+    "method": "Méthode",
+    "snowball": "Boule de neige (plus petite d'abord)",
+    "avalanche": "Avalanche (plus grande d'abord)",
+    "monthlyBudget": "Budget mensuel de remboursement",
+    "debtFreeOn": "Libéré des dettes d'ici {date}",
+    "debtFreeIn": "{count, plural, =1 {dans 1 mois} other {dans # mois}}",
+    "noBudget": "Indiquez un montant mensuel pour voir votre date de libération.",
+    "noDebts": "Aucune dette ouverte — rien à planifier.",
+    "paidOffOn": "Soldée {date}",
+    "goalEta": "À ce rythme : {date}",
+    "goalPace": "{amount} / mois",
+    "goalNoPace": "Enregistrez un dépôt pour voir une projection.",
+    "goalTargetDate": "Date cible",
+    "goalRequired": "Il faut {amount} / mois pour atteindre {date}",
+    "goalDone": "Objectif atteint"
+  },
+  "search": {
+    "title": "Recherche",
+    "placeholder": "Rechercher des transactions, catégories ou #tags…",
+    "loading": "Chargement des mois…",
+    "empty": "Aucun résultat pour « {query} ».",
+    "hint": "Tapez au moins 2 caractères. Utilisez #tag pour filtrer par tag.",
+    "results": "{count, plural, =1 {1 résultat} other {# résultats}}",
+    "kindVariable": "Dépense",
+    "kindFixed": "Charge fixe",
+    "kindDebt": "Dette",
+    "tags": "Tags",
+    "tagsPlaceholder": "Ajouter des tags (séparés par des virgules)",
+    "open": "Rechercher"
+  },
+  "report": {
+    "title": "Rapport mensuel",
+    "download": "Télécharger le rapport PDF",
+    "generating": "Préparation du rapport…",
+    "hint": "Un relevé imprimable de la période : revenus, enveloppes, catégories, factures, épargne et patrimoine net.",
+    "period": "Période",
+    "income": "Revenus reçus",
+    "spent": "Dépensé",
+    "saved": "Épargné",
+    "leftover": "Reste",
+    "envelopes": "Enveloppes",
+    "categories": "Dépenses par catégorie",
+    "bills": "Charges fixes",
+    "goals": "Objectifs d'épargne",
+    "generatedBy": "Généré par SmartJib le {date}",
+    "budget": "Budget",
+    "status": "Statut",
+    "category": "Catégorie",
+    "amount": "Montant",
+    "name": "Nom"
+  },
+  "ocr": {
+    "scanReceipt": "Scanner le ticket",
+    "scanning": "Lecture du ticket… {percent}%",
+    "found": "Total détecté : {amount}",
+    "foundMerchant": "Commerçant : {merchant}",
+    "notFound": "Impossible de lire un total. Saisissez le montant manuellement.",
+    "apply": "Utiliser ces valeurs",
+    "proHint": "Le scan de ticket est une fonction Pro.",
+    "failed": "Échec du scan. Essayez une photo plus nette."
+  },
+  "fx": {
+    "title": "Convertisseur de devises",
+    "from": "De",
+    "to": "Vers",
+    "rateNote": "Taux {rate} · {date}",
+    "unavailable": "Les taux en direct ne sont pas disponibles hors ligne.",
+    "amount": "Montant",
+    "swap": "Inverser les devises"
+  },
+  "barcode": {
+    "title": "Scanner un produit",
+    "scanProduct": "Scanner le code-barres",
+    "hint": "Visez le code-barres ; le nom du produit se remplit automatiquement.",
+    "lookingUp": "Recherche du produit…",
+    "notFound": "Aucun produit trouvé pour {code}. Saisissez le nom.",
+    "cameraDenied": "L'accès à la caméra a été refusé.",
+    "cameraUnavailable": "Aucune caméra disponible sur cet appareil."
+  },
+  "reports": {
+    "title": "Rapport personnalisé",
+    "locked": "Ventilez les dépenses par lieu d'argent, tag ou membre du foyer sur la période de votre choix, avec comparaison à la période précédente.",
+    "groupBy": "Grouper par",
+    "byCategory": "Catégorie",
+    "byPlace": "Lieu d'argent",
+    "byTag": "Tag",
+    "byMember": "Membre",
+    "scope": "Inclure",
+    "scopeAll": "Toutes les dépenses",
+    "scopeVariable": "Variables seulement",
+    "scopeFixed": "Charges fixes seulement",
+    "range": "Période",
+    "monthsShort": "{count} M",
+    "filter": "Filtrer par",
+    "noFilter": "Aucun filtre",
+    "filterValue": "Valeur",
+    "any": "Toutes",
+    "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "empty": "Rien ne correspond à cette sélection pour l'instant.",
+    "unassigned": "Non attribué"
+  },
+  "cashFlow": {
+    "title": "Calendrier des paiements",
+    "cashToday": "Trésorerie aujourd'hui",
+    "endOfPeriod": "Fin de période",
+    "lowestOn": "Plus bas le {date}",
+    "nextBillIn": "{count, plural, =0 {Prochaine facture aujourd'hui} =1 {Prochaine facture demain} other {Prochaine facture dans # jours}}",
+    "noMoreBills": "Plus de factures",
+    "lockedTitle": "Voyez ce qu'il vous restera n'importe quel jour",
+    "lockedBody": "Pro projette votre trésorerie jour par jour à partir des factures à venir, des revenus attendus et de votre rythme de dépenses.",
+    "legendBill": "Facture due",
+    "legendIncome": "Revenu attendu",
+    "legendSettled": "Réglé",
+    "projectedBalance": "Trésorerie prévue",
+    "nothingPlanned": "Rien de prévu ce jour.",
+    "income": "Revenu",
+    "paid": "Payé",
+    "received": "Reçu",
+    "due": "À payer",
+    "expected": "Attendu",
+    "viewList": "Liste",
+    "viewCalendar": "Calendrier"
   }
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import { CurrencyConverter } from '../currency-converter';
+
 import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -305,6 +307,9 @@ export function PreferencesPanel() {
           {saveState === 'saving' ? p.saving : saveState === 'saved' && !hasChanges ? p.saved : p.saveChanges}
         </button>
       </div>
+    </div>
+    <div className="mt-4">
+      <CurrencyConverter />
     </div>
     <ConfirmDialog
       isOpen={confirmBudgetBoundaryChange}
