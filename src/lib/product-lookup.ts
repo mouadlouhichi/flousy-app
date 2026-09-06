@@ -9,27 +9,31 @@
  *
  * Privacy: only the barcode digits leave the device — never user data.
  */
-import type { RemoteProductInfo } from './course-session';
+import type { ProductKind, RemoteProductInfo } from './course-session';
 
-const OFF_HOSTS = [
-  'https://world.openfoodfacts.org/api/v2/product/',
-  'https://ma-fr.openfoodfacts.org/api/v2/product/',
-  'https://ma.openfoodfacts.org/api/v2/product/',
-  'https://world.openbeautyfacts.org/api/v2/product/',
-  'https://world.openproductsfacts.org/api/v2/product/',
+const OFF_HOSTS: Array<{ base: string; kind: ProductKind }> = [
+  { base: 'https://world.openfoodfacts.org/api/v2/product/', kind: 'food' },
+  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', kind: 'food' },
+  { base: 'https://ma.openfoodfacts.org/api/v2/product/', kind: 'food' },
+  { base: 'https://world.openbeautyfacts.org/api/v2/product/', kind: 'beauty' },
+  { base: 'https://world.openproductsfacts.org/api/v2/product/', kind: 'generic' },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,ingredients';
 
 /**
  * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
  * shape (`{ status: 1, product }`) and the app-proxy shape
- * (`{ found: true, product }`) — historically the proxy only returned
+ * (`{ found: true, product, source }`) — historically the proxy only returned
  * `found`, which made every proxied lookup read as "not found".
+ *
+ * `kind` tags which database resolved the product (drives the cosmetic
+ * quality panel). The direct lookup paths pass it explicitly; proxied
+ * payloads carry it as `source` on the root.
  */
-export function mapOffProduct(data: unknown): RemoteProductInfo | null {
+export function mapOffProduct(data: unknown, kind?: ProductKind): RemoteProductInfo | null {
   const root = data as
-    | { status?: number; found?: boolean; product?: Record<string, unknown> }
+    | { status?: number; found?: boolean; source?: string; product?: Record<string, unknown> }
     | null
     | undefined;
   if (!root || !root.product) return null;
@@ -55,6 +59,15 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
   const category = pick('categories')?.split(',')[0]?.trim();
   const imageUrl = pick('image_front_url');
   const quantity = pick('quantity');
+  // OBF stores the INCI list as a comma-separated string.
+  const ingredients = pick('ingredients')
+    ?.split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const resolvedKind: ProductKind | undefined =
+    kind ??
+    (root.source === 'food' || root.source === 'beauty' || root.source === 'generic' ? root.source : undefined);
 
   return {
     name,
@@ -62,6 +75,8 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
     ...(category ? { category } : {}),
     ...(imageUrl ? { imageUrl } : {}),
     ...(quantity ? { quantity } : {}),
+    ...(ingredients && ingredients.length > 0 ? { ingredients } : {}),
+    ...(resolvedKind ? { productKind: resolvedKind } : {}),
   };
 }
 
@@ -92,9 +107,9 @@ export async function lookupOffProduct(
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
 
   // 1) direct from the browser — world, then the MA instance
-  for (const base of OFF_HOSTS) {
+  for (const { base, kind } of OFF_HOSTS) {
     const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
-    const mapped = direct ? mapOffProduct(direct) : null;
+    const mapped = direct ? mapOffProduct(direct, kind) : null;
     if (mapped) return mapped;
   }
 

@@ -18,15 +18,17 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * repeated scans of the same code don't hammer OFF.
  */
 
-const OFF_HOSTS = [
-  'https://world.openfoodfacts.org/api/v2/product/',
-  'https://ma-fr.openfoodfacts.org/api/v2/product/',
-  'https://ma.openfoodfacts.org/api/v2/product/',
-  'https://world.openbeautyfacts.org/api/v2/product/',
-  'https://world.openproductsfacts.org/api/v2/product/',
+/** `source` tells the client which database resolved the product —
+ *  `beauty` is what unlocks the INCI quality panel. */
+const OFF_HOSTS: Array<{ base: string; source: 'food' | 'beauty' | 'generic' }> = [
+  { base: 'https://world.openfoodfacts.org/api/v2/product/', source: 'food' },
+  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', source: 'food' },
+  { base: 'https://ma.openfoodfacts.org/api/v2/product/', source: 'food' },
+  { base: 'https://world.openbeautyfacts.org/api/v2/product/', source: 'beauty' },
+  { base: 'https://world.openproductsfacts.org/api/v2/product/', source: 'generic' },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,ingredients';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
   let notFound = false;
   const deadline = AbortSignal.timeout(GLOBAL_DEADLINE_MS);
 
-  for (const base of OFF_HOSTS) {
+  for (const { base, source } of OFF_HOSTS) {
     if (deadline.aborted) break;
     try {
       const res = await fetch(`${base}${code}.json?fields=${FIELDS}`, {
@@ -117,7 +119,7 @@ export async function GET(request: NextRequest) {
       if (!res.ok) continue;
       const body = (await res.json()) as { status?: number; product?: Record<string, unknown> };
       if (body && body.status === 1 && body.product) {
-        const payload = { status: 1, found: true, product: body.product };
+        const payload = { status: 1, found: true, source, product: body.product };
         cacheSet(code, payload);
         return NextResponse.json(payload);
       }

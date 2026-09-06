@@ -2387,7 +2387,29 @@
     "lookingUp": "Recherche du produit…",
     "notFound": "Aucun produit trouvé pour {code}. Saisissez le nom.",
     "cameraDenied": "L'accès à la caméra a été refusé.",
-    "cameraUnavailable": "Aucune caméra disponible sur cet appareil."
+    "cameraUnavailable": "Aucune caméra disponible sur cet appareil.",
+    "filled": "Nom du produit rempli — fermez le scanner quand vous avez terminé.",
+    "quality": {
+      "title": "Qualité du produit",
+      "ok": "Aucun signal",
+      "flagCount": "{count, plural, one {1 ingrédient à considérer} other {# ingrédients à considérer}}",
+      "showList": "{count, plural, one {Afficher 1 ingrédient} other {Afficher # ingrédients}}",
+      "hideList": "Masquer la liste des ingrédients",
+      "sourceNote": "Liste INCI fournie par Open Beauty Facts ; les signaux sont indicatifs et ne remplacent pas un avis médical.",
+      "flags": {
+        "formaldehyde": "Formaldéhyde",
+        "hydroquinone": "Hydroquinone",
+        "mit": "Conservateurs MIT/CMIT",
+        "resorcinol": "Résorcinol",
+        "uvFilter": "Filtre UV à préoccupation santé",
+        "talc": "Talc",
+        "paraben": "Parabènes",
+        "sulfate": "Tensioactifs sulfatés",
+        "alcohol": "Alcool asséchant",
+        "fragrance": "Parfum (peut cacher des allergènes)",
+        "fragranceAllergen": "Allergène de parfum courant"
+      }
+    }
   },
   "reports": {
     "title": "Rapport personnalisé",

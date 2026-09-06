@@ -93,3 +93,42 @@ describe('Moroccan seed catalog', () => {
     }
   });
 });
+
+describe('mapOffProduct — cosmetics (INCI) fields', () => {
+  const cosmetic = {
+    code: '3017624479001',
+    product_name: 'La Roche-Posay Lipikar Baume AP+M',
+    brands: 'La Roche-Posay',
+    categories: 'Creams, Moisturizers',
+    ingredients: 'AQUA, BUTYLPARABEN, DIMETHICONE, PARFUM, PROPYLENE GLYCOL',
+  };
+
+  it('maps the INCI ingredient string to a clean array with the beauty kind (direct lookup)', () => {
+    assert.deepEqual(mapOffProduct({ status: 1, product: cosmetic }, 'beauty'), {
+      name: 'La Roche-Posay Lipikar Baume AP+M',
+      brand: 'La Roche-Posay',
+      category: 'Creams',
+      ingredients: ['AQUA', 'BUTYLPARABEN', 'DIMETHICONE', 'PARFUM', 'PROPYLENE GLYCOL'],
+      productKind: 'beauty',
+    });
+  });
+
+  it('reads the kind from the proxy payload source when no explicit kind is passed', () => {
+    const mapped = mapOffProduct({ status: 1, found: true, source: 'beauty', product: cosmetic });
+    assert.equal(mapped?.productKind, 'beauty');
+    assert.deepEqual(mapped?.ingredients, ['AQUA', 'BUTYLPARABEN', 'DIMETHICONE', 'PARFUM', 'PROPYLENE GLYCOL']);
+  });
+
+  it('omits ingredients/productKind for products without them (backwards compatible shape)', () => {
+    const mapped = mapOffProduct({ status: 1, product: { product_name: 'Plain food', source: undefined } }, 'food');
+    assert.deepEqual(mapped, { name: 'Plain food', productKind: 'food' });
+  });
+
+  it('drops whitespace and blank ingredient entries', () => {
+    const mapped = mapOffProduct(
+      { status: 1, product: { product_name: 'X', ingredients: '  AQUA , , PARFUM , ' } },
+      'beauty',
+    );
+    assert.deepEqual(mapped?.ingredients, ['AQUA', 'PARFUM']);
+  });
+});

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { ProductQualityPanel } from '@/components/ui/product-quality-panel';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { useLanguage } from '@/lib/i18n-context';
@@ -15,12 +16,19 @@ interface ExpenseBarcodeScannerProps {
 /**
  * Inline barcode scanner for the expense sheet (Pro). Reuses the courses
  * scanner hook (native BarcodeDetector → zxing → wedge) and the Open Food
- * Facts proxy; a hit fills the expense name and suggests a category.
+ * Facts proxy; a hit fills the expense name and suggests a category. For
+ * cosmetics resolved on Open Beauty Facts the INCI ingredient list is
+ * analyzed and a quality summary is shown right under the viewfinder.
  */
 export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScannerProps) {
   const { messages: m, t } = useLanguage();
-  const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'missing'>('idle');
+  const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'missing' | 'found'>('idle');
   const [lastCode, setLastCode] = useState('');
+  const [lastProduct, setLastProduct] = useState<RemoteProductInfo | null>(null);
+  const qualityIngredients =
+    lastProduct?.productKind === 'beauty' && lastProduct.ingredients?.length
+      ? lastProduct.ingredients
+      : null;
 
   const scanner = useBarcodeScanner({
     enabled: true,
@@ -30,12 +38,18 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
       lookupOffProduct(code)
         .then((product) => {
           if (product) {
+            setLastProduct(product);
+            setLookupState('found');
             onProduct(product, code);
           } else {
+            setLastProduct(null);
             setLookupState('missing');
           }
         })
-        .catch(() => setLookupState('missing'));
+        .catch(() => {
+          setLastProduct(null);
+          setLookupState('missing');
+        });
     },
   });
 
@@ -60,12 +74,15 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
           </button>
         )}
       </div>
+      {qualityIngredients && <ProductQualityPanel ingredients={qualityIngredients} />}
       <p className="text-xs text-on-surface-variant">
         {lookupState === 'busy'
           ? m.barcode.lookingUp
           : lookupState === 'missing'
             ? t(m.barcode.notFound, { code: lastCode })
-            : m.barcode.hint}
+            : lookupState === 'found'
+              ? m.barcode.filled
+              : m.barcode.hint}
       </p>
     </div>
   );

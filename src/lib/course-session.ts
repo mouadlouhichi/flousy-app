@@ -341,12 +341,21 @@ export function renderBillCsv(session: CourseSession): string {
 
 // --- Product resolution cascade ---------------------------------------------------
 
+export type ProductKind = 'food' | 'beauty' | 'generic';
+
 export interface RemoteProductInfo {
   name: string;
   brand?: string;
   category?: string;
   imageUrl?: string;
   quantity?: string;
+  /**
+   * INCI ingredient list, present for cosmetics resolved on Open Beauty
+   * Facts (and any other source that carries ingredients).
+   */
+  ingredients?: string[];
+  /** Which product database resolved the barcode — drives quality display. */
+  productKind?: ProductKind;
 }
 
 export type ProductResolution =

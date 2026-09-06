@@ -2387,7 +2387,29 @@
     "lookingUp": "Looking up product…",
     "notFound": "No product found for {code}. Type the name instead.",
     "cameraDenied": "Camera access was denied.",
-    "cameraUnavailable": "No camera available on this device."
+    "cameraUnavailable": "No camera available on this device.",
+    "filled": "Product name filled in — close the scanner when you are done.",
+    "quality": {
+      "title": "Product quality",
+      "ok": "No flags",
+      "flagCount": "{count, plural, one {1 ingredient to consider} other {# ingredients to consider}}",
+      "showList": "{count, plural, one {Show 1 ingredient} other {Show # ingredients}}",
+      "hideList": "Hide ingredient list",
+      "sourceNote": "INCI ingredient list from Open Beauty Facts; flags are a general guidance, not medical advice.",
+      "flags": {
+        "formaldehyde": "Formaldehyde",
+        "hydroquinone": "Hydroquinone",
+        "mit": "MIT/CMIT preservatives",
+        "resorcinol": "Resorcinol",
+        "uvFilter": "UV filter with health concerns",
+        "talc": "Talc",
+        "paraben": "Parabens",
+        "sulfate": "Sulfate surfactants",
+        "alcohol": "Drying alcohol",
+        "fragrance": "Fragrance (may hide allergens)",
+        "fragranceAllergen": "Common fragrance allergen"
+      }
+    }
   },
   "reports": {
     "title": "Custom report",

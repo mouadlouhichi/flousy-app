@@ -604,9 +604,10 @@ export function ExpenseModal({
           scannerOpen ? (
             <ExpenseBarcodeScanner
               onClose={() => setScannerOpen(false)}
+              // Stay open after a hit: the product name is filled in place,
+              // and cosmetics show their INCI quality panel under the viewfinder.
               onProduct={(product) => {
                 setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
-                setScannerOpen(false);
               }}
             />
           ) : (
