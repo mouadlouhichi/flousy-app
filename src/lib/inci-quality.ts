@@ -7,6 +7,14 @@
  *   caution (yellow)      — to consider (irritants, hidden allergens, …)
  *   good    (green)       — no known common concern
  *
+ * Tiering combines two sources:
+ *   1. `INCI_TIER_RULES` — our curated exact-name rules (highest priority).
+ *   2. The EU CosIng regulatory index (cosing.ts, optional): Annex II
+ *      (prohibited in the EU) lifts an ingredient to *concern*, Annex III
+ *      (restricted) to *caution*. CosIng also supplies official function
+ *      names, mapped onto the tag chips, so even unknown ingredients get
+ *      an informative tag instead of a blank row.
+ *
  * Matching is EXACT on normalized INCI names — INCI is an international
  * nomenclature, so "ALCOHOL" flags while "CETEARYL ALCOHOL" (a harmless
  * fatty alcohol) must not.
@@ -15,6 +23,8 @@
  * `barcode.quality.tags.*` — the UI resolves them through the active locale;
  * this module stays pure.
  */
+
+import { COSING_BITS, lookupCosing, type CosingIndex } from '@/lib/cosing';
 
 export type InciTier = 'concern' | 'caution' | 'good';
 
@@ -231,11 +241,76 @@ function canonInci(normalized: string): string {
 }
 
 /**
- * Classify an INCI ingredient list. `ingredients` are the raw entries as
- * returned by Open Beauty Facts (already split). Duplicates collapse — an
- * ingredient listed twice is counted once.
+ * Printed synonyms that must resolve to our canonical rule names (the
+ * official CosIng inventory records the INN instead).
  */
-export function classifyInci(ingredients: string[]): InciClassification {
+const INCI_SYNONYMS: Record<string, string> = {
+  'BENZOPHENONE 3': 'OXYBENZONE',
+};
+
+/**
+ * Official CosIng function name → i18n tag key (keys under
+ * `barcode.quality.tags`). Only specific functions are mapped; generic
+ * ones ("SKIN CONDITIONING" — half the database) would tag every row with
+ * noise, and niche ones are not worth a translation.
+ */
+const COSING_FUNCTION_TAG: Record<string, string> = {
+  HUMECTANT: 'humectant',
+  EMOLLIENT: 'emollient',
+  SOLVENT: 'solvent',
+  ANTIOXIDANT: 'antioxidant',
+  SURFACTANT: 'surfactant',
+  CLEANSING: 'surfactant',
+  FOAMING: 'surfactant',
+  'FOAM BOOSTING': 'surfactant',
+  EMULSIFYING: 'emulsifier',
+  'EMULSION STABILISING': 'emulsifier',
+  'VISCOSITY CONTROLLING': 'thickener',
+  THICKENING: 'thickener',
+  PRESERVATIVE: 'preservative',
+  PERFUMING: 'fragrance',
+  FRAGRANCE: 'fragrance',
+  'UV ABSORBER': 'uvFilter',
+  'UV FILTER': 'uvFilter',
+  'PH ADJUSTING': 'phAdjuster',
+  CHELATING: 'chelating',
+  ANTIMICROBIAL: 'antimicrobial',
+  ASTRINGENT: 'astringent',
+  OPACIFYING: 'opacifier',
+  'FILM FORMING': 'filmFormer',
+  'COSMETIC COLORANT': 'colorant',
+  'HAIR DYEING': 'colorant',
+};
+
+/** Maximum tag chips per ingredient row (keeps the list readable). */
+const MAX_TAGS_PER_ROW = 3;
+
+function cosingTagsFor(bits: number, functions: string[]): string[] {
+  const tags: string[] = [];
+  if (bits & COSING_BITS.BANNED) tags.push('bannedInEu');
+  if (bits & COSING_BITS.RESTRICTED) tags.push('restrictedInEu');
+  if (bits & COSING_BITS.PRESERVATIVE) tags.push('preservative');
+  if (bits & COSING_BITS.UV_FILTER) tags.push('uvFilter');
+  if (bits & COSING_BITS.COLORANT) tags.push('colorant');
+  for (const fn of functions) {
+    const tag = COSING_FUNCTION_TAG[fn];
+    if (tag) tags.push(tag);
+  }
+  return tags;
+}
+
+/**
+ * Classify an INCI ingredient list. `ingredients` are the raw entries as
+ * returned by Open Beauty Facts (already split) or read from a packaging
+ * photo. Duplicates collapse — an ingredient listed twice is counted
+ * once. Pass the EU CosIng index when available: it lifts Annex II
+ * (prohibited) ingredients to concern, Annex III (restricted) to caution,
+ * and tags rows with official functions — curated rules always win.
+ */
+export function classifyInci(
+  ingredients: string[],
+  cosing?: CosingIndex | null,
+): InciClassification {
   const seen = new Map<string, string>(); // normalized → original spelling
   for (const raw of ingredients) {
     const key = normalizeInci(raw);
@@ -246,15 +321,24 @@ export function classifyInci(ingredients: string[]): InciClassification {
   const classified: InciIngredient[] = [];
 
   for (const [name, original] of seen) {
-    const canonical = canonInci(name);
-    const tier: InciTier = TIER_BY_INCI.get(canonical) ?? 'good';
+    const rawCanonical = canonInci(name);
+    const canonical = INCI_SYNONYMS[rawCanonical] ?? rawCanonical;
+    let tier: InciTier = TIER_BY_INCI.get(canonical) ?? 'good';
     const knowledge = KNOWLEDGE_BY_INCI.get(canonical);
+    // Curated tags first, then CosIng annex/function tags (deduped, capped).
+    const tags = new Set<string>(knowledge?.tags ?? []);
+    const hit = cosing ? lookupCosing(cosing, name) : undefined;
+    if (hit) {
+      if (hit.bits & COSING_BITS.BANNED && tier === 'good') tier = 'concern';
+      else if (hit.bits & COSING_BITS.RESTRICTED && tier === 'good') tier = 'caution';
+      for (const tag of cosingTagsFor(hit.bits, hit.functions)) tags.add(tag);
+    }
     counts[tier] += 1;
     classified.push({
       inci: original,
       tier,
       ...(knowledge?.common ? { common: knowledge.common } : {}),
-      tags: knowledge?.tags ?? [],
+      tags: [...tags].slice(0, MAX_TAGS_PER_ROW),
     });
   }
 

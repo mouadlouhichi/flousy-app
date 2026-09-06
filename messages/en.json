@@ -2422,7 +2422,14 @@
         "alcohol": "Alcohol",
         "oil": "Oil",
         "mineralOil": "Mineral oil",
-        "silicone": "Silicone"
+        "silicone": "Silicone",
+        "bannedInEu": "Banned in EU cosmetics",
+        "restrictedInEu": "Restricted in EU cosmetics",
+        "antimicrobial": "Antimicrobial",
+        "astringent": "Astringent",
+        "colorant": "Colorant",
+        "opacifier": "Opacifier",
+        "filmFormer": "Film former"
       },
       "common": {
         "water": "Water",
@@ -2442,7 +2449,8 @@
         "caprylicTriglyceride": "Coconut-derived triglyceride",
         "cocamidopropylBetaine": "Cocamidopropyl betaine (from coconut oil)"
       },
-      "sourceNotePhoto": "Ingredient list read from your photo (OCR). Check a few entries against the packaging; guidance, not medical advice."
+      "sourceNotePhoto": "Ingredient list read from your photo (OCR). Check a few entries against the packaging; guidance, not medical advice.",
+      "cosingNote": "Regulatory data: EU CosIng (CC BY 4.0, 2016 snapshot) — guidance only, no legal value."
     },
     "inciscan": {
       "button": "Scan the ingredient list",

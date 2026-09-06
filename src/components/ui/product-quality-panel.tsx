@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { loadCosingIndex, type CosingIndex } from '@/lib/cosing';
 import { classifyInci, INCI_SCORE_MAX, type InciTier } from '@/lib/inci-quality';
 import { useLanguage } from '@/lib/i18n-context';
 
@@ -28,8 +29,21 @@ export function ProductQualityPanel({
   const { messages: m, t, intlLocale } = useLanguage();
   const q = m.barcode.quality;
   const [filter, setFilter] = useState<TierFilter>('all');
+  // EU CosIng regulatory index (functions + Annex flags) — loaded lazily;
+  // classification falls back to the curated rules until it arrives (or
+  // if it fails).
+  const [cosing, setCosing] = useState<CosingIndex | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void loadCosingIndex().then((index) => {
+      if (alive) setCosing(index);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const result = classifyInci(ingredients);
+  const result = classifyInci(ingredients, cosing);
   const numberFormat = new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 1 });
 
   const visible =
@@ -125,6 +139,9 @@ export function ProductQualityPanel({
       <p className="mt-2 text-[10px] leading-relaxed text-on-surface-variant">
         {t(source === 'photo' ? q.sourceNotePhoto : q.sourceNote, { max: INCI_SCORE_MAX })}
       </p>
+      {cosing && (
+        <p className="mt-1 text-[10px] leading-relaxed text-on-surface-variant/80">{q.cosingNote}</p>
+      )}
     </div>
   );
 }

@@ -2422,7 +2422,14 @@
         "alcohol": "Alcool",
         "oil": "Huile",
         "mineralOil": "Huile minérale",
-        "silicone": "Silicone"
+        "silicone": "Silicone",
+        "bannedInEu": "Interdit dans les cosmétiques UE",
+        "restrictedInEu": "Restreint dans les cosmétiques UE",
+        "antimicrobial": "Antimicrobien",
+        "astringent": "Astringent",
+        "colorant": "Colorant",
+        "opacifier": "Opacifiant",
+        "filmFormer": "Filmogène"
       },
       "common": {
         "water": "Eau",
@@ -2442,7 +2449,8 @@
         "caprylicTriglyceride": "Triglycéride issu du coco",
         "cocamidopropylBetaine": "Cocamidopropyl Bétaïne (issu de l'huile de coco)"
       },
-      "sourceNotePhoto": "Liste lue depuis votre photo (OCR). Vérifiez quelques entrées sur l'emballage ; indicatif, pas un avis médical."
+      "sourceNotePhoto": "Liste lue depuis votre photo (OCR). Vérifiez quelques entrées sur l'emballage ; indicatif, pas un avis médical.",
+      "cosingNote": "Données réglementaires : EU CosIng (CC BY 4.0, instantané 2016) — indicative, sans valeur légale."
     },
     "inciscan": {
       "button": "Scanner la liste des ingrédients",
