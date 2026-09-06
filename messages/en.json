@@ -705,6 +705,7 @@
     "start": "Start course",
     "paidFrom": "Paid from",
     "scanTitle": "Scan a barcode",
+    "noInciHint": "This product has no ingredient list in the database. Photograph the INCI list printed on the packaging — its quality score is computed on your device.",
     "scanHint": "Point your camera at the product barcode — or type it below.",
     "cameraStart": "Start camera",
     "cameraStop": "Stop camera",

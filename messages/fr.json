@@ -705,6 +705,7 @@
     "start": "Démarrer les courses",
     "paidFrom": "Payé depuis",
     "scanTitle": "Scanner un code-barres",
+    "noInciHint": "Aucune liste d'ingrédients n'est enregistrée pour ce produit. Photographiez la liste INCI imprimée sur l'emballage — la note de qualité est calculée sur votre appareil.",
     "scanHint": "Visez le code-barres du produit — ou saisissez-le ci-dessous.",
     "cameraStart": "Démarrer la caméra",
     "cameraStop": "Arrêter la caméra",
