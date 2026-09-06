@@ -21,7 +21,6 @@ import {
   fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
-import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -332,8 +331,9 @@ export function FixedModal({
               {currency}
             </span>
           </div>
-          <div className="flex items-center text-primary font-bold">
-            <AmountSymbol symbol={symbol} />
+          {/* Currency after the amount, clearly smaller — same treatment as
+              the list view (FormattedAmount) instead of a full-size prefix. */}
+          <div className="flex items-baseline justify-center text-primary font-bold">
             <input
               type="number"
               step="any"
@@ -346,6 +346,7 @@ export function FixedModal({
               placeholder="0.00"
               className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
+            <span className="ml-1.5 text-xl font-extrabold text-on-surface-variant">{symbol}</span>
           </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>

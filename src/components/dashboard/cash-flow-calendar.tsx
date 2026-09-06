@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName } from '@/lib/localized-labels';
@@ -82,16 +83,24 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
       {/* Forecast strip */}
       {forecastUnlocked ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label={c.cashToday} value={format(forecast.startingCash)} />
-          <Stat label={c.endOfPeriod} value={format(forecast.endBalance)} tone={balanceTone(forecast.endBalance)} />
+          <Stat label={c.cashToday} value={<FormattedAmount value={forecast.startingCash} />} />
+          <Stat label={c.endOfPeriod} value={<FormattedAmount value={forecast.endBalance} />} tone={balanceTone(forecast.endBalance)} />
           <Stat
             label={t(c.lowestOn, { date: shortDate(forecast.lowest.date) })}
-            value={format(forecast.lowest.balance)}
+            value={<FormattedAmount value={forecast.lowest.balance} />}
             tone={balanceTone(forecast.lowest.balance)}
           />
           <Stat
             label={forecast.nextBill ? t(c.nextBillIn, { count: forecast.nextBill.daysUntil }) : c.noMoreBills}
-            value={forecast.nextBill ? `${forecast.nextBill.name} · ${format(forecast.nextBill.pending)}` : format(0)}
+            value={
+              forecast.nextBill ? (
+                <>
+                  {forecast.nextBill.name} · <FormattedAmount value={forecast.nextBill.pending} />
+                </>
+              ) : (
+                <FormattedAmount value={0} />
+              )
+            }
             small
           />
         </div>
@@ -151,7 +160,10 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
             {forecastUnlocked && !selectedDay.isPast && (
               <p className="text-end">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{c.projectedBalance}</span>
-                <span className={`font-mono text-sm font-bold ${balanceTone(selectedDay.balance)}`}>{format(selectedDay.balance)}</span>
+                <FormattedAmount
+                  value={selectedDay.balance}
+                  className={`font-mono text-sm font-bold ${balanceTone(selectedDay.balance)}`}
+                />
               </p>
             )}
           </div>
@@ -180,14 +192,13 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
                         </span>
                       </span>
                     </span>
-                    <span
+                    <FormattedAmount
+                      value={event.settled ? event.amount : event.pending}
+                      prefix={event.kind === 'bill' ? '−' : '+'}
                       className={`shrink-0 font-mono text-sm font-bold ${
                         event.settled ? 'text-on-surface-variant line-through' : event.kind === 'bill' ? 'text-error' : 'text-primary'
                       }`}
-                    >
-                      {event.kind === 'bill' ? '−' : '+'}
-                      {format(event.settled ? event.amount : event.pending)}
-                    </span>
+                    />
                   </li>
                 );
               })}
@@ -199,7 +210,7 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
   );
 }
 
-function Stat({ label, value, tone = 'text-on-surface', small = false }: { label: string; value: string; tone?: string; small?: boolean }) {
+function Stat({ label, value, tone = 'text-on-surface', small = false }: { label: string; value: ReactNode; tone?: string; small?: boolean }) {
   return (
     <div className="min-w-0 rounded-2xl bg-surface p-3">
       <p className="truncate text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{label}</p>

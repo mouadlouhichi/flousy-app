@@ -1,4 +1,5 @@
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
 import { CashFlowCalendar } from '../dashboard/cash-flow-calendar';
 import { MonthBudget, FixedExpense, fixedCategoryVisual, fixedPaidAmount } from '../../lib/store';
@@ -52,7 +53,7 @@ export function FixedTab({
             {m.tabs.fixed.totalCommitments}
           </span>
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalFixed)}
+            <FormattedAmount value={totalFixed} />
           </h2>
           <p className="mt-1 text-xs font-bold text-primary">
             {t(m.tabs.fixed.paidSummary, { paid: format(totalPaid), total: format(totalFixed) })}
@@ -178,9 +179,10 @@ export function FixedTab({
               </div>
 
               <span className="text-end">
-                <span className="block font-mono font-extrabold text-headline-sm text-on-surface">
-                  {format(bill.amount)}
-                </span>
+                <FormattedAmount
+                  value={bill.amount}
+                  className="block font-mono font-extrabold text-headline-sm text-on-surface"
+                />
                 {fixedPaidAmount(bill) !== bill.amount && (
                   <span className="block text-[10px] font-bold text-primary">
                     {t(m.tabs.fixed.paidShort, { amount: format(fixedPaidAmount(bill)) })}

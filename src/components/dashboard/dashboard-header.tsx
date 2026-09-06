@@ -84,9 +84,12 @@ export function DashboardHeader() {
 
   // Tonal step above the page (container-low) with a soft drop shadow so the
   // bar stays legible over scrolled content instead of blending into it.
+  // On mobile the bar is a 1fr/auto/1fr grid so the month selector is truly
+  // centered even when the logo (left) and action tools (right) differ in
+  // width — flexbox justify-between only centers when both sides match.
   return (
-    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 flex items-center justify-between gap-2">
-      <div className="flex min-w-0 shrink self-center gap-3">
+    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:flex md:justify-between">
+      <div className="flex min-w-0 shrink self-center justify-self-start gap-3">
         {/* Mobile Logo — the wordmark only fits alongside the month pill and
             the action buttons from ~440px; below that keep just the icon. */}
         <div className="md:hidden flex min-w-0 items-center gap-2">
@@ -172,7 +175,7 @@ export function DashboardHeader() {
       </div>
 
       {/* Header Action Tools */}
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+      <div className="flex shrink-0 items-center justify-self-end gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={syncState === 'failed' ? retrySync : undefined}

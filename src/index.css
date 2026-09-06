@@ -154,6 +154,19 @@
     --font-display: var(--font-arabic), 'Cairo', system-ui, sans-serif;
   }
 
+  /* iOS Safari auto-zooms the page when a field smaller than 16px gains
+     focus. On mobile viewports force 16px on every text-entry control so
+     focusing any input, select or textarea never zooms. `!important` beats
+     the per-field font-size utilities. Checkbox/radio/range never take text
+     input, so they keep their compact size. */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   /* Native date inputs have an intrinsic width in Chromium/WebKit that can
      exceed a narrow bottom sheet. Preserve the platform date picker while
      allowing the value portion to use the field's available width. */
