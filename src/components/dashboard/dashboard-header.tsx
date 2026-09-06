@@ -85,19 +85,20 @@ export function DashboardHeader() {
   // Tonal step above the page (container-low) with a soft drop shadow so the
   // bar stays legible over scrolled content instead of blending into it.
   return (
-    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-4 md:px-8 py-3 flex items-center justify-between">
-      <div className="flex self-center gap-3 ">
-        {/* Mobile Logo */}
-        <div className="md:hidden flex items-center gap-2">
+    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 flex items-center justify-between gap-2">
+      <div className="flex min-w-0 shrink self-center gap-3">
+        {/* Mobile Logo — the wordmark only fits alongside the month pill and
+            the action buttons from ~440px; below that keep just the icon. */}
+        <div className="md:hidden flex min-w-0 items-center gap-2">
           <Image
             src="/logo.png"
             alt={m.common.appName}
             width={26}
             height={28}
-            className="object-contain"
+            className="shrink-0 object-contain"
             priority
           />
-          <span className="font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
+          <span className="hidden min-[440px]:inline truncate font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
             SmartJib
           </span>
         </div>
@@ -110,7 +111,7 @@ export function DashboardHeader() {
 
       {/* Center Month Selector */}
       <div
-        className="flex items-center gap-0.5 sm:gap-1 bg-surface-container px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
+        className="flex shrink-0 items-center gap-0.5 sm:gap-1 bg-surface-container px-1 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
         title={
           budgetStartDay && budgetStartDay > 1
             ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(budgetStartDay, language, intlLocale)})`
@@ -171,7 +172,7 @@ export function DashboardHeader() {
       </div>
 
       {/* Header Action Tools */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={syncState === 'failed' ? retrySync : undefined}
