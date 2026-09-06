@@ -2441,7 +2441,14 @@
         "silicone": "Silicone",
         "caprylicTriglyceride": "Coconut-derived triglyceride",
         "cocamidopropylBetaine": "Cocamidopropyl betaine (from coconut oil)"
-      }
+      },
+      "sourceNotePhoto": "Ingredient list read from your photo (OCR). Check a few entries against the packaging; guidance, not medical advice."
+    },
+    "inciscan": {
+      "button": "Scan the ingredient list",
+      "hint": "Product not in the database? Photograph the INCI list printed on the packaging — it is read on your device.",
+      "reading": "Reading ingredients",
+      "error": "Couldn't read the ingredient list. Brighter light and a steadier hand help — try again."
     }
   },
   "reports": {

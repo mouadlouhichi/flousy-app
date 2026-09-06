@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { InciPhotoScanner } from '@/components/ui/inci-photo-scanner';
 import { ProductQualityPanel } from '@/components/ui/product-quality-panel';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
 import { lookupOffProduct } from '@/lib/product-lookup';
@@ -25,16 +26,20 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
   const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'missing' | 'found'>('idle');
   const [lastCode, setLastCode] = useState('');
   const [lastProduct, setLastProduct] = useState<RemoteProductInfo | null>(null);
-  const qualityIngredients =
+  /** INCI list read from a packaging photo when the barcode misses. */
+  const [photoIngredients, setPhotoIngredients] = useState<string[] | null>(null);
+  const productIngredients =
     lastProduct?.productKind === 'beauty' && lastProduct.ingredients?.length
       ? lastProduct.ingredients
       : null;
+  const qualityIngredients = productIngredients ?? photoIngredients;
 
   const scanner = useBarcodeScanner({
     enabled: true,
     onCode: (code) => {
       setLastCode(code);
       setLookupState('busy');
+      setPhotoIngredients(null);
       lookupOffProduct(code)
         .then((product) => {
           if (product) {
@@ -74,7 +79,14 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
           </button>
         )}
       </div>
-      {qualityIngredients && <ProductQualityPanel ingredients={qualityIngredients} />}
+      {qualityIngredients ? (
+        <ProductQualityPanel
+          ingredients={qualityIngredients}
+          source={productIngredients ? 'openbeauty' : 'photo'}
+        />
+      ) : (
+        <InciPhotoScanner onIngredients={setPhotoIngredients} />
+      )}
       <p className="text-xs text-on-surface-variant">
         {lookupState === 'busy'
           ? m.barcode.lookingUp

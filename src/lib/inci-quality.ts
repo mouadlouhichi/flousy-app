@@ -99,7 +99,7 @@ export const INCI_TIER_RULES: Array<{ tier: 'concern' | 'caution'; inci: string[
 
 const TIER_BY_INCI = new Map<string, 'concern' | 'caution'>();
 for (const rule of INCI_TIER_RULES) {
-  for (const name of rule.inci) TIER_BY_INCI.set(name, rule.tier);
+  for (const name of rule.inci) TIER_BY_INCI.set(canonInci(name), rule.tier);
 }
 
 /**
@@ -210,8 +210,24 @@ export const INCI_KNOWLEDGE: Record<string, InciKnowledge> = {
   'COCO-GLUCOSIDE': { tags: ['surfactant'] },
 };
 
+/** Knowledge indexed by canonical name (see canonInci). */
+const KNOWLEDGE_BY_INCI = new Map<string, InciKnowledge>();
+for (const [name, entry] of Object.entries(INCI_KNOWLEDGE)) {
+  KNOWLEDGE_BY_INCI.set(canonInci(name), entry);
+}
+
 function normalizeInci(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Canonical form for rule/knowledge lookup: OCR often misreads slashes and
+ * hyphens ("AQUA WATER" for AQUA/WATER, "SODIUM-LAURYL-SULFATE" for
+ * SODIUM LAURYL SULFATE), so both sides of the comparison fold `/` and `-`
+ * into spaces. Display keeps the original spelling.
+ */
+function canonInci(normalized: string): string {
+  return normalized.replace(/[/-]/g, ' ').replace(/\s+/g, ' ');
 }
 
 /**
@@ -230,8 +246,9 @@ export function classifyInci(ingredients: string[]): InciClassification {
   const classified: InciIngredient[] = [];
 
   for (const [name, original] of seen) {
-    const tier: InciTier = TIER_BY_INCI.get(name) ?? 'good';
-    const knowledge = INCI_KNOWLEDGE[name];
+    const canonical = canonInci(name);
+    const tier: InciTier = TIER_BY_INCI.get(canonical) ?? 'good';
+    const knowledge = KNOWLEDGE_BY_INCI.get(canonical);
     counts[tier] += 1;
     classified.push({
       inci: original,

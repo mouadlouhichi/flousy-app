@@ -2441,7 +2441,14 @@
         "silicone": "Silicone",
         "caprylicTriglyceride": "Triglycéride issu du coco",
         "cocamidopropylBetaine": "Cocamidopropyl Bétaïne (issu de l'huile de coco)"
-      }
+      },
+      "sourceNotePhoto": "Liste lue depuis votre photo (OCR). Vérifiez quelques entrées sur l'emballage ; indicatif, pas un avis médical."
+    },
+    "inciscan": {
+      "button": "Scanner la liste des ingrédients",
+      "hint": "Produit introuvable ? Photographiez la liste INCI imprimée sur l'emballage — elle est lue sur votre appareil.",
+      "reading": "Lecture des ingrédients",
+      "error": "Impossible de lire la liste. Une lumière plus forte et une main plus stable aident — réessayez."
     }
   },
   "reports": {

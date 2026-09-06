@@ -14,11 +14,17 @@ const TIER_META: Record<InciTier, { icon: 'check' | 'warning'; text: string; dot
 };
 
 /**
- * Yuka-style cosmetic quality result for a scanned product: an overall score
- * dial, per-tier counts, and every INCI ingredient classified green/yellow/
- * orange with its common name and function tags.
+ * Yuka-style cosmetic quality result: an overall score dial, per-tier counts,
+ * and every INCI ingredient classified green/yellow/orange with its common
+ * name and function tags. `source` picks the data attribution line.
  */
-export function ProductQualityPanel({ ingredients }: { ingredients: string[] }) {
+export function ProductQualityPanel({
+  ingredients,
+  source = 'openbeauty',
+}: {
+  ingredients: string[];
+  source?: 'openbeauty' | 'photo';
+}) {
   const { messages: m, t, intlLocale } = useLanguage();
   const q = m.barcode.quality;
   const [filter, setFilter] = useState<TierFilter>('all');
@@ -117,7 +123,7 @@ export function ProductQualityPanel({ ingredients }: { ingredients: string[] }) 
       )}
 
       <p className="mt-2 text-[10px] leading-relaxed text-on-surface-variant">
-        {t(q.sourceNote, { max: INCI_SCORE_MAX })}
+        {t(source === 'photo' ? q.sourceNotePhoto : q.sourceNote, { max: INCI_SCORE_MAX })}
       </p>
     </div>
   );
