@@ -20,6 +20,16 @@ SmartJib’s core budget is free with no time limit. Eligible accounts can start
 ## Links
 
 - Website: https://flousy.app
+- Features: https://flousy.app/features
+- Budget Tracker MAD & Dirham: https://flousy.app/features/multi-currency-mad
+- Bank, Home, Wallet Tracking: https://flousy.app/features/track-bank-home-wallet
+- Expense Tracking: https://flousy.app/features/expense-tracking
+- No Bank Connection Privacy: https://flousy.app/features/no-bank-connection
+- Budgeting Methods: https://flousy.app/budgeting-methods
+- 50/30/20 Rule: https://flousy.app/budgeting-methods/50-30-20-rule
+- Zero-Based Budgeting: https://flousy.app/budgeting-methods/zero-based-budgeting
+- Envelope Budgeting: https://flousy.app/budgeting-methods/envelope-budgeting
+- Pay Yourself First: https://flousy.app/budgeting-methods/pay-yourself-first
 - Privacy Policy: https://flousy.app/privacy
 - Terms of Service: https://flousy.app/terms
 
@@ -28,3 +38,4 @@ SmartJib’s core budget is free with no time limit. Eligible accounts can start
 - Purpose vs. money location: https://flousy.app/blog/what-its-for-vs-where-it-is
 - Choosing a budgeting strategy: https://flousy.app/blog/pick-a-budgeting-style
 - Tracking cash and wallet spending: https://flousy.app/blog/track-cash-wallet-spending
+- All guides: https://flousy.app/blog
