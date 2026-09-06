@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CustomSelect } from '@/components/ui/CustomSelect';
-import type { DebtItem, DebtPayment, MonthBudget, MoneyPlace } from '@/lib/store';
+import type { DebtItem, DebtPayment, DebtType, MonthBudget, MoneyPlace } from '@/lib/store';
 import { debtOutstanding } from '@/lib/store';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -15,10 +15,12 @@ import { useMoneyPlaces } from '@/lib/use-money-places';
 interface DebtsTabProps {
   month: MonthBudget;
   canEdit: boolean;
-  onOpenDebtModal: () => void;
+  onOpenDebtModal: (type: DebtType) => void;
   onEditDebt: (debt: DebtItem) => void;
   onRecordPayment: (debtId: string, payment: DebtPayment) => void;
   onDeletePayment: (debtId: string, paymentId: string) => void;
+  /** Debt payoff plan — rendered only on the "Debts (I owe)" sub-tab. */
+  payoffPlan?: React.ReactNode;
 }
 
 type TabKey = 'debts' | 'credits';
@@ -38,6 +40,7 @@ export function DebtsTab({
   onEditDebt,
   onRecordPayment,
   onDeletePayment,
+  payoffPlan,
 }: DebtsTabProps) {
   const { format, formatParts } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -63,6 +66,9 @@ export function DebtsTab({
   const label = activeTab === 'debts' ? m.tabs.debts.totalYouOwe : m.tabs.debts.totalOwedToYou;
   const emptyTitle = activeTab === 'debts' ? m.tabs.debts.noDebtsTitle : m.tabs.debts.noCreditsTitle;
   const emptyDesc = activeTab === 'debts' ? m.tabs.debts.noDebtsDesc : m.tabs.debts.noCreditsDesc;
+
+  // Adding from a sub-tab preselects that side of the segmented control in the modal.
+  const openAddModal = () => onOpenDebtModal(activeTab === 'credits' ? 'credit' : 'debt');
 
   const openPayment = (debt: DebtItem) => {
     setExpandedId((current) => current === debt.id ? null : debt.id);
@@ -118,11 +124,13 @@ export function DebtsTab({
           </span>
         </div>
         {canEdit && (
-          <button type="button" onClick={onOpenDebtModal} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm sm:w-auto sm:self-start">
+          <button type="button" onClick={openAddModal} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm sm:w-auto sm:self-start">
             <AppIcon name="add" className="text-[18px]" />{m.common.add}
           </button>
         )}
       </div>
+
+      {activeTab === 'debts' && payoffPlan}
 
       {filtered.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -196,7 +204,7 @@ export function DebtsTab({
           <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10"><AppIcon name="account_balance" className="text-[40px] text-primary" /></div>
           <h3 className="text-[22px] font-extrabold text-on-surface">{emptyTitle}</h3>
           <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-on-surface-variant">{emptyDesc}</p>
-          {canEdit && <button type="button" onClick={onOpenDebtModal} className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm"><AppIcon name="add" className="text-[18px]" />{activeTab === 'debts' ? m.modals.debt.addTitle : m.modals.debt.addCredit}</button>}
+          {canEdit && <button type="button" onClick={openAddModal} className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm"><AppIcon name="add" className="text-[18px]" />{activeTab === 'debts' ? m.modals.debt.addTitle : m.modals.debt.addCredit}</button>}
         </div>
       )}
 
