@@ -8,7 +8,7 @@ export default function ExpenseTrackingPage() {
   const s = (m.static as any).features || {};
   return (
     <StaticPageShell eyebrow={s.eyebrow || "Features"} title="Fix the wallet leak — where cash quietly disappears." subtitle="Card spending leaves a trace. Cash doesn't. SmartJib makes wallet spending visible with fast logging and weekly reconciliation.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl lg:text-3xl mb-4">Why cash tracking fails</h2>
           <p className="text-muted-foreground leading-relaxed">

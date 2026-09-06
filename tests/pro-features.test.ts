@@ -64,14 +64,14 @@ describe('Pro feature gating', () => {
   });
 
   it('resolves Firebase profiles before any local demo flag', () => {
-    const storage = memoryStorage({ flousy_pro_plan: 'true', flousy_demo_mode: 'true' });
+    const storage = memoryStorage({ smartjib_pro_plan: 'true', smartjib_demo_mode: 'true' });
     assert.equal(isProUser({ plan: 'free' }, storage), false);
     assert.equal(isProUser({ plan: 'pro' }, storage), true);
   });
 
   it('starts one expiry-aware demo trial only in local demo storage', () => {
     const now = Date.UTC(2026, 8, 2);
-    const storage = memoryStorage({ flousy_demo_mode: 'true' });
+    const storage = memoryStorage({ smartjib_demo_mode: 'true' });
     assert.equal(claimDemoProTrial(storage, now), true);
     assert.equal(claimDemoProTrial(storage, now + 1), false);
     assert.equal(isProUser(null, storage, now + PRO_TRIAL_DURATION_MS - 1), true);
@@ -79,7 +79,7 @@ describe('Pro feature gating', () => {
   });
 
   it('never treats a leftover demo plan flag as authenticated entitlement', () => {
-    const planOnly = memoryStorage({ flousy_pro_plan: 'true' });
+    const planOnly = memoryStorage({ smartjib_pro_plan: 'true' });
     assert.equal(isProUser(null, planOnly), false);
     assert.equal(isProUser(null), false);
   });

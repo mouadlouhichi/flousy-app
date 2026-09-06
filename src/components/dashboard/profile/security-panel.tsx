@@ -24,7 +24,7 @@ import {
 } from '@/lib/app-lock';
 
 function notifyGate() {
-  window.dispatchEvent(new Event('flousy:lock-settings'));
+  window.dispatchEvent(new Event('smartjib:lock-settings'));
 }
 
 export function SecurityPanel() {

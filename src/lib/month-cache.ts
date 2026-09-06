@@ -1,7 +1,7 @@
 import { MonthBudget, normalizeMonth, type MonthConfiguration } from './store';
 
 /** Last budget month the user was viewing (YYYY-MM). */
-export const CURRENT_MONTH_STORAGE_KEY = 'flousy_current_month';
+export const CURRENT_MONTH_STORAGE_KEY = 'smartjib_current_month';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -42,7 +42,7 @@ export function writeStoredMonthKey(key: string, storage?: StorageLike | null): 
 }
 
 /**
- * Last ACTIVE salary period per workspace context (`flousy_active_period_*`).
+ * Last ACTIVE salary period per workspace context (`smartjib_active_period_*`).
  *
  * `readStoredMonthKey` remembers the month the user was *viewing* (so tab
  * navigation does not snap back to today), which is a different fact from the
@@ -51,7 +51,7 @@ export function writeStoredMonthKey(key: string, storage?: StorageLike | null): 
  * can be detected as a rollover — and the dashboard can jump to the fresh
  * period and announce it, instead of silently re-opening last month's budget.
  */
-const ACTIVE_PERIOD_STORAGE_PREFIX = 'flousy_active_period_';
+const ACTIVE_PERIOD_STORAGE_PREFIX = 'smartjib_active_period_';
 
 export function readActivePeriod(contextKey: string, storage?: StorageLike | null): string | null {
   const store = resolveStorage(storage);

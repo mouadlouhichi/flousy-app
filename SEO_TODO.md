@@ -62,7 +62,7 @@ No social profile is linked from the app until an operator confirms it is owned,
 branded and monitored.
 
 - [ ] Decide which networks SmartJib will actually operate.
-- [ ] Reserve and verify official handles; do not assume `flousyapp` or another
+- [ ] Reserve and verify official handles; do not assume `smartjibapp` or another
       handle is available or owned.
 - [ ] Enable MFA, record primary/backup owners and define a response policy.
 - [ ] Add footer links and `Organization.sameAs` only for verified live profiles.

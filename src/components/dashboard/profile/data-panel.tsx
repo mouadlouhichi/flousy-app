@@ -100,7 +100,7 @@ export function DataPanel() {
   const handleExportCsv = () => {
     if (!canExport) return;
     downloadCsv(
-      `flousy-budget-${currentMonthKey}.csv`,
+      `smartjib-budget-${currentMonthKey}.csv`,
       exportMonthToCsv(month, goals, currentMonthKey, currency, exportSections),
     );
     trackEvent('export_csv');

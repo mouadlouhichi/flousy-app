@@ -56,8 +56,8 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
       return { active: false, used: false, endsAtMs: null as number | null };
     }
     try {
-      const started = Number(localStorage.getItem('flousy_pro_trial_started_at'));
-      const ends = Number(localStorage.getItem('flousy_pro_trial_ends_at'));
+      const started = Number(localStorage.getItem('smartjib_pro_trial_started_at'));
+      const ends = Number(localStorage.getItem('smartjib_pro_trial_ends_at'));
       return {
         active: isProUser(null),
         used: Number.isFinite(started) && started > 0,

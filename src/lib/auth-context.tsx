@@ -78,7 +78,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
  * removing one network round-trip from the critical path of the first
  * authenticated load.
  */
-const PROFILE_CACHE_PREFIX = 'flousy_profile_';
+const PROFILE_CACHE_PREFIX = 'smartjib_profile_';
 
 /**
  * A tampered or half-written cache entry must not be able to hand the app an
@@ -120,7 +120,7 @@ function writeCachedProfile(uid: string, profile: UserProfile) {
   }
 }
 
-/** Wipe every device-local `flousy_*` cache key (budget months, goals, pro
+/** Wipe every device-local `smartjib_*` cache key (budget months, goals, pro
  * flags, onboarding state) plus session storage. Used on sign-out and when
  * deleting account data so the UI never re-hydrates from a stale cache. */
 async function clearLocalData() {
@@ -131,7 +131,7 @@ async function clearLocalData() {
       // The analytics-consent answer is a device preference, not user budget
       // data: wiping it on sign-out made the privacy bar re-appear on every
       // subsequent login, which reads as a bug rather than a choice.
-      if (key.startsWith('flousy_') && key !== CONSENT_STORAGE_KEY) {
+      if (key.startsWith('smartjib_') && key !== CONSENT_STORAGE_KEY) {
         localStorage.removeItem(key);
       }
     });

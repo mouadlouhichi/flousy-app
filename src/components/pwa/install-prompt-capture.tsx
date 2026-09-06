@@ -9,14 +9,14 @@ import React from 'react';
  * caught, then replayed to React via a custom event.
  */
 const CAPTURE_SCRIPT = `(function(){
-  window.__flousyInstallPrompt = window.__flousyInstallPrompt || null;
+  window.__smartJibInstallPrompt = window.__smartJibInstallPrompt || null;
   window.addEventListener('beforeinstallprompt', function (event) {
     event.preventDefault();
-    window.__flousyInstallPrompt = event;
-    window.dispatchEvent(new Event('flousy:installprompt'));
+    window.__smartJibInstallPrompt = event;
+    window.dispatchEvent(new Event('smartjib:installprompt'));
   });
   window.addEventListener('appinstalled', function () {
-    window.__flousyInstallPrompt = null;
+    window.__smartJibInstallPrompt = null;
   });
 })();`;
 

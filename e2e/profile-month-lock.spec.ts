@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('close month lives in Profile settings and keeps the confirmation and reopen flow', async ({ page }) => {
   await page.goto('/login');
   await page.evaluate(() => {
-    localStorage.setItem('flousy_demo_mode', 'true');
-    localStorage.setItem('flousy_onboarding_done', 'true');
+    localStorage.setItem('smartjib_demo_mode', 'true');
+    localStorage.setItem('smartjib_onboarding_done', 'true');
   });
   await page.goto('/dashboard');
   await expect(page.getByRole('banner').getByRole('button', { name: 'Previous month' })).toBeVisible();

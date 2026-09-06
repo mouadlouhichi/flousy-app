@@ -11,7 +11,7 @@ export interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-const DISMISS_KEY = 'flousy:install-dismissed-at';
+const DISMISS_KEY = 'smartjib:install-dismissed-at';
 // Re-surface the prompt after two weeks if the user dismissed it.
 const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -87,33 +87,33 @@ export function usePwaInstall(): UsePwaInstall {
     setIsDismissed(wasRecentlyDismissed());
 
     // The event may have fired before this component mounted.
-    const early = window.__flousyInstallPrompt;
+    const early = window.__smartJibInstallPrompt;
     if (early) {
       setDeferredPrompt(early);
     }
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      window.__flousyInstallPrompt = event as BeforeInstallPromptEvent;
+      window.__smartJibInstallPrompt = event as BeforeInstallPromptEvent;
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
 
     const onInstalled = () => {
-      window.__flousyInstallPrompt = null;
+      window.__smartJibInstallPrompt = null;
       setDeferredPrompt(null);
       setIsInstalled(true);
     };
 
     // Custom event so components mounted later still learn about the prompt.
     const onCaptured = () => {
-      if (window.__flousyInstallPrompt) {
-        setDeferredPrompt(window.__flousyInstallPrompt);
+      if (window.__smartJibInstallPrompt) {
+        setDeferredPrompt(window.__smartJibInstallPrompt);
       }
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onInstalled);
-    window.addEventListener('flousy:installprompt', onCaptured);
+    window.addEventListener('smartjib:installprompt', onCaptured);
 
     const displayModeQuery = window.matchMedia('(display-mode: standalone)');
     const onDisplayModeChange = (event: MediaQueryListEvent) => {
@@ -124,7 +124,7 @@ export function usePwaInstall(): UsePwaInstall {
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
-      window.removeEventListener('flousy:installprompt', onCaptured);
+      window.removeEventListener('smartjib:installprompt', onCaptured);
       displayModeQuery.removeEventListener('change', onDisplayModeChange);
     };
   }, []);
@@ -138,7 +138,7 @@ export function usePwaInstall(): UsePwaInstall {
       const { outcome } = await deferredPrompt.userChoice;
 
       // A prompt can only be used once.
-      window.__flousyInstallPrompt = null;
+      window.__smartJibInstallPrompt = null;
       setDeferredPrompt(null);
 
       if (outcome === 'dismissed') {

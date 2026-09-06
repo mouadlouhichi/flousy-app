@@ -8,7 +8,7 @@ name: diag-rules-temp
 
 on:
   push:
-    branches: ['arena/01a06edb-flousy-app']
+    branches: ['arena/01a06edb-smartjib-app']
 
 permissions:
   contents: read

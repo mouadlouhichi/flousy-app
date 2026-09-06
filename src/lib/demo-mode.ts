@@ -3,13 +3,13 @@
  *
  * When Firebase isn't configured (local dev, the Arena preview, or a deploy
  * without env vars), authentication degrades to a localStorage "demo" session
- * keyed by `flousy_demo_mode`. Everything here is defensive: blocked or
+ * keyed by `smartjib_demo_mode`. Everything here is defensive: blocked or
  * partitioned storage must never crash a render or break navigation.
  */
 
-export const DEMO_MODE_KEY = 'flousy_demo_mode';
-const DEMO_EMAIL_KEY = 'flousy_demo_email';
-const ONBOARDING_DONE_KEY = 'flousy_onboarding_done';
+export const DEMO_MODE_KEY = 'smartjib_demo_mode';
+const DEMO_EMAIL_KEY = 'smartjib_demo_email';
+const ONBOARDING_DONE_KEY = 'smartjib_onboarding_done';
 
 function safeGet(key: string): string | null {
   try {
@@ -72,7 +72,7 @@ export function isOnboardingDoneLocally(monthKey?: string, uid?: string): boolea
   if (uid) return safeGet(onboardingKeyFor(uid)) === 'true';
   if (safeGet(ONBOARDING_DONE_KEY) === 'true') return true;
   if (monthKey) {
-    return safeGet(`flousy_month_${monthKey}`) !== null;
+    return safeGet(`smartjib_month_${monthKey}`) !== null;
   }
   return false;
 }
@@ -100,7 +100,7 @@ export function clearDemoResidue(): void {
     const doomed: string[] = [];
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const key = window.localStorage.key(i);
-      if (key && key.startsWith('flousy_month_')) doomed.push(key);
+      if (key && key.startsWith('smartjib_month_')) doomed.push(key);
     }
     doomed.forEach((key) => safeRemove(key));
   } catch {

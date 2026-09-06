@@ -8,7 +8,7 @@ export default function Page() {
   const s = (m.static as any).budgeting_methods || {};
   return (
     <StaticPageShell eyebrow={`${s.eyebrow || "Budgeting Methods"} · 50/30/20`} title="50/30/20 Rule: 50% needs, 30% wants, 20% savings." subtitle="Balanced starting point when essentials fit near half of income. See Moroccan salary examples and how SmartJib calculates it automatically.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl mb-4">What is 50/30/20?</h2>
           <p className="text-muted-foreground leading-relaxed">Needs 50%, wants 30%, savings 20%. Popularized by Senator Elizabeth Warren, it&apos;s a simple baseline: cover essentials with half, enjoy life with 30%, save 20%. In SmartJib, pick it during onboarding — needs/wants/savings caps are calculated automatically.</p>

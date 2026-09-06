@@ -128,7 +128,7 @@ export interface HouseholdPayer {
 }
 
 export function householdStorageKey(householdId: string | undefined, monthKey: string) {
-  return householdId ? `flousy_household_${householdId}_month_${monthKey}` : `flousy_month_${monthKey}`;
+  return householdId ? `smartjib_household_${householdId}_month_${monthKey}` : `smartjib_month_${monthKey}`;
 }
 
 export function actorForMonth<T extends MonthBudget>(month: T, userId?: string): T {

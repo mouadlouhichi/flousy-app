@@ -1,7 +1,7 @@
-# Security Audit — SmartJib (flousy-app)
+# Security Audit — SmartJib (smartjib-app)
 
 **Audit date:** 2026-09-05 · **Auditor role:** Senior mobile application security auditor / RASP specialist
-**Target:** `mouadlouhichi/flousy-app` @ commit `03f4ec2` (branch `arena/01a071ad-flousy-app`)
+**Target:** `mouadlouhichi/smartjib-app` @ commit `03f4ec2` (branch `arena/01a071ad-smartjib-app`)
 **Classification:** Confidential — owner and advisors only
 
 ---
@@ -218,7 +218,7 @@ Four endpoints audited line-by-line: `/api/contact`, `/api/household-invitations
 Detailed compliance checklists are in §6. Code-level findings here:
 
 **🟡 M-2 — Financial data cached unencrypted in `localStorage`**
-- **Where:** month snapshots + savings goals: `src/components/dashboard/dashboard-provider.tsx:430, 621, 1032–1040` (`writeCachedMonth`, `flousy_household_*_savings_goals`); course-session drafts: `src/hooks/use-course-session.ts:36–45`; onboarding flags: `src/app/onboarding/page.tsx:88–396`.
+- **Where:** month snapshots + savings goals: `src/components/dashboard/dashboard-provider.tsx:430, 621, 1032–1040` (`writeCachedMonth`, `smartjib_household_*_savings_goals`); course-session drafts: `src/hooks/use-course-session.ts:36–45`; onboarding flags: `src/app/onboarding/page.tsx:88–396`.
 - **Risk:** on a shared/borrowed device, another user (or any extension with `localStorage` access) can read budgets, debts, goals and receipt-derived notes without unlocking the PWA. **Strong mitigations already present:** everything is wiped on sign-out (`auth-context.tsx:337–339 clearLocalData()`), demo residue is cleared on real sign-in (`auth-context.tsx:185–189`), and Firestore writes are the source of truth.
 - **Remediation (pick one, in order of value/effort):** (a) add an inactivity lock — after N minutes hidden, require re-auth (`auth.currentUser.getIdToken()` round-trip or `WebAuthn`/password re-entry) before rendering the dashboard; (b) move month/goal *draft* caches to `sessionStorage` so they die with the tab; (c) accept, and state the shared-device caveat in `/privacy`. Full WebCrypto-at-rest is possible but disproportionate for a client-side cache whose canonical store is rules-protected Firestore.
 
@@ -226,7 +226,7 @@ Detailed compliance checklists are in §6. Code-level findings here:
 - **Where:** `src/lib/validation.ts:108–115` (10-char floor, 128 cap — no complexity, no breach check); `PRODUCTION_CHECKLIST.md:116` (policy review is an unchecked external item).
 - **Remediation:** configure the Firebase Auth password policy (console; enforced server-side at sign-up — **no code change**), and screen new passwords against the HaveIBeenPwned k-anonymity range API at sign-up (one `fetch` + SHA-1 prefix; ~15 lines) or via a Cloud Function before create.
 
-**Positive:** consent-gated analytics (opt-in, `flousy_analytics_consent`), no cookies at all (Bearer-token API calls ⇒ **CSRF is structurally N/A**), no third-party trackers beyond consented Firebase Analytics, no PII in server logs by design, GDPR export (CSV+JSON) and verified erasure flows, `/privacy`, `/terms`, `/cookies` pages. Processor list (Firebase/GCP, Vercel, Resend, optional Arcjet/Upstash/Sentry/Better Stack) is known — **DPAs + transfer mechanisms are external paperwork tasks**, tracked in `PRODUCTION_CHECKLIST.md` §7.
+**Positive:** consent-gated analytics (opt-in, `smartjib_analytics_consent`), no cookies at all (Bearer-token API calls ⇒ **CSRF is structurally N/A**), no third-party trackers beyond consented Firebase Analytics, no PII in server logs by design, GDPR export (CSV+JSON) and verified erasure flows, `/privacy`, `/terms`, `/cookies` pages. Processor list (Firebase/GCP, Vercel, Resend, optional Arcjet/Upstash/Sentry/Better Stack) is known — **DPAs + transfer mechanisms are external paperwork tasks**, tracked in `PRODUCTION_CHECKLIST.md` §7.
 
 **⚪ I-3 — Invitee emails persist in `householdInvites` after resolution.** Rules correctly gate reads (`invitedBy == auth.uid` / household owner), but pending/declined invite rows hold third-party emails indefinitely. Add a TTL sweep (delete rows `status != 'pending'` older than N days) in the existing migration-script pattern, or document retention in `/privacy`.
 
@@ -411,7 +411,7 @@ UPSTASH_REDIS_REST_TOKEN=…                      # server-only
 ARCJET_KEY=ajkey_…                              # shield + bot detection on public API routes
 SENTRY_DSN=https://…                            # optional: server-side error-sink forwarding
 BETTERSTACK_API_KEY=…                           # optional: same reports → Logtail
-RESEND_FROM_EMAIL=SmartJib <no-reply@flousy.app># verified domain — sandbox sender is 503'd in prod by design
+RESEND_FROM_EMAIL=SmartJib <no-reply@smartjib.app># verified domain — sandbox sender is 503'd in prod by design
 ```
 
 Verify: hit `/api/contact` readiness (expect `code: "ready"`), then send 6 messages in 10 minutes from one IP (expect 429) — check the Upstash console for `rl:contact:*` keys to prove durability.

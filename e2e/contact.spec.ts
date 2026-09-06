@@ -20,7 +20,7 @@ test.describe('contact form', () => {
     // and no fake "Message sent" screen. Next.js keeps an always-empty
     // `role="alert"` route announcer in the DOM, so scope to the alert that
     // actually carries text.
-    await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toContainText('hello@flousy.app');
+    await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toContainText('hello@smartjib.app');
     await expect(page.getByText('Message sent')).toHaveCount(0);
   });
 });

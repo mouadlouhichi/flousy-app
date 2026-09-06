@@ -246,7 +246,7 @@ export async function showLocalNotification(reminder: PlannedReminder): Promise<
   }
 }
 
-const SHOWN_KEY = 'flousy_reminders_shown';
+const SHOWN_KEY = 'smartjib_reminders_shown';
 
 /** Remember which reminder ids were already shown today (device-local). */
 export function filterUnshown(reminders: PlannedReminder[], store: Pick<Storage, 'getItem' | 'setItem'> | null, todayKey: string): PlannedReminder[] {

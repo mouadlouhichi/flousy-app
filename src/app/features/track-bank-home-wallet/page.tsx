@@ -8,7 +8,7 @@ export default function TrackBankHomeWalletPage() {
   const common = (m.static as any).features || {};
   return (
     <StaticPageShell eyebrow={common.eyebrow || "Features"} title="Bank, home, wallet — three balances, one truth." subtitle="A budget tells you what money is for. A balance tells you where it sits. SmartJib keeps both views separate so transfers don't look like spending.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl lg:text-3xl mb-4">The core idea</h2>
           <p className="text-muted-foreground leading-relaxed">

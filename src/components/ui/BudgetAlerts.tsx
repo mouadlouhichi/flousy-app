@@ -98,7 +98,7 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
   });
 
   const budgetAlertKey = `${month.updatedAt || ''}:${alerts.map((alert) => `${alert.title}:${alert.message}`).join('|')}`;
-  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('flousy_seen_budget_alerts');
+  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('smartjib_seen_budget_alerts');
   const hasUnreadBudgetAlerts = alerts.length > 0 && seenBudgetKey !== budgetAlertKey && storedBudgetKey !== budgetAlertKey;
 
   // ── Reminders: derived from data the app already holds ──
@@ -155,7 +155,7 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
   }
 
   const reminderKey = reminders.map((reminder) => reminder.key).join('|');
-  const storedReminderKey = typeof window === 'undefined' ? null : localStorage.getItem('flousy_seen_reminders');
+  const storedReminderKey = typeof window === 'undefined' ? null : localStorage.getItem('smartjib_seen_reminders');
   const [seenReminderKey, setSeenReminderKey] = useState<string | null>(null);
   const hasUnreadReminders =
     reminders.length > 0 && seenReminderKey !== reminderKey && storedReminderKey !== reminderKey;
@@ -165,11 +165,11 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
     if (nextOpen && alerts.length > 0) {
-      localStorage.setItem('flousy_seen_budget_alerts', budgetAlertKey);
+      localStorage.setItem('smartjib_seen_budget_alerts', budgetAlertKey);
       setSeenBudgetKey(budgetAlertKey);
     }
     if (nextOpen && reminders.length > 0) {
-      localStorage.setItem('flousy_seen_reminders', reminderKey);
+      localStorage.setItem('smartjib_seen_reminders', reminderKey);
       setSeenReminderKey(reminderKey);
     }
   };

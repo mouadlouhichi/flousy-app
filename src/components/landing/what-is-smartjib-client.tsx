@@ -2,23 +2,23 @@
 
 import { useLightLanguage } from "@/lib/i18n-light";
 
-export function WhatIsFlousySectionClient() {
+export function WhatIsSmartJibSectionClient() {
   const { messages: m } = useLightLanguage();
 
   return (
     <section
-      aria-labelledby="what-is-flousy"
+      aria-labelledby="what-is-smartjib"
       className="relative border-y border-foreground/10 bg-foreground/[0.02] py-16 lg:py-20"
     >
       <div className="mx-auto grid max-w-[1400px] gap-6 px-6 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.6fr)] lg:gap-16 lg:px-12">
         <h2
-          id="what-is-flousy"
+          id="what-is-smartjib"
           className="font-display text-3xl tracking-tight text-foreground lg:text-4xl"
         >
-          {m.landing.whatIsFlousy.title}
+          {m.landing.whatIsSmartJib.title}
         </h2>
         <p className="max-w-4xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
-          {m.landing.whatIsFlousy.description}
+          {m.landing.whatIsSmartJib.description}
         </p>
       </div>
     </section>

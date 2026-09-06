@@ -8,7 +8,7 @@ export default function NoBankConnectionPage() {
   const s = (m.static as any).features || {};
   return (
     <StaticPageShell eyebrow={s.eyebrow ? `${s.eyebrow} · Privacy` : "Features · Privacy"} title="Your money, your business. No bank connections." subtitle="We never ask for bank login, card numbers, or account numbers. Manual entry, local cache, Firestore Rules isolation.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl lg:text-3xl mb-4">Private by default</h2>
           <p className="text-muted-foreground leading-relaxed">

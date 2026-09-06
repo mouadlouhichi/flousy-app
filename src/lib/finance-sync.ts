@@ -314,7 +314,7 @@ export function mergeGoalsMutation(
   return merged;
 }
 
-const DB_NAME = 'flousy-finance-outbox';
+const DB_NAME = 'smartjib-finance-outbox';
 const STORE_NAME = 'mutations';
 const DB_VERSION = 1;
 const fallback = new Map<string, FinanceMutation>();

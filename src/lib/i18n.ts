@@ -36,10 +36,10 @@ export {
   getLocalizedPercentSign,
 };
 
-export const LANG_COOKIE = 'flousy_language';
-export const LANG_STORAGE_KEY = 'flousy_language';
+export const LANG_COOKIE = 'smartjib_language';
+export const LANG_STORAGE_KEY = 'smartjib_language';
 /** Lets the lightweight public-site provider follow an in-app language change. */
-export const LANGUAGE_CHANGE_EVENT = 'flousy-language-change';
+export const LANGUAGE_CHANGE_EVENT = 'smartjib-language-change';
 
 export function notifyLanguageChange(language: Language): void {
   if (typeof window === 'undefined') return;

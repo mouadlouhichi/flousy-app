@@ -10,7 +10,7 @@ import { useAuthStatus } from '@/lib/auth-status';
 export function Navigation() {
   const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('smartjib_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
 
   const navLinks = [

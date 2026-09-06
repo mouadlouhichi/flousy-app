@@ -1,14 +1,14 @@
 /**
  * Onboarding-flag scoping (the "onboarding never fired for a new user" bug).
  *
- * A demo session writes a GLOBAL `flousy_onboarding_done` flag and caches
- * month documents under `flousy_month_*`. When a real account then signs up on
+ * A demo session writes a GLOBAL `smartjib_onboarding_done` flag and caches
+ * month documents under `smartjib_month_*`. When a real account then signs up on
  * the same browser, those leftovers must NOT satisfy the onboarding check —
  * otherwise login routes the new user straight to /dashboard and the
  * dashboard "self-heal" marks the cloud profile as onboarded forever.
  *
  * Contract under test:
- *  - real accounts (uid provided) trust only `flousy_onboarding_done_<uid>`;
+ *  - real accounts (uid provided) trust only `smartjib_onboarding_done_<uid>`;
  *  - demo sessions (no uid) keep the historical global-flag + month-cache path;
  *  - clearDemoResidue() wipes demo leftovers but keeps uid-scoped flags.
  */
@@ -49,7 +49,7 @@ test('demo session keeps the historical global flag + month-cache fallback', () 
 
   store.clear();
   assert.equal(isOnboardingDoneLocally('2026-09'), false);
-  store.set('flousy_month_2026-09', '{"totalBudget":1000}');
+  store.set('smartjib_month_2026-09', '{"totalBudget":1000}');
   assert.equal(isOnboardingDoneLocally('2026-09'), true, 'cached month acts as demo fallback');
 });
 
@@ -57,8 +57,8 @@ test('a real account never trusts demo leftovers (global flag or cached months)'
   const store = installFakeWindow();
 
   // Simulate demo residue on the browser.
-  store.set('flousy_onboarding_done', 'true');
-  store.set('flousy_month_2026-09', '{"totalBudget":1000}');
+  store.set('smartjib_onboarding_done', 'true');
+  store.set('smartjib_month_2026-09', '{"totalBudget":1000}');
 
   assert.equal(
     isOnboardingDoneLocally('2026-09', 'new-user-uid'),
@@ -78,21 +78,21 @@ test('a real account never trusts demo leftovers (global flag or cached months)'
 test('clearDemoResidue wipes demo state but preserves uid-scoped flags and unrelated keys', () => {
   const store = installFakeWindow();
 
-  enableDemoMode('demo@flousy.app');
+  enableDemoMode('demo@smartjib.app');
   assert.equal(isDemoMode(), true);
-  store.set('flousy_onboarding_done', 'true');
-  store.set('flousy_month_2026-08', '{}');
-  store.set('flousy_month_2026-09', '{}');
-  store.set('flousy_currency', 'MAD');
+  store.set('smartjib_onboarding_done', 'true');
+  store.set('smartjib_month_2026-08', '{}');
+  store.set('smartjib_month_2026-09', '{}');
+  store.set('smartjib_currency', 'MAD');
   markOnboardingDoneLocally('real-uid');
 
   clearDemoResidue();
 
   assert.equal(isDemoMode(), false);
-  assert.equal(store.has('flousy_onboarding_done'), false);
-  assert.equal(store.has('flousy_month_2026-08'), false);
-  assert.equal(store.has('flousy_month_2026-09'), false);
-  assert.equal(store.get('flousy_currency'), 'MAD', 'unrelated preferences survive');
+  assert.equal(store.has('smartjib_onboarding_done'), false);
+  assert.equal(store.has('smartjib_month_2026-08'), false);
+  assert.equal(store.has('smartjib_month_2026-09'), false);
+  assert.equal(store.get('smartjib_currency'), 'MAD', 'unrelated preferences survive');
   assert.equal(isOnboardingDoneLocally(undefined, 'real-uid'), true, 'uid-scoped flag survives');
 });
 

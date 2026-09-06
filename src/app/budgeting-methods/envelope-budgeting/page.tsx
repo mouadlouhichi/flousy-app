@@ -8,7 +8,7 @@ export default function Page() {
   const s = (m.static as any).budgeting_methods || {};
   return (
     <StaticPageShell eyebrow={`${s.eyebrow || "Budgeting Methods"} · Envelope`} title="Envelope budgeting: visible limits, frequent checks." subtitle="55% needs, 35% wants, 10% savings in SmartJib. Suits people who want category caps and frequent spending checks — ideal for cash-heavy Morocco.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl mb-4">Why envelopes work for cash</h2>
           <p className="text-muted-foreground leading-relaxed">Each category is an envelope with a cap. When envelope is empty, stop or move money deliberately. In SmartJib, envelopes are needs/wants/savings categories with rollover controls in Pro.</p>

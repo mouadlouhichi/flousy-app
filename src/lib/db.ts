@@ -918,7 +918,7 @@ export async function fetchMonthsForTrends(
       const remote = uid ? await getMonthBudget(uid, mk, configuration) : null;
       if (remote) return { monthKey: mk, month: remote };
       try {
-        const local = localStorage.getItem(`flousy_month_${mk}`);
+        const local = localStorage.getItem(`smartjib_month_${mk}`);
         if (local) return { monthKey: mk, month: normalizeMonth(JSON.parse(local), mk, configuration) };
       } catch { /* ignore */ }
       return null;

@@ -12,7 +12,7 @@ export default function MultiCurrencyMadPage() {
       title={s.title || "Budget tracker that supports MAD and Moroccan dirham."}
       subtitle={s.subtitle || "12 currencies formatted for your locale. Built for Morocco's cash culture — track bank, home and wallet separately in dirham without bank connections."}
     >
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl lg:text-3xl mb-4">{s.s1Title || "Why MAD support matters in Morocco"}</h2>
           <p className="text-muted-foreground leading-relaxed">

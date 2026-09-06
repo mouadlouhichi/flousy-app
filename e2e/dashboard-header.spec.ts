@@ -13,11 +13,11 @@ for (const { language, intlLocale, name, messages } of locales) {
   test(`custom budget-period label stays aligned in ${name}`, async ({ page, viewport }) => {
     await page.clock.setFixedTime(new Date('2026-08-30T12:00:00Z'));
     await page.addInitScript((locale) => {
-      localStorage.setItem('flousy_demo_mode', 'true');
-      localStorage.setItem('flousy_onboarding_done', 'true');
-      localStorage.setItem('flousy_language', locale);
-      localStorage.setItem('flousy_current_month', '2026-08');
-      localStorage.setItem('flousy_month_2026-08', JSON.stringify({
+      localStorage.setItem('smartjib_demo_mode', 'true');
+      localStorage.setItem('smartjib_onboarding_done', 'true');
+      localStorage.setItem('smartjib_language', locale);
+      localStorage.setItem('smartjib_current_month', '2026-08');
+      localStorage.setItem('smartjib_month_2026-08', JSON.stringify({
         totalBudget: 0,
         periodKey: '2026-08',
         periodStartDay: 25,

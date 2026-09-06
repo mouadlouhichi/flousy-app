@@ -43,17 +43,17 @@ describe('month cache', () => {
 
   it('round-trips a cached month document so navigation can hydrate without a network wait', () => {
     const storage = memoryStorage();
-    const storageKey = 'flousy_month_2026-08';
+    const storageKey = 'smartjib_month_2026-08';
     writeCachedMonth(storageKey, { totalBudget: 12500 } as any, storage);
 
     const cached = readCachedMonth(storageKey, '2026-08', undefined, storage);
     assert.ok(cached);
     assert.equal(cached.totalBudget, 12500);
-    assert.equal(readCachedMonth('flousy_month_missing', '2026-08', undefined, storage), null);
+    assert.equal(readCachedMonth('smartjib_month_missing', '2026-08', undefined, storage), null);
   });
 
   it('returns null for corrupt cached JSON', () => {
-    const storage = memoryStorage({ 'flousy_month_2026-08': '{not-json' });
-    assert.equal(readCachedMonth('flousy_month_2026-08', '2026-08', undefined, storage), null);
+    const storage = memoryStorage({ 'smartjib_month_2026-08': '{not-json' });
+    assert.equal(readCachedMonth('smartjib_month_2026-08', '2026-08', undefined, storage), null);
   });
 });

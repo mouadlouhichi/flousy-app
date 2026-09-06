@@ -258,8 +258,8 @@ describe('Household RBAC export filtering', () => {
 
 describe('Household storage and audit helpers', () => {
   it('namespaces personal and household month caches', () => {
-    assert.equal(householdStorageKey(undefined, '2026-07'), 'flousy_month_2026-07');
-    assert.equal(householdStorageKey('house-123', '2026-07'), 'flousy_household_house-123_month_2026-07');
+    assert.equal(householdStorageKey(undefined, '2026-07'), 'smartjib_month_2026-07');
+    assert.equal(householdStorageKey('house-123', '2026-07'), 'smartjib_household_house-123_month_2026-07');
   });
 
   it('attaches audit metadata without mutating month fields', () => {

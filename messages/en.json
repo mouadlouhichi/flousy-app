@@ -979,7 +979,7 @@
         }
       ]
     },
-    "whatIsFlousy": {
+    "whatIsSmartJib": {
       "title": "What is SmartJib? The Free Budgeting App",
       "description": "SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in."
     },
@@ -1404,7 +1404,7 @@
       "eyebrow": "Contact",
       "title": "Let's talk.",
       "subtitle": "Questions about your account, SmartJib Pro, bugs or feedback? Send a message to the configured support inbox.",
-      "emailNote": "Prefer email? Reach us at hello@flousy.app",
+      "emailNote": "Prefer email? Reach us at hello@smartjib.app",
       "yourName": "Your name",
       "emailAddress": "Email address",
       "topic": "What's this about?",
@@ -1415,7 +1415,7 @@
       "sentTitle": "Message accepted for delivery",
       "sentDescription": "The email provider accepted your message. This does not guarantee mailbox delivery or a response; keep the request ID if you need to retry or follow up.",
       "sending": "Sending…",
-      "sendError": "Your message was not sent. Please try again or email hello@flousy.app.",
+      "sendError": "Your message was not sent. Please try again or email hello@smartjib.app.",
       "requestId": "Request ID",
       "sendFailed": "Your message could not be sent. Please try again, or email us directly at {email}.",
       "rateLimited": "Too many messages were sent from your connection. Please wait a few minutes and try again.",
