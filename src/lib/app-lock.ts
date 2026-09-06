@@ -10,12 +10,12 @@
  */
 
 export const APP_LOCK_KEYS = {
-  enabled: 'flousy_lock_enabled',
-  hash: 'flousy_lock_hash',
-  salt: 'flousy_lock_salt',
-  timeout: 'flousy_lock_timeout_s',
-  lastActive: 'flousy_lock_last_active',
-  biometric: 'flousy_lock_biometric_id',
+  enabled: 'smartjib_lock_enabled',
+  hash: 'smartjib_lock_hash',
+  salt: 'smartjib_lock_salt',
+  timeout: 'smartjib_lock_timeout_s',
+  lastActive: 'smartjib_lock_last_active',
+  biometric: 'smartjib_lock_biometric_id',
 } as const;
 
 export const LOCK_TIMEOUT_OPTIONS = [0, 60, 300, 900] as const;

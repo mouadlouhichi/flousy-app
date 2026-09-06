@@ -76,9 +76,9 @@ rebuilt with the production public Firebase configuration.
 | Normal TypeScript | Pass | 2026-09-02 local candidate |
 | Strict TypeScript | Pass | 2026-09-02 local candidate |
 | Unit/regression suites | Pass — 314 tests, 74 suites (incl. custom-role matrix coverage); also green in CI | 2026-09-02, commit `186d464` |
-| Firestore emulator Rules suite | Pass — 16/16 in CI (run 33672579376, commit `186d464`); first run surfaced and fixed a 1000-expression-cap denial in custom month updates | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
+| Firestore emulator Rules suite | Pass — 16/16 in CI (run 33672579376, commit `186d464`); first run surfaced and fixed a 1000-expression-cap denial in custom month updates | 2026-09-02 https://github.com/mouadlouhichi/smartjib-app/actions/runs/33672579376 |
 | Production build | Pass — 37 static pages generated | 2026-09-02 local candidate, commit `21e9426` |
-| PR checks | Workflow active on branch pushes (check + e2e green); enable branch protection on `main` to make them required | 2026-09-02 https://github.com/mouadlouhichi/flousy-app/actions/runs/33672579376 |
+| PR checks | Workflow active on branch pushes (check + e2e green); enable branch protection on `main` to make them required | 2026-09-02 https://github.com/mouadlouhichi/smartjib-app/actions/runs/33672579376 |
 
 If any gate cannot run, mark the release **blocked**—do not silently reinterpret
 “not run” as “passed.”

@@ -85,7 +85,7 @@ function OnboardingFlow() {
     if (isHouseholdScope) {
       if (householdLoading || !householdId || !household) return;
       const localDone = typeof window !== 'undefined'
-        && localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
+        && localStorage.getItem(`smartjib_household_${householdId}_onboarding_done`) === 'true';
       if (!isOwner || household.onboardingComplete !== false || localDone) {
         router.replace('/dashboard');
       }
@@ -277,7 +277,7 @@ function OnboardingFlow() {
       const localDone = Boolean(
         householdId
         && typeof window !== 'undefined'
-        && localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true'
+        && localStorage.getItem(`smartjib_household_${householdId}_onboarding_done`) === 'true'
       );
       return !householdId || (Boolean(household) && !isOwner)
         || household?.onboardingComplete !== false
@@ -302,13 +302,13 @@ function OnboardingFlow() {
     const monthKey = getCurrentMonthKey(monthStartDate, today);
     try {
       if (householdId) {
-        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        localStorage.setItem(`smartjib_household_${householdId}_onboarding_done`, 'true');
         for (let i = 0; i < localStorage.length; i += 1) {
           const storageKey = localStorage.key(i);
-          if (!storageKey?.startsWith('flousy_month_')) continue;
-          const mk = storageKey.slice('flousy_month_'.length);
+          if (!storageKey?.startsWith('smartjib_month_')) continue;
+          const mk = storageKey.slice('smartjib_month_'.length);
           const raw = localStorage.getItem(storageKey);
-          const targetKey = `flousy_household_${householdId}_month_${mk}`;
+          const targetKey = `smartjib_household_${householdId}_month_${mk}`;
           if (raw && localStorage.getItem(targetKey) === null) {
             localStorage.setItem(targetKey, raw);
           }
@@ -322,7 +322,7 @@ function OnboardingFlow() {
           (async () => {
             await importPersonalBudgetIntoHousehold(user.uid, householdId);
             try {
-              const local = localStorage.getItem(`flousy_month_${monthKey}`);
+              const local = localStorage.getItem(`smartjib_month_${monthKey}`);
               if (local) {
                 await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
               }
@@ -385,15 +385,15 @@ function OnboardingFlow() {
 
     try {
       if (isHouseholdScope && householdId) {
-        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        localStorage.setItem(`smartjib_household_${householdId}_onboarding_done`, 'true');
       } else {
-        const monthStorageKey = `flousy_month_${monthKey}`;
+        const monthStorageKey = `smartjib_month_${monthKey}`;
         if (localStorage.getItem(monthStorageKey) === null) {
           localStorage.setItem(monthStorageKey, JSON.stringify(newMonth));
         }
         markOnboardingDoneLocally(user?.uid);
       }
-      localStorage.setItem('flousy_currency', currency);
+      localStorage.setItem('smartjib_currency', currency);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }

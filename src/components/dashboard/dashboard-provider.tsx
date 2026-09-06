@@ -380,7 +380,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       if (!household) return;
       const householdOnboardedLocally =
         typeof window !== 'undefined' &&
-        localStorage.getItem(`flousy_household_${householdId}_onboarding_done`) === 'true';
+        localStorage.getItem(`smartjib_household_${householdId}_onboarding_done`) === 'true';
       // Only the OWNER is bounced into new-household onboarding: it imports the
       // owner's personal budget, and a member can't write the household doc, so
       // for them the cloud `onboardingComplete` never flips and they would be
@@ -578,7 +578,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         return prev || undefined;
       } else {
         try {
-          const local = localStorage.getItem(`flousy_month_${prevKey}`);
+          const local = localStorage.getItem(`smartjib_month_${prevKey}`);
           if (local) {
             return normalizeMonth(JSON.parse(local), prevKey, budgetProfile);
           }
@@ -687,7 +687,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
           }
 
           // If no month document exists in Firestore, check local storage or initialize clean default
-          const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
+          const local = cached ?? readCachedMonth(`smartjib_month_${currentMonthKey}`, currentMonthKey, activeProfile);
           if (local) {
             setMonth(local);
             persist(local);
@@ -710,7 +710,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } else {
       getPreviousMonth(currentMonthKey).then((previousMonth) => {
         if (!loadStillActive()) return;
-        const local = cached ?? readCachedMonth(`flousy_month_${currentMonthKey}`, currentMonthKey, activeProfile);
+        const local = cached ?? readCachedMonth(`smartjib_month_${currentMonthKey}`, currentMonthKey, activeProfile);
         const next = local ?? carryOverDebts(normalizeMonth(
           previousMonth
             ? buildRolloverSeed(previousMonth, currentMonthKey, { carryRemainingBalance: carryRemaining })
@@ -1015,7 +1015,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     navigator.serviceWorker.ready
       .then((registration) => {
         const sync = (registration as ServiceWorkerRegistration & { sync?: { register: (tag: string) => Promise<void> } }).sync;
-        return sync?.register('flousy-flush-outbox');
+        return sync?.register('smartjib-flush-outbox');
       })
       .catch(() => { /* unsupported engine or permission denied */ });
   }, [pendingMutations]);
@@ -1060,7 +1060,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setGoals(newGoals);
       try {
         localStorage.setItem(
-          householdId ? `flousy_household_${householdId}_savings_goals` : 'flousy_savings_goals',
+          householdId ? `smartjib_household_${householdId}_savings_goals` : 'smartjib_savings_goals',
           JSON.stringify(newGoals),
         );
       } catch {
@@ -1202,7 +1202,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         try {
-          const local = localStorage.getItem(`flousy_month_${prevKey}`);
+          const local = localStorage.getItem(`smartjib_month_${prevKey}`);
           if (local) {
             const prev = normalizeMonth(JSON.parse(local), prevKey, budgetProfile);
             const withCarry = carryOverFixedExpenses(month, prev);

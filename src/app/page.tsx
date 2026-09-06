@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Navigation } from '@/components/landing/navigation';
 import { HeroSection } from '@/components/landing/hero-section';
-import { WhatIsFlousySection } from '@/components/landing/what-is-flousy-section';
+import { WhatIsSmartJibSection } from '@/components/landing/what-is-smartjib-section';
 import { FeaturesSection } from '@/components/landing/features-section';
 import { HowItWorksSection } from '@/components/landing/how-it-works-section';
 import { InfrastructureSection } from '@/components/landing/infrastructure-section';
@@ -15,7 +15,7 @@ import { CtaSection } from '@/components/landing/cta-section';
 import { FooterSection } from '@/components/landing/footer-section';
 import { JsonLd } from '@/components/seo/json-ld';
 import {
-  FLOUSY_FACTUAL_DESCRIPTION,
+  SMARTJIB_FACTUAL_DESCRIPTION,
   LANDING_FAQS,
   OG_IMAGE,
   SITE_NAME,
@@ -84,7 +84,7 @@ const softwareApplicationSchema = {
     },
   ],
   isAccessibleForFree: true,
-  description: FLOUSY_FACTUAL_DESCRIPTION,
+  description: SMARTJIB_FACTUAL_DESCRIPTION,
   url: SITE_URL,
   image: `${SITE_URL}${OG_IMAGE.url}`,
 };
@@ -93,14 +93,13 @@ const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: SITE_NAME,
-  alternateName: 'Flousy',
   url: SITE_URL,
   logo: `${SITE_URL}/web-app-manifest-512x512.png`,
-  email: 'hello@flousy.app',
+  email: 'hello@smartjib.app',
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    email: 'hello@flousy.app',
+    email: 'hello@smartjib.app',
     availableLanguage: ['English', 'French', 'Arabic'],
   },
 };
@@ -109,7 +108,6 @@ const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: SITE_NAME,
-  alternateName: 'Flousy',
   url: SITE_URL,
   inLanguage: ['en', 'fr', 'ar'],
 };
@@ -138,7 +136,7 @@ export default function Home() {
       <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
         <Navigation />
         <HeroSection />
-        <WhatIsFlousySection />
+        <WhatIsSmartJibSection />
         <FeaturesSection />
         <HowItWorksSection />
         <InfrastructureSection />

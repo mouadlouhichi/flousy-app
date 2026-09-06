@@ -28,8 +28,8 @@ import { lookupOffProduct } from '@/lib/product-lookup';
 import { lookupMaSeed } from '@/lib/ma-product-seed';
 import type { CourseSession, MoneyPlace, Product } from '@/lib/store';
 
-const CATALOG_KEY = 'flousy_course_catalog';
-const SESSIONS_KEY = 'flousy_course_sessions';
+const CATALOG_KEY = 'smartjib_course_catalog';
+const SESSIONS_KEY = 'smartjib_course_sessions';
 
 function readLocalJson<T>(key: string, fallback: T): T {
   try {

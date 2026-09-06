@@ -20,7 +20,7 @@ import type { Analytics } from 'firebase/analytics';
  * before the module is even imported, and a missing value means "not asked
  * yet", not "yes".
  */
-export const CONSENT_STORAGE_KEY = 'flousy_analytics_consent';
+export const CONSENT_STORAGE_KEY = 'smartjib_analytics_consent';
 
 function analyticsConsented(): boolean {
   try {

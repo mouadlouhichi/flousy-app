@@ -1,7 +1,7 @@
-const CACHE_NAME = 'flousy-v7';
+const CACHE_NAME = 'smartjib-v7';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
-const HTML_CACHE_NAME = 'flousy-html-v7';
+const HTML_CACHE_NAME = 'smartjib-html-v7';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -218,7 +218,7 @@ self.addEventListener('notificationclick', (event) => {
 // open clients so the IndexedDB mutation outbox flushes even if the tab was
 // throttled (Chromium/Android only; other engines ignore the event).
 self.addEventListener('sync', (event) => {
-  if (event.tag === 'flousy-flush-outbox') {
+  if (event.tag === 'smartjib-flush-outbox') {
     event.waitUntil(
       self.clients.matchAll({ type: 'window' }).then((clients) => {
         clients.forEach((client) => client.postMessage({ type: 'FLUSH_OUTBOX' }));

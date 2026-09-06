@@ -50,7 +50,7 @@ export function sentryEnvelopeFromReport(report: ClientErrorReport, eventId: str
     timestamp: report.at,
     platform: 'javascript',
     level: 'error',
-    logger: 'flousy.client-errors',
+    logger: 'smartjib.client-errors',
     message: { formatted: report.message },
     tags: { kind: report.kind, path: report.path },
     extra: { stack: report.stack, userAgent: report.userAgent },

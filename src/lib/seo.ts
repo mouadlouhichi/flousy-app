@@ -2,7 +2,7 @@
  * The canonical origin of this deployment.
  *
  * It used to be hard-coded to the production host, which meant every preview and
- * staging build told crawlers that `https://flousy.app/…` was the canonical
+ * staging build told crawlers that `https://smartjib.app/…` was the canonical
  * version of its own pages — handing the real site the ranking credit, and
  * pointing `rel="canonical"`, robots and the sitemap at a deployment the
  * visitor is not on. It now follows `NEXT_PUBLIC_SITE_URL` (set per environment
@@ -11,7 +11,7 @@
  * instead of being emitted into `rel="canonical"` verbatim.
  */
 function resolveSiteUrl(): string {
-  const fallback = 'https://flousy.app';
+  const fallback = 'https://smartjib.app';
   const configured = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   if (!configured) return fallback;
   try {
@@ -57,7 +57,7 @@ export const BUDGETING_STRATEGIES = [
   'pay-yourself-first',
 ] as const;
 
-export const FLOUSY_FACTUAL_DESCRIPTION =
+export const SMARTJIB_FACTUAL_DESCRIPTION =
   'SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.';
 
 export interface LandingFaq {

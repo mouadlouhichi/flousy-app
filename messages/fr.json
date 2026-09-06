@@ -979,7 +979,7 @@
         }
       ]
     },
-    "whatIsFlousy": {
+    "whatIsSmartJib": {
       "title": "Qu'est-ce que SmartJib ?",
       "description": "SmartJib est un outil privé de suivi de budget qui sépare ce à quoi sert votre argent — besoins, envies et épargne — de l’endroit où il est conservé — banque, maison ou portefeuille. Il prend en charge 12 devises et 4 stratégies de budget : 50/30/20, budget base zéro, budget par enveloppes et payez-vous d’abord. SmartJib ne se connecte pas à votre banque ; vous saisissez les transactions manuellement. Les données du compte sont mises en cache localement et synchronisées avec Firebase lorsque vous vous connectez."
     },
@@ -1404,7 +1404,7 @@
       "eyebrow": "Contact",
       "title": "Parlons-en.",
       "subtitle": "Une question sur votre compte, SmartJib Pro, un bug ou un retour ? Envoyez un message à la boîte de support configurée.",
-      "emailNote": "Préférez l'e-mail ? Écrivez-nous à hello@flousy.app",
+      "emailNote": "Préférez l'e-mail ? Écrivez-nous à hello@smartjib.app",
       "yourName": "Votre nom",
       "emailAddress": "Adresse e-mail",
       "topic": "Sujet",
@@ -1415,7 +1415,7 @@
       "sentTitle": "Message accepté pour envoi",
       "sentDescription": "Le fournisseur de messagerie a accepté votre message. Cela ne garantit ni sa remise en boîte de réception ni une réponse ; conservez l’identifiant de demande pour réessayer ou assurer le suivi.",
       "sending": "Envoi…",
-      "sendError": "Votre message n’a pas été envoyé. Réessayez ou écrivez à hello@flousy.app.",
+      "sendError": "Votre message n’a pas été envoyé. Réessayez ou écrivez à hello@smartjib.app.",
       "requestId": "Identifiant de demande",
       "sendFailed": "Votre message n'a pas pu être envoyé. Réessayez, ou écrivez-nous directement à {email}.",
       "rateLimited": "Trop de messages ont été envoyés depuis votre connexion. Patientez quelques minutes puis réessayez.",

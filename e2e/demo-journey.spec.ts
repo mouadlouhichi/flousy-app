@@ -16,8 +16,8 @@ test.describe('demo mode journey', () => {
     // Seed the flags demo mode writes once onboarding completed.
     await page.goto('/login');
     await page.evaluate(() => {
-      localStorage.setItem('flousy_demo_mode', 'true');
-      localStorage.setItem('flousy_onboarding_done', 'true');
+      localStorage.setItem('smartjib_demo_mode', 'true');
+      localStorage.setItem('smartjib_onboarding_done', 'true');
     });
     await page.goto('/login');
     await page.getByRole('button', { name: 'Continue to dashboard' }).click();

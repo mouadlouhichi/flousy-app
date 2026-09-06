@@ -43,7 +43,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
       else refresh();
     };
     const onStorage = (event: StorageEvent) => {
-      if (event.key && event.key.startsWith('flousy_lock_')) refresh();
+      if (event.key && event.key.startsWith('smartjib_lock_')) refresh();
     };
     const onActivity = () => {
       if (!locked) touchAppLock();
@@ -52,13 +52,13 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
     window.addEventListener('storage', onStorage);
     window.addEventListener('pointerdown', onActivity, { passive: true });
     window.addEventListener('keydown', onActivity);
-    window.addEventListener('flousy:lock-settings', refresh);
+    window.addEventListener('smartjib:lock-settings', refresh);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('pointerdown', onActivity);
       window.removeEventListener('keydown', onActivity);
-      window.removeEventListener('flousy:lock-settings', refresh);
+      window.removeEventListener('smartjib:lock-settings', refresh);
     };
   }, [locked, refresh]);
 

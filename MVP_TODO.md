@@ -164,7 +164,7 @@
 | 89 | Live Firestore subscription for month budget | ✅ | `subscribeMonthBudget()` with `onSnapshot` |
 | 90 | Live Firestore subscription for savings goals | ✅ | `subscribeSavingsGoals()` |
 | 91 | Durable optimistic writes and conflict handling | ✅ | IndexedDB outbox, transactional three-way merge, revisions, immutable ledger and truthful retry/discard UI |
-| 92 | localStorage fallback for offline/demo | ✅ | `flousy_month_${monthKey}` local caching |
+| 92 | localStorage fallback for offline/demo | ✅ | `smartjib_month_${monthKey}` local caching |
 | 93 | Normalize legacy documents on read | ✅ | `normalizeMonth()` backfills missing fields |
 | 94 | `cleanUndefined()` utility for Firestore | ✅ | Prevents `undefined` field errors |
 | 95 | Detailed Firestore error handling | ✅ | `FirestoreErrorInfo` interface + console logging |

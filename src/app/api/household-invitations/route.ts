@@ -169,7 +169,7 @@ function resolveAppBaseUrl(): string {
       /* try the next candidate */
     }
   }
-  return 'https://flousy.app';
+  return 'https://smartjib.app';
 }
 
 function vercelUrl(name: string): string | undefined {

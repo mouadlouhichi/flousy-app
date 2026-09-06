@@ -128,7 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var l=localStorage.getItem('flousy_language');if(l!=='en'&&l!=='fr'&&l!=='ar')return;var d=document.documentElement;d.lang=l;d.dir=l==='ar'?'rtl':'ltr';}catch(e){}})();`,
+            __html: `(function(){try{var l=localStorage.getItem('smartjib_language');if(l!=='en'&&l!=='fr'&&l!=='ar')return;var d=document.documentElement;d.lang=l;d.dir=l==='ar'?'rtl':'ltr';}catch(e){}})();`,
           }}
         />
         <InstallPromptCapture />

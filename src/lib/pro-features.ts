@@ -198,9 +198,9 @@ export function isProUser(
 
   let demo = false;
   try {
-    demo = storage?.getItem('flousy_demo_mode') === 'true';
-    if (!demo || storage?.getItem('flousy_pro_plan') !== 'true') return false;
-    const endsAt = Number(storage?.getItem('flousy_pro_trial_ends_at'));
+    demo = storage?.getItem('smartjib_demo_mode') === 'true';
+    if (!demo || storage?.getItem('smartjib_pro_plan') !== 'true') return false;
+    const endsAt = Number(storage?.getItem('smartjib_pro_trial_ends_at'));
     // Preserve old demo sessions that predate expiry-aware trial storage.
     return !Number.isFinite(endsAt) || endsAt <= 0 || endsAt > nowMs;
   } catch {
@@ -213,10 +213,10 @@ export function claimDemoProTrial(
   storage: Pick<Storage, 'getItem' | 'setItem'>,
   nowMs = Date.now(),
 ): boolean {
-  if (storage.getItem('flousy_pro_trial_started_at')) return false;
-  storage.setItem('flousy_pro_plan', 'true');
-  storage.setItem('flousy_pro_entitlement_source', 'launch_trial');
-  storage.setItem('flousy_pro_trial_started_at', String(nowMs));
-  storage.setItem('flousy_pro_trial_ends_at', String(nowMs + PRO_TRIAL_DURATION_MS));
+  if (storage.getItem('smartjib_pro_trial_started_at')) return false;
+  storage.setItem('smartjib_pro_plan', 'true');
+  storage.setItem('smartjib_pro_entitlement_source', 'launch_trial');
+  storage.setItem('smartjib_pro_trial_started_at', String(nowMs));
+  storage.setItem('smartjib_pro_trial_ends_at', String(nowMs + PRO_TRIAL_DURATION_MS));
   return true;
 }

@@ -8,7 +8,7 @@ export default function Page() {
   const s = (m.static as any).budgeting_methods || {};
   return (
     <StaticPageShell eyebrow={`${s.eyebrow || "Budgeting Methods"} · Pay Yourself First`} title="Pay yourself first: 30% savings before wants." subtitle="45% needs, 25% wants, 30% savings in SmartJib. Put larger savings allocation in place before optional spending.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl mb-4">Core habit</h2>
           <p className="text-muted-foreground leading-relaxed">Save first, spend second. Works best when higher savings share still leaves enough for essentials. If 30% savings leaves needs underfunded, switch to <Link href="/budgeting-methods/50-30-20-rule" className="text-foreground underline">50/30/20</Link> or <Link href="/budgeting-methods/envelope-budgeting" className="text-foreground underline">envelope</Link>.</p>

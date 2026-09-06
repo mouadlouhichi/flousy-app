@@ -8,7 +8,7 @@ export default function Page() {
   const s = (m.static as any).budgeting_methods || {};
   return (
     <StaticPageShell eyebrow={`${s.eyebrow || "Budgeting Methods"} · Zero-Based`} title="Zero-based budgeting: give every MAD a job." subtitle="60% needs, 25% wants, 15% savings in SmartJib. Its core habit is assigning all income an explicit job rather than leaving money unplanned.">
-      <div className="prose-flousy space-y-10">
+      <div className="prose-smartjib space-y-10">
         <div>
           <h2 className="font-display text-2xl mb-4">Core habit</h2>
           <p className="text-muted-foreground leading-relaxed">Income minus allocations equals zero. Every dirham has a category. Prevents unassigned money from disappearing into small cash spends — see <Link href="/blog/track-cash-wallet-spending" className="text-foreground underline">wallet leak guide</Link>.</p>

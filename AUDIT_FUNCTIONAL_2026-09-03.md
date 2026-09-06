@@ -1,4 +1,4 @@
-# SmartJib (flousy-app) — Deep Functional Audit
+# SmartJib (smartjib-app) — Deep Functional Audit
 
 > **Scope:** product/functional review of the 2026-09-03 tree
 > (`main` @ `31dcf72`), read against the history in
@@ -9,7 +9,7 @@
 > audit looks at **what the product does for a user, where it still falls
 > short, and what to build next**.
 
-**Date:** 2026-09-03 · **Branch:** `arena/01a06539-flousy-app`
+**Date:** 2026-09-03 · **Branch:** `arena/01a06539-smartjib-app`
 
 ---
 
@@ -317,7 +317,7 @@ Ordered by value-to-effort, grouped into what I would ship next.
   distinctive idea; almost nothing in the market models places. Lean into it:
   per-place envelopes view, per-place trend history. It is currently
   under-exploited as a differentiator.
-- **Brand reconciliation** (SmartJib vs Flousy, repo vs domain) is still the
+- **Brand reconciliation** (SmartJib vs Smartjib, repo vs domain) is still the
   open SEO-8 item — decide before marketing spend.
 - The **90-day no-card trial** is a good launch posture, but the moment real
   billing lands, the CMI/Stripe seam must ship — the entitlement projection
@@ -344,7 +344,7 @@ gates in §1 were executed, not assumed.*
 
 ---
 
-## 7. Remediation log — 2026-09-03 (same day, branch `arena/01a06539-flousy-app`)
+## 7. Remediation log — 2026-09-03 (same day, branch `arena/01a06539-smartjib-app`)
 
 All findings from §4–§5 Tier 1 were implemented and re-verified:
 

@@ -1,6 +1,6 @@
 # Backend architecture: keep Firestore, or move to Prisma + Supabase?
 
-Written 2026-09-03 against `arena/01a06714-flousy-app` (`f1871ed`). Numbers are measured from this tree, not recalled: every count below came from `grep`/`wc` over the checkout, so re-run them if the tree moves.
+Written 2026-09-03 against `arena/01a06714-smartjib-app` (`f1871ed`). Numbers are measured from this tree, not recalled: every count below came from `grep`/`wc` over the checkout, so re-run them if the tree moves.
 
 ## Verdict
 
@@ -25,7 +25,7 @@ If you want one sentence to act on: fix the rules by *removing* logic from them,
 | Server-side code | **4** Next route handlers (barcode lookup, contact, household invitations, client-errors), `src/lib/server/{arcjet,rate-limit,telemetry}.ts` | There is already a trusted server tier — it just does not enforce anything about money. |
 | Cloud Functions | none (`functions/` does not exist, no `firebase-functions` dep) | Nothing is pinned to Firebase's compute product. |
 | Storage | no `getStorage`/`uploadBytes` anywhere; no `storage.rules` | Receipts are base64 strings inside documents (rules allow ≤120 000 chars). |
-| Offline | **no `initializeFirestore(..., persistentLocalCache)`** — `firebase.ts` calls plain `getFirestore(app)` | Firestore's headline offline cache is *not in use*. The app hand-rolls its own: `finance-sync.ts` (381 lines: IndexedDB outbox `flousy-finance-outbox`, per-month conflict queueing, three-way merge, `FinanceConflictError`) plus `month-cache.ts` (localStorage). |
+| Offline | **no `initializeFirestore(..., persistentLocalCache)`** — `firebase.ts` calls plain `getFirestore(app)` | Firestore's headline offline cache is *not in use*. The app hand-rolls its own: `finance-sync.ts` (381 lines: IndexedDB outbox `smartjib-finance-outbox`, per-month conflict queueing, three-way merge, `FinanceConflictError`) plus `month-cache.ts` (localStorage). |
 | Auth | email/password, Google popup + redirect, `sendPasswordResetEmail`, email-verified gate in rules, server-side ID-token verification in `firebase-id-token.ts` | Portable; the only deep coupling is `token.email` inside rules. |
 | Derived math | `store.ts`: 2458 lines, 85 functions | The engine is TypeScript, run client-side — not the database. |
 
