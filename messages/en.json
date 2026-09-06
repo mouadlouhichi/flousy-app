@@ -1666,7 +1666,9 @@
       "personalAndHousehold": "Personal dashboard & household",
       "planIncomeInsights": "Plan, income sources & insights",
       "exportImportDelete": "Export, import, delete",
-      "signOutDelete": "Sign out & delete account"
+      "signOutDelete": "Sign out & delete account",
+      "reminders": "Bill & goal reminders, push and e-mail",
+      "security": "PIN or fingerprint / Face ID lock"
     },
     "subpages": {
       "accountTitle": "Account",

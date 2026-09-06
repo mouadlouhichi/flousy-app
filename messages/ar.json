@@ -1666,7 +1666,9 @@
       "personalAndHousehold": "لوحة شخصية والأسرة",
       "planIncomeInsights": "الخطة ومصادر الدخل والتحليلات",
       "exportImportDelete": "تصدير واستيراد وحذف",
-      "signOutDelete": "تسجيل الخروج وحذف الحساب"
+      "signOutDelete": "تسجيل الخروج وحذف الحساب",
+      "reminders": "تذكيرات الفواتير والأهداف، إشعارات وبريد",
+      "security": "قفل برمز PIN أو بصمة / Face ID"
     },
     "subpages": {
       "accountTitle": "الحساب",

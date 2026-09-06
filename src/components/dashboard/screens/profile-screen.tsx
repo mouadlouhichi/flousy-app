@@ -141,6 +141,8 @@ export function ProfileScreen() {
     {
       label: p.groups.privacyAccount,
       items: [
+        { href: '/dashboard/profile/reminders', icon: 'notifications_active', title: p.links.reminders, hint: p.hints.reminders },
+        { href: '/dashboard/profile/security', icon: 'lock', title: p.links.security, hint: p.hints.security },
         { href: '/dashboard/profile/data', icon: 'database', title: p.links.data, hint: p.hints.exportImportDelete },
         { href: '/dashboard/profile/account', icon: 'manage_accounts', title: p.links.account, hint: p.hints.signOutDelete },
       ],

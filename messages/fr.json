@@ -1666,7 +1666,9 @@
       "personalAndHousehold": "Tableau de bord personnel et foyer",
       "planIncomeInsights": "Forfait, sources de revenus et analyses",
       "exportImportDelete": "Exporter, importer, supprimer",
-      "signOutDelete": "Se déconnecter et supprimer le compte"
+      "signOutDelete": "Se déconnecter et supprimer le compte",
+      "reminders": "Rappels de factures et d'objectifs, push et e-mail",
+      "security": "Verrouillage par code PIN ou empreinte / Face ID"
     },
     "subpages": {
       "accountTitle": "Compte",
