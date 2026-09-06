@@ -936,7 +936,10 @@
       "lightMode": "Mode clair",
       "darkMode": "Mode sombre",
       "openMenu": "Ouvrir le menu",
-      "closeMenu": "Fermer le menu"
+      "closeMenu": "Fermer le menu",
+      "budgetingMethods": "Méthodes budgétaires",
+      "madGuide": "Guide MAD",
+      "blog": "Blog"
     },
     "hero": {
       "eyebrow": "Besoins, envies, épargne — et chaque emplacement d'argent.",
@@ -1296,7 +1299,48 @@
       "privacyPolicy": "Politique de confidentialité",
       "termsOfService": "Conditions d'utilisation",
       "cookiePolicy": "Politique des cookies",
-      "copyright": "2026 SmartJib. Tous droits réservés."
+      "copyright": "2026 SmartJib. Tous droits réservés.",
+      "featuresHub": "Hub Fonctionnalités",
+      "madGuide": "Suivi Budget MAD & Dirham",
+      "bankWallet": "Suivi Banque, Maison, Portefeuille",
+      "noBank": "Confidentialité sans banque",
+      "allMethods": "Toutes méthodes expliquées",
+      "envelope": "Budget enveloppes",
+      "zeroBased": "Budget base zéro",
+      "guidesTips": "Guides & astuces budget",
+      "purposeVsLocation": "Pourquoi but vs emplacement",
+      "freeMorocco": "Suivi budget gratuit Maroc",
+      "privateTracker": "À propos suivi privé",
+      "budgetingMethodsTitle": "Méthodes budgétaires"
+    },
+    "guides": {
+      "eyebrow": "Guides budgétaires",
+      "titleLine1": "Apprenez à mieux budgétiser,",
+      "titleLine2": "avec le MAD en tête.",
+      "description": "Guides courts et pratiques de l'équipe SmartJib. Conçus pour la culture cash du Maroc.",
+      "viewAll": "Voir tous les guides",
+      "madGuideCta": "Guide budget tracker MAD",
+      "methodsCta": "4 méthodes budgétaires expliquées",
+      "items": [
+        {
+          "category": "Bases du budget",
+          "title": "Pourquoi 'à quoi ça sert' et 'où c'est' sont deux questions différentes",
+          "excerpt": "La plupart des frustrations viennent de mélanger deux choses qui doivent rester séparées.",
+          "anchor": "Pourquoi le but et l'emplacement doivent rester séparés"
+        },
+        {
+          "category": "Méthodes budgétaires",
+          "title": "Choisir une méthode qui vous correspond vraiment",
+          "excerpt": "50/30/20 ne convient pas à tout le monde. Comment choisir la répartition qui correspond à votre vie au Maroc.",
+          "anchor": "Comparer 4 méthodes pour les salaires marocains"
+        },
+        {
+          "category": "Suivi espèces",
+          "title": "La fuite du portefeuille : où les petites dépenses s'accumulent",
+          "excerpt": "Les dépenses par carte laissent une trace. Les espèces disparaissent.",
+          "anchor": "Suivre les dépenses portefeuille sans mélanger la banque"
+        }
+      ]
     }
   },
   "static": {
@@ -1442,6 +1486,81 @@
       "articleCtaDescription": "SmartJib garde les enveloppes budgétaires distinctes des soldes de votre banque, de votre maison et de votre portefeuille.",
       "startBudgeting": "Commencer gratuitement",
       "breadcrumb": "Fil d’Ariane"
+    },
+    "features": {
+      "eyebrow": "Fonctionnalités",
+      "title": "Tout ce qu'il faut pour budgétiser en privé.",
+      "subtitle": "SmartJib sépare à quoi sert l'argent de où il se trouve — avec support MAD, sans connexion bancaire, et 4 méthodes pour la culture cash du Maroc.",
+      "items": [
+        {
+          "title": "Multi-devises : MAD & Dirham",
+          "desc": "Suivez en MAD, dirham, EUR, USD et 9 autres. Changez la devise depuis Profil → Préférences.",
+          "anchor": "Suivi budget qui supporte MAD et dirham"
+        },
+        {
+          "title": "Suivi Banque, Maison, Portefeuille",
+          "desc": "Votre solde bancaire n'est pas votre budget. Suivez où se trouve l'argent séparément.",
+          "anchor": "Suivez banque, maison et portefeuille comme soldes distincts"
+        },
+        {
+          "title": "Suivi des dépenses & fuite portefeuille",
+          "desc": "Les espèces deviennent invisibles vite. Enregistrez en secondes et réconciliez chaque semaine.",
+          "anchor": "Suivez les dépenses portefeuille sans mélanger le solde bancaire"
+        },
+        {
+          "title": "Sans connexion bancaire — Privé par design",
+          "desc": "Nous ne demandons jamais identifiants bancaires. Saisie manuelle, cache local, isolation Firestore Rules.",
+          "anchor": "Suivi budget privé sans connexion bancaire"
+        }
+      ],
+      "relatedTitle": "En savoir plus"
+    },
+    "features_mad": {
+      "eyebrow": "Fonctionnalités · Maroc",
+      "title": "Suivi budget qui supporte MAD et dirham marocain.",
+      "subtitle": "12 devises formatées selon votre locale. Conçu pour la culture cash du Maroc.",
+      "s1Title": "Pourquoi le support MAD compte au Maroc",
+      "s1Body": "La plupart des apps budgétaires sont en USD/EUR et traitent le MAD comme secondaire. SmartJib supporte MAD en première classe avec formatage local.",
+      "s2Title": "12 devises supportées",
+      "s3Title": "Comment suivre en MAD",
+      "relatedTitle": "Fonctionnalités liées"
+    },
+    "budgeting_methods": {
+      "eyebrow": "Méthodes budgétaires",
+      "title": "4 méthodes budgétaires — choisissez celle qui vous correspond.",
+      "subtitle": "SmartJib répartit automatiquement en besoins, envies, épargne. Choisissez la structure qui correspond à votre salaire marocain.",
+      "compareTitle": "Comparer 4 méthodes",
+      "relatedTitle": "Guides liés",
+      "methods": [
+        {
+          "slug": "50-30-20-rule",
+          "title": "Règle 50/30/20",
+          "desc": "50% besoins, 30% envies, 20% épargne. Point de départ équilibré.",
+          "anchor": "Apprendre 50/30/20 pour salaires marocains",
+          "percent": "50/30/20"
+        },
+        {
+          "slug": "zero-based-budgeting",
+          "title": "Budget base zéro",
+          "desc": "60% besoins, 25% envies, 15% épargne. Chaque dirham a un rôle.",
+          "anchor": "Guide budget base zéro — chaque MAD a un rôle",
+          "percent": "60/25/15"
+        },
+        {
+          "slug": "envelope-budgeting",
+          "title": "Budget enveloppes",
+          "desc": "55% besoins, 35% envies, 10% épargne. Limites visibles.",
+          "anchor": "Budget enveloppes — limites visibles",
+          "percent": "55/35/10"
+        },
+        {
+          "slug": "pay-yourself-first",
+          "title": "Se payer d'abord",
+          "desc": "45% besoins, 25% envies, 30% épargne. Épargnez d'abord.",
+          "anchor": "Se payer d'abord — épargnez 30% avant",
+          "percent": "45/25/30"
+        }
+      ]
     }
   },
   "strategies": {
