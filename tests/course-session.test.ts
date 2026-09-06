@@ -190,6 +190,21 @@ describe('createSessionItem', () => {
     assert.equal(item.unitPrice, 0);
     assert.equal(item.lineTotal, 0);
   });
+
+  it('keeps the quality summary when provided and omits it otherwise', () => {
+    const quality = { score: 15.3, good: 10, caution: 2, concern: 1 };
+    const withQuality = createSessionItem({
+      name: 'Crème',
+      unitPrice: 99,
+      quality,
+      now: NOW,
+      rand: () => 0,
+    });
+    assert.deepEqual(withQuality.quality, quality);
+
+    const without = createSessionItem({ name: 'Tomates', unitPrice: 5, now: NOW, rand: () => 0 });
+    assert.ok(!('quality' in without));
+  });
 });
 
 describe('addItemToSession', () => {
@@ -456,6 +471,50 @@ describe('resolveProduct', () => {
       product: { name: 'Nutella', brand: 'Ferrero', category: undefined, imageUrl: undefined },
       source: 'remote',
     });
+  });
+
+  it('propagates the INCI list and product kind from a remote beauty hit', async () => {
+    const resolution = await resolveProduct({
+      barcode: '3017620422004',
+      catalog: [],
+      lookupRemote: async () => ({
+        name: 'Lait corporel',
+        brand: 'Test',
+        productKind: 'beauty',
+        ingredients: ['Aqua', 'Alcohol'],
+      }),
+    });
+    assert.deepEqual(resolution, {
+      kind: 'found',
+      product: {
+        name: 'Lait corporel',
+        brand: 'Test',
+        category: undefined,
+        imageUrl: undefined,
+        ingredients: ['Aqua', 'Alcohol'],
+        productKind: 'beauty',
+      },
+      source: 'remote',
+    });
+  });
+
+  it('propagates the INCI list from a seed hit when present', async () => {
+    const resolution = await resolveProduct({
+      barcode: '6111035002176',
+      catalog: [],
+      lookupSeed: (code) =>
+        code === '6111035002176'
+          ? { name: 'Savon', brand: 'Sidi Ali', productKind: 'beauty', ingredients: ['Aqua'] }
+          : null,
+      lookupRemote: async () => {
+        throw new Error('must not be called');
+      },
+    });
+    assert.equal(resolution.kind, 'found');
+    if (resolution.kind === 'found') {
+      assert.deepEqual(resolution.product.ingredients, ['Aqua']);
+      assert.equal(resolution.product.productKind, 'beauty');
+    }
   });
 
   it('resolves from the bundled seed before the network', async () => {

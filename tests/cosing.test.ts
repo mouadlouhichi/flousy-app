@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   COSING_BITS,
   buildCosingIndex,
@@ -136,7 +137,7 @@ describe('classifyInci with a CosIng index', () => {
 
 describe('bundled public/data/cosing.json integrity', () => {
   const raw = JSON.parse(
-    readFileSync(path.join(__dirname, '..', 'public', 'data', 'cosing.json'), 'utf-8'),
+    readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'data', 'cosing.json'), 'utf-8'),
   ) as CosingFile;
   const idx = buildCosingIndex(raw);
 

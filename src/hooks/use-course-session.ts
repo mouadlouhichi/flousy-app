@@ -222,7 +222,14 @@ export function useCourseSession(uid: string | null | undefined) {
 
   /** Add a line for a resolved product, then remember its price in the catalog. */
   const addScannedLine = useCallback(
-    (input: { barcode?: string; name: string; category?: string; unitPrice: number; qty?: number }) => {
+    (input: {
+      barcode?: string;
+      name: string;
+      category?: string;
+      unitPrice: number;
+      qty?: number;
+      quality?: { score: number; good: number; caution: number; concern: number };
+    }) => {
       const item = createSessionItem(input);
       mutateActive((session) => addItemToSession(session, item));
 

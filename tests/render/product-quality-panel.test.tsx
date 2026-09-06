@@ -62,4 +62,25 @@ describe('product quality panel: overall rating banner', async () => {
     assert.match(html, /aria-pressed/); // tier chips
     assert.match(html, /sourceNote|Open Beauty Facts|photo/i);
   });
+
+  it('shows the product identity header when product metadata is provided', () => {
+    const html = render(
+      <ProductQualityPanel
+        ingredients={['Aqua', 'Parfum']}
+        productName="Crème hydratante 50ml"
+        productBrand="TestCo"
+        productImage="https://example.com/product.jpg"
+      />,
+    );
+    assert.match(html, /TestCo Cr\u00e8me hydratante 50ml/);
+    assert.match(html, /src="https:\/\/example\.com\/product\.jpg"/);
+    // The name line repeats the product name below the brand+name title.
+    assert.match(html, /Cr\u00e8me hydratante 50ml/g);
+  });
+
+  it('omits the identity header when no product metadata is provided', () => {
+    const html = render(<ProductQualityPanel ingredients={['Aqua']} />);
+    assert.doesNotMatch(html, /face_2/);
+    assert.doesNotMatch(html, /<img /);
+  });
 });

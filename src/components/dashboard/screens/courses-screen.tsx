@@ -4,6 +4,8 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { useCourseSession } from '@/hooks/use-course-session';
+import { loadCosingIndex } from '@/lib/cosing';
+import { summarizeQuality, type QualitySummary } from '@/lib/inci-quality';
 import { isProFeatureUnlocked } from '@/lib/household';
 import { normalizeDigitsToAscii, parseAmountInput } from '@/lib/parse-amount';
 import { useHousehold } from '@/lib/household-context';
@@ -14,6 +16,7 @@ import { postCourseSession } from '@/lib/db';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
+import { QualityScoreChip } from '@/components/ui/quality-score-chip';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
@@ -35,6 +38,8 @@ interface PendingProduct {
   source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
   ma: boolean;
+  /** Cosmetic quality summary, when the product carries an INCI list. */
+  quality?: QualitySummary;
 }
 
 /**
@@ -191,15 +196,32 @@ function CoursesScreenInner() {
                 ? c.fromSeed
                 : c.fromOff,
         });
+        const product = resolution.product;
+        const beautyIngredients =
+          product.productKind === 'beauty' && product.ingredients && product.ingredients.length > 0
+            ? product.ingredients
+            : null;
         openPending({
           barcode,
-          name: resolution.product.name,
-          brand: resolution.product.brand,
-          category: resolution.product.category,
-          imageUrl: resolution.product.imageUrl,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          imageUrl: product.imageUrl,
           source: resolution.source,
           ma,
+          quality: beautyIngredients ? summarizeQuality(beautyIngredients) : undefined,
         });
+        // Refine the chip as soon as the EU CosIng index lands (one cached fetch).
+        if (beautyIngredients) {
+          void loadCosingIndex().then((index) => {
+            if (!index) return;
+            setPending((prev) =>
+              prev && prev.barcode === barcode
+                ? { ...prev, quality: summarizeQuality(beautyIngredients, index) }
+                : prev,
+            );
+          });
+        }
       } else {
         const embeddedPrice =
           resolution.kind === 'not-found' ? resolution.embeddedPrice : undefined;
@@ -239,6 +261,7 @@ function CoursesScreenInner() {
       category: pending.category,
       unitPrice: price,
       qty: pendingQty,
+      quality: pending.quality,
     });
     setPending(null);
     setPendingPrice('');
@@ -534,13 +557,14 @@ function CoursesScreenInner() {
               {active.items.map((line) => (
                 <li key={line.key} className="flex items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 truncate font-body-md text-body-md font-semibold text-on-surface">
-                      {line.name}
+                    <p className="flex items-center gap-2 font-body-md text-body-md font-semibold text-on-surface">
+                      <span className="min-w-0 truncate">{line.name}</span>
                       {line.barcode && isMoroccanBarcode(line.barcode) && (
                         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-sm text-label-sm text-primary">
                           {c.maBadge}
                         </span>
                       )}
+                      {line.quality && <QualityScoreChip summary={line.quality} />}
                     </p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
                       {formatCurrency(line.unitPrice, active.currency, intlLocale)} / {c.unit}
@@ -750,7 +774,10 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
               className="bg-surface font-semibold"
             />
           ) : (
-            <p className="truncate font-headline-sm text-headline-sm text-on-surface">{pending.name}</p>
+            <p className="flex min-w-0 items-center gap-2 font-headline-sm text-headline-sm text-on-surface">
+              <span className="min-w-0 truncate">{pending.name}</span>
+              {pending.quality && <QualityScoreChip summary={pending.quality} />}
+            </p>
           )}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-label-sm text-label-sm text-on-surface-variant">
             {pending.brand && <span>{pending.brand}</span>}

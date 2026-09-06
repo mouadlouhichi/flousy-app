@@ -147,6 +147,8 @@ export function createSessionItem(input: {
   category?: string;
   unitPrice: number;
   qty?: number;
+  /** Cosmetic quality summary (beauty products with an INCI list). */
+  quality?: { score: number; good: number; caution: number; concern: number };
   now?: Date;
   rand?: () => number;
 }): SessionItem {
@@ -166,6 +168,7 @@ export function createSessionItem(input: {
     qty,
     unitPrice,
     lineTotal: computeLineTotal(qty, unitPrice),
+    ...(input.quality ? { quality: input.quality } : {}),
   };
 }
 
@@ -361,7 +364,15 @@ export interface RemoteProductInfo {
 export type ProductResolution =
   | {
       kind: 'found';
-      product: { name: string; brand?: string; category?: string; imageUrl?: string };
+      product: {
+        name: string;
+        brand?: string;
+        category?: string;
+        imageUrl?: string;
+        /** INCI list, when the source carries one (drives the quality score). */
+        ingredients?: string[];
+        productKind?: ProductKind;
+      };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
       source: 'catalog' | 'seed' | 'remote';
@@ -446,6 +457,10 @@ export async function resolveProduct(opts: {
         brand: seedHit.brand,
         category: seedHit.category,
         imageUrl: seedHit.imageUrl,
+        // Conditional spread keeps the keys absent (not undefined) when the
+        // source carries no INCI data — the quality chip only shows for real hits.
+        ...(seedHit.ingredients ? { ingredients: seedHit.ingredients } : {}),
+        ...(seedHit.productKind ? { productKind: seedHit.productKind } : {}),
       },
       source: 'seed',
     };
@@ -462,6 +477,9 @@ export async function resolveProduct(opts: {
             brand: remote.brand,
             category: remote.category,
             imageUrl: remote.imageUrl,
+            // Conditional spread — same reason as the seed branch above.
+            ...(remote.ingredients ? { ingredients: remote.ingredients } : {}),
+            ...(remote.productKind ? { productKind: remote.productKind } : {}),
           },
           source: 'remote',
         };

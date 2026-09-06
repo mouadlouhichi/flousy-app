@@ -47,6 +47,14 @@ export interface InciIngredient {
   tags: string[];
 }
 
+export interface QualitySummary {
+  /** Weighted score out of INCI_SCORE_MAX. */
+  score: number;
+  good: number;
+  caution: number;
+  concern: number;
+}
+
 export interface InciClassification {
   total: number;
   /** Weighted score out of INCI_SCORE_MAX (good = full, caution = half). */
@@ -350,4 +358,21 @@ export function classifyInci(
       : Math.round(((counts.good + 0.5 * counts.caution) / total) * INCI_SCORE_MAX * 10) / 10;
 
   return { total, score, counts, ingredients: classified };
+}
+
+/**
+ * Compact quality summary (score + tier counts) — small enough to persist on
+ * a course line so the score can be shown without re-classifying.
+ */
+export function summarizeQuality(
+  ingredients: string[],
+  cosing?: CosingIndex | null,
+): QualitySummary {
+  const result = classifyInci(ingredients, cosing);
+  return {
+    score: result.score,
+    good: result.counts.good,
+    caution: result.counts.caution,
+    concern: result.counts.concern,
+  };
 }

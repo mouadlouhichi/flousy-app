@@ -2587,6 +2587,9 @@ export interface SessionItem {
   qty: number; // >= 1
   unitPrice: number; // >= 0
   lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
+  /** Cosmetic quality summary — present when the barcode resolved on Open
+   *  Beauty Facts with an INCI list (drives the score chip in the course view). */
+  quality?: { score: number; good: number; caution: number; concern: number };
 }
 
 /**

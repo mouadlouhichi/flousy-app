@@ -493,6 +493,39 @@
           "minimum": 0,
           "maximum": 1000000000,
           "description": "round2(unitPrice * qty) — stored, never re-derived"
+        },
+        "quality": {
+          "type": "object",
+          "description": "Cosmetic quality summary (score + tier counts) — present for beauty products that carry an INCI list",
+          "properties": {
+            "score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "good": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "caution": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "concern": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "score",
+            "good",
+            "caution",
+            "concern"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

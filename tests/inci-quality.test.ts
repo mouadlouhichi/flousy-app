@@ -5,6 +5,7 @@ import {
   INCI_SCORE_MAX,
   INCI_KNOWLEDGE,
   INCI_TIER_RULES,
+  summarizeQuality,
 } from '../src/lib/inci-quality';
 import en from '../messages/en.json';
 
@@ -106,6 +107,28 @@ describe('classifyInci', () => {
     const result = classifyInci(['  AQUA  ', 'parfum']);
     const flagged = result.ingredients.find((i) => i.tier === 'caution');
     assert.equal(flagged?.inci, 'parfum');
+  });
+});
+
+describe('summarizeQuality', () => {
+  it('returns the score + tier counts for a mixed list', () => {
+    const summary = summarizeQuality([
+      'Aqua',
+      'Propylparaben',
+      'Butylparaben',
+      'Sodium Lauryl Sulfate',
+    ]);
+    assert.deepEqual(summary, { score: 10, good: 1, caution: 2, concern: 1 });
+  });
+
+  it('returns a full-score summary for an innocuous list', () => {
+    const summary = summarizeQuality(['Aqua', 'Glycerin', 'Tocopherol']);
+    assert.deepEqual(summary, { score: INCI_SCORE_MAX, good: 3, caution: 0, concern: 0 });
+  });
+
+  it('accepts the CosIng index for a refined classification', () => {
+    const plain = summarizeQuality(['BENZOPHENONE-3']);
+    assert.equal(plain.concern, 1);
   });
 });
 

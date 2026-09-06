@@ -13,7 +13,6 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
-import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { suggestCategory } from '../../lib/insights';
@@ -402,8 +401,9 @@ export function ExpenseModal({
               {currency}
             </span>
           </div>
-          <div className="flex items-center text-primary font-bold">
-            <AmountSymbol symbol={symbol} />
+          {/* Currency after the amount, clearly smaller — same treatment as
+              the fixed-bills modal (and the list view). */}
+          <div className="flex items-baseline justify-center text-primary font-bold">
             <input
               type="number"
               step="any"
@@ -415,11 +415,35 @@ export function ExpenseModal({
               placeholder="0.00"
               className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
+            <span className="ml-1.5 text-xl font-extrabold text-on-surface-variant">{symbol}</span>
           </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
         </div>
+
+        {/* ── Barcode → product name (Pro) — same scanner as the courses flow ── */}
+        {isPro && !initialExpense && (
+          scannerOpen ? (
+            <ExpenseBarcodeScanner
+              onClose={() => setScannerOpen(false)}
+              // Stay open after a hit: the product name is filled in place,
+              // and cosmetics show their INCI quality panel under the viewfinder.
+              onProduct={(product) => {
+                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
+            >
+              <AppIcon name="scan_barcode" className="text-[20px]" />
+              {m.barcode.scanProduct}
+            </button>
+          )
+        )}
 
         {/* ── Category — add a new one inline, like fixed charges ── */}
         <div className="flex flex-col gap-2">
@@ -598,29 +622,6 @@ export function ExpenseModal({
           placeholder={e.notePlaceholder}
           rows={2}
         />
-
-        {/* ── Barcode → product name (Pro) ── */}
-        {isPro && !initialExpense && (
-          scannerOpen ? (
-            <ExpenseBarcodeScanner
-              onClose={() => setScannerOpen(false)}
-              // Stay open after a hit: the product name is filled in place,
-              // and cosmetics show their INCI quality panel under the viewfinder.
-              onProduct={(product) => {
-                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setScannerOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface px-3 py-2.5 text-xs font-bold text-on-surface-variant hover:bg-surface-variant/30"
-            >
-              <AppIcon name="scan_barcode" className="text-[18px] text-primary" />
-              {m.barcode.scanProduct}
-            </button>
-          )
-        )}
 
         {/* ── Tags (Pro) ── */}
         {isPro && (

@@ -22,9 +22,16 @@ const TIER_META: Record<InciTier, { icon: 'check' | 'warning'; text: string; dot
 export function ProductQualityPanel({
   ingredients,
   source = 'openbeauty',
+  productName,
+  productBrand,
+  productImage,
 }: {
   ingredients: string[];
   source?: 'openbeauty' | 'photo';
+  /** Product identity, when the barcode resolved a known product. */
+  productName?: string;
+  productBrand?: string;
+  productImage?: string;
 }) {
   const { messages: m, t, intlLocale } = useLanguage();
   const q = m.barcode.quality;
@@ -62,6 +69,27 @@ export function ProductQualityPanel({
 
   return (
     <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3">
+      {/* Product identity, when the scan resolved a known product */}
+      {(productName || productBrand || productImage) && (
+        <div className="mb-2 flex items-center gap-2.5 rounded-xl bg-surface-container p-2">
+          {productImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={productImage} alt="" className="size-10 shrink-0 rounded-lg object-cover" />
+          ) : (
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-variant text-primary">
+              <AppIcon name="face_2" className="text-[20px]" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-extrabold text-on-surface">
+              {productBrand && productName ? `${productBrand} ${productName}` : (productName || productBrand)}
+            </p>
+            {productBrand && productName && (
+              <p className="truncate text-[11px] font-semibold text-on-surface-variant">{productName}</p>
+            )}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
