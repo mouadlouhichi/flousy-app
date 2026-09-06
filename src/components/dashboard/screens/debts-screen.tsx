@@ -23,12 +23,12 @@ export function DebtsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-    <DebtPayoffPlanner month={month} unlocked={proUnlocked} onUpgrade={openProModal} />
     <DebtsTab
       month={month}
       canEdit={canEdit}
-      onOpenDebtModal={() => canEdit && openDebtModal()}
+      onOpenDebtModal={(type) => canEdit && openDebtModal(null, type)}
       onEditDebt={(debt) => canEdit && openDebtModal(debt)}
+      payoffPlan={<DebtPayoffPlanner month={month} unlocked={proUnlocked} onUpgrade={openProModal} />}
       onRecordPayment={(debtId: string, payment: DebtPayment) => {
         if (!canEdit) return;
         updateAndSaveMonth(recordDebtPayment(month, debtId, {

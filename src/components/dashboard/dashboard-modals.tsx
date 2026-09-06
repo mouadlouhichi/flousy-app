@@ -339,6 +339,7 @@ export function DashboardModals() {
           onSave={handleSaveDebt}
           onDelete={handleDeleteDebt}
           initialDebt={dashboard.selectedDebt}
+          defaultType={dashboard.debtModalDefaultType}
         />
       )}
     </>

@@ -20,6 +20,7 @@ import {
   VariableExpense,
   FixedExpense,
   DebtItem,
+  DebtType,
   StrategyId,
   UserProfile,
   type MonthConfiguration,
@@ -204,10 +205,12 @@ interface DashboardContextType {
   closeEditMoneyPlaces: () => void;
   isEditMoneyPlacesOpen: boolean;
 
-  openDebtModal: (debt?: DebtItem | null) => void;
+  openDebtModal: (debt?: DebtItem | null, defaultType?: DebtType) => void;
   closeDebtModal: () => void;
   isDebtModalOpen: boolean;
   selectedDebt: DebtItem | null;
+  /** Type preselected when the modal opens for a new item (from the active sub-tab). */
+  debtModalDefaultType: DebtType;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -560,6 +563,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [isEditMoneyPlacesOpen, setIsEditMoneyPlacesOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
+  const [debtModalDefaultType, setDebtModalDefaultType] = useState<DebtType>('debt');
 
   const [verificationSent, setVerificationSent] = useState(false);
 
@@ -1634,9 +1638,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [mayWriteArea]);
   const closeEditMoneyPlaces = useCallback(() => setIsEditMoneyPlacesOpen(false), []);
 
-  const openDebtModal = useCallback((debt: DebtItem | null = null) => {
+  const openDebtModal = useCallback((debt: DebtItem | null = null, defaultType: DebtType = 'debt') => {
     if (!mayWriteArea('debts')) return;
     setSelectedDebt(debt);
+    setDebtModalDefaultType(debt ? debt.type : defaultType);
     setIsDebtModalOpen(true);
   }, [mayWriteArea]);
   const closeDebtModal = useCallback(() => {
@@ -1732,6 +1737,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       closeDebtModal,
       isDebtModalOpen,
       selectedDebt,
+      debtModalDefaultType,
     }),
     [
       user,
@@ -1820,6 +1826,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       closeDebtModal,
       isDebtModalOpen,
       selectedDebt,
+      debtModalDefaultType,
     ],
   );
 

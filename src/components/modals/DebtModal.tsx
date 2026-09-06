@@ -15,15 +15,17 @@ interface DebtModalProps {
   onSave: (debt: DebtItem) => void;
   onDelete?: (debtId: string) => void;
   initialDebt?: DebtItem | null;
+  /** Type preselected when adding a new item ('debt' by default). */
+  defaultType?: DebtType;
 }
 
-export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: DebtModalProps) {
+export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt, defaultType = 'debt' }: DebtModalProps) {
   const { symbol } = useCurrency();
   const { messages: m } = useLanguage();
   const d = m.modals.debt;
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
-  const [type, setType] = useState<DebtType>('debt');
+  const [type, setType] = useState<DebtType>(defaultType);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -38,12 +40,12 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
     } else {
       setName('');
       setAmount('');
-      setType('debt');
+      setType(defaultType);
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
     }
     setErrors({});
-  }, [initialDebt, isOpen]);
+  }, [initialDebt, isOpen, defaultType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,8 +79,10 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
     onClose();
   };
 
+  const addLabel = type === 'credit' ? d.addCredit : d.addTitle;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? d.editTitle : d.addTitle}>
+    <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? d.editTitle : addLabel}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* ── Amount ── */}
         <div className="flex flex-col items-center justify-center py-2">
@@ -107,7 +111,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
 
         {/* ── Type — segmented with sliding active background ── */}
         <SegmentedControl
-          ariaLabel={d.addTitle}
+          ariaLabel={initialDebt ? d.editTitle : addLabel}
           value={type}
           onChange={(v) => setType(v as DebtType)}
           options={[
@@ -171,7 +175,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
             className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
           >
             <AppIcon name={initialDebt ? 'check' : 'add'} className=" text-[18px]" />
-            <span>{initialDebt ? d.saveChanges : d.addTitle}</span>
+            <span>{initialDebt ? d.saveChanges : addLabel}</span>
           </button>
         </div>
       </form>
