@@ -15,7 +15,7 @@ import { SITE_URL } from '@/lib/seo';
 export const metadata = staticPageMetadata(
   'terms',
   'Terms of Service — SmartJib',
-  'The agreement between you and SmartJib: what the app promises, what it does not do, and how subscriptions and termination are handled.',
+  'The agreement between you and SmartJib: account use, the free 90-day Pro trial, data controls, and termination.',
 );
 
 export default function TermsLayout({ children }: { children: ReactNode }) {
@@ -28,7 +28,7 @@ export default function TermsLayout({ children }: { children: ReactNode }) {
             '@context': 'https://schema.org',
             '@type': 'WebPage',
             name: 'Terms of Service — SmartJib',
-            description: 'The agreement between you and SmartJib: what the app promises, what it does not do, and how subscriptions and termination are handled.',
+            description: 'The agreement between you and SmartJib: account use, the free 90-day Pro trial, data controls, and termination.',
             url: `${SITE_URL}/terms`,
             isPartOf: { '@type': 'WebSite', name: 'SmartJib', url: SITE_URL },
             inLanguage: ['en', 'fr', 'ar'],

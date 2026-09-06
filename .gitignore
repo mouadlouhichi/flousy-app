@@ -23,3 +23,11 @@ apps/mobile/*.keystore
 apps/mobile/*.jks
 apps/mobile/pc-api-key.json
 apps/mobile/.env
+
+# Playwright (CI-run browser E2E)
+/playwright-report/
+/test-results/
+
+# tesseract.js worker + wasm (copied by scripts/copy-tesseract.mjs)
+/public/tesseract/
+/apps/web/public/tesseract/

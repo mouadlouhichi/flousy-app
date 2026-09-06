@@ -36,8 +36,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const { messages: m } = useLanguage();
   const { isPro } = useDashboard();
-  const { workspace } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const activeScreen = getScreenIdFromPath(pathname);
   const items = getVisibleNavItems(proUnlocked);
   const [isCompact, setIsCompact] = useState(false);
@@ -105,7 +105,7 @@ export function BottomNav() {
       }}
       transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.9 }}
       style={{ transformOrigin: 'bottom center' }}
-      className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-surface/70 backdrop-blur-2xl border border-surface-variant/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-1.5 py-1.5 flex justify-between items-center gap-0.5"
+      className="md:hidden fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-md bg-surface-container-low/80 backdrop-blur-2xl border border-outline-variant/40 shadow-[0_8px_32px_rgba(0,0,0,0.14)] rounded-full px-1.5 py-1.5 flex justify-between items-center gap-0.5"
     >
       {/* Active pill — glides horizontally behind the buttons (same spring
           language as the old layoutId pill / SegmentedControl). */}
@@ -133,6 +133,7 @@ export function BottomNav() {
             prefetch={true}
             data-nav-item={item.id}
             aria-label={getLocalizedNavLabel(item, m)}
+            aria-current={isActive ? 'page' : undefined}
             title={getLocalizedNavLabel(item, m)}
             // `flex-1` + `min-w-0` lets the bar share its width evenly, so the
             // 6th item PRO users get never pushes the pill off screen on

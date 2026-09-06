@@ -3,8 +3,11 @@ import localFont from 'next/font/local';
 import { InstallBanner } from '@/components/pwa/install-banner';
 import { InstallPromptCapture } from '@/components/pwa/install-prompt-capture';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
+import { ObservabilityReporter } from '@/components/observability-reporter';
 import { LightLanguageProvider } from '@/lib/i18n-light';
 import { LocalizedDocumentTitle } from '@/components/localized-document-title';
+import { SkipToContentLink } from '@/components/ui/skip-to-content';
+import { Toaster } from '@/components/ui/toaster';
 import { SITE_URL } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
@@ -90,9 +93,9 @@ export const viewport: Viewport = {
   colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
-  // iOS Safari auto-zooms focused inputs under 16px; cap scale so tapping a
-  // field never jumps the whole page. Form controls are also ≥16px.
-  maximumScale: 1,
+  // Pinch zoom must stay available (WCAG 1.4.4 — users need up to at least
+  // 200%). iOS Safari's focus auto-zoom is prevented the accessible way
+  // instead: every form control renders at ≥16px on mobile viewports.
 };
 
 /**
@@ -125,7 +128,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var l=localStorage.getItem('flousy_language');if(l!=='en'&&l!=='fr'&&l!=='ar')return;var d=document.documentElement;d.lang=l;d.dir=l==='ar'?'rtl':'ltr';}catch(e){}})();`,
+            __html: `(function(){try{var l=localStorage.getItem('smartjib_language');if(l!=='en'&&l!=='fr'&&l!=='ar')return;var d=document.documentElement;d.lang=l;d.dir=l==='ar'?'rtl':'ltr';}catch(e){}})();`,
           }}
         />
         <InstallPromptCapture />
@@ -133,11 +136,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>
+          <SkipToContentLink />
           <LocalizedDocumentTitle />
           {children}
           <InstallBanner />
         </LightLanguageProvider>
+        <Toaster />
         <ServiceWorkerRegistrar />
+        <ObservabilityReporter />
       </body>
     </html>
   );

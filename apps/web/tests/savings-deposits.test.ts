@@ -105,9 +105,12 @@ describe('Savings deposits: plan tracking & recent activity', () => {
     assert.strictEqual(entry?.type, 'withdraw');
     assert.strictEqual(entry?.amount, 200);
 
-    // Never goes negative
-    const emptied = withdrawGoal(withdrawn.month, withdrawn.goals, 'g1', 9999, 'home');
-    assert.strictEqual(emptied.goals[0].deposited, 0);
+    // Over-withdrawals are rejected instead of silently changing the amount.
+    assert.throws(
+      () => withdrawGoal(withdrawn.month, withdrawn.goals, 'g1', 9999, 'home'),
+      (error: any) => error?.code === 'insufficient-funds',
+    );
+    assert.strictEqual(withdrawn.goals[0].deposited, 300);
   });
 
   it('tracks deposits across checkbox-checked edits', () => {

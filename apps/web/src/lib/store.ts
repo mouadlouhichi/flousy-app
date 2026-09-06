@@ -4,6 +4,39 @@ export type BuiltinMoneyPlace = 'bank' | 'home' | 'wallet';
 export type MoneyPlace = string;
 export type StrategyId = '50-30-20' | '70-20-10' | '80-20' | 'zero-based' | 'envelope' | 'pay-first' | 'custom';
 export type ExpenseKind = 'variable' | 'fixed';
+export type LifecycleStatus = 'planned' | 'partial' | 'paid' | 'skipped';
+
+/** Domain error thrown before a mutation can create or destroy cash. */
+export class MoneyInvariantError extends Error {
+  constructor(
+    public readonly code: 'invalid-amount' | 'insufficient-funds' | 'duplicate-id' | 'not-found' | 'outside-period',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'MoneyInvariantError';
+  }
+}
+
+/** Keep every persisted monetary value finite, non-negative and cent-precise. */
+export function money(value: number): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new MoneyInvariantError('invalid-amount', 'Amount must be a finite non-negative number.');
+  }
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function positiveMoney(value: number): number {
+  const rounded = money(value);
+  if (rounded <= 0) throw new MoneyInvariantError('invalid-amount', 'Amount must be greater than zero.');
+  return rounded;
+}
+
+export function entityId(prefix: string): string {
+  const uuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${uuid}`;
+}
 
 /** A tracked cash location the user can rename, add or remove from Profile. */
 export interface MoneyPlaceConfig {
@@ -53,7 +86,10 @@ export interface CustomRatios {
 /** Fallback split used when a custom strategy has no (valid) ratios yet. */
 export const DEFAULT_CUSTOM_RATIOS: CustomRatios = { needs: 0.5, wants: 0.3, savings: 0.2 };
 
-export const STRATEGIES: Record<StrategyId, Strategy> = {
+export const STRATEGIES: Record<Exclude<StrategyId, '80-20'>, Strategy> & {
+  /** Removed preset; legacy documents migrate to 50/30/20 on read. */
+  '80-20'?: Strategy;
+} = {
   '50-30-20': {
     id: '50-30-20',
     name: '50/30/20 Rule',
@@ -70,14 +106,10 @@ export const STRATEGIES: Record<StrategyId, Strategy> = {
     wantsRatio: 0.20,
     savingsRatio: 0.10,
   },
-  '80-20': {
-    id: '80-20',
-    name: '80/20 Rule',
-    description: 'Simple approach: Spend 80% on Needs & Wants, save 20%. Flexible and easy.',
-    needsRatio: 0.50,
-    wantsRatio: 0.30,
-    savingsRatio: 0.20,
-  },
+  // '80-20' was removed (2026-09-03): its ratios were identical to 50/30/20,
+  // so the choice silently produced the same numbers. Legacy months are
+  // migrated to '50-30-20' by normalizeMonth(); the StrategyId stays in the
+  // union so old documents remain readable.
   'zero-based': {
     id: 'zero-based',
     name: 'Zero-Based Budgeting',
@@ -180,7 +212,14 @@ export function resolveMonthStrategy(
 export interface IncomeSource {
   id: string;
   name: string;
+  /** Expected amount for this budget period. */
   amount: number;
+  status?: LifecycleStatus;
+  /** Cash actually received. Legacy sources default to their full amount. */
+  receivedAmount?: number;
+  receivedAt?: string;
+  recurring?: boolean;
+  templateId?: string;
   category?: string;
   /** Day of the month (1–31) this salary/income is paid, when it is a
    * recurring monthly payment. Used to show the payment start date and, when
@@ -202,6 +241,9 @@ export interface VariableExpense {
   updatedByUserId?: string;
   tags?: string[];
   receiptUrl?: string;
+  sourceType?: 'invoice' | 'course' | 'csv' | 'manual';
+  sourceId?: string;
+  importFingerprint?: string;
 }
 
 export interface FixedExpense {
@@ -217,7 +259,16 @@ export interface FixedExpense {
   createdByUserId?: string;
   updatedByUserId?: string;
   recurring?: boolean;
+  /** Explicit template identity used to create one planned occurrence per period. */
+  templateId?: string;
+  status?: LifecycleStatus;
+  /** Amount that has actually left the selected money place. */
+  paidAmount?: number;
+  paidAt?: string;
   receiptUrl?: string;
+  sourceType?: 'invoice' | 'csv' | 'manual';
+  sourceId?: string;
+  importFingerprint?: string;
 }
 
 /** Default fixed-bill categories offered in the Add Fixed Charge modal. */
@@ -237,6 +288,51 @@ export interface FixedCategoryItem {
   name: string;
   color: string;
   icon: string;
+}
+
+/** Icons for the default fixed categories, so list rows match the modal. */
+export const FIXED_TYPE_ICONS: Record<string, string> = {
+  Rent: 'home',
+  Utilities: 'bolt',
+  Housing: 'house',
+  Subscriptions: 'subscriptions',
+  Insurance: 'shield',
+  Internet: 'wifi',
+  Gym: 'fitness_center',
+  Other: 'label',
+};
+
+/** Colors for the default fixed categories. */
+export const FIXED_TYPE_COLORS: Record<string, string> = {
+  Rent: '#8b5cf6',
+  Utilities: '#eab308',
+  Housing: '#f97316',
+  Subscriptions: '#6366f1',
+  Insurance: '#10b981',
+  Internet: '#06b6d4',
+  Gym: '#ec4899',
+  Other: '#6d7a77',
+};
+
+/**
+ * Resolve the icon + colour a fixed bill's category should render with, in the
+ * same precedence the Add/Edit modal uses: a month-level override, then a
+ * user-defined category, then the default map. Shared so list rows and the
+ * modal never disagree (a row used to fall back to a generic receipt icon).
+ */
+export function fixedCategoryVisual(
+  name: string,
+  opts?: {
+    icons?: Record<string, string>;
+    colors?: Record<string, string>;
+    custom?: FixedCategoryItem[];
+  },
+): { icon: string; color: string } {
+  const custom = opts?.custom?.find((c) => c.name === name);
+  return {
+    icon: opts?.icons?.[name] || custom?.icon || FIXED_TYPE_ICONS[name] || 'label',
+    color: opts?.colors?.[name] || custom?.color || FIXED_TYPE_COLORS[name] || '#6d7a77',
+  };
 }
 
 export interface SavingGoal {
@@ -270,23 +366,79 @@ export interface SavingsActivityEntry {
    * into. Older entries may omit it — the goal's source place is used then.
    */
   place?: MoneyPlace;
+  /** Household member who made the deposit (shared goals contribution split). */
+  actorMemberId?: string;
+  actorName?: string;
 }
 
 export type DebtType = 'debt' | 'credit';
 export type DebtStatus = 'open' | 'settled';
 
+export interface DebtPayment {
+  id: string;
+  amount: number;
+  date: string;
+  place: MoneyPlace;
+  note?: string;
+  createdByUserId?: string;
+}
+
 export interface DebtItem {
   id: string;
   name: string;       // person/entity
+  /** Original amount. Outstanding = amount - payment history. */
   amount: number;
   type: DebtType;     // 'debt' = I owe, 'credit' = owed to me
   status: DebtStatus;
   date: string;       // YYYY-MM-DD
+  dueDate?: string;
+  payments?: DebtPayment[];
   note?: string;
+  /**
+   * Identity of the debt this copy was carried forward from. Open debts ride
+   * along the period rollover (like recurring bills); the deterministic chain
+   * keeps retries idempotent while payment history accumulates across periods.
+   */
+  carriedFromId?: string;
+}
+
+export interface AccountTransfer {
+  id: string;
+  from: MoneyPlace;
+  to: MoneyPlace;
+  amount: number;
+  date: string;
+  createdByUserId?: string;
+}
+
+export interface BalanceAdjustment {
+  id: string;
+  place: MoneyPlace;
+  previousBalance: number;
+  newBalance: number;
+  delta: number;
+  reason: 'reconciliation' | 'opening-balance' | 'income';
+  note?: string;
+  date: string;
+  createdByUserId?: string;
 }
 
 export interface MonthBudget {
-  totalBudget: number; // total income
+  /** Schema metadata is optional for legacy documents and backfilled on read. */
+  schemaVersion?: number;
+  revision?: number;
+  lastMutationId?: string;
+  periodKey?: string;
+  periodStartDay?: number;
+  periodStartDate?: string;
+  periodEndDate?: string;
+  /** Immutable display snapshot for this period; configuration changes affect future periods. */
+  currency?: string;
+  /** Closed periods are read-only until their owner explicitly reopens them. */
+  periodStatus?: 'open' | 'closed';
+  closedAt?: string;
+  closedByUserId?: string;
+  totalBudget: number; // total expected income
   incomeSources?: IncomeSource[];
   bankPart: number;
   homePart: number;
@@ -294,6 +446,12 @@ export interface MonthBudget {
   strategyId: StrategyId;
   /** Allocation used when `strategyId === 'custom'` (fractions summing to 1). */
   customRatios?: CustomRatios;
+  /**
+   * Explicit needs/wants assignment per category. Absent names fall back to
+   * the localized keyword guess in `bucketOf` — the override exists so custom
+   * and renamed categories classify correctly (and stably) in every locale.
+   */
+  categoryEnvelopes?: Record<string, Envelope>;
   monthlySavingsTarget: number;
   variableExpenses: VariableExpense[];
   fixedExpenses: FixedExpense[];
@@ -305,6 +463,8 @@ export interface MonthBudget {
   categoryColors: Record<string, string>;
   categoryIcons: Record<string, string>;
   debts?: DebtItem[];
+  transfers?: AccountTransfer[];
+  balanceAdjustments?: BalanceAdjustment[];
   /** Deposit / withdrawal log feeding the home-screen Recent Activity list. */
   savingsActivity?: SavingsActivityEntry[];
   /** Balances for user-defined money sources (beyond bank / home / wallet). */
@@ -313,11 +473,25 @@ export interface MonthBudget {
   updatedByUserId?: string;
 }
 
+/** One browser/device subscribed to Web Push bill reminders. */
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  label: string;
+  createdAt: string;
+}
+
 export interface UserProfile {
   plan: 'free' | 'pro';
-  /** Billing cycle selected at checkout (Firebase-backed, mirrors `plan`). */
+  /** Provider-neutral projection used by launch trials and future billing webhooks. */
+  entitlementSource?: 'launch_trial' | 'stripe' | 'cmi' | 'admin';
+  entitlementStatus?: 'trialing' | 'active' | 'grace_period' | 'past_due' | 'canceled' | 'expired';
+  entitlementStartedAtMs?: number;
+  entitlementEndsAtMs?: number;
+  /** Legacy beta marker retained so pre-launch claims remain one-time and expire safely. */
+  proTrialClaimedAt?: string;
+  /** Legacy mock-checkout fields retained only for backward-compatible reads. */
   planBillingCycle?: 'monthly' | 'annual';
-  /** Next billing date (YYYY-MM-DD) written to Firebase when `plan` upgrades. */
   planNextBillingDate?: string;
   currency: string;
   onboardingComplete: boolean;
@@ -331,14 +505,41 @@ export interface UserProfile {
   activeWorkspace?: 'personal' | 'household';
   householdIds?: string[];
   defaultCategoryBudgets?: Record<string, number>; // Pro feature: default budgets that persist across months
+  /** Needs/wants defaults that persist across months (explicit envelope override). */
+  defaultCategoryEnvelopes?: Record<string, Envelope>;
   enableRollover?: boolean; // Pro feature: carry unused budget to next month
   fixedCategories?: FixedCategoryItem[]; // user-defined fixed-bill categories
-  /** Global preference for the day of the month a budget month starts.
-   * Mirrors the per-source salary start date used by Income Sources. */
+  /** Day of the month the PERSONAL budget month starts. Mirrors the
+   * per-source salary start date used by Income Sources. */
   monthStartDate?: number;
+  /** Legacy client preference; household documents now own this setting. */
+  householdMonthStartDate?: number;
   /** Cash locations (Bank, Home, Wallet, plus any the user added). */
   moneyPlaces?: MoneyPlaceConfig[];
+  /** Reminder channel preferences (bills / goals / email digest). */
+  reminderPrefs?: {
+    billsEnabled?: boolean;
+    billLeadDays?: number[];
+    goalsEnabled?: boolean;
+    emailDigest?: boolean;
+    hour?: number;
+  };
+  /** Web Push subscriptions of this account's devices (endpoint + keys). */
+  pushSubscriptions?: PushSubscriptionRecord[];
+  /** IANA timezone the reminder dispatcher should use for "9am". */
+  timezone?: string;
+  /** Sign-in email, copied here only when the email digest is enabled. */
+  email?: string;
+  /** Optional target dates for savings goals (goalId → YYYY-MM-DD). */
+  goalTargetDates?: Record<string, string>;
+  /** Monthly amount the user commits to the debt payoff plan. */
+  debtPayoffBudget?: number;
+  debtPayoffMethod?: 'snowball' | 'avalanche';
 }
+
+/** Defaults used only when a period does not already contain its own snapshot. */
+export type MonthConfiguration = Partial<UserProfile> &
+  Partial<Pick<MonthBudget, 'activeCategories' | 'categoryColors' | 'categoryIcons'>>;
 
 /**
  * Strategy Envelope Amounts Calculation
@@ -401,6 +602,46 @@ export function calculateTotalIncome(month: Pick<MonthBudget, 'totalBudget' | 'i
   return sum > 0 ? sum : (month.totalBudget || 0);
 }
 
+/** Cash actually received from an income source in this period. */
+export function incomeReceivedAmount(source: IncomeSource): number {
+  const planned = Math.max(0, Number.isFinite(source.amount) ? source.amount : 0);
+  // A missing status is legacy data: those balances were already credited in
+  // earlier releases, so migration must treat the source as fully received.
+  const status = source.status || 'paid';
+  if (status === 'planned' || status === 'skipped') return 0;
+  if (status === 'partial') {
+    return Math.min(planned, Math.max(0, Number.isFinite(source.receivedAmount) ? source.receivedAmount! : 0));
+  }
+  return Math.min(planned, Math.max(0, Number.isFinite(source.receivedAmount) ? source.receivedAmount! : planned));
+}
+
+export function calculateReceivedIncome(
+  month: Pick<MonthBudget, 'totalBudget' | 'incomeSources'>,
+): number {
+  const sources = month.incomeSources || [];
+  if (sources.length === 0) return Math.max(0, month.totalBudget || 0);
+  return money(sources.reduce((sum, source) => sum + incomeReceivedAmount(source), 0));
+}
+
+/** Cash actually paid for a fixed bill in this period. */
+export function fixedPaidAmount(expense: FixedExpense): number {
+  const planned = Math.max(0, Number.isFinite(expense.amount) ? expense.amount : 0);
+  const status = expense.status || 'paid';
+  if (status === 'planned' || status === 'skipped') return 0;
+  if (status === 'partial') {
+    return Math.min(planned, Math.max(0, Number.isFinite(expense.paidAmount) ? expense.paidAmount! : 0));
+  }
+  return Math.min(planned, Math.max(0, Number.isFinite(expense.paidAmount) ? expense.paidAmount! : planned));
+}
+
+export function debtOutstanding(debt: DebtItem): number {
+  const paid = (debt.payments || []).reduce(
+    (sum, payment) => sum + Math.max(0, Number.isFinite(payment.amount) ? payment.amount : 0),
+    0,
+  );
+  return money(Math.max(0, (Number.isFinite(debt.amount) ? debt.amount : 0) - paid));
+}
+
 /**
  * Category Bucket Resolution
  * Resolves whether a category is a 'needs' or 'wants' bucket depending on kind ('variable' vs 'fixed').
@@ -416,31 +657,313 @@ export function bucketOf(categoryName: string, kind: ExpenseKind): Envelope {
   // language the app is used in. The English list alone made a French "Salle de
   // sport" a want and an Arabic "إيجار" a want as well, which skewed the 50/30/20
   // split for exactly the households that rename their categories.
-  const fixedWants = [
-    'subscription', 'subscriptions', 'netflix', 'spotify', 'entertainment', 'leisure', 'gym', 'hobbies',
-    'loisirs', 'abonnement', 'abonnements', 'cinéma', 'cinema', 'salle de sport', 'sport', 'vacances',
-    'اشتراك', 'اشتراكات', 'ترفيه', 'رياضة', 'نادي', 'صالة', 'هوايات', 'سينما',
-  ];
-  const variableNeeds = [
-    'groceries', 'food', 'food & drink', 'alimentation', 'health', 'santé', 'medical', 'pharmacy',
-    'transport', 'transportation', 'car', 'fuel', 'utilities', 'housing', 'rent',
-    'courses', 'épicerie', 'medecin', 'médecin', 'pharmacie', 'essence', 'carburant',
-    'loyer', 'électricité', 'eau', 'gaz', 'scolarité', 'école',
-    'بقالة', 'طعام', 'غذاء', 'صحة', 'دواء', 'صيدلية', 'نقل', 'سيارة', 'بنزين', 'وقود',
-    'كهرباء', 'ماء', 'غاز', 'إيجار', 'ايجار', 'سكن', 'مدرسة', 'تعليم',
+  // Needs are checked BEFORE wants and independently of `kind`. Splitting the
+  // lists per kind used to file "Medicine" (variable) under wants and
+  // "Disney+" (fixed) under needs — an essential purchase is essential whether
+  // it is billed monthly or paid ad hoc. `kind` now only decides the fallback
+  // for names no keyword recognises.
+  //
+  // Order matters: "transport" contains the substring "sport", so the needs
+  // pass must run first for it to classify correctly.
+  const needsKeywords = [
+    // food & household
+    'groceries', 'food', 'food & drink', 'alimentation', 'courses', 'épicerie', 'epicerie',
+    'بقالة', 'طعام', 'غذاء', 'سوق',
+    // health
+    'health', 'santé', 'sante', 'medical', 'medicine', 'medication', 'pharmacy', 'pharmacie',
+    'medecin', 'médecin', 'doctor', 'dentist', 'dentiste', 'médicament', 'medicament',
+    'clinic', 'clinique', 'hospital', 'hôpital', 'hopital', 'insurance', 'assurance', 'mutuelle',
+    'صحة', 'دواء', 'أدوية', 'ادوية', 'صيدلية', 'طبيب', 'أسنان', 'اسنان', 'مستشفى', 'عيادة', 'تأمين',
+    // transport
+    'transport', 'transportation', 'car', 'fuel', 'essence', 'carburant', 'gasoline', 'petrol',
+    'bus', 'train', 'tram', 'taxi', 'parking', 'péage', 'peage',
+    'نقل', 'سيارة', 'بنزين', 'وقود', 'حافلة', 'قطار', 'طاكسي', 'مواصلات',
+    // housing & utilities
+    'utilities', 'utility', 'housing', 'rent', 'loyer', 'mortgage', 'crédit immobilier',
+    'electricity', 'electric', 'électricité', 'electricite', 'water', 'eau', 'gas', 'gaz',
+    'internet', 'wifi', 'adsl', 'fibre', 'fiber', 'phone bill', 'facture',
+    'كهرباء', 'ماء', 'غاز', 'إيجار', 'ايجار', 'سكن', 'كراء', 'أنترنت', 'انترنت', 'فاتورة',
+    // childcare & education
+    'school', 'school fees', 'tuition', 'scolarité', 'scolarite', 'école', 'ecole', 'education',
+    'university', 'université', 'universite', 'daycare', 'nursery', 'crèche', 'creche',
+    'childcare', 'diaper', 'diapers', 'couches', 'baby formula', 'lait infantile',
+    'مدرسة', 'تعليم', 'دراسة', 'جامعة', 'حضانة', 'روض', 'حفاضات', 'حفاظات',
+    // obligations
+    'loan', 'prêt', 'pret', 'debt', 'tax', 'impôt', 'impot', 'zakat',
+    'قرض', 'دين', 'ضريبة', 'زكاة',
   ];
 
-  if (kind === 'fixed') {
-    if (fixedWants.some((w) => name.includes(w))) {
-      return 'wants';
+  const wantsKeywords = [
+    'subscription', 'subscriptions', 'abonnement', 'abonnements',
+    'netflix', 'spotify', 'disney', 'shahid', 'canal+', 'canal +', 'osn', 'prime video',
+    'apple tv', 'youtube premium', 'deezer', 'anghami', 'streaming',
+    'entertainment', 'leisure', 'loisirs', 'divertissement', 'hobbies', 'hobby',
+    'gym', 'fitness', 'salle de sport', 'sport', 'club',
+    'cinema', 'cinéma', 'restaurant', 'cafe', 'café', 'coffee', 'fast food', 'takeaway',
+    'vacances', 'holiday', 'travel', 'trip', 'tourism', 'shopping', 'clothes', 'clothing',
+    'vêtements', 'vetements', 'beauty', 'cosmetics', 'gaming', 'games',
+    'اشتراك', 'اشتراكات', 'ترفيه', 'رياضة', 'نادي', 'صالة', 'هوايات', 'سينما',
+    'مطعم', 'مقهى', 'قهوة', 'عطلة', 'سفر', 'تسوق', 'ملابس', 'تجميل', 'ألعاب',
+  ];
+
+  if (needsKeywords.some((n) => name.includes(n))) return 'needs';
+  if (wantsKeywords.some((w) => name.includes(w))) return 'wants';
+
+  // Unrecognised: a recurring commitment is more likely essential, a one-off
+  // discretionary. This preserves the historical default for unknown names.
+  return kind === 'fixed' ? 'needs' : 'wants';
+}
+
+/**
+ * Resolve a category's envelope: an explicit user override wins, the localized
+ * keyword guess only seeds categories the user never classified. This is the
+ * single classification entry point for money maths — never call `bucketOf`
+ * directly when a month (or profile defaults) is available.
+ */
+export function envelopeFor(
+  envelopes: Record<string, Envelope> | null | undefined,
+  categoryName: string,
+  kind: ExpenseKind,
+): Envelope {
+  const explicit = envelopes?.[categoryName];
+  return explicit === 'needs' || explicit === 'wants' || explicit === 'savings'
+    ? explicit
+    : bucketOf(categoryName, kind);
+}
+
+/** Set (or, with null, clear) one category's explicit envelope on a month. */
+export function setCategoryEnvelope(
+  month: MonthBudget,
+  category: string,
+  envelope: Envelope | null,
+): MonthBudget {
+  const current = { ...(month.categoryEnvelopes || {}) };
+  if (envelope === null) delete current[category];
+  else current[category] = envelope;
+  return {
+    ...month,
+    categoryEnvelopes: current,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Parse a stored fixed-charge due day: "1st"/"15th", "15" or YYYY-MM-DD. */
+function dueDayOfMonth(value: string | undefined): number | null {
+  if (!value) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (iso) return Number(iso[3]);
+  const ordinal = /^(\d{1,2})(?:st|nd|rd|th)?\b/i.exec(value.trim());
+  if (!ordinal) return null;
+  const day = Number(ordinal[1]);
+  return day >= 1 && day <= 31 ? day : null;
+}
+
+/**
+ * Resolve a day-of-month against a specific calendar month, clamping to that
+ * month's last day. A charge due on the 31st falls on Feb 28 (or 29), Apr 30,
+ * and so on — the behaviour a bank applies to a month-end standing order.
+ * Without the clamp `Date.UTC(2026, 8, 31)` overflows into 2026-10-01 and the
+ * charge silently escapes its own period window.
+ */
+export function resolveDueDate(year: number, monthIndex: number, day: number): Date {
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, monthIndex, Math.min(day, lastDay)));
+}
+
+export interface UpcomingBill {
+  id: string;
+  name: string;
+  /** Resolved calendar date (YYYY-MM-DD) inside the month's period. */
+  date: string;
+  daysUntil: number;
+  /** Amount still to pay (amount − paidAmount). */
+  remaining: number;
+}
+
+/**
+ * Fixed charges that come due within `withinDays` days of `today`.
+ *
+ * Due-day semantics: an ordinal like "15th" (or an explicit ISO date) is
+ * resolved against the month's period window, so a period starting on the
+ * 25th correctly finds the "1st" bill in the following calendar month.
+ * Only `planned`/`partial` charges are upcoming — paid and skipped are not.
+ */
+export function getUpcomingBills(
+  month: MonthBudget,
+  withinDays: number,
+  today: Date = new Date(),
+): UpcomingBill[] {
+  const start = month.periodStartDate
+    ? new Date(`${month.periodStartDate}T00:00:00Z`)
+    : null;
+  const end = month.periodEndDate
+    ? new Date(`${month.periodEndDate}T00:00:00Z`)
+    : null;
+  if (!start || Number.isNaN(start.getTime())) return [];
+
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const bills: UpcomingBill[] = [];
+
+  for (const bill of month.fixedExpenses || []) {
+    if (bill.status !== 'planned' && bill.status !== 'partial') continue;
+    const day = dueDayOfMonth(bill.date);
+    if (!day) continue;
+
+    // Resolve the day-of-month against the period window: try the start
+    // month, then the next month (periods may span a calendar boundary).
+    let due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth(), day);
+    if (due < start) {
+      due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth() + 1, day);
     }
-    return 'needs';
-  } else {
-    if (variableNeeds.some((n) => name.includes(n))) {
-      return 'needs';
-    }
-    return 'wants';
+    if (end && due > end) continue;
+
+    const daysUntil = Math.round((due.getTime() - todayUtc) / 86_400_000);
+    if (daysUntil < 0 || daysUntil > withinDays) continue;
+
+    bills.push({
+      id: bill.id,
+      name: bill.name,
+      date: due.toISOString().slice(0, 10),
+      daysUntil,
+      remaining: money(Math.max(0, bill.amount - fixedPaidAmount(bill))),
+    });
   }
+
+  return bills.sort((a, b) => a.daysUntil - b.daysUntil || a.name.localeCompare(b.name));
+}
+
+export interface ScheduledBill extends UpcomingBill {
+  amount: number;
+  status: LifecycleStatus;
+  type: string;
+}
+
+/**
+ * Every fixed charge of the period placed on its resolved calendar date,
+ * regardless of status — the "upcoming payments" calendar. Charges without a
+ * parsable due day are listed on the period start so nothing disappears.
+ */
+export function getBillSchedule(month: MonthBudget, today: Date = new Date()): ScheduledBill[] {
+  const start = month.periodStartDate ? new Date(`${month.periodStartDate}T00:00:00Z`) : null;
+  const end = month.periodEndDate ? new Date(`${month.periodEndDate}T00:00:00Z`) : null;
+  if (!start || Number.isNaN(start.getTime())) return [];
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const bills: ScheduledBill[] = [];
+  for (const bill of month.fixedExpenses || []) {
+    const day = dueDayOfMonth(bill.date);
+    let due = start;
+    if (day) {
+      due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth(), day);
+      if (due < start) due = resolveDueDate(start.getUTCFullYear(), start.getUTCMonth() + 1, day);
+      if (end && due > end) due = end;
+    }
+    bills.push({
+      id: bill.id,
+      name: bill.name,
+      date: due.toISOString().slice(0, 10),
+      daysUntil: Math.round((due.getTime() - todayUtc) / 86_400_000),
+      remaining: money(Math.max(0, bill.amount - fixedPaidAmount(bill))),
+      amount: bill.amount,
+      status: bill.status || 'paid',
+      type: bill.type,
+    });
+  }
+  return bills.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+}
+
+/**
+ * Net savings rate of a period: money received minus needs/wants spending,
+ * over money received. Null when no income was received (rate undefined).
+ */
+export function calculateSavingsRate(
+  month: MonthBudget,
+): { net: number; rate: number } | null {
+  const received = calculateReceivedIncome(month);
+  if (received <= 0) return null;
+  const { totalSpent } = calculateEnvelopeSpent(month);
+  const net = money(Math.max(0, received - totalSpent));
+  return { net, rate: net / received };
+}
+
+/**
+ * Carry OPEN debts into a new period so obligations outlive the budget month
+ * (mirroring global savings goals). Settled debts stay behind as history;
+ * payment history travels with the debt so the outstanding balance is
+ * preserved. Deterministic IDs make concurrent retries idempotent.
+ */
+export function carryOverDebts(
+  newMonth: MonthBudget,
+  previousMonth: MonthBudget | null | undefined,
+): MonthBudget {
+  if (!previousMonth) return newMonth;
+  const openDebts = (previousMonth.debts || []).filter((debt) => debt.status !== 'settled');
+  if (openDebts.length === 0) return newMonth;
+
+  const period = newMonth.periodKey || newMonth.periodStartDate?.slice(0, 7) || 'next';
+  const baseOf = (debt: DebtItem) => debt.carriedFromId || debt.id;
+
+  // A debt already carried into this period keeps its id; match on the carry
+  // chain (carriedFromId or original id) so re-running never duplicates.
+  const existing = new Map<string, DebtItem>();
+  for (const debt of newMonth.debts || []) existing.set(baseOf(debt), debt);
+
+  const carried: DebtItem[] = [];
+  let reconciled = false;
+
+  const merged = (newMonth.debts || []).map((debt) => {
+    const source = openDebts.find((candidate) => baseOf(candidate) === baseOf(debt));
+    if (!source) return debt;
+    // The copy already exists in this period, but the origin may have gained
+    // payments since it was carried (a back-dated correction in the previous
+    // month). Union the histories by payment id so the newest period always
+    // holds the complete, authoritative balance instead of silently diverging.
+    const next = mergeDebtPayments(debt, source);
+    if (next !== debt) reconciled = true;
+    return next;
+  });
+
+  for (const debt of openDebts) {
+    if (existing.has(baseOf(debt))) continue;
+    const base = baseOf(debt);
+    carried.push({
+      ...debt,
+      id: `debt-carry-${base}-${period}`,
+      carriedFromId: base,
+      payments: (debt.payments || []).map((payment) => ({ ...payment })),
+    });
+  }
+
+  if (carried.length === 0 && !reconciled) return newMonth;
+
+  return {
+    ...newMonth,
+    debts: [...carried, ...merged],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Union the payment history of an origin debt into its carried copy, keyed by
+ * payment id. Returns the original object unchanged when nothing is missing so
+ * callers can cheaply detect a no-op.
+ */
+function mergeDebtPayments(target: DebtItem, source: DebtItem): DebtItem {
+  const sourcePayments = source.payments || [];
+  if (sourcePayments.length === 0) return target;
+
+  const seen = new Set((target.payments || []).map((payment) => payment.id));
+  const missing = sourcePayments.filter((payment) => !seen.has(payment.id));
+  if (missing.length === 0) return target;
+
+  const payments = [
+    ...(target.payments || []),
+    ...missing.map((payment) => ({ ...payment })),
+  ].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  const next: DebtItem = { ...target, payments };
+  // A debt fully covered by the union is settled, not open.
+  if (debtOutstanding(next) <= 0) next.status = 'settled';
+  return next;
 }
 
 /**
@@ -451,15 +974,16 @@ export function calculateEnvelopeSpent(month: MonthBudget): { needs: number; wan
   let wants = 0;
 
   for (const exp of month.variableExpenses || []) {
-    const bucket = bucketOf(exp.type, 'variable');
+    const bucket = envelopeFor(month.categoryEnvelopes, exp.type, 'variable');
     if (bucket === 'needs') needs += exp.amount;
     else if (bucket === 'wants') wants += exp.amount;
   }
 
   for (const exp of month.fixedExpenses || []) {
-    const bucket = bucketOf(exp.type, 'fixed');
-    if (bucket === 'needs') needs += exp.amount;
-    else if (bucket === 'wants') wants += exp.amount;
+    const paid = fixedPaidAmount(exp);
+    const bucket = envelopeFor(month.categoryEnvelopes, exp.type, 'fixed');
+    if (bucket === 'needs') needs += paid;
+    else if (bucket === 'wants') wants += paid;
   }
 
   const savings = month.monthlySavingsTarget || 0;
@@ -476,15 +1000,16 @@ export function calculateCategoryBudgets(
   strategyId: StrategyId,
   categories: string[],
   kind: ExpenseKind = 'variable',
-  customRatios?: Partial<CustomRatios> | null
+  customRatios?: Partial<CustomRatios> | null,
+  envelopes?: Record<string, Envelope> | null,
 ): Record<string, number> {
   const { needs, wants } = calculateEnvelopeAmounts(income, strategyId, customRatios);
   const result: Record<string, number> = {};
 
   if (!categories || categories.length === 0) return result;
 
-  const needsCats = categories.filter((c) => bucketOf(c, kind) === 'needs');
-  const wantsCats = categories.filter((c) => bucketOf(c, kind) === 'wants');
+  const needsCats = categories.filter((c) => envelopeFor(envelopes, c, kind) === 'needs');
+  const wantsCats = categories.filter((c) => envelopeFor(envelopes, c, kind) === 'wants');
 
   const distribute = (total: number, cats: string[]) => {
     if (cats.length === 0) return;
@@ -652,7 +1177,14 @@ export function isBuiltinMoneyPlace(place: string): place is BuiltinMoneyPlace {
   return place === 'bank' || place === 'home' || place === 'wallet';
 }
 
-export function resolveMoneyPlaces(profile?: UserProfile | null): MoneyPlaceConfig[] {
+/**
+ * Maximum number of money places (built-in + custom) a workspace may track.
+ * Mirrors the bound enforced in firestore.rules so a client-side add can
+ * never produce a profile the server would reject.
+ */
+export const MAX_MONEY_PLACES = 30;
+
+export function resolveMoneyPlaces(profile?: Pick<UserProfile, 'moneyPlaces'> | null): MoneyPlaceConfig[] {
   const configured = (profile?.moneyPlaces || []).filter(
     (p) => p && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim(),
   );
@@ -694,7 +1226,13 @@ export function getPlaceBalance(month: PlaceBalanceMonth, place: MoneyPlace): nu
 }
 
 export function withPlaceBalance(month: MonthBudget, place: MoneyPlace, value: number): MonthBudget {
-  const next = Math.max(0, Number.isFinite(value) ? value : 0);
+  if (!place || typeof place !== 'string') {
+    throw new MoneyInvariantError('invalid-amount', 'A valid money source is required.');
+  }
+  if (!Number.isFinite(value) || value < -0.005) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${place}” does not have enough funds.`);
+  }
+  const next = money(Math.max(0, value));
   if (place === 'bank') return { ...month, bankPart: next };
   if (place === 'home') return { ...month, homePart: next };
   if (place === 'wallet') return { ...month, walletPart: next };
@@ -702,6 +1240,9 @@ export function withPlaceBalance(month: MonthBudget, place: MoneyPlace, value: n
 }
 
 export function adjustPlaceBalance(month: MonthBudget, place: MoneyPlace, delta: number): MonthBudget {
+  if (!Number.isFinite(delta)) {
+    throw new MoneyInvariantError('invalid-amount', 'Balance change must be finite.');
+  }
   return withPlaceBalance(month, place, getPlaceBalance(month, place) + delta);
 }
 
@@ -737,6 +1278,9 @@ export function addMoneyPlace(profile: UserProfile, item: MoneyPlaceConfig): Use
   const name = item.name.trim();
   if (!id || !name) return profile;
   if (existing.some((p) => p.id === id || p.name.toLowerCase() === name.toLowerCase())) return profile;
+  // Mirror of the Firestore Rules bound: a profile above 30 places can no
+  // longer be written, so the client refuses the 31st entry up front.
+  if (existing.length >= MAX_MONEY_PLACES) return profile;
   return { ...profile, moneyPlaces: [...existing, { id, name, icon: item.icon || 'payments' }] };
 }
 
@@ -795,40 +1339,93 @@ export function reassignGoalSources(goals: SavingGoal[], from: MoneyPlace, to: M
   return goals.map((g) => (g.source === from ? { ...g, source: to } : g));
 }
 
+function assertExpenseDateInPeriod(month: MonthBudget, date: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new MoneyInvariantError('outside-period', 'Expense date must use YYYY-MM-DD.');
+  }
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new MoneyInvariantError('outside-period', 'Expense date is not a valid calendar date.');
+  }
+  if (
+    (month.periodStartDate && date < month.periodStartDate) ||
+    (month.periodEndDate && date > month.periodEndDate)
+  ) {
+    throw new MoneyInvariantError('outside-period', 'Expense date falls outside this budget period.');
+  }
+}
+
+function canonicalVariableExpense(expense: VariableExpense): VariableExpense {
+  return { ...expense, amount: positiveMoney(expense.amount), place: expense.place || 'bank' };
+}
+
 export function addVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
-  const amount = Math.max(0, expense.amount);
+  if ((month.variableExpenses || []).some((item) => item.id === expense.id)) return month;
+  assertExpenseDateInPeriod(month, expense.date);
+  const nextExpense = canonicalVariableExpense(expense);
   return {
-    ...adjustPlaceBalance(month, expense.place, -amount),
-    variableExpenses: [expense, ...(month.variableExpenses || [])],
+    ...adjustPlaceBalance(month, nextExpense.place, -nextExpense.amount),
+    variableExpenses: [nextExpense, ...(month.variableExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function editVariableExpense(month: MonthBudget, oldExpense: VariableExpense, newExpense: VariableExpense): MonthBudget {
-  const updatedExpenses = (month.variableExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
-  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
+  const existing = (month.variableExpenses || []).find((expense) => expense.id === oldExpense.id);
+  if (!existing) throw new MoneyInvariantError('not-found', 'The expense no longer exists.');
+  assertExpenseDateInPeriod(month, newExpense.date);
+  const candidate = canonicalVariableExpense({
+    ...newExpense,
+    id: existing.id,
+    payerMemberId: newExpense.payerMemberId ?? existing.payerMemberId,
+    createdByUserId: existing.createdByUserId ?? newExpense.createdByUserId,
+    sourceType: existing.sourceType ?? newExpense.sourceType,
+    sourceId: existing.sourceId ?? newExpense.sourceId,
+    importFingerprint: existing.importFingerprint ?? newExpense.importFingerprint,
+  });
+  let next = adjustPlaceBalance(month, existing.place || 'bank', existing.amount);
+  next = adjustPlaceBalance(next, candidate.place, -candidate.amount);
   return {
     ...next,
-    variableExpenses: updatedExpenses,
+    variableExpenses: (month.variableExpenses || []).map((expense) =>
+      expense.id === existing.id ? candidate : expense,
+    ),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function deleteVariableExpense(month: MonthBudget, expense: VariableExpense): MonthBudget {
-  const updatedExpenses = (month.variableExpenses || []).filter((exp) => exp.id !== expense.id);
+  const existing = (month.variableExpenses || []).find((item) => item.id === expense.id);
+  // Idempotent deletion is essential for replaying queued mutations: a retry
+  // must never refund an expense twice.
+  if (!existing) return month;
   return {
-    ...adjustPlaceBalance(month, expense.place, expense.amount),
-    variableExpenses: updatedExpenses,
+    ...adjustPlaceBalance(month, existing.place || 'bank', existing.amount),
+    variableExpenses: (month.variableExpenses || []).filter((item) => item.id !== existing.id),
     updatedAt: new Date().toISOString(),
   };
 }
 
-export function addFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
-  const amount = Math.max(0, expense.amount);
+function canonicalFixedExpense(expense: FixedExpense): FixedExpense {
+  const amount = positiveMoney(expense.amount);
+  const status = expense.status || 'paid';
+  const paidAmount = fixedPaidAmount({ ...expense, amount, status });
   return {
-    ...adjustPlaceBalance(month, expense.place, -amount),
-    fixedExpenses: [expense, ...(month.fixedExpenses || [])],
+    ...expense,
+    amount,
+    place: expense.place || 'bank',
+    status,
+    paidAmount,
+    ...(status === 'paid' && !expense.paidAt ? { paidAt: new Date().toISOString() } : {}),
+  };
+}
+
+export function addFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
+  if ((month.fixedExpenses || []).some((item) => item.id === expense.id)) return month;
+  const candidate = canonicalFixedExpense(expense);
+  return {
+    ...adjustPlaceBalance(month, candidate.place, -fixedPaidAmount(candidate)),
+    fixedExpenses: [candidate, ...(month.fixedExpenses || [])],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -845,55 +1442,112 @@ export function addFixedExpense(month: MonthBudget, expense: FixedExpense): Mont
 export function availableForCharge(
   balances: Record<MoneyPlace, number | undefined> | null | undefined,
   place: MoneyPlace,
-  previousCharge?: { place?: MoneyPlace; amount?: number } | null,
+  previousCharge?: { place?: MoneyPlace; amount?: number; status?: LifecycleStatus; paidAmount?: number } | null,
 ): number {
   let available = Math.max(0, balances?.[place] ?? 0);
   if (previousCharge && (previousCharge.place || 'bank') === place) {
-    available += Math.max(0, previousCharge.amount || 0);
+    available += previousCharge.status
+      ? fixedPaidAmount(previousCharge as FixedExpense)
+      : Math.max(0, previousCharge.amount || 0);
   }
   return available;
 }
 
 export function editFixedExpense(month: MonthBudget, oldExpense: FixedExpense, newExpense: FixedExpense): MonthBudget {
-  const updatedExpenses = (month.fixedExpenses || []).map((exp) => (exp.id === oldExpense.id ? newExpense : exp));
-  let next = adjustPlaceBalance(month, oldExpense.place, oldExpense.amount);
-  next = adjustPlaceBalance(next, newExpense.place, -newExpense.amount);
+  const existing = (month.fixedExpenses || []).find((expense) => expense.id === oldExpense.id);
+  if (!existing) throw new MoneyInvariantError('not-found', 'The fixed bill no longer exists.');
+  const candidate = canonicalFixedExpense({
+    ...newExpense,
+    id: existing.id,
+    payerMemberId: newExpense.payerMemberId ?? existing.payerMemberId,
+    createdByUserId: existing.createdByUserId ?? newExpense.createdByUserId,
+    templateId: existing.templateId ?? newExpense.templateId,
+    sourceType: existing.sourceType ?? newExpense.sourceType,
+    sourceId: existing.sourceId ?? newExpense.sourceId,
+    importFingerprint: existing.importFingerprint ?? newExpense.importFingerprint,
+  });
+  let next = adjustPlaceBalance(month, existing.place || 'bank', fixedPaidAmount(existing));
+  next = adjustPlaceBalance(next, candidate.place, -fixedPaidAmount(candidate));
   return {
     ...next,
-    fixedExpenses: updatedExpenses,
+    fixedExpenses: (month.fixedExpenses || []).map((expense) =>
+      expense.id === existing.id ? candidate : expense,
+    ),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function deleteFixedExpense(month: MonthBudget, expense: FixedExpense): MonthBudget {
-  const updatedExpenses = (month.fixedExpenses || []).filter((exp) => exp.id !== expense.id);
+  const existing = (month.fixedExpenses || []).find((item) => item.id === expense.id);
+  if (!existing) return month;
   return {
-    ...adjustPlaceBalance(month, expense.place, expense.amount),
-    fixedExpenses: updatedExpenses,
+    ...adjustPlaceBalance(month, existing.place || 'bank', fixedPaidAmount(existing)),
+    fixedExpenses: (month.fixedExpenses || []).filter((item) => item.id !== existing.id),
     updatedAt: new Date().toISOString(),
   };
 }
 
-export function moveMoney(month: MonthBudget, from: MoneyPlace, to: MoneyPlace, amount: number): MonthBudget {
-  if (from === to || amount <= 0) return month;
-
+export function moveMoney(
+  month: MonthBudget,
+  from: MoneyPlace,
+  to: MoneyPlace,
+  amount: number,
+  createdByUserId?: string,
+): MonthBudget {
+  if (from === to) throw new MoneyInvariantError('invalid-amount', 'Transfer accounts must be different.');
+  const transferAmount = positiveMoney(amount);
   const currentFrom = getPlaceBalance(month, from);
-  const actualMove = Math.min(currentFrom, amount);
-  let next = withPlaceBalance(month, from, currentFrom - actualMove);
-  next = withPlaceBalance(next, to, getPlaceBalance(next, to) + actualMove);
-  return { ...next, updatedAt: new Date().toISOString() };
+  if (transferAmount > currentFrom) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${from}” does not have enough funds.`);
+  }
+  let next = withPlaceBalance(month, from, currentFrom - transferAmount);
+  next = withPlaceBalance(next, to, getPlaceBalance(next, to) + transferAmount);
+  const transfer: AccountTransfer = {
+    id: entityId('transfer'),
+    from,
+    to,
+    amount: transferAmount,
+    date: new Date().toISOString(),
+    ...(createdByUserId ? { createdByUserId } : {}),
+  };
+  return {
+    ...next,
+    transfers: [transfer, ...(month.transfers || [])].slice(0, 500),
+    updatedAt: transfer.date,
+  };
 }
 
 export function updateMoneyPlaces(
   month: MonthBudget,
-  values: Partial<Record<MoneyPlace, number>>
+  values: Partial<Record<MoneyPlace, number>>,
+  metadata: { reason?: BalanceAdjustment['reason']; note?: string; createdByUserId?: string } = {},
 ): MonthBudget {
   let next = month;
+  const adjustments: BalanceAdjustment[] = [];
   for (const [place, value] of Object.entries(values)) {
     if (value === undefined) continue;
-    next = withPlaceBalance(next, place, value);
+    const previousBalance = getPlaceBalance(next, place);
+    const newBalance = money(value);
+    if (newBalance === previousBalance) continue;
+    next = withPlaceBalance(next, place, newBalance);
+    adjustments.push({
+      id: entityId('adjustment'),
+      place,
+      previousBalance,
+      newBalance,
+      delta: money(Math.abs(newBalance - previousBalance)) * (newBalance < previousBalance ? -1 : 1),
+      reason: metadata.reason || 'reconciliation',
+      ...(metadata.note?.trim() ? { note: metadata.note.trim() } : {}),
+      date: new Date().toISOString(),
+      ...(metadata.createdByUserId ? { createdByUserId: metadata.createdByUserId } : {}),
+    });
   }
-  return { ...next, updatedAt: new Date().toISOString() };
+  if (adjustments.length === 0) return month;
+  return {
+    ...next,
+    balanceAdjustments: [...adjustments, ...(month.balanceAdjustments || [])].slice(0, 500),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /** Cap for the per-month savings activity log (mirrored in firestore.rules). */
@@ -908,7 +1562,7 @@ function withSavingsActivity(
 ): MonthBudget {
   const logged: SavingsActivityEntry = {
     ...entry,
-    id: `sav-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: entityId('sav'),
   };
 
   return {
@@ -928,16 +1582,17 @@ export function fundGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  sourcePlace: MoneyPlace
+  sourcePlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
-  if (amount <= 0) return { month, goals };
-
+  const actualAmount = positiveMoney(amount);
   const currentBalance = getPlaceBalance(month, sourcePlace);
-  const actualAmount = Math.min(currentBalance, amount);
-
-  if (actualAmount <= 0) return { month, goals };
+  if (actualAmount > currentBalance) {
+    throw new MoneyInvariantError('insufficient-funds', `Money source “${sourcePlace}” does not have enough funds.`);
+  }
 
   const goal = goals.find((g) => g.id === goalId);
+  if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
 
   const updatedMonth = withSavingsActivity(
     withPlaceBalance(month, sourcePlace, currentBalance - actualAmount),
@@ -948,6 +1603,8 @@ export function fundGoal(
       amount: actualAmount,
       date: new Date().toISOString(),
       place: sourcePlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 
@@ -971,14 +1628,15 @@ export function withdrawGoal(
   goals: SavingGoal[],
   goalId: string,
   amount: number,
-  targetPlace: MoneyPlace
+  targetPlace: MoneyPlace,
+  actor?: { memberId?: string; name?: string },
 ): { month: MonthBudget; goals: SavingGoal[] } {
   const goal = goals.find((g) => g.id === goalId);
-  if (!goal || amount <= 0) return { month, goals };
-
-  const actualWithdraw = Math.min(goal.current, amount);
-
-  if (actualWithdraw <= 0) return { month, goals };
+  if (!goal) throw new MoneyInvariantError('not-found', 'The savings goal no longer exists.');
+  const actualWithdraw = positiveMoney(amount);
+  if (actualWithdraw > goal.current) {
+    throw new MoneyInvariantError('insufficient-funds', 'The savings goal does not have enough funds.');
+  }
 
   const updatedMonth = withSavingsActivity(
     withPlaceBalance(month, targetPlace, getPlaceBalance(month, targetPlace) + actualWithdraw),
@@ -989,6 +1647,8 @@ export function withdrawGoal(
       amount: actualWithdraw,
       date: new Date().toISOString(),
       place: targetPlace,
+      ...(actor?.memberId ? { actorMemberId: actor.memberId } : {}),
+      ...(actor?.name ? { actorName: actor.name } : {}),
     },
   );
 
@@ -1040,8 +1700,10 @@ export function saveGoalWithBalance(
     const delta = requested - previousCurrent;
 
     if (delta > 0) {
-      // Never let a goal pull more than what actually sits in that place.
-      const actual = Math.min(balance, delta);
+      if (delta > balance) {
+        throw new MoneyInvariantError('insufficient-funds', `Money source “${deductFromPlace}” does not have enough funds.`);
+      }
+      const actual = money(delta);
       nextCurrent = previousCurrent + actual;
       nextMonth = {
         ...withPlaceBalance(month, deductFromPlace, balance - actual),
@@ -1319,9 +1981,90 @@ export function toggleDebtStatus(month: MonthBudget, debtId: string): MonthBudge
   };
 }
 
+/** Record an installment and its matching cash movement in one month mutation. */
+export function recordDebtPayment(
+  month: MonthBudget,
+  debtId: string,
+  payment: DebtPayment,
+): MonthBudget {
+  const debt = (month.debts || []).find((item) => item.id === debtId);
+  if (!debt) throw new MoneyInvariantError('not-found', 'The debt no longer exists.');
+  if ((debt.payments || []).some((item) => item.id === payment.id)) return month;
+  const amount = positiveMoney(payment.amount);
+  if (amount > debtOutstanding(debt)) {
+    throw new MoneyInvariantError('invalid-amount', 'Payment cannot exceed the outstanding balance.');
+  }
+  assertExpenseDateInPeriod(month, payment.date);
+  const nextPayment: DebtPayment = { ...payment, amount, place: payment.place || 'bank' };
+  const cashDelta = debt.type === 'debt' ? -amount : amount;
+  const next = adjustPlaceBalance(month, nextPayment.place, cashDelta);
+  const payments = [nextPayment, ...(debt.payments || [])];
+  const updatedDebt: DebtItem = {
+    ...debt,
+    payments,
+    status: money(debt.amount - payments.reduce((sum, item) => sum + item.amount, 0)) <= 0
+      ? 'settled'
+      : 'open',
+  };
+  return {
+    ...next,
+    debts: (month.debts || []).map((item) => item.id === debtId ? updatedDebt : item),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Reverse one installment without ever allowing a second replay to mint cash. */
+export function deleteDebtPayment(month: MonthBudget, debtId: string, paymentId: string): MonthBudget {
+  const debt = (month.debts || []).find((item) => item.id === debtId);
+  const payment = debt?.payments?.find((item) => item.id === paymentId);
+  if (!debt || !payment) return month;
+  // Reversing a debt payment returns cash; reversing received credit takes it
+  // back out and therefore still observes the source balance guard.
+  const cashDelta = debt.type === 'debt' ? payment.amount : -payment.amount;
+  const next = adjustPlaceBalance(month, payment.place || 'bank', cashDelta);
+  const payments = (debt.payments || []).filter((item) => item.id !== paymentId);
+  const updatedDebt: DebtItem = { ...debt, payments, status: 'open' };
+  return {
+    ...next,
+    debts: (month.debts || []).map((item) => item.id === debtId ? updatedDebt : item),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function stableLegacyId(prefix: string, index: number, parts: unknown[]): string {
+  const input = `${prefix}|${index}|${parts.map((part) => String(part ?? '')).join('|')}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}-legacy-${(hash >>> 0).toString(36)}`;
+}
+
+function safeStoredMoney(value: unknown, fallback = 0): number {
+  const parsed = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return Math.round(Math.max(0, parsed) * 100) / 100;
+}
+
+function budgetPeriodBounds(monthKey: string | undefined, startDay: number): { startDate?: string; endDate?: string } {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return {};
+  const [year, month] = monthKey.split('-').map(Number);
+  if (!year || month < 1 || month > 12) return {};
+  const day = Math.min(Math.max(1, Math.round(startDay)), new Date(year, month, 0).getDate());
+  const start = new Date(year, month - 1, day);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextDay = Math.min(Math.max(1, Math.round(startDay)), new Date(nextYear, nextMonth, 0).getDate());
+  const end = new Date(nextYear, nextMonth - 1, nextDay - 1);
+  const dateOnly = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return { startDate: dateOnly(start), endDate: dateOnly(end) };
+}
+
 /**
  * Normalizes a raw Firestore month document, backfilling missing or legacy properties.
- * Handles rollover from previous month for Pro users.
+ * Handles rollover from previous month for Pro users. Unknown forward-compatible
+ * fields and all attribution fields are retained instead of being erased by a read.
  */
 export function normalizeMonth(
   raw: Partial<MonthBudget> | null | undefined,
@@ -1329,11 +2072,14 @@ export function normalizeMonth(
   // `null` is how the auth context represents "signed out or still loading",
   // and every caller forwards that value straight through; requiring
   // `undefined` only forced `profile ?? undefined` at nine call sites.
-  userProfile?: UserProfile | null,
+  userProfile?: MonthConfiguration | null,
   previousMonth?: MonthBudget
 ): MonthBudget {
   const fallbackIncome = raw?.totalBudget ?? 0;
-  const strategyId: StrategyId = raw?.strategyId || '50-30-20';
+  // Legacy '80-20' months migrate to 50/30/20: the removed preset stored the
+  // exact same ratios, so this changes the label, never the numbers.
+  const rawStrategyId = raw?.strategyId === '80-20' ? '50-30-20' : raw?.strategyId;
+  const strategyId: StrategyId = rawStrategyId || '50-30-20';
   // Persisted per-month custom split; only meaningful for the custom strategy
   // but kept around so switching back and forth doesn't lose the definition.
   const customRatios =
@@ -1378,55 +2124,128 @@ export function normalizeMonth(
     Subscriptions: 'movie',
   };
 
-  const totalBudget = typeof raw?.totalBudget === 'number' && !isNaN(raw.totalBudget) ? raw.totalBudget : 0;
+  // Explicit envelope defaults for the built-in categories. These match the
+  // historical keyword classification, so existing budgets do not shift; they
+  // simply become stable overrides instead of name-derived guesses.
+  const seedEnvelopes: Record<string, Envelope> = {
+    Groceries: 'needs',
+    Transport: 'needs',
+    Rent: 'needs',
+    Health: 'needs',
+    Utilities: 'needs',
+    Entertainment: 'wants',
+    'Dining Out': 'wants',
+    Shopping: 'wants',
+    Subscriptions: 'wants',
+  };
+  const sanitizeEnvelopes = (input: unknown): Record<string, Envelope> => {
+    if (!input || typeof input !== 'object') return {};
+    const result: Record<string, Envelope> = {};
+    for (const [name, value] of Object.entries(input as Record<string, unknown>)) {
+      if (name && (value === 'needs' || value === 'wants' || value === 'savings')) {
+        result[name] = value;
+      }
+    }
+    return result;
+  };
+  const categoryEnvelopes: Record<string, Envelope> = {
+    ...seedEnvelopes,
+    ...sanitizeEnvelopes(userProfile?.defaultCategoryEnvelopes),
+    ...sanitizeEnvelopes(raw?.categoryEnvelopes),
+  };
+
+  const totalBudget = safeStoredMoney(raw?.totalBudget);
+  const periodStartDay = Math.min(31, Math.max(1, Math.round(raw?.periodStartDay || userProfile?.monthStartDate || 1)));
+  const bounds = budgetPeriodBounds(raw?.periodKey || monthKey, periodStartDay);
+  const lifecycle = (status: unknown): LifecycleStatus | undefined =>
+    status === 'planned' || status === 'partial' || status === 'paid' || status === 'skipped'
+      ? status
+      : undefined;
 
   const incomeSources: IncomeSource[] =
     raw?.incomeSources && raw.incomeSources.length > 0
-      ? raw.incomeSources
-      : [{ id: 'main-income', name: 'Primary Income', amount: totalBudget }];
+      ? raw.incomeSources.map((source, index) => {
+          const amount = safeStoredMoney(source.amount);
+          const status = lifecycle(source.status) || 'paid';
+          return {
+            ...source,
+            id: source.id || stableLegacyId('income', index, [source.name, amount, source.payDay]),
+            name: source.name || 'Primary Income',
+            amount,
+            status,
+            receivedAmount:
+              status === 'paid'
+                ? safeStoredMoney(source.receivedAmount, amount)
+                : status === 'partial'
+                  ? Math.min(amount, safeStoredMoney(source.receivedAmount))
+                  : 0,
+            recurring: source.recurring ?? true,
+          };
+        })
+      : [{
+          id: 'main-income',
+          name: 'Primary Income',
+          amount: totalBudget,
+          status: 'paid',
+          receivedAmount: totalBudget,
+          recurring: true,
+        }];
 
-  // Normalize expenses: ensure 'place' exists (default to 'bank')
-  const variableExpenses: VariableExpense[] = (raw?.variableExpenses || []).map((exp) => ({
-    id: exp.id || Math.random().toString(36).substring(2, 9),
+  const fallbackDate = raw?.periodStartDate || bounds.startDate || (monthKey ? `${monthKey}-01` : '1970-01-01');
+  const variableExpenses: VariableExpense[] = (raw?.variableExpenses || []).map((exp, index) => ({
+    ...exp,
+    id: exp.id || stableLegacyId('expense', index, [exp.name, exp.amount, exp.date, exp.place]),
     name: exp.name || 'Expense',
-    amount: typeof exp.amount === 'number' ? exp.amount : 0,
+    amount: safeStoredMoney(exp.amount),
     type: exp.type || 'Other',
-    date: exp.date || new Date().toISOString().split('T')[0],
+    date: exp.date || fallbackDate,
     place: exp.place || 'bank',
-    note: exp.note,
     person: exp.person || 'Self',
     tags: exp.tags || [],
-    receiptUrl: exp.receiptUrl,
   }));
 
-  const fixedExpenses: FixedExpense[] = (raw?.fixedExpenses || []).map((exp) => ({
-    id: exp.id || Math.random().toString(36).substring(2, 9),
-    name: exp.name || 'Fixed Bill',
-    amount: typeof exp.amount === 'number' ? exp.amount : 0,
-    type: exp.type || 'Utilities',
-    date: exp.date || '1st',
-    place: exp.place || 'bank',
-    base: exp.base,
-    person: exp.person || 'Self',
-    recurring: exp.recurring ?? true,
-    receiptUrl: exp.receiptUrl,
-  }));
+  const fixedExpenses: FixedExpense[] = (raw?.fixedExpenses || []).map((exp, index) => {
+    const amount = safeStoredMoney(exp.amount);
+    const status = lifecycle(exp.status) || 'paid';
+    return {
+      ...exp,
+      id: exp.id || stableLegacyId('fixed', index, [exp.name, amount, exp.date, exp.place]),
+      name: exp.name || 'Fixed Bill',
+      amount,
+      type: exp.type || 'Utilities',
+      date: exp.date || '1st',
+      place: exp.place || 'bank',
+      person: exp.person || 'Self',
+      recurring: exp.recurring ?? true,
+      templateId: exp.templateId || exp.id,
+      status,
+      paidAmount:
+        status === 'paid'
+          ? safeStoredMoney(exp.paidAmount, amount)
+          : status === 'partial'
+            ? Math.min(amount, safeStoredMoney(exp.paidAmount))
+            : 0,
+    };
+  });
 
-  // Calculate sum of variable/fixed expenses paid per place if places weren't explicitly provided
+  // Calculate sum of variable/fixed expenses paid per place if places weren't explicitly provided.
   const variableSpent = variableExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const fixedSpent = fixedExpenses.reduce((acc, e) => acc + e.amount, 0);
+  const fixedSpent = fixedExpenses.reduce((acc, e) => acc + fixedPaidAmount(e), 0);
 
+  const receivedIncome = incomeSources.reduce((sum, source) => sum + incomeReceivedAmount(source), 0);
   const bankPart =
     typeof raw?.bankPart === 'number'
-      ? raw.bankPart
-      : Math.max(0, totalBudget - variableSpent - fixedSpent);
-  const homePart = typeof raw?.homePart === 'number' ? raw.homePart : 0;
-  const walletPart = typeof raw?.walletPart === 'number' ? raw.walletPart : 0;
+      ? safeStoredMoney(raw.bankPart)
+      : safeStoredMoney(receivedIncome - variableSpent - fixedSpent);
+  const homePart = safeStoredMoney(raw?.homePart);
+  const walletPart = safeStoredMoney(raw?.walletPart);
   const placeBalances: Record<string, number> | undefined = raw?.placeBalances
     ? Object.fromEntries(
-        Object.entries(raw.placeBalances).filter(
-          ([id, value]) => id && !isBuiltinMoneyPlace(id) && typeof value === 'number' && Number.isFinite(value),
-        ),
+        Object.entries(raw.placeBalances)
+          .filter(
+            ([id, value]) => id && !isBuiltinMoneyPlace(id) && typeof value === 'number' && Number.isFinite(value),
+          )
+          .map(([id, value]) => [id, safeStoredMoney(value)]),
       )
     : undefined;
 
@@ -1450,6 +2269,15 @@ export function normalizeMonth(
   }
 
   return {
+    ...(raw || {}),
+    schemaVersion: Math.max(2, Math.floor(raw?.schemaVersion || 0)),
+    revision: Math.max(0, Math.floor(raw?.revision || 0)),
+    periodKey: raw?.periodKey || monthKey,
+    periodStartDay,
+    periodStartDate: raw?.periodStartDate || bounds.startDate,
+    periodEndDate: raw?.periodEndDate || bounds.endDate,
+    currency: raw?.currency || userProfile?.currency || 'MAD',
+    periodStatus: raw?.periodStatus === 'closed' ? 'closed' : 'open',
     totalBudget,
     incomeSources,
     bankPart,
@@ -1458,73 +2286,204 @@ export function normalizeMonth(
     ...(placeBalances && Object.keys(placeBalances).length > 0 ? { placeBalances } : {}),
     strategyId,
     ...(customRatios ? { customRatios } : {}),
-    monthlySavingsTarget: raw?.monthlySavingsTarget ?? defaultEnvelopes.savings,
+    categoryEnvelopes,
+    monthlySavingsTarget: safeStoredMoney(raw?.monthlySavingsTarget, defaultEnvelopes.savings),
     variableExpenses,
     fixedExpenses,
     variableCategoryBases: raw?.variableCategoryBases || {},
     fixedCategoryBases: raw?.fixedCategoryBases || {},
     categoryBudgets,
     rolloverFromPrevious,
-    activeCategories: raw?.activeCategories || defaultCategories,
-    categoryColors: { ...defaultColors, ...(raw?.categoryColors || {}) },
-    categoryIcons: { ...defaultIcons, ...(raw?.categoryIcons || {}) },
-    debts: (raw?.debts || []).map((d) => ({
-      id: d.id || Math.random().toString(36).substring(2, 9),
-      name: d.name || 'Unknown',
-      amount: typeof d.amount === 'number' ? d.amount : 0,
-      type: d.type || 'debt',
-      status: d.status || 'open',
-      date: d.date || new Date().toISOString().split('T')[0],
-      note: d.note,
+    activeCategories: raw?.activeCategories || userProfile?.activeCategories || defaultCategories,
+    categoryColors: {
+      ...defaultColors,
+      ...(userProfile?.categoryColors || {}),
+      ...(raw?.categoryColors || {}),
+    },
+    categoryIcons: {
+      ...defaultIcons,
+      ...(userProfile?.categoryIcons || {}),
+      ...(raw?.categoryIcons || {}),
+    },
+    debts: (raw?.debts || []).map((debt, debtIndex) => ({
+      ...debt,
+      id: debt.id || stableLegacyId('debt', debtIndex, [debt.name, debt.amount, debt.date]),
+      name: debt.name || 'Unknown',
+      amount: safeStoredMoney(debt.amount),
+      type: debt.type === 'credit' ? 'credit' : 'debt',
+      status: debt.status === 'settled' ? 'settled' : 'open',
+      date: debt.date || fallbackDate,
+      payments: (debt.payments || []).map((payment, paymentIndex) => ({
+        ...payment,
+        id: payment.id || stableLegacyId('debt-payment', paymentIndex, [debt.id, payment.amount, payment.date]),
+        amount: safeStoredMoney(payment.amount),
+        date: payment.date || fallbackDate,
+        place: payment.place || 'bank',
+      })),
+    })),
+    transfers: (raw?.transfers || []).slice(0, 500).map((transfer, index) => ({
+      ...transfer,
+      id: transfer.id || stableLegacyId('transfer', index, [transfer.from, transfer.to, transfer.amount, transfer.date]),
+      from: transfer.from || 'bank',
+      to: transfer.to || 'wallet',
+      amount: safeStoredMoney(transfer.amount),
+      date: transfer.date || `${fallbackDate}T00:00:00.000Z`,
+    })),
+    balanceAdjustments: (raw?.balanceAdjustments || []).slice(0, 500).map((adjustment, index) => ({
+      ...adjustment,
+      id: adjustment.id || stableLegacyId('adjustment', index, [adjustment.place, adjustment.delta, adjustment.date]),
+      place: adjustment.place || 'bank',
+      previousBalance: safeStoredMoney(adjustment.previousBalance),
+      newBalance: safeStoredMoney(adjustment.newBalance),
+      delta: Number.isFinite(adjustment.delta)
+        ? Math.round(adjustment.delta * 100) / 100
+        : safeStoredMoney(adjustment.newBalance) - safeStoredMoney(adjustment.previousBalance),
+      reason: adjustment.reason || 'reconciliation',
+      date: adjustment.date || `${fallbackDate}T00:00:00.000Z`,
     })),
     savingsActivity: (raw?.savingsActivity || [])
       .filter((evt) => evt && (evt.type === 'deposit' || evt.type === 'withdraw'))
       .slice(0, MAX_SAVINGS_ACTIVITY)
-      .map((evt) => ({
-        id: evt.id || Math.random().toString(36).substring(2, 9),
+      .map((evt, index) => ({
+        ...evt,
+        id: evt.id || stableLegacyId('savings', index, [evt.goalId, evt.type, evt.amount, evt.date]),
         goalId: evt.goalId || '',
         goalName: evt.goalName || 'Savings goal',
         type: evt.type,
-        amount: typeof evt.amount === 'number' && evt.amount >= 0 ? evt.amount : 0,
-        date: evt.date || new Date().toISOString(),
+        amount: safeStoredMoney(evt.amount),
+        date: evt.date || `${fallbackDate}T00:00:00.000Z`,
         ...(evt.place && typeof evt.place === 'string' ? { place: evt.place } : {}),
       })),
-    updatedAt: raw?.updatedAt || new Date().toISOString(),
+    updatedAt: raw?.updatedAt || `${fallbackDate}T00:00:00.000Z`,
   };
 }
 
 /**
- * Carries over recurring fixed expenses from a previous month into a new month.
- * Only copies bills with `recurring: true`.
+ * Materialize recurring income for a new salary period, RECEIVED IN FULL.
  *
- * Each carried bill reduces the money place it is actually paid from
- * (`bill.place`), not blanket-debited from the bank.
+ * Product decision (2026-09): a new salary period opens with the full salary
+ * already in the bank — the dashboard's first paint of a fresh period shows
+ * "bank = full salary", not an empty bank waiting for a manual "mark as
+ * received". Users whose salary is actually late can edit the occurrence back
+ * to planned/partial; deterministic IDs keep retries idempotent.
+ */
+export function carryOverIncomeSources(
+  previousMonth: Pick<MonthBudget, 'incomeSources'>,
+  periodKey: string,
+): IncomeSource[] {
+  return (previousMonth.incomeSources || [])
+    .filter((source) => source.recurring !== false)
+    .map((source) => {
+      const templateId = source.templateId || source.id;
+      const amount = money(source.amount);
+      return {
+        ...source,
+        id: `income-occurrence-${templateId}-${periodKey}`,
+        templateId,
+        amount,
+        status: 'paid',
+        receivedAmount: amount,
+        receivedAt: new Date().toISOString(),
+      };
+    });
+}
+
+/** Income sources whose id starts with this prefix are Pro balance carry-overs. */
+export const CARRYOVER_INCOME_ID_PREFIX = 'carryover-';
+
+/** Canonical (English) name of the carry-over line; localized at render time. */
+export const CARRYOVER_INCOME_NAME = 'Carried over';
+
+/**
+ * Pro feature: turn the previous period's remaining bank balance into an
+ * explicit, already-received income line of the new period. Modeled as a
+ * non-recurring income source (rather than a hidden opening balance) so the
+ * math stays auditable in the UI and the line never propagates to the period
+ * after next (`recurring: false` is filtered by carryOverIncomeSources).
+ */
+export function carryOverRemainingBalance(
+  previousMonth: Pick<MonthBudget, 'bankPart'>,
+  periodKey: string,
+): IncomeSource | null {
+  const raw = previousMonth.bankPart;
+  // Overdrawn or empty periods carry nothing; debts are not "negative income".
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return null;
+  const remaining = money(raw);
+  if (remaining <= 0) return null;
+  return {
+    id: `${CARRYOVER_INCOME_ID_PREFIX}${periodKey}`,
+    name: CARRYOVER_INCOME_NAME,
+    amount: remaining,
+    status: 'paid',
+    receivedAmount: remaining,
+    receivedAt: new Date().toISOString(),
+    recurring: false,
+  };
+}
+
+/**
+ * Seed for a brand-new salary period bootstrapped from the previous one.
+ *
+ * Free plan: bank opens at the full salary (recurring income received in
+ * full). Pro plan (`carryRemainingBalance`): additionally carries what was
+ * left in the bank at the end of the previous period as a "Carried over"
+ * income line, so bank = full salary + previous remainder. `totalBudget`
+ * stays the planned salary in both cases: strategy envelopes are computed
+ * from expected income, not inflated by leftovers.
+ */
+export function buildRolloverSeed(
+  previousMonth: MonthBudget,
+  periodKey: string,
+  options: { carryRemainingBalance: boolean },
+): Partial<MonthBudget> {
+  const carried = carryOverIncomeSources(previousMonth, periodKey);
+  const carryover = options.carryRemainingBalance
+    ? carryOverRemainingBalance(previousMonth, periodKey)
+    : null;
+  return {
+    totalBudget: previousMonth.totalBudget,
+    incomeSources: carryover ? [carryover, ...carried] : carried,
+    activeCategories: previousMonth.activeCategories,
+    categoryIcons: previousMonth.categoryIcons,
+    categoryColors: previousMonth.categoryColors,
+    categoryEnvelopes: previousMonth.categoryEnvelopes,
+  };
+}
+
+/**
+ * Materialize one planned occurrence from each recurring template. Carrying a
+ * template must never debit cash: the debit happens only when the occurrence
+ * becomes partial/paid. Deterministic IDs make retries idempotent.
  */
 export function carryOverFixedExpenses(
   newMonth: MonthBudget,
   previousMonth: MonthBudget,
 ): MonthBudget {
-  const recurringBills = (previousMonth.fixedExpenses || []).filter((b) => b.recurring !== false);
+  const recurringBills = (previousMonth.fixedExpenses || []).filter((bill) => bill.recurring !== false);
   if (recurringBills.length === 0) return newMonth;
 
-  const existingIds = new Set((newMonth.fixedExpenses || []).map((b) => b.id));
-  const toCarry = recurringBills.filter((b) => !existingIds.has(b.id));
+  const existingTemplates = new Set(
+    (newMonth.fixedExpenses || []).map((bill) => bill.templateId || bill.id),
+  );
+  const toCarry = recurringBills.filter((bill) => !existingTemplates.has(bill.templateId || bill.id));
   if (toCarry.length === 0) return newMonth;
 
-  // Recreate IDs so they don't collide
-  const carried = toCarry.map((b) => ({
-    ...b,
-    id: `carry-${b.id}-${Date.now()}`,
-    date: b.date || '1st',
-  }));
-
-  let next = newMonth;
-  carried.forEach((b) => {
-    next = adjustPlaceBalance(next, b.place || 'bank', -b.amount);
+  const period = newMonth.periodKey || newMonth.periodStartDate?.slice(0, 7) || 'next';
+  const carried: FixedExpense[] = toCarry.map((bill) => {
+    const templateId = bill.templateId || bill.id;
+    return {
+      ...bill,
+      id: `fixed-occurrence-${templateId}-${period}`,
+      templateId,
+      date: bill.date || '1st',
+      status: 'planned',
+      paidAmount: 0,
+      paidAt: undefined,
+    };
   });
 
   return {
-    ...next,
+    ...newMonth,
     fixedExpenses: [...(newMonth.fixedExpenses || []), ...carried],
     updatedAt: new Date().toISOString(),
   };
@@ -1541,24 +2500,41 @@ export function createNewMonth(
   monthKey: string,
   customRatios?: Partial<CustomRatios> | null
 ): MonthBudget {
+  const safeIncome = money(income);
   const resolvedCustomRatios =
     strategyId === 'custom' ? normalizeCustomRatios(customRatios) : undefined;
-  const { savings } = calculateEnvelopeAmounts(income, strategyId, resolvedCustomRatios);
+  const { savings } = calculateEnvelopeAmounts(safeIncome, strategyId, resolvedCustomRatios);
 
   const fixedExpenses: FixedExpense[] = bills.map((b, idx) => ({
     id: `fixed-${idx}-${Date.now()}`,
+    templateId: `fixed-template-${idx}-${Date.now()}`,
     name: b.name,
-    amount: b.amount,
+    amount: money(b.amount),
     type: b.category,
     date: '1st',
     place: 'bank',
+    recurring: true,
+    status: 'paid',
+    paidAmount: money(b.amount),
+    paidAt: new Date().toISOString(),
   }));
 
-  const totalFixed = fixedExpenses.reduce((acc, b) => acc + b.amount, 0);
-  const remainingBank = Math.max(0, income - totalFixed);
+  const totalFixed = fixedExpenses.reduce((acc, bill) => acc + fixedPaidAmount(bill), 0);
+  if (totalFixed > safeIncome) {
+    throw new MoneyInvariantError('insufficient-funds', 'Fixed bills cannot exceed received income.');
+  }
+  const remainingBank = money(safeIncome - totalFixed);
 
   return normalizeMonth({
-    totalBudget: income,
+    totalBudget: safeIncome,
+    incomeSources: [{
+      id: 'main-income',
+      name: 'Primary Income',
+      amount: safeIncome,
+      status: 'paid',
+      receivedAmount: safeIncome,
+      recurring: true,
+    }],
     bankPart: remainingBank,
     homePart: 0,
     walletPart: 0,
@@ -1629,4 +2605,9 @@ export interface CourseSession {
   items: SessionItem[]; // capped at 500 lines
   total: number; // denormalized sum of lineTotals
   loggedExpenseId?: string; // set once the total is logged as a variable expense
+  loggedMonthKey?: string;
+  loggedWorkspace?: 'personal' | 'household';
+  loggedWorkspaceId?: string;
+  loggedMutationId?: string;
+  loggedAt?: string;
 }

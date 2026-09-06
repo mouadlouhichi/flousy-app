@@ -4,14 +4,17 @@ import { AppIcon } from '@/components/ui/app-icon';
 
 import React from 'react';
 import Link from 'next/link';
-import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateTotalIncome, resolveMonthStrategy } from '../../lib/store';
+import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateSavingsRate, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useHousehold } from '../../lib/household-context';
+import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { CustomReportCard } from '../dashboard/custom-report-card';
+import { MonthTrendChart } from '../charts/month-trend-chart';
 
 interface TrendsTabProps {
   month: MonthBudget;
@@ -19,6 +22,9 @@ interface TrendsTabProps {
   trendsLoading: boolean;
   profile: UserProfile | null;
   onOpenProModal: () => void;
+  /** Selected history window; switching triggers a provider refetch. */
+  trendsMonthCount?: 6 | 12;
+  onSetTrendsMonthCount?: (count: 6 | 12) => void;
 }
 
 const CHART_COLORS = [
@@ -28,21 +34,32 @@ const CHART_COLORS = [
   '#d946ef', '#a855f7', '#14b8a6', '#f43f5e',
 ];
 
-export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal }: TrendsTabProps) {
+export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal, trendsMonthCount = 6, onSetTrendsMonthCount }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace } = useHousehold();
+  const { workspace, household, canViewArea } = useHousehold();
+  // Analytics is a roll-up of the other areas: each card is filtered by the
+  // area that owns its numbers, so an analytics grant on its own does not
+  // expose balances or income sources to a member who lacks those.
+  const canSeeBalances = canViewArea(AMOUNT_AREA.totalCashOnHand);
+  const canSeeIncome = canViewArea(AMOUNT_AREA.incomeSource);
+  const canSeeExpenses = canViewArea(AMOUNT_AREA.variableExpense);
+  const canSeeFixedBills = canViewArea(AMOUNT_AREA.fixedBill);
+  const canSeeSavings = canViewArea(AMOUNT_AREA.savingsGoal);
+  /** Placeholder shown in place of a figure the member may not see. */
+  const redacted = '••••';
 
   const isPro = isProUser(profile);
   const showUpgrade = canShowProUpgrade(isPro, workspace);
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
   const hasMultiMonth = trendsMonths.length > 0;
 
   // ── Current month calculations ──
   const spent = calculateEnvelopeSpent(month);
   const strategy = resolveMonthStrategy(month);
   const strategyCopy = localizeStrategy(strategy.id, m, intlLocale);
-  const totalCash = (month.bankPart || 0) + (month.homePart || 0) + (month.walletPart || 0);
+  // Same total the Overview shows — custom money places included.
+  const totalCash = totalCashOnHand(month);
 
   // ── Income sources analytics ──
   const incomeSources = month.incomeSources || [];
@@ -54,7 +71,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
     categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
   });
   (month.fixedExpenses || []).forEach((exp) => {
-    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + exp.amount;
+    categoryBreakdown[exp.type] = (categoryBreakdown[exp.type] || 0) + fixedPaidAmount(exp);
   });
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
 
@@ -68,14 +85,19 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   (month.fixedExpenses || []).forEach((exp) => {
     const person = exp.person || 'Self';
     if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
-    personBreakdown[person].fixed += exp.amount;
+    personBreakdown[person].fixed += fixedPaidAmount(exp);
   });
 
   // ── Multi-month trend calculations ──
   const monthOverMonth = trendsMonths.map(({ monthKey, month: m }) => {
     const s = calculateEnvelopeSpent(m);
     const env = calculateEnvelopeAmounts(m.totalBudget, m.strategyId, m.customRatios);
+    // Achieved net savings: received income minus needs/wants spending. Null
+    // when nothing was received (the rate would be meaningless).
+    const achieved = calculateSavingsRate(m);
     return {
+      netSaved: achieved?.net ?? 0,
+      netSavedRate: achieved?.rate ?? null,
       monthKey,
       label: (() => {
         const [y, num] = monthKey.split('-').map(Number);
@@ -101,8 +123,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       : 0
     : 0;
 
-  // Max spent for bar chart scaling
-  const maxSpent = Math.max(...monthOverMonth.map((m) => m.totalSpent), 1);
+  const compactAxis = (value: number) =>
+    new Intl.NumberFormat(intlLocale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
   return (
     <div className="space-y-6 pb-24">
@@ -124,6 +146,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {canSeeExpenses && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.spentThisMonth}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(spent.totalSpent)}</p>
@@ -133,7 +156,9 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </span>
           )}
         </div>
+        )}
 
+        {canSeeExpenses && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.budgetRemaining}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-primary sm:text-[22px]">
@@ -143,23 +168,33 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             {m.tabs.trends.ofLabel} {format(month.totalBudget)}
           </span>
         </div>
+        )}
 
+        {/* Total cash on hand is a `balances` figure: redacted, never hidden
+            outright, so the card grid keeps its shape. */}
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(totalCash)}</p>
-          <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
-            <span className="truncate text-primary">
-              {m.places.bank} {format(month.bankPart || 0)}
-            </span>
-            <span className="truncate text-blue-500">
-              {m.places.wallet} {format(month.walletPart || 0)}
-            </span>
-            <span className="truncate text-amber-600">
-              {m.places.home} {format(month.homePart || 0)}
-            </span>
-          </div>
+          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
+            {canSeeBalances ? format(totalCash) : redacted}
+          </p>
+          {canSeeBalances ? (
+            <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
+              <span className="truncate text-primary">
+                {m.places.bank} {format(month.bankPart || 0)}
+              </span>
+              <span className="truncate text-blue-500">
+                {m.places.wallet} {format(month.walletPart || 0)}
+              </span>
+              <span className="truncate text-amber-600">
+                {m.places.home} {format(month.homePart || 0)}
+              </span>
+            </div>
+          ) : (
+            <p className="mt-1 text-[11px] font-bold text-on-surface-variant">{m.household.areaRedacted}</p>
+          )}
         </div>
 
+        {canSeeSavings && (
         <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.activeGoals}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
@@ -172,23 +207,47 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             })}
           </span>
         </div>
+        )}
       </div>
 
-      {/* ── Multi-Month Trends (Pro feature) ── */}
+      {/* ── Multi-Month Trends (Pro feature) ──
+          Budget / spent / remaining per month are `expenses` figures. */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
             <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.monthOverMonth}</h3>
           </div>
-          {showUpgrade && (
-            <button
-              onClick={onOpenProModal}
-              className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
-            >
-              {m.tabs.trends.proLabel}
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {onSetTrendsMonthCount && (
+              <div className="flex rounded-full border border-outline-variant overflow-hidden" role="group" aria-label={m.tabs.trends.rangeLabel}>
+                {([6, 12] as const).map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => onSetTrendsMonthCount(count)}
+                    aria-pressed={trendsMonthCount === count}
+                    className={`px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
+                      trendsMonthCount === count
+                        ? 'bg-primary text-on-primary'
+                        : 'bg-surface text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    {count === 6 ? m.tabs.trends.last6Months : m.tabs.trends.last12Months}
+                  </button>
+                ))}
+              </div>
+            )}
+            {showUpgrade && (
+              <button
+                onClick={onOpenProModal}
+                className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+              >
+                {m.tabs.trends.proLabel}
+              </button>
+            )}
+          </div>
         </div>
 
         {trendsLoading ? (
@@ -196,28 +255,18 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <span className="text-on-surface-variant font-medium">{m.tabs.trends.loadingTrends}</span>
           </div>
         ) : monthOverMonth.length > 1 && proUnlocked ? (
-          /* Bar chart with month-over-month comparison */
+          /* Bar chart with month-over-month comparison. The bars are a purely
+             visual rendering of the table that follows, so they are hidden
+             from assistive tech and a screen-reader summary points at the
+             table — the accessible "chart". */
           <div className="space-y-4">
-            <div className="flex items-end gap-2 sm:gap-3 h-48">
-              {monthOverMonth.map((m, idx) => {
-                const heightPct = Math.max(8, (m.totalSpent / maxSpent) * 100);
-                const isCurrent = idx === monthOverMonth.length - 1;
-                return (
-                  <div key={m.monthKey} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="w-full truncate text-center text-[10px] font-bold font-mono text-on-surface-variant">{format(m.totalSpent)}</span>
-                    <div
-                      className={`w-full rounded-lg transition-all duration-300 ${
-                        isCurrent ? 'bg-primary' : 'bg-primary/40'
-                      }`}
-                      style={{ height: `${heightPct}%`, minHeight: '16px' }}
-                    />
-                    <span className={`text-[10px] font-bold ${isCurrent ? 'text-primary' : 'text-on-surface-variant'}`}>
-                      {m.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <p className="sr-only">{m.tabs.trends.chartAltText}</p>
+            <MonthTrendChart
+              data={monthOverMonth}
+              format={format}
+              compactAxis={compactAxis}
+              labels={{ spent: m.tabs.trends.spent, budget: m.tabs.trends.budget, netSaved: m.tabs.trends.netSaved }}
+            />
 
             {/* Trend summary table */}
             <div className="overflow-x-auto">
@@ -228,6 +277,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     <th className="text-end py-2 px-3">{m.tabs.trends.budget}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.spent}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.remaining}</th>
+                    <th className="text-end py-2 px-3">{m.tabs.trends.netSaved}</th>
                     <th className="text-end py-2 ps-3">{m.tabs.trends.savingsPercent}</th>
                   </tr>
                 </thead>
@@ -238,6 +288,11 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalBudget)}</td>
                       <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalSpent)}</td>
                       <td className="py-2 px-3 text-end font-mono text-primary">{format(m.remaining)}</td>
+                      <td className="py-2 px-3 text-end font-mono text-on-surface">
+                        {m.netSavedRate !== null
+                          ? `${format(m.netSaved)} (${new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.netSavedRate)})`
+                          : '—'}
+                      </td>
                       <td className="py-2 ps-3 text-end font-mono text-on-surface">
                         {m.totalBudget > 0
                           ? new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.savings / m.totalBudget)
@@ -258,7 +313,13 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         )}
       </div>
 
-      {/* ── Income Sources Breakdown ── */}
+      )}
+
+      {/* ── Income Sources Breakdown ──
+          Income is its own RBAC area. Without the grant the whole section is
+          dropped — not blurred, not zeroed — because even the source *names*
+          and the combined total are household financial data. */}
+      {canSeeIncome && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="payments" className=" text-primary text-[24px]" />
@@ -274,10 +335,11 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <span
+                        aria-hidden="true"
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{src.name}</span>
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[12px] font-bold text-on-surface-variant">
@@ -286,7 +348,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -312,8 +374,10 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         )}
       </div>
+      )}
 
       {/* ── Category Trend Breakdown ── */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="category" className=" text-primary text-[24px]" />
@@ -329,6 +393,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <span
+                        aria-hidden="true"
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
@@ -341,7 +406,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                       <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -367,9 +432,23 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Custom reports by place / tag / member (Pro) ── */}
+      {canSeeExpenses && (
+        <CustomReportCard
+          months={[
+            { monthKey: month.periodKey || 'current', month },
+            ...trendsMonths.filter((entry) => entry.month.periodKey !== month.periodKey),
+          ]}
+          unlocked={proUnlocked}
+          onUpgrade={onOpenProModal}
+          canSeeFixedBills={canSeeFixedBills}
+        />
+      )}
 
       {/* ── Household Spending Breakdown ── */}
-      {proUnlocked && Object.keys(personBreakdown).length > 0 && (
+      {proUnlocked && canSeeExpenses && canSeeFixedBills && Object.keys(personBreakdown).length > 0 && (
         <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
           <div className="flex items-center gap-2 mb-4">
             <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
@@ -390,7 +469,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                     </span>
                   </div>
                   <span className="truncate text-[20px] font-extrabold font-mono text-on-surface">{format(total)}</span>
-                  <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
@@ -416,6 +495,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       )}
 
       {/* ── Budget Health Summary ── */}
+      {canSeeExpenses && (
       <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
         <div className="flex items-center gap-2 mb-4">
           <AppIcon name="health_and_safety" className=" text-primary text-[24px]" />
@@ -470,6 +550,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

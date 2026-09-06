@@ -23,6 +23,35 @@ interface SavingsTabProps {
   /** Open the editor for a logged deposit / withdrawal. */
   onEditDeposit?: (entry: SavingsActivityEntry) => void;
   canEdit?: boolean;
+  /** Pro projection ("at this pace you reach the goal by …"). */
+  projectionsUnlocked?: boolean;
+  onUpgrade?: () => void;
+  /** Months (oldest → newest, current last) used to measure the deposit pace. */
+  paceMonths?: MonthBudget[];
+  /** Household: show who contributed to each goal (from the activity logs). */
+  showContributors?: boolean;
+}
+
+/** Net contribution per member across the given months' activity logs. */
+export function goalContributions(
+  months: MonthBudget[],
+  goalId: string,
+): Array<{ key: string; name: string; amount: number }> {
+  const totals = new Map<string, { name: string; amount: number }>();
+  for (const mo of months) {
+    for (const entry of mo.savingsActivity || []) {
+      if (entry.goalId !== goalId) continue;
+      const key = entry.actorMemberId || entry.actorName || '__unknown';
+      const bucket = totals.get(key) || { name: entry.actorName || '', amount: 0 };
+      bucket.amount += entry.type === 'deposit' ? entry.amount : -entry.amount;
+      if (!bucket.name && entry.actorName) bucket.name = entry.actorName;
+      totals.set(key, bucket);
+    }
+  }
+  return Array.from(totals.entries())
+    .map(([key, v]) => ({ key, ...v }))
+    .filter((c) => c.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
 }
 
 const formatEntryDate = (value: string, intlLocale: string): string => {
@@ -30,6 +59,19 @@ const formatEntryDate = (value: string, intlLocale: string): string => {
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
 };
+
+import { GoalProjection } from '../dashboard/goal-projection';
+
+const CONTRIB_COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
+
+function goalNetDeposits(month: MonthBudget, goalId: string): number {
+  let net = 0;
+  for (const entry of month.savingsActivity || []) {
+    if (entry.goalId !== goalId) continue;
+    net += entry.type === 'deposit' ? entry.amount : -entry.amount;
+  }
+  return Math.max(0, net);
+}
 
 export function SavingsTab({
   goals,
@@ -40,6 +82,10 @@ export function SavingsTab({
   month,
   onEditDeposit,
   canEdit = true,
+  projectionsUnlocked = false,
+  onUpgrade,
+  paceMonths,
+  showContributors = false,
 }: SavingsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -137,6 +183,37 @@ export function SavingsTab({
                   <div className="flex justify-end font-label-sm text-label-sm font-bold text-secondary">
                     {t(m.tabs.savings.percentReached, { percent: formatLocalizedPercent(pct, intlLocale) })}
                   </div>
+                  {showContributors && (() => {
+                    const contributions = goalContributions(paceMonths || (month ? [month] : []), goal.id);
+                    if (contributions.length === 0) return null;
+                    const sum = contributions.reduce((a, c) => a + c.amount, 0);
+                    return (
+                      <div className="mt-1 flex flex-col gap-1">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">{m.tabs.savings.contributors}</span>
+                        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-outline-variant" aria-hidden="true">
+                          {contributions.map((c, idx) => (
+                            <div key={c.key} style={{ width: `${(c.amount / sum) * 100}%`, backgroundColor: CONTRIB_COLORS[idx % CONTRIB_COLORS.length] }} />
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-on-surface-variant">
+                          {contributions.map((c, idx) => (
+                            <span key={c.key} className="flex items-center gap-1">
+                              <span className="inline-block size-2 rounded-full" style={{ backgroundColor: CONTRIB_COLORS[idx % CONTRIB_COLORS.length] }} />
+                              <span className="font-bold text-on-surface">{c.name || m.tabs.savings.unknownContributor}</span>
+                              <span>{format(c.amount)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <GoalProjection
+                    goal={goal}
+                    monthlyDeposits={(paceMonths || (month ? [month] : [])).map((mo) => goalNetDeposits(mo, goal.id))}
+                    unlocked={projectionsUnlocked}
+                    onUpgrade={onUpgrade ?? (() => {})}
+                    canEdit={canEdit}
+                  />
                 </div>
 
                 {/* Quick Fund & Withdraw Actions */}

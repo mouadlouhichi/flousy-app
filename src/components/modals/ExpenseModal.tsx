@@ -5,15 +5,27 @@ import { Modal } from '../ui/Modal';
 import { DatePicker } from '../ui/date-picker';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
+import { CustomInput } from '../ui/CustomInput';
+import { ExpenseBarcodeScanner } from './expense-barcode-scanner';
 import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace, availableForCharge } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
+import { suggestCategory } from '../../lib/insights';
+import { recognizeReceipt, type ReceiptParse } from '../../lib/receipt-ocr';
+
+function parseTags(input: string): string[] {
+  return Array.from(new Set(
+    input.split(/[,\s]+/).map((tag) => tag.replace(/^#/, '').trim().toLowerCase()).filter((tag) => tag.length > 0 && tag.length <= 24),
+  )).slice(0, 10);
+}
+import { isProFeatureUnlocked } from '../../lib/household';
+import { useHousehold } from '../../lib/household-context';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { localizeCategoryName } from '../../lib/localized-labels';
@@ -29,9 +41,17 @@ interface ExpenseModalProps {
   categoryColors?: Record<string, string>;
   categoryIcons?: Record<string, string>;
   /** Adds a variable-expense category to the current month from this form. */
-  onAddCategory?: (name: string, color: string, icon: string) => void;
+  onAddCategory?: (name: string, color: string, icon: string, envelope?: 'needs' | 'wants') => void;
+  /** Past expenses used to suggest a category for a known merchant. */
+  history?: Array<{ name: string; type: string }>;
+  /** Seed for a NEW expense (share target / shortcut); ignored when editing. */
+  prefill?: { name?: string; amount?: number } | null;
   /** Live balance per money place, so an expense cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+  periodStartDate?: string;
+  periodEndDate?: string;
+  /** Hide balance-derived hints when the role cannot read household balances. */
+  canSeeBalances?: boolean;
 }
 
 const ADD_CATEGORY_VALUE = '__add_variable_category__';
@@ -41,6 +61,11 @@ const VARIABLE_CATEGORY_COLORS = [
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
 ];
+
+function todayLocalIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 function pickUnusedCategoryColor(existingColors: Record<string, string>): string {
   const used = new Set(Object.values(existingColors));
@@ -59,29 +84,49 @@ export function ExpenseModal({
   categoryColors = {},
   categoryIcons = {},
   onAddCategory,
+  history = [],
+  prefill = null,
   placeBalances,
+  periodStartDate,
+  periodEndDate,
+  canSeeBalances = true,
 }: ExpenseModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
+  const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
   const e = m.modals.expense;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProUser(profile);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace, household);
+  const today = todayLocalIso();
+  const defaultDate = periodStartDate && today < periodStartDate
+    ? periodStartDate
+    : periodEndDate && today > periodEndDate
+      ? periodEndDate
+      : today;
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState(categories[0] || 'Groceries');
   const [place, setPlace] = useState<MoneyPlace>('bank');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(defaultDate);
   const [note, setNote] = useState('');
   const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined);
   const [receiptBusy, setReceiptBusy] = useState<boolean>(false);
   const [receiptError, setReceiptError] = useState<string>('');
+  const [tagsInput, setTagsInput] = useState('');
+  const [ocrProgress, setOcrProgress] = useState<number | null>(null);
+  const [ocrResult, setOcrResult] = useState<ReceiptParse | null>(null);
+  const [ocrError, setOcrError] = useState<string>('');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [typeTouched, setTypeTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [customCategoryIcon, setCustomCategoryIcon] = useState('shopping_bag');
+  // null = seed from the localized keyword guess; the user's pick wins.
+  const [customCategoryEnvelope, setCustomCategoryEnvelope] = useState<'needs' | 'wants' | null>(null);
   const [categoryError, setCategoryError] = useState('');
 
   useEffect(() => {
@@ -90,24 +135,31 @@ export function ExpenseModal({
       setAmount(String(initialExpense.amount));
       setType(initialExpense.type);
       setPlace(initialExpense.place || defaultPlace);
-      setDate(initialExpense.date || new Date().toISOString().split('T')[0]);
+      setDate(initialExpense.date || defaultDate);
       setNote(initialExpense.note || '');
       setPerson(initialExpense.person || 'Self');
       setPayerMemberId(initialExpense.payerMemberId || initialExpense.person || 'self');
       setReceiptUrl(initialExpense.receiptUrl);
       setReceiptError('');
+      setTagsInput((initialExpense.tags || []).join(', '));
+      setTypeTouched(true);
     } else {
-      setName('');
-      setAmount('');
+      setName(prefill?.name || '');
+      setAmount(prefill?.amount && Number.isFinite(prefill.amount) ? String(prefill.amount) : '');
       setType(categories[0] || 'Groceries');
       setPlace(defaultPlace);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(defaultDate);
       setNote('');
       setPerson('Self');
       setPayerMemberId('self');
       setReceiptUrl(undefined);
       setReceiptError('');
+      setTagsInput('');
+      setTypeTouched(false);
     }
+    setOcrProgress(null);
+    setOcrResult(null);
+    setOcrError('');
     setErrors({});
     setShowCategoryForm(false);
     setCustomCategoryName('');
@@ -142,10 +194,44 @@ export function ExpenseModal({
     }
   };
 
+  // Category suggestion from the merchant history (Pro): only while the user
+  // has not picked a category themselves for this entry.
+  const suggested = isPro && !typeTouched && name.trim().length >= 2
+    ? suggestCategory(name, history)
+    : null;
+  const suggestion = suggested && suggested !== type && categories.includes(suggested) ? suggested : null;
+
+  const runOcr = async (source: File | string) => {
+    setOcrError('');
+    setOcrResult(null);
+    setOcrProgress(0);
+    try {
+      const ocrLanguage = intlLocale.startsWith('ar') ? 'ar' : intlLocale.startsWith('fr') ? 'fr' : 'en';
+      const parsed = await recognizeReceipt(source, ocrLanguage, setOcrProgress);
+      setOcrResult(parsed);
+      if (parsed.total === null) setOcrError(m.ocr.notFound);
+    } catch {
+      setOcrError(m.ocr.failed);
+    } finally {
+      setOcrProgress(null);
+    }
+  };
+
+  const applyOcr = () => {
+    if (!ocrResult) return;
+    if (ocrResult.total !== null && !amount) setAmount(String(ocrResult.total));
+    if (ocrResult.merchant && !name) setName(ocrResult.merchant);
+    if (ocrResult.date && (!periodStartDate || ocrResult.date >= periodStartDate) && (!periodEndDate || ocrResult.date <= periodEndDate)) {
+      setDate(ocrResult.date);
+    }
+    setOcrResult(null);
+  };
+
   const resetCategoryForm = () => {
     setShowCategoryForm(false);
     setCustomCategoryName('');
     setCustomCategoryIcon('shopping_bag');
+    setCustomCategoryEnvelope(null);
     setCategoryError('');
   };
 
@@ -156,6 +242,7 @@ export function ExpenseModal({
       return;
     }
     setType(value);
+    setTypeTouched(true);
     if (showCategoryForm) resetCategoryForm();
   };
 
@@ -179,7 +266,9 @@ export function ExpenseModal({
       return;
     }
 
-    onAddCategory(trimmed, color, customCategoryIcon);
+    const guessed = bucketOf(trimmed, 'variable');
+    const envelope = customCategoryEnvelope ?? (guessed === 'wants' ? 'wants' : 'needs');
+    onAddCategory(trimmed, color, customCategoryIcon, envelope);
     setType(trimmed);
     resetCategoryForm();
   };
@@ -215,9 +304,20 @@ export function ExpenseModal({
       return;
     }
 
+    if ((periodStartDate && date < periodStartDate) || (periodEndDate && date > periodEndDate)) {
+      setErrors({
+        date: t(e.dateOutsidePeriod, {
+          start: periodStartDate || '—',
+          end: periodEndDate || '—',
+        }),
+      });
+      return;
+    }
+
     // The source place must actually hold the money being spent. Half-a-cent
     // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    // Skipped when balances are hidden: the message quotes the exact figure.
+    if (canSeeBalances && parsedAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(e.insufficientFunds, {
           amount: format(availableInPlace),
@@ -228,7 +328,7 @@ export function ExpenseModal({
     }
 
     const newExpense: VariableExpense = {
-      id: initialExpense ? initialExpense.id : Math.random().toString(36).substring(2, 9),
+      id: initialExpense ? initialExpense.id : `expense-${crypto.randomUUID()}`,
       name: name.trim() || type,
       amount: parsedAmount,
       type,
@@ -238,6 +338,7 @@ export function ExpenseModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
+      ...(isPro && parseTags(tagsInput).length ? { tags: parseTags(tagsInput) } : {}),
     };
 
     onSave(newExpense);
@@ -322,6 +423,22 @@ export function ExpenseModal({
 
         {/* ── Category — add a new one inline, like fixed charges ── */}
         <div className="flex flex-col gap-2">
+          {suggestion && (
+            <button
+              type="button"
+              onClick={() => {
+                setType(suggestion);
+                setTypeTouched(true);
+              }}
+              className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs"
+            >
+              <span className="flex items-center gap-1.5 font-semibold text-on-surface">
+                <AppIcon name="auto_awesome" className="text-[16px] text-primary" />
+                {t(m.insights.suggestedCategory, { category: localizeCategoryName(suggestion, m) })}
+              </span>
+              <span className="font-bold text-primary">{m.insights.applySuggestion}</span>
+            </button>
+          )}
           <ChoiceChips
             label={e.category}
             value={type}
@@ -353,41 +470,43 @@ export function ExpenseModal({
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-primary">
                     {e.newExpenseCategory}
                   </span>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="text"
-                      value={customCategoryName}
-                      onChange={(event) => {
-                        setCustomCategoryName(event.target.value);
-                        if (categoryError) setCategoryError('');
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          handleAddCategory();
-                        }
-                        if (event.key === 'Escape') resetCategoryForm();
-                      }}
-                      placeholder={e.customCategoryPlaceholder}
-                      aria-label={m.modals.categories.categoryName}
-                      autoFocus
-                      className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
-                    />
-                    <div className="flex gap-2 sm:shrink-0">
-                      <button
-                        type="button"
-                        onClick={handleAddCategory}
-                        className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
-                      >
-                        {m.common.add}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resetCategoryForm}
-                        className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
-                      >
-                        {m.common.cancel}
-                      </button>
+                  <div className="flex flex-col gap-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={customCategoryName}
+                        onChange={(event) => {
+                          setCustomCategoryName(event.target.value);
+                          if (categoryError) setCategoryError('');
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleAddCategory();
+                          }
+                          if (event.key === 'Escape') resetCategoryForm();
+                        }}
+                        placeholder={e.customCategoryPlaceholder}
+                        aria-label={m.modals.categories.categoryName}
+                        autoFocus
+                        className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-2 text-[14px] font-bold text-on-surface outline-none focus:border-primary"
+                      />
+                      <div className="flex gap-2 sm:shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleAddCategory}
+                          className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                        >
+                          {m.common.add}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetCategoryForm}
+                          className="flex-1 rounded-xl bg-surface-variant/60 px-3 py-2 text-[13px] font-bold text-on-surface-variant hover:bg-surface-variant sm:flex-none"
+                        >
+                          {m.common.cancel}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -396,6 +515,36 @@ export function ExpenseModal({
                       {categoryError}
                     </p>
                   )}
+
+                  {/* Envelope classification: seeded from the keyword guess,
+                      the explicit choice is persisted with the category. */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-bold text-on-surface-variant">
+                      {m.modals.categories.envelopeLabel}
+                    </span>
+                    <div className="flex items-center gap-1" role="group" aria-label={m.modals.categories.envelopeLabel}>
+                      {(['needs', 'wants'] as const).map((env) => {
+                        const effective = customCategoryEnvelope ?? bucketOf(customCategoryName.trim() || 'x', 'variable');
+                        return (
+                          <button
+                            key={env}
+                            type="button"
+                            onClick={() => setCustomCategoryEnvelope(env)}
+                            aria-pressed={effective === env}
+                            className={`px-3 py-1 rounded-full text-[12px] font-bold transition-all ${
+                              effective === env
+                                ? env === 'needs'
+                                  ? 'bg-primary text-on-primary'
+                                  : 'bg-tertiary text-on-tertiary'
+                                : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                            }`}
+                          >
+                            {env === 'needs' ? m.modals.categories.envelopeNeeds : m.modals.categories.envelopeWants}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   <CategoryIconPicker value={customCategoryIcon} onChange={setCustomCategoryIcon} />
                 </div>
@@ -414,9 +563,11 @@ export function ExpenseModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(e.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
@@ -448,6 +599,38 @@ export function ExpenseModal({
           rows={2}
         />
 
+        {/* ── Barcode → product name (Pro) ── */}
+        {isPro && !initialExpense && (
+          scannerOpen ? (
+            <ExpenseBarcodeScanner
+              onClose={() => setScannerOpen(false)}
+              onProduct={(product) => {
+                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+                setScannerOpen(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface px-3 py-2.5 text-xs font-bold text-on-surface-variant hover:bg-surface-variant/30"
+            >
+              <AppIcon name="scan_barcode" className="text-[18px] text-primary" />
+              {m.barcode.scanProduct}
+            </button>
+          )
+        )}
+
+        {/* ── Tags (Pro) ── */}
+        {isPro && (
+          <CustomInput
+            label={m.search.tags}
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder={m.search.tagsPlaceholder}
+          />
+        )}
+
         {/* ── Receipt Attachment ── */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
@@ -467,14 +650,25 @@ export function ExpenseModal({
                     <img src={receiptUrl} alt={e.receiptPreview} className="w-12 h-12 object-cover rounded-lg" />
                     <span className="font-body-sm text-body-sm text-on-surface font-bold">{e.receiptAttached}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setReceiptUrl(undefined)}
-                    className="p-1.5 text-error hover:bg-error-container/20 rounded-lg"
-                    aria-label={e.removeReceipt}
-                  >
-                    <AppIcon name="close" className=" text-[18px]" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void runOcr(receiptUrl)}
+                      disabled={ocrProgress !== null}
+                      className="tap-target flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      <AppIcon name="document_scanner" className="text-[18px]" />
+                      {ocrProgress !== null ? t(m.ocr.scanning, { percent: ocrProgress }) : m.ocr.scanReceipt}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptUrl(undefined)}
+                      className="tap-target p-1.5 text-error hover:bg-error-container/20 rounded-lg"
+                      aria-label={e.removeReceipt}
+                    >
+                      <AppIcon name="close" className=" text-[18px]" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <label className="p-3 bg-surface border border-dashed border-outline-variant rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-surface-variant/30 transition-colors">
@@ -495,6 +689,18 @@ export function ExpenseModal({
                 <p role="alert" className="text-xs font-bold text-error">
                   {receiptErrorMessage(receiptError, m.receipt.tooLarge)}
                 </p>
+              )}
+              {ocrError && <p role="alert" className="text-xs font-bold text-error">{ocrError}</p>}
+              {ocrResult && ocrResult.total !== null && (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2">
+                  <div className="min-w-0 text-xs">
+                    <p className="font-bold text-on-surface">{t(m.ocr.found, { amount: format(ocrResult.total) })}</p>
+                    {ocrResult.merchant && <p className="truncate text-on-surface-variant">{t(m.ocr.foundMerchant, { merchant: ocrResult.merchant })}</p>}
+                  </div>
+                  <button type="button" onClick={applyOcr} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-on-primary">
+                    {m.ocr.apply}
+                  </button>
+                </div>
               )}
             </>
           ) : (

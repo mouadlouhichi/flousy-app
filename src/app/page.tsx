@@ -1,21 +1,21 @@
 import type { Metadata } from 'next';
 import { Navigation } from '@/components/landing/navigation';
 import { HeroSection } from '@/components/landing/hero-section';
-import { WhatIsFlousySection } from '@/components/landing/what-is-flousy-section';
+import { WhatIsSmartJibSection } from '@/components/landing/what-is-smartjib-section';
 import { FeaturesSection } from '@/components/landing/features-section';
 import { HowItWorksSection } from '@/components/landing/how-it-works-section';
 import { InfrastructureSection } from '@/components/landing/infrastructure-section';
 import { MetricsSection } from '@/components/landing/metrics-section';
 import { IntegrationsSection } from '@/components/landing/integrations-section';
 import { SecuritySection } from '@/components/landing/security-section';
-import { TestimonialsSection } from '@/components/landing/testimonials-section';
 import { PricingSection } from '@/components/landing/pricing-section';
+import { GuidesSection } from '@/components/landing/guides-section';
 import { FaqSection } from '@/components/landing/faq-section';
 import { CtaSection } from '@/components/landing/cta-section';
 import { FooterSection } from '@/components/landing/footer-section';
 import { JsonLd } from '@/components/seo/json-ld';
 import {
-  FLOUSY_FACTUAL_DESCRIPTION,
+  SMARTJIB_FACTUAL_DESCRIPTION,
   LANDING_FAQS,
   OG_IMAGE,
   SITE_NAME,
@@ -65,13 +65,26 @@ const softwareApplicationSchema = {
   name: SITE_NAME,
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Web, iOS (PWA), Android (PWA)',
-  offers: {
-    '@type': 'Offer',
-    name: 'SmartJib Free',
-    price: '0',
-    priceCurrency: 'USD',
-  },
-  description: FLOUSY_FACTUAL_DESCRIPTION,
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'SmartJib Free',
+      price: '0',
+      priceCurrency: 'MAD',
+      availability: 'https://schema.org/InStock',
+      description: 'Core budgeting with no time limit.',
+    },
+    {
+      '@type': 'Offer',
+      name: 'SmartJib Pro 90-day launch trial',
+      price: '0',
+      priceCurrency: 'MAD',
+      availability: 'https://schema.org/InStock',
+      description: 'One no-card 90-day trial. It does not renew and billing is not enabled.',
+    },
+  ],
+  isAccessibleForFree: true,
+  description: SMARTJIB_FACTUAL_DESCRIPTION,
   url: SITE_URL,
   image: `${SITE_URL}${OG_IMAGE.url}`,
 };
@@ -82,6 +95,21 @@ const organizationSchema = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: `${SITE_URL}/web-app-manifest-512x512.png`,
+  email: 'hello@smartjib.app',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'hello@smartjib.app',
+    availableLanguage: ['English', 'French', 'Arabic'],
+  },
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  url: SITE_URL,
+  inLanguage: ['en', 'fr', 'ar'],
 };
 
 const faqSchema = {
@@ -102,20 +130,21 @@ export default function Home() {
     <>
       <JsonLd id="software-application-json-ld" data={softwareApplicationSchema} />
       <JsonLd id="organization-json-ld" data={organizationSchema} />
+      <JsonLd id="website-json-ld" data={websiteSchema} />
       <JsonLd id="faq-json-ld" data={faqSchema} />
 
-      <main className="noise-overlay relative min-h-screen overflow-x-hidden">
+      <main id="main-content" className="noise-overlay relative min-h-screen overflow-x-hidden">
         <Navigation />
         <HeroSection />
-        <WhatIsFlousySection />
+        <WhatIsSmartJibSection />
         <FeaturesSection />
         <HowItWorksSection />
         <InfrastructureSection />
         <MetricsSection />
         <IntegrationsSection />
         <SecuritySection />
-        <TestimonialsSection />
         <PricingSection />
+        <GuidesSection />
         <FaqSection />
         <CtaSection />
         <FooterSection />

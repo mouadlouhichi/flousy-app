@@ -9,8 +9,6 @@ import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
 import { isDemoMode } from '../../lib/demo-mode';
 import { useLanguage } from '../../lib/i18n-context';
-import { exportMonthToCsv, downloadCsv } from '../../lib/export';
-import { MonthBudget, SavingGoal } from '../../lib/store';
 import { CustomSelect } from '../ui/CustomSelect';
 import { SegmentedControl } from '../ui/segmented-control';
 import { MonthlyStartDateControl } from '../dashboard/monthly-start-date-control';
@@ -19,27 +17,27 @@ import { useHousehold } from '../../lib/household-context';
 import { resolveProfileAvatarSource } from '../../lib/profile-avatar';
 import { ProfileAvatar } from '../dashboard/profile-avatar';
 import { canShowProUpgrade } from '../../lib/household';
+import { isProUser } from '../../lib/pro-features';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  month: MonthBudget;
-  goals: SavingGoal[];
-  monthKey: string;
   onOpenProModal?: () => void;
 }
 
-export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenProModal }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onOpenProModal }: SettingsModalProps) {
   const router = useRouter();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, configuredCurrency, setCurrency } = useCurrency();
   const { user, profile, signOut, deleteAccount, deleteAllData, updateProfileData } = useAuth();
-  const { workspace } = useHousehold();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   // Demo (no-Firebase) sessions have no `user` but still need a sign-out path.
   const demoMode = !user && isDemoMode();
   const { language, setLanguage, messages: m, localeNames, t } = useLanguage();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteDataConfirm, setShowDeleteDataConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [pendingCurrency, setPendingCurrency] = useState<string | null>(null);
+  const [pendingStartDay, setPendingStartDay] = useState<number | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.displayName || '');
 
@@ -77,12 +75,6 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
       trackEvent('update_display_name');
     }
     setIsEditingName(false);
-  };
-
-  const handleExportCsv = () => {
-    const csvContent = exportMonthToCsv(month, goals, monthKey, currency);
-    downloadCsv(`flousy-budget-${monthKey}.csv`, csvContent);
-    trackEvent('export_csv');
   };
 
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || 'M';
@@ -150,7 +142,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                           setIsEditingName(true);
                           setDisplayName(profile?.displayName || '');
                         }}
-                        className="p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        className="tap-target p-1 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                         title={m.profile.editName}
                         aria-label={m.profile.editName}
                       >
@@ -161,9 +153,9 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                       {user?.email || m.auth.anonymousUser}
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-2 rounded-full bg-primary/10 text-primary">
-                      <AppIcon name={profile?.plan === 'pro' ? 'workspace_premium' : 'person'} className="text-[14px]" />
+                      <AppIcon name={isProUser(profile) ? 'workspace_premium' : 'person'} className="text-[14px]" />
                       <span className="font-label-sm text-label-sm font-bold">
-                        {t(m.auth.planLabel, { plan: profile?.plan === 'pro' ? m.profile.links.pro : m.profile.free })}
+                        {t(m.auth.planLabel, { plan: isProUser(profile) ? m.profile.links.pro : m.profile.free })}
                       </span>
                     </div>
                   </>
@@ -173,7 +165,7 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
 
           {/* ── Upgrade CTA ── */}
-          {onOpenProModal && canShowProUpgrade(profile?.plan === 'pro', workspace) && (
+          {onOpenProModal && canShowProUpgrade(isProUser(profile), workspace) && (
             <button
               type="button"
               onClick={onOpenProModal}
@@ -198,13 +190,21 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 </div>
                 <CustomSelect
                   ariaLabel={m.settings.preferredCurrency}
-                  value={currency}
-                  onChange={setCurrency}
+                  value={configuredCurrency}
+                  disabled={workspace === 'household' && !isOwner}
+                  onChange={(value) => {
+                    if (value !== configuredCurrency) setPendingCurrency(value);
+                  }}
                   options={currencyOptions}
                   className="w-32 shrink-0"
                   triggerClassName="!h-10 !rounded-lg !border-0 !bg-surface-variant !px-3"
                 />
               </div>
+              {currency !== configuredCurrency && (
+                <p className="px-4 py-2 text-xs text-on-surface-variant">
+                  {t(m.settings.historicalCurrencyActive, { currency })}
+                </p>
+              )}
 
               {/* Language */}
               <div className="flex items-center justify-between p-4 gap-3">
@@ -256,42 +256,42 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
             <div className="bg-surface-container rounded-xl border border-outline-variant/50 p-4">
               <MonthlyStartDateControl
                 compact
-                value={profile?.monthStartDate}
-                onChange={(day) => updateProfileData({ monthStartDate: day })}
+                value={workspace === 'household' ? household?.monthStartDate : profile?.monthStartDate}
+                disabled={workspace === 'household' && !isOwner}
+                scopeLabel={
+                  workspace === 'household'
+                    ? m.profile.monthStartDateHouseholdScope
+                    : m.profile.monthStartDatePersonalScope
+                }
+                onChange={(day) => setPendingStartDay(day || 1)}
               />
             </div>
           </div>
 
           {/* ── Data Management Section ── */}
-          <div className="space-y-3">
-            <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">{m.settings.dataManagement}</h3>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-surface-container hover:bg-surface-container-high transition-colors border border-outline-variant/50 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-surface-variant flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <AppIcon name="download" className="text-[20px] text-primary" />
+          {/* Data export lives exclusively in the workspace-aware Data panel
+              (Profile → Data); this modal must never grow a second, unscoped
+              export path. The personal "delete all data" action is likewise
+              hidden while a shared household workspace is active — wiping
+              personal history is a personal-mode decision. */}
+          {workspace !== 'household' && (
+            <div className="space-y-3">
+              <h3 className="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider px-1">{m.settings.dataManagement}</h3>
+              <button
+                type="button"
+                onClick={() => setShowDeleteDataConfirm(true)}
+                className="w-full flex items-center justify-between p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors border border-error/30 cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-colors">
+                    <AppIcon name="delete_forever" className="text-[20px] text-error" />
+                  </div>
+                  <span className="font-label-lg text-label-lg font-medium text-error">{m.profile.data.deleteAllData}</span>
                 </div>
-                <span className="font-label-lg text-label-lg font-medium text-on-surface">{m.settings.exportBudgetData}</span>
-              </div>
-              <AppIcon name="chevron_right" className="text-[20px] text-on-surface-variant group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDeleteDataConfirm(true)}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-error/5 hover:bg-error/10 transition-colors border border-error/30 cursor-pointer group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-colors">
-                  <AppIcon name="delete_forever" className="text-[20px] text-error" />
-                </div>
-                <span className="font-label-lg text-label-lg font-medium text-error">{m.profile.data.deleteAllData}</span>
-              </div>
-              <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
-            </button>
-          </div>
+                <AppIcon name="chevron_right" className="text-[20px] text-error/70 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          )}
 
           {/* ── Install App (moved here from the dashboard header) ── */}
           <div className="flex justify-center pt-1">
@@ -305,8 +305,11 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
                 <button
                   type="button"
                   onClick={() => setShowSignOutConfirm(true)}
-                  className="w-full py-3 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg font-medium transition-all cursor-pointer"
-                >{m.auth.signOut}</button>
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/50 bg-surface-container px-4 py-3 font-label-lg text-label-lg font-bold text-on-surface transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary cursor-pointer"
+                >
+                  <AppIcon name="logout" className="text-[18px]" />
+                  {m.auth.signOut}
+                </button>
                 {user && (
                   <button
                     type="button"
@@ -331,6 +334,36 @@ export function SettingsModal({ isOpen, onClose, month, goals, monthKey, onOpenP
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingCurrency)}
+        onClose={() => setPendingCurrency(null)}
+        onConfirm={() => {
+          if (pendingCurrency) void setCurrency(pendingCurrency);
+          setPendingCurrency(null);
+        }}
+        title={m.settings.currencyChangeTitle}
+        message={pendingCurrency ? t(m.settings.currencyChangeFutureOnly, {
+          current: configuredCurrency,
+          next: pendingCurrency,
+        }) : ''}
+        confirmLabel={m.settings.useForFuturePeriods}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingStartDay !== null}
+        onClose={() => setPendingStartDay(null)}
+        onConfirm={() => {
+          if (pendingStartDay !== null) {
+            if (workspace === 'household') void updateConfiguration({ monthStartDate: pendingStartDay });
+            else void updateProfileData({ monthStartDate: pendingStartDay });
+          }
+          setPendingStartDay(null);
+        }}
+        title={m.settings.periodChangeTitle}
+        message={pendingStartDay !== null ? t(m.settings.periodChangeFutureOnly, { day: pendingStartDay }) : ''}
+        confirmLabel={m.settings.useForFuturePeriods}
+      />
 
       <ConfirmDialog
         isOpen={showSignOutConfirm}

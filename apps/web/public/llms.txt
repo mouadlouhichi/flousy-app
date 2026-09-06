@@ -9,22 +9,33 @@ SmartJib is a private budget tracker that separates what money is for—needs, w
 - **4 budgeting strategies**: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first.
 - **Separate budget envelopes and money places**: Needs, wants, and savings describe what money is for; bank, home, and wallet describe where it is held.
 - **Private accounts**: Account data is cached locally and synced to Firebase when a user signs in. Financial data is not sold to third parties or used to build advertising profiles.
-- **CSV export**: Budgeting data can be exported from Settings.
-- **Account deletion**: An account and its associated budgeting data can be permanently deleted from Settings.
+- **Data portability**: From Profile, users can export CSV files or a complete, restorable JSON backup.
+- **Account deletion**: An account and its associated budgeting data can be permanently deleted from Profile; incomplete deletion steps are reported for retry.
 - **PWA**: SmartJib is installable as a web app.
 
 ## Pricing
 
-SmartJib is free, including Pro: billing is not connected yet, so Pro is included in the beta at no cost and nothing is charged.
+SmartJib’s core budget is free with no time limit. Eligible accounts can start one 90-day Pro trial without a card; it does not renew automatically, and billing is not currently enabled.
 
 ## Links
 
-- Website: https://flousy.app
-- Privacy Policy: https://flousy.app/privacy
-- Terms of Service: https://flousy.app/terms
+- Website: https://smartjib.app
+- Features: https://smartjib.app/features
+- Budget Tracker MAD & Dirham: https://smartjib.app/features/multi-currency-mad
+- Bank, Home, Wallet Tracking: https://smartjib.app/features/track-bank-home-wallet
+- Expense Tracking: https://smartjib.app/features/expense-tracking
+- No Bank Connection Privacy: https://smartjib.app/features/no-bank-connection
+- Budgeting Methods: https://smartjib.app/budgeting-methods
+- 50/30/20 Rule: https://smartjib.app/budgeting-methods/50-30-20-rule
+- Zero-Based Budgeting: https://smartjib.app/budgeting-methods/zero-based-budgeting
+- Envelope Budgeting: https://smartjib.app/budgeting-methods/envelope-budgeting
+- Pay Yourself First: https://smartjib.app/budgeting-methods/pay-yourself-first
+- Privacy Policy: https://smartjib.app/privacy
+- Terms of Service: https://smartjib.app/terms
 
 ## Budgeting Guides
 
-- Purpose vs. money location: https://flousy.app/blog/what-its-for-vs-where-it-is
-- Choosing a budgeting strategy: https://flousy.app/blog/pick-a-budgeting-style
-- Tracking cash and wallet spending: https://flousy.app/blog/track-cash-wallet-spending
+- Purpose vs. money location: https://smartjib.app/blog/what-its-for-vs-where-it-is
+- Choosing a budgeting strategy: https://smartjib.app/blog/pick-a-budgeting-style
+- Tracking cash and wallet spending: https://smartjib.app/blog/track-cash-wallet-spending
+- All guides: https://smartjib.app/blog

@@ -63,13 +63,22 @@ export function localizeHouseholdRole(role: string, messages: Messages): string 
   if (role === 'contributor') return messages.householdRoles.contributor;
   if (role === 'custom') return messages.householdRoles.custom;
   if (role === 'profile') return messages.householdRoles.profile;
-  return role;
+  // A document written before `role` existed has no role to localize. Returning the
+  // value as-is rendered the literal text "undefined" next to a member's name.
+  return typeof role === 'string' ? role : '';
 }
 
 /** Translate the optional starter bill names without altering persisted names. */
 export function localizeDefaultBillName(name: string, messages: Messages): string {
   if (name === 'Rent') return messages.onboarding.rent;
   if (name === 'Electricity') return messages.onboarding.electricity;
+  return name;
+}
+
+/** Translate built-in income-source names while preserving user-created ones. */
+export function localizeIncomeSourceName(name: string, messages: Messages): string {
+  if (name === 'Primary Income') return messages.modals.incomeSources.primaryIncome;
+  if (name === 'Carried over') return messages.modals.incomeSources.carriedOver;
   return name;
 }
 

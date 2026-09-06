@@ -5,13 +5,14 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
+import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { saveHouseholdInvoice } from '@/lib/db';
 
 /** Restricted submission form: it never loads or writes the private month budget. */
 export function ContributorInvoiceForm() {
   const { user } = useAuth();
-  const { household, payers, isContributor } = useHousehold();
+  const { household, payers, areaLevel, workspace } = useHousehold();
   const { messages: m } = useLanguage();
   const copy = m.household.invoice;
   const [name, setName] = useState('');
@@ -21,7 +22,16 @@ export function ContributorInvoiceForm() {
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
 
-  if (!isContributor || !household || !user) return null;
+  // The submission flow exists for restricted members only (contributor, or a
+  // custom role capped at `editOwn` on invoices): they cannot write the shared
+  // budget, so they hand receipts to someone who can. The owner and editors
+  // already hold `editAll` — for them the form would only create a self-review
+  // loop, and outside the household workspace it has no destination at all.
+  if (workspace !== 'household'
+    || household?.kind === 'business'
+    || areaLevel(TOOL_AREA.invoices) !== 'editOwn'
+    || !household
+    || !user) return null;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,6 +50,7 @@ export function ContributorInvoiceForm() {
         category: category.trim() || m.categories.other,
         date: new Date().toISOString().slice(0, 10),
         payerMemberId,
+        place: 'bank',
         submitterId: user.uid,
         status: 'submitted',
         createdAt: new Date().toISOString(),

@@ -44,6 +44,9 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
       onClick={onClose}
       role="presentation"
     >
+      {/* Bubbling guard so taps inside the sheet don't hit the backdrop's
+          close handler; not an interactive control of its own. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
         role="dialog"
         aria-modal="true"
@@ -63,7 +66,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
             type="button"
             onClick={onClose}
             aria-label={m.common.close}
-            className="rounded-xl p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+            className="tap-target rounded-xl p-1.5 text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
           >
             <AppIcon name="close" className=" text-[20px]" />
           </button>

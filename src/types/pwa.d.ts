@@ -7,13 +7,13 @@ declare global {
      * very early in page life, so it's captured in a top-level script and
      * replayed to React components that mount afterwards.
      */
-    __flousyInstallPrompt: BeforeInstallPromptEvent | null;
+    __smartJibInstallPrompt: BeforeInstallPromptEvent | null;
   }
 
   interface WindowEventMap {
     beforeinstallprompt: BeforeInstallPromptEvent;
     appinstalled: Event;
-    'flousy:installprompt': Event;
+    'smartjib:installprompt': Event;
   }
 }
 

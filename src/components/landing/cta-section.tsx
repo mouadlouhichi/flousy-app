@@ -10,7 +10,7 @@ import { AnimatedTetrahedron } from "./animated-tetrahedron";
 export function CtaSection() {
   const { messages: m, isRTL } = useLightLanguage();
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('smartjib_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);

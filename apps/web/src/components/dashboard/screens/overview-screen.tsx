@@ -3,7 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { OverviewTab } from '@/components/tabs/OverviewTab';
 import { useDashboard } from '../dashboard-provider';
+import { AreaRestricted } from '../area-restricted';
+import { useHousehold } from '@/lib/household-context';
+import { SCREEN_AREA } from '@/lib/household-rbac';
 import { DASHBOARD_NAV_ITEMS } from '../nav-items';
+import { isProFeatureUnlocked } from '@/lib/household';
 
 const TAB_ROUTES: Record<string, string> = Object.fromEntries(
   DASHBOARD_NAV_ITEMS.map((item) => [item.id, item.href]),
@@ -20,7 +24,16 @@ export function OverviewScreen() {
     openSavingsEntryModal,
     handleUpdateTotalBudget,
     handleUpdateStrategy,
+    isPro,
+    openProModal,
   } = useDashboard();
+  const { canViewArea, workspace, household } = useHousehold();
+  const insightsUnlocked = isProFeatureUnlocked(isPro, workspace, household);
+  const area = SCREEN_AREA.overview!;
+  // The summary screen is the `dashboard` area. Individual figures inside it
+  // are additionally gated by the area that owns each number (balances,
+  // income, expenses, savings) — see OverviewTab.
+  if (!canViewArea(area)) return <AreaRestricted area={area} icon="house" />;
 
   return (
     <OverviewTab
@@ -37,6 +50,8 @@ export function OverviewScreen() {
       onEditMoneyPlaces={openEditMoneyPlaces}
       onUpdateStrategy={handleUpdateStrategy}
       onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
+      insightsUnlocked={insightsUnlocked}
+      onUpgrade={openProModal}
     />
   );
 }

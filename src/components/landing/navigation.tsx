@@ -10,15 +10,15 @@ import { useAuthStatus } from '@/lib/auth-status';
 export function Navigation() {
   const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('flousy_demo_mode') === 'true';
+  const isDemo = typeof window !== 'undefined' && localStorage.getItem('smartjib_demo_mode') === 'true';
   const isLoggedIn = Boolean(user || isDemo);
 
   const navLinks = [
-    { name: m.landing.nav.features, href: "/#features" },
-    { name: m.landing.nav.howItWorks, href: "/#how-it-works" },
-    { name: m.landing.nav.security, href: "/#security" },
+    { name: (m.landing.nav as any).features || m.landing.nav.features, href: "/features" },
+    { name: (m.landing.nav as any).budgetingMethods || "Budgeting Methods", href: "/budgeting-methods" },
+    { name: (m.landing.nav as any).madGuide || "MAD Guide", href: "/features/multi-currency-mad" },
     { name: m.landing.nav.pricing, href: "/#pricing" },
-    { name: m.landing.nav.faq, href: "/#faq" },
+    { name: (m.landing.nav as any).blog || "Blog", href: "/blog" },
   ];
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -241,6 +241,7 @@ export function Navigation() {
                 <button
                   key={lang}
                   onClick={() => setLanguage(lang)}
+                  aria-label={localeNames[lang]}
                   className={`px-3 py-2 rounded-full text-xs font-bold uppercase border transition-colors ${language === lang ? 'bg-primary text-on-primary border-primary' : 'border-foreground/10 text-foreground/70 hover:text-foreground'}`}
                 >
                   {lang}

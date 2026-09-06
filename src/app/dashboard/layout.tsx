@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 /**
  * The dashboard shell is prerendered (static) so in-app navigation between
  * screens is pure client-side: no server round-trip on every click. All user
- * data is fetched client-side after hydration, and `src/middleware.ts` marks
+ * data is fetched client-side after hydration, and `src/proxy.ts` marks
  * these paths `private, no-store` so nothing is cached at the CDN.
  *
  * (The per-request CSP nonce was removed in favour of an origin-based CSP on

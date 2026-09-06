@@ -90,11 +90,38 @@ export const incomeSourceSchema = z.object({
 });
 
 export const authEmailSchema = z.string().email('Invalid email address');
+
+/**
+ * Sign-in floor only — deliberately NOT the password policy.
+ *
+ * This validates credentials for accounts that already exist. Firebase only
+ * ever issues accounts with ≥6 characters, so 6 is the widest floor that still
+ * rejects an obvious typo, and raising it here would lock out every user who
+ * registered before the policy changed. Accounts created now are held to
+ * `signUpPasswordSchema`.
+ */
 export const authPasswordSchema = z.string().min(6, 'Password must be at least 6 characters');
+
+/**
+ * Policy for accounts being created now.
+ *
+ * This app holds somebody's budget, and a 6-character password is guessable.
+ * `max` is a cheap guard against a multi-megabyte request body being fed to the
+ * credential hasher.
+ */
+export const signUpPasswordSchema = z
+  .string()
+  .min(10, 'Password must be at least 10 characters')
+  .max(128, 'Password must be at most 128 characters');
 
 export const loginSchema = z.object({
   email: authEmailSchema,
   password: authPasswordSchema,
+});
+
+export const signUpSchema = z.object({
+  email: authEmailSchema,
+  password: signUpPasswordSchema,
 });
 
 export const customCategorySchema = z.object({

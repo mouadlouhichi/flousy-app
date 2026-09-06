@@ -8,9 +8,10 @@ import { looksLikeImageFile, sourceFromFile } from './profile-avatar';
  * size error the user cannot act on.
  *
  * So the image is rescaled here, keeping its aspect ratio because a receipt is a
- * document rather than an avatar, and re-encoded until it fits the budget the
- * security rules allow (`receiptsFit()` in firestore.rules caps the whole
- * `receiptUrl` field at well under a document's worth of bytes).
+ * document rather than an avatar, and re-encoded until it fits the app's field
+ * budget at well under a Firestore document's maximum size. Firestore Rules can
+ * bound list cardinality but cannot iterate arbitrary list entries, so receipt
+ * attachment processing owns this per-field limit.
  */
 const MAX_RECEIPT_CHARS = 100_000;
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;

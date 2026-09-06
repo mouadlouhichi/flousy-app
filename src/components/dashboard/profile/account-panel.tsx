@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AppIcon } from '@/components/ui/app-icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Modal } from '@/components/ui/Modal';
 import {
@@ -62,8 +63,9 @@ export function AccountPanel() {
           <button
             type="button"
             onClick={() => setShowSignOutConfirm(true)}
-            className="w-full rounded-2xl border border-outline-variant py-3.5 text-sm font-medium text-on-surface-variant transition-all hover:bg-surface-container hover:text-on-surface"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3.5 text-sm font-bold text-on-surface transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
           >
+            <AppIcon name="logout" className="text-[18px]" />
             {m.auth.signOut}
           </button>
           {user && (

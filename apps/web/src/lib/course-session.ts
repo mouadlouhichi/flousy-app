@@ -48,6 +48,34 @@ export function barcodeChecksumValid(digits: string): boolean {
 }
 
 /**
+ * In-store "variable measure" EAN-13 (butcher, cheese counter, deli). GS1
+ * reserves the leading `2` for restricted-circulation codes a shop prints on
+ * its own scale labels; Open Food Facts never carries them. The layout the
+ * Moroccan shops on these labels use is:
+ *
+ *   [2] [item 6 digits] [price 5 digits, in centimes] [check]
+ *
+ * e.g. `2 003200 02080 7` → item 003200, price field 02080 → 20.80 DH, which is
+ * exactly the label's total (0.260 kg × 80.00 DH/kg). The price is rounded to
+ * the centime by the scale so it fits five digits.
+ *
+ * Returns the embedded price (or `null` when the code is not a valid
+ * prefix-2 EAN-13). Callers prefill the amount with it; the product *name*
+ * still has to be typed, because nothing external knows what the item is.
+ */
+export function parseVariableMeasurePrice(barcode: string): {
+  itemRef: string;
+  price: number;
+} | null {
+  if (!/^[0-9]{13}$/.test(barcode) || barcode[0] !== '2') return null;
+  if (!barcodeChecksumValid(barcode)) return null;
+  const itemRef = barcode.slice(1, 7);
+  const priceField = barcode.slice(7, 12);
+  const price = Number(priceField) / 100;
+  return { itemRef, price };
+}
+
+/**
  * Normalize a raw scanner/manual input into a usable barcode.
  * Strips spaces and hyphens, keeps digits, pads 12-digit UPC-A to EAN-13.
  * Never throws: bad input yields a warning so the UI can still offer
@@ -334,6 +362,12 @@ export type ProductResolution =
       barcode: string;
       /** `lookup-failed` = network/timeout (retry-able); `not-found` = no source knew it. */
       reason: 'not-found' | 'lookup-failed';
+      /**
+       * Set only for in-store variable-measure codes (leading `2`): the price
+       * is printed *inside* the barcode, so even though no catalog knows the
+       * product name, the amount is already known and can be prefilled.
+       */
+      embeddedPrice?: number;
     };
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -377,6 +411,20 @@ export async function resolveProduct(opts: {
       product: { name: hit.name, brand: hit.brand, category: hit.category, imageUrl: hit.imageUrl },
       lastPrice: hit.lastPrice,
       source: 'catalog',
+    };
+  }
+
+  // In-store variable-measure codes (butcher/cheese scale labels) encode the
+  // price inside the barcode and never exist in Open Food Facts, so skip the
+  // seed/remote lookups entirely and hand the printed price back for
+  // prefilling. The name still has to be typed by the user.
+  const variable = parseVariableMeasurePrice(opts.barcode);
+  if (variable) {
+    return {
+      kind: 'not-found',
+      barcode: opts.barcode,
+      reason: 'not-found',
+      embeddedPrice: variable.price,
     };
   }
 

@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import {
   STRATEGIES,
+  Strategy,
   StrategyId,
   CustomRatios,
   DEFAULT_CUSTOM_RATIOS,
@@ -31,17 +32,15 @@ interface StrategySelectorModalProps {
 const STRATEGY_ICONS: Record<string, string> = {
   '50-30-20': 'pie_chart',
   '70-20-10': 'shield',
-  '80-20': 'sliders',
   'zero-based': 'grid_3x3',
   'envelope': 'mail',
   'pay-first': 'savings',
   custom: 'tune',
 };
 
-const STRATEGY_TAGS: Record<StrategyId, { labelKey: keyof Messages['strategySelector']['tags']; color: string }> = {
+const STRATEGY_TAGS: Partial<Record<StrategyId, { labelKey: Exclude<keyof Messages['strategySelector']['tags'], 'simple'>; color: string }>> = {
   '50-30-20': { labelKey: 'popular', color: 'bg-primary/10 text-primary' },
   '70-20-10': { labelKey: 'beginner', color: 'bg-blue-50 text-blue-700' },
-  '80-20': { labelKey: 'simple', color: 'bg-amber-50 text-amber-700' },
   'zero-based': { labelKey: 'detailed', color: 'bg-purple-50 text-purple-700' },
   'envelope': { labelKey: 'visual', color: 'bg-orange-50 text-orange-700' },
   'pay-first': { labelKey: 'saver', color: 'bg-emerald-50 text-emerald-700' },
@@ -85,7 +84,9 @@ export function StrategySelectorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const strategies = Object.values(STRATEGIES).filter((s) => s.id !== 'custom');
+  const strategies = Object.values(STRATEGIES).filter(
+    (s): s is Strategy => Boolean(s) && s.id !== 'custom',
+  );
 
   const splitTotal = split.needs + split.wants + split.savings;
   const isSplitValid = splitTotal === 100;

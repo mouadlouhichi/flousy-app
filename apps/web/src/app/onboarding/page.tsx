@@ -2,7 +2,7 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
@@ -21,6 +21,8 @@ import {
 } from '../../lib/store';
 import { saveMonthBudget, saveHouseholdMonthBudget, importPersonalBudgetIntoHousehold } from '../../lib/db';
 import { getCurrentMonthKey } from '../../lib/utils';
+import { isDemoMode, isOnboardingDoneLocally, markOnboardingDoneLocally } from '../../lib/demo-mode';
+import { parseAmountInput } from '../../lib/parse-amount';
 import { CustomSelect } from '../../components/ui/CustomSelect';
 import { MonthDayPicker } from '../../components/ui/month-day-picker';
 import { useLanguage } from '@/lib/i18n-context';
@@ -62,19 +64,57 @@ function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { messages: m, t, translate, language, intlLocale, isRTL } = useLanguage();
-  const { user, profile, updateProfileData } = useAuth();
-  const { workspace, household, markHouseholdOnboarded } = useHousehold();
+  const { user, profile, loading: authLoading, updateProfileData } = useAuth();
+  const {
+    workspace,
+    household,
+    loading: householdLoading,
+    isOwner,
+    markHouseholdOnboarded,
+  } = useHousehold();
   const isHouseholdScope = searchParams.get('scope') === 'household' || workspace === 'household';
   const householdId = household?.id || profile?.activeHouseholdId;
   const { currency, setCurrency, symbol, format } = useCurrency();
+
+  // Onboarding is a one-time bootstrap, not an account-settings screen. Direct
+  // navigation or browser back must never let an established user replace an
+  // existing month. Cloud state is authoritative; local flags cover demo mode
+  // and a prior completion whose profile update is still retrying.
+  useEffect(() => {
+    if (authLoading) return;
+    if (isHouseholdScope) {
+      if (householdLoading || !householdId || !household) return;
+      const localDone = typeof window !== 'undefined'
+        && localStorage.getItem(`smartjib_household_${householdId}_onboarding_done`) === 'true';
+      if (!isOwner || household.onboardingComplete !== false || localDone) {
+        router.replace('/dashboard');
+      }
+      return;
+    }
+
+    if (profile && profile.onboardingComplete !== false) {
+      router.replace('/dashboard');
+      return;
+    }
+    if (!user && isDemoMode() && isOnboardingDoneLocally()) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, household, householdId, householdLoading, isHouseholdScope, isOwner, profile, router, user]);
+
   const localizedDay = (day: number) => formatLocalizedDayOfMonth(day, language, intlLocale);
   const formatPercent = (value: number) => formatLocalizedPercent(value, intlLocale);
   const percentSign = getLocalizedPercentSign(intlLocale);
 
   const [step, setStep] = useState<number>(1);
-  const [income, setIncome] = useState<string>('15000');
+  const [income, setIncome] = useState<string>('');
   // Optional: the day of the month the salary arrives (start of the budget month).
-  const [monthStartDate, setMonthStartDate] = useState<number | undefined>(profile?.monthStartDate);
+  // Onboarding in household scope sets the HOUSEHOLD start date; the personal
+  // flow sets the personal one. They are separate budget periods.
+  const [monthStartDate, setMonthStartDate] = useState<number | undefined>(
+    isHouseholdScope
+      ? (profile?.householdMonthStartDate ?? profile?.monthStartDate)
+      : profile?.monthStartDate,
+  );
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyId>('50-30-20');
   // Custom strategy split, kept in whole percents while editing.
   const [customSplit, setCustomSplit] = useState({
@@ -111,10 +151,7 @@ function OnboardingFlow() {
     '#d946ef', '#a855f7', '#f43f5e', '#00685f',
   ];
 
-  const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([
-    { name: 'Rent', amount: 1500, category: 'Housing' },
-    { name: 'Electricity', amount: 120, category: 'Utilities' },
-  ]);
+  const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([]);
 
   const [newBillName, setNewBillName] = useState('');
   const [newBillAmount, setNewBillAmount] = useState('');
@@ -123,10 +160,13 @@ function OnboardingFlow() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [incomeError, setIncomeError] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   // Clean numeric string parsing for income (handles comma/formatting)
-  const cleanNumStr = (income || '').toString().replace(/[^0-9.]/g, '');
-  const parsedIncome = parseFloat(cleanNumStr) || 0;
+  // Locale-aware parsing: accepts French decimal commas, grouping spaces and
+  // Arabic-Indic digits (audit P1 — ASCII-only stripping mangled fr/ar input).
+  const rawParsedIncome = parseAmountInput(income);
+  const parsedIncome = Number.isFinite(rawParsedIncome) ? rawParsedIncome : 0;
   const customRatios: CustomRatios = normalizeCustomRatios({
     needs: customSplit.needs / 100,
     wants: customSplit.wants / 100,
@@ -173,8 +213,8 @@ function OnboardingFlow() {
 
   const handleAddBill = () => {
     if (!newBillName.trim() || !newBillAmount) return;
-    const amt = parseFloat(newBillAmount.toString().replace(/[^0-9.]/g, ''));
-    if (amt <= 0) return;
+    const amt = parseAmountInput(newBillAmount);
+    if (!Number.isFinite(amt) || amt <= 0) return;
 
     setBills([...bills, { name: newBillName.trim(), amount: amt, category: newBillCategory }]);
     setNewBillName('');
@@ -188,8 +228,8 @@ function OnboardingFlow() {
   const handleStep3Continue = () => {
     // If user entered a bill but didn't click "Add Bill", auto-add it
     if (newBillName.trim() && newBillAmount) {
-      const amt = parseFloat(newBillAmount.toString().replace(/[^0-9.]/g, ''));
-      if (amt > 0) {
+      const amt = parseAmountInput(newBillAmount);
+      if (Number.isFinite(amt) && amt > 0) {
         setBills((prev) => [
           ...prev,
           { name: newBillName.trim(), amount: amt, category: newBillCategory },
@@ -229,27 +269,49 @@ function OnboardingFlow() {
   };
 
   const goDashboard = () => {
-    try {
-      router.push('/dashboard');
-    } catch {
-      window.location.href = '/dashboard';
+    router.push('/dashboard');
+  };
+
+  const onboardingWriteIsBlocked = () => {
+    if (isHouseholdScope) {
+      const localDone = Boolean(
+        householdId
+        && typeof window !== 'undefined'
+        && localStorage.getItem(`smartjib_household_${householdId}_onboarding_done`) === 'true'
+      );
+      return !householdId || (Boolean(household) && !isOwner)
+        || household?.onboardingComplete !== false
+        || localDone;
     }
+    if (profile) return profile.onboardingComplete !== false || isOnboardingDoneLocally(undefined, user?.uid);
+    // An authenticated account without a loaded profile is not safe to bootstrap:
+    // wait for profile recovery instead of guessing that its data is empty.
+    if (user) return true;
+    return isOnboardingDoneLocally();
   };
 
   const handleImportPersonal = async () => {
     if (isImporting || isCompleting || !isHouseholdScope) return;
+    if (onboardingWriteIsBlocked()) {
+      router.replace('/dashboard');
+      return;
+    }
     setIsImporting(true);
+    setImportError('');
     const today = new Date();
     const monthKey = getCurrentMonthKey(monthStartDate, today);
     try {
       if (householdId) {
-        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        localStorage.setItem(`smartjib_household_${householdId}_onboarding_done`, 'true');
         for (let i = 0; i < localStorage.length; i += 1) {
           const storageKey = localStorage.key(i);
-          if (!storageKey?.startsWith('flousy_month_')) continue;
-          const mk = storageKey.slice('flousy_month_'.length);
+          if (!storageKey?.startsWith('smartjib_month_')) continue;
+          const mk = storageKey.slice('smartjib_month_'.length);
           const raw = localStorage.getItem(storageKey);
-          if (raw) localStorage.setItem(`flousy_household_${householdId}_month_${mk}`, raw);
+          const targetKey = `smartjib_household_${householdId}_month_${mk}`;
+          if (raw && localStorage.getItem(targetKey) === null) {
+            localStorage.setItem(targetKey, raw);
+          }
         }
       }
     } catch { /* ignore */ }
@@ -260,18 +322,41 @@ function OnboardingFlow() {
           (async () => {
             await importPersonalBudgetIntoHousehold(user.uid, householdId);
             try {
-              const local = localStorage.getItem(`flousy_month_${monthKey}`);
+              const local = localStorage.getItem(`smartjib_month_${monthKey}`);
               if (local) {
                 await saveHouseholdMonthBudget(householdId, monthKey, JSON.parse(local));
               }
-            } catch { /* ignore */ }
+            } catch (err) {
+              console.error('[import] current month copy failed', { monthKey, householdId }, err);
+            }
             await markHouseholdOnboarded();
           })(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 6000)),
+          // 30s, not 6s. The import is one write per personal month plus the
+          // savings goals, each a separate transaction; on a cold connection
+          // six seconds routinely elapsed before the first one landed, and the
+          // timeout then looked exactly like a refusal.
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase timeout')), 30000)),
         ]);
       } catch (e) {
-        console.warn('Personal import skipped or failed:', e);
-        try { await markHouseholdOnboarded(); } catch { /* ignore */ }
+        // This used to be a console.warn that then marked onboarding complete
+        // regardless, so a refused or timed-out import sent the user to an
+        // empty dashboard with no error anywhere and the workspace flagged as
+        // successfully set up. Surface it, and do NOT claim success.
+        const code = (e as { code?: string })?.code;
+        console.error('[import] personal -> household import failed', {
+          householdId,
+          uid: user.uid,
+          monthKey,
+          code: code ?? null,
+          cause: (e as { cause?: unknown })?.cause ?? null,
+        }, e);
+        setImportError(
+          code === 'permission-denied'
+            ? m.household.genericError
+            : (e as Error)?.message || m.household.genericError,
+        );
+        setIsImporting(false);
+        return;
       }
     }
     goDashboard();
@@ -279,6 +364,10 @@ function OnboardingFlow() {
 
   const handleCompleteOnboarding = async () => {
     if (isCompleting) return;
+    if (onboardingWriteIsBlocked()) {
+      router.replace('/dashboard');
+      return;
+    }
     setIsCompleting(true);
 
     const today = new Date();
@@ -296,12 +385,15 @@ function OnboardingFlow() {
 
     try {
       if (isHouseholdScope && householdId) {
-        localStorage.setItem(`flousy_household_${householdId}_onboarding_done`, 'true');
+        localStorage.setItem(`smartjib_household_${householdId}_onboarding_done`, 'true');
       } else {
-        localStorage.setItem(`flousy_month_${monthKey}`, JSON.stringify(newMonth));
-        localStorage.setItem('flousy_onboarding_done', 'true');
+        const monthStorageKey = `smartjib_month_${monthKey}`;
+        if (localStorage.getItem(monthStorageKey) === null) {
+          localStorage.setItem(monthStorageKey, JSON.stringify(newMonth));
+        }
+        markOnboardingDoneLocally(user?.uid);
       }
-      localStorage.setItem('flousy_currency', currency);
+      localStorage.setItem('smartjib_currency', currency);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
     }
@@ -315,6 +407,9 @@ function OnboardingFlow() {
           ? Promise.all([
               saveHouseholdMonthBudget(householdId, monthKey, newMonth),
               markHouseholdOnboarded(),
+              // The household budget period is its own setting; without this the
+              // start date picked during household onboarding was discarded.
+              updateProfileData({ householdMonthStartDate: monthStartDate }),
             ])
           : Promise.all([
               saveMonthBudget(user.uid, monthKey, newMonth),
@@ -326,12 +421,8 @@ function OnboardingFlow() {
       }
     }
 
-    // Redirect to dashboard smoothly
-    try {
-      router.push('/dashboard');
-    } catch {
-      window.location.href = '/dashboard';
-    }
+    // Redirect to dashboard smoothly.
+    router.push('/dashboard');
   };
 
   const handleBack = () => {
@@ -343,7 +434,7 @@ function OnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <main id="main-content" className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -387,6 +478,19 @@ function OnboardingFlow() {
             />
           </div>
         </div>
+        )}
+
+        {importError && (
+          <div className="mb-6 rounded-2xl border border-error/40 bg-error-container/40 p-4 text-center">
+            <p className="text-[14px] font-bold text-on-error-container">{importError}</p>
+            <button
+              type="button"
+              onClick={handleImportPersonal}
+              className="mt-3 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary"
+            >
+              {m.common.retry}
+            </button>
+          </div>
         )}
 
         {isImporting && (
@@ -726,6 +830,31 @@ function OnboardingFlow() {
               </button>
             </form>
 
+            {/* One-tap suggestions replace the old pre-seeded example bills:
+                they only prefill the form, so nothing is saved until the user
+                types a real amount and adds it. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[12px] font-bold text-on-surface-variant">{m.onboarding.suggestedBills}</span>
+              {([
+                { name: 'Rent', label: m.onboarding.rent, category: 'Housing' },
+                { name: 'Electricity', label: m.onboarding.electricity, category: 'Utilities' },
+              ] as const)
+                .filter((sugg) => !bills.some((b) => b.name === sugg.name))
+                .map((sugg) => (
+                  <button
+                    key={sugg.name}
+                    type="button"
+                    onClick={() => {
+                      setNewBillName(sugg.name);
+                      setNewBillCategory(sugg.category);
+                    }}
+                    className="px-3 py-1.5 bg-surface border border-outline-variant rounded-full text-[13px] font-bold text-on-surface-variant hover:border-primary hover:text-primary transition-all cursor-pointer"
+                  >
+                    {sugg.label}
+                  </button>
+                ))}
+            </div>
+
             {/* Added Bills List */}
             {bills.length > 0 && (
               <div className="flex flex-col gap-2">
@@ -833,10 +962,13 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 const strategyCopy = localizeStrategy(strat.id, m, intlLocale);
 
                 return (
+                  // Mouse-only convenience surface; keyboard and AT semantics
+                  // live on the real <input type="radio"> inside the card.
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                   <div
                     key={strat.id}
                     onClick={() => setSelectedStrategy(strat.id)}
-                    className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${
+                    className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-primary/60 ${
                       selected
                         ? 'border-2 border-primary bg-primary-container/30 shadow-2xs'
                         : 'border-outline-variant bg-surface hover:bg-surface-container-low'
@@ -850,14 +982,24 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         </p>
                       </div>
 
-                      {/* Custom Radio Button */}
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                      {/* Real radio input (keyboard + screen-reader semantics);
+                          the visual dot renders on top of the invisible control. */}
+                      <span
+                        className={`relative w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
                           selected ? 'border-primary bg-primary' : 'border-slate-300'
                         }`}
                       >
-                        {selected && <div className="w-2 h-2 rounded-full bg-surface" />}
-                      </div>
+                        <input
+                          type="radio"
+                          name="onboarding-strategy"
+                          value={strat.id}
+                          checked={selected}
+                          onChange={() => setSelectedStrategy(strat.id)}
+                          aria-label={strategyCopy.name}
+                          className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0"
+                        />
+                        {selected && <span className="w-2 h-2 rounded-full bg-surface" />}
+                      </span>
                     </div>
 
                     {/* Segmented Bar Visual */}
@@ -919,6 +1061,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
 
                     {/* Custom strategy: definable split, editable in place */}
                     {strat.id === 'custom' && (
+                      // Stops card-selection clicks from swallowing editor
+                      // interaction; purely a bubbling guard, not a control.
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                       <div
                         className="flex flex-col gap-3 pt-1"
                         onClick={(e) => e.stopPropagation()}
@@ -1156,6 +1301,6 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

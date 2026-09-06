@@ -1,17 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AppIcon } from '@/components/ui/app-icon';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAuth } from '@/lib/auth-context';
 import { useCurrency } from '@/lib/currency-context';
 import { isProUser } from '@/lib/pro-features';
-import { useHousehold } from '@/lib/household-context';
+import { useHousehold, type InviteRole } from '@/lib/household-context';
 import { useLanguage } from '@/lib/i18n-context';
+import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
-import type { MonthBudget } from '@/lib/store';
-import { HOUSEHOLD_AREAS, type AccessLevel, type HouseholdPermissions } from '@/lib/household-rbac';
-
-type InviteRole = 'editor' | 'viewer' | 'custom';
+import { type MonthBudget } from '@/lib/store';
+import { computeHouseholdContributions, isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
+import {
+  AREA_LEVEL_OPTIONS,
+  DEFAULT_CUSTOM_PERMISSIONS,
+  HOUSEHOLD_AREAS,
+  LEGACY_CUSTOM_FALLBACK,
+  TOOL_AREA,
+  type AccessLevel,
+  type HouseholdPermissions,
+} from '@/lib/household-rbac';
+import { AreaRestricted } from '../area-restricted';
 
 interface HouseholdPanelProps {
   onOpenPro?: () => void;
@@ -30,20 +40,57 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, create, invite, acceptInvite, updateMember } = useHousehold();
+  const { household, members, isOwner, entitlementActive, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
+    useHousehold();
+  // The roster, per-member contribution totals and the invite form are all
+  // `members` data. Someone with an invitation code still has no membership
+  // row (personal workspace), so the join form below stays reachable.
+  const canSeeMembers = canViewArea(TOOL_AREA.household);
+  // Household management is a Pro feature. A free user in their personal
+  // workspace must not reach the create form, member roster or invitations just
+  // by opening this page — switching workspace leaves `activeHouseholdId` set,
+  // which is what used to keep the household document loaded here.
+  const canManageHousehold = isPro || workspace === 'household';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [memberName, setMemberName] = useState('');
-  const [role, setRole] = useState<InviteRole>('custom');
-  const [permissions, setPermissions] = useState<HouseholdPermissions>({
-    expenses: 'editOwn',
-    invoices: 'editOwn',
-  });
+  const [role, setRole] = useState<InviteRole>('contributor');
+  const [permissions, setPermissions] = useState<HouseholdPermissions>(DEFAULT_CUSTOM_PERMISSIONS);
   const [code, setCode] = useState(initialInviteCode || '');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [lastInviteCode, setLastInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameDraft, setRenameDraft] = useState('');
+
+  const submitRename = async () => {
+    setBusy(true);
+    try {
+      await renameHousehold(renameDraft);
+      setRenameOpen(false);
+      setNotice(h.renameSaved);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : h.genericError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
+
+  const saveMember = async (updated: HouseholdMember) => {
+    setBusy(true);
+    try {
+      await updateMember(updated);
+      setEditingMember(null);
+      setNotice(h.memberUpdated);
+    } catch {
+      setNotice(h.genericError);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (initialInviteCode) setCode(initialInviteCode);
@@ -63,37 +110,60 @@ export function HouseholdPanel({
     }
   };
 
-  const contributions = members
-    .filter((member) => member.status === 'active' && member.role !== 'profile')
-    .map((member) => ({
-      member,
-      total: [...(month?.variableExpenses || []), ...(month?.fixedExpenses || [])]
-        .filter((expense) => expense.payerMemberId === member.id)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    }));
-  const paidTotal = contributions.reduce((sum, item) => sum + item.total, 0);
-  const equalShare = contributions.length ? paidTotal / contributions.length : 0;
+  // Settle-up math lives in a pure, tested helper: 'self' payers resolve via
+  // createdByUserId, pooled ('household') and unattributed payments stay out
+  // of the equal-share split but remain visible.
+  const contributions = computeHouseholdContributions(month, members);
   const roleOptions = [
-    { value: 'custom', label: h.customAccess },
+    { value: 'contributor', label: h.contributor },
     { value: 'editor', label: h.fullAccess },
     { value: 'viewer', label: h.viewOnly },
+    { value: 'custom', label: m.householdRoles.custom },
   ];
-  const accessOptions = (editable?: boolean) => [
-    { value: 'none', label: h.noAccess },
-    { value: 'view', label: h.view },
-    ...(editable
-      ? [
-          { value: 'editOwn', label: h.editOwn },
-          { value: 'editAll', label: h.editAll },
-        ]
-      : []),
-  ];
+  // One person, one row: an invited member's retired placeholder (email-keyed,
+  // status 'inactive') must not double the active membership claimed from the
+  // invitation. Hide a retired row only when an ACTIVE member already carries
+  // the same email — a genuinely retired member with a unique email stays
+  // listed so the owner can restore them.
+  const activeEmails = new Set(
+    members
+      .filter((member) => member.status === 'active' && member.email)
+      .map((member) => (member.email || '').trim().toLowerCase()),
+  );
+  const visibleMembers = members.filter((member) => {
+    if (member.status === 'active') return true;
+    const email = (member.email || '').trim().toLowerCase();
+    return !email || !activeEmails.has(email);
+  });
+
   const memberStatus = (status: string) => {
     if (status === 'active') return m.common.active;
-    if (status === 'inactive') return m.common.inactive;
-    if (status === 'invited') return h.invited;
-    return status;
+    if (status === 'inactive') return m.common.inactive;    if (status === 'invited') return h.invited;
+    // Same reason as `localizeHouseholdRole`: an absent `status` is not the string
+    // "undefined", and this list is exactly where a legacy row is looked at.
+    return typeof status === 'string' ? status : '';
   };
+
+  // An invitation link (?invite=CODE) is the one exception: that is how a
+  // member who is not Pro themselves joins somebody else's household.
+  if (!canManageHousehold && !initialInviteCode) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container p-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-variant text-on-surface-variant">
+          <AppIcon name="inventory_2" className="text-[22px]" />
+        </span>
+        <p className="text-sm font-bold text-on-surface">{h.title}</p>
+        <p className="max-w-sm text-xs text-on-surface-variant">{h.createDescription}</p>
+        <button
+          type="button"
+          onClick={onOpenPro}
+          className="mt-1 w-full max-w-xs rounded-xl bg-primary py-3 font-bold text-on-primary"
+        >
+          {h.unlockWithPro}
+        </button>
+      </div>
+    );
+  }
 
   return (
       <div className="space-y-5">
@@ -160,18 +230,90 @@ export function HouseholdPanel({
               </div>
             </div>
           </>
+        ) : !canSeeMembers ? (
+          <AreaRestricted area={TOOL_AREA.household} icon="family_restroom" />
         ) : (
           <>
+            {!entitlementActive && (
+              <div role="status" className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                <p className="text-sm font-bold text-on-surface">{m.pro.trialExpiredTitle}</p>
+                <p className="mt-1 text-xs leading-5 text-on-surface-variant">{m.pro.trialExpiredBody}</p>
+              </div>
+            )}
             <div className="rounded-xl bg-primary/10 p-4">
-              <p className="font-bold text-on-surface">{household.name}</p>
+              {renameOpen ? (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitRename();
+                  }}
+                >
+                  <input
+                    value={renameDraft}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                    maxLength={100}
+                    autoFocus
+                    aria-label={h.renameHousehold}
+                    placeholder={h.householdNamePlaceholder}
+                    className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface p-2 text-sm text-on-surface"
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
+                  >
+                    {m.common.save}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setRenameOpen(false)}
+                    className="rounded-lg px-2 py-2 text-sm text-on-surface-variant hover:bg-primary/10"
+                  >
+                    {m.common.cancel}
+                  </button>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold text-on-surface">{household.name}</p>
+                  {isOwner && entitlementActive && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenameDraft(household.name);
+                        setRenameOpen(true);
+                      }}
+                      aria-label={h.renameHousehold}
+                      className="tap-target rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                    >
+                      <AppIcon name="edit" className="text-[18px]" />
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-on-surface-variant">
                 {t(h.activeMembers, { count: members.filter((member) => member.status === 'active').length })}{' '}
                 · {h.sharedBudgetLive}
               </p>
             </div>
 
+            {household.kind === 'business' ? (
+              <p className="rounded-xl border border-outline-variant bg-surface-container p-4 text-xs leading-5 text-on-surface-variant">{h.businessSolo}</p>
+            ) : (
+            <>
             <div className="space-y-2">
-              {members.map((member) => (
+              {visibleMembers.map((member) =>
+                editingMember?.id === member.id ? (
+                  <MemberEditor
+                    key={member.id}
+                    member={member}
+                    m={m}
+                    h={h}
+                    onSave={saveMember}
+                    onCancel={() => setEditingMember(null)}
+                  />
+                ) : (
                 <div key={member.id} className="flex items-center gap-3 rounded-xl border border-outline-variant p-3">
                   <span
                     className="flex h-9 w-9 items-center justify-center rounded-full font-bold text-white"
@@ -187,50 +329,79 @@ export function HouseholdPanel({
                       {member.email ? ` · ${member.email}` : ''}
                     </p>
                   </div>
-                  {isOwner && member.role !== 'owner' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        run(() =>
-                          updateMember({
-                            ...member,
-                            status: member.status === 'inactive' ? 'active' : 'inactive',
-                          }),
-                        )
-                      }
-                      className="text-xs font-bold text-primary"
-                    >
-                      {member.status === 'inactive' ? h.restore : h.remove}
-                    </button>
+                  {isOwner && entitlementActive && member.role !== 'owner' && (
+                    <>
+                      {member.role !== 'profile' && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMember(member)}
+                          aria-label={h.editMember}
+                          className="tap-target rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+                        >
+                          <AppIcon name="edit" className="text-[18px]" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          run(() =>
+                            updateMember({
+                              ...member,
+                              status: member.status === 'inactive' ? 'active' : 'inactive',
+                            }),
+                          )
+                        }
+                        className="text-xs font-bold text-primary"
+                      >
+                        {member.status === 'inactive' ? h.restore : h.remove}
+                      </button>
+                    </>
                   )}
                 </div>
-              ))}
+                )
+              )}
             </div>
 
-            {contributions.length > 0 && (
+            {workspace === 'household' && contributions.rows.length > 0 && (
               <div className="border-t border-outline-variant pt-4">
                 <p className="mb-2 font-bold">{h.monthlyContributions}</p>
                 <div className="space-y-2">
-                  {contributions.map(({ member, total }) => {
-                    const balance = total - equalShare;
-                    return (
-                      <div key={member.id} className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm">
-                        <span className="min-w-0 truncate">{member.displayName}</span>
-                        <span className="shrink-0 font-semibold tabular-nums">
-                          {format(total)} ·{' '}
-                          <span className={balance >= 0 ? 'text-primary' : 'text-error'}>
-                            {balance >= 0 ? '+' : '−'}{format(Math.abs(balance))}
-                          </span>
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {contributions.rows.map(({ member, paid, balance }) => (
+                    <div key={member.id} className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm">
+                      <span className="min-w-0 truncate">{member.displayName}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {format(paid)} ·{' '}
+                        {balance === 0 ? (
+                          <span className="font-medium text-on-surface-variant">{format(0)}</span>
+                        ) : balance > 0 ? (
+                          <span className="text-primary">+{format(balance)}</span>
+                        ) : (
+                          <span className="text-error">−{format(Math.abs(balance))}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  {contributions.pooledTotal > 0 && (
+                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
+                      <span className="min-w-0 truncate">{h.funds}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{format(contributions.pooledTotal)}</span>
+                    </div>
+                  )}
+                  {contributions.unattributedTotal > 0 && (
+                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
+                      <span className="min-w-0 truncate">{h.contributionsUnattributed}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">{format(contributions.unattributedTotal)}</span>
+                    </div>
+                  )}
                 </div>
+                {(contributions.pooledTotal > 0 || contributions.unattributedTotal > 0) && (
+                  <p className="mt-2 text-xs text-on-surface-variant">{h.contributionsExcluded}</p>
+                )}
                 <p className="mt-2 text-xs text-on-surface-variant">{h.contributionGuide}</p>
               </div>
             )}
 
-            {isOwner && (
+            {isOwner && entitlementActive && (
               <div className="space-y-3 border-t border-outline-variant pt-4">
                 <div>
                   <p className="font-bold">{h.inviteMember}</p>
@@ -328,6 +499,14 @@ export function HouseholdPanel({
                   </button>
                 </div>
 
+                {role === 'custom' && (
+                  <PermissionMatrixEditor
+                    value={permissions}
+                    onChange={setPermissions}
+                    h={h}
+                  />
+                )}
+
                 {lastInviteCode && (
                   <div className="rounded-xl border border-outline-variant bg-surface-container p-3 space-y-2">
                     <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
@@ -356,32 +535,9 @@ export function HouseholdPanel({
                   </div>
                 )}
 
-                {role === 'custom' && (
-                  <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-                      {h.customAccess}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {HOUSEHOLD_AREAS.map((area) => (
-                        <div key={area.id} className="min-w-0">
-                          <CustomSelect
-                            value={permissions[area.id] || 'none'}
-                            onChange={(value) =>
-                              setPermissions((current) => ({
-                                ...current,
-                                [area.id]: value as AccessLevel,
-                              }))
-                            }
-                            options={accessOptions(area.editable)}
-                            label={h.areas[area.id]}
-                            triggerClassName="!h-10 !text-xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+            )}
+            </>
             )}
           </>
         )}
@@ -392,5 +548,132 @@ export function HouseholdPanel({
           </p>
         )}
       </div>
+  );
+}
+
+/**
+ * Per-area access matrix for the `custom` role. Each area only offers the
+ * levels `AREA_LEVEL_OPTIONS` allows — the same sets `firestore.rules`
+ * validates — so the editor can never author a map the backend rejects.
+ */
+function PermissionMatrixEditor({
+  value,
+  onChange,
+  h,
+}: {
+  value: HouseholdPermissions;
+  onChange: (next: HouseholdPermissions) => void;
+  h: Messages['household'];
+}) {
+  const levelLabel = (level: AccessLevel) => {
+    if (level === 'none') return h.noAccess;
+    if (level === 'view') return h.view;
+    if (level === 'editOwn') return h.editOwn;
+    return h.editAll;
+  };
+  return (
+    <div className="rounded-xl border border-outline-variant bg-surface-container p-3">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+        {h.customAccess}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {HOUSEHOLD_AREAS.map((area) => (
+          <div key={area.id} className="min-w-0">
+            <CustomSelect
+              value={value[area.id] || 'none'}
+              onChange={(next) =>
+                onChange({ ...value, [area.id]: next as AccessLevel })
+              }
+              options={AREA_LEVEL_OPTIONS[area.id].map((level) => ({
+                value: level,
+                label: levelLabel(level),
+              }))}
+              label={h.areas[area.id]}
+              triggerClassName="!h-10 !text-xs"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inline owner-only editor for a member's display name and enforceable role.
+ * The `custom` role exposes the per-area matrix; every grant it can express
+ * is enforced by `firestore.rules` (month writes are checked key-group by
+ * key-group against the stored map).
+ */
+function MemberEditor({
+  member,
+  m,
+  h,
+  onSave,
+  onCancel,
+}: {
+  member: HouseholdMember;
+  m: Messages;
+  h: Messages['household'];
+  onSave: (updated: HouseholdMember) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(member.displayName);
+  const [role, setRole] = useState<InviteRole>(
+    isAssignableMemberRole(member.role) ? member.role : 'contributor',
+  );
+  const [permissions, setPermissions] = useState<HouseholdPermissions>(
+    member.permissions
+      ?? (member.role === 'custom' ? LEGACY_CUSTOM_FALLBACK : DEFAULT_CUSTOM_PERMISSIONS),
+  );
+  const roleOptions = [
+    { value: 'editor', label: h.fullAccess },
+    { value: 'contributor', label: m.householdRoles.contributor },
+    { value: 'viewer', label: h.viewOnly },
+    { value: 'custom', label: m.householdRoles.custom },
+  ];
+  return (
+    <div className="space-y-3 rounded-xl border border-primary/40 bg-surface-container p-3">
+      <input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        maxLength={60}
+        aria-label={h.fullName}
+        placeholder={h.fullName}
+        className="w-full rounded-lg border border-outline-variant bg-surface p-2 text-sm text-on-surface"
+      />
+      <CustomSelect
+        value={role}
+        onChange={(value) => setRole(value as InviteRole)}
+        options={roleOptions}
+        ariaLabel={h.customAccess}
+        triggerClassName="!h-10 !text-xs"
+      />
+      {role === 'custom' && (
+        <PermissionMatrixEditor value={permissions} onChange={setPermissions} h={h} />
+      )}
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-3 py-2 text-sm text-on-surface-variant hover:bg-primary/10"
+        >
+          {m.common.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onSave({
+              ...member,
+              displayName: name.trim() || member.displayName,
+              role,
+              permissions: role === 'custom' ? permissions : undefined,
+            })
+          }
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+        >
+          {m.common.save}
+        </button>
+      </div>
+    </div>
   );
 }

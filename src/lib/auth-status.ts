@@ -7,16 +7,16 @@ import { useEffect, useState } from 'react';
  *
  * This intentionally does NOT import Firebase: the marketing site must stay
  * free of the Firebase SDK (tens of KB + hydration cost on every landing
- * visit). Instead, the authenticated app sets a tiny `flousy_authed` cookie
+ * visit). Instead, the authenticated app sets a tiny `smartjib_authed` cookie
  * (see AuthProvider in ./auth-context), which we read here for CTA copy.
  *
  * The cookie is set client-side only, so a returning visitor sees the
  * authenticated CTA as soon as the cookie is present — no network call, no
  * SDK download.
  */
-export const AUTH_COOKIE = 'flousy_authed';
+export const AUTH_COOKIE = 'smartjib_authed';
 
-const AUTH_COOKIE_RE = /(?:^|;\s*)flousy_authed=1/;
+const AUTH_COOKIE_RE = /(?:^|;\s*)smartjib_authed=1/;
 
 export function readAuthCookie(): boolean {
   if (typeof document === 'undefined') return false;

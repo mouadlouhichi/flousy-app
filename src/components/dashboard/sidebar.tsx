@@ -1,15 +1,57 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useDashboard } from './dashboard-provider';
-import { getLocalizedNavLabel, getScreenIdFromPath, getVisibleNavItems } from './nav-items';
+import {
+  getLocalizedNavLabel,
+  getScreenIdFromPath,
+  getSidebarNavItems,
+} from './nav-items';
 import { useHousehold } from '@/lib/household-context';
 import { resolveProfileAvatarSource } from '@/lib/profile-avatar';
 import { isProFeatureUnlocked } from '@/lib/household';
+import { canExportAnything, TOOL_AREA } from '@/lib/household-rbac';
+
+/** Tiny uppercase section heading with a hairline rule under it. */
+function SidebarGroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-5 mb-1.5 border-b border-surface-variant/40 px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant/80 first:mt-0">
+      {children}
+    </p>
+  );
+}
+
+/**
+ * Tool row (modal actions, not routes): deliberately the same row anatomy as
+ * the Budget links above — same padding, icon size and type scale — so the
+ * whole sidebar reads as one family. No sliding pill: opening a modal never
+ * changes the active screen.
+ */
+function SidebarToolRow({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-start font-label-lg text-on-surface-variant transition-colors hover:bg-surface-variant/40 hover:text-on-surface"
+    >
+      <AppIcon name={icon} className="shrink-0 text-[21px]" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
 import { ProfileAvatar } from './profile-avatar';
 import { useLanguage } from '@/lib/i18n-context';
 
@@ -24,15 +66,24 @@ export function Sidebar() {
   const pathname = usePathname();
   const { messages: m, t } = useLanguage();
   const { user, profile, isPro, openIncomeModal, openCsvModal, openProModal } = useDashboard();
-  const { workspace } = useHousehold();
-  const proUnlocked = isProFeatureUnlocked(isPro, workspace);
+  const { workspace, household, canViewArea, exportSections } = useHousehold();
+  const proUnlocked = isProFeatureUnlocked(isPro, workspace, household);
+  // Quick tools are entry points into RBAC areas: income sources open the
+  // income editor and CSV import/export reads or writes several money areas.
+  // A member without the area never sees the button at all.
+  const canSeeIncome = canViewArea(TOOL_AREA.incomeSources);
+  const canUseCsv = workspace === 'personal' || canExportAnything(exportSections);
   const activeScreen = getScreenIdFromPath(pathname);
-  const items = getVisibleNavItems(proUnlocked);
+  // Desktop shows the full set (courses + analytics included); the mobile
+  // bottom bar keeps its five destinations.
+  const items = getSidebarNavItems(proUnlocked);
   const userInitial = (profile?.displayName || user?.email || m.auth.anonymousUser)?.[0]?.toUpperCase() || '?';
   const avatarSrc = resolveProfileAvatarSource(profile?.avatarUrl, user?.photoURL);
 
+  // Tonal step above the page surface (container-high) plus a soft edge
+  // shadow, so the rail reads as chrome rather than flat background.
   return (
-    <aside className="hidden md:flex flex-col w-64 border-e border-surface-variant bg-surface shrink-0 fixed top-0 bottom-0 start-0 z-30">
+    <aside className="hidden md:flex flex-col w-64 border-e border-outline-variant/40 bg-surface-container-high shadow-[1px_0_16px_rgba(23,29,28,0.10)] shrink-0 fixed top-0 bottom-0 start-0 z-30">
       {/* Brand Logo */}
       <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
         <Image
@@ -48,75 +99,85 @@ export function Sidebar() {
         </span>
       </div>
 
-      {/* Navigation Menu */}
-      <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
-        {items.map((item) => {
-          const isActive = activeScreen === item.id;
-          return (
-            <Link
-              key={item.id}
-              href={item.href}
-              prefetch={true}
-              className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl font-label-lg transition-colors ${
-                isActive
-                  ? 'text-primary font-bold'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              {/* Sliding active background — glides from the previously
-                  active item to this one on navigation. */}
-              {isActive && (
-                <motion.span
-                  layoutId="dashboard-sidebar-active-bg"
-                  className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
-                  transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+      {/* Navigation Menu — three visually distinct groups.
+          Budget screens are the primary destinations (large icons, sliding
+          pill). Tools and account pages are secondary: smaller rows, no pill,
+          so the sidebar reads as a hierarchy instead of one flat list. */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {/* ── Budget ─────────────────────────────────────────── */}
+        <SidebarGroupLabel>{m.navigation.groupBudget}</SidebarGroupLabel>
+        <div className="flex flex-col gap-1">
+          {items.map((item) => {
+            const isActive = activeScreen === item.id;
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                prefetch={true}
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex items-center gap-3 rounded-2xl px-3 py-2.5 font-label-lg transition-colors ${
+                  isActive
+                    ? 'font-bold text-primary'
+                    : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
+                }`}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="dashboard-sidebar-active-bg"
+                    className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
+                    transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
+                  />
+                )}
+                <AppIcon
+                  name={item.sidebarIcon}
+                  className={`relative z-10 text-[21px] ${isActive ? 'filled' : ''}`}
+                />
+                <span className="relative z-10 truncate">{getLocalizedNavLabel(item, m)}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* ── Tools ──────────────────────────────────────────── */}
+        {(canSeeIncome || canUseCsv) && (
+          <>
+            <SidebarGroupLabel>{m.navigation.groupTools}</SidebarGroupLabel>
+            <div className="flex flex-col gap-1">
+              {canSeeIncome && (
+                <SidebarToolRow
+                  icon="payments"
+                  label={m.navigation.incomeSources}
+                  onClick={() => {
+                    if (!proUnlocked) {
+                      openProModal();
+                      return;
+                    }
+                    openIncomeModal();
+                  }}
                 />
               )}
-              <AppIcon
-                name={item.sidebarIcon}
-                className={`relative z-10 text-[22px] ${isActive ? 'filled' : ''}`}
-              />
-              <span className="relative z-10">{getLocalizedNavLabel(item, m)}</span>
-            </Link>
-          );
-        })}
-
-        <div className="my-2 border-t border-surface-variant/40" />
-
-        {/* Quick Tools */}
-        <button
-          onClick={() => {
-            if (!proUnlocked) {
-              openProModal();
-              return;
-            }
-            openIncomeModal();
-          }}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
-        >
-          <AppIcon name="payments" className=" text-[20px]" />
-          <span>{m.navigation.incomeSources}</span>
-        </button>
-
-        <button
-          onClick={() => {
-            if (!proUnlocked) {
-              openProModal();
-              return;
-            }
-            openCsvModal();
-          }}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface transition-all"
-        >
-          <AppIcon name="upload_file" className=" text-[20px]" />
-          <span>{m.navigation.importExportCsv}</span>
-        </button>
+              {canUseCsv && (
+                <SidebarToolRow
+                  icon="upload_file"
+                  label={m.navigation.importExportCsv}
+                  onClick={() => {
+                    if (!proUnlocked) {
+                      openProModal();
+                      return;
+                    }
+                    openCsvModal();
+                  }}
+                />
+              )}
+            </div>
+          </>
+        )}
       </nav>
 
       {/* Bottom Profile Footer — whole row opens the profile page. Shares
           the sidebar's sliding active pill so Profile doesn't leave Overview
           (or whichever tab you came from) looking selected. */}
-      <div className="p-4 border-t border-surface-variant/50 bg-surface-container/20">
+      <div className="p-4 border-t border-outline-variant/40 bg-surface-container-low/70">
         <Link
           href="/dashboard/profile"
           prefetch={true}

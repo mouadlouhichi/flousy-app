@@ -23,6 +23,7 @@ interface MonthDayPickerProps {
   hint?: string;
   /** Show the selected-day chip with a clear button (default true). */
   allowClear?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -37,6 +38,7 @@ export function MonthDayPicker({
   label,
   hint,
   allowClear = true,
+  disabled = false,
 }: MonthDayPickerProps) {
   const { messages: m, language, intlLocale } = useLanguage();
   const visibleLabel = label || m.monthDayPicker.monthlyStartDate;
@@ -57,6 +59,7 @@ export function MonthDayPicker({
               {localizedDay(value)}
               <button
                 type="button"
+                disabled={disabled}
                 onClick={() => onChange(undefined)}
                 aria-label={m.monthDayPicker.clearMonthlyStartDate}
                 className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
@@ -68,7 +71,11 @@ export function MonthDayPicker({
         </div>
       )}
 
-      <div className="rounded-xl border border-outline-variant bg-surface-container p-2.5">
+      {/* The grid is capped on purpose: the cells are `aspect-square`, so an
+          unconstrained grid grew with its container and turned into a
+          ~500px-tall calendar on desktop. 320px keeps every day cell at a
+          comfortable tap/click size (~38px) at any viewport width. */}
+      <div className="w-full max-w-[320px] rounded-xl border border-outline-variant bg-surface-container p-2.5">
         <div className="grid grid-cols-7 gap-1">
           {weekdayLabels.map((w, i) => (
             <span
@@ -84,10 +91,11 @@ export function MonthDayPicker({
               <button
                 key={d}
                 type="button"
+                disabled={disabled}
                 aria-pressed={selected}
                 aria-label={localizedDay(d)}
                 onClick={() => onChange(d)}
-                className={`flex aspect-square items-center justify-center rounded-lg text-[13px] font-bold transition-all active:scale-90 ${
+                className={`flex aspect-square items-center justify-center rounded-lg text-[13px] font-bold transition-all active:scale-90 disabled:cursor-not-allowed disabled:opacity-50 ${
                   selected
                     ? 'bg-primary text-on-primary shadow-sm'
                     : 'text-on-surface hover:bg-primary/10 hover:text-primary'

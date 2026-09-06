@@ -62,6 +62,10 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // Mouse convenience only: clicking the addon focuses the sibling input,
+    // mirroring native label behaviour. Keyboard users tab straight to the
+    // input, so no key handler is needed here.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <div
       role="group"
       data-slot="input-group-addon"

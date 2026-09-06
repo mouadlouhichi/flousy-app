@@ -15,7 +15,7 @@ const read = (path: string) => readFileSync(new URL(path, new URL('../', import.
 
 describe('response headers', () => {
   const config = read('next.config.mjs');
-  const middleware = read('src/middleware.ts');
+  const middleware = read('src/proxy.ts');
 
   it('keeps the clickjacking and sniffing defaults on every route', () => {
     assert.match(config, /X-Content-Type-Options', value: 'nosniff'/);
@@ -35,6 +35,18 @@ describe('response headers', () => {
   it('seals framing in production while Google sign-in popups stay allowed', () => {
     assert.match(middleware, /frame-ancestors 'none'/);
     assert.match(config, /Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups'/);
+  });
+
+  it('cuts the inline-handler half of the unsafe-inline risk (audit S4)', () => {
+    // Inline <script> blocks stay allowed (App Router bootstrap needs them and
+    // a nonce would force every prerendered page dynamic), but inline event
+    // handler attributes — the injection surface markup can actually reach —
+    // are refused outright, and workers/manifest stay same-origin.
+    assert.match(middleware, /script-src-attr 'none'/);
+    assert.match(middleware, /worker-src 'self'/);
+    assert.match(middleware, /manifest-src 'self'/);
+    assert.match(middleware, /object-src 'none'/);
+    assert.match(middleware, /base-uri 'self'/);
   });
 
   it('applies CSP to /api responses as well as pages', () => {
@@ -134,9 +146,12 @@ describe('server endpoint abuse limits', () => {
     assert.ok(codeStoredBeforeMail > -1 && mailAttempt > codeStoredBeforeMail);
   });
 
-  it('rate limits sends per user', () => {
-    assert.match(invitations, /rateLimited\(/);
+  it('rate limits sends per user and deduplicates provider retries', () => {
+    // Counting goes through the shared limiter (Upstash-durable when
+    // configured, in-memory fallback otherwise — see tests/rate-limit.test.ts).
+    assert.match(invitations, /await isRateLimited\('household-invitations', caller\.uid/);
     assert.match(invitations, /status: 429/);
+    assert.match(invitations, /idempotencyKey: `household-invite-\$\{inviteId\}`/);
   });
 
   it('validates the barcode argument and bounds the outbound fan-out', () => {
@@ -191,8 +206,11 @@ describe('destructive account operations', () => {
     // Deleting the Firebase user before the data is gone would orphan whatever
     // failed: nothing else could reach those documents again.
     const deleteOrder = auth.indexOf('AccountDeletionIncompleteError(report)');
-    const userDelete = auth.indexOf('await deleteUser(user)');
+    const userDelete = auth.indexOf('await deleteUser(currentUser)');
     assert.ok(deleteOrder > -1 && userDelete > deleteOrder, 'data must be erased before the account');
+    const retryGuard = db.indexOf('if (report.failed.length > 0) return report');
+    const profileDelete = db.indexOf("await deleteDoc(doc(db, 'users', uid))");
+    assert.ok(retryGuard > -1 && profileDelete > retryGuard, 'the retry manifest must survive any partial erasure');
   });
 
   it('keeps household data reachable while its owner account still exists', () => {

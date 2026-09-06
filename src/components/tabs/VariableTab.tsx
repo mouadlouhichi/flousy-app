@@ -2,7 +2,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { FormattedAmount } from '@/components/ui/formatted-amount';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, UserProfile } from '../../lib/store';
+import { MonthBudget, VariableExpense, updateCategoryBudget, updateDefaultCategoryBudget, calculateCategorySpent, envelopeFor, UserProfile } from '../../lib/store';
 import { formatShortDate } from '../../lib/utils';
 import { useCurrency } from '../../lib/currency-context';
 import { useAuth } from '../../lib/auth-context';
@@ -14,8 +14,7 @@ import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { IconSelect } from '@/components/ui/icon-select';
-
-type ExpenseSort = 'newest' | 'oldest' | 'amountHigh' | 'amountLow' | 'name';
+import { ExpenseSort, sortVariableExpenses } from '@/lib/expense-sort';
 
 function expenseDay(date: string): string {
   return (date || '').slice(0, 10);
@@ -28,6 +27,12 @@ interface VariableTabProps {
   onUpdateMonth: (month: MonthBudget) => void;
   onUpdateProfile: (profile: UserProfile) => void;
   onOpenProModal: () => void;
+  /** Explicit needs/wants override; absent when the member cannot edit settings. */
+  onSetCategoryEnvelope?: (category: string, envelope: 'needs' | 'wants') => void;
+  /** False when the household role may read expenses but not change them. */
+  canEdit?: boolean;
+  /** Category budgets live in `settings`, a separate area from `expenses`. */
+  canEditCategoryBudgets?: boolean;
 }
 
 export function VariableTab({
@@ -37,13 +42,16 @@ export function VariableTab({
   onUpdateMonth,
   onUpdateProfile,
   onOpenProModal,
+  onSetCategoryEnvelope,
+  canEdit = true,
+  canEditCategoryBudgets = true,
 }: VariableTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
   const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
-  const { workspace } = useHousehold();
+  const { workspace, household } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -57,8 +65,8 @@ export function VariableTab({
   const categories = ['All', ...(month.activeCategories || [])];
   const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
 
-  const filteredExpenses = (month.variableExpenses || [])
-    .filter((exp) => {
+  const filteredExpenses = sortVariableExpenses(
+    (month.variableExpenses || []).filter((exp) => {
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
       const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
       const matchesSearch =
@@ -70,14 +78,10 @@ export function VariableTab({
       const matchesFrom = !dateFrom || day >= dateFrom;
       const matchesTo = !rangeEnd || day <= rangeEnd;
       return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'oldest') return expenseDay(a.date).localeCompare(expenseDay(b.date)) || a.name.localeCompare(b.name);
-      if (sortBy === 'amountHigh') return b.amount - a.amount;
-      if (sortBy === 'amountLow') return a.amount - b.amount;
-      if (sortBy === 'name') return a.name.localeCompare(b.name, intlLocale, { sensitivity: 'base' });
-      return expenseDay(b.date).localeCompare(expenseDay(a.date)) || b.name.localeCompare(a.name);
-    });
+    }),
+    sortBy,
+    intlLocale,
+  );
 
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
 
@@ -99,7 +103,8 @@ export function VariableTab({
   };
 
   const handleStartEdit = (category: string) => {
-    if (!isProFeatureUnlocked(isPro, workspace)) {
+    if (!canEditCategoryBudgets) return;
+    if (!isProFeatureUnlocked(isPro, workspace, household)) {
       onOpenProModal();
       return;
     }
@@ -120,13 +125,15 @@ export function VariableTab({
             <FormattedAmount value={totalSpent} />
           </h2>
         </div>
-        <button
-          onClick={onOpenAddModal}
-          className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
-        >
-          <AppIcon name="add" className=" text-[20px]" />
-          <span>{m.tabs.variable.addExpense}</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={onOpenAddModal}
+            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          >
+            <AppIcon name="add" className=" text-[20px]" />
+            <span>{m.tabs.variable.addExpense}</span>
+          </button>
+        )}
       </div>
 
       <button
@@ -200,20 +207,44 @@ export function VariableTab({
             const progress = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
             const isOverBudget = budget > 0 && spent > budget;
             const isEditing = editingCategory === category;
+            const envelope = envelopeFor(month.categoryEnvelopes, category, 'variable');
 
             return (
               <div key={category} className="flex flex-col gap-sm">
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-sm">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="flex items-center gap-sm min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <AppIcon 
                         name={month.categoryIcons?.[category] || 'category'} 
                         className="text-[18px] text-primary" 
                       />
                     </div>
-                    <span className="font-label-lg text-label-lg font-bold text-on-surface">
-                      {localizeCategoryName(category, m)}
-                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-label-lg text-label-lg font-bold text-on-surface truncate">
+                        {localizeCategoryName(category, m)}
+                      </span>
+                      {onSetCategoryEnvelope ? (
+                        <div className="flex items-center gap-1 mt-0.5" role="group" aria-label={t(m.tabs.variable.envelopeLabel, { category: localizeCategoryName(category, m) })}>
+                          {(['needs', 'wants'] as const).map((env) => (
+                            <button
+                              key={env}
+                              type="button"
+                              onClick={() => envelope !== env && onSetCategoryEnvelope(category, env)}
+                              aria-pressed={envelope === env}
+                              className={`px-2 py-0.5 rounded-full font-label-sm text-label-sm font-bold transition-all ${
+                                envelope === env
+                                  ? env === 'needs'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'bg-tertiary text-on-tertiary'
+                                  : 'bg-surface-container-highest text-on-surface-variant hover:text-on-surface'
+                              }`}
+                            >
+                              {env === 'needs' ? m.tabs.variable.envelopeNeeds : m.tabs.variable.envelopeWants}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   
                   {isEditing ? (
@@ -237,7 +268,7 @@ export function VariableTab({
                       <button
                         onClick={() => handleSetBudget(category)}
                         aria-label={t(m.tabs.variable.saveBudget, { category: localizeCategoryName(category, m) })}
-                        className="p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        className="tap-target p-1 text-primary hover:bg-primary/10 rounded-lg transition-all"
                       >
                         <AppIcon name="check" className="text-[18px]" />
                       </button>
@@ -247,7 +278,7 @@ export function VariableTab({
                           setBudgetInput('');
                         }}
                         aria-label={m.tabs.variable.cancelBudgetEdit}
-                        className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
+                        className="tap-target p-1 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all"
                       >
                         <AppIcon name="close" className="text-[18px]" />
                       </button>
@@ -370,8 +401,18 @@ export function VariableTab({
           {filteredExpenses.map((exp) => (
             <div
               key={exp.id}
-              onClick={() => onEditExpense(exp)}
-              className="flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant hover:border-primary transition-all cursor-pointer shadow-2xs"
+              role={canEdit ? 'button' : undefined}
+              tabIndex={canEdit ? 0 : undefined}
+              onClick={canEdit ? () => onEditExpense(exp) : undefined}
+              onKeyDown={canEdit ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEditExpense(exp);
+                }
+              } : undefined}
+              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
+                canEdit ? 'hover:border-primary cursor-pointer' : ''
+              }`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className="p-2.5 bg-surface-container rounded-xl text-primary font-bold shrink-0">

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useDashboard } from './dashboard-provider';
 import { DASHBOARD_NAV_ITEMS, DASHBOARD_NAV_HREFS, getScreenIdFromPath } from './nav-items';
 import { Sidebar } from './sidebar';
@@ -13,9 +14,12 @@ import { QuickActions } from './quick-actions';
 import { DashboardModals } from './dashboard-modals';
 import { DashboardSkeleton } from './dashboard-skeleton';
 import { useLanguage } from '@/lib/i18n-context';
+import { interpolate } from '@/lib/i18n-core';
 import { exitDemoMode, isDemoMode } from '@/lib/demo-mode';
+import { CARRYOVER_INCOME_ID_PREFIX } from '@/lib/store';
 import { hasAnsweredAnalyticsConsent, setAnalyticsConsent } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth-context';
+import { useHousehold } from '@/lib/household-context';
 
 /**
  * Instagram-style push transition: the incoming screen slides in from the
@@ -61,6 +65,53 @@ const pageVariants: Variants = {
   }),
 };
 
+/**
+ * Announces that a new salary period has started (payday passed since the
+ * last visit, or while the app sat in the background). The provider already
+ * jumped to the fresh period — bank opens at the full salary, plus the
+ * previous period's remainder as a "Carried over" income line on Pro — this
+ * banner just tells the user why the numbers changed.
+ */
+function NewPeriodBanner() {
+  const { messages: m, language } = useLanguage();
+  const { newPeriodNoticeKey, dismissNewPeriodNotice, month } = useDashboard();
+
+  if (!newPeriodNoticeKey) return null;
+
+  const [year, monthNum] = newPeriodNoticeKey.split('-').map(Number);
+  const monthLabel = new Date(year, (monthNum || 1) - 1, 1)
+    .toLocaleDateString(language === 'ar' ? 'ar-MA' : language, { month: 'long', year: 'numeric' });
+  const hasCarryover = (month.incomeSources || []).some(
+    (source) => source.id.startsWith(CARRYOVER_INCOME_ID_PREFIX) && (source.amount || 0) > 0,
+  );
+  const body = hasCarryover
+    ? m.notifications.newPeriodBodyCarryover
+    : m.notifications.newPeriodBody;
+
+  return (
+    <div
+      role="status"
+      className="bg-primary-container text-on-primary-container px-margin-mobile py-2.5 flex items-center justify-between gap-2 font-label-md text-label-md"
+    >
+      <div className="flex items-center gap-xs min-w-0">
+        <AppIcon name="celebration" className=" text-[20px] shrink-0" />
+        <span className="min-w-0">
+          <span className="font-bold">{m.notifications.newPeriodTitle}</span>
+          {' — '}
+          {interpolate(body, { month: monthLabel })}
+        </span>
+      </div>
+      <button
+        onClick={dismissNewPeriodNotice}
+        className="tap-target p-1 hover:bg-primary/20 rounded-full shrink-0"
+        aria-label={m.notifications.dismissBanner}
+      >
+        <AppIcon name="close" className=" text-[18px]" />
+      </button>
+    </div>
+  );
+}
+
 function EmailVerificationBanner() {
   const { messages: m } = useLanguage();
   const {
@@ -88,7 +139,7 @@ function EmailVerificationBanner() {
       </div>
       <button
         onClick={() => setDismissVerificationBanner(true)}
-        className="p-1 hover:bg-tertiary/20 rounded-full"
+        className="tap-target p-1 hover:bg-tertiary/20 rounded-full"
         aria-label={m.notifications.dismissBanner}
       >
         <AppIcon name="close" className=" text-[18px]" />
@@ -106,6 +157,87 @@ function EmailVerificationBanner() {
  * showing it from the first client render would hydrate a banner the server
  * never emitted. It is therefore applied after mount.
  */
+function SyncIssueBanner() {
+  const { messages: m } = useLanguage();
+  const { syncState, syncError, pendingMutations, retrySync, discardPendingChanges } = useDashboard();
+  const [discarding, setDiscarding] = useState(false);
+  if (syncState !== 'failed' && syncState !== 'conflict') return null;
+
+  return (
+    <div role="alert" className="flex flex-col gap-2 bg-error/10 px-margin-mobile py-3 text-error sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2">
+        <AppIcon name={syncState === 'conflict' ? 'sync_problem' : 'cloud_off'} className="mt-0.5 shrink-0 text-[20px]" />
+        <div>
+          <p className="text-sm font-bold">{m.sync[syncState]}</p>
+          <p className="text-xs">
+            {syncError || (syncState === 'conflict' ? m.sync.conflictDetail : m.sync.queuedLocally)}
+            {pendingMutations > 0 ? ` (${pendingMutations})` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        {syncState === 'failed' && (
+          <button type="button" onClick={retrySync} className="rounded-full bg-error px-3 py-1.5 text-xs font-bold text-on-error">
+            {m.sync.retry}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={discarding}
+          onClick={() => {
+            setDiscarding(true);
+            void discardPendingChanges().catch(() => {}).finally(() => setDiscarding(false));
+          }}
+          className="rounded-full border border-error px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+        >
+          {m.sync.useCloudCopy}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ClosedMonthBanner() {
+  const { messages: m } = useLanguage();
+  const { month, reopenCurrentMonth } = useDashboard();
+  const { workspace, isOwner } = useHousehold();
+  // Hooks before the early return: the banner renders nothing for open months.
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+  if (month.periodStatus !== 'closed') return null;
+  const mayReopen = workspace === 'personal' || isOwner;
+
+  return (
+    <div role="status" className="flex items-center justify-between gap-3 border-b border-tertiary/30 bg-tertiary-container px-margin-mobile py-2.5 text-on-tertiary-container shadow-[0_1px_8px_rgba(23,29,28,0.08)]">
+      <div className="flex min-w-0 items-center gap-2">
+        <AppIcon name="lock" className="shrink-0 text-[18px]" />
+        <div className="min-w-0">
+          <p className="text-sm font-bold">{m.monthLock.closed}</p>
+          <p className="truncate text-xs">{m.monthLock.closedDetail}</p>
+        </div>
+      </div>
+      {mayReopen && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowReopenConfirm(true)}
+            className="shrink-0 rounded-full border border-current px-3 py-1.5 text-xs font-bold hover:bg-on-tertiary-container/10"
+          >
+            {m.monthLock.reopen}
+          </button>
+          <ConfirmDialog
+            isOpen={showReopenConfirm}
+            onClose={() => setShowReopenConfirm(false)}
+            onConfirm={reopenCurrentMonth}
+            title={m.monthLock.reopen}
+            message={m.monthLock.reopenConfirm}
+            confirmLabel={m.monthLock.reopen}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 function DemoModeBanner() {
   const { messages: m } = useLanguage();
   const router = useRouter();
@@ -272,9 +404,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <ProfileSyncBanner />
         <AnalyticsConsentPrompt />
         <EmailVerificationBanner />
+        <NewPeriodBanner />
+        <SyncIssueBanner />
+        <ClosedMonthBanner />
         <DashboardHeader />
 
-        <main className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
+        <main id="main-content" className="relative flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12 overflow-x-clip">
           {/* Inner positioning context: the exiting screen is absolutely
               positioned against the CONTENT box (not the padded <main>), so
               it overlays the incoming screen exactly — no edge slivers. */}

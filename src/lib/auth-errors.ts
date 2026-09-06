@@ -23,7 +23,7 @@ const DEFAULT_AUTH_ERROR_COPY: AuthErrorCopy = {
   networkError: 'Network error. Check your connection and try again.',
   signInMethodDisabled: 'This sign-in method is disabled in Firebase.',
   emailAlreadyInUse: 'An account with this email already exists. Log in instead.',
-  weakPassword: 'Password must be at least 6 characters.',
+  weakPassword: 'Password must be at least 10 characters.',
   apiKeyReferrerBlocked:
     'Firebase blocked this preview domain. Add it to the API key HTTP referrers, or use the production site.',
   authFailed: 'Authentication failed. Please verify credentials.',

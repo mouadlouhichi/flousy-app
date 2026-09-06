@@ -25,7 +25,9 @@ describe('Performance guardrails', () => {
     // PWA wiring must remain in place.
     assert.ok(layout.includes('ServiceWorkerRegistrar'));
     assert.ok(layout.includes('InstallBanner'));
-    assert.ok(layout.includes('maximumScale: 1'));
+    // Pinch zoom must never be disabled (WCAG 1.4.4).
+    assert.ok(!layout.includes('maximumScale'), 'viewport must not cap zoom');
+    assert.ok(!layout.includes('userScalable'), 'viewport must not disable zoom');
   });
 
   it('does not bundle French/Arabic translations on first load', () => {
@@ -72,7 +74,7 @@ describe('Performance guardrails', () => {
   });
 
   it('serves cache and CSP headers from middleware', () => {
-    const middleware = read('src/middleware.ts');
+    const middleware = read('src/proxy.ts');
     assert.ok(middleware.includes('max-age=31536000'), 'static assets should be immutable');
     assert.ok(middleware.includes("no-store"), 'private routes should never be cached');
     assert.ok(middleware.includes('s-maxage'), 'public HTML should be CDN-cacheable');

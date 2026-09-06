@@ -1,7 +1,7 @@
-const CACHE_NAME = 'flousy-v5';
+const CACHE_NAME = 'smartjib-v7';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
-const HTML_CACHE_NAME = 'flousy-html-v5';
+const HTML_CACHE_NAME = 'smartjib-html-v7';
 const OFFLINE_URL = '/offline.html';
 
 // Only precache assets that are guaranteed to exist. A single 404 here makes
@@ -64,6 +64,13 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// A hashed chunk that 404s means the document that referenced it belongs to a
+// previous deploy (the classic "module factory is not available" error).
+// Drop every cached document so the next navigation fetches a fresh shell.
+async function purgeStaleDocuments() {
+  await caches.delete(HTML_CACHE_NAME);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -122,6 +129,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Immutable Next.js chunks: cache-first; a 404 means the shell is stale.
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.status === 404) {
+            event.waitUntil(purgeStaleDocuments());
+            return response;
+          }
+          if (response.status === 200) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+          }
+          return response;
+        }).catch(() => new Response('', { status: 504, statusText: 'Offline' }));
+      })
+    );
+    return;
+  }
+
   // Stale-while-revalidate for static assets.
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
@@ -133,9 +161,68 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        // respondWith() must always resolve to a Response: returning
+        // `undefined` here (cache miss + network failure) throws
+        // "Failed to convert value to 'Response'" and fails the request twice.
+        .catch(() => cachedResponse || new Response('', { status: 504, statusText: 'Offline' }));
 
+      // Next.js chunks are content-hashed and immutable, so the cache copy is
+      // always correct. Everything else is served from cache while a fresh
+      // copy is fetched in the background.
       return cachedResponse || networkFetch;
     })
   );
+});
+
+// ---------------------------------------------------------------------------
+// Web Push (bill reminders). The payload is a small JSON object built by
+// /api/reminders/dispatch: { title, body, url, tag }. No financial detail
+// beyond what the user opted into is ever pushed.
+// ---------------------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'SmartJib';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || '',
+      tag: payload.tag || undefined,
+      icon: '/web-app-manifest-192x192.png',
+      badge: '/favicon-96x96.png',
+      data: { url: payload.url || '/dashboard' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/dashboard', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
+
+// Background sync hook: when the browser regains connectivity it pings the
+// open clients so the IndexedDB mutation outbox flushes even if the tab was
+// throttled (Chromium/Android only; other engines ignore the event).
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'smartjib-flush-outbox') {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'FLUSH_OUTBOX' }));
+      })
+    );
+  }
 });

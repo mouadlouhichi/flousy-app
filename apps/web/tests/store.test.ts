@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { fixedCategoryVisual } from '../src/lib/store';
 import {
   STRATEGIES,
   calculateEnvelopeAmounts,
@@ -25,6 +26,7 @@ import {
   updateMoneyPlaces,
   calculateTotalIncome,
   addMoneyPlace,
+  MAX_MONEY_PLACES,
   updateMoneyPlace,
   removeMoneyPlace,
   reassignMoneyPlace,
@@ -34,15 +36,27 @@ import {
 } from '../src/lib/store';
 
 describe('Store & Money Math Invariants', () => {
-  const strategies: StrategyId[] = ['50-30-20', '70-20-10', '80-20', 'zero-based', 'envelope', 'pay-first', 'custom'];
+  // '80-20' was removed 2026-09-03 (its ratios were identical to 50/30/20);
+  // legacy months migrate on read — covered in the normalization suite below.
+  const strategies: StrategyId[] = ['50-30-20', '70-20-10', 'zero-based', 'envelope', 'pay-first', 'custom'];
   const testIncomes = [1, 7, 12345, 1000001, 4500];
 
   it('strategy ratios sum to exactly 1.0 (100%)', () => {
     strategies.forEach((stratId) => {
       const s = STRATEGIES[stratId];
+      assert.ok(s, `strategy ${stratId} should exist`);
       const sum = s.needsRatio + s.wantsRatio + s.savingsRatio;
       assert.ok(Math.abs(sum - 1.0) < 1e-5);
     });
+  });
+
+  it("legacy '80-20' months migrate to 50/30/20 without changing the numbers", () => {
+    const legacy = normalizeMonth({ strategyId: '80-20', totalBudget: 10000 }, '2026-09');
+    assert.equal(legacy.strategyId, '50-30-20');
+    // Same envelopes the removed preset produced.
+    const { needs, wants, savings } = calculateEnvelopeAmounts(10000, '50-30-20');
+    assert.equal(legacy.monthlySavingsTarget, savings);
+    assert.equal(needs + wants + savings, 10000);
   });
 
   it('envelope amounts sum to exactly the income with no rounding leak across all 4 strategies × 5 test incomes', () => {
@@ -311,6 +325,20 @@ describe('Store & Money Math Invariants', () => {
     assert.ok(nextMoneyPlaceId('PayPal', ['paypal']).startsWith('paypal-'));
   });
 
+  it('caps money places at the Firestore rules bound (30)', () => {
+    let profile: UserProfile = { plan: 'free', currency: 'MAD', onboardingComplete: true };
+    // 3 built-in places exist; add until exactly MAX_MONEY_PLACES.
+    for (let i = 0; i < MAX_MONEY_PLACES - 3; i += 1) {
+      profile = addMoneyPlace(profile, { id: `place-${i}`, name: `Place ${i}`, icon: 'payments' });
+    }
+    assert.strictEqual(profile.moneyPlaces!.length, MAX_MONEY_PLACES);
+    // The 31st place is refused: a profile above the bound could never be
+    // written back to Firestore.
+    const atCap = addMoneyPlace(profile, { id: 'overflow', name: 'Overflow', icon: 'payments' });
+    assert.strictEqual(atCap, profile);
+    assert.strictEqual(atCap.moneyPlaces!.length, MAX_MONEY_PLACES);
+  });
+
   it('renameFixedCategory retypes only matching bills', () => {
     const month = createNewMonth(10000, '50-30-20', ['Food'], [
       { name: 'Nursery', amount: 800, category: 'Daycare' },
@@ -326,5 +354,30 @@ describe('Store & Money Math Invariants', () => {
     // Same name / empty name → no-op
     assert.strictEqual(renameFixedCategory(month, 'Daycare', 'Daycare'), month);
     assert.strictEqual(renameFixedCategory(month, 'Daycare', '   '), month);
+  });
+});
+
+
+describe('Fixed category visual resolution', () => {
+  it('uses the default map for built-in categories', () => {
+    assert.deepEqual(fixedCategoryVisual('Rent'), { icon: 'home', color: '#8b5cf6' });
+    assert.deepEqual(fixedCategoryVisual('Internet'), { icon: 'wifi', color: '#06b6d4' });
+  });
+  it('prefers a user-defined category over the default', () => {
+    const visual = fixedCategoryVisual('Water', {
+      custom: [{ name: 'Water', color: '#0000ff', icon: 'water_drop' }],
+    });
+    assert.deepEqual(visual, { icon: 'water_drop', color: '#0000ff' });
+  });
+  it('prefers a month-level override over both', () => {
+    const visual = fixedCategoryVisual('Rent', {
+      icons: { Rent: 'villa' },
+      colors: { Rent: '#123456' },
+      custom: [{ name: 'Rent', color: '#0000ff', icon: 'water_drop' }],
+    });
+    assert.deepEqual(visual, { icon: 'villa', color: '#123456' });
+  });
+  it('falls back to a neutral label for unknown categories', () => {
+    assert.deepEqual(fixedCategoryVisual('Something New'), { icon: 'label', color: '#6d7a77' });
   });
 });

@@ -87,7 +87,8 @@
       "carousel": "Carrousel",
       "slide": "Diapositive"
     },
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "skipToContent": "Aller au contenu principal"
   },
   "auth": {
     "signIn": "Connexion",
@@ -120,7 +121,7 @@
     "networkError": "Erreur réseau. Vérifiez votre connexion et réessayez.",
     "signInMethodDisabled": "Cette méthode de connexion est désactivée dans Firebase.",
     "emailAlreadyInUse": "Un compte utilise déjà cette adresse e-mail. Connectez-vous plutôt.",
-    "weakPassword": "Le mot de passe doit contenir au moins 6 caractères.",
+    "weakPassword": "Le mot de passe doit contenir au moins 10 caractères.",
     "apiKeyReferrerBlocked": "Firebase a bloqué ce domaine de prévisualisation. Ajoutez-le aux référents HTTP de la clé API, ou utilisez le site publié.",
     "googleSignInFailed": "Échec de la connexion Google",
     "demoMode": "Mode Démo Disponible",
@@ -218,7 +219,8 @@
     "monthlyStartDescription": "Choisissez le jour où votre salaire arrive chaque mois : votre mois budgétaire commencera alors.",
     "importPersonalTitle": "Importer mon budget personnel",
     "importPersonalHint": "Copier les mois, dépenses et objectifs d’épargne de votre espace privé vers ce foyer.",
-    "importPersonalLoading": "Copie de votre budget personnel…"
+    "importPersonalLoading": "Copie de votre budget personnel…",
+    "suggestedBills": "Ajout rapide :"
   },
   "dashboard": {
     "overview": "Aperçu",
@@ -262,7 +264,10 @@
     "adjustCashBalances": "Ajuster les soldes de trésorerie",
     "deposit": "Dépôt",
     "withdrawal": "Retrait",
-    "savingsActivity": "Épargne"
+    "savingsActivity": "Épargne",
+    "upcomingBills": "Factures à venir",
+    "dueToday": "Dû aujourd’hui",
+    "dueInDays": "Dû dans {days} jours"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -291,6 +296,7 @@
       "queen": "Reine",
       "king": "Roi",
       "date": "Date",
+      "dateOutsidePeriod": "Choisissez une date comprise dans cette période budgétaire (du {start} au {end}).",
       "noteOptional": "Note (Facultatif)",
       "notePlaceholder": "C'était pour quoi ?",
       "receiptOptional": "REÇU / PIÈCE JOINTE (FACULTATIF)",
@@ -333,7 +339,14 @@
       "duplicateCategory": "Une catégorie portant ce nom existe déjà.",
       "availableIn": "Disponible dans {place} : {amount}",
       "insufficientFunds": "Seuls {amount} sont disponibles dans {place}. Réduisez le montant ou déplacez de l’argent vers cet emplacement.",
-      "householdPro": "Le suivi des membres du foyer est disponible avec Pro."
+      "householdPro": "Le suivi des membres du foyer est disponible avec Pro.",
+      "partialAmountError": "Le montant payé doit être supérieur à zéro et inférieur au montant de la facture.",
+      "lifecycleStatus": "Statut du paiement",
+      "statusPlanned": "Prévu",
+      "statusPartial": "Partiellement payé",
+      "statusPaid": "Payé",
+      "statusSkipped": "Ignoré",
+      "paidAmount": "Montant payé"
     },
     "savings": {
       "createTitle": "Créer un Objectif d'Épargne",
@@ -411,7 +424,8 @@
       "noteOptional": "Note (Facultatif)",
       "notePlaceholder": "Cette dette est pour quoi ?",
       "saveChanges": "Enregistrer les Modifications",
-      "addCredit": "Ajouter une créance"
+      "addCredit": "Ajouter une créance",
+      "statusManagedByPayments": "Le statut est mis à jour automatiquement selon l’historique des paiements."
     },
     "categories": {
       "title": "Gérer les Catégories",
@@ -420,14 +434,18 @@
       "addCategory": "Ajouter Catégorie",
       "chooseIcon": "Choisir une Icône",
       "errorDuplicate": "La catégorie \"{name}\" existe déjà",
-      "errorEmpty": "Veuillez saisir un nom de catégorie valide"
+      "errorEmpty": "Veuillez saisir un nom de catégorie valide",
+      "envelopeLabel": "Enveloppe",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "importCsv": {
       "title": "Importer Transactions CSV",
       "variableExpenses": "Dépenses Variables",
       "fixedBills": "Factures Fixes",
       "uploadLabel": "Cliquez pour télécharger un CSV ou glissez-déposez",
-      "supportedColumns": "Colonnes supportées : Nom, Montant, Date, Catégorie, Emplacement, Note, Personne",
+      "noExportSection": "Cette exportation SmartJib ne contient aucune {section} à importer.",
+      "supportedColumns": "Colonnes prises en charge : Nom, Montant, Date, Catégorie, Emplacement, Note, Personne — ou la fiche mensuelle exportée par cette application",
       "preview": "Aperçu ({count} transactions)",
       "total": "Total : {amount}",
       "importButton": "Importer {count} Éléments",
@@ -435,7 +453,21 @@
       "noNumericAmounts": "Aucun montant numérique valide n’a été trouvé dans les lignes CSV.",
       "parseFailed": "Le fichier CSV n’a pas pu être lu.",
       "importedExpense": "Dépense importée",
-      "selectFile": "Sélectionnez un fichier CSV pour prévisualiser vos transactions avant l’importation."
+      "selectFile": "Sélectionnez un fichier CSV pour prévisualiser vos transactions avant l’importation.",
+      "mappingTitle": "Associer les colonnes CSV",
+      "column": "Colonne",
+      "mapIgnore": "Ignorer",
+      "mapName": "Nom / description",
+      "mapAmount": "Montant",
+      "mapDate": "Date",
+      "mapCategory": "Catégorie",
+      "mapPlace": "Source d’argent",
+      "mapNote": "Note",
+      "mapPerson": "Personne",
+      "mapAmountRequired": "Choisissez la colonne qui contient le montant.",
+      "allDuplicates": "Toutes les lignes valides existent déjà. Aucun doublon n’a été importé.",
+      "noValidRows": "Aucune ligne sûre à importer. Vérifiez les dates, montants et colonnes.",
+      "skippedRows": "{invalid} lignes invalides/hors période et {duplicates} doublons ignorés."
     },
     "incomeSources": {
       "title": "Sources de Revenus",
@@ -465,92 +497,36 @@
       "startsOn": "Commence le {day}",
       "period": "Période du {start} au {end}",
       "payDayHint": "Le salaire arrive chaque mois le {day} : la période budgétaire de cette source commence alors.",
-      "payDayOptional": "Facultatif : choisissez le jour du mois où ce revenu arrive."
+      "payDayOptional": "Facultatif : choisissez le jour du mois où ce revenu arrive.",
+      "statusPlanned": "Prévu",
+      "statusPartial": "Partiellement reçu",
+      "statusReceived": "Reçu",
+      "statusSkipped": "Ignoré",
+      "partialAmountError": "Le montant reçu doit être supérieur à zéro et inférieur au montant attendu.",
+      "receivedSummary": "{received} reçus sur {expected}",
+      "lifecycleStatus": "Statut de réception",
+      "receivedAmount": "Montant reçu",
+      "receivedShort": "Reçu",
+      "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
+      "carriedOver": "Solde reporté",
+      "multiSourceProTitle": "Plusieurs sources de revenus est une fonction Pro",
+      "multiSourceProBody": "Démarrez votre essai gratuit de 90 jours pour suivre plusieurs revenus."
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
       "memberTitle": "Adhésion SmartJib Pro",
-      "youArePro": "Vous êtes Membre Pro !",
-      "unlockPower": "Débloquez la Puissance Budgétaire",
       "proActiveDescription": "Merci de soutenir SmartJib. Toutes les fonctionnalités premium, analyses multi-mois, import CSV et outils famille sont actifs.",
-      "upgradeDescription": "Prenez le contrôle total de votre argent avec les tendances multi-mois, imports CSV, pièces jointes de reçus et budget familial.",
-      "monthly": "Mensuel (4,99$/mois)",
-      "annual": "Annuel (39,99$/an)",
-      "save33": "ÉCONOMISEZ 33%",
-      "multiMonthTrends": "Tendances Multi-Mois",
-      "multiMonthDesc": "Comparez les tendances de dépenses entre les mois et prévoyez l'épargne.",
-      "csvImport": "Import CSV",
-      "csvImportDesc": "Importez des transactions directement depuis les relevés bancaires ou fichiers CSV.",
-      "receiptAttachments": "Pièces Jointes de Reçus",
-      "receiptAttachmentsDesc": "Joignez des photos de reçus et des notes à toute facture variable ou fixe.",
-      "householdBudgeting": "Budget Familial",
-      "householdBudgetingDesc": "Assignez les dépenses aux membres du foyer (Moi, Partenaire, Famille).",
-      "activatePro": "Activer Pro ({price})",
-      "proActivated": "Pro Activé !",
-      "instantActivation": "Activation instantanée. Annulez ou rétrogradez à tout moment dans les Paramètres.",
-      "proStatusActive": "Votre statut Pro est actif sur ce compte.",
-      "switchToFree": "Revenir au Plan Gratuit",
-      "goToPremium": "Passer au Premium",
-      "proMembership": "Adhésion Pro",
-      "planActive": "Votre forfait Pro est actif",
-      "nextBilling": "Prochaine facturation : {date}",
-      "allPremiumUnlocked": "Toutes les fonctionnalités premium sont déverrouillées.",
-      "backToDashboard": "Retour au tableau de bord",
-      "perPeriod": "/{period}",
-      "annualValue": "{price} par mois — économisez {savings}",
-      "monthlyValue": "Facturé chaque mois. Passez à l’offre annuelle à tout moment pour économiser {percent}.",
-      "courseScanning": "Scan des courses par code-barres",
-      "courseScanningDesc": "Scannez vos courses pendant vos achats : SmartJib prépare la facture pour vous.",
-      "advancedReports": "Rapports avancés",
-      "advancedReportsDesc": "Répartitions par catégorie et aperçu des dépenses par personne.",
-      "prioritySync": "Synchronisation prioritaire",
-      "prioritySyncDesc": "Synchronisation Firestore plus rapide et assistance prioritaire.",
-      "continueCheckout": "Continuer vers le paiement",
-      "secureCheckout": "Paiement sécurisé",
-      "cancelAnytime": "Annulez à tout moment",
-      "annualPlan": "Forfait Pro annuel",
-      "monthlyPlan": "Forfait Pro mensuel",
-      "annualDiscount": "{percent} de réduction",
-      "flexible": "Flexible",
-      "fillDemoTestCard": "Remplir la carte de test",
-      "cardNumber": "Numéro de carte",
-      "cardNumberPlaceholder": "4242 4242 4242 4242",
-      "expiry": "Expiration",
-      "expiryPlaceholder": "MM/AA",
-      "cvc": "CVC",
-      "cardholderName": "Nom sur la carte",
-      "cardholderPlaceholder": "Jean Dupont",
-      "receiptEmail": "E-mail du reçu",
-      "emailPlaceholder": "vous@exemple.com",
-      "validCardNumber": "Saisissez un numéro de carte valide.",
-      "validExpiry": "Saisissez une date d’expiration valide (MM/AA).",
-      "validCvc": "Saisissez un CVC valide.",
-      "validCardholder": "Saisissez le nom figurant sur la carte.",
-      "validReceiptEmail": "Saisissez une adresse e-mail pour le reçu.",
-      "creatingCheckout": "Création de la session de paiement sécurisée…",
-      "validatingCard": "Validation de la carte auprès de votre banque…",
-      "processingPayment": "Traitement du paiement…",
-      "activatingFeatures": "Activation des fonctionnalités Pro…",
-      "processingTitle": "Traitement du paiement",
-      "pay": "Payer {price}",
-      "encryptedTestPayment": "Paiement test chiffré · aucun fonds réel débité",
-      "paymentSuccessful": "Paiement réussi !",
-      "proNowActive": "SmartJib Pro est maintenant actif sur votre compte.",
-      "receipt": "Reçu",
-      "plan": "Forfait",
-      "paymentMethod": "Mode de paiement",
-      "nextBillingLabel": "Prochaine facturation",
-      "totalPaid": "Total payé",
-      "startUsingPro": "Commencer à utiliser Pro",
-      "paymentFailed": "Échec du paiement",
-      "paymentFailedDescription": "Votre paiement n’a pas pu être effectué. Vérifiez les informations de votre carte."
+      "backToDashboard": "Retour au tableau de bord"
     },
     "moneyPlaces": {
       "title": "Modifier les soldes",
       "description": "Corrigez vos espèces actuelles dans chaque emplacement. Cela ajuste votre trésorerie disponible ; votre budget mensuel reste inchangé.",
       "totalCash": "Total des espèces disponibles",
       "monthlyBudget": "Budget mensuel : {amount}",
-      "saveBalances": "Enregistrer les soldes"
+      "saveBalances": "Enregistrer les soldes",
+      "adjustmentPreview": "{from} → {to}",
+      "reconciliationNote": "Note de rapprochement (facultative)",
+      "reconciliationNotePlaceholder": "Ex. : vérifié avec le relevé bancaire"
     }
   },
   "settings": {
@@ -565,7 +541,13 @@
     "language": "Langue",
     "languageDescription": "Changer la langue d'affichage de l'application",
     "privacyPolicy": "Politique de Confidentialité",
-    "termsOfService": "Conditions d'Utilisation"
+    "termsOfService": "Conditions d'Utilisation",
+    "historicalCurrencyActive": "Cette période reste en {currency}.",
+    "currencyChangeTitle": "Changer la devise des périodes futures ?",
+    "currencyChangeFutureOnly": "Passer la devise configurée de {current} à {next} ? Les périodes existantes gardent leurs valeurs et ne sont pas converties.",
+    "periodChangeTitle": "Modifier les périodes budgétaires futures ?",
+    "periodChangeFutureOnly": "Utiliser le jour {day} pour les périodes nouvellement sélectionnées et futures ? Les périodes existantes ne sont pas réécrites.",
+    "useForFuturePeriods": "Utiliser pour les périodes futures"
   },
   "tabs": {
     "variable": {
@@ -591,7 +573,10 @@
       "sortAmountLow": "Montant : croissant",
       "sortName": "Nom A–Z",
       "clearDates": "Effacer les dates",
-      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie."
+      "categoryBudgetsHint": "Définissez une limite de dépenses pour chaque catégorie.",
+      "envelopeLabel": "Classer {category} en besoins ou envies",
+      "envelopeNeeds": "Besoins",
+      "envelopeWants": "Envies"
     },
     "fixed": {
       "totalCommitments": "ENGAGEMENTS FIXES MENSUELS",
@@ -604,7 +589,15 @@
       "carryOverNote": "Les factures récurrentes sont automatiquement reportées du mois précédent.",
       "recurringMonthly": "Récurrent chaque mois",
       "due": "Échéance : {date}",
-      "monthly": "Mensuel"
+      "monthly": "Mensuel",
+      "paidSummary": "{paid} payés sur {total}",
+      "status": {
+        "planned": "Prévu",
+        "partial": "Partiel",
+        "paid": "Payé",
+        "skipped": "Ignoré"
+      },
+      "paidShort": "payé"
     },
     "savings": {
       "totalSaved": "TOTAL ÉPARGNÉ",
@@ -630,7 +623,9 @@
       "noDeposits": "Aucun dépôt enregistré ce mois-ci.",
       "useDeposit": "Utilisez Dépôt sur un objectif ci-dessus pour placer de l’argent dans l’épargne.",
       "editDeposit": "Modifier le dépôt",
-      "editWithdrawal": "Modifier le retrait"
+      "editWithdrawal": "Modifier le retrait",
+      "contributors": "Contributions",
+      "unknownContributor": "Membre"
     },
     "debts": {
       "debtsIOwe": "Dettes (je dois)",
@@ -645,7 +640,18 @@
       "manageDebt": "GÉRER VOS DETTES SEREINEMENT",
       "title": "Dettes & Crédits",
       "openCount": "{count} ouvert",
-      "settledCount": "{count} réglé"
+      "settledCount": "{count} réglé",
+      "invalidPayment": "Saisissez un montant positif ne dépassant pas le solde restant.",
+      "paymentFailed": "Le versement n’a pas pu être enregistré.",
+      "paidOfTotal": "{paid} payés sur {total}",
+      "paymentHistory": "Historique des paiements",
+      "noPayments": "Aucun versement enregistré.",
+      "paymentAmount": "Montant du versement",
+      "paidFrom": "Source d’argent",
+      "recordPayment": "Enregistrer le paiement",
+      "recordReceipt": "Enregistrer l’argent reçu",
+      "deletePaymentTitle": "Supprimer ce versement ?",
+      "deletePaymentMessage": "Le mouvement d’argent lié sera annulé et le solde restant sera rouvert."
     },
     "trends": {
       "title": "Tendances & Analyses",
@@ -684,7 +690,12 @@
       "incomeSourcesPro": "Les analyses des sources de revenus sont disponibles avec Pro.",
       "advancedAnalytics": "Les analyses avancées telles que les tendances sur plusieurs mois, la répartition des revenus et les dépenses du foyer sont disponibles avec Pro.",
       "variableAmount": "Variable : {amount}",
-      "fixedAmount": "Fixe : {amount}"
+      "fixedAmount": "Fixe : {amount}",
+      "chartAltText": "Graphique en barres des dépenses totales par mois. Le tableau ci-dessous présente les mêmes chiffres.",
+      "rangeLabel": "Période affichée",
+      "last6Months": "6 mois",
+      "last12Months": "12 mois",
+      "netSaved": "Épargne nette"
     }
   },
   "courses": {
@@ -741,6 +752,7 @@
     "logCta": "Ajouter comme dépense",
     "logHint": "Enregistre {amount} comme dépense variable dans {month}.",
     "logDone": "Total ajouté à votre budget.",
+    "priceFromLabel": "Prix lu depuis le code-barres de l’étiquette — vérifiez qu’il correspond à l’étiquette.",
     "notFound": "Produit introuvable — ajoutez-le manuellement avec le code.",
     "lookupFailed": "Impossible de joindre le catalogue produits — vérifiez votre connexion ou ajoutez-le manuellement.",
     "codeInvalid": "Ce code ne ressemble pas à un code-barres (8 ou 13 chiffres). Vous pouvez l'ajouter par nom.",
@@ -762,7 +774,11 @@
     "billTextItem": "article",
     "billTextItems": "articles",
     "billTextTotal": "TOTAL",
-    "unnamedItem": "Article sans nom"
+    "unnamedItem": "Article sans nom",
+    "logPermissionDenied": "Seul un propriétaire ou éditeur peut ajouter cette course au budget du foyer.",
+    "logPosting": "Ajout…",
+    "logFailed": "La course n’a pas pu être ajoutée. Aucun doublon n’a été créé ; réessayez.",
+    "personalWorkspace": "Personnel"
   },
   "alerts": {
     "needsExceeded": "Enveloppe des besoins dépassée",
@@ -779,28 +795,34 @@
     "householdInvitation": "Invitation du foyer",
     "openToJoinAs": "Vous pouvez rejoindre en tant que {role}.",
     "budgetHealth": "État du budget",
-    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté."
+    "allHealthy": "Toutes les enveloppes budgétaires sont saines ! Aucun dépassement détecté.",
+    "reminders": "Rappels",
+    "billDueToday": "Dû aujourd’hui",
+    "billDueInDays": "Dû dans {days} jours",
+    "goalNear": "Financé à {percent} — presque terminé",
+    "trialEndingTitle": "Essai Pro bientôt terminé",
+    "trialEndingDays": "Il reste {days} jours à votre essai Pro"
   },
   "legal": {
     "eyebrow": "Juridique",
     "privacyTitle": "Politique de Confidentialité",
-    "privacySubtitle": "Dernière mise à jour juillet 2026. Version en langage clair ci-dessous — en résumé : votre budget vous appartient, et ça ne changera pas.",
+    "privacySubtitle": "Dernière mise à jour : septembre 2026. Version en langage clair — en bref, votre budget vous appartient et le reste.",
     "termsTitle": "Conditions d'Utilisation",
-    "termsSubtitle": "Dernière mise à jour juillet 2026. Ces conditions couvrent comment vous pouvez utiliser SmartJib, et ce que vous pouvez attendre de nous.",
+    "termsSubtitle": "Dernière mise à jour : septembre 2026. Ces conditions expliquent comment utiliser SmartJib et ce que vous pouvez attendre de nous.",
     "authoritativeNotice": "Remarque : La version anglaise de ce document est la version juridiquement faisant foi.",
     "privacy": {
       "s1Title": "1. Ce que nous collectons",
-      "s1Body": "Nous collectons les informations que vous nous fournissez directement : votre adresse e-mail, les revenus, dépenses, catégories et objectifs que vous saisissez, ainsi que les préférences de compte de base comme votre devise et vos paramètres d'affichage. Nous ne demandons jamais d'identifiants bancaires, de numéros de carte ou de numéros de compte.",
+      "s1Body": "Nous collectons les informations que vous fournissez : adresse e-mail, revenus, dépenses, justificatifs, catégories, objectifs et préférences du compte (devise, langue et affichage). L’application conserve aussi dans le navigateur les données nécessaires à la connexion, au mode hors ligne et aux synchronisations en attente. Nous ne demandons aucun identifiant bancaire, numéro de carte ou numéro de compte.",
       "s2Title": "2. Comment nous les utilisons",
       "s2Body": "Vos données budgétaires sont utilisées pour faire fonctionner l'application — pour afficher vos soldes, calculer votre budget et synchroniser vos informations entre vos appareils. Nous n'utilisons pas vos données financières pour créer des profils publicitaires, et nous ne les vendons pas à des tiers.",
       "s3Title": "3. Qui peut voir vos données",
-      "s3Body": "Vous seul pouvez accéder à votre budget. Nos systèmes sont conçus pour que les données de votre compte soient isolées de celles de tout autre compte, et notre équipe n'accède aux données individuelles que lorsque nécessaire pour résoudre un problème que vous avez signalé.",
+      "s3Body": "Votre espace personnel n’est accessible qu’à votre compte. Un espace Foyer n’est partagé qu’avec ses membres actifs selon des rôles appliqués par les règles. Nous utilisons Firebase pour l’authentification, la base de données et les statistiques facultatives, notre hébergeur pour servir l’application, Resend pour les invitations et messages de contact, et Open Food Facts lorsqu’une recherche de code-barres est demandée. Chaque prestataire ne reçoit que les données nécessaires. Nous ne vendons pas vos données.",
       "s4Title": "4. Analytique",
-      "s4Body": "Nous pouvons utiliser des analyses limitées et respectueuses de la vie privée pour comprendre comment l'application est utilisée globalement (par exemple, quelles fonctionnalités sont populaires). Ces données sont agrégées et anonymisées, et sont désactivées par défaut jusqu'à votre accord.",
+      "s4Body": "Les statistiques facultatives restent désactivées jusqu’à votre accord. Si elles sont activées, SmartJib enregistre des événements d’usage limités et des chemins de pages. Une liste d’autorisation stricte exclut les montants, soldes, catégories, justificatifs, messages et tout contenu financier libre. Vous pouvez retirer votre accord dans les réglages du Profil.",
       "s5Title": "5. Conservation des données",
-      "s5Body": "Nous conservons vos données tant que votre compte est actif. Si vous supprimez votre compte, votre profil, vos budgets et vos objectifs sont définitivement supprimés de nos systèmes.",
+      "s5Body": "Nous conservons les données de vos espaces tant que votre compte est actif. Lors d’une demande de suppression, SmartJib retire les données vérifiables et signale toute étape incomplète. Les données d’un Foyer sont supprimées par son propriétaire ; un autre membre peut le quitter sans supprimer ses données. Les prestataires peuvent conserver des journaux opérationnels limités selon leurs propres durées de conservation. L'application garde aussi une copie de vos données budgétaires récentes sur votre appareil pour fonctionner hors ligne ; cette copie locale est supprimée à la déconnexion.",
       "s6Title": "6. Vos choix",
-      "s6Body": "Vous pouvez exporter votre historique budgétaire sous forme de tableur à tout moment depuis les Paramètres. Vous pouvez également supprimer votre compte et toutes les données associées de manière permanente, quand vous le souhaitez — sans avoir besoin de contacter le support.",
+      "s6Body": "Vous pouvez exporter votre historique au format CSV ou dans une sauvegarde JSON complète et restaurable depuis le Profil. Vous pouvez également supprimer vos données ou votre compte ; toute suppression partielle est signalée et peut être réessayée.",
       "s7Title": "7. Modifications de cette politique",
       "s7Body": "Si nous apportons des modifications significatives à la façon dont nous gérons vos données, nous vous en informerons dans l'application avant l'entrée en vigueur des changements.",
       "s8Title": "8. Nous contacter",
@@ -810,15 +832,15 @@
       "s1Title": "1. Utilisation de SmartJib",
       "s1Body": "En créant un compte, vous acceptez d'utiliser SmartJib pour son usage prévu — le suivi de votre budget personnel. Vous êtes responsable de la sécurité de vos identifiants de connexion et de l'exactitude des informations que vous saisissez.",
       "s2Title": "2. Votre compte",
-      "s2Body": "Vous devez être en mesure de conclure légalement ces conditions pour utiliser SmartJib. Un compte est pour le budget d'une seule personne ; si vous avez besoin d'un budget partagé ou familial, surveillez cette fonctionnalité sur notre feuille de route.",
+      "s2Body": "Vous devez pouvoir accepter légalement ces conditions pour utiliser SmartJib. Les espaces personnels sont privés pour leur titulaire ; les espaces Foyer peuvent être partagés avec les membres que vous invitez, selon le rôle attribué.",
       "s3Title": "3. Plans Gratuit et Pro",
-      "s3Body": "Les fonctionnalités principales de SmartJib sont gratuites, sans limite de temps. SmartJib Pro est une mise à niveau payante optionnelle qui débloque des fonctionnalités supplémentaires. Les abonnements Pro se renouvellent automatiquement jusqu'à annulation, et vous pouvez annuler à tout moment depuis les Paramètres.",
+      "s3Body": "Les fonctions essentielles de SmartJib sont gratuites sans limite de durée. Chaque compte éligible peut démarrer un essai Pro unique de 90 jours sans carte bancaire. Le paiement n’est pas activé, l’essai ne se renouvelle pas automatiquement et SmartJib ne vous facture rien. Si des offres payantes sont lancées, les prix et conditions seront présentés pour votre accord explicite avant tout paiement.",
       "s4Title": "4. Ce que SmartJib n'est pas",
       "s4Body": "SmartJib est un outil de budgétisation et de suivi. Ce n'est pas une banque, il ne déplace pas d'argent réel en votre nom et ne fournit pas de conseils financiers, d'investissement ou fiscaux. Les décisions concernant vos finances restent entièrement les vôtres.",
       "s5Title": "5. Utilisation acceptable",
       "s5Body": "Veuillez ne pas utiliser SmartJib pour stocker des informations qui ne sont pas les vôtres, pour tenter d'accéder aux comptes d'autres utilisateurs, ou pour interférer avec le fonctionnement normal de l'application.",
       "s6Title": "6. Annulation ou suppression de votre compte",
-      "s6Body": "Vous pouvez annuler un abonnement Pro ou supprimer entièrement votre compte à tout moment depuis les Paramètres. La suppression de votre compte supprime définitivement vos données de nos systèmes.",
+      "s6Body": "Il n’existe actuellement aucun abonnement payant à annuler. Vous pouvez quitter ou supprimer un espace Foyer selon votre rôle, exporter vos données ou supprimer votre compte depuis le Profil. Si une suppression reste incomplète, SmartJib conserve l’accès au compte et indique les étapes restantes afin de réessayer.",
       "s7Title": "7. Modifications du service",
       "s7Body": "Nous pouvons ajouter, modifier ou supprimer des fonctionnalités au fil du temps à mesure que SmartJib s'améliore. Nous ferons de notre mieux pour communiquer les changements significatifs à l'avance.",
       "s8Title": "8. Limitation de responsabilité",
@@ -858,6 +880,19 @@
     "bank": "Banque",
     "home": "Maison",
     "wallet": "Portefeuille"
+  },
+  "moneyHistory": {
+    "openHistory": "Historique de {name}",
+    "currentBalance": "Solde actuel",
+    "openingBalance": "Solde initial",
+    "empty": "Aucune opération pour cette période pour le moment",
+    "income": "Revenu",
+    "transferTo": "Vers {place}",
+    "transferFrom": "Depuis {place}",
+    "savingsDeposit": "Dépôt d'épargne",
+    "savingsWithdrawal": "Retrait d'épargne",
+    "adjustment": "Ajustement de solde",
+    "reconciliation": "Rapprochement"
   },
   "pwa": {
     "installApp": "Installer l'App",
@@ -903,7 +938,10 @@
       "lightMode": "Mode clair",
       "darkMode": "Mode sombre",
       "openMenu": "Ouvrir le menu",
-      "closeMenu": "Fermer le menu"
+      "closeMenu": "Fermer le menu",
+      "budgetingMethods": "Méthodes budgétaires",
+      "madGuide": "Guide MAD",
+      "blog": "Blog"
     },
     "hero": {
       "eyebrow": "Besoins, envies, épargne — et chaque emplacement d'argent.",
@@ -915,7 +953,7 @@
         "planifier",
         "grandir"
       ],
-      "description": "Votre argent répond à deux questions : à quoi il sert, et où il se trouve. SmartJib les sépare — chaque dirham comptabilisé, toujours.",
+      "description": "Suivez à quoi sert chaque montant saisi et dans quel emplacement il se trouve — deux vues distinctes qui restent rapprochées après chaque opération réussie.",
       "ctaPrimary": "Commencer gratuitement",
       "ctaSecondary": "Voir comment ça marche",
       "stats": [
@@ -926,7 +964,7 @@
         },
         {
           "value": "3",
-          "label": "endroits pour suivre votre argent",
+          "label": "Emplacements d’argent par défaut",
           "detail": "BANQUE · MAISON · PORTEFEUILLE"
         },
         {
@@ -935,13 +973,13 @@
           "detail": "MAD · EUR · USD"
         },
         {
-          "value": "100%",
-          "label": "de votre argent comptabilisé",
-          "detail": "JAMAIS PERDU"
+          "value": "2",
+          "label": "questions financières séparées",
+          "detail": "OBJECTIF · EMPLACEMENT"
         }
       ]
     },
-    "whatIsFlousy": {
+    "whatIsSmartJib": {
       "title": "Qu'est-ce que SmartJib ?",
       "description": "SmartJib est un outil privé de suivi de budget qui sépare ce à quoi sert votre argent — besoins, envies et épargne — de l’endroit où il est conservé — banque, maison ou portefeuille. Il prend en charge 12 devises et 4 stratégies de budget : 50/30/20, budget base zéro, budget par enveloppes et payez-vous d’abord. SmartJib ne se connecte pas à votre banque ; vous saisissez les transactions manuellement. Les données du compte sont mises en cache localement et synchronisées avec Firebase lorsque vous vous connectez."
     },
@@ -952,19 +990,19 @@
       "items": [
         {
           "title": "Sachez à quoi ça sert",
-          "description": "Chaque dirham a un rôle — besoins, envies ou épargne — pour toujours savoir pourquoi vous dépensez, pas seulement ce que vous avez dépensé."
+          "description": "Chaque montant saisi est affecté aux besoins, aux envies ou à l’épargne, séparément de l’emplacement qui détient l’argent."
         },
         {
           "title": "Choisissez votre style",
-          "description": "Choisissez parmi plusieurs méthodes éprouvées, ou laissez SmartJib en suggérer une. Votre revenu se répartit automatiquement, sans tableur."
+          "description": "Choisissez parmi quatre styles de budget. SmartJib calcule automatiquement la répartition besoins, envies et épargne, sans tableur."
         },
         {
           "title": "Voyez où c'est vraiment",
-          "description": "Banque, maison ou portefeuille — suivez votre argent où qu'il soit. Déplacez-le et votre budget se met à jour instantanément."
+          "description": "Banque, maison ou portefeuille : suivez l’argent saisi manuellement là où il se trouve. Un transfert réussi met à jour les deux emplacements ensemble."
         },
         {
           "title": "Rien ne se perd jamais",
-          "description": "Supprimez une dépense et l'argent revient immédiatement. Épargnez pour un objectif, puis piochez dedans — c'est toujours exactement là où vous l'avez laissé."
+          "description": "La suppression réussie d’une dépense annule son effet sur le solde. Les dépôts et retraits d’épargne mettent aussi à jour l’emplacement choisi."
         }
       ]
     },
@@ -1037,42 +1075,54 @@
       "eyebrow": "Gratuit, avec de la marge",
       "titleLine1": "Commencez gratuitement.",
       "titleLine2": "Passez au Pro quand vous êtes prêt.",
-      "description": "Tout ce dont vous avez besoin pour bien budgétiser est gratuit, pour toujours. Quand vous voulez un aperçu plus profond de vos habitudes, SmartJib Pro est là.",
+      "description": "Le budget essentiel est gratuit sans limite de temps. Les comptes éligibles disposent d’un essai Pro unique de 90 jours pour les analyses et la collaboration, sans carte.",
       "statFree": "Gratuit",
       "statFreeLabel": "Budget de base",
       "stat3": "3",
-      "stat3Label": "Emplacements d'argent",
+      "stat3Label": "Emplacements d’argent par défaut",
       "statPro": "Pro",
       "statProLabel": "Analyses avancées",
       "whatYouGet": "Ce que vous obtenez",
       "freeToStart": "Gratuit pour commencer",
       "perks": [
         {
-          "name": "Suivez vos dépenses entre banque, portefeuille et maison",
+          "name": "Suivez les dépenses saisies entre banque, portefeuille et maison",
           "pro": false
         },
         {
-          "name": "4 styles de budget au choix",
+          "name": "Choisissez parmi 4 styles de budget",
           "pro": false
         },
         {
-          "name": "Objectifs d'épargne illimités",
+          "name": "Créez et alimentez des objectifs d’épargne",
           "pro": false
         },
         {
-          "name": "Voyez exactement où chaque dirham est allé",
+          "name": "Exportez vos données depuis le Profil",
           "pro": false
         },
         {
-          "name": "Repérez les tendances de dépenses sur plusieurs mois",
+          "name": "Scannez des codes-barres pendant les courses",
           "pro": true
         },
         {
-          "name": "Soyez alerté avant de trop dépenser",
+          "name": "Consultez les tendances sur six mois",
           "pro": true
         },
         {
-          "name": "Factures récurrentes automatiques",
+          "name": "Gérez plusieurs sources de revenus",
+          "pro": true
+        },
+        {
+          "name": "Importez des dépenses en lot depuis un CSV",
+          "pro": true
+        },
+        {
+          "name": "Définissez des plafonds et le report par catégorie",
+          "pro": true
+        },
+        {
+          "name": "Collaborez dans un espace Foyer",
           "pro": true
         }
       ]
@@ -1093,7 +1143,7 @@
           "value": 3,
           "suffix": "",
           "prefix": "",
-          "label": "Emplacements pour votre argent"
+          "label": "Emplacements d’argent par défaut"
         },
         {
           "value": 12,
@@ -1102,10 +1152,10 @@
           "label": "Devises supportées"
         },
         {
-          "value": 2,
-          "suffix": " min",
-          "prefix": "~",
-          "label": "Pour créer votre premier budget"
+          "value": 5,
+          "suffix": "",
+          "prefix": "",
+          "label": "Étapes guidées de configuration"
         }
       ]
     },
@@ -1113,17 +1163,17 @@
       "eyebrow": "Devises",
       "titleLine1": "Où que vive votre argent,",
       "titleLine2": "on parle sa langue.",
-      "description": "12 devises, formatées comme vous avez l'habitude de les voir. Changez quand vous voulez dans les Paramètres."
+      "description": "12 devises, formatées selon la langue choisie. Modifiez la devise d’affichage dans Profil → Préférences."
     },
     "security": {
       "eyebrow": "Confidentialité",
       "titleLine1": "Votre argent,",
       "titleLine2": "vos affaires.",
-      "description": "Budgétiser implique de partager des détails personnels. Nous prenons ça au sérieux — vos informations restent privées, protégées et toujours sous votre contrôle.",
+      "description": "Les espaces personnels sont isolés par les règles Firestore. Les données Foyer ne sont partagées qu’avec les membres actifs selon leur rôle, et les contrôles d’export et de suppression restent dans le Profil.",
       "features": [
         {
           "title": "Privé par défaut",
-          "description": "Les règles de sécurité Firestore isolent chaque compte pour que seuls les utilisateurs connectés accèdent à leur propre budget."
+          "description": "Les règles Firestore isolent les espaces personnels et limitent les données Foyer aux membres actifs selon leur rôle."
         },
         {
           "title": "Aucune connexion bancaire",
@@ -1135,58 +1185,24 @@
         },
         {
           "title": "Exportez ou supprimez à tout moment",
-          "description": "Téléchargez tout en tableur, ou effacez votre compte complètement, quand vous voulez."
+          "description": "Exportez des fichiers CSV ou une sauvegarde JSON complète depuis le Profil. Toute étape de suppression incomplète est signalée pour pouvoir réessayer."
         }
       ],
       "badges": [
-        "Comptes privés",
-        "Pas de connexion bancaire",
-        "Export des données",
-        "Suppression facile",
-        "Pas de pub"
+        "Accès imposé par les règles",
+        "Aucune synchro bancaire",
+        "Export CSV et JSON",
+        "Suppression réessayable",
+        "Aucun profil publicitaire"
       ]
-    },
-    "testimonials": {
-      "eyebrow": "Ce qu'on en dit",
-      "keyResult": "Résultat clé",
-      "trustedBy": "Utilisé par des gens qui budgétisent en",
-      "items": [
-        {
-          "quote": "Je sais enfin où va mon argent chaque mois. Ce n'est pas une app de finance compliquée — c'est exactement ce qu'il me fallait.",
-          "author": "Youssef B.",
-          "role": "Designer freelance",
-          "company": "Casablanca",
-          "metric": "{percent} d'épargne en plus en 3 mois"
-        },
-        {
-          "quote": "La séparation portefeuille/banque est géniale. Avant, je perdais complètement la trace de mes espèces.",
-          "author": "Amina K.",
-          "role": "Enseignante",
-          "company": "Rabat",
-          "metric": "Zéro découvert surprise"
-        },
-        {
-          "quote": "J'ai remplacé un tableur que je maintenais depuis des années. SmartJib l'a remplacé en un week-end.",
-          "author": "Karim M.",
-          "role": "Ingénieur logiciel",
-          "company": "Marrakech",
-          "metric": "Du tableur à l'app en 2 jours"
-        }
-      ],
-      "showTestimonial": "Afficher le témoignage {number}",
-      "illustrative": "Exemples illustratifs de l'usage de SmartJib — ce ne sont pas des avis clients."
     },
     "pricing": {
       "eyebrow": "Tarifs",
       "titleLine1": "Gratuit pour commencer.",
       "titleLine2": "Pro quand vous êtes prêt.",
-      "description": "Budgétisez en confiance sans frais. Passez au Pro à tout moment pour mieux comprendre vos habitudes.",
-      "monthly": "Mensuel",
-      "annual": "Annuel",
-      "save34": "Économisez {percent}",
-      "perMonth": "/mois",
-      "mostPopular": "Le plus populaire",
-      "bottomNote": "Votre budget reste privé, toujours. Aucune carte de crédit requise.",
+      "description": "Utilisez gratuitement le budget essentiel, puis essayez toutes les fonctions Pro pendant 3 mois. Sans carte ni renouvellement automatique.",
+      "mostPopular": "Essai de lancement de 90 jours",
+      "bottomNote": "Votre budget reste privé. L’essai Pro de 90 jours ne demande aucune carte et ne se renouvelle jamais automatiquement.",
       "plans": [
         {
           "name": "Gratuit",
@@ -1194,28 +1210,31 @@
           "features": [
             "4 styles de budget au choix",
             "Suivez l'argent entre banque, maison et portefeuille",
-            "Objectifs d'épargne illimités",
+            "Créez et alimentez des objectifs d’épargne",
             "12 devises supportées",
             "Exportez vos données à tout moment",
-            "Fonctionne sur téléphone, hors ligne"
+            "PWA installable avec écran hors ligne"
           ],
           "cta": "Commencer gratuitement"
         },
         {
           "name": "Pro",
-          "description": "Pour ceux qui veulent aller plus loin",
+          "description": "Toutes les fonctions avancées, gratuites pendant vos 90 premiers jours",
           "features": [
             "Tout le plan Gratuit",
-            "Tendances de dépenses dans le temps",
-            "Factures récurrentes automatiques",
-            "Alertes avant dépassement",
-            "Importez vos dépenses passées",
-            "Support prioritaire"
+            "Scan de codes-barres pendant les courses",
+            "Tendances de dépenses sur six mois",
+            "Plusieurs revenus et import CSV",
+            "Plafonds par catégorie et report du budget",
+            "Collaboration dans un espace Foyer"
           ],
-          "cta": "Passer au Pro"
+          "cta": "Démarrer l’essai de 3 mois"
         }
       ],
-      "useAnnualBilling": "Utiliser la facturation annuelle"
+      "trialPriceLabel": "3 mois gratuits",
+      "trialPeriod": "essai unique",
+      "freePriceLabel": "Gratuit",
+      "freePeriod": "sans limite de temps"
     },
     "faq": {
       "eyebrow": "Les faits SmartJib",
@@ -1223,7 +1242,7 @@
       "items": [
         {
           "question": "SmartJib est-il gratuit ?",
-          "answer": "SmartJib propose un forfait gratuit pour la gestion de budget essentielle. SmartJib Pro est une mise à niveau payante facultative."
+          "answer": "Le budget essentiel de SmartJib est gratuit sans limite de temps. Les comptes éligibles peuvent démarrer un essai Pro unique de 90 jours sans carte ; il ne se renouvelle pas automatiquement et la facturation n’est pas activée."
         },
         {
           "question": "SmartJib se connecte-t-il à ma banque ?",
@@ -1247,18 +1266,18 @@
         },
         {
           "question": "Puis-je exporter mes données ?",
-          "answer": "Oui. Vous pouvez exporter vos données budgétaires dans un fichier CSV depuis les paramètres."
+          "answer": "Oui. Depuis le Profil, vous pouvez exporter des fichiers CSV ou une sauvegarde JSON complète et restaurable."
         },
         {
           "question": "Comment supprimer mon compte ?",
-          "answer": "Vous pouvez supprimer définitivement votre compte et les données budgétaires associées depuis les paramètres."
+          "answer": "Vous pouvez supprimer définitivement votre compte et ses données budgétaires depuis le Profil. SmartJib signale toute étape incomplète afin que vous puissiez réessayer."
         }
       ]
     },
     "cta": {
       "titleLine1": "Prêt à savoir",
       "titleLine2": "où est votre argent ?",
-      "description": "Rejoignez ceux qui ont arrêté de deviner. Commencez gratuitement, sans carte — passez au Pro quand vous voulez.",
+      "description": "Commencez avec l’offre Gratuite. Les comptes éligibles peuvent aussi essayer Pro une fois pendant 90 jours, sans carte ni renouvellement automatique.",
       "ctaPrimary": "Commencer gratuitement",
       "ctaSecondary": "Voir les fonctionnalités Pro",
       "noCreditCard": "Aucune carte de crédit requise"
@@ -1278,13 +1297,52 @@
       "security": "Sécurité",
       "about": "À propos",
       "careers": "Carrières",
-      "hiring": "Recrutement",
       "blog": "Blog",
       "privacyPolicy": "Politique de confidentialité",
       "termsOfService": "Conditions d'utilisation",
       "cookiePolicy": "Politique des cookies",
       "copyright": "2026 SmartJib. Tous droits réservés.",
-      "allSystems": "Tous les systèmes opérationnels"
+      "featuresHub": "Hub Fonctionnalités",
+      "madGuide": "Suivi Budget MAD & Dirham",
+      "bankWallet": "Suivi Banque, Maison, Portefeuille",
+      "noBank": "Confidentialité sans banque",
+      "allMethods": "Toutes méthodes expliquées",
+      "envelope": "Budget enveloppes",
+      "zeroBased": "Budget base zéro",
+      "guidesTips": "Guides & astuces budget",
+      "purposeVsLocation": "Pourquoi but vs emplacement",
+      "freeMorocco": "Suivi budget gratuit Maroc",
+      "privateTracker": "À propos suivi privé",
+      "budgetingMethodsTitle": "Méthodes budgétaires"
+    },
+    "guides": {
+      "eyebrow": "Guides budgétaires",
+      "titleLine1": "Apprenez à mieux budgétiser,",
+      "titleLine2": "avec le MAD en tête.",
+      "description": "Guides courts et pratiques de l'équipe SmartJib. Conçus pour la culture cash du Maroc.",
+      "viewAll": "Voir tous les guides",
+      "madGuideCta": "Guide budget tracker MAD",
+      "methodsCta": "4 méthodes budgétaires expliquées",
+      "items": [
+        {
+          "category": "Bases du budget",
+          "title": "Pourquoi 'à quoi ça sert' et 'où c'est' sont deux questions différentes",
+          "excerpt": "La plupart des frustrations viennent de mélanger deux choses qui doivent rester séparées.",
+          "anchor": "Pourquoi le but et l'emplacement doivent rester séparés"
+        },
+        {
+          "category": "Méthodes budgétaires",
+          "title": "Choisir une méthode qui vous correspond vraiment",
+          "excerpt": "50/30/20 ne convient pas à tout le monde. Comment choisir la répartition qui correspond à votre vie au Maroc.",
+          "anchor": "Comparer 4 méthodes pour les salaires marocains"
+        },
+        {
+          "category": "Suivi espèces",
+          "title": "La fuite du portefeuille : où les petites dépenses s'accumulent",
+          "excerpt": "Les dépenses par carte laissent une trace. Les espèces disparaissent.",
+          "anchor": "Suivre les dépenses portefeuille sans mélanger la banque"
+        }
+      ]
     }
   },
   "static": {
@@ -1297,9 +1355,9 @@
       "s2Title": "Conçu pour la vie quotidienne",
       "s2Body": "Nous avons conçu SmartJib pour les vrais budgets — l'argent dans votre portefeuille, celui à la maison, et ce qui reste en banque. Pas de connexion bancaire, pas de configuration compliquée. Ajoutez vos revenus, choisissez un style, et commencez à enregistrer.",
       "s3Title": "Gratuit pour commencer, honnête pour la suite",
-      "s3Body": "L'essentiel de SmartJib — suivi, styles de budget, objectifs d'épargne — est gratuit, et le restera toujours. SmartJib Pro existe pour ceux qui veulent un regard plus approfondi sur leurs habitudes.",
+      "s3Body": "Au lancement, le suivi essentiel, les styles de budget et les objectifs d’épargne de SmartJib sont gratuits sans limite de temps. Les comptes éligibles peuvent aussi essayer Pro une fois pendant 90 jours sans carte.",
       "s4Title": "Vos affaires restent les vôtres",
-      "s4Body": "Budgétiser implique de partager des détails personnels. Nous prenons ça au sérieux : vos données sont privées, jamais vendues, et vous pouvez les exporter ou les supprimer quand vous voulez."
+      "s4Body": "Budgétiser implique de partager des détails personnels. Nous prenons cela au sérieux : les espaces personnels restent privés pour leur propriétaire, les espaces Foyer ne sont partagés qu’avec leurs membres actifs, vos données ne sont jamais vendues, et vous pouvez les exporter ou les supprimer."
     },
     "help": {
       "eyebrow": "Centre d'aide",
@@ -1322,31 +1380,31 @@
         },
         {
           "question": "Puis-je utiliser plusieurs devises ?",
-          "answer": "Oui. SmartJib supporte 12 devises, et vous pouvez changer votre devise d'affichage à tout moment dans les Paramètres."
+          "answer": "Oui. SmartJib prend en charge 12 devises. Modifiez la devise d’affichage dans Profil → Préférences ; les mois passés conservent leur devise enregistrée."
         },
         {
           "question": "Que se passe-t-il si je supprime une dépense par erreur ?",
-          "answer": "L'argent est restitué exactement d'où il venait, instantanément. Vos soldes ne sont jamais désynchronisés."
+          "answer": "Lorsqu’une dépense est supprimée avec succès, SmartJib annule son effet sur les soldes concernés. Si la synchronisation échoue, l’application signale le problème au lieu de prétendre que la suppression est terminée."
         },
         {
           "question": "Qu'est-ce que SmartJib Pro apporte ?",
-          "answer": "Pro ajoute les tendances de dépenses, les factures récurrentes automatiques, les alertes de dépassement et l'import de dépenses passées — en plus de tout le plan gratuit."
+          "answer": "Pro ajoute la saisie de courses assistée par codes-barres, les tendances sur plusieurs mois, la gestion des sources de revenus, l’import CSV en lot, les plafonds et reports par catégorie, ainsi que la collaboration Foyer. Pro est inclus gratuitement pendant vos 90 premiers jours."
         },
         {
           "question": "Puis-je exporter mes données ?",
-          "answer": "Oui, à tout moment. Allez dans les Paramètres pour télécharger votre historique budgétaire complet."
+          "answer": "Oui. Depuis le Profil, vous pouvez exporter des fichiers CSV ou une sauvegarde JSON complète et restaurable."
         },
         {
           "question": "Comment supprimer mon compte ?",
-          "answer": "Vous pouvez supprimer définitivement votre compte et toutes vos données depuis les Paramètres, sans contacter le support."
+          "answer": "Vous pouvez supprimer définitivement votre compte et ses données budgétaires depuis le Profil. SmartJib signale toute étape incomplète afin que vous puissiez réessayer."
         }
       ]
     },
     "contact": {
       "eyebrow": "Contact",
       "title": "Parlons-en.",
-      "subtitle": "Questions sur votre compte, SmartJib Pro, ou juste envie de dire bonjour ? Envoyez-nous un message.",
-      "emailNote": "Préférez l'e-mail ? Écrivez-nous à hello@flousy.app",
+      "subtitle": "Une question sur votre compte, SmartJib Pro, un bug ou un retour ? Envoyez un message à la boîte de support configurée.",
+      "emailNote": "Préférez l'e-mail ? Écrivez-nous à hello@smartjib.app",
       "yourName": "Votre nom",
       "emailAddress": "Adresse e-mail",
       "topic": "Sujet",
@@ -1354,13 +1412,19 @@
       "message": "Message",
       "messagePlaceholder": "Dites-nous en un peu plus...",
       "send": "Envoyer le message",
-      "sentTitle": "Message envoyé",
-      "sentDescription": "Merci de nous avoir contactés. Nous répondons généralement sous un jour ou deux."
+      "sentTitle": "Message accepté pour envoi",
+      "sentDescription": "Le fournisseur de messagerie a accepté votre message. Cela ne garantit ni sa remise en boîte de réception ni une réponse ; conservez l’identifiant de demande pour réessayer ou assurer le suivi.",
+      "sending": "Envoi…",
+      "sendError": "Votre message n’a pas été envoyé. Réessayez ou écrivez à hello@smartjib.app.",
+      "requestId": "Identifiant de demande",
+      "sendFailed": "Votre message n'a pas pu être envoyé. Réessayez, ou écrivez-nous directement à {email}.",
+      "rateLimited": "Trop de messages ont été envoyés depuis votre connexion. Patientez quelques minutes puis réessayez.",
+      "notConfigured": "Le formulaire de contact est indisponible pour le moment. Écrivez-nous directement à {email} et nous vous répondrons."
     },
     "careers": {
       "eyebrow": "Carrières",
-      "title": "Nous ne recrutons pas en ce moment — mais nous serions ravis de vous connaître.",
-      "subtitle": "SmartJib est une petite équipe qui construit une app de budget que les gens aiment vraiment utiliser. Pas de poste ouvert pour le moment, mais nous gardons chaque introduction pour plus tard.",
+      "title": "Aucun poste ouvert actuellement.",
+      "subtitle": "SmartJib n’accepte pas de candidatures pour le moment. Toute future offre sera publiée sur cette page avec son périmètre et la procédure de candidature.",
       "valuesTitle": "Ce qui nous tient à cœur",
       "values": [
         {
@@ -1376,34 +1440,34 @@
           "description": "Chacun ici façonne le produit directement — pas de couches entre une idée et les gens qui l'utilisent."
         }
       ],
-      "getOnRadar": "Faites-vous connaître",
-      "getOnRadarDescription": "Envoyez un petit mot et ce que vous aimeriez nous montrer à",
-      "getOnRadarSuffix": ". On lit tout, même sans poste ouvert."
+      "getOnRadar": "Contacter SmartJib",
+      "getOnRadarDescription": "Pour toute question sur le produit ou le support, passez par la page",
+      "getOnRadarSuffix": "."
     },
     "cookies": {
       "eyebrow": "Juridique",
       "title": "Politique des Cookies",
-      "subtitle": "Dernière mise à jour juillet 2026. Une explication courte et honnête des quelques cookies que SmartJib utilise.",
+      "subtitle": "Dernière mise à jour : septembre 2026. Une explication claire du stockage utilisé par SmartJib dans votre navigateur.",
       "sections": [
         {
-          "title": "1. Quels cookies nous utilisons",
-          "body": "SmartJib utilise un petit nombre de cookies et d'entrées de stockage local pour vous garder connecté, mémoriser vos préférences (comme la devise et le mode sombre), et assurer le bon fonctionnement entre les visites."
+          "title": "1. Stockage utilisé",
+          "body": "SmartJib utilise des cookies, localStorage et IndexedDB pour maintenir la connexion, mémoriser la langue, le thème et l’espace actif, accélérer le chargement hors ligne et conserver les modifications jusqu’à leur synchronisation."
         },
         {
-          "title": "2. Cookies essentiels",
-          "body": "Ceux-ci sont nécessaires au fonctionnement de l'app — par exemple, rester connecté à votre compte. Vous ne pouvez pas les désactiver sans perdre la possibilité d'utiliser SmartJib."
+          "title": "2. Stockage essentiel",
+          "body": "L’état d’authentification, les données de sécurité et de session, les préférences, le cache hors ligne et la file de synchronisation sont nécessaires au service demandé. Les bloquer ou les effacer peut vous déconnecter, réinitialiser vos préférences ou supprimer des données de démonstration et des changements non synchronisés."
         },
         {
-          "title": "3. Analytique optionnelle",
-          "body": "Si activée, nous pouvons utiliser des cookies d'analyse respectueux de la vie privée pour comprendre les tendances d'utilisation générales. Ils ne vous suivent pas sur d'autres sites et sont désactivés par défaut."
+          "title": "3. Statistiques facultatives",
+          "body": "Firebase Analytics et tout autre outil configuré restent non chargés et n’envoient rien sans votre accord explicite. Une fois activés, seuls des indicateurs d’usage autorisés sont envoyés ; les montants et contenus budgétaires libres sont bloqués."
         },
         {
-          "title": "4. Pas de cookies publicitaires",
-          "body": "SmartJib n'utilise pas de cookies publicitaires ou de suivi inter-sites. Nous ne vendons ni l'attention ni les données."
+          "title": "4. Aucun cookie publicitaire",
+          "body": "SmartJib n’utilise ni cookie publicitaire, ni suivi intersites, et ne vend aucun profil. Le consentement aux statistiques est distinct du stockage indispensable au fonctionnement du budget."
         },
         {
-          "title": "5. Gérer les cookies",
-          "body": "Vous pouvez contrôler ou effacer les cookies via les paramètres de votre navigateur à tout moment. Notez que bloquer les cookies essentiels peut empêcher SmartJib de fonctionner correctement."
+          "title": "5. Gérer votre choix",
+          "body": "Vous pouvez accepter ou retirer les statistiques dans les réglages du Profil et effacer le stockage via votre navigateur. Le retrait arrête les futurs événements ; bloquer le stockage essentiel peut empêcher le bon fonctionnement ou la synchronisation."
         }
       ]
     },
@@ -1424,6 +1488,81 @@
       "articleCtaDescription": "SmartJib garde les enveloppes budgétaires distinctes des soldes de votre banque, de votre maison et de votre portefeuille.",
       "startBudgeting": "Commencer gratuitement",
       "breadcrumb": "Fil d’Ariane"
+    },
+    "features": {
+      "eyebrow": "Fonctionnalités",
+      "title": "Tout ce qu'il faut pour budgétiser en privé.",
+      "subtitle": "SmartJib sépare à quoi sert l'argent de où il se trouve — avec support MAD, sans connexion bancaire, et 4 méthodes pour la culture cash du Maroc.",
+      "items": [
+        {
+          "title": "Multi-devises : MAD & Dirham",
+          "desc": "Suivez en MAD, dirham, EUR, USD et 9 autres. Changez la devise depuis Profil → Préférences.",
+          "anchor": "Suivi budget qui supporte MAD et dirham"
+        },
+        {
+          "title": "Suivi Banque, Maison, Portefeuille",
+          "desc": "Votre solde bancaire n'est pas votre budget. Suivez où se trouve l'argent séparément.",
+          "anchor": "Suivez banque, maison et portefeuille comme soldes distincts"
+        },
+        {
+          "title": "Suivi des dépenses & fuite portefeuille",
+          "desc": "Les espèces deviennent invisibles vite. Enregistrez en secondes et réconciliez chaque semaine.",
+          "anchor": "Suivez les dépenses portefeuille sans mélanger le solde bancaire"
+        },
+        {
+          "title": "Sans connexion bancaire — Privé par design",
+          "desc": "Nous ne demandons jamais identifiants bancaires. Saisie manuelle, cache local, isolation Firestore Rules.",
+          "anchor": "Suivi budget privé sans connexion bancaire"
+        }
+      ],
+      "relatedTitle": "En savoir plus"
+    },
+    "features_mad": {
+      "eyebrow": "Fonctionnalités · Maroc",
+      "title": "Suivi budget qui supporte MAD et dirham marocain.",
+      "subtitle": "12 devises formatées selon votre locale. Conçu pour la culture cash du Maroc.",
+      "s1Title": "Pourquoi le support MAD compte au Maroc",
+      "s1Body": "La plupart des apps budgétaires sont en USD/EUR et traitent le MAD comme secondaire. SmartJib supporte MAD en première classe avec formatage local.",
+      "s2Title": "12 devises supportées",
+      "s3Title": "Comment suivre en MAD",
+      "relatedTitle": "Fonctionnalités liées"
+    },
+    "budgeting_methods": {
+      "eyebrow": "Méthodes budgétaires",
+      "title": "4 méthodes budgétaires — choisissez celle qui vous correspond.",
+      "subtitle": "SmartJib répartit automatiquement en besoins, envies, épargne. Choisissez la structure qui correspond à votre salaire marocain.",
+      "compareTitle": "Comparer 4 méthodes",
+      "relatedTitle": "Guides liés",
+      "methods": [
+        {
+          "slug": "50-30-20-rule",
+          "title": "Règle 50/30/20",
+          "desc": "50% besoins, 30% envies, 20% épargne. Point de départ équilibré.",
+          "anchor": "Apprendre 50/30/20 pour salaires marocains",
+          "percent": "50/30/20"
+        },
+        {
+          "slug": "zero-based-budgeting",
+          "title": "Budget base zéro",
+          "desc": "60% besoins, 25% envies, 15% épargne. Chaque dirham a un rôle.",
+          "anchor": "Guide budget base zéro — chaque MAD a un rôle",
+          "percent": "60/25/15"
+        },
+        {
+          "slug": "envelope-budgeting",
+          "title": "Budget enveloppes",
+          "desc": "55% besoins, 35% envies, 10% épargne. Limites visibles.",
+          "anchor": "Budget enveloppes — limites visibles",
+          "percent": "55/35/10"
+        },
+        {
+          "slug": "pay-yourself-first",
+          "title": "Se payer d'abord",
+          "desc": "45% besoins, 25% envies, 30% épargne. Épargnez d'abord.",
+          "anchor": "Se payer d'abord — épargnez 30% avant",
+          "percent": "45/25/30"
+        }
+      ]
     }
   },
   "strategies": {
@@ -1457,6 +1596,9 @@
     }
   },
   "navigation": {
+    "groupBudget": "Budget",
+    "groupTools": "Outils",
+    "groupAccount": "Compte",
     "overview": "Vue d’ensemble",
     "dashboardOverview": "Vue d’ensemble du tableau de bord",
     "fixedBills": "Factures fixes",
@@ -1478,20 +1620,26 @@
     "data": "Données",
     "account": "Compte",
     "incomeSources": "Sources de revenus",
-    "importExportCsv": "Importer / exporter CSV",
+    "importExportCsv": "Importer un CSV",
     "newTransaction": "Nouvelle transaction",
     "previousMonth": "Mois précédent",
     "nextMonth": "Mois suivant",
     "customBudgetMonth": "Mois budgétaire personnalisé",
     "openProfileAccount": "Ouvrir le profil et le compte",
     "freePlan": "Forfait gratuit",
-    "proPlan": "Forfait Pro"
+    "proPlan": "Forfait Pro",
+    "security": "Sécurité",
+    "reminders": "Rappels",
+    "search": "Recherche"
   },
   "notifications": {
     "emailVerificationPrompt": "Veuillez vérifier votre adresse e-mail pour sécuriser votre compte.",
     "verificationSent": "E-mail de vérification envoyé !",
     "resendEmail": "Renvoyer l’e-mail",
-    "dismissBanner": "Fermer la bannière"
+    "dismissBanner": "Fermer la bannière",
+    "newPeriodTitle": "Une nouvelle période de salaire a commencé",
+    "newPeriodBody": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet.",
+    "newPeriodBodyCarryover": "Votre budget de {month} est prêt — votre banque démarre avec votre salaire complet plus le reste de la période précédente."
   },
   "quickActions": {
     "close": "Fermer les actions rapides",
@@ -1635,17 +1783,24 @@
       "preferences": "Préférences",
       "moneySources": "Sources d’argent",
       "workspace": "Espace de travail",
+      "household": "Foyer",
       "pro": "Pro",
       "data": "Données",
-      "account": "Compte"
+      "account": "Compte",
+      "security": "Sécurité & verrouillage",
+      "reminders": "Rappels",
+      "search": "Recherche"
     },
     "hints": {
       "budgetStarts": "commence le {day}",
       "locations": "{count, plural, one {# emplacement} other {# emplacements}}",
+      "closeMonth": "Passer le mois sélectionné en lecture seule",
       "personalAndHousehold": "Tableau de bord personnel et foyer",
       "planIncomeInsights": "Forfait, sources de revenus et analyses",
       "exportImportDelete": "Exporter, importer, supprimer",
-      "signOutDelete": "Se déconnecter et supprimer le compte"
+      "signOutDelete": "Se déconnecter et supprimer le compte",
+      "reminders": "Rappels de factures et d'objectifs, push et e-mail",
+      "security": "Verrouillage par code PIN ou empreinte / Face ID"
     },
     "subpages": {
       "accountTitle": "Compte",
@@ -1662,7 +1817,13 @@
       "workspaceDescription": "Basculez entre votre tableau personnel et votre foyer.",
       "backToProfile": "Retour au profil",
       "householdTitle": "Gérer le foyer",
-      "householdDescription": "Membres, invitations et accès partagé."
+      "householdDescription": "Membres, invitations et accès partagé.",
+      "securityTitle": "Sécurité",
+      "securityDescription": "Verrouillage de l'app et protection de l'appareil.",
+      "remindersTitle": "Rappels",
+      "remindersDescription": "Notifications de factures et d'épargne.",
+      "searchTitle": "Recherche",
+      "searchDescription": "Retrouvez n’importe quelle transaction dans tous vos mois."
     },
     "account": {
       "privacy": "Confidentialité",
@@ -1672,13 +1833,73 @@
       "exportThisMonth": "Exporter ce mois en CSV",
       "importCsv": "Importer un CSV",
       "deleteAllData": "Supprimer toutes les données",
-      "deleteAllDataMessage": "Cette action supprime définitivement tous les mois de données budgétaires, dépenses et objectifs d’épargne de votre compte. Votre compte et vos paramètres seront conservés. Cette action est irréversible : téléchargez vos données d’abord si vous souhaitez en garder une copie."
+      "deleteAllDataMessage": "Cette action supprime définitivement tous les mois de données budgétaires, dépenses et objectifs d’épargne de votre compte. Votre compte et vos paramètres seront conservés. Cette action est irréversible : téléchargez vos données d’abord si vous souhaitez en garder une copie.",
+      "exportBackup": "Exporter une sauvegarde complète",
+      "exportBackupDescription": "Toutes les périodes, objectifs, préférences et courses",
+      "restoreBackup": "Restaurer une sauvegarde JSON",
+      "restoreBackupDescription": "Valider et restaurer une sauvegarde SmartJib versionnée",
+      "backupExported": "Votre sauvegarde complète a été téléchargée.",
+      "backupFailed": "La sauvegarde n’a pas pu être exportée.",
+      "backupInvalid": "Ce fichier n’est pas une sauvegarde SmartJib valide et prise en charge.",
+      "restoreComplete": "{months} périodes et {goals} objectifs restaurés.",
+      "restorePartial": "La restauration s’est interrompue. Sélectionnez le même fichier pour reprendre sans doublon.",
+      "restoreStoppedAfter": "{months} période(s) ont été appliquées avant l'arrêt à {period}. Sélectionner à nouveau le même fichier reprend à ce point.",
+      "restoreStoppedFirst": "Rien n'a été appliqué : l'arrêt s'est produit à {period}.",
+      "restoreDenied": "L'espace de travail a refusé l'écriture. Si vous en êtes le propriétaire, ouvrez la carte Espace de travail de ce profil et lancez sa réparation d'accès avant de réessayer.",
+      "restoreFailed": "La sauvegarde n’a pas pu être restaurée. Vérifiez la devise et les périodes budgétaires.",
+      "restoreConfirm": "Restaurer {months} périodes et {goals} objectifs dans {workspace} ? Les enregistrements correspondants seront remplacés ; les nouvelles tentatives sont sûres.",
+      "restoreCounts": "Exportée le {exportedAt} : {months} périodes, {goals} objectifs d'épargne, {products} produits, {sessions} sessions d'achat.",
+      "backupInvalidDetail": "Ce fichier n'a pas été accepté : {reason}",
+      "backupInvalidReasons": {
+        "emptyFile": "Le fichier est vide.",
+        "notJson": "Le fichier n'est pas au format JSON : ce n'est pas une sauvegarde que l'application peut lire.",
+        "csvReport": "C'est un rapport CSV SmartJib. Importez-le depuis l'écran d'importation CSV.",
+        "unreadable": "Le fichier n'a pas pu être lu comme sauvegarde."
+      },
+      "backupPlanNotices": {
+        "retargeted": "Cette sauvegarde provient de {from} ; elle sera restaurée dans {to}.",
+        "currencyDiffers": "Les montants du fichier sont en {from} alors que cet espace utilise {to}. Ils sont restaurés tels qu'enregistrés.",
+        "monthStartDiffers": "Les périodes du fichier commencent le jour {from}, celles de cet espace le jour {to}. Chaque période restaurée garde son propre jour de début.",
+        "householdOwnerOnly": "Seul le propriétaire de cet espace partagé peut restaurer une sauvegarde, car elle modifie ce que tous ses membres voient."
+      },
+      "backupReportNotices": {
+        "unrecognizedFields": "{count} champ(s) inconnus de cette version ont été ignorés : {fields}",
+        "completedFields": "{count} période(s) sans valeur ont été complétées comme une nouvelle période SmartJib.",
+        "generatedIds": "{count} enregistrement(s) avaient perdu leur identifiant ; un nouveau leur a été attribué.",
+        "recalculatedTotals": "{count} facture(s) d'achat dont le total ne correspondait pas aux lignes ont été recalculées.",
+        "reopenedPeriods": "{count} période(s) clôturée(s) ont été rouvertes, le fichier ne gardant pas la trace de leur clôture : {fields}",
+        "newerVersion": "Ce fichier provient d'un SmartJib plus récent (version {fields}) ; tout ce que cette version comprend a été restauré.",
+        "unmarkedFile": "Ce fichier n'est pas marqué comme une sauvegarde SmartJib ; ses périodes et objectifs ont été lus tels quels."
+      },
+      "syncRunning": "Synchronisation…",
+      "syncComplete": "{months} mois synchronisé(s) : {incomes} revenus, {expenses} dépenses, {fixed} factures fixes, {debts} dettes.",
+      "syncNothingNew": "Rien de nouveau à synchroniser — tous les enregistrements y sont déjà.",
+      "syncErrorCurrency": "Les deux espaces de travail doivent utiliser la même devise avant la synchronisation.",
+      "syncErrorPeriod": "Les deux espaces de travail doivent commencer le mois budgétaire le même jour avant la synchronisation.",
+      "syncPartial": "La synchronisation s'est arrêtée après {months} mois. La relancer est sans risque.",
+      "syncPartialNothingAt": "Rien n'a encore été copié : {period} a déjà échoué.",
+      "syncSkippedClosed": "Rien n'a été copié : {periods} période(s) de l'espace de travail cible sont clôturées. Rouvrez une période pour copier dedans.",
+      "syncSkippedSome": "{periods} période(s) clôturée(s) dans la cible ont été laissées de côté.",
+      "syncPartialNothing": "Rien n'a encore été copié : la première période a déjà échoué.",
+      "syncFailed": "La synchronisation n'a pas pu être terminée. Veuillez réessayer.",
+      "personalWorkspace": "Espace personnel",
+      "driveTitle": "Sauvegarde Google Drive",
+      "driveBackup": "Sauvegarder sur Google Drive",
+      "driveRestore": "Restaurer depuis Google Drive",
+      "driveHint": "Stockée dans un dossier privé de l'application sur votre Drive. Conserve les 5 dernières copies.",
+      "driveDone": "Sauvegarde enregistrée sur Google Drive ({name}).",
+      "driveEmpty": "Aucune sauvegarde SmartJib trouvée sur ce Drive.",
+      "driveNotConfigured": "La sauvegarde Google Drive n'est pas configurée sur ce déploiement.",
+      "driveDenied": "L'accès à Google Drive n'a pas été accordé.",
+      "drivePick": "Choisissez une sauvegarde à restaurer",
+      "driveRestorePrefix": "Dernière : {date}"
     },
     "moneySources": {
       "description": "Ce sont les emplacements d’argent depuis lesquels vous dépensez : Banque, Maison, Portefeuille ou toute réserve que vous ajoutez. En en supprimant un, le solde restant est déplacé vers la première source restante.",
       "nameRequired": "Donnez un nom à cette source d’argent.",
       "duplicateName": "Ce nom est déjà utilisé.",
       "uniqueName": "Saisissez un nom unique.",
+      "limitReached": "Vous avez atteint la limite de {count} sources d'argent. Supprimez-en une pour en ajouter une autre.",
       "exampleName": "ex. PayPal, Coffre, Revolut",
       "addSource": "Ajouter une source",
       "addMoneySource": "Ajouter une source d’argent",
@@ -1691,6 +1912,7 @@
       "chooseIcon": "Choisir une icône"
     },
     "workspace": {
+      "schemaGaps": "Le document de cet espace de travail est antérieur à {fields} ; aucun écran ne peut les remplir depuis l'application. Le script de maintenance les complète : npm run db:migrate -- --dry-run liste les documents, --apply les écrit.",
       "mySmartJib": "Mon SmartJib",
       "personalDashboard": "Tableau de bord personnel privé",
       "householdDashboard": "Tableau de bord du foyer",
@@ -1700,18 +1922,62 @@
       "convertToHouseholdHint": "Transformez votre espace privé en foyer partagé. Vous configurerez ensuite le budget du foyer.",
       "removeHousehold": "Supprimer l’espace foyer",
       "leaveHousehold": "Quitter l’espace foyer",
-      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici."
+      "removeHouseholdConfirm": "Supprimer cet espace foyer ? Votre budget personnel est conservé. Les données partagées ne seront plus disponibles ici.",
+      "syncTitle": "Synchroniser les espaces",
+      "syncDescription": "Un appui copie les transactions dans les deux sens entre cet espace et {household} : dépenses, factures fixes, revenus et dettes. Les enregistrements existants sont conservés ; les soldes ne sont jamais modifiés.",
+      "syncAction": "Synchroniser",
+      "syncStartTitle": "Aligner le début du mois budgétaire",
+      "syncStartMessage": "Votre mois budgétaire personnel commence le jour {personal}, mais celui du ménage commence le jour {householdDay}. La synchronisation appliquera le jour {day} (le début de cet espace) à l'autre espace afin d'aligner les périodes. Les périodes futures suivront le nouveau jour ; les périodes existantes conservent leurs dates.",
+      "syncAlignedNote": "Jour de début du mois budgétaire {day} appliqué à l'autre espace.",
+      "syncRequiresPro": "La synchronisation écrit dans le budget commun du ménage, ce qui nécessite un abonnement Pro actif.",
+      "businessDashboard": "Espace pro (auto-entrepreneur)",
+      "addBusiness": "Ajouter un espace pro",
+      "addBusinessHint": "Séparez les revenus et dépenses de votre activité de votre budget personnel : mêmes outils, avec ses propres mois, catégories et rapports.",
+      "businessNamePlaceholder": "ex. Mon activité auto-entrepreneur",
+      "businessDefaultName": "Mon activité"
     },
     "pro": {
       "yourFeatures": "Vos fonctionnalités Pro",
       "unlockWithPro": "Débloquer avec Pro",
       "allActive": "Tout est actif",
       "manageIncomeSources": "Gérer les sources de revenus",
-      "importExportCsv": "Importer / exporter un CSV",
+      "importExportCsv": "Importer un CSV",
       "manageHousehold": "Gérer le foyer",
       "analyticsInsights": "Analyses et aperçus",
       "privateWorkspaceHint": "Les mises à niveau Pro s’appliquent à votre espace privé. Basculez vers {workspace} pour gérer ou mettre à niveau votre forfait personnel.",
       "features": {
+        "safeToSpend": {
+          "title": "Reste à dépenser",
+          "description": "Sachez exactement combien dépenser par jour jusqu'à la paie et où vous finirez le mois."
+        },
+        "reminders": {
+          "title": "Rappels de factures",
+          "description": "Rappels push et e-mail avant l'échéance du loyer, du téléphone et des factures."
+        },
+        "history": {
+          "title": "Historique illimité",
+          "description": "Parcourez et comparez toutes vos périodes passées, pas seulement les trois dernières."
+        },
+        "appLock": {
+          "title": "Verrouillage de l'app",
+          "description": "Protégez votre budget avec un code PIN ou l'empreinte / Face ID sur cet appareil."
+        },
+        "debtPlanner": {
+          "title": "Plan de remboursement",
+          "description": "Méthode boule de neige ou avalanche avec une date de libération pour chaque dette."
+        },
+        "search": {
+          "title": "Recherche & tags",
+          "description": "Retrouvez n'importe quelle transaction dans tous les mois par nom, catégorie ou #tag."
+        },
+        "reports": {
+          "title": "Rapport mensuel PDF",
+          "description": "Relevé mensuel partageable avec enveloppes, catégories et patrimoine net."
+        },
+        "receiptOcr": {
+          "title": "Scan de ticket",
+          "description": "Photographiez un ticket et laissez SmartJib lire le total et le commerçant."
+        },
         "courseScan": {
           "title": "Scan de courses par code-barres",
           "description": "Scannez vos courses pendant vos achats et laissez SmartJib créer le reçu automatiquement."
@@ -1725,8 +1991,8 @@
           "description": "Suivez séparément salaire, missions et revenus complémentaires dans un même budget."
         },
         "csv": {
-          "title": "Import et export CSV",
-          "description": "Importez des relevés en lot et exportez tout votre historique à tout moment."
+          "title": "Import CSV en lot",
+          "description": "Importez en lot des dépenses variables ou des charges fixes avec une correspondance de colonnes localisée."
         },
         "categoryBudgets": {
           "title": "Budgets par catégorie",
@@ -1746,13 +2012,23 @@
     },
     "free": "Gratuit",
     "avatarSaveError": "Impossible d’enregistrer cette photo de profil.",
-    "upgradeToPro": "Passer à Pro"
+    "upgradeToPro": "Voir SmartJib Pro",
+    "monthStartDatePersonalScope": "Personnel",
+    "monthStartDateHouseholdScope": "Foyer",
+    "rolloverTitle": "Report du budget",
+    "rolloverDesc": "Reportez les budgets de catégories non utilisés vers le mois suivant.",
+    "rolloverProHint": "Le Pro permet de reporter les budgets non utilisés vers le mois suivant."
   },
   "household": {
     "title": "Collaboration du foyer",
     "createDescription": "Créez un foyer partagé pour suivre qui a payé, collaborer en direct et voir les soldes de contribution.",
     "unlockWithPro": "Débloquer avec Pro",
     "householdNamePlaceholder": "Nom du foyer (ex. la famille Silva)",
+    "householdNameRequired": "Saisissez un nom de 1 à 100 caractères.",
+    "renameHousehold": "Renommer le foyer",
+    "editMember": "Modifier le membre",
+    "memberUpdated": "Membre mis à jour.",
+    "renameSaved": "Nom du foyer mis à jour.",
     "createHousehold": "Créer le foyer",
     "householdCreated": "Foyer créé. Votre budget personnel reste privé ; les nouvelles activités partagées sont enregistrées dans cet espace de travail.",
     "invitationCode": "Vous avez un code d’invitation ?",
@@ -1764,7 +2040,9 @@
     "restore": "Restaurer",
     "remove": "Supprimer",
     "monthlyContributions": "Contributions de ce mois",
-    "contributionGuide": "Le solde compare les dépenses réglées par chaque collaborateur actif avec une part égale. Utilisez-le comme guide de régularisation ; aucun argent n’est déplacé par SmartJib.",
+    "contributionGuide": "Le solde compare les dépenses réglées par chaque collaborateur actif avec une part égale. Utilisez-le comme guide de régularisation ; aucun argent n’est déplacé par SmartJib.",
+    "contributionsUnattributed": "Paiements non attribués",
+    "contributionsExcluded": "Les paiements du fonds commun et non attribués sont affichés par souci d’exhaustivité mais restent exclus de la répartition égalitaire.",
     "inviteMember": "Inviter un membre du foyer",
     "inviteDescription": "Choisissez son accès au lieu de lui attribuer un rôle familial fixe.",
     "fullName": "Nom complet",
@@ -1814,7 +2092,16 @@
       "reviewDescription": "Examinez les soumissions des contributeurs avant de les enregistrer dans le budget privé du foyer.",
       "nonePending": "Aucune soumission de facture en attente.",
       "approve": "Approuver",
-      "reject": "Refuser"
+      "reject": "Refuser",
+      "reviewError": "La facture n’a pas pu être traitée. Réessayez.",
+      "postsToMonth": "Comptabilisée dans {month}",
+      "mineTitle": "Mes soumissions",
+      "mineEmpty": "Vous n'avez encore soumis aucune facture.",
+      "statusSubmitted": "En attente de révision",
+      "statusApproved": "Approuvée",
+      "statusRejected": "Refusée",
+      "withdraw": "Retirer",
+      "withdrawFailed": "Impossible de retirer la facture. Veuillez réessayer."
     },
     "invited": "Invité",
     "invitationCount": "{count, plural, one {# invitation au foyer} other {# invitations au foyer}}",
@@ -1830,10 +2117,16 @@
     "savingsPrivateDescription": "Votre accès au foyer ne comprend pas les objectifs ni les soldes d’épargne.",
     "debtsPrivateTitle": "Les dettes sont privées",
     "debtsPrivateDescription": "Votre accès au foyer ne comprend pas les dettes ni les crédits.",
+    "areaPrivateTitle": "{area} est privé",
+    "areaPrivateDescription": "Votre accès au foyer ne comprend pas {area}.",
+    "areaRedacted": "Masqué par votre accès au foyer",
+    "incomeReadOnly": "Vous pouvez consulter les sources de revenus, mais pas les modifier.",
     "copyCode": "Copier",
     "copied": "Copié",
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
-    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre."
+    "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre.",
+    "contributor": "Contributeur",
+    "businessSolo": "Cet espace pro est individuel : il n'a ni membres ni invitations. Passez à votre espace foyer pour gérer les membres."
   },
   "consent": {
     "title": "Confidentialité",
@@ -1854,12 +2147,26 @@
     "truncated": "Seules les {limit} premières lignes ont été importées — un mois ne peut pas en contenir plus."
   },
   "pro": {
-    "betaTitle": "Pro est inclus pendant la bêta",
-    "betaBody": "Le paiement n'est pas encore activé, donc Pro est débloqué sur votre compte sans frais. Rien n'est facturé et aucune donnée de carte n'est demandée.",
-    "betaAction": "Débloquer Pro gratuitement",
-    "cardFieldsRemoved": "Aucun formulaire de paiement — SmartJib ne collecte pas de données de carte.",
-    "trialClaimed": "Pro activé sur ce compte.",
-    "alreadyIncluded": "Pro est déjà actif sur votre compte pendant la bêta."
+    "betaTitle": "Essayez Pro gratuitement pendant 3 mois",
+    "betaBody": "Démarrez un essai Pro unique de 90 jours sans frais. Le paiement n’est pas connecté, rien n’est facturé et aucune carte n’est demandée.",
+    "betaAction": "Démarrer l’essai gratuit de 3 mois",
+    "cardFieldsRemoved": "Aucun formulaire de paiement — SmartJib ne collecte jamais les données de carte.",
+    "trialClaimed": "Votre essai Pro de 90 jours est actif.",
+    "alreadyIncluded": "Votre essai Pro gratuit est actif.",
+    "trialTitle": "Essayez SmartJib Pro gratuitement pendant 3 mois",
+    "trialBody": "Démarrez un essai Pro unique de 90 jours et débloquez toutes les fonctions Pro. Aucune carte n’est requise et l’essai ne se renouvelle jamais automatiquement.",
+    "trialAction": "Démarrer mon essai gratuit de 3 mois",
+    "trialActiveTitle": "Votre essai Pro est actif",
+    "trialEnds": "L’essai gratuit se termine le {date} · {days} jours restants.",
+    "trialExpiredTitle": "Votre essai Pro est terminé",
+    "trialExpiredBody": "Vos données restent en sécurité et disponibles. Les modifications réservées à Pro sont suspendues, tandis que l’offre gratuite continue de fonctionner.",
+    "billingNotAvailable": "Les offres payantes ne sont pas encore disponibles. Vous ne serez jamais facturé sans choisir explicitement une offre après le lancement du paiement.",
+    "noCardRequired": "Sans carte · sans renouvellement automatique · un essai par compte",
+    "trialError": "Impossible de démarrer l’essai. Vérifiez votre connexion et réessayez.",
+    "householdSponsorActive": "Parrainage Pro du ménage : actif jusqu'au {date}.",
+    "householdSponsorExpired": "Le parrainage Pro de ce ménage (enregistré à sa création) a expiré le {date}. Le parrain est fixé à la création — si votre abonnement est actif, le ménage doit être relié ou recréé.",
+    "headline": "Partagez votre budget, ne ratez aucune facture, voyez votre fin de mois.",
+    "plannedPrice": "Prix prévu après le lancement : à partir de 19 MAD/mois. Les utilisateurs en essai gardent toutes les fonctions jusqu'à la fin de l'essai."
   },
   "seo": {
     "titles": {
@@ -1877,5 +2184,253 @@
       "notFound": "Page introuvable",
       "landing": "SmartJib — Suivez votre budget, hors ligne, sans publicité"
     }
+  },
+  "sync": {
+    "idle": "Enregistré",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "failed": "Échec de synchronisation",
+    "conflict": "Modifications à vérifier",
+    "conflictDetail": "Une modification plus récente dans le cloud chevauche votre modification locale. Ignorez la copie locale uniquement si vous souhaitez conserver la version cloud.",
+    "queuedLocally": "Vos modifications sont conservées sur cet appareil.",
+    "retry": "Réessayer",
+    "useCloudCopy": "Ignorer les modifications locales",
+    "pending": "En attente",
+    "local": "Enregistré sur cet appareil",
+    "blockedEntitlement": "Modifier le budget commun du ménage nécessite un abonnement Pro actif. Votre modification reste en file d'attente sur cet appareil et se synchronisera dès le retour de l'accès.",
+    "sponsorRebound": "L'accès au budget partagé est rétabli — ce ménage fonctionne désormais sur votre abonnement Pro, et vos modifications en attente sont envoyées.",
+    "sponsorLapsed": "Ce ménage fonctionne sur l'abonnement Pro d'un autre compte, qui n'est plus actif. Tout reste consultable ; l'édition reprend dès que l'abonnement est renouvelé.",
+    "sponsorUnreadable": "Le budget partagé de ce ménage est payé par un autre compte que cet appareil ne peut pas consulter. Seul le propriétaire du ménage peut changer l'abonnement utilisé.",
+    "accessRestored": "Votre accès à cet espace de travail est rétabli. Les modifications en attente pendant le refus sont envoyées maintenant.",
+    "membershipBlocked": "Votre rôle dans cet espace de travail est marqué comme inactif, et les règles publiées ici n’autorisent qu’un propriétaire à le modifier. Demandez à un propriétaire de vous inviter à nouveau.",
+    "rulesBehind": "L'espace partagé a refusé cette écriture et l'application ne peut l'attribuer ni à votre offre, ni à votre adhésion, ni à l'espace lui-même. La cause habituelle est que les règles déployées sur ce projet diffèrent de celles attendues par cette version — redéployez-les avec « firebase deploy --only firestore:rules ». Vos modifications sont conservées localement et seront envoyées dès que l'écriture sera acceptée.",
+    "profileInvalid": "L'abonnement de ce compte est enregistré dans une forme que l'application ne peut pas vérifier (un plan ou un statut non reconnu) ; le serveur ne l'appliquera donc pas au ménage. Corrigez les champs d'abonnement du profil dans la console Firebase, ou démarrez l'essai Pro depuis l'application.",
+    "restoreAccessHint": "Cet espace est payé par un autre compte dont l'abonnement n'est plus actif. Vous en êtes le propriétaire et votre abonnement est actif : l'application le bascule sur le vôtre, et vos modifications en attente seront envoyées ensuite."
+  },
+  "monthLock": {
+    "closed": "Mois clôturé",
+    "close": "Clôturer le mois",
+    "reopen": "Rouvrir le mois",
+    "closeConfirm": "Clôturer ce mois ? Les transactions, soldes, factures et activités d’épargne seront en lecture seule jusqu’à sa réouverture.",
+    "reopenConfirm": "Rouvrir ce mois et autoriser à nouveau les modifications ?",
+    "closedDetail": "Ce mois est clôturé et ses données financières sont en lecture seule.",
+    "editBlocked": "Ce mois a été clôturé. Rouvrez-le avant d’effectuer des modifications."
+  },
+  "insights": {
+    "safeToSpendTitle": "Reste à dépenser",
+    "perDay": "{amount} / jour",
+    "daysLeft": "{count, plural, =1 {1 jour restant} other {# jours restants}}",
+    "remaining": "Reste dans le budget",
+    "upcomingBills": "Factures à payer",
+    "projectedEnd": "Projection fin de mois",
+    "statusOk": "Dans les clous",
+    "statusTight": "Ça se resserre",
+    "statusOver": "Dépassement prévu",
+    "burnRate": "Dépense {amount} / jour",
+    "lockedTitle": "Sachez ce que vous pouvez dépenser aujourd'hui",
+    "lockedBody": "Pro calcule votre enveloppe quotidienne à partir du reste, des factures à venir et des jours jusqu'à la paie.",
+    "unlock": "Débloquer avec Pro",
+    "netWorthTitle": "Patrimoine net",
+    "assets": "Actifs",
+    "liabilities": "Passifs",
+    "cash": "Liquidités",
+    "savings": "Épargne",
+    "owedToMe": "On me doit",
+    "iOwe": "Je dois",
+    "historyLockedTitle": "Les anciens mois sont une fonction Pro",
+    "historyLockedBody": "Le plan gratuit garde vos {count} dernières périodes à portée de main. Pro débloque tout l'historique et les tendances.",
+    "categoryLimitTitle": "Limite de catégories atteinte",
+    "categoryLimitBody": "Le plan gratuit inclut {count} catégories personnalisées. Pro supprime la limite.",
+    "suggestedCategory": "Suggestion : {category}",
+    "applySuggestion": "Utiliser"
+  },
+  "appLock": {
+    "title": "Verrouillage de l'app",
+    "description": "Demander un code PIN ou une identification biométrique à l'ouverture de SmartJib sur cet appareil.",
+    "enable": "Activer le verrouillage",
+    "disable": "Désactiver le verrouillage",
+    "setPin": "Choisissez un PIN (4 à 8 chiffres)",
+    "confirmPin": "Confirmer le PIN",
+    "pinMismatch": "Les PIN ne correspondent pas.",
+    "pinInvalid": "Utilisez 4 à 8 chiffres.",
+    "wrongPin": "PIN incorrect. Réessayez.",
+    "enterPin": "Saisissez votre PIN",
+    "unlock": "Déverrouiller",
+    "useBiometric": "Empreinte / Face ID",
+    "biometricToggle": "Déverrouillage biométrique",
+    "biometricUnavailable": "Le déverrouillage biométrique n'est pas disponible sur ce navigateur.",
+    "biometricFailed": "Échec biométrique. Saisissez votre PIN.",
+    "timeout": "Verrouiller après",
+    "timeoutNow": "À chaque fois",
+    "timeout1m": "1 minute",
+    "timeout5m": "5 minutes",
+    "timeout15m": "15 minutes",
+    "lockedHeading": "SmartJib est verrouillé",
+    "signOutInstead": "Se déconnecter",
+    "forgotHint": "PIN oublié ? Déconnectez-vous puis reconnectez-vous pour le réinitialiser.",
+    "enabled": "Le verrouillage est actif sur cet appareil."
+  },
+  "reminders": {
+    "title": "Rappels",
+    "description": "Soyez prévenu avant l'échéance des factures et quand un objectif d'épargne est presque atteint.",
+    "billsToggle": "Rappels de factures",
+    "goalsToggle": "Étapes d'objectif d'épargne",
+    "emailToggle": "Résumé quotidien par e-mail",
+    "leadDays": "Me rappeler",
+    "lead0": "Le jour même",
+    "lead1": "1 jour avant",
+    "lead3": "3 jours avant",
+    "lead7": "1 semaine avant",
+    "pushTitle": "Notifications push sur cet appareil",
+    "pushEnable": "Activer sur cet appareil",
+    "pushDisable": "Désactiver sur cet appareil",
+    "pushEnabled": "Activées sur cet appareil",
+    "pushDenied": "Les notifications sont bloquées dans les réglages du navigateur.",
+    "pushUnsupported": "Ce navigateur ne prend pas en charge les notifications push.",
+    "pushIosInstall": "Sur iPhone, ajoutez d'abord SmartJib à l'écran d'accueil (Partager → Sur l'écran d'accueil) pour recevoir des notifications.",
+    "pushNotConfigured": "L'envoi push n'est pas encore configuré sur ce serveur ; les rappels in-app et e-mail fonctionnent.",
+    "devices": "Appareils recevant les rappels",
+    "remove": "Retirer",
+    "test": "Envoyer une notification test",
+    "testSent": "Notification test envoyée.",
+    "billTitle": "Facture à payer",
+    "billToday": "{name} ({amount}) est due aujourd'hui.",
+    "billTomorrow": "{name} ({amount}) est due demain.",
+    "billInDays": "{name} ({amount}) est due dans {days} jours.",
+    "goalTitle": "Presque !",
+    "goalBody": "{name} est financé à {percent}% — encore un dépôt et c'est fait.",
+    "trialTitle": "Votre essai Pro se termine bientôt",
+    "trialBody": "Il reste {days} jours de Pro. Vos données restent en sécurité quoi qu'il arrive.",
+    "calendarTitle": "Paiements à venir",
+    "calendarEmpty": "Aucune facture planifiée cette période.",
+    "calendarPaid": "Payée",
+    "calendarDue": "Échéance {date}",
+    "calendarOverdue": "En retard",
+    "saved": "Réglages des rappels enregistrés."
+  },
+  "planner": {
+    "title": "Plan de remboursement",
+    "method": "Méthode",
+    "snowball": "Boule de neige (plus petite d'abord)",
+    "avalanche": "Avalanche (plus grande d'abord)",
+    "monthlyBudget": "Budget mensuel de remboursement",
+    "debtFreeOn": "Libéré des dettes d'ici {date}",
+    "debtFreeIn": "{count, plural, =1 {dans 1 mois} other {dans # mois}}",
+    "noBudget": "Indiquez un montant mensuel pour voir votre date de libération.",
+    "noDebts": "Aucune dette ouverte — rien à planifier.",
+    "paidOffOn": "Soldée {date}",
+    "goalEta": "À ce rythme : {date}",
+    "goalPace": "{amount} / mois",
+    "goalNoPace": "Enregistrez un dépôt pour voir une projection.",
+    "goalTargetDate": "Date cible",
+    "goalRequired": "Il faut {amount} / mois pour atteindre {date}",
+    "goalDone": "Objectif atteint"
+  },
+  "search": {
+    "title": "Recherche",
+    "placeholder": "Rechercher des transactions, catégories ou #tags…",
+    "loading": "Chargement des mois…",
+    "empty": "Aucun résultat pour « {query} ».",
+    "hint": "Tapez au moins 2 caractères. Utilisez #tag pour filtrer par tag.",
+    "results": "{count, plural, =1 {1 résultat} other {# résultats}}",
+    "kindVariable": "Dépense",
+    "kindFixed": "Charge fixe",
+    "kindDebt": "Dette",
+    "tags": "Tags",
+    "tagsPlaceholder": "Ajouter des tags (séparés par des virgules)",
+    "open": "Rechercher"
+  },
+  "report": {
+    "title": "Rapport mensuel",
+    "download": "Télécharger le rapport PDF",
+    "generating": "Préparation du rapport…",
+    "hint": "Un relevé imprimable de la période : revenus, enveloppes, catégories, factures, épargne et patrimoine net.",
+    "period": "Période",
+    "income": "Revenus reçus",
+    "spent": "Dépensé",
+    "saved": "Épargné",
+    "leftover": "Reste",
+    "envelopes": "Enveloppes",
+    "categories": "Dépenses par catégorie",
+    "bills": "Charges fixes",
+    "goals": "Objectifs d'épargne",
+    "generatedBy": "Généré par SmartJib le {date}",
+    "budget": "Budget",
+    "status": "Statut",
+    "category": "Catégorie",
+    "amount": "Montant",
+    "name": "Nom"
+  },
+  "ocr": {
+    "scanReceipt": "Scanner le ticket",
+    "scanning": "Lecture du ticket… {percent}%",
+    "found": "Total détecté : {amount}",
+    "foundMerchant": "Commerçant : {merchant}",
+    "notFound": "Impossible de lire un total. Saisissez le montant manuellement.",
+    "apply": "Utiliser ces valeurs",
+    "proHint": "Le scan de ticket est une fonction Pro.",
+    "failed": "Échec du scan. Essayez une photo plus nette."
+  },
+  "fx": {
+    "title": "Convertisseur de devises",
+    "from": "De",
+    "to": "Vers",
+    "rateNote": "Taux {rate} · {date}",
+    "unavailable": "Les taux en direct ne sont pas disponibles hors ligne.",
+    "amount": "Montant",
+    "swap": "Inverser les devises"
+  },
+  "barcode": {
+    "title": "Scanner un produit",
+    "scanProduct": "Scanner le code-barres",
+    "hint": "Visez le code-barres ; le nom du produit se remplit automatiquement.",
+    "lookingUp": "Recherche du produit…",
+    "notFound": "Aucun produit trouvé pour {code}. Saisissez le nom.",
+    "cameraDenied": "L'accès à la caméra a été refusé.",
+    "cameraUnavailable": "Aucune caméra disponible sur cet appareil."
+  },
+  "reports": {
+    "title": "Rapport personnalisé",
+    "locked": "Ventilez les dépenses par lieu d'argent, tag ou membre du foyer sur la période de votre choix, avec comparaison à la période précédente.",
+    "groupBy": "Grouper par",
+    "byCategory": "Catégorie",
+    "byPlace": "Lieu d'argent",
+    "byTag": "Tag",
+    "byMember": "Membre",
+    "scope": "Inclure",
+    "scopeAll": "Toutes les dépenses",
+    "scopeVariable": "Variables seulement",
+    "scopeFixed": "Charges fixes seulement",
+    "range": "Période",
+    "monthsShort": "{count} M",
+    "filter": "Filtrer par",
+    "noFilter": "Aucun filtre",
+    "filterValue": "Valeur",
+    "any": "Toutes",
+    "totalCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "empty": "Rien ne correspond à cette sélection pour l'instant.",
+    "unassigned": "Non attribué"
+  },
+  "cashFlow": {
+    "title": "Calendrier des paiements",
+    "cashToday": "Trésorerie aujourd'hui",
+    "endOfPeriod": "Fin de période",
+    "lowestOn": "Plus bas le {date}",
+    "nextBillIn": "{count, plural, =0 {Prochaine facture aujourd'hui} =1 {Prochaine facture demain} other {Prochaine facture dans # jours}}",
+    "noMoreBills": "Plus de factures",
+    "lockedTitle": "Voyez ce qu'il vous restera n'importe quel jour",
+    "lockedBody": "Pro projette votre trésorerie jour par jour à partir des factures à venir, des revenus attendus et de votre rythme de dépenses.",
+    "legendBill": "Facture due",
+    "legendIncome": "Revenu attendu",
+    "legendSettled": "Réglé",
+    "projectedBalance": "Trésorerie prévue",
+    "nothingPlanned": "Rien de prévu ce jour.",
+    "income": "Revenu",
+    "paid": "Payé",
+    "received": "Reçu",
+    "due": "À payer",
+    "expected": "Attendu",
+    "viewList": "Liste",
+    "viewCalendar": "Calendrier"
   }
 }

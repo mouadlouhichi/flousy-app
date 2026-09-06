@@ -155,7 +155,7 @@ describe('install prompt wiring', () => {
     );
     assert.match(capture, /beforeinstallprompt/);
     assert.match(capture, /preventDefault\(\)/);
-    assert.match(capture, /__flousyInstallPrompt/);
+    assert.match(capture, /__smartJibInstallPrompt/);
   });
 
   it('renders install UI and the iOS-specific meta tag', () => {
@@ -163,8 +163,13 @@ describe('install prompt wiring', () => {
     assert.ok(layout.includes('apple-mobile-web-app-capable'));
   });
 
-  it('caps viewport scale so iOS does not zoom when focusing an input', () => {
-    assert.match(layout, /maximumScale:\s*1/);
+  it('keeps pinch zoom enabled while preventing iOS focus auto-zoom via ≥16px inputs', () => {
+    assert.doesNotMatch(layout, /maximumScale/);
+    assert.doesNotMatch(layout, /userScalable/);
+    // The accessible substitute: mobile form controls render at 16px so iOS
+    // Safari has no reason to auto-zoom a focused field.
+    const input = readFileSync(path.join(root, 'src/components/ui/input.tsx'), 'utf8');
+    assert.match(input, /text-base/);
   });
 });
 
@@ -173,7 +178,7 @@ describe('beforeinstallprompt capture behaviour', () => {
   function runCapture() {
     const listeners: Record<string, Array<(e: unknown) => void>> = {};
     const win = {
-      __flousyInstallPrompt: null as unknown,
+      __smartJibInstallPrompt: null as unknown,
       addEventListener(type: string, fn: (e: unknown) => void) {
         (listeners[type] ||= []).push(fn);
       },
@@ -213,7 +218,7 @@ describe('beforeinstallprompt capture behaviour', () => {
     listeners['beforeinstallprompt'].forEach((fn) => fn(fakeEvent));
 
     assert.equal(prevented, true, 'must call preventDefault() to keep the event usable');
-    assert.equal(win.__flousyInstallPrompt, fakeEvent, 'event must be stashed for React');
+    assert.equal(win.__smartJibInstallPrompt, fakeEvent, 'event must be stashed for React');
   });
 
   it('clears the stored prompt once the app is installed', () => {
@@ -222,9 +227,9 @@ describe('beforeinstallprompt capture behaviour', () => {
     listeners['beforeinstallprompt'].forEach((fn) =>
       fn({ type: 'beforeinstallprompt', preventDefault() {} })
     );
-    assert.ok(win.__flousyInstallPrompt);
+    assert.ok(win.__smartJibInstallPrompt);
 
     listeners['appinstalled'].forEach((fn) => fn({ type: 'appinstalled' }));
-    assert.equal(win.__flousyInstallPrompt, null);
+    assert.equal(win.__smartJibInstallPrompt, null);
   });
 });

@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { SegmentedControl } from '../ui/segmented-control';
-import { DebtItem, DebtType, DebtStatus } from '../../lib/store';
+import { DebtItem, DebtType } from '../../lib/store';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
@@ -24,7 +24,6 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<DebtType>('debt');
-  const [status, setStatus] = useState<DebtStatus>('open');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,14 +33,12 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
       setName(initialDebt.name);
       setAmount(String(initialDebt.amount));
       setType(initialDebt.type);
-      setStatus(initialDebt.status);
       setDate(initialDebt.date || new Date().toISOString().split('T')[0]);
       setNote(initialDebt.note || '');
     } else {
       setName('');
       setAmount('');
       setType('debt');
-      setStatus('open');
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
     }
@@ -56,18 +53,23 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
       setErrors({ name: m.errors.validationNameRequired });
       return;
     }
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    const paidTotal = (initialDebt?.payments || []).reduce((sum, payment) => sum + payment.amount, 0);
+    if (isNaN(parsedAmount) || parsedAmount <= 0 || parsedAmount < paidTotal) {
       setErrors({ amount: m.errors.validationAmountInvalid });
       return;
     }
 
     const debt: DebtItem = {
-      id: initialDebt ? initialDebt.id : Math.random().toString(36).substring(2, 9),
+      id: initialDebt ? initialDebt.id : crypto.randomUUID(),
       name: name.trim(),
       amount: parsedAmount,
       type,
-      status,
+      status: paidTotal > 0
+        ? (parsedAmount <= paidTotal ? 'settled' : 'open')
+        : initialDebt?.status || 'open',
       date,
+      dueDate: initialDebt?.dueDate,
+      payments: initialDebt?.payments || [],
       note: note.trim() || undefined,
     };
 
@@ -127,38 +129,11 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt }: De
           error={errors.name}
         />
 
-        {/* ── Status ── */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-            {d.status}
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setStatus('open')}
-              className={`py-3 rounded-xl border text-[14px] font-bold transition-all flex items-center justify-center gap-1.5 ${
-                status === 'open'
-                  ? 'border-amber-400 bg-amber-50 text-amber-700'
-                  : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
-              }`}
-            >
-              <AppIcon name="lock_open" className=" text-[16px]" />
-              {m.common.open}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatus('settled')}
-              className={`py-3 rounded-xl border text-[14px] font-bold transition-all flex items-center justify-center gap-1.5 ${
-                status === 'settled'
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-outline-variant text-on-surface-variant hover:bg-surface-variant/30'
-              }`}
-            >
-              <AppIcon name="check_circle" className=" text-[16px]" />
-              {m.common.settled}
-            </button>
-          </div>
-        </div>
+        {initialDebt?.payments?.length ? (
+          <p className="rounded-xl bg-surface-container p-3 text-xs text-on-surface-variant">
+            {d.statusManagedByPayments}
+          </p>
+        ) : null}
 
         {/* ── Date ── */}
         <CustomInput

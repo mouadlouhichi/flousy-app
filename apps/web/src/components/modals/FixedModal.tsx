@@ -14,9 +14,11 @@ import {
   MoneyPlace,
   DEFAULT_FIXED_CATEGORIES,
   FixedCategoryItem,
-  addFixedCategory,
-  updateFixedCategory,
   availableForCharge,
+  fixedPaidAmount,
+  type LifecycleStatus,
+  FIXED_TYPE_COLORS,
+  fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
@@ -24,6 +26,8 @@ import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
+import { useHousehold } from '../../lib/household-context';
+import { isProFeatureUnlocked } from '../../lib/household';
 import { localizeBillCategory } from '../../lib/localized-labels';
 
 interface FixedModalProps {
@@ -37,6 +41,12 @@ interface FixedModalProps {
   categoryIcons?: Record<string, string>;
   /** Live balance per money place, so a bill cannot overdraft its source. */
   placeBalances?: Record<MoneyPlace, number>;
+  /**
+   * False when the member may edit bills but not see household balances.
+   * Hides the "available in {place}" hint and skips the insufficient-funds
+   * check, whose message would disclose the exact balance.
+   */
+  canSeeBalances?: boolean;
   /** Called when a custom fixed category is renamed, to retype existing bills. */
   onRenameCategory?: (oldName: string, newName: string) => void;
 }
@@ -61,28 +71,6 @@ function pickUnusedColor(takenColors: string[]): string {
 }
 
 /** Fallback icons/colors used when the month data has none for a bill type. */
-const FIXED_TYPE_ICONS: Record<string, string> = {
-  Rent: 'home',
-  Utilities: 'bolt',
-  Housing: 'house',
-  Subscriptions: 'subscriptions',
-  Insurance: 'shield',
-  Internet: 'wifi',
-  Gym: 'fitness_center',
-  Other: 'label',
-};
-
-const FIXED_TYPE_COLORS: Record<string, string> = {
-  Rent: '#8b5cf6',
-  Utilities: '#eab308',
-  Housing: '#f97316',
-  Subscriptions: '#6366f1',
-  Insurance: '#10b981',
-  Internet: '#06b6d4',
-  Gym: '#ec4899',
-  Other: '#6d7a77',
-};
-
 export function FixedModal({
   isOpen,
   onClose,
@@ -93,14 +81,16 @@ export function FixedModal({
   categoryColors = {},
   categoryIcons = {},
   placeBalances,
+  canSeeBalances = true,
   onRenameCategory,
 }: FixedModalProps) {
   const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
+  const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   const { messages: m, t } = useLanguage();
   const f = m.modals.fixed;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
-  const isPro = isProUser(profile);
+  const isPro = isProFeatureUnlocked(isProUser(profile), workspace, household);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState('Rent');
@@ -109,10 +99,16 @@ export function FixedModal({
   const [person, setPerson] = useState('Self');
   const [payerMemberId, setPayerMemberId] = useState('self');
   const [recurring, setRecurring] = useState(true);
+  const [status, setStatus] = useState<LifecycleStatus>('planned');
+  const [paidAmount, setPaidAmount] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Custom fixed-category add/update form state
-  const customCategories = profile?.fixedCategories ?? [];
+  // Household category configuration belongs to the household document. Never
+  // mix a member's personal category list into a shared workspace.
+  const customCategories = workspace === 'household'
+    ? (household?.fixedCategories ?? [])
+    : (profile?.fixedCategories ?? []);
+  const canManageCategories = workspace === 'personal' || isOwner;
   const customByName = new Map<string, FixedCategoryItem>(customCategories.map((c) => [c.name, c]));
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -120,10 +116,12 @@ export function FixedModal({
   const [customIcon, setCustomIcon] = useState('label');
   const [categoryError, setCategoryError] = useState('');
 
-  const categoryVisual = (catName: string) => ({
-    icon: categoryIcons[catName] || customByName.get(catName)?.icon || FIXED_TYPE_ICONS[catName] || 'label',
-    color: categoryColors[catName] || customByName.get(catName)?.color || FIXED_TYPE_COLORS[catName] || '#6d7a77',
-  });
+  const categoryVisual = (catName: string) =>
+    fixedCategoryVisual(catName, {
+      icons: categoryIcons,
+      colors: categoryColors,
+      custom: customCategories,
+    });
 
   const resetCategoryForm = () => {
     setShowCategoryForm(false);
@@ -134,11 +132,13 @@ export function FixedModal({
   };
 
   const openAddCategoryForm = () => {
+    if (!canManageCategories) return;
     resetCategoryForm();
     setShowCategoryForm(true);
   };
 
   const openEditCategoryForm = () => {
+    if (!canManageCategories) return;
     const item = customByName.get(type);
     if (!item) return;
     setEditingCategory(item.name);
@@ -159,7 +159,7 @@ export function FixedModal({
   };
 
   const handleSaveCategory = () => {
-    if (!profile) return;
+    if (!canManageCategories || (workspace === 'personal' && !profile)) return;
 
     const trimmed = customName.trim();
     const existing = editingCategory ? customByName.get(editingCategory) : undefined;
@@ -186,10 +186,16 @@ export function FixedModal({
     }
 
     const item: FixedCategoryItem = { name: trimmed, color, icon: customIcon };
-    const nextProfile = editingCategory
-      ? updateFixedCategory(profile, editingCategory, item)
-      : addFixedCategory(profile, item);
-    updateProfileData({ fixedCategories: nextProfile.fixedCategories }).catch(() => {});
+    const nextCategories = editingCategory
+      ? customCategories.map((category) => category.name === editingCategory ? item : category)
+      : [...customCategories, item];
+    const saveConfiguration = workspace === 'household'
+      ? updateConfiguration({ fixedCategories: nextCategories })
+      : updateProfileData({ fixedCategories: nextCategories });
+    void saveConfiguration.catch((error) => {
+      console.error('Could not save fixed category:', error);
+      setCategoryError(f.invalidCategoryData);
+    });
 
     // Renaming must retype existing fixed bills so they don't lose the link
     if (editingCategory && editingCategory !== trimmed) {
@@ -212,6 +218,8 @@ export function FixedModal({
       setPerson(initialBill.person || 'Self');
       setPayerMemberId(initialBill.payerMemberId || initialBill.person || 'self');
       setRecurring(initialBill.recurring ?? true);
+      setStatus(initialBill.status || 'paid');
+      setPaidAmount(String(fixedPaidAmount(initialBill)));
     } else {
       setName('');
       setAmount('');
@@ -221,6 +229,8 @@ export function FixedModal({
       setPerson('Self');
       setPayerMemberId('self');
       setRecurring(true);
+      setStatus('planned');
+      setPaidAmount('');
     }
     setErrors({});
     resetCategoryForm();
@@ -258,9 +268,22 @@ export function FixedModal({
       return;
     }
 
-    // The source place must actually hold the money for the charge. Half-a-cent
-    // tolerance absorbs float noise from prior refund/debit arithmetic.
-    if (parsedAmount - availableInPlace > 0.005) {
+    const parsedPaidAmount = status === 'paid'
+      ? parsedAmount
+      : status === 'partial'
+        ? Number(paidAmount)
+        : 0;
+    if (
+      status === 'partial'
+      && (!Number.isFinite(parsedPaidAmount) || parsedPaidAmount <= 0 || parsedPaidAmount >= parsedAmount)
+    ) {
+      setErrors({ paidAmount: f.partialAmountError });
+      return;
+    }
+
+    // Only cash actually paid is checked/debited. Planned and skipped
+    // occurrences remain commitments without changing a balance.
+    if (canSeeBalances && parsedPaidAmount - availableInPlace > 0.005) {
       setErrors({
         amount: t(f.insufficientFunds, {
           amount: format(availableInPlace),
@@ -270,8 +293,11 @@ export function FixedModal({
       return;
     }
 
+    const id = initialBill?.id || `fixed-${crypto.randomUUID()}`;
     const newBill: FixedExpense = {
-      id: initialBill ? initialBill.id : Math.random().toString(36).substring(2, 9),
+      ...(initialBill || {}),
+      id,
+      templateId: initialBill?.templateId || id,
       name: name.trim(),
       amount: parsedAmount,
       type,
@@ -280,6 +306,9 @@ export function FixedModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       recurring,
+      status,
+      paidAmount: parsedPaidAmount,
+      paidAt: parsedPaidAmount > 0 ? initialBill?.paidAt || new Date().toISOString() : undefined,
     };
 
     onSave(newBill);
@@ -342,7 +371,7 @@ export function FixedModal({
             <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               {f.category}
             </label>
-            {customByName.has(type) && !showCategoryForm && (
+            {canManageCategories && customByName.has(type) && !showCategoryForm && (
               <button
                 type="button"
                 onClick={openEditCategoryForm}
@@ -369,7 +398,7 @@ export function FixedModal({
                 label: c.name,
                 ...categoryVisual(c.name),
               })),
-              ...(profile
+              ...(canManageCategories
                 ? [{ value: ADD_CATEGORY_VALUE, label: f.new, icon: 'add' as const }]
                 : []),
             ]}
@@ -442,8 +471,10 @@ export function FixedModal({
           </AnimatePresence>
         </div>
 
-        {/* ── Due Day — day-picker card (solid bg) ── */}
-        <DueDayPicker value={date} onChange={setDate} />
+        {/* ── Due Day — day-picker card (solid bg). Only meaningful for a bill
+            that repeats every month; a one-off bill has no "repeat-on day", so
+            the picker is hidden unless the recurring toggle is on. ── */}
+        {recurring && <DueDayPicker value={date} onChange={setDate} />}
 
         {/* ── Household Member — badges ── */}
         {isPro ? (
@@ -453,6 +484,41 @@ export function FixedModal({
             <p className="font-body-sm text-body-sm text-on-surface-variant">{f.householdPro}</p>
           </div>
         )}
+
+        <div className="flex flex-col gap-2">
+          <SegmentedControl
+            label={f.lifecycleStatus}
+            value={status}
+            onChange={(value) => {
+              setStatus(value as LifecycleStatus);
+              setErrors((previous) => ({ ...previous, paidAmount: '', amount: '' }));
+            }}
+            options={[
+              { value: 'planned', label: f.statusPlanned, icon: 'schedule' },
+              { value: 'partial', label: f.statusPartial, icon: 'pending' },
+              { value: 'paid', label: f.statusPaid, icon: 'check_circle' },
+              { value: 'skipped', label: f.statusSkipped, icon: 'block' },
+            ]}
+          />
+          {status === 'partial' && (
+            <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
+              {f.paidAmount}
+              <input
+                type="number"
+                min="0"
+                max={amount || undefined}
+                step="0.01"
+                value={paidAmount}
+                onChange={(event) => {
+                  setPaidAmount(event.target.value);
+                  setErrors((previous) => ({ ...previous, paidAmount: '' }));
+                }}
+                className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
+              />
+              {errors.paidAmount && <span role="alert" className="text-error">{errors.paidAmount}</span>}
+            </label>
+          )}
+        </div>
 
         {/* ── Paid From — segmented group with sliding active background ── */}
         <SegmentedControl
@@ -464,9 +530,11 @@ export function FixedModal({
           }}
           options={moneyPlaceOptions}
         />
-        <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
-          {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
-        </p>
+        {canSeeBalances && (
+          <p className="-mt-3 text-[11px] font-semibold text-on-surface-variant">
+            {t(f.availableIn, { place: placeLabel(place), amount: format(availableInPlace) })}
+          </p>
+        )}
 
         {/* ── Recurring Toggle ── */}
         <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-xl border border-outline-variant">

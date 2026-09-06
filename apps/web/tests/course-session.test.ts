@@ -7,6 +7,7 @@ import {
   barcodeChecksumValid,
   normalizeBarcode,
   isMoroccanBarcode,
+  parseVariableMeasurePrice,
   createSession,
   createSessionItem,
   addItemToSession,
@@ -486,14 +487,16 @@ describe('resolveProduct', () => {
   });
 
   it('reports lookup-failed when the remote throws or times out', async () => {
+    // NB: not a leading-2 code, so the variable-measure short-circuit (which
+    // prefills an embedded price and never touches the network) does not apply.
     const failing = await resolveProduct({
-      barcode: '2222222222222',
+      barcode: '8888888888888',
       catalog: [],
       lookupRemote: async () => {
         throw new Error('network down');
       },
     });
-    assert.deepEqual(failing, { kind: 'not-found', barcode: '2222222222222', reason: 'lookup-failed' });
+    assert.deepEqual(failing, { kind: 'not-found', barcode: '8888888888888', reason: 'lookup-failed' });
 
     const slow = await resolveProduct({
       barcode: '3333333333333',
@@ -564,5 +567,54 @@ describe('budget logging (course → variable expense)', () => {
     assert.equal(logged.loggedExpenseId, 'exp_123');
     assert.equal(logged.total, withItem.total);
     assert.equal(logged.status, withItem.status);
+  });
+});
+
+
+describe('Variable-measure (in-store price) barcodes', () => {
+  it('reads the price printed inside a prefix-2 EAN-13', () => {
+    assert.deepEqual(parseVariableMeasurePrice('2003200020807'), {
+      itemRef: '003200',
+      price: 20.8,
+    });
+    assert.deepEqual(parseVariableMeasurePrice('2003400075003'), {
+      itemRef: '003400',
+      price: 75,
+    });
+  });
+
+  it('refuses codes that are not a valid prefix-2 EAN-13', () => {
+    assert.strictEqual(parseVariableMeasurePrice('5003200020807'), null, 'wrong prefix');
+    assert.strictEqual(parseVariableMeasurePrice('2003200020808'), null, 'bad checksum');
+    assert.strictEqual(parseVariableMeasurePrice('200320002080'), null, 'too short');
+    assert.strictEqual(parseVariableMeasurePrice(''), null, 'empty');
+  });
+
+  it('resolveProduct returns the embedded price and skips remote lookups', async () => {
+    let remoteCalled = false;
+    const resolution = await resolveProduct({
+      barcode: '2003200020807',
+      catalog: [],
+      lookupRemote: async () => {
+        remoteCalled = true;
+        return null;
+      },
+    });
+    assert.strictEqual(remoteCalled, false, 'Open Food Facts must not be queried for in-store codes');
+    assert.strictEqual(resolution.kind, 'not-found');
+    if (resolution.kind === 'not-found') {
+      assert.strictEqual(resolution.embeddedPrice, 20.8);
+      assert.strictEqual(resolution.reason, 'not-found');
+    }
+  });
+
+  it('a catalogue hit still wins over the embedded price', async () => {
+    const resolution = await resolveProduct({
+      barcode: '2003200020807',
+      catalog: [
+        { barcode: '2003200020807', name: 'Saucisse', lastPrice: 19.5 } as never,
+      ],
+    });
+    assert.strictEqual(resolution.kind, 'found');
   });
 });

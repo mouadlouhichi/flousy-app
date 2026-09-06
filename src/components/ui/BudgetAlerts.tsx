@@ -1,11 +1,13 @@
 'use client';
 
 import { AppIcon } from '@/components/ui/app-icon';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useHousehold } from '@/lib/household-context';
-import { MonthBudget, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent } from '../../lib/store';
+import { AMOUNT_AREA } from '@/lib/household-rbac';
+import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent, getUpcomingBills } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
@@ -13,15 +15,24 @@ import { localizeCategoryName, localizeHouseholdRole } from '@/lib/localized-lab
 
 interface BudgetAlertsProps {
   month: MonthBudget;
+  /** Active savings goals, for the near-complete milestone reminder. */
+  goals?: SavingGoal[];
+  /** Effective Pro entitlement, for the trial-countdown reminder. */
+  entitlement?: { status: string; daysRemaining: number; endsAtMs: number | null } | null;
 }
 
-export function BudgetAlerts({ month }: BudgetAlertsProps) {
+export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
   const percent = (value: number) => formatLocalizedPercent(value, intlLocale);
-  const { pendingInvites } = useHousehold();
+  const { pendingInvites, canViewArea } = useHousehold();
   const [isOpen, setIsOpen] = useState(false);
   const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
+
+  // Every alert here quotes a spent-vs-budget figure, so the whole budget-health
+  // list is an `expenses` concern. Household invitations are the member's own
+  // business and stay visible either way.
+  const canSeeSpending = canViewArea(AMOUNT_AREA.variableExpense);
 
   const { needs: needsCap, wants: wantsCap } = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
   const { needs: needsSpent, wants: wantsSpent } = calculateEnvelopeSpent(month);
@@ -31,13 +42,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
 
   const alerts: { title: string; message: string; severity: 'warning' | 'error' }[] = [];
 
-  if (needsRatio >= 100) {
+  if (canSeeSpending && needsRatio >= 100) {
     alerts.push({
       title: m.alerts.needsExceeded,
       message: t(m.alerts.spentVsBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
       severity: 'error',
     });
-  } else if (needsRatio >= 80) {
+  } else if (canSeeSpending && needsRatio >= 80) {
     alerts.push({
       title: m.alerts.needsAlert,
       message: t(m.alerts.spentOfBudget, { spent: format(needsSpent), budget: format(needsCap), percent: percent(Math.round(needsRatio)) }),
@@ -45,13 +56,13 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
     });
   }
 
-  if (wantsRatio >= 100) {
+  if (canSeeSpending && wantsRatio >= 100) {
     alerts.push({
       title: m.alerts.wantsExceeded,
       message: t(m.alerts.spentVsBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
       severity: 'error',
     });
-  } else if (wantsRatio >= 80) {
+  } else if (canSeeSpending && wantsRatio >= 80) {
     alerts.push({
       title: m.alerts.wantsAlert,
       message: t(m.alerts.spentOfBudget, { spent: format(wantsSpent), budget: format(wantsCap), percent: percent(Math.round(wantsRatio)) }),
@@ -66,7 +77,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   const categoryBudgets = month.categoryBudgets || {};
 
   Object.entries(categoryBudgets).forEach(([cat, budget]) => {
-    if (!budget || budget <= 0) return;
+    if (!canSeeSpending || !budget || budget <= 0) return;
 
     const spent = calculateCategorySpent(month, cat);
     const pct = (spent / budget) * 100;
@@ -87,15 +98,79 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
   });
 
   const budgetAlertKey = `${month.updatedAt || ''}:${alerts.map((alert) => `${alert.title}:${alert.message}`).join('|')}`;
-  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('flousy_seen_budget_alerts');
+  const storedBudgetKey = typeof window === 'undefined' ? null : localStorage.getItem('smartjib_seen_budget_alerts');
   const hasUnreadBudgetAlerts = alerts.length > 0 && seenBudgetKey !== budgetAlertKey && storedBudgetKey !== budgetAlertKey;
-  const hasUnreadNotifications = hasUnreadBudgetAlerts || pendingInvites.length > 0;
+
+  // ── Reminders: derived from data the app already holds ──
+  // Bills due within 7 days (fixedBills is its own RBAC area), goals at ≥80%
+  // of target, and a Pro trial ending within 14 days.
+  const canSeeBills = canViewArea('fixedBills');
+  const canSeeGoals = canViewArea(AMOUNT_AREA.savingsGoal);
+  const upcomingBills = canSeeBills ? getUpcomingBills(month, 7) : [];
+  const goalMilestones = canSeeGoals
+    ? (goals || []).filter(
+        (goal) =>
+          goal.active &&
+          goal.target > 0 &&
+          goal.current >= goal.target * 0.8 &&
+          goal.current < goal.target,
+      )
+    : [];
+  const trialDaysLeft =
+    entitlement &&
+    entitlement.status === 'trialing' &&
+    entitlement.endsAtMs &&
+    entitlement.daysRemaining > 0 &&
+    entitlement.daysRemaining <= 14
+      ? entitlement.daysRemaining
+      : null;
+
+  const reminders: Array<{ key: string; icon: string; title: string; message: string; tone: 'info' | 'warning' }> = [];
+  for (const bill of upcomingBills) {
+    reminders.push({
+      key: `bill-${bill.id}-${bill.daysUntil}`,
+      icon: 'event_upcoming',
+      title: bill.name,
+      message: bill.daysUntil === 0 ? m.alerts.billDueToday : t(m.alerts.billDueInDays, { days: bill.daysUntil }),
+      tone: bill.daysUntil === 0 ? 'warning' : 'info',
+    });
+  }
+  for (const goal of goalMilestones) {
+    reminders.push({
+      key: `goal-${goal.id}-${Math.floor(goal.current)}`,
+      icon: 'flag',
+      title: goal.name,
+      message: t(m.alerts.goalNear, { percent: percent(Math.round((goal.current / goal.target) * 100)) }),
+      tone: 'info',
+    });
+  }
+  if (trialDaysLeft !== null) {
+    reminders.push({
+      key: `trial-${trialDaysLeft}`,
+      icon: 'hourglass_top',
+      title: m.alerts.trialEndingTitle,
+      message: t(m.alerts.trialEndingDays, { days: trialDaysLeft }),
+      tone: 'warning',
+    });
+  }
+
+  const reminderKey = reminders.map((reminder) => reminder.key).join('|');
+  const storedReminderKey = typeof window === 'undefined' ? null : localStorage.getItem('smartjib_seen_reminders');
+  const [seenReminderKey, setSeenReminderKey] = useState<string | null>(null);
+  const hasUnreadReminders =
+    reminders.length > 0 && seenReminderKey !== reminderKey && storedReminderKey !== reminderKey;
+
+  const hasUnreadNotifications = hasUnreadBudgetAlerts || hasUnreadReminders || pendingInvites.length > 0;
   const openNotifications = () => {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
     if (nextOpen && alerts.length > 0) {
-      localStorage.setItem('flousy_seen_budget_alerts', budgetAlertKey);
+      localStorage.setItem('smartjib_seen_budget_alerts', budgetAlertKey);
       setSeenBudgetKey(budgetAlertKey);
+    }
+    if (nextOpen && reminders.length > 0) {
+      localStorage.setItem('smartjib_seen_reminders', reminderKey);
+      setSeenReminderKey(reminderKey);
     }
   };
 
@@ -105,7 +180,7 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
         type="button"
         onClick={openNotifications}
         className="relative p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/60 rounded-xl transition-colors"
-        aria-label={t(m.alerts.viewNotifications, { count: alerts.length + pendingInvites.length })}
+        aria-label={t(m.alerts.viewNotifications, { count: alerts.length + pendingInvites.length + reminders.length })}
       >
         <AppIcon name="notifications" className=" text-[24px]" />
         {hasUnreadNotifications && (
@@ -131,23 +206,30 @@ export function BudgetAlerts({ month }: BudgetAlertsProps) {
 
           <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
             {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.householdInvitations}</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">{m.alerts.householdInvitation}</span><span className="block text-xs text-on-surface-variant">{t(m.alerts.openToJoinAs, { role: localizeHouseholdRole(invite.role, m) })}</span></Link>)}</div>}
+
+            {reminders.length > 0 && (
+              <div className="space-y-1 border-b border-outline-variant pb-2">
+                <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.reminders}</p>
+                {reminders.map((reminder) => (
+                  <Alert
+                    key={reminder.key}
+                    variant={reminder.tone === 'warning' ? 'warning' : 'info'}
+                  >
+                    <AppIcon name={reminder.icon} />
+                    <AlertTitle className="truncate">{reminder.title}</AlertTitle>
+                    <AlertDescription>{reminder.message}</AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            )}
             <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.budgetHealth}</p>
             {alerts.length > 0 ? (
               alerts.map((a, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2.5 rounded-xl border flex items-start gap-xs ${
-                    a.severity === 'error'
-                      ? 'bg-error-container/40 border-error/50 text-on-error-container'
-                      : 'bg-tertiary-container/40 border-tertiary/50 text-on-tertiary-container'
-                  }`}
-                >
-                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} className=" text-[20px] shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-label-md text-label-md font-bold">{a.title}</h5>
-                    <p className="font-body-sm text-body-sm text-[12px] opacity-90">{a.message}</p>
-                  </div>
-                </div>
+                <Alert key={idx} variant={a.severity === 'error' ? 'destructive' : 'warning'}>
+                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} />
+                  <AlertTitle>{a.title}</AlertTitle>
+                  <AlertDescription>{a.message}</AlertDescription>
+                </Alert>
               ))
             ) : (
               <p className="font-body-sm text-body-sm text-on-surface-variant p-2 text-center">
