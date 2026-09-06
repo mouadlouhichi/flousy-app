@@ -2450,7 +2450,13 @@
         "cocamidopropylBetaine": "Cocamidopropyl betaine (from coconut oil)"
       },
       "sourceNotePhoto": "Ingredient list read from your photo (OCR). Check a few entries against the packaging; guidance, not medical advice.",
-      "cosingNote": "Regulatory data: EU CosIng (CC BY 4.0, 2016 snapshot) — guidance only, no legal value."
+      "cosingNote": "Regulatory data: EU CosIng (CC BY 4.0, 2016 snapshot) — guidance only, no legal value.",
+      "ratings": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "fair": "Fair",
+        "poor": "Poor"
+      }
     },
     "inciscan": {
       "button": "Scan the ingredient list",

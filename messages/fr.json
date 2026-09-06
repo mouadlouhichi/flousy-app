@@ -2450,7 +2450,13 @@
         "cocamidopropylBetaine": "Cocamidopropyl Bétaïne (issu de l'huile de coco)"
       },
       "sourceNotePhoto": "Liste lue depuis votre photo (OCR). Vérifiez quelques entrées sur l'emballage ; indicatif, pas un avis médical.",
-      "cosingNote": "Données réglementaires : EU CosIng (CC BY 4.0, instantané 2016) — indicative, sans valeur légale."
+      "cosingNote": "Données réglementaires : EU CosIng (CC BY 4.0, instantané 2016) — indicative, sans valeur légale.",
+      "ratings": {
+        "excellent": "Excellent",
+        "good": "Bon",
+        "fair": "Moyen",
+        "poor": "Mauvais"
+      }
     },
     "inciscan": {
       "button": "Scanner la liste des ingrédients",

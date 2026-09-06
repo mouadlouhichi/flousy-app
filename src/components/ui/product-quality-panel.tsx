@@ -62,7 +62,7 @@ export function ProductQualityPanel({
 
   return (
     <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3">
-      {/* Header: title + score dial */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <span className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-on-surface-variant">
@@ -73,8 +73,15 @@ export function ProductQualityPanel({
             {t(q.ingredientsCount, { count: result.total })}
           </p>
         </div>
-        <ScoreDial score={result.score} max={INCI_SCORE_MAX} counts={result.counts} />
       </div>
+
+      {/* Yuka/INCI-Beauty-style overall quality rating */}
+      <RatingBanner
+        score={result.score}
+        max={INCI_SCORE_MAX}
+        counts={result.counts}
+        ratings={q.ratings}
+      />
 
       {/* Tier filter chips */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -146,61 +153,70 @@ export function ProductQualityPanel({
   );
 }
 
-/** Ring chart: arc segments sized by tier counts, score in the center. */
-function ScoreDial({
+/** Score → quality band, as a ratio of the maximum (Yuka-style thresholds). */
+const RATING_BANDS = [
+  { min: 0.8, key: 'excellent', color: '#00897b' },
+  { min: 0.6, key: 'good', color: '#43a047' },
+  { min: 0.4, key: 'fair', color: '#e6950b' },
+  { min: 0, key: 'poor', color: '#ba1a1a' },
+] as const;
+
+type RatingKey = (typeof RATING_BANDS)[number]['key'];
+
+function ratingBand(score: number, max: number): (typeof RATING_BANDS)[number] {
+  const ratio = max > 0 ? score / max : 0;
+  return RATING_BANDS.find((band) => ratio >= band.min) ?? RATING_BANDS[RATING_BANDS.length - 1];
+}
+
+/**
+ * The overall quality rating, as shown by Yuka / INCI Beauty: a colored
+ * banner with the big score, a quality label, stars, and a thin strip of
+ * the green/yellow/orange tier proportions.
+ */
+function RatingBanner({
   score,
   max,
   counts,
+  ratings,
 }: {
   score: number;
   max: number;
   counts: Record<InciTier, number>;
+  ratings: Record<RatingKey, string>;
 }) {
-  const radius = 24;
-  const circumference = 2 * Math.PI * radius;
+  const band = ratingBand(score, max);
   const total = Math.max(counts.concern + counts.caution + counts.good, 1);
-
-  // Precompute each segment's running offset (arc start position).
-  let consumed = 0;
-  const segments = [
-    { count: counts.good, color: 'var(--primary)' },
-    { count: counts.caution, color: '#f59e0b' },
-    { count: counts.concern, color: 'var(--error)' },
-  ].map((segment) => {
-    const start = consumed;
-    consumed += segment.count;
-    return { ...segment, start };
-  });
-
+  const stars = Math.round((score / max) * 5);
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
   return (
-    <div className="relative shrink-0" aria-label={`${numberFormat.format(score)} / ${max}`}>
-      <svg viewBox="0 0 56 56" className="size-14">
-        <circle cx="28" cy="28" r={radius} fill="none" stroke="var(--surface-variant)" strokeWidth="5" />
-        {segments.map(
-          (segment, i) =>
-            segment.count > 0 && (
-              <circle
-                key={i}
-                cx="28"
-                cy="28"
-                r={radius}
-                fill="none"
-                stroke={segment.color}
-                strokeWidth="5"
-                strokeDasharray={`${(segment.count / total) * circumference} ${circumference}`}
-                strokeDashoffset={-(segment.start / total) * circumference}
-                transform="rotate(-90 28 28)"
-              />
-            ),
-        )}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-sm font-extrabold text-on-surface leading-none">
-          {numberFormat.format(score)}
-        </span>
-        <span className="text-[9px] font-bold text-on-surface-variant leading-none">/{max}</span>
+    <div
+      className="mt-2 rounded-xl p-4 text-white"
+      style={{ backgroundColor: band.color }}
+      role="img"
+      aria-label={`${ratings[band.key]} — ${numberFormat.format(score)} / ${max}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-1">
+          <span className="text-5xl font-black leading-none">{numberFormat.format(score)}</span>
+          <span className="text-lg font-bold opacity-80">/{max}</span>
+        </div>
+        <div className="text-right">
+          <p className="text-base font-extrabold uppercase tracking-wide">{ratings[band.key]}</p>
+          <div className="mt-1 flex justify-end gap-0.5" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, i) => (
+              <span key={i} className={i < stars ? 'text-white' : 'text-white/40'}>
+                ★
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Tier proportions (green → yellow → orange), as white opacity steps */}
+      <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-white/25">
+        <div style={{ width: `${(counts.good / total) * 100}%` }} className="bg-white" />
+        <div style={{ width: `${(counts.caution / total) * 100}%` }} className="bg-white/70" />
+        <div style={{ width: `${(counts.concern / total) * 100}%` }} className="bg-white/40" />
       </div>
     </div>
   );
