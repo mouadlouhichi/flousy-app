@@ -15,7 +15,7 @@ import { fetchVendorInci, fetchVendorProduct, isVendorConfigured } from '@/lib/s
  * European cosmetics mirror, which covers the French brands common on
  * Moroccan shelves) → world Open Products Facts.
  *
- * Enrichment (only when COSMETIC_INCI_API_KEY is configured — see
+ * Enrichment (only when INCI_API_KEY is configured — see
  * src/lib/server/vendor-inci.ts):
  * - a product found on a beauty/OPF mirror that still lacks an INCI list is
  *   sent to the vendor to fill the ingredient text;

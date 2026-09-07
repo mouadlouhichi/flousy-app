@@ -7,7 +7,7 @@ import { POST } from '../src/app/api/inci/analyze/route';
  * Integration tests for the vendor coverage fallback of POST /api/inci/analyze.
  *
  * Behaviour under test:
- *  - no COSMETIC_INCI_API_KEY ⇒ the route is pure-local and never calls out;
+ *  - no INCI_API_KEY ⇒ the route is pure-local and never calls out;
  *  - a key + unrecognized names ⇒ unrecognized raws are POSTed to the provider
  *    and only its "safe" entries are adopted (`vendorEnriched: true`);
  *  - provider failures ⇒ identical to the pure-local result (fail-open);
@@ -43,7 +43,7 @@ function makeFetchStub(handler: (call: FetchCall) => Promise<unknown> | unknown)
 }
 
 const ENV_KEYS = [
-  'COSMETIC_INCI_API_KEY',
+  'INCI_API_KEY',
   'ARCJET_KEY',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
@@ -83,7 +83,7 @@ describe('POST /api/inci/analyze vendor fallback', () => {
   });
 
   it('posts only unrecognized names and adopts safe entries (vendorEnriched)', async () => {
-    process.env.COSMETIC_INCI_API_KEY = 'sk-test';
+    process.env.INCI_API_KEY = 'sk-test';
     const { calls, stub } = makeFetchStub((call) => {
       assert.equal(call.url, 'https://inciapi.com/v1/analyze');
       assert.equal(call.init?.headers?.['X-API-Key'], 'sk-test');
@@ -111,7 +111,7 @@ describe('POST /api/inci/analyze vendor fallback', () => {
 
   it('fails open: a vendor error leaves the pure-local result unchanged', async () => {
     const keyed = () => {
-      process.env.COSMETIC_INCI_API_KEY = 'sk-test';
+      process.env.INCI_API_KEY = 'sk-test';
     };
     // Baseline (no key).
     const plain = await callApi(UNKNOWN_TEXT, '10.1.0.3');
@@ -133,7 +133,7 @@ describe('POST /api/inci/analyze vendor fallback', () => {
   });
 
   it('never calls the vendor when the local snapshot already covers the list', async () => {
-    process.env.COSMETIC_INCI_API_KEY = 'sk-test';
+    process.env.INCI_API_KEY = 'sk-test';
     let fetchCalls = 0;
     globalThis.fetch = (async () => {
       fetchCalls++;

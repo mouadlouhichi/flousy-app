@@ -14,8 +14,8 @@ import {
   VENDOR_INCI_ENDPOINT,
 } from '../src/lib/server/vendor-inci';
 
-type TestEnv = { COSMETIC_INCI_API_KEY?: string };
-const KEYED: TestEnv = { COSMETIC_INCI_API_KEY: 'sk-test' };
+type TestEnv = { INCI_API_KEY?: string };
+const KEYED: TestEnv = { INCI_API_KEY: 'sk-test' };
 const KEYLESS: TestEnv = {};
 
 describe('vendor-inci extractors', () => {

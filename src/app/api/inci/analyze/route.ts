@@ -28,7 +28,7 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * pipeline is deterministic — the same INCI text always returns the same JSON,
  * so scores are auditable and reproducible.
  *
- * Optional vendor coverage fallback: when COSMETIC_INCI_API_KEY is set and the
+ * Optional vendor coverage fallback: when INCI_API_KEY is set and the
  * local snapshot cannot recognize part of the list, the unrecognized names are
  * asked of a key-gated external ingredient database, which may add SAFE-only
  * recognitions (response then carries `vendorEnriched: true`). No key → the
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     let result = analyzeLocal();
 
-    // Vendor coverage fallback (only when COSMETIC_INCI_API_KEY is set — no
+    // Vendor coverage fallback (only when INCI_API_KEY is set — no
     // key, no external call): names the local CosIng snapshot could not match
     // are asked of the provider, which may add *safe-only* recognitions so a
     // sparse local snapshot doesn't tank coverage for genuinely safe newer

@@ -10,7 +10,7 @@
  * regardless of which source supplied the text.
  *
  * Privacy & availability:
- * - Enabled only when COSMETIC_INCI_API_KEY is set (never shipped to the
+ * - Enabled only when INCI_API_KEY is set (never shipped to the
  *   client; only the barcode digits leave the server, matching the rest of
  *   the app). Without the key this module is a pure no-op — zero network.
  * - Fail-open and bounded: short timeout, caps on response size, every error
@@ -33,7 +33,7 @@ const VENDOR_TIMEOUT_MS = 3_000;
 const MAX_INCI_LENGTH = 8_000;
 
 export function vendorKey(env: EnvVarMap = process.env): string | undefined {
-  const key = env.COSMETIC_INCI_API_KEY;
+  const key = env.INCI_API_KEY;
   return typeof key === 'string' && key.trim() ? key.trim() : undefined;
 }
 

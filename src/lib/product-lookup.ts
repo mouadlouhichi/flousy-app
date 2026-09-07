@@ -103,7 +103,7 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null
  *
  * A beauty hit without an INCI list triggers one extra proxy call so the
  * server can enrich the record from the configured vendor (no-op when no
- * COSMETIC_INCI_API_KEY is set). Food hits never do — their product pages
+ * INCI_API_KEY is set). Food hits never do — their product pages
  * carry no INCI and would only waste quota.
  */
 export async function lookupOffProduct(
