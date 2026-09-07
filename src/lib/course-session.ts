@@ -347,6 +347,8 @@ export interface RemoteProductInfo {
   category?: string;
   imageUrl?: string;
   quantity?: string;
+  /** Full INCI ingredient list from the product page, when the record has one. */
+  ingredientsText?: string;
 }
 
 export type ProductResolution =

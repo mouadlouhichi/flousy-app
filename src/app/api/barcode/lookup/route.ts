@@ -26,7 +26,8 @@ const OFF_HOSTS = [
   'https://world.openproductsfacts.org/api/v2/product/',
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
+  'ingredients_text,ingredients_text_en,ingredients_text_fr';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -16,6 +16,12 @@ const nextConfig = {
   allowedDevOrigins: ['*.e2b.app'],
   reactStrictMode: true,
   poweredByHeader: false, // stop advertising "X-Powered-By: Next.js"
+  // The INCI analysis route (/api/inci/analyze) reads the local CosIng
+  // snapshot from disk at runtime; on Vercel/standalone only traced files are
+  // deployed, so the data directory must be included explicitly.
+  outputFileTracingIncludes: {
+    '/api/inci/analyze': ['./data/cosing/cosing-ingredients.tsv'],
+  },
   async headers() {
     return [
       {

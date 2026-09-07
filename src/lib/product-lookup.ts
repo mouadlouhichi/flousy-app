@@ -19,7 +19,8 @@ const OFF_HOSTS = [
   'https://world.openproductsfacts.org/api/v2/product/',
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
+  'ingredients_text,ingredients_text_en,ingredients_text_fr';
 
 /**
  * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
@@ -55,6 +56,15 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
   const category = pick('categories')?.split(',')[0]?.trim();
   const imageUrl = pick('image_front_url');
   const quantity = pick('quantity');
+  const ingredientsText = [
+    'ingredients_text',
+    'ingredients_text_en',
+    'ingredients_text_fr',
+    'ingredients_text_es',
+    'ingredients_text_ar',
+  ]
+    .map((key) => pick(key))
+    .find((v): v is string => Boolean(v));
 
   return {
     name,
@@ -62,6 +72,7 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
     ...(category ? { category } : {}),
     ...(imageUrl ? { imageUrl } : {}),
     ...(quantity ? { quantity } : {}),
+    ...(ingredientsText ? { ingredientsText } : {}),
   };
 }
 
