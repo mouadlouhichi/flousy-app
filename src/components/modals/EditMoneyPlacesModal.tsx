@@ -109,7 +109,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
                   setDrafts((prev) => ({ ...prev, [id]: sanitizeAmount(e.target.value) }));
                   if (errors[id]) setErrors((prev) => ({ ...prev, [id]: undefined as unknown as string }));
                 }}
-                className="w-full bg-transparent text-[18px] font-semibold text-on-surface outline-none"
+                className="keep-font-18 w-full bg-transparent text-[18px] font-semibold text-on-surface outline-none"
               />
             </div>
             {errors[id] && <p className="mt-1 text-[11px] font-medium text-error">{errors[id]}</p>}

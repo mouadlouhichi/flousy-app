@@ -2556,6 +2556,19 @@ export type ProductSource = 'manual' | 'off' | 'session';
 export type SessionStatus = 'active' | 'completed';
 
 /**
+ * A product's quality ranking when the source provides one — the Nutri-Score
+ * letter grade (a–e) from Open Food Facts, with the 0–100 score when known.
+ * Only set for food products that actually carry a grade; the UI hides the
+ * chip entirely when absent.
+ */
+export interface ProductRanking {
+  /** Letter grade, lower-case: 'a' … 'e'. */
+  grade: string;
+  /** 0–100 points, when the source exposes them. */
+  score?: number;
+}
+
+/**
  * One known product, keyed by its normalized barcode (8 or 13 digits).
  * This is the user's self-learning catalog: every resolved product is
  * stored once and becomes an instant local hit afterwards.
@@ -2571,6 +2584,8 @@ export interface Product {
   source: ProductSource;
   /** 'MA' for Moroccan products (GS1 prefix 611). */
   origin?: string;
+  /** Nutri-Score grade (a–e) captured from Open Food Facts, when present. */
+  ranking?: ProductRanking;
   createdAt: string;
   updatedAt: string;
 }
@@ -2587,6 +2602,8 @@ export interface SessionItem {
   qty: number; // >= 1
   unitPrice: number; // >= 0
   lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
+  /** Snapshot of the product's ranking, when the source provided one. */
+  ranking?: ProductRanking;
 }
 
 /**

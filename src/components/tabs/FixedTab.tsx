@@ -1,5 +1,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 import React, { useState } from 'react';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import { CashFlowCalendar } from '../dashboard/cash-flow-calendar';
 import { MonthBudget, FixedExpense, fixedCategoryVisual, fixedPaidAmount } from '../../lib/store';
 import { useAuth } from '../../lib/auth-context';
@@ -51,8 +52,10 @@ export function FixedTab({
           <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
             {m.tabs.fixed.totalCommitments}
           </span>
+          {/* The currency code renders AFTER the amount, smaller (FormattedAmount):
+              "3 200,00 MAD" — en-US Intl would otherwise lead with "MAD 3,200.00". */}
           <h2 className="font-headline-lg text-headline-lg text-on-surface font-extrabold mt-0.5">
-            {format(totalFixed)}
+            <FormattedAmount value={totalFixed} />
           </h2>
           <p className="mt-1 text-xs font-bold text-primary">
             {t(m.tabs.fixed.paidSummary, { paid: format(totalPaid), total: format(totalFixed) })}
@@ -178,12 +181,19 @@ export function FixedTab({
               </div>
 
               <span className="text-end">
-                <span className="block font-mono font-extrabold text-headline-sm text-on-surface">
-                  {format(bill.amount)}
-                </span>
+                {/* Amount with a smaller currency code after it (not "MAD 3,000.00"). */}
+                <FormattedAmount
+                  value={bill.amount}
+                  className="block font-mono font-extrabold text-headline-sm text-on-surface"
+                />
                 {fixedPaidAmount(bill) !== bill.amount && (
-                  <span className="block text-[10px] font-bold text-primary">
-                    {t(m.tabs.fixed.paidShort, { amount: format(fixedPaidAmount(bill)) })}
+                  <span className="mt-0.5 flex items-baseline justify-end gap-1 text-[10px] font-bold text-primary">
+                    <FormattedAmount
+                      value={fixedPaidAmount(bill)}
+                      className="font-mono"
+                      currencyClassName="text-[0.8em] font-bold text-primary"
+                    />
+                    {m.tabs.fixed.paidShort}
                   </span>
                 )}
               </span>

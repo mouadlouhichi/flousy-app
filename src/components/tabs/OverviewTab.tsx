@@ -391,7 +391,7 @@ export function OverviewTab({
                         }
                       }}
                       style={{ width: `${Math.max(4, Math.min(12, draftBudget.length + 1))}ch` }}
-                      className="bg-transparent text-xl font-bold font-mono text-on-surface outline-none"
+                      className="keep-font-20 bg-transparent text-xl font-bold font-mono text-on-surface outline-none"
                     />
                     <span className="text-xs font-semibold text-on-surface-variant">
                       {budgetParts.currency}

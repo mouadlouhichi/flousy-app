@@ -146,7 +146,7 @@ export function SecurityPanel() {
                 maxLength={8}
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                className="rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
+                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm font-semibold text-on-surface">
@@ -158,7 +158,7 @@ export function SecurityPanel() {
                 maxLength={8}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ''))}
-                className="rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
+                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
               />
             </label>
             {error && <p className="text-sm font-semibold text-error">{error}</p>}

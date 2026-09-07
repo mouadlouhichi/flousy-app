@@ -564,7 +564,7 @@ function OnboardingFlow() {
                     if (incomeError) setIncomeError('');
                   }}
                   placeholder="0.00"
-                  className="text-[32px] sm:text-[36px] font-extrabold text-on-surface text-end bg-transparent outline-none w-full ms-2"
+                  className="keep-font-32 text-[32px] sm:text-[36px] font-extrabold text-on-surface text-end bg-transparent outline-none w-full ms-2"
                 />
               </div>
 

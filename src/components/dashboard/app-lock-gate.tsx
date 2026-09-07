@@ -126,7 +126,7 @@ export function AppLockGate({ children }: { children: React.ReactNode }) {
             setError(null);
           }}
           aria-label={c.enterPin}
-          className="w-full rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-on-surface outline-none focus:border-primary"
+          className="keep-font-24 w-full rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-on-surface outline-none focus:border-primary"
         />
         {error && <p className="text-sm font-semibold text-error">{error}</p>}
         <button

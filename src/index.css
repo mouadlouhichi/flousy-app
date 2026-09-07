@@ -168,6 +168,49 @@
   }
 }
 
+/* iOS/Android browsers zoom the page when a form control smaller than 16px
+   receives focus. Pinch-zoom must stay available (WCAG 1.4.4), so instead of
+   `maximum-scale` every text-entry control is bumped to 16px on phone
+   viewports. This rule sits OUTSIDE cascade layers on purpose: layered
+   Tailwind utilities (text-xs / text-body-md / …) would otherwise win over
+   an `@layer base` declaration and re-enable the focus zoom. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* The floor above must not shrink inputs that intentionally render at or
+   above 16px (the big hero amount figures, the onboarding income figure,
+   the PIN fields, …): a font at or above 16px never triggers the focus
+   zoom, so those inputs only need to keep their size. These overrides sit
+   outside the layers and out-specify the bare `input` selector, so the
+   intended size wins at every viewport width. */
+.keep-font-18 {
+  font-size: 18px;
+}
+.keep-font-20 {
+  font-size: 20px;
+}
+.keep-font-24 {
+  font-size: 24px;
+}
+.keep-font-32 {
+  font-size: 32px;
+}
+.keep-font-40 {
+  font-size: 40px;
+}
+@media (min-width: 640px) {
+  /* The onboarding income figure steps up to 36px from `sm:`, matching its
+     `sm:text-[36px]` utility. */
+  .keep-font-32 {
+    font-size: 36px;
+  }
+}
+
 @theme {
   --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;

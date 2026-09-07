@@ -82,11 +82,15 @@ export function DashboardHeader() {
   const periodStart = budgetPeriod ? formatPeriodParts(budgetPeriod.startDate, intlLocale) : null;
   const periodEnd = budgetPeriod ? formatPeriodParts(budgetPeriod.endDate, intlLocale) : null;
 
-  // Tonal step above the page (container-low) with a soft drop shadow so the
-  // bar stays legible over scrolled content instead of blending into it.
-  return (
-    <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 flex items-center justify-between gap-2">
-      <div className="flex min-w-0 shrink self-center gap-3">
+    // Tonal step above the page (container-low) with a soft drop shadow so the
+    // bar stays legible over scrolled content instead of blending into it.
+    // Three-column grid instead of justify-between: with flex, the month
+    // selector only sits between two *different-width* sides and drifts off
+    // the true centre — the two 1fr gutters keep it optically centred on
+    // mobile (logo | month | actions) and on desktop alike.
+    return (
+      <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-3 justify-self-start">
         {/* Mobile Logo — the wordmark only fits alongside the month pill and
             the action buttons from ~440px; below that keep just the icon. */}
         <div className="md:hidden flex min-w-0 items-center gap-2">
@@ -107,11 +111,27 @@ export function DashboardHeader() {
         <h1 className="hidden md:block font-headline-md text-headline-md font-extrabold text-on-surface capitalize">
           {getLocalizedProfilePageTitle(pathname, m) ?? (activeItem ? getLocalizedNavTitle(activeItem, m) : m.navigation.dashboardOverview)}
         </h1>
+
+        {/* Search — anchored to the left edge (next to the logo on mobile, the
+            page title on desktop) so the right side keeps only alerts + profile
+            and the month pill stays the visual focus of the header. */}
+        <Link
+          href="/dashboard/search"
+          prefetch={true}
+          aria-label={m.search.open}
+          title={m.search.title}
+          aria-current={activeScreen === 'search' ? 'page' : undefined}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+            activeScreen === 'search' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant'
+          }`}
+        >
+          <AppIcon name="search" className="text-[18px]" />
+        </Link>
       </div>
 
-      {/* Center Month Selector */}
+      {/* Center Month Selector — true-centred by the grid gutter above */}
       <div
-        className="flex shrink-0 items-center gap-0.5 sm:gap-1 bg-surface-container px-1 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant"
+        className="flex shrink-0 items-center gap-0.5 sm:gap-1 bg-surface-container px-1 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant min-w-0"
         title={
           budgetStartDay && budgetStartDay > 1
             ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(budgetStartDay, language, intlLocale)})`
@@ -172,7 +192,7 @@ export function DashboardHeader() {
       </div>
 
       {/* Header Action Tools */}
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 justify-self-end">
         <button
           type="button"
           onClick={syncState === 'failed' ? retrySync : undefined}
@@ -202,19 +222,6 @@ export function DashboardHeader() {
               : null
           }
         />
-
-        <Link
-          href="/dashboard/search"
-          prefetch={true}
-          aria-label={m.search.open}
-          title={m.search.title}
-          aria-current={activeScreen === 'search' ? 'page' : undefined}
-          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-            activeScreen === 'search' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant'
-          }`}
-        >
-          <AppIcon name="search" className="text-[18px]" />
-        </Link>
 
         {canAddExpense && <button
           onClick={() => openExpenseModal()}
