@@ -14,7 +14,7 @@ import { postCourseSession } from '@/lib/db';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
-import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
+import { addVariableExpense, type CourseSession, type MoneyPlace, type ProductRanking, type VariableExpense } from '@/lib/store';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
@@ -23,6 +23,8 @@ import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { CoursesLabelAccordion } from '../courses/courses-label-accordion';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
+import { RankingChip } from '@/components/ui/ranking-chip';
+import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { useDashboard } from '../dashboard-provider';
 
 /** A resolved (or to-be-entered) product waiting for its price. */
@@ -35,10 +37,14 @@ interface PendingProduct {
   imageUrl?: string;
   /** Full INCI list when the remote record had one (cosmetics). */
   ingredientsText?: string;
+  /** Pack size / net content when the source exposes it (e.g. "1 L"). */
+  quantity?: string;
   /** Where the metadata came from (drives the helper label). */
   source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
   ma: boolean;
+  /** Nutri-Score ranking, when the source provides one. */
+  ranking?: ProductRanking;
 }
 
 /**
@@ -111,7 +117,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 
 function CoursesScreenInner() {
   const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
-  const { t, messages: m, intlLocale } = useLanguage();
+  const { t, messages: m, intlLocale, language } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
   const { workspace, household, canEdit } = useHousehold();
@@ -131,6 +137,7 @@ function CoursesScreenInner() {
   const [pendingQty, setPendingQty] = useState(1);
   const [pendingPrice, setPendingPrice] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'info' | 'warn'; text: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [manualName, setManualName] = useState('');
@@ -176,8 +183,10 @@ function CoursesScreenInner() {
     }
 
     setResolving(true);
+    // Show the code in the loading card so the user can verify the read.
+    setResolvingCode(scannedBarcode ?? (raw.replace(/[^0-9]/g, '') || null));
     try {
-      const result = await store.resolveBarcode(raw);
+      const result = await store.resolveBarcode(raw, { lang: language });
       if (!result.ok) {
         setNotice({ kind: 'warn', text: c.codeInvalid });
         openPending({ name: '', source: 'manual', ma: false });
@@ -186,15 +195,14 @@ function CoursesScreenInner() {
       const { barcode, resolution } = result;
       const ma = isMoroccanBarcode(barcode);
       if (resolution.kind === 'found') {
-        setNotice({
-          kind: 'info',
-          text:
-            resolution.source === 'catalog'
-              ? c.fromCatalog
-              : resolution.source === 'seed'
-                ? c.fromSeed
-                : c.fromOff,
-        });
+        // A catalog hit is silent: the pending card opening is the feedback,
+        // and "From your product catalog" was just noise on every re-scan.
+        if (resolution.source !== 'catalog') {
+          setNotice({
+            kind: 'info',
+            text: resolution.source === 'seed' ? c.fromSeed : c.fromOff,
+          });
+        }
         openPending({
           barcode,
           name: resolution.product.name,
@@ -202,6 +210,8 @@ function CoursesScreenInner() {
           category: resolution.product.category,
           imageUrl: resolution.product.imageUrl,
           ingredientsText: resolution.product.ingredientsText,
+          quantity: resolution.product.quantity,
+          ranking: resolution.product.ranking,
           source: resolution.source,
           ma,
         });
@@ -223,6 +233,7 @@ function CoursesScreenInner() {
       }
     } finally {
       setResolving(false);
+      setResolvingCode(null);
     }
   };
 
@@ -250,6 +261,7 @@ function CoursesScreenInner() {
       category: pending.category,
       unitPrice: price,
       qty: pendingQty,
+      ranking: pending.ranking,
       ...(ingredientsText ? { ingredientsText } : {}),
     });
     setPending(null);
@@ -465,10 +477,14 @@ function CoursesScreenInner() {
               onSkip={() => setPending(null)}
             />
           ) : resolving ? (
-            <div className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-low p-5 font-body-md text-body-md text-on-surface-variant">
-              <AppIcon name="search" className="animate-pulse size-5 text-primary" />
-              {m.common.loading}
-            </div>
+            <ScanLookupCard
+              code={resolvingCode ?? undefined}
+              labels={{
+                searching: c.lookupSearching,
+                slowHint: c.lookupSlowHint,
+                verySlowHint: c.lookupVerySlowHint,
+              }}
+            />
           ) : (
             /* Name-only entry (produce, no barcode) — always free */
             <form
@@ -546,8 +562,9 @@ function CoursesScreenInner() {
               {active.items.map((line) => (
                 <li key={line.key} className="flex items-center gap-3 p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 truncate font-body-md text-body-md font-semibold text-on-surface">
-                      {line.name}
+                    <p className="flex items-center gap-2 font-body-md text-body-md font-semibold text-on-surface">
+                      <span className="min-w-0 truncate">{line.name}</span>
+                      <RankingChip ranking={line.ranking} />
                       {line.barcode && isMoroccanBarcode(line.barcode) && (
                         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-sm text-label-sm text-primary">
                           {c.maBadge}
@@ -555,6 +572,7 @@ function CoursesScreenInner() {
                       )}
                     </p>
                     <p className="font-label-sm text-label-sm text-on-surface-variant">
+                      {line.category && <span>{line.category} · </span>}
                       {formatCurrency(line.unitPrice, active.currency, intlLocale)} / {c.unit}
                     </p>
                   </div>
@@ -763,10 +781,15 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
               className="bg-surface font-semibold"
             />
           ) : (
-            <p className="truncate font-headline-sm text-headline-sm text-on-surface">{pending.name}</p>
+            <p className="flex min-w-0 items-center gap-1.5 font-headline-sm text-headline-sm text-on-surface">
+              <span className="min-w-0 truncate">{pending.name}</span>
+              <RankingChip ranking={pending.ranking} />
+            </p>
           )}
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-label-sm text-label-sm text-on-surface-variant">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-label-sm text-label-sm text-on-surface-variant">
             {pending.brand && <span>{pending.brand}</span>}
+            {pending.category && <span>{pending.category}</span>}
+            {pending.quantity && <span dir="ltr">{pending.quantity}</span>}
             {pending.barcode && <span dir="ltr">{pending.barcode}</span>}
             {pending.ma && (
               <span className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{c.maBadge}</span>

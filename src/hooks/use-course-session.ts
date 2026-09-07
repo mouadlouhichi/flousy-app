@@ -26,7 +26,7 @@ import {
 } from '@/lib/course-session';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { lookupMaSeed } from '@/lib/ma-product-seed';
-import type { CourseSession, MoneyPlace, Product } from '@/lib/store';
+import type { CourseSession, MoneyPlace, Product, ProductRanking } from '@/lib/store';
 
 const CATALOG_KEY = 'smartjib_course_catalog';
 const SESSIONS_KEY = 'smartjib_course_sessions';
@@ -228,6 +228,7 @@ export function useCourseSession(uid: string | null | undefined) {
       category?: string;
       unitPrice: number;
       qty?: number;
+      ranking?: ProductRanking;
       /** INCI list to persist on the catalog product (cosmetics). */
       ingredientsText?: string;
     }) => {
@@ -252,6 +253,10 @@ export function useCourseSession(uid: string | null | undefined) {
           priceUpdatedAt: nowIso,
           source: existing?.source ?? 'session',
           ...(existing?.origin ? { origin: existing.origin } : {}),
+          // The newest non-empty ranking wins (catalog entries are upgraded as
+          // sources start exposing a grade); an old grade is never clobbered
+          // by a newer lookup that happens to lack one.
+          ...(input.ranking ? { ranking: { ...input.ranking } } : existing?.ranking ? { ranking: existing.ranking } : {}),
           createdAt: existing?.createdAt ?? nowIso,
           updatedAt: nowIso,
         });
@@ -260,16 +265,18 @@ export function useCourseSession(uid: string | null | undefined) {
     [catalog, mutateActive, upsertProduct],
   );
 
-  /** Resolve raw scanner/manual input through the catalog → remote cascade. */
+  /** Resolve raw scanner/manual input through the catalog → remote cascade.
+   *  `lang` lets the remote source prefer the name in the UI language. */
   const resolveBarcode = useCallback(
-    async (raw: string): Promise<BarcodeScanResult> => {
+    async (raw: string, opts?: { lang?: string }): Promise<BarcodeScanResult> => {
       const { barcode } = normalizeBarcode(raw);
       if (!barcode) return { ok: false, reason: 'invalid-code' };
       const resolution = await resolveProduct({
         barcode,
         catalog,
+        lang: opts?.lang,
         lookupSeed: lookupMaSeed,
-        lookupRemote: lookupOffProduct,
+        lookupRemote: (code, lang) => lookupOffProduct(code, lang ? { lang } : undefined),
       });
       return { ok: true, barcode, resolution };
     },

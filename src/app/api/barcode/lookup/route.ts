@@ -6,14 +6,11 @@ import { fetchVendorInci, fetchVendorProduct, isVendorConfigured } from '@/lib/s
 /**
  * Barcode lookup proxy — Open Food Facts family, server-side fetch.
  *
- * The client tries the OFF/OBF APIs directly first; this route is the
- * fallback when the browser cannot reach them (CORS policies, restrictive
- * networks), and the enrichment point for cosmetics whose crowd-sourced
- * record has no INCI list yet.
- *
- * Ordering: world OFF → Morocco OFF → world OBF → French OBF (the biggest
- * European cosmetics mirror, which covers the French brands common on
- * Moroccan shelves) → world Open Products Facts.
+ * The client tries the OFF world API directly first; this route is the
+ * fallback when the browser cannot reach it (CORS policies, restrictive
+ * networks) and the authoritative multi-host walk (world food → Morocco food
+ * → world beauty → French beauty → world products) so products that only
+ * exist on a localized or beauty mirror still resolve.
  *
  * Enrichment (only when INCI_API_KEY is configured — see
  * src/lib/server/vendor-inci.ts):
@@ -39,7 +36,8 @@ const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
 ];
 const FIELDS =
   'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
-  'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar';
+  'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
+  'nutriscore_grade,nutriscore_score';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,28 +73,15 @@ function cacheSet(key: string, body: unknown): void {
  * burns the full per-request timeout before the next is tried — so one client
  * can hold an edge function for tens of seconds at a time. The route is
  * unauthenticated by design (it returns public product data, no user data),
- * which makes a per-IP budget plus one shared deadline the only bound.
+ * which makes a per-IP budget plus one shared deadline the only bound on that
+ * cost.
+ *
+ * The budget goes through the SHARED limiter: a private per-instance `Map`
+ * meant 60/min *per lambda*, reset on every cold start, and it never became
+ * durable when Upstash was configured for the other routes.
  */
 const LOOKUPS_PER_MINUTE = 60;
 const GLOBAL_DEADLINE_MS = 12_000;
-
-type OffProduct = Record<string, unknown>;
-
-function hasInciText(product: OffProduct | null | undefined): boolean {
-  if (!product) return false;
-  return (
-    ['ingredients_text', 'ingredients_text_en', 'ingredients_text_fr', 'ingredients_text_es', 'ingredients_text_ar']
-      .some((key) => {
-        const value = product[key];
-        return typeof value === 'string' && value.trim().length > 0;
-      })
-  );
-}
-
-function attachInci(product: OffProduct, inciText: string): void {
-  product.ingredients_text = inciText;
-  if (!product.ingredients_text_en) product.ingredients_text_en = inciText;
-}
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -128,42 +113,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cached);
   }
 
-  let notFound = false;
-  const deadline = AbortSignal.timeout(GLOBAL_DEADLINE_MS);
+  const walk = await walkOffHosts(code);
 
-  for (const { base, beauty } of OFF_HOSTS) {
-    if (deadline.aborted) break;
-    try {
-      const res = await fetch(`${base}${code}.json?fields=${FIELDS}`, {
-        // The shorter of the per-host grace and the request-wide deadline, so a
-        // slow host cannot stretch one lookup past six sequential timeouts.
-        signal: AbortSignal.any([AbortSignal.timeout(6000), deadline]),
-        headers: { 'User-Agent': 'SmartJib (course session product lookup)' },
-      });
-      if (!res.ok) continue;
-      const body = (await res.json()) as { status?: number; product?: OffProduct };
-      if (body && body.status === 1 && body.product) {
-        const product = body.product;
-        // A beauty mirror hit that lacks INCI text → ask the vendor to fill it
-        // (no-op when no vendor key is configured).
-        if (beauty && !hasInciText(product) && isVendorConfigured()) {
-          const inci = await fetchVendorInci(code);
-          if (inci) attachInci(product, inci);
-        }
-        const payload = { status: 1, found: true, product };
-        cacheSet(code, payload);
-        return NextResponse.json(payload);
-      }
-      if (body && typeof body.status === 'number') notFound = true;
-    } catch {
-      /* try the next host */
+  if (walk.kind === 'found') {
+    const product = walk.product;
+    // A beauty-mirror hit that lacks an INCI list → ask the vendor to fill it
+    // (no-op when no vendor key is configured). Food pages carry real
+    // ingredient lists, so only genuinely INCI-less cosmetics records trip it.
+    if (walk.beauty && isVendorConfigured() && !hasInciText(product)) {
+      const inci = await fetchVendorInci(code);
+      if (inci) attachInci(product, inci);
     }
+    const payload = { status: 1, found: true, product };
+    cacheSet(code, payload);
+    return NextResponse.json(payload);
   }
-
-  // Last resort before manual entry: nobody in the OFF family knew the code,
-  // so ask the vendor whether it has the product (name + INCI).
-  if (notFound && isVendorConfigured()) {
-    try {
+  if (walk.kind === 'not-found') {
+    // Definitive OFF-family miss — but when a vendor is configured it may
+    // still know the code (name + INCI), so it is the last stop before we
+    // cache a miss for the next five minutes.
+    if (isVendorConfigured()) {
       const vendor = await fetchVendorProduct(code);
       if (vendor) {
         const payload = {
@@ -179,19 +148,105 @@ export async function GET(request: NextRequest) {
         cacheSet(code, payload);
         return NextResponse.json(payload);
       }
-    } catch {
-      /* fall through to not-found */
     }
-  }
-
-  if (notFound) {
     const payload = { status: 0, found: false, product: null };
     cacheSet(code, payload);
     return NextResponse.json(payload);
   }
-
+  // `incomplete` / `failed` are NOT cached: they are retryable, and caching
+  // them would turn a one-off upstream hiccup into a five-minute false
+  // "not found" (the first-scan bug).
   return NextResponse.json(
-    { status: 0, found: false, product: null, error: 'lookup failed' },
+    {
+      status: 0,
+      found: false,
+      product: null,
+      error: walk.kind === 'incomplete' ? 'lookup incomplete' : 'lookup failed',
+    },
     { status: 502 },
   );
+}
+
+type OffProduct = Record<string, unknown>;
+
+function hasInciText(product: OffProduct | null | undefined): boolean {
+  if (!product) return false;
+  return (
+    ['ingredients_text', 'ingredients_text_en', 'ingredients_text_fr', 'ingredients_text_es', 'ingredients_text_ar']
+      .some((key) => {
+        const value = product[key];
+        return typeof value === 'string' && value.trim().length > 0;
+      })
+  );
+}
+
+function attachInci(product: OffProduct, inciText: string): void {
+  product.ingredients_text = inciText;
+  if (!product.ingredients_text_en) product.ingredients_text_en = inciText;
+}
+
+export type OffWalkResult =
+  | { kind: 'found'; product: Record<string, unknown>; beauty?: boolean }
+  /** Every instance answered and none carried the code — safe to cache. */
+  | { kind: 'not-found' }
+  /** Some instances answered "no" but others failed to answer — retryable. */
+  | { kind: 'incomplete' }
+  /** No instance answered at all — retryable. */
+  | { kind: 'failed' };
+
+/**
+ * Walk every Open Food Facts instance for a code.
+ *
+ * "not-found" is only definitive when EVERY instance actually answered. If
+ * one was down/slow (e.g. the beauty instance 500s once), it may be the one
+ * that carries the product — the walk then reports `incomplete`, which the
+ * route answers with a retryable 502 instead of a cached false negative.
+ * (First-scan bug: world food answered status 0 while beauty failed, so the
+ * walk concluded "not found" and cached it; every retry in the window kept
+ * serving the cached miss until a fresh scan on another instance re-walked
+ * the hosts.)
+ */
+export async function walkOffHosts(
+  code: string,
+  opts?: { deadlineMs?: number; perHostMs?: number },
+): Promise<OffWalkResult> {
+  const deadlineMs = opts?.deadlineMs ?? GLOBAL_DEADLINE_MS;
+  const perHostMs = opts?.perHostMs ?? 6000;
+  let notFound = false;
+  let hostFailures = 0;
+  const deadline = AbortSignal.timeout(deadlineMs);
+
+  for (const { base, beauty } of OFF_HOSTS) {
+    if (deadline.aborted) break;
+    try {
+      const res = await fetch(`${base}${code}.json?fields=${FIELDS}`, {
+        // The shorter of the per-host grace and the request-wide deadline, so a
+        // slow host cannot stretch one lookup past five sequential timeouts.
+        signal: AbortSignal.any([AbortSignal.timeout(perHostMs), deadline]),
+        headers: { 'User-Agent': 'SmartJib (course session product lookup)' },
+      });
+      if (!res.ok) {
+        hostFailures += 1;
+        continue;
+      }
+      const body = (await res.json()) as { status?: number; product?: Record<string, unknown> };
+      if (body && body.status === 1 && body.product) {
+        return { kind: 'found', product: body.product, ...(beauty ? { beauty: true } : {}) };
+      }
+      if (body && typeof body.status === 'number') {
+        notFound = true;
+      } else {
+        hostFailures += 1; // 200 but malformed — not a definitive answer
+      }
+    } catch {
+      hostFailures += 1;
+      /* try the next host */
+    }
+  }
+  // A deadline abort means the remaining hosts never got to answer.
+  if (deadline.aborted) hostFailures += 1;
+
+  if (notFound && hostFailures === 0) return { kind: 'not-found' };
+  if (notFound) return { kind: 'incomplete' };
+  return { kind: 'failed' };
 }

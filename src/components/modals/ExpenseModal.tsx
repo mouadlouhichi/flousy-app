@@ -7,6 +7,7 @@ import { CustomTextarea } from '../ui/CustomTextarea';
 import { ChoiceChips } from '../ui/choice-chips';
 import { CustomInput } from '../ui/CustomInput';
 import { ExpenseBarcodeScanner } from './expense-barcode-scanner';
+import { unlockScanAudio } from '../ui/barcode-scanner-panel';
 import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
@@ -413,7 +414,7 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+              className="keep-font-40 bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
@@ -612,7 +613,11 @@ export function ExpenseModal({
           ) : (
             <button
               type="button"
-              onClick={() => setScannerOpen(true)}
+              onClick={() => {
+                // Prime Web Audio on this gesture so the scan beep can play.
+                unlockScanAudio();
+                setScannerOpen(true);
+              }}
               className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface px-3 py-2.5 text-xs font-bold text-on-surface-variant hover:bg-surface-variant/30"
             >
               <AppIcon name="scan_barcode" className="text-[18px] text-primary" />

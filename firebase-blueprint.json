@@ -493,6 +493,9 @@
           "minimum": 0,
           "maximum": 1000000000,
           "description": "round2(unitPrice * qty) — stored, never re-derived"
+        },
+        "ranking": {
+          "$ref": "#/definitions/ProductRanking"
         }
       },
       "required": [
@@ -628,6 +631,27 @@
         }
       },
       "title": "PushSubscriptionRecord"
+    },
+    "ProductRanking": {
+      "title": "ProductRanking",
+      "description": "A product's quality ranking captured from Open Food Facts — the Nutri-Score letter grade (a-e) with the 0-100 score when known.",
+      "type": "object",
+      "properties": {
+        "grade": {
+          "type": "string",
+          "pattern": "^[a-e]$",
+          "description": "Nutri-Score letter grade, lower-case"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "0-100 points, when the source exposes them"
+        }
+      },
+      "required": [
+        "grade"
+      ]
     }
   },
   "entities": {
@@ -1509,6 +1533,9 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "ranking": {
+          "$ref": "#/definitions/ProductRanking"
         }
       },
       "required": [

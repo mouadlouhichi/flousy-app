@@ -57,7 +57,7 @@ export function KnowledgeScreen() {
       barcode,
       catalog: [],
       lookupSeed: lookupMaSeed,
-      lookupRemote: lookupOffProduct,
+      lookupRemote: (code, lang) => lookupOffProduct(code, lang ? { lang } : undefined),
     });
     if (resolution.kind === 'found') {
       setLookup({ status: 'found', product: { ...resolution.product, barcode } });
