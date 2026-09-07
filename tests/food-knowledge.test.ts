@@ -29,6 +29,19 @@ describe('food-knowledge lists', () => {
     assert.equal(lookupAdditive('caramel')?.code, 'E150');
     assert.equal(lookupAdditive('persil'), null);
   });
+
+  it('reads Dutch additive names — also when nested in a compound token', () => {
+    assert.equal(lookupAdditive('mononatriumglutamaat')?.code, 'E621');
+    assert.equal(lookupAdditive('natriumguanylaat')?.code, 'E627');
+    assert.equal(lookupAdditive('dinatriuminosinaat')?.code, 'E631');
+    assert.equal(lookupAdditive('citroenzuur')?.code, 'E330');
+    assert.equal(lookupAdditive('kleurstof (annatto norbixine)')?.code, 'E160b');
+    // The seasoning sub-list names are inside one parenthesised token; the
+    // first additive found on the label wins (single chip per row).
+    const season =
+      'paprikakruiderij (suiker, smaakversterkers {mononatriumglutamaat}, zoet weipoeder MELK)';
+    assert.equal(lookupAdditive(season)?.code, 'E621');
+  });
 });
 
 describe('food knowledge engine', () => {
@@ -197,5 +210,39 @@ describe('water composition analysis (products like Sidi Ali)', () => {
     assert.equal(r.recognized, r.total);
     assert.equal(r.ingredients.find((i) => i.family === 'water')?.raw, 'Eau gazeuse');
     assert.equal(r.additives.length, 1);
+  });
+});
+
+describe('recognising more ingredients (Dutch / imported labels)', () => {
+  it('recognises the Dutch crisps label end-to-end (10/10)', () => {
+    const r = analyzeFoodText(
+      [
+        'Gedehydrateerde aardappelen',
+        'zonnebloemolie',
+        'TARWEMEEL',
+        'maïsmeel',
+        'rijstbloem',
+        'paprikakruiderij (suiker, paprikapoeder, smaakversterkers {mononatriumglutamaat, natriumguanylaat, dinatriuminosinaat}, dextrose, gistpoeder, uienpoeder, zout, gegranuleerde bouillon {zout, gehydrolyseerd plantaardig eiwit, zonnebloemolie}, aroma\'s, knoflookpoeder, kleurstof {paprika-extract}, voedingszuur {citroenzuur}, zoet weipoeder MELK)',
+        'maltodextrine',
+        'emulgator (E471)',
+        'zout',
+        'kleurstof (annatto norbixine)',
+      ].join(', '),
+    );
+    assert.equal(r.total, 10);
+    assert.equal(r.recognized, 10);
+    assert.equal(r.coverage, 1);
+    assert.deepEqual(r.unknownNames, []);
+    assert.ok(r.allergenGroups.includes('gluten'), 'wheat flour is gluten');
+    assert.ok(r.allergenGroups.includes('milk'), 'sweet whey powder / MELK is milk');
+    const codes = r.additives.map((a) => a.code);
+    assert.ok(codes.includes('E621'));
+    assert.ok(codes.includes('E471'));
+    assert.ok(codes.includes('E160b'));
+    const families = r.ingredients.map((i) => i.family);
+    assert.deepEqual(
+      [families[0], families[1], families[2], families[3], families[4], families[8]],
+      ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal', 'salt'],
+    );
   });
 });

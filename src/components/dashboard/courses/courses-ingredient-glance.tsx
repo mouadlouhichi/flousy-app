@@ -33,7 +33,7 @@ type GlanceState =
   | { status: 'ready'; analysis: ProductAssessment }
   | { status: 'unavailable' };
 
-const BAND_STYLE: Record<Band, { chip: string; text: string; ring: string }> = {
+export const BAND_STYLE: Record<Band, { chip: string; text: string; ring: string }> = {
   excellent: {
     chip: 'bg-emerald-600 text-white',
     text: 'text-emerald-700 dark:text-emerald-400',
@@ -71,7 +71,7 @@ const TIER_LABEL_KEY: Record<RiskTier, keyof GlanceMessages> = {
   clean: 'bandClean',
 };
 
-const BAND_LABEL_KEY: Record<Band, keyof GlanceMessages> = {
+export const BAND_LABEL_KEY: Record<Band, keyof GlanceMessages> = {
   excellent: 'bandExcellent',
   good: 'bandGood',
   moderate: 'bandModerate',

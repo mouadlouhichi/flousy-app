@@ -19,11 +19,9 @@ import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
-import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
-import { CoursesFoodPanel } from '../courses/courses-food-panel';
-import { detectLabelDomain } from '@/lib/food-knowledge/domain';
+import { CoursesLabelAccordion } from '../courses/courses-label-accordion';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { useDashboard } from '../dashboard-provider';
 
@@ -738,25 +736,6 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
   const c = m.courses;
   const needsName = pending.source === 'manual';
 
-  // Label-knowledge section (INCI for cosmetics, food knowledge for food).
-  // Kept behind an accordion so quantity/price — the actual goal of this
-  // step — stay immediately visible; the panel is one tap away.
-  const showKnowledge = Boolean(pending.barcode || pending.ingredientsText?.trim());
-  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
-  const [seenPending, setSeenPending] = useState(pending);
-  useEffect(() => {
-    // A new scanned product reuses this card instance — start collapsed again.
-    if (seenPending !== pending) {
-      setSeenPending(pending);
-      setKnowledgeOpen(false);
-    }
-  }, [pending, seenPending]);
-  const knowledgeDomain = detectLabelDomain({
-    category: pending.category,
-    name: needsName ? undefined : pending.name,
-    ingredientsText: pending.ingredientsText,
-  });
-
   return (
     <div className="rounded-3xl border border-primary/40 bg-primary-container/40 p-4 md:p-5">
       <div className="flex items-start gap-3">
@@ -832,54 +811,16 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </div>
       </div>
 
-      {/* Label-knowledge accordion — domain-aware. Cosmetics (OBF/INCI) get the
-          INCI score panel; food labels (OFF `ingredients_text`, manual paste)
-          get the food-knowledge panel. Unknown domains default to food (the
-          grocery context); cosmetic scans carry a beauty mirror category or an
-          INCI-looking list and are detected as such. Collapsed by default so
-          the card never drowns the add step in analysis panels. */}
-      {showKnowledge && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setKnowledgeOpen((v) => !v)}
-            aria-expanded={knowledgeOpen}
-            aria-controls="pending-label-knowledge"
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-outline-variant bg-surface/40 px-3 py-2 font-label-md text-label-md font-semibold text-on-surface transition-colors hover:bg-surface/70"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <AppIcon
-                name={knowledgeDomain === 'cosmetic' ? 'science' : 'menu_book'}
-                className="size-4 shrink-0 text-primary"
-              />
-              <span className="truncate">{c.labelInfo}</span>
-            </span>
-            <AppIcon
-              name="expand_more"
-              className={'size-4 shrink-0 text-on-surface-variant transition-transform duration-200 ' + (knowledgeOpen ? 'rotate-180' : '')}
-            />
-          </button>
-          {knowledgeOpen && (
-            <div id="pending-label-knowledge" className="mt-2">
-              {knowledgeDomain === 'cosmetic' ? (
-                <CoursesIngredientPanel
-                  barcode={pending.barcode}
-                  initialText={pending.ingredientsText}
-                  name={needsName ? undefined : pending.name}
-                  category={pending.category}
-                />
-              ) : (
-                <CoursesFoodPanel
-                  barcode={pending.barcode}
-                  initialText={pending.ingredientsText}
-                  name={needsName ? undefined : pending.name}
-                  category={pending.category}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Label-knowledge accordion — domain-aware preview + expandable panel.
+          Cosmetics get the INCI score ring + glance; food gets the coverage
+          hook + food-knowledge panel (incl. the mineral-water view). */}
+      <CoursesLabelAccordion
+        barcode={pending.barcode}
+        name={needsName ? undefined : pending.name}
+        category={pending.category}
+        ingredientsText={pending.ingredientsText}
+        needsName={needsName}
+      />
     </div>
   );
 }

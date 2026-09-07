@@ -12,6 +12,7 @@ import type {
 } from '@/lib/food-knowledge/types';
 import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
+import { foldForMatch } from '@/lib/food-knowledge/lists';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -214,6 +215,10 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   }
 
   const { allergens, additives, ingredients } = analysis;
+  // Deep-search answers keyed by folded raw name, so they attach to the row.
+  const externalByFolded = new Map(
+    analysis.external.map((e) => [foldForMatch(e.name), e]),
+  );
   const allergenGroups = allergens.length > 0 ? [...new Set(allergens.map((a) => a.group))] : [];
   const showAdditives = additives.length > 0;
   const watch = additives.filter((a) => a.band === 'watch');
@@ -224,7 +229,6 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   const hasItems = analysis.total > 0;
   const nothingKnown = hasItems && analysis.recognized === 0;
   const allKnown = hasItems && analysis.coverage >= 1;
-  const partial = hasItems && !allKnown && !nothingKnown;
 
   return (
     <div className="mt-3 space-y-3">
@@ -354,9 +358,18 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
       {/* Per-ingredient knowledge */}
       <section>
         <h4 className="font-label-sm text-label-sm font-semibold text-on-surface">{g.detailsTitle}</h4>
+        {analysis.external.length > 0 && (
+          <p className="mt-1 flex items-start gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
+            <AppIcon name="public" className="mt-0.5 size-3.5 shrink-0" />
+            {g.externalIntro}
+          </p>
+        )}
         <ul className="mt-1.5 divide-y divide-outline-variant/70 overflow-hidden rounded-xl border border-outline-variant bg-surface/50">
           {ingredients.map((item) => {
             const unknown = !item.recognized;
+            // Deep-search answers (key-gated, attributed) attach to the exact
+            // unrecognized row they explain — informational only.
+            const externalEntry = unknown ? externalByFolded.get(item.normalized) : undefined;
             return (
               <li key={item.index} className="px-3 py-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -376,38 +389,30 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                       <span dir="ltr">{item.additive.code}</span>
                     </Chip>
                   )}
-                  {/* When NOTHING on the list matched, a per-row 'not recognized' chip
-                      would just repeat the banner above — keep the rows quiet. */}
-                  {unknown && !nothingKnown && (
+                  {/* When an external answer explains this row, the 'not
+                      recognized' tag would only add noise — the attributed
+                      summary below IS the extra knowledge. When NOTHING on the
+                      list matched, chips would repeat the banner; keep quiet. */}
+                  {unknown && !nothingKnown && !externalEntry && (
                     <Chip tone="unknown">{g.ingredientUnknown}</Chip>
                   )}
                 </div>
+                {externalEntry && (
+                  <div className="mt-1.5 rounded-lg bg-surface-container-high/60 px-2.5 py-2">
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      {externalEntry.summary}
+                    </p>
+                    <p className="mt-1 inline-flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant/90">
+                      <AppIcon name="public" className="size-3" />
+                      {g.externalSourceTag}: {externalEntry.source}
+                    </p>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </section>
-
-      {analysis.external.length > 0 && (
-        <details className="rounded-xl border border-dashed border-outline-variant bg-surface/40 p-3">
-          <summary className="cursor-pointer font-label-sm text-label-sm font-semibold text-primary">
-            {g.externalTitle} ({analysis.external.length})
-          </summary>
-          <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">{g.externalIntro}</p>
-          <ul className="mt-2 space-y-2">
-            {analysis.external.map((entry, i) => (
-              <li key={i} className="rounded-lg bg-surface/70 p-2.5">
-                <p className="font-body-sm text-body-sm font-semibold text-on-surface">{entry.name}</p>
-                <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">{entry.summary}</p>
-                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface-container-high px-2 py-0.5 font-label-sm text-label-sm text-on-surface-variant">
-                  <AppIcon name="public" className="size-3" />
-                  {g.externalSourceTag}: {entry.source}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
     </div>
   );
 }

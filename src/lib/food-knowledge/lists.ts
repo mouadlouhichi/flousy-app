@@ -55,6 +55,7 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
     terms: [
       'gluten', 'blé', 'froment', 'wheat', 'seigle', 'rye', 'orge', 'barley',
       'avoine', 'oats', 'épeautre', 'spelt', 'kamut', 'triticale',
+      'tarwe', 'rogge', 'haver', 'gerst',
     ],
     guard: [],
   },
@@ -66,7 +67,7 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
     guard: [],
   },
   eggs: {
-    terms: ['œuf', 'oeuf', 'egg', 'eggs', 'ovo', 'albumine', 'albumen', 'ovoproduit', 'jaune d’œuf'],
+    terms: ['œuf', 'oeuf', 'egg', 'eggs', 'ovo', 'albumine', 'albumen', 'ovoproduit', 'jaune d’œuf', 'ei', 'eieren', 'eigeel'],
     guard: [],
   },
   fish: {
@@ -91,6 +92,7 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'casein', 'caseinate', 'lactose', 'protéines du lait', 'protéines de lait',
       'milk protein', 'yaourt', 'yogurt', 'yoghurt', 'fromage', 'cheese', 'crème fraîche',
       'creme fraiche', 'lait de vache', 'lait écrémé', 'lait entier', 'lait en poudre',
+      'melk', 'weipoeder', 'wei', 'magere melkpoeder', 'volle melkpoeder',
     ],
     guard: ['crème de riz', 'crème de marron', 'crème de coco', 'cream cheese frosting'],
   },
@@ -177,7 +179,7 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E150', names: ['caramel', 'caramel e150', 'plain caramel'], band: 'neutral', role: 'colour' },
   { e: 'E153', names: ['noir végétal', 'vegetable carbon'], band: 'neutral', role: 'colour' },
   { e: 'E160', names: ['bêta-carotène', 'beta-carotene', 'carotènes'], band: 'neutral', role: 'colour' },
-  { e: 'E160b', names: ['rocou', 'annatto', 'norbixine'], band: 'neutral', role: 'colour' },
+  { e: 'E160b', names: ['rocou', 'annatto', 'norbixine', 'annatto norbixine'], band: 'neutral', role: 'colour' },
   { e: 'E171', names: ['dioxyde de titane', 'titanium dioxide', 'e171'], band: 'avoid', role: 'colour', notices: ['eu-banned'], note: 'No longer authorised as a food additive in the EU (2022).' },
   // Preservatives
   { e: 'E200', names: ['acide sorbique', 'sorbic acid'], band: 'neutral', role: 'preservative' },
@@ -224,12 +226,14 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E270', names: ['acide lactique', 'lactic acid'], band: 'neutral', role: 'acidity' },
   { e: 'E296', names: ['acide malique', 'malic acid'], band: 'neutral', role: 'acidity' },
   { e: 'E297', names: ['acide fumarique', 'fumaric acid'], band: 'neutral', role: 'acidity' },
-  { e: 'E330', names: ['acide citrique', 'citric acid'], band: 'neutral', role: 'acidity' },
+  { e: 'E330', names: ['acide citrique', 'citric acid', 'citroenzuur'], band: 'neutral', role: 'acidity' },
   { e: 'E331', names: ['citrate de sodium', 'sodium citrate'], band: 'neutral', role: 'acidity' },
   { e: 'E332', names: ['citrate de potassium', 'potassium citrate'], band: 'neutral', role: 'acidity' },
   { e: 'E500', names: ['carbonate de sodium', 'bicarbonate de sodium', 'sodium carbonate', 'sodium bicarbonate'], band: 'neutral', role: 'raising' },
   { e: 'E503', names: ['carbonate d’ammonium', 'ammonium carbonate'], band: 'neutral', role: 'raising' },
-  { e: 'E621', names: ['glutamate monosodique', 'monosodium glutamate', 'msg'], band: 'watch', role: 'flavour-enhancer' },
+  { e: 'E621', names: ['glutamate monosodique', 'monosodium glutamate', 'msg', 'mononatriumglutamaat'], band: 'watch', role: 'flavour-enhancer' },
+  { e: 'E627', names: ['natriumguanylaat', 'disodium guanylate', 'guanylate disodique'], band: 'watch', role: 'flavour-enhancer' },
+  { e: 'E631', names: ['dinatriuminosinaat', 'disodium inosinate', 'inosinate disodique'], band: 'watch', role: 'flavour-enhancer' },
   { e: 'E901', names: ['cire d’abeille', 'beeswax'], band: 'neutral', role: 'glazing' },
   { e: 'E904', names: ['gomme laque', 'shellac'], band: 'neutral', role: 'glazing' },
 ];
@@ -259,6 +263,21 @@ export function lookupAdditive(folded: string): AdditiveHit | null {
     const def = ADDITIVE_BY_CODE.get(eMatch[2].toLowerCase());
     if (def) return toHit(def, folded);
   }
+  // Compound tokens can nest an additive name inside parentheses/braces,
+  // e.g. "kleurstof (annatto norbixine)" or the seasoning sub-list of a chips
+  // label. Pick the additive that appears FIRST in the token (leftmost wins,
+  // ties broken by the longer alias) so the row shows the label's first
+  // additive instead of a raw "not recognized".
+  let best: { at: number; alias: string; def: AdditiveDef } | null = null;
+  for (const [alias, def] of ADDITIVE_ALIASES) {
+    if (alias.length < 4 || alias === foldForMatch(def.e)) continue;
+    const at = folded.indexOf(alias);
+    if (at === -1) continue;
+    if (!best || at < best.at || (at === best.at && alias.length > best.alias.length)) {
+      best = { at, alias, def };
+    }
+  }
+  if (best) return toHit(best.def, folded);
   return null;
 }
 
@@ -279,30 +298,30 @@ export const ADDITIVE_COUNT = ADDITIVES.length;
 // so "crème fraîche" beats "crème" and "lait écrémé" beats "lait".
 const ROWS: FoodKnowledgeRow[] = [
   { keys: ['lait de vache', 'lait de vache pasteurisé', 'lait entier', 'lait écrémé', 'lait demi-écrémé', 'lait en poudre', 'lait concentré'], family: 'dairy', allergens: ['milk'], roles: ['base'], note: 'Cow milk; source of dairy proteins, fat and lactose.' },
-  { keys: ['lait'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
+  { keys: ['lait', 'melk', 'melkpoeder'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
   { keys: ['crème fraîche', 'creme fraiche', 'crème fraîche pasteurisée', 'crème liquide', 'cream', 'crème entière'], family: 'dairy', allergens: ['milk'], roles: ['fat', 'texture'], note: 'Pasteurised dairy cream; contributes fat and mouthfeel.' },
   { keys: ['crème'], family: 'dairy', allergens: ['milk'], roles: ['fat'] },
-  { keys: ['lactosérum', 'lactoserum', 'petit-lait', 'whey', 'babeurre', 'buttermilk'], family: 'dairy', allergens: ['milk'], roles: ['by-product'] },
+  { keys: ['lactosérum', 'lactoserum', 'petit-lait', 'whey', 'babeurre', 'buttermilk', 'wei', 'weipoeder', 'zoet weipoeder', 'zoete wei'], family: 'dairy', allergens: ['milk'], roles: ['by-product'] },
   { keys: ['beurre', 'butter'], family: 'dairy', allergens: ['milk'], roles: ['fat'] },
   { keys: ['yaourt', 'yogurt', 'yoghurt', 'yaourt nature'], family: 'dairy', allergens: ['milk'], roles: ['culture'] },
   { keys: ['fromage blanc', 'fromage', 'cheese', 'fromage frais'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
   { keys: ['caséine', 'casein', 'lactose', 'protéines de lait'], family: 'dairy', allergens: ['milk'], roles: ['protein'] },
   { keys: ['ferments lactiques', 'lactic ferments', 'bactéries lactiques', 'ferments', 'cultures lactiques', 'lactic cultures'], family: 'culture', roles: ['ferment'], note: 'Live lactic bacteria used to acidify and flavour fermented dairy.' },
   { keys: ['présure', 'rennet', 'enzyme coagulante', 'coagulating enzyme'], family: 'other', roles: ['enzyme'], note: 'Coagulating enzyme (traditionally calf rennet, now often microbial).' },
-  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
-  { keys: ['sucre', 'sucre blanc', 'sugar', 'saccharose'], family: 'sugar', roles: ['sweetener'], note: 'Sucrose.' },
+  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride', 'zout', 'keukenzout', 'zeezout'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
+  { keys: ['sucre', 'sucre blanc', 'sugar', 'saccharose', 'suiker', 'witte suiker'], family: 'sugar', roles: ['sweetener'], note: 'Sucrose.' },
   { keys: ['sucre de canne', 'cane sugar'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['glucose', 'glucose syrup', 'sirop de glucose', 'dextrose', 'fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['miel', 'honey'], family: 'sugar', roles: ['sweetener', 'natural'] },
   { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
   { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
   { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
-  { keys: ['huile de tournesol', 'sunflower oil', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja'], family: 'fat-oil', roles: ['fat'] },
-  { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
+  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja'], family: 'fat-oil', roles: ['fat'] },
+  { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment', 'tarwebloem', 'tarwemeel', 'tarwezetmeel', 'volkorenmeel', 'tarwe'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['blé complet', 'whole wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['céréales', 'cereals', 'céréales complètes', 'wholegrain cereals'], family: 'cereal', roles: ['base'] },
-  { keys: ['riz', 'rice', 'farine de riz'], family: 'cereal', roles: ['base'] },
-  { keys: ['maïs', 'corn', 'farine de maïs'], family: 'cereal', roles: ['base'] },
+  { keys: ['riz', 'rice', 'farine de riz', 'rijst', 'rijstbloem', 'rijstmeel', 'rijstzetmeel'], family: 'cereal', roles: ['base'] },
+  { keys: ['maïs', 'corn', 'farine de maïs', 'mais', 'maismeel', 'maiszetmeel', 'maisbloem', 'maisvlokken'], family: 'cereal', roles: ['base'] },
   { keys: ['amidon', 'starch', 'amidon de maïs', 'fécule de pomme de terre', 'potato starch'], family: 'cereal', roles: ['texture'] },
   { keys: ['œuf', 'oeuf', 'egg', 'œufs', 'oeufs', 'jaune d’œuf', 'blanc d’œuf'], family: 'egg', allergens: ['eggs'], roles: ['protein', 'texture'] },
   { keys: ['arachide', 'peanut', 'cacahuète'], family: 'legume', allergens: ['peanuts'], roles: ['protein'] },
@@ -312,15 +331,15 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['sésame', 'sesame'], family: 'nut-seed', allergens: ['sesame'], roles: ['seed'] },
   { keys: ['graines de tournesol', 'sunflower seeds', 'graines de lin', 'flaxseed'], family: 'nut-seed', roles: ['seed'] },
   { keys: ['tomate', 'tomato', 'concentré de tomate', 'purée de tomate'], family: 'fruit-veg', roles: ['vegetable'] },
-  { keys: ['oignon', 'onion'], family: 'fruit-veg', roles: ['vegetable'] },
-  { keys: ['ail', 'garlic'], family: 'fruit-veg', roles: ['vegetable'] },
+  { keys: ['oignon', 'onion', 'ui', 'uien', 'uienpoeder', 'ui poeder'], family: 'fruit-veg', roles: ['vegetable'] },
+  { keys: ['ail', 'garlic', 'knoflook', 'knoflookpoeder'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['pomme', 'apple', 'jus de pomme', 'purée de pomme'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['banane', 'banana'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['fraise', 'strawberry'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['citron', 'lemon', 'jus de citron'], family: 'fruit-veg', roles: ['fruit', 'acidity'] },
   { keys: ['orange', 'orange juice', 'jus d’orange'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['raisin', 'grape'], family: 'fruit-veg', roles: ['fruit'] },
-  { keys: ['pomme de terre', 'potato'], family: 'fruit-veg', roles: ['vegetable'] },
+  { keys: ['pomme de terre', 'potato', 'aardappel', 'aardappelen', 'aardappelzetmeel', 'aardappelvlokken', 'aardappelmeel', 'gedehydrateerde aardappelen', 'gedroogde aardappelen'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['carotte', 'carrot'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['champignon', 'mushroom', 'champignons'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['lentilles', 'lentils', 'pois chiches', 'chickpeas', 'haricots', 'beans'], family: 'legume', roles: ['protein'] },
@@ -329,12 +348,14 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['poulet', 'chicken', 'volaille'], family: 'meat-fish', roles: ['protein'] },
   { keys: ['saumon', 'salmon', 'thon', 'tuna', 'cabillaud', 'cod', 'poisson', 'fish'], family: 'meat-fish', roles: ['protein'] },
   { keys: ['gélatine', 'gelatin'], family: 'other', roles: ['texture'], note: 'Usually of animal (bovine/porcine) origin.' },
+  { keys: ['plantaardig eiwit', 'gehydrolyseerd plantaardig eiwit', 'planteiwit', 'gehydrolyseerd eiwit', 'vegetable protein', 'hydrolyzed vegetable protein', 'hydrolysed vegetable protein'], family: 'other', roles: ['protein'], note: 'Protein of plant origin (EU phrase on savoury labels).' },
   { keys: ['vanille', 'vanilla', 'extrait de vanille', 'arôme naturel de vanille'], family: 'herb-spice', roles: ['flavour', 'natural'] },
   { keys: ['cacao', 'cocoa', 'cacao en poudre', 'chocolat', 'chocolate'], family: 'herb-spice', roles: ['flavour'] },
   { keys: ['poivre', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley'], family: 'herb-spice', roles: ['seasoning'] },
-  { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
+  { keys: ['paprikapoeder', 'paprikakruiderij', 'paprikamix'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants', 'aroma s', 'aromen', 'natuurlijke aroma s', 'natuurlijke aroma'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
   { keys: ['maltodextrine', 'maltodextrin'], family: 'cereal', roles: ['texture'] },
-  { keys: ['levure', 'yeast', 'levure de boulanger'], family: 'culture', roles: ['ferment'] },
+  { keys: ['levure', 'yeast', 'levure de boulanger', 'gist', 'gistpoeder', 'bakkersgist', 'brouwersgist'], family: 'culture', roles: ['ferment'] },
   { keys: ['son', 'bran', 'fibres', 'fibre'], family: 'cereal', roles: ['fibre'] },
   { keys: ['amidon modifié', 'modified starch'], family: 'cereal', roles: ['texture'] },
 ];

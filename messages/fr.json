@@ -2527,7 +2527,7 @@
     "familySalt": "Sel",
     "familySugar": "Sucre",
     "familyWater": "Eau",
-    "ingredientUnknown": "Non reconnu localement",
+    "ingredientUnknown": "Non reconnu",
     "pasteHelp": "Collez la liste d’ingrédients de l’étiquette, séparée par des virgules.",
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",
     "pastePlaceholder": "Exemple : lait entier, crème, ferments lactiques, présure, sel",

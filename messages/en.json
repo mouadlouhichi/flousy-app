@@ -2527,7 +2527,7 @@
     "familySalt": "Salt",
     "familySugar": "Sugar",
     "familyWater": "Water",
-    "ingredientUnknown": "Not recognized locally",
+    "ingredientUnknown": "Not recognized",
     "pasteHelp": "Paste the ingredient list from the label, separated by commas.",
     "pasteInvalid": "Enter at least one ingredient to analyze.",
     "pastePlaceholder": "Example: Whole milk, cream, lactic ferments, rennet, salt",
