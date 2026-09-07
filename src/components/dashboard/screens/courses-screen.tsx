@@ -187,15 +187,6 @@ function CoursesScreenInner() {
       const { barcode, resolution } = result;
       const ma = isMoroccanBarcode(barcode);
       if (resolution.kind === 'found') {
-        setNotice({
-          kind: 'info',
-          text:
-            resolution.source === 'catalog'
-              ? c.fromCatalog
-              : resolution.source === 'seed'
-                ? c.fromSeed
-                : c.fromOff,
-        });
         const product = resolution.product;
         const beautyIngredients =
           product.productKind === 'beauty' && product.ingredients && product.ingredients.length > 0
