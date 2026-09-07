@@ -44,15 +44,16 @@ describe('Dashboard navigation items', () => {
     assert.strictEqual(getVisibleNavItems(true).length, 5);
   });
 
-  it('gives the desktop sidebar courses and analytics, never profile', () => {
+  it('gives the desktop sidebar courses, analytics and knowledge, never profile', () => {
     const freeSidebar = getSidebarNavItems(false).map((item) => item.id);
     assert.ok(freeSidebar.includes('courses'), 'courses is a sidebar destination');
     assert.ok(!freeSidebar.includes('trends'), 'analytics stays Pro-gated');
+    assert.ok(!freeSidebar.includes('knowledge'), 'ingredient knowledge stays Pro-gated');
     assert.ok(!freeSidebar.includes('profile'), 'profile belongs to the footer');
 
     const proSidebar = getSidebarNavItems(true).map((item) => item.id);
     assert.deepEqual(proSidebar, [
-      'overview', 'fixed', 'variable', 'courses', 'savings', 'trends', 'debts',
+      'overview', 'fixed', 'variable', 'courses', 'knowledge', 'savings', 'trends', 'debts',
     ]);
   });
 

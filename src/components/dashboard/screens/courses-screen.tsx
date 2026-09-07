@@ -22,6 +22,8 @@ import { CoursesBill } from '../courses/courses-bill';
 import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
+import { CoursesFoodPanel } from '../courses/courses-food-panel';
+import { detectLabelDomain } from '@/lib/food-knowledge/domain';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { useDashboard } from '../dashboard-provider';
 
@@ -783,16 +785,31 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </button>
       </div>
 
-      {/* Ingredient panel — shows the score for cosmetics whose record came
-          with an INCI list, and offers the manual label-entry fallback (plus
-          per-device memory) when no source had the ingredients. */}
+      {/* Label-knowledge panel — domain-aware. Cosmetics (OBF/INCI) get the
+          INCI score panel; food labels (OFF `ingredients_text`, manual paste)
+          get the food-knowledge panel. Unknown domains default to food (the
+          grocery context); cosmetic scans carry a beauty mirror category or
+          an INCI-looking list and are detected as such. */}
       {pending.barcode || pending.ingredientsText?.trim() ? (
-        <CoursesIngredientPanel
-          barcode={pending.barcode}
-          initialText={pending.ingredientsText}
-          name={needsName ? undefined : pending.name}
-          category={pending.category}
-        />
+        detectLabelDomain({
+          category: pending.category,
+          name: needsName ? undefined : pending.name,
+          ingredientsText: pending.ingredientsText,
+        }) === 'cosmetic' ? (
+          <CoursesIngredientPanel
+            barcode={pending.barcode}
+            initialText={pending.ingredientsText}
+            name={needsName ? undefined : pending.name}
+            category={pending.category}
+          />
+        ) : (
+          <CoursesFoodPanel
+            barcode={pending.barcode}
+            initialText={pending.ingredientsText}
+            name={needsName ? undefined : pending.name}
+            category={pending.category}
+          />
+        )
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">

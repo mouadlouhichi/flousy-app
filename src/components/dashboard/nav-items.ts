@@ -9,6 +9,7 @@ export type DashboardScreenId =
   | 'savings'
   | 'trends'
   | 'debts'
+  | 'knowledge'
   | 'profile';
 
 export interface DashboardNavItem {
@@ -62,6 +63,16 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     hiddenFromNav: true,
   },
   {
+    id: 'knowledge',
+    href: '/dashboard/knowledge',
+    sidebarIcon: 'menu_book',
+    mobileIcon: 'menu_book',
+    // Reached from the desktop sidebar / course screen; pro-only label
+    // knowledge lives outside the five-slot mobile bar.
+    proOnly: true,
+    hiddenFromNav: true,
+  },
+  {
     id: 'savings',
     href: '/dashboard/savings',
     sidebarIcon: 'savings',
@@ -109,6 +120,7 @@ const NAVIGATION_LABEL_KEYS: Record<DashboardScreenId, keyof Messages['navigatio
   savings: 'savings',
   trends: 'trends',
   debts: 'debts',
+  knowledge: 'knowledge',
   profile: 'profile',
 };
 
@@ -121,6 +133,7 @@ const NAVIGATION_TITLE_KEYS: Record<DashboardScreenId, keyof Messages['navigatio
   savings: 'savingsGoals',
   trends: 'trendsAnalytics',
   debts: 'debtsCredits',
+  knowledge: 'knowledgeTitle',
   profile: 'profileAccount',
 };
 
