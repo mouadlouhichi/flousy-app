@@ -258,16 +258,18 @@ export function useCourseSession(uid: string | null | undefined) {
     [catalog, mutateActive, upsertProduct],
   );
 
-  /** Resolve raw scanner/manual input through the catalog → remote cascade. */
+  /** Resolve raw scanner/manual input through the catalog → remote cascade.
+   *  `lang` lets the remote source prefer the name in the UI language. */
   const resolveBarcode = useCallback(
-    async (raw: string): Promise<BarcodeScanResult> => {
+    async (raw: string, opts?: { lang?: string }): Promise<BarcodeScanResult> => {
       const { barcode } = normalizeBarcode(raw);
       if (!barcode) return { ok: false, reason: 'invalid-code' };
       const resolution = await resolveProduct({
         barcode,
         catalog,
+        lang: opts?.lang,
         lookupSeed: lookupMaSeed,
-        lookupRemote: lookupOffProduct,
+        lookupRemote: (code, lang) => lookupOffProduct(code, lang ? { lang } : undefined),
       });
       return { ok: true, barcode, resolution };
     },

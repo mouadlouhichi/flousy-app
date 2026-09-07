@@ -4,13 +4,14 @@ import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BarcodeScannerPanel, unlockScanAudio } from '@/components/ui/barcode-scanner-panel';
 import { RankingChip } from '@/components/ui/ranking-chip';
+import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { useLanguage } from '@/lib/i18n-context';
 import type { RemoteProductInfo } from '@/lib/course-session';
 
 type LookupState =
   | { kind: 'idle' }
-  | { kind: 'busy' }
+  | { kind: 'busy'; code: string }
   | { kind: 'missing'; code: string }
   | { kind: 'lookup-failed'; code: string }
   | { kind: 'found'; product: RemoteProductInfo; code: string };
@@ -29,12 +30,12 @@ interface ExpenseBarcodeScannerProps {
  * Nutri-Score ranking chip; the user confirms with "Use this product".
  */
 export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScannerProps) {
-  const { messages: m, t } = useLanguage();
+  const { messages: m, t, language } = useLanguage();
   const [lookup, setLookup] = useState<LookupState>({ kind: 'idle' });
 
   const handleCode = (code: string) => {
-    setLookup({ kind: 'busy' });
-    lookupOffProduct(code)
+    setLookup({ kind: 'busy', code });
+    lookupOffProduct(code, { lang: language })
       .then((outcome) => {
         if (outcome.kind === 'found') setLookup({ kind: 'found', product: outcome.product, code });
         // `error` (network/timeout/upstream) is retry-able and must NOT be
@@ -80,10 +81,15 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
       }
       status={
         lookup.kind === 'busy' ? (
-          <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 font-body-md text-body-md text-on-surface-variant">
-            <AppIcon name="search" className="animate-pulse size-5 text-primary" />
-            {m.barcode.lookingUp}
-          </div>
+          <ScanLookupCard
+            className="mt-3"
+            code={lookup.code}
+            labels={{
+              searching: m.barcode.lookingUp,
+              slowHint: m.courses.lookupSlowHint,
+              verySlowHint: m.courses.lookupVerySlowHint,
+            }}
+          />
         ) : found ? (
           <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/5 p-3.5">
             <div className="flex items-start gap-3">

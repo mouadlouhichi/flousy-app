@@ -22,6 +22,7 @@ import { CoursesBill } from '../courses/courses-bill';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { RankingChip } from '@/components/ui/ranking-chip';
+import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { useDashboard } from '../dashboard-provider';
 
 /** A resolved (or to-be-entered) product waiting for its price. */
@@ -112,7 +113,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (qty: number
 
 function CoursesScreenInner() {
   const { user, profile, isPro, openProModal, month, updateAndSaveMonth, currentMonthKey } = useDashboard();
-  const { t, messages: m, intlLocale } = useLanguage();
+  const { t, messages: m, intlLocale, language } = useLanguage();
   const c = m.courses;
   const store = useCourseSession(user?.uid ?? null);
   const { workspace, household, canEdit } = useHousehold();
@@ -132,6 +133,7 @@ function CoursesScreenInner() {
   const [pendingQty, setPendingQty] = useState(1);
   const [pendingPrice, setPendingPrice] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'info' | 'warn'; text: string } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [manualName, setManualName] = useState('');
@@ -177,8 +179,10 @@ function CoursesScreenInner() {
     }
 
     setResolving(true);
+    // Show the code in the loading card so the user can verify the read.
+    setResolvingCode(scannedBarcode ?? (raw.replace(/[^0-9]/g, '') || null));
     try {
-      const result = await store.resolveBarcode(raw);
+      const result = await store.resolveBarcode(raw, { lang: language });
       if (!result.ok) {
         setNotice({ kind: 'warn', text: c.codeInvalid });
         openPending({ name: '', source: 'manual', ma: false });
@@ -225,6 +229,7 @@ function CoursesScreenInner() {
       }
     } finally {
       setResolving(false);
+      setResolvingCode(null);
     }
   };
 
@@ -461,10 +466,14 @@ function CoursesScreenInner() {
               onSkip={() => setPending(null)}
             />
           ) : resolving ? (
-            <div className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-low p-5 font-body-md text-body-md text-on-surface-variant">
-              <AppIcon name="search" className="animate-pulse size-5 text-primary" />
-              {m.common.loading}
-            </div>
+            <ScanLookupCard
+              code={resolvingCode ?? undefined}
+              labels={{
+                searching: c.lookupSearching,
+                slowHint: c.lookupSlowHint,
+                verySlowHint: c.lookupVerySlowHint,
+              }}
+            />
           ) : (
             /* Name-only entry (produce, no barcode) — always free */
             <form

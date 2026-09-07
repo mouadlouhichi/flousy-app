@@ -418,8 +418,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function resolveProduct(opts: {
   barcode: string;
   catalog: Product[];
+  /** UI language — lets the remote source prefer the matching name field. */
+  lang?: string;
   lookupSeed?: (barcode: string) => RemoteProductInfo | null;
-  lookupRemote?: (barcode: string) => Promise<LookupOutcome>;
+  lookupRemote?: (barcode: string, lang?: string) => Promise<LookupOutcome>;
   remoteTimeoutMs?: number;
 }): Promise<ProductResolution> {
   const hit = opts.catalog.find((product) => product.barcode === opts.barcode && product.name);
@@ -470,7 +472,7 @@ export async function resolveProduct(opts: {
 
   if (opts.lookupRemote) {
     try {
-      const outcome = await withTimeout(opts.lookupRemote(opts.barcode), opts.remoteTimeoutMs ?? 20000);
+      const outcome = await withTimeout(opts.lookupRemote(opts.barcode, opts.lang), opts.remoteTimeoutMs ?? 20000);
       if (outcome.kind === 'found') {
         const remote = outcome.product;
         if (remote.name) {

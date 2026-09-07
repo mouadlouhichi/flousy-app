@@ -70,6 +70,31 @@ describe('mapOffProduct', () => {
       'Mineral water',
     );
   });
+
+  it('prefers the UI-language name over the default product_name', () => {
+    // The 3600541177741 case: product_name is a code-like label while the
+    // French name is the real one.
+    const showerGel = {
+      product_name: '68YN5T 400ml',
+      product_name_fr: 'utra doux avocat',
+      product_name_en: '68YN5T 400ml',
+    };
+    assert.equal(mapOffProduct({ status: 1, product: showerGel }, { lang: 'fr' })?.name, 'utra doux avocat');
+    assert.equal(mapOffProduct({ status: 1, product: showerGel }, { lang: 'ar' })?.name, '68YN5T 400ml'); // no ar name → default
+    assert.equal(mapOffProduct({ status: 1, product: showerGel }, { lang: 'en' })?.name, '68YN5T 400ml'); // en name = default
+    // Without a lang, the historical default order applies.
+    assert.equal(mapOffProduct({ status: 1, product: showerGel })?.name, '68YN5T 400ml');
+  });
+
+  it('skips empty UI-language names in the priority chain', () => {
+    const product = {
+      product_name_ar: '',
+      product_name: 'Eau',
+      product_name_fr: 'Eau minérale',
+    };
+    assert.equal(mapOffProduct({ status: 1, product }, { lang: 'ar' })?.name, 'Eau');
+    assert.equal(mapOffProduct({ status: 1, product }, { lang: 'fr' })?.name, 'Eau minérale');
+  });
 });
 
 describe('Moroccan seed catalog', () => {

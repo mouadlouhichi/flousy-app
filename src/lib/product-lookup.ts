@@ -29,8 +29,15 @@ const FIELDS =
  * shape (`{ status: 1, product }`) and the app-proxy shape
  * (`{ found: true, product }`) — historically the proxy only returned
  * `found`, which made every proxied lookup read as "not found".
+ *
+ * Name field: the first non-empty of the UI-language name
+ * (`product_name_<lang>` when a lang is given), then the default
+ * `product_name`, then the other language variants, then the generic name.
+ * OFF's `product_name` is whatever language was entered first (for a
+ * Moroccan shower gel that was a code-like "68YN5T 400ml" while the French
+ * name "utra doux avocat" sat unused in `product_name_fr`).
  */
-export function mapOffProduct(data: unknown): RemoteProductInfo | null {
+export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemoteProductInfo | null {
   const root = data as
     | { status?: number; found?: boolean; product?: Record<string, unknown> }
     | null
@@ -45,13 +52,21 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
   };
 
-  const name =
-    pick('product_name') ??
-    pick('product_name_fr') ??
-    pick('product_name_en') ??
-    pick('product_name_ar') ??
-    pick('generic_name') ??
-    pick('abbreviated_product_name');
+  const nameKeys = ['product_name', 'product_name_fr', 'product_name_en', 'product_name_ar', 'generic_name', 'abbreviated_product_name'];
+  if (opts?.lang) {
+    const own = `product_name_${opts.lang}`;
+    const idx = nameKeys.indexOf(own);
+    if (idx !== -1 && idx !== 0) {
+      // The UI-language name takes priority over the default product_name
+      nameKeys.splice(idx, 1);
+      nameKeys.splice(0, 0, own);
+    }
+  }
+  let name: string | undefined;
+  for (const key of nameKeys) {
+    name = pick(key);
+    if (name) break;
+  }
   if (!name) return null;
 
   const brands = pick('brands')?.split(',')[0]?.trim();
@@ -138,7 +153,7 @@ interface OffRoot {
  */
 export async function lookupOffProduct(
   barcode: string,
-  opts?: { directTimeoutMs?: number; proxyTimeoutMs?: number; proxyUrl?: string },
+  opts?: { directTimeoutMs?: number; proxyTimeoutMs?: number; proxyUrl?: string; lang?: string },
 ): Promise<LookupOutcome> {
   const directTimeoutMs = opts?.directTimeoutMs ?? 4000;
   const proxyTimeoutMs = opts?.proxyTimeoutMs ?? 14000;
@@ -151,7 +166,7 @@ export async function lookupOffProduct(
   //    A direct `status: 0` is NOT final — another instance may know the
   //    code — it just falls through to the proxy.
   const direct = await fetchJson(`${OFF_HOSTS[0]}${barcode}.json?fields=${FIELDS}`, directTimeoutMs);
-  const mapped = direct ? mapOffProduct(direct) : null;
+  const mapped = direct ? mapOffProduct(direct, { lang: opts?.lang }) : null;
   if (mapped) return { kind: 'found', product: mapped };
 
   // 2) through the app proxy — the authoritative multi-host walk.
@@ -166,7 +181,7 @@ export async function lookupOffProduct(
   }
 
   if (res.status === 200 && body && (body.status === 1 || body.found === true)) {
-    const product = mapOffProduct(body);
+    const product = mapOffProduct(body, { lang: opts?.lang });
     if (product) return { kind: 'found', product };
     return { kind: 'not-found' };
   }
