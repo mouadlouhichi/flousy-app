@@ -10,6 +10,7 @@ import {
   writeInciOverlayEntry,
 } from '@/lib/ingredient-device-store';
 import { CoursesIngredientGlance } from './courses-ingredient-glance';
+import { LabelOcrButton } from './label-ocr-button';
 
 /**
  * Ingredient panel for a pending scanned product.
@@ -92,6 +93,11 @@ export function CoursesIngredientPanel({
       return;
     }
     setInvalid(false);
+    adopt(text);
+  };
+
+  /** Activate an ingredient text (manual or OCR) and remember it per barcode. */
+  const adopt = (text: string) => {
     setActive(text);
     setEditing(false);
     if (barcode) {
@@ -100,6 +106,13 @@ export function CoursesIngredientPanel({
     } else {
       setSaved(false);
     }
+  };
+
+  /** OCR result too short/messy to analyse → open the editor prefilled. */
+  const ocrIntoEditor = (text: string) => {
+    setDraft(text);
+    setInvalid(false);
+    setEditing(true);
   };
 
   const clearSaved = () => {
@@ -160,14 +173,27 @@ export function CoursesIngredientPanel({
             <AppIcon name="info" className="mt-0.5 size-3.5 shrink-0" />
             {im.missingHint}
           </p>
-          <button
-            type="button"
-            onClick={openEditor}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 font-label-md text-label-md text-primary hover:bg-surface-container-high transition-colors"
-          >
-            <AppIcon name="edit" className="size-4" />
-            {im.pasteCta}
-          </button>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={openEditor}
+              className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 font-label-md text-label-md text-primary hover:bg-surface-container-high transition-colors"
+            >
+              <AppIcon name="edit" className="size-4" />
+              {im.pasteCta}
+            </button>
+            {/* No INCI on the scanned product? Photograph the label — the OCR
+                runs on-device and the recognised list is analysed directly. */}
+            <LabelOcrButton
+              onText={(text) => {
+                if (text.length >= 2 && splitInciList(text).length > 0) {
+                  adopt(text);
+                } else {
+                  ocrIntoEditor(text);
+                }
+              }}
+            />
+          </div>
         </div>
       ) : (
         <div className="mt-2">

@@ -13,6 +13,7 @@ import type {
 import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
+import { LabelOcrButton } from './label-ocr-button';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -162,14 +163,24 @@ export function CoursesFoodPanel({
               {g.pasteInvalid}
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => run(draft)}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
-          >
-            <AppIcon name="search" className="size-4" />
-            {g.analyzeCta}
-          </button>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => run(draft)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+            >
+              <AppIcon name="search" className="size-4" />
+              {g.analyzeCta}
+            </button>
+            {/* No ingredient text on the scanned product? Photograph the label
+                instead of typing it — OCR runs on-device. */}
+            <LabelOcrButton
+              onText={(text) => {
+                setDraft(text);
+                run(text);
+              }}
+            />
+          </div>
         </div>
       )}
 

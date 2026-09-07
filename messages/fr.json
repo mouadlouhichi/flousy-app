@@ -148,6 +148,12 @@
     "deletePartialFailure": "Certaines données n'ont pas pu être supprimées ({items}). Votre compte est toujours actif, rien n'est perdu — réessayez ou contactez-nous.",
     "deleteDemoUnsupported": "La suppression du compte est indisponible en mode démo, car aucune donnée n'est enregistrée sur un compte."
   },
+  "labelOcr": {
+    "cta": "Scanner l'étiquette",
+    "empty": "Aucun texte trouvé. Approchez-vous de la liste des ingrédients et réessayez.",
+    "failed": "Échec de la lecture. Essayez une photo plus nette et mieux éclairée.",
+    "scanning": "Lecture de l'étiquette… {percent}%"
+  },
   "onboarding": {
     "tagline": "Suivi budgétaire privé et mobile séparant la destination de l'argent de son emplacement.",
     "step1Title": "Quel est votre revenu mensuel ?",

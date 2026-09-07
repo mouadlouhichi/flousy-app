@@ -148,6 +148,12 @@
     "deletePartialFailure": "Some data could not be deleted yet ({items}). Your account is still active so nothing is lost — try again, or contact support.",
     "deleteDemoUnsupported": "Account deletion is not available in demo mode, because nothing is stored in an account."
   },
+  "labelOcr": {
+    "cta": "Scan the label",
+    "empty": "No text found. Get closer to the ingredient list and try again.",
+    "failed": "Label scan failed. Try a sharper, well-lit photo.",
+    "scanning": "Reading the label… {percent}%"
+  },
   "onboarding": {
     "tagline": "Private, mobile-first budget tracker that separates what money is for from where it is.",
     "step1Title": "What is your monthly income?",
