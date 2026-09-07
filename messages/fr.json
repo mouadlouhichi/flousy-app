@@ -762,7 +762,6 @@
     "priceRequired": "Saisissez un prix (0 ou plus).",
     "nameRequired": "Donnez un nom au produit pour l'ajouter.",
     "remembered": "Enregistré dans votre catalogue",
-    "fromCatalog": "Depuis votre catalogue produits",
     "fromSeed": "Depuis le catalogue Maroc",
     "fromOff": "Depuis Open Food Facts",
     "maBadge": "Fabriqué au Maroc",

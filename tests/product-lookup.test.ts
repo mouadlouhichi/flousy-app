@@ -86,6 +86,46 @@ describe('mapOffProduct', () => {
     assert.equal(mapOffProduct({ status: 1, product: showerGel })?.name, '68YN5T 400ml');
   });
 
+  it('hides placeholder categories ("Incorrect product type" and friends)', () => {
+    // The 3600541177741 case: every category is a placeholder tag.
+    const showerGel = {
+      product_name: '68YN5T 400ml',
+      categories: 'Incorrect product type, non-food-products, open-beauty-facts',
+    };
+    assert.equal(mapOffProduct({ status: 1, product: showerGel })?.category, undefined);
+    // A real category after the placeholders is the one that shows.
+    const mixed = {
+      product_name: 'X',
+      categories: 'Incorrect product type, beverages, soft drinks',
+    };
+    assert.equal(mapOffProduct({ status: 1, product: mixed })?.category, 'beverages');
+    // Normal lists are untouched.
+    assert.equal(
+      mapOffProduct({ status: 1, product: { product_name: 'X', categories: 'Natural mineral waters' } })?.category,
+      'Natural mineral waters',
+    );
+  });
+
+  it('hides placeholder categories ("Incorrect product type" and friends)', () => {
+    // The 3600541177741 case: every category is a placeholder tag.
+    const showerGel = {
+      product_name: '68YN5T 400ml',
+      categories: 'Incorrect product type, non-food-products, open-beauty-facts',
+    };
+    assert.equal(mapOffProduct({ status: 1, product: showerGel })?.category, undefined);
+    // A real category after the placeholders is the one that shows.
+    const mixed = {
+      product_name: 'X',
+      categories: 'Incorrect product type, beverages, soft drinks',
+    };
+    assert.equal(mapOffProduct({ status: 1, product: mixed })?.category, 'beverages');
+    // Normal lists are untouched.
+    assert.equal(
+      mapOffProduct({ status: 1, product: { product_name: 'X', categories: 'Natural mineral waters' } })?.category,
+      'Natural mineral waters',
+    );
+  });
+
   it('skips empty UI-language names in the priority chain', () => {
     const product = {
       product_name_ar: '',
