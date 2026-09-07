@@ -17,7 +17,6 @@ import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { QualityScoreChip } from '@/components/ui/quality-score-chip';
-import { InciPhotoScanner } from '@/components/ui/inci-photo-scanner';
 import { addVariableExpense, type CourseSession, type MoneyPlace, type VariableExpense } from '@/lib/store';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
@@ -41,8 +40,6 @@ interface PendingProduct {
   ma: boolean;
   /** Cosmetic quality summary, when the product carries an INCI list. */
   quality?: QualitySummary;
-  /** Beauty product whose database record has no INCI list — offer the label photo OCR. */
-  beautyNoInci?: boolean;
 }
 
 /**
@@ -213,7 +210,6 @@ function CoursesScreenInner() {
           source: resolution.source,
           ma,
           quality: beautyIngredients ? summarizeQuality(beautyIngredients) : undefined,
-          beautyNoInci: product.productKind === 'beauty' && !beautyIngredients,
         });
         // Refine the chip as soon as the EU CosIng index lands (one cached fetch).
         if (beautyIngredients) {
@@ -245,20 +241,6 @@ function CoursesScreenInner() {
     } finally {
       setResolving(false);
     }
-  };
-
-  /** Label-photo OCR result for a beauty product with no INCI list on file. */
-  const handlePendingIngredients = (list: string[]) => {
-    setPending((prev) =>
-      prev ? { ...prev, beautyNoInci: false, quality: summarizeQuality(list) } : prev,
-    );
-    // Refine once the EU CosIng index lands (same path as barcode data).
-    void loadCosingIndex().then((index) => {
-      if (!index) return;
-      setPending((prev) =>
-        prev && prev.quality ? { ...prev, quality: summarizeQuality(list, index) } : prev,
-      );
-    });
   };
 
   // ---- pending confirmations ----------------------------------------------------
@@ -492,7 +474,6 @@ function CoursesScreenInner() {
               onName={(name) => setPending({ ...pending, name })}
               onConfirm={confirmPending}
               onSkip={() => setPending(null)}
-              onIngredients={handlePendingIngredients}
             />
           ) : resolving ? (
             <div className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-low p-5 font-body-md text-body-md text-on-surface-variant">
@@ -760,10 +741,9 @@ interface PendingCardProps {
   onName: (name: string) => void;
   onConfirm: () => void;
   onSkip: () => void;
-  onIngredients: (list: string[]) => void;
 }
 
-function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredients }: PendingCardProps) {
+function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip }: PendingCardProps) {
   const { messages: m } = useLanguage();
   const c = m.courses;
   const needsName = pending.source === 'manual';
@@ -844,15 +824,6 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </div>
       </div>
 
-      {/* Beauty product with no INCI list on file: photograph the label to get the score */}
-      {pending.beautyNoInci && !pending.quality && (
-        <div className="mt-3">
-          <p className="mb-1.5 text-[11px] font-bold leading-relaxed text-on-surface-variant">
-            {c.noInciHint}
-          </p>
-          <InciPhotoScanner onIngredients={onIngredients} />
-        </div>
-      )}
     </div>
   );
 }

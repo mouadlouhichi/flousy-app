@@ -705,7 +705,6 @@
     "start": "Start course",
     "paidFrom": "Paid from",
     "scanTitle": "Scan a barcode",
-    "noInciHint": "This product has no ingredient list in the database. Photograph the INCI list printed on the packaging — its quality score is computed on your device.",
     "scanHint": "Point your camera at the product barcode — or type it below.",
     "cameraStart": "Start camera",
     "cameraStop": "Stop camera",
@@ -2458,12 +2457,6 @@
         "fair": "Fair",
         "poor": "Poor"
       }
-    },
-    "inciscan": {
-      "button": "Scan the ingredient list",
-      "hint": "Product not in the database? Photograph the INCI list printed on the packaging — it is read on your device.",
-      "reading": "Reading ingredients",
-      "error": "Couldn't read the ingredient list. Brighter light and a steadier hand help — try again."
     }
   },
   "reports": {

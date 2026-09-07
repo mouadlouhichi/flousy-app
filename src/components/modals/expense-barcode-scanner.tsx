@@ -10,7 +10,6 @@
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { CoursesScannerPanel } from '@/components/dashboard/courses/courses-scanner-panel';
-import { InciPhotoScanner } from '@/components/ui/inci-photo-scanner';
 import { ProductQualityPanel } from '@/components/ui/product-quality-panel';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { useLanguage } from '@/lib/i18n-context';
@@ -26,13 +25,10 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
   const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'missing' | 'found'>('idle');
   const [lastCode, setLastCode] = useState('');
   const [lastProduct, setLastProduct] = useState<RemoteProductInfo | null>(null);
-  /** INCI list read from a packaging photo when the barcode misses. */
-  const [photoIngredients, setPhotoIngredients] = useState<string[] | null>(null);
   const productIngredients =
     lastProduct?.productKind === 'beauty' && lastProduct.ingredients?.length
       ? lastProduct.ingredients
       : null;
-  const qualityIngredients = productIngredients ?? photoIngredients;
 
   return (
     <div className="flex flex-col gap-2">
@@ -55,7 +51,6 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
         onCode={(code) => {
           setLastCode(code);
           setLookupState('busy');
-          setPhotoIngredients(null);
           lookupOffProduct(code)
             .then((product) => {
               if (product) {
@@ -74,16 +69,13 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
         }}
       />
 
-      {qualityIngredients ? (
+      {productIngredients && (
         <ProductQualityPanel
-          ingredients={qualityIngredients}
-          source={productIngredients ? 'openbeauty' : 'photo'}
-          productName={productIngredients ? lastProduct?.name : undefined}
-          productBrand={productIngredients ? lastProduct?.brand : undefined}
-          productImage={productIngredients ? lastProduct?.imageUrl : undefined}
+          ingredients={productIngredients}
+          productName={lastProduct?.name}
+          productBrand={lastProduct?.brand}
+          productImage={lastProduct?.imageUrl}
         />
-      ) : (
-        <InciPhotoScanner onIngredients={setPhotoIngredients} />
       )}
 
       <p className="text-xs text-on-surface-variant">
