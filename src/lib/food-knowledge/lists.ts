@@ -295,6 +295,8 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['glucose', 'glucose syrup', 'sirop de glucose', 'dextrose', 'fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['miel', 'honey'], family: 'sugar', roles: ['sweetener', 'natural'] },
   { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
+  { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
+  { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['huile de tournesol', 'sunflower oil', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja'], family: 'fat-oil', roles: ['fat'] },
   { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['blé complet', 'whole wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
@@ -330,7 +332,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['vanille', 'vanilla', 'extrait de vanille', 'arôme naturel de vanille'], family: 'herb-spice', roles: ['flavour', 'natural'] },
   { keys: ['cacao', 'cocoa', 'cacao en poudre', 'chocolat', 'chocolate'], family: 'herb-spice', roles: ['flavour'] },
   { keys: ['poivre', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley'], family: 'herb-spice', roles: ['seasoning'] },
-  { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'natural flavour', 'flavour', 'flavouring'], family: 'other', roles: ['flavour'] },
+  { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
   { keys: ['maltodextrine', 'maltodextrin'], family: 'cereal', roles: ['texture'] },
   { keys: ['levure', 'yeast', 'levure de boulanger'], family: 'culture', roles: ['ferment'] },
   { keys: ['son', 'bran', 'fibres', 'fibre'], family: 'cereal', roles: ['fibre'] },
@@ -362,3 +364,54 @@ export function lookupFoodRow(folded: string): FoodRowHit | null {
 
 export const FOOD_ROW_COUNT = ROWS.length;
 export const FOOD_DATASET_VERSION = '2026-09-food-v1';
+
+// --- Mineral-water composition parameters -----------------------------------
+// Natural/spring/table waters print a mineral composition (mg/L) instead of an
+// ingredient list. Each recognised line is informational only — a declared
+// natural constituent, never an additive verdict. Keys are accent-folded.
+export interface WaterParamDef {
+  /** Stable code — localized client-side via foodKnowledge.waterParam* keys. */
+  key: string;
+  /** Label spellings (FR/EN, folded) found on water labels. */
+  names: string[];
+}
+
+export const WATER_PARAMETERS: WaterParamDef[] = [
+  { key: 'dry-residue', names: ['residu sec a 110 c', 'residu sec a 180 c', 'residu sec', 'dry residue', 'dry extract', 'total dissolved solids'] },
+  { key: 'sodium', names: ['sodium'] },
+  { key: 'calcium', names: ['calcium'] },
+  { key: 'magnesium', names: ['magnesium'] },
+  { key: 'potassium', names: ['potassium'] },
+  { key: 'sulphates', names: ['sulfates', 'sulphates'] },
+  { key: 'chlorides', names: ['chlorures', 'chlorides'] },
+  { key: 'bicarbonates', names: ['bicarbonates', 'bicarbonate'] },
+  { key: 'nitrates', names: ['nitrates'] },
+];
+
+/**
+ * Detect a mineral parameter inside one folded water-label line, e.g.
+ * "Résidu sec à 110°C: 186" → { key: 'dry-residue', value: '186' },
+ * "Sodium 26" → { key: 'sodium', value: '26' }.
+ * The value is the last number printed after the parameter name, as on the
+ * label (OCRed values are kept as strings on purpose).
+ */
+export function detectWaterParameter(folded: string): { key: string; value?: string } | null {
+  if (!folded) return null;
+  let best: { key: string; at: number; len: number } | null = null;
+  for (const def of WATER_PARAMETERS) {
+    for (const name of def.names) {
+      const at = folded.indexOf(name);
+      if (at === -1) continue;
+      if (!best || at < best.at || (at === best.at && name.length > best.len)) {
+        best = { key: def.key, at, len: name.length };
+      }
+    }
+  }
+  if (!best) return null;
+  const rest = folded.slice(best.at + best.len);
+  const numbers = rest.match(/\d+(?:[.,]\d+)?/g);
+  const value = numbers ? numbers[numbers.length - 1].replace(',', '.') : undefined;
+  return value ? { key: best.key, value } : { key: best.key };
+}
+
+export const WATER_PARAMETER_COUNT = WATER_PARAMETERS.length;

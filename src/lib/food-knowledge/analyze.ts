@@ -28,12 +28,15 @@ import type {
 import {
   ALLERGEN_GROUPS,
   detectAllergenGroups,
+  detectWaterParameter,
   foldForMatch,
   FOOD_DATASET_VERSION,
   FOOD_ROW_COUNT,
   lookupAdditive,
   lookupFoodRow,
 } from './lists';
+import { detectFoodKind } from './domain';
+import type { WaterParameter } from './types';
 import { splitInciList } from '@/lib/ingredient-safety/normalize';
 
 const OFF_ALLERGEN_TAGS: Record<string, AllergenGroup> = {
@@ -78,6 +81,15 @@ export function analyzeFoodIngredientList(
   const label = opts?.label?.trim() || undefined;
   const category = opts?.category?.trim() || undefined;
 
+  // Product kind: water labels print a mineral composition, not an
+  // ingredient list — see detectFoodKind in domain.ts.
+  const kind = detectFoodKind({
+    ...(label ? { name: label } : {}),
+    ...(category ? { category } : {}),
+    text: cleaned.join(' '),
+  });
+  const waterParameters: WaterParameter[] = [];
+
   const assessments: FoodIngredientAssessment[] = [];
   const allergenHits: AllergenHit[] = [];
   const additiveHits: AdditiveHit[] = [];
@@ -86,6 +98,19 @@ export function analyzeFoodIngredientList(
 
   cleaned.forEach((raw, index) => {
     const folded = foldForMatch(raw);
+
+    // Water labels: read the declared mineral parameter from each line.
+    if (kind === 'water') {
+      const param = detectWaterParameter(folded);
+      if (param) {
+        waterParameters.push({
+          key: param.key,
+          raw,
+          ...(param.value ? { value: param.value } : {}),
+        });
+      }
+    }
+
     const rowHit = lookupFoodRow(folded);
     const additive = lookupAdditive(folded);
     const tokenAllergens: AllergenGroup[] = [];
@@ -103,7 +128,12 @@ export function analyzeFoodIngredientList(
 
     if (additive) additiveHits.push(additive);
 
-    const recognized = Boolean(rowHit || additive || tokenAllergens.length > 0);
+    const recognized = Boolean(
+      rowHit ||
+        additive ||
+        tokenAllergens.length > 0 ||
+        waterParameters.some((p) => p.raw === raw),
+    );
     const assessment: FoodIngredientAssessment = {
       index,
       raw,
@@ -167,6 +197,8 @@ export function analyzeFoodIngredientList(
     additives: additiveHits,
     flags,
     external: [],
+    kind,
+    ...(kind === 'water' ? { water: { parameters: waterParameters } } : {}),
     dataset: { version: FOOD_DATASET_VERSION },
   };
 }

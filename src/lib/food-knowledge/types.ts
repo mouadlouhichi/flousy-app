@@ -115,6 +115,25 @@ export interface ExternalFoodKnowledge {
   source: string;
 }
 
+/**
+ * Product-kind classification (food side). Some scanned products do not
+ * carry an ingredient list at all — natural mineral waters are the prime
+ * case (their label declares a mineral composition instead), and many
+ * drinks are water-based. `kind` lets the UI adapt without pretending a
+ * composition table is an ingredient list.
+ */
+export type FoodProductKind = 'standard' | 'water' | 'drink';
+
+/** One mineral-parameter line parsed from a water label, e.g. "Sodium 26". */
+export interface WaterParameter {
+  /** Stable code (e.g. 'sodium') — localized client-side. */
+  key: string;
+  /** Raw line as printed on the label. */
+  raw: string;
+  /** Numeric value printed on the label, when present (string to survive OCR). */
+  value?: string;
+}
+
 export interface FoodAnalysis {
   /** Optional product label echoed back. */
   label?: string;
@@ -134,6 +153,10 @@ export interface FoodAnalysis {
   external: ExternalFoodKnowledge[];
   /** Set when the deep-search slot contributed entries. */
   deepSearched?: boolean;
+  /** Product-kind classification (drives the adapted water/drink views). */
+  kind: FoodProductKind;
+  /** Parsed mineral composition — only present for `kind === 'water'`. */
+  water?: { parameters: WaterParameter[] };
   /** Local knowledge base metadata. */
   dataset: { version: string };
 }

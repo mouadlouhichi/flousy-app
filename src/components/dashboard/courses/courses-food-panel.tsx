@@ -11,6 +11,7 @@ import type {
   FoodFamily,
 } from '@/lib/food-knowledge/types';
 import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
+import { detectFoodKind } from '@/lib/food-knowledge/domain';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -73,9 +74,23 @@ export function CoursesFoodPanel({
     offline?: boolean;
   }>({ status: 'idle' });
 
+  // A scanned water may carry no ingredient text at all (natural mineral
+  // waters print a composition instead). Detect it from the OFF metadata so
+  // the panel can still open an adapted "mineral water" view.
+  const autoWater =
+    fromRecord === '' &&
+    Boolean(name || category) &&
+    detectFoodKind({ ...(name ? { name } : {}), ...(category ? { category } : {}) }) === 'water';
+
   const run = (text: string) => {
     const trimmed = text.trim();
-    if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
+    if (trimmed === '') {
+      // Only the barcode water case may analyse with an empty label text.
+      if (!autoWater) {
+        setInvalid(true);
+        return;
+      }
+    } else if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
       setInvalid(true);
       return;
     }
@@ -105,13 +120,28 @@ export function CoursesFoodPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromRecord]);
 
+  // Water barcode with no ingredient text → analyse the empty label so the
+  // engine can classify the product kind from the barcode metadata.
+  useEffect(() => {
+    if (autoWater && pending.status === 'idle') run('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoWater]);
+
   const analysis = pending.status === 'ready' ? pending.analysis : undefined;
+  const waterHeading =
+    analysis?.kind === 'water' ||
+    (autoWater && pending.status !== 'ready');
 
   return (
     <div className="mt-3 rounded-2xl border border-outline-variant bg-surface/70 p-3 md:p-3.5">
       <div className="flex items-center gap-2">
-        <AppIcon name="menu_book" className="size-4 text-primary" />
-        <p className="font-label-md text-label-md font-semibold text-on-surface">{g.title}</p>
+        <AppIcon
+          name={waterHeading ? 'water_drop' : 'menu_book'}
+          className={waterHeading ? 'size-4 text-sky-600 dark:text-sky-400' : 'size-4 text-primary'}
+        />
+        <p className="font-label-md text-label-md font-semibold text-on-surface">
+          {waterHeading ? g.waterTitle : g.title}
+        </p>
       </div>
 
       {pending.status === 'loading' && (
@@ -121,7 +151,7 @@ export function CoursesFoodPanel({
         </p>
       )}
 
-      {fromRecord === '' && pending.status !== 'loading' && (
+      {fromRecord === '' && pending.status !== 'loading' && !autoWater && (
         <div className="mt-3">
           <p className="font-body-sm text-body-sm text-on-surface-variant">{g.pasteHelp}</p>
           <textarea
@@ -160,10 +190,29 @@ export function CoursesFoodPanel({
   );
 }
 
+const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
+  'dry-residue': { label: 'waterParamDryResidue', note: 'waterParamDryResidueNote' },
+  sodium: { label: 'waterParamSodium', note: 'waterParamSodiumNote' },
+  calcium: { label: 'waterParamCalcium', note: 'waterParamCalciumNote' },
+  magnesium: { label: 'waterParamMagnesium', note: 'waterParamMagnesiumNote' },
+  potassium: { label: 'waterParamPotassium', note: 'waterParamPotassiumNote' },
+  sulphates: { label: 'waterParamSulphates', note: 'waterParamSulphatesNote' },
+  chlorides: { label: 'waterParamChlorides', note: 'waterParamChloridesNote' },
+  bicarbonates: { label: 'waterParamBicarbonates', note: 'waterParamBicarbonatesNote' },
+  nitrates: { label: 'waterParamNitrates', note: 'waterParamNitratesNote' },
+};
+
 /** Exported pure body — shared by the course panel and the standalone screen. */
 export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   const { messages: m, t } = useLanguage();
   const g = m.foodKnowledge;
+
+  // Water labels print a mineral composition, not an ingredient list — give
+  // them an adapted view instead of pretending each line is an ingredient.
+  if (analysis.kind === 'water') {
+    return <WaterKnowledgeBody analysis={analysis} />;
+  }
+
   const { allergens, additives, ingredients } = analysis;
   const allergenGroups = allergens.length > 0 ? [...new Set(allergens.map((a) => a.group))] : [];
   const showAdditives = additives.length > 0;
@@ -358,6 +407,86 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
             ))}
           </ul>
         </details>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Adapted view for natural mineral / spring / sparkling / table waters.
+ * Water has no ingredient list by regulation — the label prints a mineral
+ * composition (mg/L). Every line is informational: a declared natural
+ * constituent, never a verdict, and never advice.
+ */
+function WaterKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
+  const { messages: m } = useLanguage();
+  const g = m.foodKnowledge;
+  const params = analysis.water?.parameters ?? [];
+  const paramRaws = new Set(params.map((p) => p.raw));
+  const leftovers = analysis.ingredients.filter((i) => !paramRaws.has(i.raw));
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex items-start gap-2.5 rounded-xl bg-surface-container-high/60 px-3 py-2">
+        <AppIcon name="water_drop" className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-400" />
+        <p className="font-body-sm text-body-sm text-on-surface-variant">{g.waterIntro}</p>
+      </div>
+
+      {params.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface/50">
+          <h4 className="flex items-center gap-1.5 px-3 pt-2.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="science" className="size-4 text-primary" />
+            {g.waterCompositionTitle}
+          </h4>
+          <ul className="divide-y divide-outline-variant/70">
+            {params.map((p, i) => {
+              const meta = WATER_PARAM_KEY[p.key];
+              if (!meta) return null;
+              return (
+                <li key={`${p.key}-${i}`} className="px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <span className="font-label-sm text-label-sm font-semibold text-on-surface">
+                      {g[meta.label as keyof typeof g]}
+                    </span>
+                    {p.value && (
+                      <span
+                        dir="ltr"
+                        className="rounded-md bg-surface-container-high px-1.5 py-0.5 font-label-sm text-label-sm text-on-surface-variant"
+                      >
+                        {p.value} {g.waterUnit}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                    {g[meta.note as keyof typeof g]}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="px-3 pb-2.5 pt-1 font-label-sm text-label-sm text-on-surface-variant/80">
+            {g.waterValuesNote}
+          </p>
+        </section>
+      ) : (
+        analysis.total === 0 && (
+          <p className="rounded-xl border border-dashed border-outline-variant bg-surface/40 px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
+            {g.waterNoData}
+          </p>
+        )
+      )}
+
+      {leftovers.length > 0 && (
+        <div className="rounded-xl border border-outline-variant bg-surface/40 px-3 py-2">
+          <p className="font-label-sm text-label-sm text-on-surface-variant">{g.waterUnparsed}</p>
+          <ul className="mt-1 space-y-1">
+            {leftovers.map((l) => (
+              <li key={l.index} className="font-body-sm text-body-sm italic text-on-surface-variant/90">
+                {l.raw}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import {
   stripIngredientsHeading,
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupFoodRow } from '../src/lib/food-knowledge/lists';
-import { detectLabelDomain } from '../src/lib/food-knowledge/domain';
+import { detectFoodKind, detectLabelDomain } from '../src/lib/food-knowledge/domain';
 
 describe('food-knowledge lists', () => {
   it('folds French labels for stable matching', () => {
@@ -112,5 +112,90 @@ describe('detectLabelDomain', () => {
       detectLabelDomain({ ingredientsText: 'Aqua, Glycerin, Cetearyl Alcohol, Parfum' }),
       'cosmetic',
     );
+  });
+});
+
+describe('detectFoodKind — waters & drinks', () => {
+  it('classifies Sidi Ali-like mineral waters as water', () => {
+    assert.equal(detectFoodKind({ category: 'fr:eaux-minerales-naturelles', name: 'Sidi Ali' }), 'water');
+    assert.equal(detectFoodKind({ category: 'en:natural-mineral-waters' }), 'water');
+    assert.equal(detectFoodKind({ name: 'Oulmès eau minérale naturelle' }), 'water');
+    assert.equal(detectFoodKind({ name: 'Sidi Ali eau minérale naturelle 1,5 L' }), 'water');
+    assert.equal(detectFoodKind({ category: 'fr:eaux-de-source' }), 'water');
+    assert.equal(detectFoodKind({ category: 'fr:eaux-gazeuses' }), 'water');
+  });
+
+  it('classifies other drinks (juices, sodas, plant drinks) as drinks', () => {
+    assert.equal(detectFoodKind({ category: 'fr:jus-de-fruits' }), 'drink');
+    assert.equal(detectFoodKind({ category: 'fr:sodas' }), 'drink');
+    assert.equal(detectFoodKind({ category: 'fr:boissons-gazeuses' }), 'drink');
+    assert.equal(detectFoodKind({ name: "Lait d'avoine" }), 'drink');
+    assert.equal(detectFoodKind({ name: "Jus d'orange 100%" }), 'drink');
+  });
+
+  it('keeps flavoured waters and ordinary foods on the right side', () => {
+    assert.equal(detectFoodKind({ category: 'en:flavoured-waters' }), 'drink');
+    assert.equal(detectFoodKind({ category: 'fr:eaux-gazeuses', name: 'Eau aromatisée citron' }), 'drink');
+    assert.equal(detectFoodKind({ category: 'fr:yaourts', name: 'Yaourt nature' }), 'standard');
+    assert.equal(detectFoodKind({ category: 'fr:fromages', name: 'Fromage blanc' }), 'standard');
+  });
+});
+
+describe('water composition analysis (products like Sidi Ali)', () => {
+  it('parses a mineral composition instead of failing as ingredients', () => {
+    const r = analyzeFoodText(
+      [
+        'Composition minérale en mg',
+        'Résidu sec à 110°C: 186',
+        'Sodium 26',
+        'Calcium 12',
+        'Magnésium 9',
+        'Sulfates 42',
+        'Chlorures 14',
+        'Potassium 1',
+        'Bicarbonates 104',
+        'Nitrates 4',
+      ].join(', '),
+      { label: 'Sidi Ali', category: 'fr:eaux-minerales-naturelles' },
+    );
+    assert.equal(r.kind, 'water');
+    assert.ok(r.water, 'water parameters parsed');
+    assert.deepEqual(
+      r.water.parameters.map((p) => p.key),
+      ['dry-residue', 'sodium', 'calcium', 'magnesium', 'sulphates', 'chlorides', 'potassium', 'bicarbonates', 'nitrates'],
+    );
+    assert.equal(r.water.parameters.find((p) => p.key === 'dry-residue')?.value, '186');
+    assert.equal(r.water.parameters.find((p) => p.key === 'sodium')?.value, '26');
+    assert.equal(r.water.parameters.find((p) => p.key === 'magnesium')?.value, '9');
+    // Informational only: no allergen/additive noise and never a numeric score.
+    assert.equal(r.allergenGroups.length, 0);
+    assert.equal(r.additives.length, 0);
+    assert.ok(!('score' in r));
+  });
+
+  it('detects water from a pasted composition alone (no barcode metadata)', () => {
+    const r = analyzeFoodText('Composition minérale en mg, Résidu sec à 110°C: 186, Sodium 26');
+    assert.equal(r.kind, 'water');
+    assert.equal(r.water?.parameters.length, 2);
+  });
+
+  it('returns an adapted water analysis for a barcode with no label text', () => {
+    const r = analyzeFoodIngredientList([], {
+      label: 'Sidi Ali 1,5 L',
+      category: 'fr:eaux',
+    });
+    assert.equal(r.kind, 'water');
+    assert.deepEqual(r.water?.parameters ?? [], []);
+    assert.equal(r.total, 0);
+  });
+
+  it('still shows a normal knowledge view for drinks that carry a real list', () => {
+    const r = analyzeFoodText('Eau gazeuse, sucre, jus d’orange, acide citrique, arômes naturels', {
+      category: 'fr:boissons-gazeuses',
+    });
+    assert.equal(r.kind, 'drink');
+    assert.equal(r.recognized, r.total);
+    assert.equal(r.ingredients.find((i) => i.family === 'water')?.raw, 'Eau gazeuse');
+    assert.equal(r.additives.length, 1);
   });
 });
