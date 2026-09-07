@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { detectLabelDomain } from '@/lib/food-knowledge/domain';
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
+import { additiveGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
@@ -23,8 +24,9 @@ import { ScoreRing } from './courses-score-ring';
  * The trigger carries a live preview so the card explains WHY it is worth
  * opening without sacrificing the price step:
  *  - cosmetics: the same band-colored score ring as the glance + band label;
- *  - food: a colored coverage pill (x/y recognized), or a droplet when the
- *    product is a water (no ingredient list — mineral composition instead).
+ *  - food: an additive-grade ring (EU additive data — informational, never a
+ *    health score), or a droplet when the product is a water (no ingredient
+ *    list — mineral composition instead).
  * The matching panel (INCI glance / food-knowledge) mounts only when opened.
  * Collapsed by default and reset per scanned product.
  */
@@ -118,24 +120,9 @@ export function CoursesLabelAccordion({
   const showKnowledge = Boolean(barcode || ingredientsText?.trim());
   if (!showKnowledge) return null;
 
-  const foodTone =
-    foodPreview && foodPreview.total > 0
-      ? foodPreview.coverage >= 1
-        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-        : foodPreview.recognized === 0
-          ? 'bg-surface-container-high text-on-surface-variant'
-          : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-      : '';
-
-  const coverageAria =
-    foodPreview && foodPreview.total > 0
-      ? foodPreview.coverage >= 1
-        ? fg.coverageAll
-        : t(fg.coverage, {
-            recognized: foodPreview.recognized,
-            total: foodPreview.total,
-          })
-      : undefined;
+  // Food: additive-grade ring (deterministic, local, informational). Waters
+  // keep their droplet — they have no ingredient list to grade.
+  const foodGrade = domain !== 'cosmetic' ? additiveGrade(foodPreview) : null;
 
   // Narrowed view of the analysis: only defined when a score + band exist.
   const readyCosmetic =
@@ -203,7 +190,7 @@ export function CoursesLabelAccordion({
               )
             ))}
 
-          {/* Food: coverage pill / water droplet */}
+          {/* Food: additive-grade ring / water droplet */}
           {domain !== 'cosmetic' && foodPreview && (
             foodPreview.kind === 'water' ? (
               <span
@@ -214,15 +201,20 @@ export function CoursesLabelAccordion({
                 <span className="hidden sm:inline">{fg.waterTitle}</span>
               </span>
             ) : (
-              foodPreview.total > 0 && (
-                <span
-                  title={coverageAria ?? undefined}
-                  aria-label={coverageAria ?? undefined}
-                  dir="ltr"
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 font-label-sm text-label-sm font-semibold tabular-nums ${foodTone}`}
-                >
-                  {foodPreview.recognized}/{foodPreview.total}
-                </span>
+              foodGrade && (
+                <>
+                  <ScoreRing
+                    score={foodGrade.score}
+                    band={foodGrade.band}
+                    label={`${foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
+                    toneClass={BAND_STYLE[foodGrade.band].text}
+                  />
+                  <span
+                    className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[foodGrade.band].text}`}
+                  >
+                    {t(ig[BAND_LABEL_KEY[foodGrade.band]])}
+                  </span>
+                </>
               )
             )
           )}

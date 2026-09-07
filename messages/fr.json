@@ -2527,6 +2527,7 @@
     "familySalt": "Sel",
     "familySugar": "Sucre",
     "familyWater": "Eau",
+    "gradeTooltip": "Estimation à partir des additifs (données UE) — simple information, pas un score de santé.",
     "ingredientUnknown": "Non reconnu",
     "pasteHelp": "Collez la liste d’ingrédients de l’étiquette, séparée par des virgules.",
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",

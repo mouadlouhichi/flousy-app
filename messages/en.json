@@ -2527,6 +2527,7 @@
     "familySalt": "Salt",
     "familySugar": "Sugar",
     "familyWater": "Water",
+    "gradeTooltip": "Additive grade from EU food-additive data — informational only, not a health score.",
     "ingredientUnknown": "Not recognized",
     "pasteHelp": "Paste the ingredient list from the label, separated by commas.",
     "pasteInvalid": "Enter at least one ingredient to analyze.",

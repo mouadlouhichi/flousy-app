@@ -205,7 +205,7 @@ const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
 
 /** Exported pure body — shared by the course panel and the standalone screen. */
 export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
-  const { messages: m, t } = useLanguage();
+  const { messages: m } = useLanguage();
   const g = m.foodKnowledge;
 
   // Water labels print a mineral composition, not an ingredient list — give
@@ -226,53 +226,18 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   const childWarning = additives.some((a) => a.notices.includes('eu-children-warning'));
   const phe = additives.some((a) => a.notices.includes('phenylalanine'));
 
-  const hasItems = analysis.total > 0;
-  const nothingKnown = hasItems && analysis.recognized === 0;
-  const allKnown = hasItems && analysis.coverage >= 1;
+  const nothingKnown = analysis.total > 0 && analysis.recognized === 0;
 
   return (
     <div className="mt-3 space-y-3">
-      {/* Coverage summary — informational status banner */}
-      {hasItems && (
-        <div
-          className={
-            'flex items-start gap-2.5 rounded-xl px-3 py-2 ' +
-            (nothingKnown
-              ? 'bg-surface-container-high/60'
-              : allKnown
-                ? 'bg-emerald-500/10'
-                : 'bg-amber-500/10')
-          }
-        >
-          <AppIcon
-            name={nothingKnown ? 'search_off' : allKnown ? 'check_circle' : 'info'}
-            className={
-              'mt-0.5 size-4 shrink-0 ' +
-              (nothingKnown
-                ? 'text-on-surface-variant'
-                : allKnown
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-amber-600 dark:text-amber-400')
-            }
-          />
-          <div className="min-w-0">
-            <p
-              className={
-                'font-label-md text-label-md font-semibold ' +
-                (nothingKnown
-                  ? 'text-on-surface-variant'
-                  : allKnown
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-amber-700 dark:text-amber-400')
-              }
-            >
-              {allKnown ? g.coverageAll : t(g.coverage, { recognized: analysis.recognized, total: analysis.total })}
-            </p>
-            {nothingKnown && (
-              <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">{g.unrecognizedAll}</p>
-            )}
-          </div>
-        </div>
+      {/* When NOTHING was recognized the panel stays calm and explains why
+          (composition/nutrition text pasted as ingredients) — no coverage
+          counts: the ring on the accordion is the additive grade only. */}
+      {nothingKnown && (
+        <p className="flex items-start gap-2 rounded-xl bg-surface-container-high/60 px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
+          <AppIcon name="search_off" className="mt-0.5 size-4 shrink-0 text-on-surface-variant" />
+          {g.unrecognizedAll}
+        </p>
       )}
 
       {/* Allergens — informative, never a judgement */}
