@@ -7,6 +7,7 @@ import {
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain } from '../src/lib/food-knowledge/domain';
+import { additiveGrade } from '../src/lib/food-knowledge/grade';
 
 describe('food-knowledge lists', () => {
   it('folds French labels for stable matching', () => {
@@ -281,5 +282,30 @@ describe('water regression — scanned Sidi Ali with a pasted composition', () =
       detectFoodKind({ category: 'fr:fromages', name: 'Fromage blanc', text: 'Lait, résidu sec 25%' }),
       'standard',
     );
+  });
+});
+
+describe('audit regression — apricots and sesame products', () => {
+  it('recognizes apricots as fruit (plural, dried, EN)', () => {
+    for (const term of ['Abricots', 'abricot sec', 'apricots', 'dried apricots']) {
+      const r = analyzeFoodText(term);
+      assert.equal(r.recognized, 1, `${term} should be recognized`);
+      assert.equal(r.ingredients[0].family, 'fruit-veg', `${term} should map to fruit`);
+    }
+  });
+
+  it('keeps the additive grade at 100 for allergen-only and permitted-additive lists', () => {
+    // The audit's two examples: no 'watch'/'avoid' additive ⇒ 100, even when
+    // an EU allergen (sesame) is present — allergens are disclosure, not part
+    // of the additive grade.
+    const apricot = analyzeFoodText('Abricots, sucre, acidifiant : acide citrique');
+    assert.equal(apricot.ingredients.find((i) => i.family === 'fruit-veg')?.raw, 'Abricots');
+    assert.equal(additiveGrade(apricot)?.score, 100);
+
+    const sesame = analyzeFoodText('Eau, sésame, sel, acidifiant : acide citrique');
+    assert.deepEqual(sesame.allergenGroups, ['sesame']);
+    assert.equal(sesame.additives.length, 1);
+    assert.equal(sesame.additives[0].code, 'E330');
+    assert.equal(additiveGrade(sesame)?.score, 100);
   });
 });

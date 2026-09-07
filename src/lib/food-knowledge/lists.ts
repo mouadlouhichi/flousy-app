@@ -349,6 +349,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['pomme', 'apple', 'jus de pomme', 'purée de pomme'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['banane', 'banana'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['fraise', 'strawberry'], family: 'fruit-veg', roles: ['fruit'] },
+  { keys: ['abricot', 'abricots', 'abricot sec', 'abricots secs', 'apricot', 'apricots', 'dried apricot', 'dried apricots'], family: 'fruit-veg', roles: ['fruit'], note: 'Stone fruit; dried or in syrup form keeps the same food family.' },
   { keys: ['citron', 'lemon', 'jus de citron'], family: 'fruit-veg', roles: ['fruit', 'acidity'] },
   { keys: ['orange', 'orange juice', 'jus d’orange'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['raisin', 'grape'], family: 'fruit-veg', roles: ['fruit'] },
