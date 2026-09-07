@@ -172,11 +172,55 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   const childWarning = additives.some((a) => a.notices.includes('eu-children-warning'));
   const phe = additives.some((a) => a.notices.includes('phenylalanine'));
 
+  const hasItems = analysis.total > 0;
+  const nothingKnown = hasItems && analysis.recognized === 0;
+  const allKnown = hasItems && analysis.coverage >= 1;
+  const partial = hasItems && !allKnown && !nothingKnown;
+
   return (
     <div className="mt-3 space-y-3">
-      <p className="font-label-sm text-label-sm text-on-surface-variant">
-        {analysis.coverage >= 1 ? g.coverageAll : t(g.coverage, { recognized: analysis.recognized, total: analysis.total })}
-      </p>
+      {/* Coverage summary — informational status banner */}
+      {hasItems && (
+        <div
+          className={
+            'flex items-start gap-2.5 rounded-xl px-3 py-2 ' +
+            (nothingKnown
+              ? 'bg-surface-container-high/60'
+              : allKnown
+                ? 'bg-emerald-500/10'
+                : 'bg-amber-500/10')
+          }
+        >
+          <AppIcon
+            name={nothingKnown ? 'search_off' : allKnown ? 'check_circle' : 'info'}
+            className={
+              'mt-0.5 size-4 shrink-0 ' +
+              (nothingKnown
+                ? 'text-on-surface-variant'
+                : allKnown
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400')
+            }
+          />
+          <div className="min-w-0">
+            <p
+              className={
+                'font-label-md text-label-md font-semibold ' +
+                (nothingKnown
+                  ? 'text-on-surface-variant'
+                  : allKnown
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-amber-700 dark:text-amber-400')
+              }
+            >
+              {allKnown ? g.coverageAll : t(g.coverage, { recognized: analysis.recognized, total: analysis.total })}
+            </p>
+            {nothingKnown && (
+              <p className="mt-0.5 font-body-sm text-body-sm text-on-surface-variant">{g.unrecognizedAll}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Allergens — informative, never a judgement */}
       {analysis.total > 0 && (
@@ -283,7 +327,9 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                       <span dir="ltr">{item.additive.code}</span>
                     </Chip>
                   )}
-                  {unknown && (
+                  {/* When NOTHING on the list matched, a per-row 'not recognized' chip
+                      would just repeat the banner above — keep the rows quiet. */}
+                  {unknown && !nothingKnown && (
                     <Chip tone="unknown">{g.ingredientUnknown}</Chip>
                   )}
                 </div>

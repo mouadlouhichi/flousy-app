@@ -2531,7 +2531,8 @@
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",
     "pastePlaceholder": "Exemple : lait entier, crème, ferments lactiques, présure, sel",
     "title": "Ingrédients — ce que nous savons",
-    "unavailable": "Analyse indisponible pour le moment."
+    "unavailable": "Analyse indisponible pour le moment.",
+    "unrecognizedAll": "Aucun de ces éléments ne correspond à un ingrédient alimentaire connu. Le texte peut être un tableau de composition ou de valeurs nutritionnelles plutôt qu’une liste d’ingrédients — dans ce cas, rien ne peut être évalué, donc rien n’est signalé."
   },
   "labelKnowledge": {
     "codePlaceholder": "Code-barres EAN (8 ou 13 chiffres)",

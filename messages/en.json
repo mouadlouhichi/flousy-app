@@ -2531,7 +2531,8 @@
     "pasteInvalid": "Enter at least one ingredient to analyze.",
     "pastePlaceholder": "Example: Whole milk, cream, lactic ferments, rennet, salt",
     "title": "Ingredients — what we know",
-    "unavailable": "Analysis unavailable right now."
+    "unavailable": "Analysis unavailable right now.",
+    "unrecognizedAll": "None of these items matched a known food ingredient. The text can be a composition or nutrition table rather than an ingredient list — in that case nothing can be assessed, so nothing is flagged."
   },
   "labelKnowledge": {
     "codePlaceholder": "EAN barcode (8 or 13 digits)",
