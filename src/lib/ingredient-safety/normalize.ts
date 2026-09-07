@@ -19,6 +19,26 @@ export function normalizeInciToken(raw: string): string {
   return s;
 }
 
+/**
+ * Strip characters that never belong on a food/INCI ingredient list before
+ * the text is split into tokens. Paste and OCR input carries noise — bullets,
+ * «typographic quotes», © ® ™, | box/pipe characters, emoji, currency signs…
+ * Letters, digits, whitespace and the punctuation labels actually use
+ * (commas/semicolons as separators, parentheses for sub-lists and INCI
+ * annotations, %/°C/units, +, &, hyphens…) are kept.
+ */
+const LABEL_KEEP = /[^\p{L}\p{N}\s,;:()\[\]{}%°+./&'’!?=,\-–—]/gu;
+
+export function sanitizeLabelText(raw: string): string {
+  let s = String(raw ?? '')
+    // Control characters are not \p{L}\p{N}\s, so LABEL_KEEP already removes
+    // them; the collapse below is for the horizontal spaces it leaves behind.
+    .replace(LABEL_KEEP, ' ')
+    // Collapse horizontal runs only — newlines (line structure) are kept.
+    .replace(/[ \t]{2,}/g, ' ');
+  return s.trim();
+}
+
 /** Remove balanced parenthetical groups entirely, then normalize. */
 export function normalizeWithoutParens(raw: string): string {
   let s = String(raw ?? '');
@@ -87,7 +107,9 @@ export function resolveAlias(normalized: string): string | undefined {
  */
 export function splitInciList(text: string): string[] {
   if (!text) return [];
-  let s = String(text).replace(/\r\n?/g, '\n');
+  // Paste/OCR noise (branding symbols, «quotes», pipe/box characters, emoji…)
+  // is removed before splitting so it can never become a phantom ingredient.
+  let s = sanitizeLabelText(String(text)).replace(/\r\n?/g, '\n');
   // Strip a leading "INGREDIENTS : / INCI / COMPOSITION :" heading once.
   s = s.replace(/^\s*(?:INGREDIENTS?|INGR[ÉE]DIENTS?|INCI|COMPOSITION|LIST(?:E)?|CONTAINS?)\s*[:.\-]\s*/i, '');
   // Bullets / numbering at the start of each line.

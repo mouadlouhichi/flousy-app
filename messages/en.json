@@ -152,6 +152,7 @@
     "cta": "Scan the label",
     "empty": "No text found. Get closer to the ingredient list and try again.",
     "failed": "Label scan failed. Try a sharper, well-lit photo.",
+    "preparing": "Preparing the reader…",
     "scanning": "Reading the label… {percent}%"
   },
   "onboarding": {

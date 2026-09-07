@@ -20,16 +20,18 @@ export function LabelOcrButton({ onText, disabled }: LabelOcrButtonProps) {
   const { messages, t, intlLocale } = useLanguage();
   const g = messages.labelOcr;
   const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState<number | null>(null);
+  const [busy, setBusy] = useState<null | 'preparing' | number>(null);
   const [error, setError] = useState<string | null>(null);
 
   const run = async (file: File | undefined) => {
     if (!file || busy !== null) return;
     setError(null);
-    setBusy(0);
+    setBusy('preparing');
     const lang = intlLocale.startsWith('ar') ? 'ar' : intlLocale.startsWith('fr') ? 'fr' : 'en';
     try {
-      const text = await recognizeLabelText(file, lang, setBusy);
+      const text = await recognizeLabelText(file, lang, (p) =>
+        setBusy(p === null ? 'preparing' : p),
+      );
       if (text.length < 2) {
         setError(g.empty);
         return;
@@ -65,7 +67,7 @@ export function LabelOcrButton({ onText, disabled }: LabelOcrButtonProps) {
         {busy !== null ? (
           <>
             <AppIcon name="hourglass_top" className="size-4 animate-spin" />
-            {t(g.scanning, { percent: busy })}
+            {busy === 'preparing' ? g.preparing : t(g.scanning, { percent: busy })}
           </>
         ) : (
           <>

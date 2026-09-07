@@ -8,6 +8,7 @@ import {
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain } from '../src/lib/food-knowledge/domain';
 import { additiveGrade } from '../src/lib/food-knowledge/grade';
+import { sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
 
 describe('food-knowledge lists', () => {
   it('folds French labels for stable matching', () => {
@@ -307,5 +308,34 @@ describe('audit regression — apricots and sesame products', () => {
     assert.equal(sesame.additives.length, 1);
     assert.equal(sesame.additives[0].code, 'E330');
     assert.equal(additiveGrade(sesame)?.score, 100);
+  });
+});
+
+describe('pasted/OCR text sanitizer (extra characters)', () => {
+  it('removes branding, quotes, pipes and emoji from pasted label text', () => {
+    const dirty = '© Marque | Lait « frais » ® — 2L ½™';
+    const clean = sanitizeLabelText(dirty);
+    assert.ok(!/[©®™«»|]/.test(clean), `no noise chars left: ${clean}`);
+    assert.ok(clean.includes('Lait'), 'letters survive');
+    assert.ok(clean.includes('2L'), 'digits survive');
+    assert.ok(clean.includes('%') === false, 'no stray percent invented');
+  });
+
+  it('never turns noise into phantom ingredients (food + INCI)', () => {
+    const r = analyzeFoodText('Lait de vache © pasteurisé |, Crème fraîche (30%)™, sel');
+    assert.equal(r.total, 3);
+    assert.deepEqual(
+      r.ingredients.map((i) => i.raw),
+      ['Lait de vache pasteurisé', 'Crème fraîche (30%)', 'sel'],
+    );
+    assert.equal(r.recognized, 3);
+
+    const inci = splitInciList('Aqua 💧, Glycerin™ |, Cetearyl Alcohol');
+    assert.deepEqual(inci, ['Aqua', 'Glycerin', 'Cetearyl Alcohol']);
+  });
+
+  it('keeps the characters INCI/food labels actually use', () => {
+    // %/°C units, +, &, parens and hyphens (PEG-40, C.I. 77491) must survive.
+    assert.equal(sanitizeLabelText('C.I. 77491, PEG-40 & Parfum (90%) — 0°C'), 'C.I. 77491, PEG-40 & Parfum (90%) — 0°C');
   });
 });

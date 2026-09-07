@@ -152,6 +152,7 @@
     "cta": "Scanner l'étiquette",
     "empty": "Aucun texte trouvé. Approchez-vous de la liste des ingrédients et réessayez.",
     "failed": "Échec de la lecture. Essayez une photo plus nette et mieux éclairée.",
+    "preparing": "Préparation de la lecture…",
     "scanning": "Lecture de l'étiquette… {percent}%"
   },
   "onboarding": {
