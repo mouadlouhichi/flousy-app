@@ -8,13 +8,14 @@ import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
-import type { ProductAssessment } from '@/lib/ingredient-safety/types';
+import type { Band, ProductAssessment } from '@/lib/ingredient-safety/types';
 import {
   BAND_LABEL_KEY,
   BAND_STYLE,
 } from './courses-ingredient-glance';
 import { CoursesIngredientPanel } from './courses-ingredient-panel';
 import { CoursesFoodPanel } from './courses-food-panel';
+import { ScoreRing } from './courses-score-ring';
 
 /**
  * Collapsible "Label & ingredients" section of the pending-product card.
@@ -136,6 +137,19 @@ export function CoursesLabelAccordion({
           })
       : undefined;
 
+  // Narrowed view of the analysis: only defined when a score + band exist.
+  const readyCosmetic =
+    cosmeticAnalysis &&
+    cosmeticAnalysis.score !== null &&
+    cosmeticAnalysis.band !== null
+      ? (cosmeticAnalysis as ProductAssessment & { score: number; band: Band })
+      : undefined;
+  const scoreUnknown =
+    domain === 'cosmetic' &&
+    cosmeticText &&
+    cosmeticAnalysis &&
+    (cosmeticAnalysis.score === null || cosmeticAnalysis.band === null);
+
   return (
     <div className="mt-3">
       <button
@@ -143,39 +157,46 @@ export function CoursesLabelAccordion({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="pending-label-knowledge"
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-outline-variant bg-surface/40 px-3 py-2 font-label-md text-label-md font-semibold text-on-surface transition-colors hover:bg-surface/70"
+        className="flex min-h-12 w-full items-center justify-between gap-2.5 rounded-xl border border-outline-variant bg-surface/40 px-3.5 py-2 font-label-md text-label-md font-semibold text-on-surface transition-colors hover:bg-surface/70"
       >
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 items-center gap-2.5">
           <AppIcon
             name={domain === 'cosmetic' ? 'science' : 'menu_book'}
-            className="size-4 shrink-0 text-primary"
+            className="size-5 shrink-0 text-primary"
           />
           <span className="truncate">{c.labelInfo}</span>
         </span>
 
-        <span className="flex shrink-0 items-center gap-2">
-          {/* Cosmetic: score ring + band hook */}
+        <span className="flex shrink-0 items-center gap-2.5">
+          {/* Cosmetic: Yuka-style score ring (arc = score/100, colour = band) */}
           {domain === 'cosmetic' &&
             cosmeticText &&
-            (cosmeticAnalysis && cosmeticAnalysis.score !== null && cosmeticAnalysis.band !== null ? (
+            (readyCosmetic ? (
               <>
+                <ScoreRing
+                  score={readyCosmetic.score}
+                  band={readyCosmetic.band}
+                  label={`${readyCosmetic.score}/100 — ${t(ig[BAND_LABEL_KEY[readyCosmetic.band]])}`}
+                  toneClass={BAND_STYLE[readyCosmetic.band].text}
+                />
                 <span
-                  className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums shadow-sm ${BAND_STYLE[cosmeticAnalysis.band].chip}`}
+                  className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[readyCosmetic.band].text}`}
                 >
-                  {cosmeticAnalysis.score}
-                </span>
-                <span
-                  className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[cosmeticAnalysis.band].text}`}
-                >
-                  {t(ig[BAND_LABEL_KEY[cosmeticAnalysis.band]])}
+                  {t(ig[BAND_LABEL_KEY[readyCosmetic.band]])}
                 </span>
               </>
+            ) : scoreUnknown ? (
+              <ScoreRing
+                unknown
+                label={ig.scoreUnknown}
+                toneClass="text-on-surface-variant"
+              />
             ) : (
               !cosmetic.failed &&
               !open && (
                 <span
                   aria-hidden="true"
-                  className="flex size-8 shrink-0 animate-pulse items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant"
+                  className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant"
                 >
                   …
                 </span>
