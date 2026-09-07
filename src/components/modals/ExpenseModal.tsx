@@ -13,7 +13,6 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
-import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { suggestCategory } from '../../lib/insights';
@@ -91,7 +90,7 @@ export function ExpenseModal({
   periodEndDate,
   canSeeBalances = true,
 }: ExpenseModalProps) {
-  const { symbol, currency, format } = useCurrency();
+  const { symbol, format } = useCurrency();
   const { profile } = useAuth();
   const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
@@ -394,17 +393,18 @@ export function ExpenseModal({
 
         {/* ── Amount Input ── */}
         <div className="flex flex-col items-center justify-center py-2">
-          <div className="flex items-center gap-2 mb-1">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              {e.amount}
-            </label>
-            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
-              {currency}
-            </span>
-          </div>
+          <label
+            htmlFor="expense-amount"
+            className="mb-1 block text-center text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            {e.amount}
+          </label>
+          {/* One MAD: the currency prefix at the production size — the label
+              row no longer repeats it in a pill. */}
           <div className="flex items-center text-primary font-bold">
-            <AmountSymbol symbol={symbol} />
+            <span className="mr-1 text-[28px]">{symbol}</span>
             <input
+              id="expense-amount"
               type="number"
               step="any"
               value={amount}
