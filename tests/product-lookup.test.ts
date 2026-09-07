@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mapOffProduct } from '../src/lib/product-lookup';
+import { mapOffProduct, mapInciProduct, lookupOffProduct } from '../src/lib/product-lookup';
 import { barcodeChecksumValid } from '../src/lib/course-session';
 import { lookupMaSeed, MA_SEED_COUNT } from '../src/lib/ma-product-seed';
 
@@ -130,5 +130,167 @@ describe('mapOffProduct — cosmetics (INCI) fields', () => {
       'beauty',
     );
     assert.deepEqual(mapped?.ingredients, ['AQUA', 'PARFUM']);
+  });
+});
+
+describe('mapInciProduct', () => {
+  it('maps the /api/inci/lookup proxy shape to a beauty product', () => {
+    assert.deepEqual(
+      mapInciProduct({
+        found: true,
+        product: {
+          name: 'AHA Peeling Solution',
+          brand: 'The Ordinary',
+          category: 'Skincare',
+          imageUrl: 'https://img.example/peel.jpg',
+          ingredients: ['AQUA', 'LACTIC ACID', 'SALICYLIC ACID'],
+        },
+      }),
+      {
+        name: 'AHA Peeling Solution',
+        brand: 'The Ordinary',
+        category: 'Skincare',
+        imageUrl: 'https://img.example/peel.jpg',
+        ingredients: ['AQUA', 'LACTIC ACID', 'SALICYLIC ACID'],
+        productKind: 'beauty',
+      },
+    );
+  });
+
+  it('returns null for misses and nameless payloads', () => {
+    assert.equal(mapInciProduct(null), null);
+    assert.equal(mapInciProduct({ found: false }), null);
+    assert.equal(mapInciProduct({ found: true, product: { name: ' ' } }), null);
+  });
+});
+
+describe('lookupOffProduct — INCI fallback', () => {
+  type Handler = (url: string) => unknown;
+  const OFF_MISS = { status: 0, product: null };
+  const PROXY_MISS = { status: 0, found: false, product: null };
+
+  function stubFetch(handler: Handler): { calls: string[]; restore: () => void } {
+    const calls: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      const body = handler(url);
+      return new Response(JSON.stringify(body ?? null), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+    return { calls, restore: () => { globalThis.fetch = real; } };
+  }
+
+  it('sends the call to INCI when every available dataset misses (not-found item)', async () => {
+    const stub = stubFetch((url) => {
+      if (url.includes('/api/inci/lookup')) {
+        return {
+          found: true,
+          product: {
+            name: 'AHA 30% + BHA 2% Peeling Solution',
+            brand: 'The Ordinary',
+            ingredients: ['AQUA', 'LACTIC ACID', 'SALICYLIC ACID', 'CITRIC ACID'],
+          },
+        };
+      }
+      return url.includes('/api/barcode/lookup') ? PROXY_MISS : OFF_MISS;
+    });
+    try {
+      const result = await lookupOffProduct('0769915195606');
+      assert.deepEqual(result, {
+        name: 'AHA 30% + BHA 2% Peeling Solution',
+        brand: 'The Ordinary',
+        ingredients: ['AQUA', 'LACTIC ACID', 'SALICYLIC ACID', 'CITRIC ACID'],
+        productKind: 'beauty',
+      });
+      // All datasets were searched, then exactly one INCI call.
+      assert.ok(stub.calls.some((u) => u.includes('world.openfoodfacts.org')));
+      assert.ok(stub.calls.some((u) => u.includes('world.openbeautyfacts.org')));
+      assert.ok(stub.calls.some((u) => u.includes('/api/barcode/lookup')));
+      assert.equal(stub.calls.filter((u) => u.includes('/api/inci/lookup')).length, 1);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it('merges a beauty dataset hit without ingredients with the INCI list', async () => {
+    const stub = stubFetch((url) => {
+      if (url.includes('/api/inci/lookup')) {
+        return { found: true, product: { name: 'Peeling Solution (INCI)', ingredients: ['AQUA', 'LACTIC ACID'] } };
+      }
+      if (url.includes('world.openbeautyfacts.org')) {
+        return {
+          status: 1,
+          product: {
+            product_name: 'Peeling Solution',
+            brands: 'The Ordinary',
+            image_front_url: 'https://img.example/peel.jpg',
+          },
+        };
+      }
+      return url.includes('/api/barcode/lookup') ? PROXY_MISS : OFF_MISS;
+    });
+    try {
+      const result = await lookupOffProduct('0769915195606');
+      assert.deepEqual(result, {
+        name: 'Peeling Solution',
+        brand: 'The Ordinary',
+        imageUrl: 'https://img.example/peel.jpg',
+        ingredients: ['AQUA', 'LACTIC ACID'],
+        productKind: 'beauty',
+      });
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it('never calls INCI for a food hit', async () => {
+    const stub = stubFetch((url) => {
+      if (url.includes('world.openfoodfacts.org')) {
+        return { status: 1, product: { product_name: 'Cola 33cl', brands: 'Fizz' } };
+      }
+      return url.includes('/api/barcode/lookup') ? PROXY_MISS : OFF_MISS;
+    });
+    try {
+      const result = await lookupOffProduct('1111111111111');
+      assert.deepEqual(result, { name: 'Cola 33cl', brand: 'Fizz', productKind: 'food' });
+      assert.ok(!stub.calls.some((u) => u.includes('/api/inci/lookup')), 'INCI must not be called for food');
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it('never calls INCI for a beauty hit that already carries its INCI list', async () => {
+    const stub = stubFetch((url) => {
+      if (url.includes('world.openbeautyfacts.org')) {
+        return { status: 1, product: { product_name: 'Creme', brands: 'Co', ingredients: 'AQUA, GLYCERIN' } };
+      }
+      return url.includes('/api/barcode/lookup') ? PROXY_MISS : OFF_MISS;
+    });
+    try {
+      const result = await lookupOffProduct('1111111111111');
+      assert.deepEqual(result?.ingredients, ['AQUA', 'GLYCERIN']);
+      assert.ok(!stub.calls.some((u) => u.includes('/api/inci/lookup')));
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it('keeps the dataset hit when INCI also misses', async () => {
+    const stub = stubFetch((url) => {
+      if (url.includes('world.openbeautyfacts.org')) {
+        return { status: 1, product: { product_name: 'Creme', brands: 'Co' } };
+      }
+      return url.includes('/api/barcode/lookup') ? PROXY_MISS : OFF_MISS;
+    });
+    try {
+      const result = await lookupOffProduct('1111111111111');
+      assert.deepEqual(result, { name: 'Creme', brand: 'Co', productKind: 'beauty' });
+    } finally {
+      stub.restore();
+    }
   });
 });

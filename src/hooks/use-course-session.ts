@@ -259,11 +259,14 @@ export function useCourseSession(uid: string | null | undefined) {
     async (raw: string): Promise<BarcodeScanResult> => {
       const { barcode } = normalizeBarcode(raw);
       if (!barcode) return { ok: false, reason: 'invalid-code' };
+      // 10s: the lookup searches every dataset in parallel (up to ~4s) and,
+      // for cosmetics, may still call the INCI_API fallback (~4s more).
       const resolution = await resolveProduct({
         barcode,
         catalog,
         lookupSeed: lookupMaSeed,
         lookupRemote: lookupOffProduct,
+        remoteTimeoutMs: 10_000,
       });
       return { ok: true, barcode, resolution };
     },

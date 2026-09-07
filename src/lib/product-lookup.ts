@@ -95,27 +95,104 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null
 }
 
 /**
- * Look up a barcode on Open Food Facts (world → Morocco instance), then via
- * the app proxy. Returns null when the product is not found (or every path
- * failed — the caller then offers manual entry).
+ * INCI_API fallback result, as produced by `/api/inci/lookup` (the server
+ * proxy that holds the API key).
+ */
+export function mapInciProduct(data: unknown): RemoteProductInfo | null {
+  const root = data as
+    | { found?: boolean; product?: Record<string, unknown> }
+    | null
+    | undefined;
+  if (!root || root.found !== true || !root.product) return null;
+  const p = root.product;
+
+  const str = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined;
+
+  const name = str(p.name);
+  if (!name) return null;
+  const brand = str(p.brand);
+  const category = str(p.category);
+  const imageUrl = str(p.imageUrl);
+  let ingredients: string[] | undefined;
+  if (Array.isArray(p.ingredients)) {
+    const list = p.ingredients.map((part) => String(part).trim()).filter(Boolean);
+    if (list.length > 0) ingredients = list;
+  }
+
+  return {
+    name,
+    ...(brand ? { brand } : {}),
+    ...(category ? { category } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(ingredients ? { ingredients } : {}),
+    // INCI_API is a cosmetics database — a hit is always a beauty product.
+    productKind: 'beauty' as ProductKind,
+  };
+}
+
+/**
+ * Look up a barcode across the available product datasets, then — when they
+ * don't yield an INCI list — fall back to INCI_API by barcode.
+ *
+ * 1. Every available dataset is searched **in parallel** (all OFF/OBF hosts
+ *    plus the app proxy, one `Promise.all`); the first hit in host-priority
+ *    order wins.
+ * 2. When nothing was found, or the hit is a beauty product without a
+ *    transcribed INCI list, the call is sent to INCI_API (through the app's
+ *    server proxy, which holds the API key). Food/generic hits are final:
+ *    the cosmetics database has nothing to add for them.
+ *
+ * Returns null when no source knows the product (the caller then offers
+ * manual entry).
  */
 export async function lookupOffProduct(
   barcode: string,
-  opts?: { timeoutMs?: number; proxyUrl?: string },
+  opts?: { timeoutMs?: number; proxyUrl?: string; inciUrl?: string },
 ): Promise<RemoteProductInfo | null> {
   const timeoutMs = opts?.timeoutMs ?? 4000;
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
+  const inciUrl = opts?.inciUrl ?? '/api/inci/lookup';
 
-  // 1) direct from the browser — world, then the MA instance
-  for (const { base, kind } of OFF_HOSTS) {
-    const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
-    const mapped = direct ? mapOffProduct(direct, kind) : null;
-    if (mapped) return mapped;
-  }
+  // 1) Search every available dataset in parallel — first hit by priority wins.
+  const [directs, proxied] = await Promise.all([
+    Promise.all(
+      OFF_HOSTS.map((host) => fetchJson(`${host.base}${barcode}.json?fields=${FIELDS}`, timeoutMs)),
+    ),
+    fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs),
+  ]);
+  const hit =
+    directs
+      .map((data, i) => (data ? mapOffProduct(data, OFF_HOSTS[i].kind) : null))
+      .find((mapped): mapped is RemoteProductInfo => mapped !== null) ??
+    (proxied ? mapOffProduct(proxied) : null);
 
-  // 2) through the app proxy (server-side fetch — also the CORS fallback)
-  const proxied = await fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs);
-  if (proxied) return mapOffProduct(proxied);
+  // A food/generic hit is final — INCI_API is a cosmetics database.
+  if (hit && hit.productKind !== 'beauty') return hit;
+  // A beauty hit that already carries its INCI list is final too.
+  if (hit && hit.ingredients && hit.ingredients.length > 0) return hit;
 
-  return null;
+  // 2) Fallback: send the call to INCI_API (not-found items, or beauty hits
+  //    whose record has no transcribed ingredient list).
+  const inci = mapInciProduct(
+    await fetchJson(`${inciUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs),
+  );
+  if (!inci) return hit ?? null;
+  if (!hit) return inci;
+
+  // Keep the identity the datasets already showed (name/brand/image); the
+  // INCI database supplies the ingredient list.
+  const brand = hit.brand ?? inci.brand;
+  const category = hit.category ?? inci.category;
+  const imageUrl = hit.imageUrl ?? inci.imageUrl;
+  const quantity = hit.quantity;
+  return {
+    name: hit.name || inci.name,
+    ...(brand ? { brand } : {}),
+    ...(category ? { category } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(quantity ? { quantity } : {}),
+    ...(inci.ingredients ? { ingredients: inci.ingredients } : {}),
+    productKind: 'beauty' as ProductKind,
+  };
 }
