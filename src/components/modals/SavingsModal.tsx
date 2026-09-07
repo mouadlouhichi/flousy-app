@@ -6,8 +6,7 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { CustomInput } from '../ui/CustomInput';
 import { entityId, type SavingGoal, type MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
-import { BigAmountInput } from '../ui/amount-input';
-import { normalizeDigitsToAscii, parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
@@ -89,8 +88,8 @@ export function SavingsModal({
     e.preventDefault();
 
     if (mode === 'create' || mode === 'edit') {
-      const parsedTarget = parseAmountInput(target);
-      const parsedCurrent = current.trim() === '' ? 0 : parseAmountInput(current);
+      const parsedTarget = parseFloat(target);
+      const parsedCurrent = current.trim() === '' ? 0 : parseFloat(current);
       const valRes = savingGoalSchema.safeParse({
         name,
         target: parsedTarget,
@@ -142,7 +141,7 @@ export function SavingsModal({
       if (onSaveGoal) onSaveGoal(newGoal, deductFromPlace ? place : null);
       onClose();
     } else if (mode === 'fund' && goal) {
-      const parsedAmount = parseAmountInput(amount);
+      const parsedAmount = parseFloat(amount);
       const valRes = fundGoalSchema.safeParse({ amount: parsedAmount, sourcePlace: place });
 
       if (!valRes.success) {
@@ -165,7 +164,7 @@ export function SavingsModal({
       if (onFund) onFund(goal.id, parsedAmount, place);
       onClose();
     } else if (mode === 'withdraw' && goal) {
-      const parsedAmount = parseAmountInput(amount);
+      const parsedAmount = parseFloat(amount);
       const valRes = withdrawGoalSchema.safeParse({ amount: parsedAmount, targetPlace: place });
 
       if (!valRes.success) {
@@ -195,8 +194,8 @@ export function SavingsModal({
   const quickAmounts = mode === 'fund' ? [500, 1000, 2000, 5000] : [100, 200, 500, 1000];
 
   // Live preview values for the create/edit form
-  const parsedCurrentPreview = Math.max(0, parseAmountInput(current) || 0);
-  const parsedTargetPreview = Math.max(0, parseAmountInput(target) || 0);
+  const parsedCurrentPreview = Math.max(0, parseFloat(current) || 0);
+  const parsedTargetPreview = Math.max(0, parseFloat(target) || 0);
   const selectedPlaceBalance = placeBalances ? placeBalances[place] ?? 0 : availableBalance;
 
   return (
@@ -220,11 +219,11 @@ export function SavingsModal({
             {/* Target Amount */}
             <CustomInput
               label={`${s.targetAmount} (${symbol})`}
-              type="text"
-              inputMode="decimal"
+              type="number"
+              step="any"
               value={target}
               onChange={(e) => {
-                setTarget(normalizeDigitsToAscii(e.target.value));
+                setTarget(e.target.value);
                 setErrors((prev) => ({ ...prev, target: '' }));
               }}
               placeholder="0.00"
@@ -250,11 +249,12 @@ export function SavingsModal({
             <div className="flex flex-col gap-2.5 rounded-2xl border border-outline-variant bg-surface-container p-4">
               <CustomInput
                 label={t(s.alreadySaved, { currency: symbol })}
-                type="text"
-                inputMode="decimal"
+                type="number"
+                step="any"
+                min="0"
                 value={current}
                 onChange={(e) => {
-                  setCurrent(normalizeDigitsToAscii(e.target.value));
+                  setCurrent(e.target.value);
                   setErrors((prev) => ({ ...prev, current: '' }));
                 }}
                 placeholder="0.00"
@@ -329,21 +329,26 @@ export function SavingsModal({
           </>
         ) : (
           <>
-            {/* Fund / Withdraw Amount — decimal number pad; letter code after */}
+            {/* Fund / Withdraw Amount */}
             <div className="flex flex-col items-center justify-center py-2">
               <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
                 {mode === 'fund' ? s.fundAmount : s.withdrawAmount}
               </label>
-              <BigAmountInput
-                autoFocus
-                value={amount}
-                onChange={(next) => {
-                  setAmount(next);
-                  setErrors((prev) => ({ ...prev, amount: '' }));
-                }}
-                placeholder="0.00"
-                aria-label={mode === 'fund' ? s.fundAmount : s.withdrawAmount}
-              />
+              <div className="flex items-center text-primary font-bold">
+                <AmountSymbol symbol={symbol} />
+                <input
+                  type="number"
+                  step="any"
+                  autoFocus
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setErrors((prev) => ({ ...prev, amount: '' }));
+                  }}
+                  placeholder="0.00"
+                  className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+                />
+              </div>
               {errors.amount && (
                 <p role="alert" className="text-[12px] font-medium text-error mt-1 text-center">{errors.amount}</p>
               )}

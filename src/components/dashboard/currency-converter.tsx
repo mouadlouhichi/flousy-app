@@ -6,7 +6,6 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { SUPPORTED_CURRENCIES } from '@/lib/currency';
-import { parseAmountInput } from '@/lib/parse-amount';
 
 const OPTIONS = Object.values(SUPPORTED_CURRENCIES).map((c) => ({ value: c.code, label: c.code }));
 
@@ -42,7 +41,7 @@ export function CurrencyConverter() {
 
   const rates = ratesByBase[from];
   const rate = from === to ? 1 : rates?.rates[to];
-  const value = parseAmountInput(amount) || 0;
+  const value = Number(amount.replace(',', '.')) || 0;
   const converted = useMemo(() => (rate ? value * rate : null), [rate, value]);
   const fmt = (v: number, code: string) => {
     try {

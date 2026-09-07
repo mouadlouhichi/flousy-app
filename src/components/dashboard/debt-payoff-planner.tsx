@@ -8,7 +8,6 @@ import { useLanguage } from '@/lib/i18n-context';
 import { planDebtPayoff, type PayoffMethod } from '@/lib/insights';
 import type { MonthBudget } from '@/lib/store';
 import { ProLockedCard } from './pro-locked-card';
-import { parseAmountInput } from '@/lib/parse-amount';
 import { DebtPayoffChart } from '../charts/debt-payoff-chart';
 
 interface DebtPayoffPlannerProps {
@@ -24,7 +23,7 @@ export function DebtPayoffPlanner({ month, unlocked, onUpgrade }: DebtPayoffPlan
   const p = m.planner;
   const [draftBudget, setDraftBudget] = useState<string>(profile?.debtPayoffBudget ? String(profile.debtPayoffBudget) : '');
   const method: PayoffMethod = profile?.debtPayoffMethod || 'snowball';
-  const budget = parseAmountInput(draftBudget) || 0;
+  const budget = Number(draftBudget.replace(',', '.')) || 0;
 
   const plan = useMemo(() => planDebtPayoff(month.debts || [], budget, method), [month.debts, budget, method]);
   const openDebts = (month.debts || []).filter((d) => d.type === 'debt' && d.status === 'open');

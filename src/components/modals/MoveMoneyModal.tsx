@@ -5,8 +5,7 @@ import { SegmentedControl } from '../ui/segmented-control';
 import { getPlaceBalance, MoneyPlace, MonthBudget } from '../../lib/store';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { moveMoneySchema } from '../../lib/validation';
-import { BigAmountInput } from '../ui/amount-input';
-import { parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 
@@ -18,7 +17,7 @@ interface MoveMoneyModalProps {
 }
 
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
-  const { format, formatParts } = useCurrency();
+  const { symbol, format, formatParts } = useCurrency();
   const { messages: m, t } = useLanguage();
   const mm = m.modals.moveMoney;
   const { places, icon, label, defaultPlace } = useMoneyPlaces(month);
@@ -37,7 +36,7 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     }
   }, [isOpen, defaultPlace, altPlace]);
 
-  const parsedAmount = parseAmountInput(amount) || 0;
+  const parsedAmount = parseFloat(amount) || 0;
   const currentFromBalance = getPlaceBalance(month, from);
   const currentToBalance = getPlaceBalance(month, to);
 
@@ -129,16 +128,21 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
             {mm.transferAmount}
           </label>
-          <BigAmountInput
-            autoFocus
-            value={amount}
-            onChange={(next) => {
-              setAmount(next);
-              setErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            placeholder="0.00"
-            aria-label={mm.transferAmount}
-          />
+          <div className="flex items-center text-primary font-bold">
+            <AmountSymbol symbol={symbol} />
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1 text-center">{errors.amount}</p>
           )}

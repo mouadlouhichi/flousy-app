@@ -14,8 +14,7 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
-import { BigAmountInput } from '../ui/amount-input';
-import { parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { suggestCategory } from '../../lib/insights';
@@ -93,7 +92,7 @@ export function ExpenseModal({
   periodEndDate,
   canSeeBalances = true,
 }: ExpenseModalProps) {
-  const { format } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile } = useAuth();
   const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
@@ -281,9 +280,7 @@ export function ExpenseModal({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    // parseAmountInput understands comma-decimals, grouping spaces and
-    // Arabic-Indic digits; parseFloat would silently read "1 234,56" as 1.
-    const parsedAmount = parseAmountInput(amount);
+    const parsedAmount = parseFloat(amount);
 
     const validationResult = expenseSchema.safeParse({
       name: name || type,
@@ -396,23 +393,30 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* ── Amount Input ── always a decimal number pad (inputMode="decimal");
-            the letter currency code renders after the number, smaller. ── */}
+        {/* ── Amount Input ── */}
         <div className="flex flex-col items-center justify-center py-2">
-          <div className="mb-1">
+          <div className="flex items-center gap-2 mb-1">
             <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               {e.amount}
             </label>
+            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
+              {currency}
+            </span>
           </div>
-          <BigAmountInput
-            value={amount}
-            onChange={(next) => {
-              setAmount(next);
-              setErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            placeholder="0.00"
-            aria-label={e.amount}
-          />
+          <div className="flex items-center text-primary font-bold">
+            <AmountSymbol symbol={symbol} />
+            <input
+              type="number"
+              step="any"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}

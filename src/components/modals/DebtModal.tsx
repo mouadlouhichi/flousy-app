@@ -5,8 +5,8 @@ import { CustomInput } from '../ui/CustomInput';
 import { CustomTextarea } from '../ui/CustomTextarea';
 import { SegmentedControl } from '../ui/segmented-control';
 import { DebtItem, DebtType } from '../../lib/store';
-import { BigAmountInput } from '../ui/amount-input';
-import { parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
+import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 
 interface DebtModalProps {
@@ -20,6 +20,7 @@ interface DebtModalProps {
 }
 
 export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt, defaultType = 'debt' }: DebtModalProps) {
+  const { symbol } = useCurrency();
   const { messages: m } = useLanguage();
   const d = m.modals.debt;
   const [name, setName] = useState('');
@@ -48,7 +49,7 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt, defa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedAmount = parseAmountInput(amount);
+    const parsedAmount = parseFloat(amount);
 
     if (!name.trim()) {
       setErrors({ name: m.errors.validationNameRequired });
@@ -83,21 +84,26 @@ export function DebtModal({ isOpen, onClose, onSave, onDelete, initialDebt, defa
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={initialDebt ? d.editTitle : addLabel}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* ── Amount ─ decimal number pad; letter currency code after, smaller */}
+        {/* ── Amount ── */}
         <div className="flex flex-col items-center justify-center py-2">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
             {d.amount}
           </label>
-          <BigAmountInput
-            autoFocus
-            value={amount}
-            onChange={(next) => {
-              setAmount(next);
-              setErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            placeholder="0.00"
-            aria-label={d.amount}
-          />
+          <div className="flex items-center text-primary font-bold">
+            <AmountSymbol symbol={symbol} />
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}

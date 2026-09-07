@@ -8,8 +8,7 @@ import { CustomInput } from '../ui/CustomInput';
 import { DatePicker } from '../ui/date-picker';
 import { CustomSelect } from '../ui/CustomSelect';
 import { MoneyPlace, SavingGoal, SavingsActivityEntry } from '../../lib/store';
-import { BigAmountInput } from '../ui/amount-input';
-import { parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 
@@ -54,7 +53,7 @@ export function SavingsDepositModal({
   onSave,
   onDelete,
 }: SavingsDepositModalProps) {
-  const { format } = useCurrency();
+  const { symbol, format } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
   const s = m.modals.savings;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
@@ -101,7 +100,7 @@ export function SavingsDepositModal({
     e.preventDefault();
     if (!entry) return;
 
-    const parsedAmount = parseAmountInput(amount);
+    const parsedAmount = Number.parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setErrors({ amount: s.validPositiveAmount });
       return;
@@ -160,21 +159,26 @@ export function SavingsDepositModal({
           ]}
         />
 
-        {/* Amount — decimal number pad; letter currency code after, smaller */}
+        {/* Amount */}
         <div className="flex flex-col items-center justify-center py-2">
           <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase mb-1">
             {type === 'deposit' ? s.fundAmount : s.withdrawAmount}
           </label>
-          <BigAmountInput
-            autoFocus
-            value={amount}
-            onChange={(next) => {
-              setAmount(next);
-              setErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            placeholder="0.00"
-            aria-label={type === 'deposit' ? s.fundAmount : s.withdrawAmount}
-          />
+          <div className="flex items-center text-primary font-bold">
+            <AmountSymbol symbol={symbol} />
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1 text-center">
               {errors.amount}

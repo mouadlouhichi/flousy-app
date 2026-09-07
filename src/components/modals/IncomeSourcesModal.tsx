@@ -17,7 +17,6 @@ import { useHousehold } from '../../lib/household-context';
 import { isProFeatureUnlocked } from '../../lib/household';
 import { isProUser } from '../../lib/pro-features';
 import { useDashboard } from '../dashboard/dashboard-provider';
-import { normalizeDigitsToAscii, parseAmountInput } from '../../lib/parse-amount';
 
 interface IncomeSourcesModalProps {
   isOpen: boolean;
@@ -154,13 +153,13 @@ export function IncomeSourcesModal({
   // ── Save inline edit ──
   const saveEdit = () => {
     const trimmedName = editName.trim();
-    const parsedAmount = parseAmountInput(editAmount);
+    const parsedAmount = parseFloat(editAmount);
 
     const errors: Record<string, string> = {};
     if (!trimmedName) errors.editName = copy.nameRequired;
     if (isNaN(parsedAmount) || parsedAmount <= 0) errors.editAmount = copy.validAmount;
     if (parsedAmount > 1000000000) errors.editAmount = copy.amountExceedsLimit;
-    const parsedReceived = editStatus === 'partial' ? parseAmountInput(editReceivedAmount) : editStatus === 'paid' ? parsedAmount : 0;
+    const parsedReceived = editStatus === 'partial' ? parseFloat(editReceivedAmount) : editStatus === 'paid' ? parsedAmount : 0;
     if (editStatus === 'partial' && (!Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount)) {
       errors.editReceivedAmount = copy.partialAmountError;
     }
@@ -194,13 +193,13 @@ export function IncomeSourcesModal({
     // The first source is free; each additional one needs an active entitlement.
     if (sources.length >= 1 && !canAddSources) return;
     const trimmedName = newName.trim();
-    const parsedAmount = parseAmountInput(newAmount);
+    const parsedAmount = parseFloat(newAmount);
 
     const errors: Record<string, string> = {};
     if (!trimmedName) errors.newName = copy.required;
     if (isNaN(parsedAmount) || parsedAmount <= 0) errors.newAmount = copy.validAmount;
     if (parsedAmount > 1000000000) errors.newAmount = copy.amountExceedsLimit;
-    const parsedReceived = newStatus === 'partial' ? parseAmountInput(newReceivedAmount) : newStatus === 'paid' ? parsedAmount : 0;
+    const parsedReceived = newStatus === 'partial' ? parseFloat(newReceivedAmount) : newStatus === 'paid' ? parsedAmount : 0;
     if (newStatus === 'partial' && (!Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount)) {
       errors.newReceivedAmount = copy.partialAmountError;
     }
@@ -250,9 +249,9 @@ export function IncomeSourcesModal({
     let finalSources = sources;
     if (editingId) {
       const trimmedName = editName.trim();
-      const parsedAmount = parseAmountInput(editAmount);
+      const parsedAmount = parseFloat(editAmount);
       const parsedReceived = editStatus === 'partial'
-        ? parseAmountInput(editReceivedAmount)
+        ? parseFloat(editReceivedAmount)
         : editStatus === 'paid'
           ? parsedAmount
           : 0;
@@ -374,10 +373,10 @@ export function IncomeSourcesModal({
                         <div className="flex flex-col gap-0.5">
                           <div className="relative">
                             <input
-                              type="text"
-                              inputMode="decimal"
+                              type="number"
+                              step="any"
                               value={editAmount}
-                              onChange={(e) => setEditAmount(normalizeDigitsToAscii(e.target.value))}
+                              onChange={(e) => setEditAmount(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
                               className="w-full px-3 py-2 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] font-mono font-bold text-on-surface focus:border-primary outline-none transition-colors pe-7"
                               placeholder={copy.amountPlaceholder}
@@ -403,10 +402,11 @@ export function IncomeSourcesModal({
                           <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
                             {copy.receivedAmount}
                             <input
-                              type="text"
-                              inputMode="decimal"
+                              type="number"
+                              min="0"
+                              step="0.01"
                               value={editReceivedAmount}
-                              onChange={(event) => setEditReceivedAmount(normalizeDigitsToAscii(event.target.value))}
+                              onChange={(event) => setEditReceivedAmount(event.target.value)}
                               className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
                             />
                             {fieldErrors.editReceivedAmount && <span className="text-error">{fieldErrors.editReceivedAmount}</span>}
@@ -584,11 +584,11 @@ export function IncomeSourcesModal({
               <div className="flex flex-col gap-0.5">
                 <div className="relative">
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="any"
                     value={newAmount}
                     onChange={(e) => {
-                      setNewAmount(normalizeDigitsToAscii(e.target.value));
+                      setNewAmount(e.target.value);
                       if (fieldErrors.newAmount) setFieldErrors((p) => ({ ...p, newAmount: '' }));
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
@@ -645,10 +645,11 @@ export function IncomeSourcesModal({
                 <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
                   {copy.receivedAmount}
                   <input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    min="0"
+                    step="0.01"
                     value={newReceivedAmount}
-                    onChange={(event) => setNewReceivedAmount(normalizeDigitsToAscii(event.target.value))}
+                    onChange={(event) => setNewReceivedAmount(event.target.value)}
                     className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"
                   />
                   {fieldErrors.newReceivedAmount && <span className="text-error">{fieldErrors.newReceivedAmount}</span>}

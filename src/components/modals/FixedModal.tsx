@@ -21,8 +21,7 @@ import {
   fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
-import { BigAmountInput } from '../ui/amount-input';
-import { normalizeDigitsToAscii, parseAmountInput } from '../../lib/parse-amount';
+import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -85,7 +84,7 @@ export function FixedModal({
   canSeeBalances = true,
   onRenameCategory,
 }: FixedModalProps) {
-  const { format } = useCurrency();
+  const { symbol, currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
   const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   const { messages: m, t } = useLanguage();
@@ -246,9 +245,7 @@ export function FixedModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // parseAmountInput understands comma-decimals, grouping spaces and
-    // Arabic-Indic digits; parseFloat would silently read "1 234,56" as 1.
-    const parsedAmount = parseAmountInput(amount);
+    const parsedAmount = parseFloat(amount);
 
     const validationResult = fixedBillSchema.safeParse({
       name,
@@ -274,7 +271,7 @@ export function FixedModal({
     const parsedPaidAmount = status === 'paid'
       ? parsedAmount
       : status === 'partial'
-        ? parseAmountInput(paidAmount)
+        ? Number(paidAmount)
         : 0;
     if (
       status === 'partial'
@@ -325,24 +322,31 @@ export function FixedModal({
       title={initialBill ? f.editTitle : f.addTitle}
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* ── Amount ─ always a decimal number pad (inputMode="decimal");
-            the letter currency code renders after the number, smaller. ── */}
+        {/* ── Amount ── */}
         <div className="flex flex-col items-center justify-center py-2">
-          <div className="mb-1">
+          <div className="flex items-center gap-2 mb-1">
             <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
               {f.monthlyCharge}
             </label>
+            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
+              {currency}
+            </span>
           </div>
-          <BigAmountInput
-            autoFocus
-            value={amount}
-            onChange={(next) => {
-              setAmount(next);
-              setErrors((prev) => ({ ...prev, amount: '' }));
-            }}
-            placeholder="0.00"
-            aria-label={f.monthlyCharge}
-          />
+          <div className="flex items-center text-primary font-bold">
+            <AmountSymbol symbol={symbol} />
+            <input
+              type="number"
+              step="any"
+              autoFocus
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrors((prev) => ({ ...prev, amount: '' }));
+              }}
+              placeholder="0.00"
+              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+            />
+          </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
@@ -500,14 +504,13 @@ export function FixedModal({
             <label className="flex flex-col gap-1 text-xs font-bold text-on-surface-variant">
               {f.paidAmount}
               <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                dir="ltr"
+                type="number"
+                min="0"
+                max={amount || undefined}
+                step="0.01"
                 value={paidAmount}
                 onChange={(event) => {
-                  const normalized = normalizeDigitsToAscii(event.target.value);
-                  setPaidAmount(normalized.replace(/[^0-9.,]/g, ''));
+                  setPaidAmount(event.target.value);
                   setErrors((previous) => ({ ...previous, paidAmount: '' }));
                 }}
                 className="h-12 rounded-xl border border-outline-variant bg-surface px-3 font-mono text-on-surface outline-none focus:border-primary"

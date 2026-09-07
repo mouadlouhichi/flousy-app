@@ -14,7 +14,6 @@ import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { IconSelect } from '@/components/ui/icon-select';
-import { normalizeDigitsToAscii, parseAmountInput } from '@/lib/parse-amount';
 import { ExpenseSort, sortVariableExpenses } from '@/lib/expense-sort';
 
 function expenseDay(date: string): string {
@@ -87,7 +86,7 @@ export function VariableTab({
   const totalSpent = (month.variableExpenses || []).reduce((acc, e) => acc + e.amount, 0);
 
   const handleSetBudget = (category: string) => {
-    const amount = parseAmountInput(budgetInput);
+    const amount = parseFloat(budgetInput);
     if (!isNaN(amount) && amount >= 0) {
       // Update current month
       const updatedMonth = updateCategoryBudget(month, category, amount);
@@ -251,10 +250,9 @@ export function VariableTab({
                   {isEditing ? (
                     <div className="flex items-center gap-xs">
                       <input
-                        type="text"
-                        inputMode="decimal"
+                        type="number"
                         value={budgetInput}
-                        onChange={(e) => setBudgetInput(normalizeDigitsToAscii(e.target.value))}
+                        onChange={(e) => setBudgetInput(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSetBudget(category);
                           if (e.key === 'Escape') {
