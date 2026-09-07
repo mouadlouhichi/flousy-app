@@ -727,6 +727,7 @@
     "scanFreeNote": "Sur l'offre gratuite ? Ajoutez les articles par nom ci-dessous — sans code-barres.",
     "noBarcode": "Sans code-barres ? Ajoutez par nom",
     "noBarcodeHint": "Pour les fruits, légumes et articles sans emballage — saisissez le nom, la quantité et le prix.",
+    "labelInfo": "Étiquette et ingrédients",
     "manualName": "Nom du produit",
     "manualAdd": "Ajouter",
     "price": "Prix",

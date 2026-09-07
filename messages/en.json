@@ -727,6 +727,7 @@
     "scanFreeNote": "On the free plan? Add items by name below — no barcode needed.",
     "noBarcode": "No barcode? Add it by name",
     "noBarcodeHint": "For produce and unpackaged items — type the name, quantity and price.",
+    "labelInfo": "Label & ingredients",
     "manualName": "Product name",
     "manualAdd": "Add",
     "price": "Price",
