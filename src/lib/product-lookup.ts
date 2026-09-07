@@ -25,6 +25,31 @@ const FIELDS =
   'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,nutriscore_grade,nutriscore_score';
 
 /**
+ * Placeholder tags OFF attaches to products filed under the wrong database
+ * (or pending proper categorization) — "Incorrect product type,
+ * non-food-products, open-beauty-facts" for a shower gel is not useful UI
+ * copy, so the first REAL category wins and all-placeholder lists yield
+ * no category at all.
+ */
+const PLACEHOLDER_CATEGORIES = new Set([
+  'incorrect product type',
+  'non-food-products',
+  'open-food-facts',
+  'open-beauty-facts',
+  'open-products-facts',
+  'no nutrition facts',
+]);
+
+function firstRealCategory(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (!PLACEHOLDER_CATEGORIES.has(part.toLowerCase())) return part;
+  }
+  return undefined;
+}
+
+/**
  * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
  * shape (`{ status: 1, product }`) and the app-proxy shape
  * (`{ found: true, product }`) — historically the proxy only returned
@@ -70,7 +95,7 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
   if (!name) return null;
 
   const brands = pick('brands')?.split(',')[0]?.trim();
-  const category = pick('categories')?.split(',')[0]?.trim();
+  const category = firstRealCategory(pick('categories'));
   const imageUrl = pick('image_front_url');
   const quantity = pick('quantity');
 

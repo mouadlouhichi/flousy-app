@@ -762,7 +762,6 @@
     "priceRequired": "Enter a price (0 or more).",
     "nameRequired": "Give the product a name to add it.",
     "remembered": "Saved to your product catalog",
-    "fromCatalog": "From your product catalog",
     "fromSeed": "From the Morocco catalog",
     "fromOff": "From Open Food Facts",
     "maBadge": "Made in Morocco",

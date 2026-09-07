@@ -191,15 +191,14 @@ function CoursesScreenInner() {
       const { barcode, resolution } = result;
       const ma = isMoroccanBarcode(barcode);
       if (resolution.kind === 'found') {
-        setNotice({
-          kind: 'info',
-          text:
-            resolution.source === 'catalog'
-              ? c.fromCatalog
-              : resolution.source === 'seed'
-                ? c.fromSeed
-                : c.fromOff,
-        });
+        // A catalog hit is silent: the pending card opening is the feedback,
+        // and "From your product catalog" was just noise on every re-scan.
+        if (resolution.source !== 'catalog') {
+          setNotice({
+            kind: 'info',
+            text: resolution.source === 'seed' ? c.fromSeed : c.fromOff,
+          });
+        }
         openPending({
           barcode,
           name: resolution.product.name,
