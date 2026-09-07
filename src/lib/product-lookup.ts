@@ -1,26 +1,32 @@
 /**
- * Open Food Facts barcode lookup (client side).
+ * Open Food Facts / Open Beauty Facts barcode lookup (client side).
  *
- * Tries the OFF API directly from the browser — the world instance first,
- * then the Morocco instance (`ma-fr.openfoodfacts.org`, which carries local
- * MA data); if both fail (offline, CORS, timeout) it falls back to the app's
- * own `/api/barcode/lookup` proxy, which fetches server-side. All paths
- * return the same OFF-shaped payload so there is a single mapper.
+ * Tries the OFF-family APIs directly from the browser — world food, Morocco
+ * food, world beauty, French beauty (the biggest European cosmetics mirror for
+ * the French brands common on Moroccan shelves), world products; if all fail
+ * (offline, CORS, timeout) it falls back to the app's own `/api/barcode/lookup`
+ * proxy, which fetches server-side and can enrich cosmetics that lack an INCI
+ * list (see src/lib/server/vendor-inci.ts). All paths return the same
+ * OFF-shaped payload so there is a single mapper.
  *
- * Privacy: only the barcode digits leave the device — never user data.
+ * When a direct beauty hit comes back WITHOUT an INCI list, the proxy is asked
+ * to fill the gap — this is the only case where a successful direct lookup
+ * still touches the app server. Privacy: only the barcode digits leave the
+ * device — never user data.
  */
 import type { RemoteProductInfo } from './course-session';
 
-const OFF_HOSTS = [
-  'https://world.openfoodfacts.org/api/v2/product/',
-  'https://ma-fr.openfoodfacts.org/api/v2/product/',
-  'https://ma.openfoodfacts.org/api/v2/product/',
-  'https://world.openbeautyfacts.org/api/v2/product/',
-  'https://world.openproductsfacts.org/api/v2/product/',
+const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
+  { base: 'https://world.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://world.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://fr.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
 ];
 const FIELDS =
   'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
-  'ingredients_text,ingredients_text_en,ingredients_text_fr';
+  'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar';
 
 /**
  * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
@@ -91,9 +97,14 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null
 }
 
 /**
- * Look up a barcode on Open Food Facts (world → Morocco instance), then via
- * the app proxy. Returns null when the product is not found (or every path
- * failed — the caller then offers manual entry).
+ * Look up a barcode on the Open Food Facts family (world → Morocco → beauty →
+ * products), then via the app proxy. Returns null when the product is not
+ * found (or every path failed — the caller then offers manual entry).
+ *
+ * A beauty hit without an INCI list triggers one extra proxy call so the
+ * server can enrich the record from the configured vendor (no-op when no
+ * COSMETIC_INCI_API_KEY is set). Food hits never do — their product pages
+ * carry no INCI and would only waste quota.
  */
 export async function lookupOffProduct(
   barcode: string,
@@ -101,17 +112,22 @@ export async function lookupOffProduct(
 ): Promise<RemoteProductInfo | null> {
   const timeoutMs = opts?.timeoutMs ?? 4000;
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
+  const proxy = async (): Promise<RemoteProductInfo | null> => {
+    const proxied = await fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs);
+    return proxied ? mapOffProduct(proxied) : null;
+  };
 
-  // 1) direct from the browser — world, then the MA instance
-  for (const base of OFF_HOSTS) {
+  // 1) direct from the browser — world, then MA food, then beauty mirrors
+  for (const { base, beauty } of OFF_HOSTS) {
     const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
     const mapped = direct ? mapOffProduct(direct) : null;
-    if (mapped) return mapped;
+    if (!mapped) continue;
+    if (!beauty || mapped.ingredientsText) return mapped;
+    // Beauty hit without INCI → let the server enrich it.
+    return (await proxy()) ?? mapped;
   }
 
-  // 2) through the app proxy (server-side fetch — also the CORS fallback)
-  const proxied = await fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs);
-  if (proxied) return mapOffProduct(proxied);
-
-  return null;
+  // 2) through the app proxy (server-side fetch — also the CORS fallback, and
+  //    the only path that can synthesize a vendor-only product).
+  return proxy();
 }
