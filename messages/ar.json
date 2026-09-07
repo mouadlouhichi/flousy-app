@@ -2461,7 +2461,10 @@
     "flagRestricted": "مقيّد في الاتحاد الأوروبي: {names}",
     "flagGeneric": "عطر غير مفصّل — تركيبته غير معلنة",
     "flagReleasers": "محرّر فورمالدهيد: {names}",
-    "flagUnknown": "{count} من المكوّنات غير معروفة"
+    "flagUnknown": "{count} من المكوّنات غير معروفة",
+    "chipFlagged": "{count} للمراجعة",
+    "chipUnknown": "{count} غير معروف",
+    "chipNoConcern": "لا توجد ملاحظة محددة في المكونات المعروفة."
   },
   "ingredientManual": {
     "missingHint": "قائمة المكوّنات الكاملة غير متاحة لهذا المنتج.",

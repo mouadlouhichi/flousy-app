@@ -2461,7 +2461,10 @@
     "flagRestricted": "EU-restricted: {names}",
     "flagGeneric": "Undeclared fragrance (Parfum) — composition not disclosed",
     "flagReleasers": "Formaldehyde releaser: {names}",
-    "flagUnknown": "{count} ingredients not recognized"
+    "flagUnknown": "{count} ingredients not recognized",
+    "chipFlagged": "{count} flagged",
+    "chipUnknown": "{count} not recognized",
+    "chipNoConcern": "No specific concern found in the recognized ingredients."
   },
   "ingredientManual": {
     "missingHint": "Full ingredient list isn't available for this product.",

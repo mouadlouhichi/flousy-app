@@ -2461,7 +2461,10 @@
     "flagRestricted": "Restreint par l'UE : {names}",
     "flagGeneric": "Parfum non détaillé — composition non divulguée",
     "flagReleasers": "Libérateur de formaldéhyde : {names}",
-    "flagUnknown": "{count} ingrédients non reconnus"
+    "flagUnknown": "{count} ingrédients non reconnus",
+    "chipFlagged": "{count} à vérifier",
+    "chipUnknown": "{count} non reconnus",
+    "chipNoConcern": "Aucune préoccupation spécifique détectée dans les ingrédients reconnus."
   },
   "ingredientManual": {
     "missingHint": "La liste complète des ingrédients n'est pas disponible pour ce produit.",

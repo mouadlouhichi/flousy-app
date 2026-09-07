@@ -79,6 +79,24 @@ const BAND_LABEL_KEY: Record<Band, keyof GlanceMessages> = {
   avoid: 'bandAvoid',
 };
 
+/** Colored tier pill used on ingredient rows inside the details list. */
+const TIER_STYLE: Record<RiskTier, string> = {
+  prohibited: 'bg-rose-600 text-white',
+  restricted: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  caution: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+  watch: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  clean: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+};
+
+/** Small round dot mirroring the row tier (kept visible at a glance). */
+const TIER_DOT: Record<RiskTier, string> = {
+  prohibited: 'bg-rose-600',
+  restricted: 'bg-rose-500',
+  caution: 'bg-orange-500',
+  watch: 'bg-amber-500',
+  clean: 'bg-emerald-500',
+};
+
 export function CoursesIngredientGlance({
   ingredientsText,
   label,
@@ -162,7 +180,13 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
   }
 
   const style = BAND_STYLE[a.band];
-  const flagged = a.ingredients.filter((i) => i.tier && i.tier !== 'clean' && i.tier !== null);
+  const flagged = a.ingredients.filter(
+    (i) => i.tier && i.tier !== 'clean' && i.tier !== null,
+  );
+  const prohibitedOrRestricted = flagged.some(
+    (i) => i.tier === 'prohibited' || i.tier === 'restricted',
+  );
+  const unknownCount = a.total - a.recognized;
   const recognizedLabel =
     a.recognized === a.total && a.total > 0
       ? t(g.recognizedAll, { total: a.total })
@@ -170,20 +194,76 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
 
   return (
     <div className="mt-2.5 space-y-2.5">
-      {/* Score chip + band */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* Score banner — chip + band + coverage on a tinted card */}
+      <div
+        className={`flex items-center gap-3 rounded-2xl border p-3 ${style.ring} bg-surface/40`}
+      >
         <span
-          className={`flex size-11 shrink-0 items-center justify-center rounded-full font-headline-sm text-headline-sm font-bold tabular-nums ${style.chip}`}
+          className={`flex size-12 shrink-0 items-center justify-center rounded-full font-headline-sm text-headline-sm font-bold tabular-nums shadow-sm ${style.chip}`}
         >
           {a.score}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className={`font-label-md text-label-md font-bold ${style.text}`}>
             {t(g[BAND_LABEL_KEY[a.band]])}
           </p>
-          <p className="font-label-sm text-label-sm text-on-surface-variant">{recognizedLabel}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
+            <AppIcon name="task_alt" className="size-3.5 shrink-0" />
+            <span className="truncate">{recognizedLabel}</span>
+          </p>
         </div>
       </div>
+
+      {/* Takeaway chips — color-coded counts; the flagged pill toggles the list */}
+      {(flagged.length > 0 || unknownCount > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {flagged.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              aria-expanded={showDetails}
+              aria-pressed={showDetails}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-label-sm text-label-sm font-medium transition-colors ${
+                prohibitedOrRestricted
+                  ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 hover:bg-rose-500/25'
+                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25'
+              }`}
+            >
+              <AppIcon
+                name={prohibitedOrRestricted ? 'error' : 'warning'}
+                className="size-3.5 shrink-0"
+              />
+              {t(g.chipFlagged, { count: flagged.length })}
+              <AppIcon
+                name="expand_more"
+                className={`size-3.5 transition-transform ${showDetails ? 'rotate-180' : ''}`}
+              />
+            </button>
+          )}
+          {unknownCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 font-label-sm text-label-sm text-on-surface-variant">
+              <AppIcon name="info" className="size-3.5 shrink-0" />
+              {t(g.chipUnknown, { count: unknownCount })}
+            </span>
+          )}
+          {flagged.length > 0 && !showDetails && (
+            <span className="inline-flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant/80">
+              <AppIcon name="chevron_right" className="size-3.5" />
+              {g.viewDetails}
+            </span>
+          )}
+        </div>
+      )}
+
+      {flagged.length === 0 && unknownCount === 0 && (
+        <p className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface">
+          <AppIcon
+            name="check_circle"
+            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
+          {g.chipNoConcern}
+        </p>
+      )}
 
       {/* Concern flags (composed locally from response codes) */}
       {a.flags.length > 0 && (
@@ -215,33 +295,26 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         </ul>
       )}
 
-      {/* Expandable list of flagged ingredients */}
-      {flagged.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setShowDetails((v) => !v)}
-            className="flex items-center gap-1 font-label-sm text-label-sm text-primary hover:opacity-80 transition-opacity"
-            aria-expanded={showDetails}
-          >
-            <AppIcon name="expand_more" className={`size-3.5 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-            {showDetails ? g.hideDetails : g.viewDetails}
-          </button>
-          {showDetails && (
-            <ul className="divide-y divide-outline-variant/70 overflow-hidden rounded-xl border border-outline-variant bg-surface/60">
-              {flagged.map((i) => (
-                <li key={i.index} className="flex items-center justify-between gap-2 px-3 py-2">
-                  <span className="min-w-0 truncate font-body-sm text-body-sm text-on-surface">
-                    {i.matchedInci ?? i.raw}
-                  </span>
-                  <span className="shrink-0 font-label-sm text-label-sm text-on-surface-variant">
-                    {t(g[TIER_LABEL_KEY[i.tier as RiskTier]])}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+      {/* Expandable list of flagged ingredients — colored tier pills */}
+      {flagged.length > 0 && showDetails && (
+        <ul className="divide-y divide-outline-variant/70 overflow-hidden rounded-xl border border-outline-variant bg-surface/60">
+          {flagged.map((i) => {
+            const tier = i.tier as RiskTier;
+            return (
+              <li key={i.index} className="flex items-center gap-2.5 px-3 py-2">
+                <span className={`size-2 shrink-0 rounded-full ${TIER_DOT[tier]}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
+                  {i.matchedInci ?? i.raw}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${TIER_STYLE[tier]}`}
+                >
+                  {t(g[TIER_LABEL_KEY[tier]])}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <p className="font-label-sm text-label-sm text-on-surface-variant/70">{g.disclaimer}</p>
