@@ -392,17 +392,17 @@ export function ExpenseModal({
         </div>
 
         {/* ── Amount Input ── */}
-        <div className="flex flex-col items-center justify-center py-2">
+        <div className="flex flex-col items-center justify-center py-sm">
           <label
             htmlFor="expense-amount"
-            className="mb-1 block text-center text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+            className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm"
           >
             {e.amount}
           </label>
-          {/* One MAD: the currency prefix at the production size — the label
-              row no longer repeats it in a pill. */}
+          {/* The amount input exactly as production: tall 48px number,
+              one small MAD prefix (headline-lg), no currency pill. */}
           <div className="flex items-center text-primary font-bold">
-            <span className="mr-1 text-[28px]">{symbol}</span>
+            <span className="text-headline-lg mr-1">{symbol}</span>
             <input
               id="expense-amount"
               type="number"
@@ -413,7 +413,7 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+              className="bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
