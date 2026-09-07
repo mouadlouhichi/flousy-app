@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeInciText, analyzeIngredientList } from '@/lib/ingredient-safety/analyze';
+import {
+  analyzeInciText,
+  analyzeIngredientList,
+  type AnalyzeOptions,
+} from '@/lib/ingredient-safety/analyze';
 import type { ProductForm } from '@/lib/ingredient-safety/types';
+import { isVendorConfigured, fetchVendorAnalyzeRecognition } from '@/lib/server/vendor-inci';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { checkArcjet } from '@/lib/server/arcjet';
 
@@ -19,9 +24,15 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * }
  *
  * Everything runs against the LOCAL CosIng snapshot + the versioned EU overlay
- * (src/lib/ingredient-safety/*). No third-party call, no user data leaves the
- * server, and the whole pipeline is deterministic — the same INCI text always
- * returns the same JSON, so scores are auditable and reproducible.
+ * (src/lib/ingredient-safety/*). No user data leaves the server, and the
+ * pipeline is deterministic — the same INCI text always returns the same JSON,
+ * so scores are auditable and reproducible.
+ *
+ * Optional vendor coverage fallback: when COSMETIC_INCI_API_KEY is set and the
+ * local snapshot cannot recognize part of the list, the unrecognized names are
+ * asked of a key-gated external ingredient database, which may add SAFE-only
+ * recognitions (response then carries `vendorEnriched: true`). No key → the
+ * route is purely local and never calls out.
  *
  * The response includes dataset freshness metadata; treat any aggregate score
  * as informational (see docs/COSMETIC_INGREDIENT_SCORING.md).
@@ -92,9 +103,40 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = inciText
-      ? analyzeInciText(inciText, { form, label, category })
-      : analyzeIngredientList(items, { form, label, category });
+    const baseOptions: AnalyzeOptions = { form, label, category };
+    const analyzeLocal = () =>
+      inciText
+        ? analyzeInciText(inciText, baseOptions)
+        : analyzeIngredientList(items, baseOptions);
+
+    let result = analyzeLocal();
+
+    // Vendor coverage fallback (only when COSMETIC_INCI_API_KEY is set — no
+    // key, no external call): names the local CosIng snapshot could not match
+    // are asked of the provider, which may add *safe-only* recognitions so a
+    // sparse local snapshot doesn't tank coverage for genuinely safe newer
+    // ingredients. Any vendor verdict other than "safe" is ignored; failures
+    // return the pure-local result unchanged.
+    if (
+      isVendorConfigured() &&
+      result.total > 0 &&
+      result.recognized < result.total
+    ) {
+      const unknownNames = result.ingredients
+        .filter((i) => i.tier === null)
+        .map((i) => i.raw);
+      const recognition = await fetchVendorAnalyzeRecognition(unknownNames);
+      if (recognition.size > 0) {
+        // Re-run on the SAME parsed input (full text or the pre-split token
+        // list) so tokenization is identical — only recognition changes.
+        const enriched = inciText
+          ? analyzeInciText(inciText, { ...baseOptions, vendorRecognized: recognition })
+          : analyzeIngredientList(items, { ...baseOptions, vendorRecognized: recognition });
+        enriched.vendorEnriched = true;
+        result = enriched;
+      }
+    }
+
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error';

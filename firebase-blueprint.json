@@ -1478,6 +1478,11 @@
         "imageUrl": {
           "type": "string"
         },
+        "ingredientsText": {
+          "type": "string",
+          "maxLength": 8000,
+          "description": "Full cosmetic INCI list (informational only — never pricing or money semantics); account-scoped copy saved when a scanned line is confirmed."
+        },
         "lastPrice": {
           "type": "number",
           "minimum": 0,

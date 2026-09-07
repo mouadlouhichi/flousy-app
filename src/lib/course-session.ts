@@ -359,7 +359,11 @@ export type ProductResolution =
         brand?: string;
         category?: string;
         imageUrl?: string;
-        /** Full INCI list from the remote record (cosmetics) — not persisted. */
+        /**
+         * Full INCI list from the record (cosmetics). Persisted to the
+         * catalog product when the scanned line is confirmed; the per-device
+         * overlay is the offline fallback for records without a list.
+         */
         ingredientsText?: string;
       };
       /** Last recorded price from the local catalog, when available. */
@@ -417,7 +421,13 @@ export async function resolveProduct(opts: {
   if (hit) {
     return {
       kind: 'found',
-      product: { name: hit.name, brand: hit.brand, category: hit.category, imageUrl: hit.imageUrl },
+      product: {
+        name: hit.name,
+        brand: hit.brand,
+        category: hit.category,
+        imageUrl: hit.imageUrl,
+        ...(hit.ingredientsText ? { ingredientsText: hit.ingredientsText } : {}),
+      },
       lastPrice: hit.lastPrice,
       source: 'catalog',
     };

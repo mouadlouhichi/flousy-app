@@ -17,8 +17,9 @@ export type ProductForm = 'leave-on' | 'rinse-off' | 'unknown';
  */
 export type RiskTier = 'prohibited' | 'restricted' | 'caution' | 'watch' | 'clean';
 
-/** Where a signal comes from: the local CosIng snapshot or the EU overlay. */
-export type TierSource = 'cosing' | 'eu-overlay';
+/** Where a signal comes from: the local CosIng snapshot, the EU overlay, or
+ *  a key-gated external ingredient database (coverage enrichment only). */
+export type TierSource = 'cosing' | 'eu-overlay' | 'vendor';
 
 export interface AnnexCode {
   /** Annex of Regulation (EC) No 1223/2009 referenced by CosIng. */
@@ -127,6 +128,11 @@ export interface ProductAssessment {
   flags: ProductFlag[];
   /** Set when the score was hard-capped (e.g. an EU-prohibited ingredient). */
   cappedReason?: string;
+  /**
+   * Set when a key-gated external ingredient database supplied extra
+   * recognitions for names the local snapshot missed (coverage enrichment).
+   */
+  vendorEnriched?: boolean;
   /** Snapshot metadata so callers can surface data freshness. */
   dataset: { rows: number; snapshot: string; version: string };
 }

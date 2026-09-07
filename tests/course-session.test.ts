@@ -477,6 +477,56 @@ describe('resolveProduct', () => {
     });
   });
 
+  it('carries the catalog product INCI list into the resolution (cosmetic persistence)', async () => {
+    const cosmetic: Product = {
+      barcode: '3700222201531',
+      name: 'Crème Visage',
+      brand: 'Lab',
+      ingredientsText: 'Aqua, Glycerin, Niacinamide',
+      source: 'off',
+      origin: 'FR',
+      createdAt: '2026-08-01T09:00:00.000Z',
+      updatedAt: '2026-08-01T09:00:00.000Z',
+    };
+    const resolution = await resolveProduct({
+      barcode: cosmetic.barcode,
+      catalog: [cosmetic],
+      lookupRemote: async () => {
+        throw new Error('catalog hit must not look remote');
+      },
+    });
+    assert.deepEqual(resolution, {
+      kind: 'found',
+      product: {
+        name: 'Crème Visage',
+        brand: 'Lab',
+        category: undefined,
+        imageUrl: undefined,
+        ingredientsText: 'Aqua, Glycerin, Niacinamide',
+      },
+      lastPrice: undefined,
+      source: 'catalog',
+    });
+  });
+
+  it('carries a remote INCI list into the resolution for first-time cosmetics', async () => {
+    const resolution = await resolveProduct({
+      barcode: '3760044183738',
+      catalog: [],
+      lookupRemote: async () => ({
+        name: 'Crème Nuit',
+        brand: 'SomeBrand',
+        category: 'Face moisturizers',
+        ingredientsText: 'Aqua, Parfum',
+      }),
+    });
+    assert.equal(resolution.kind, 'found');
+    if (resolution.kind === 'found') {
+      assert.equal(resolution.product.ingredientsText, 'Aqua, Parfum');
+      assert.equal(resolution.source, 'remote');
+    }
+  });
+
   it('reports not-found (clean miss) when the remote misses', async () => {
     const resolution = await resolveProduct({
       barcode: '1111111111111',

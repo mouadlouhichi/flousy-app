@@ -33,6 +33,7 @@ import type {
   ProductForm,
   RiskTier,
   Signal,
+  TierSource,
 } from './types';
 import { strongerTier } from './types';
 import { loadCosingDataset, lookupIngredient } from './dataset';
@@ -110,6 +111,13 @@ export interface AnalyzeOptions {
   label?: string;
   /** OBF-style category ("Shampoos", "Moisturizers"…), used for form inference. */
   category?: string;
+  /**
+   * Optional external-database recognitions (normalized INCI name → info),
+   * applied ONLY to names the local snapshot could not match. The server route
+   * injects these when a key-gated vendor reports the name as safe — a third
+   * party can add coverage, never a penalty or a non-clean bill of health.
+   */
+  vendorRecognized?: ReadonlyMap<string, { label: string; detail: string; evidence: string[] }>;
 }
 
 export interface AnalyzeResult extends ProductAssessment {}
@@ -136,7 +144,12 @@ const ANNEX_DETAIL: Record<string, string> = {
   III: 'CosIng restriction text references Annex III (restricted substances with conditions).',
 };
 
-function assessIngredient(raw: string, index: number, form: ProductForm): IngredientAssessment {
+function assessIngredient(
+  raw: string,
+  index: number,
+  form: ProductForm,
+  vendorRecognized?: ReadonlyMap<string, { label: string; detail: string; evidence: string[] }>,
+): IngredientAssessment {
   const normalized = normalizeInciToken(raw);
   const base: IngredientAssessment = { index, raw, normalized, matched: false, signals: [], tier: null };
   if (!normalized) return base;
@@ -228,7 +241,7 @@ function assessIngredient(raw: string, index: number, form: ProductForm): Ingred
   }
 
   let tier: RiskTier | null = null;
-  let tierSource: 'cosing' | 'eu-overlay' | undefined;
+  let tierSource: TierSource | undefined;
   for (const s of signals) {
     if (s.code === 'cosing-approved-annex') continue;
     const candidate = strongerTier(tier, s.tier);
@@ -238,6 +251,27 @@ function assessIngredient(raw: string, index: number, form: ProductForm): Ingred
   if (tier === null && record) {
     tier = 'clean';
     tierSource = 'cosing';
+  }
+
+  // Vendor coverage enrichment: names the local snapshot does not match may be
+  // recognized as 'clean' by a key-gated external database. The injected map
+  // only ever carries safe verdicts, so this raises coverage without ever
+  // introducing a third-party penalty.
+  if (tier === null && !record && vendorRecognized) {
+    const vendor = vendorRecognized.get(normalized);
+    if (vendor) {
+      base.matched = true;
+      base.matchedInci = vendor.label;
+      pushSignal(signals, {
+        code: 'vendor-analyze',
+        tier: 'clean',
+        label: vendor.label,
+        detail: vendor.detail,
+        evidence: vendor.evidence,
+      });
+      tier = 'clean';
+      tierSource = 'vendor';
+    }
   }
 
   base.signals = signals;
@@ -284,7 +318,9 @@ export function analyzeIngredientList(
   // Unknown form → conservative leave-on treatment (mirrors EU thresholds).
   const effectiveForm: ProductForm = requestedForm === 'rinse-off' ? 'rinse-off' : 'leave-on';
 
-  const assessments = cleaned.map((raw, i) => assessIngredient(raw, i, effectiveForm));
+  const assessments = cleaned.map((raw, i) =>
+    assessIngredient(raw, i, effectiveForm, opts?.vendorRecognized),
+  );
   const recognized = assessments.filter((a) => a.tier !== null);
   const coverage = total === 0 ? 0 : recognized.length / total;
 

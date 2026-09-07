@@ -1,12 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildVendorRecognition,
+  extractVendorAnalyzeEntries,
   extractVendorInci,
   extractVendorProduct,
+  fetchVendorAnalyzeRecognition,
   fetchVendorInci,
   fetchVendorPayload,
   fetchVendorProduct,
   isVendorConfigured,
+  VENDOR_INCI_ANALYZE_ENDPOINT,
   VENDOR_INCI_ENDPOINT,
 } from '../src/lib/server/vendor-inci';
 
@@ -116,5 +120,81 @@ describe('vendor-inci fetch', () => {
       brand: 'X',
       ingredientsText: 'Aqua, Glycerin',
     });
+  });
+});
+
+describe('vendor analyze (analysis-fallback unit)', () => {
+  it('parses the documented parsedIngredients array defensively', () => {
+    const body = {
+      parsedIngredients: [
+        { inciName: 'Phlogiston Essence', safetyLevel: 'safe', safetyScore: 1, found: true },
+        { name: 'Unobtainium Complex', safetyLevel: 'warning' },
+      ],
+    };
+    assert.deepEqual(extractVendorAnalyzeEntries(body), [
+      { inciName: 'Phlogiston Essence', safetyLevel: 'safe', safetyScore: 1, found: true },
+      { inciName: 'Unobtainium Complex', safetyLevel: 'warning' },
+    ]);
+  });
+
+  it('accepts ingredients / analysis.parsedIngredients shapes and drops junk', () => {
+    assert.deepEqual(extractVendorAnalyzeEntries({ ingredients: [{ inciName: 'X', found: false }] }), [
+      { inciName: 'X', found: false },
+    ]);
+    assert.deepEqual(
+      extractVendorAnalyzeEntries({ analysis: { parsedIngredients: [{ name: 'Y' }] } }),
+      [{ inciName: 'Y' }],
+    );
+    assert.deepEqual(extractVendorAnalyzeEntries({ parsedIngredients: [{ nope: 1 }, 'junk', null] }), []);
+    assert.deepEqual(extractVendorAnalyzeEntries({ parsedIngredients: [] }), []);
+    assert.deepEqual(extractVendorAnalyzeEntries(null), []);
+    assert.deepEqual(extractVendorAnalyzeEntries({ something: 'else' }), []);
+  });
+
+  it('normalizes name keys and adopts only explicit safe entries', () => {
+    const map = buildVendorRecognition([
+      { inciName: '  phlogiston essence ', safetyLevel: 'Safe' },
+      { inciName: 'Unobtainium Complex', safetyLevel: 'unsafe' },
+      { inciName: 'Mystery Polymer', safetyLevel: 'warning', safetyScore: 0.4, found: true },
+      { inciName: 'GoneBotanical', found: false, safetyLevel: 'safe' },
+      { inciName: '', safetyLevel: 'safe' },
+    ]);
+    assert.equal(map.size, 1);
+    const entry = map.get('PHLOGISTON ESSENCE');
+    assert.ok(entry, 'normalized key present');
+    assert.equal(entry.label, 'PHLOGISTON ESSENCE');
+    assert.ok(entry.detail.length > 0 && entry.evidence.length > 0);
+  });
+
+  it('never calls the network without a key, and caps the posted list at 300', async () => {
+    let calls = 0;
+    const boom: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async () => {
+      calls++;
+      throw new Error('must not be reached');
+    };
+    assert.deepEqual([...(await fetchVendorAnalyzeRecognition(['Aqua'], KEYLESS, boom))], []);
+    assert.equal(calls, 0);
+
+    const long = Array.from({ length: 500 }, (_, i) => `Xtra ${i}`);
+    let posted: unknown[] | null = null;
+    const spy: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async (url, init) => {
+      posted = JSON.parse(init?.body ?? '{}').ingredients;
+      assert.equal(url, VENDOR_INCI_ANALYZE_ENDPOINT);
+      return { ok: true, json: async () => ({ parsedIngredients: [] }) };
+    };
+    await fetchVendorAnalyzeRecognition(long, KEYED, spy);
+    assert.notEqual(posted, null, 'the spy must have run');
+    assert.equal((posted as unknown as unknown[]).length, 300);
+  });
+
+  it('fails open on HTTP errors, thrown network errors, and hostile payloads', async () => {
+    const httpErr = async () => ({ ok: false, json: async () => ({}) });
+    assert.equal((await fetchVendorAnalyzeRecognition(['Aqua'], KEYED, httpErr)).size, 0);
+    const netErr = async () => {
+      throw new Error('network down');
+    };
+    assert.equal((await fetchVendorAnalyzeRecognition(['Aqua'], KEYED, netErr)).size, 0);
+    const junk = async () => ({ ok: true, json: async () => ({ parsedIngredients: 'oops' }) });
+    assert.equal((await fetchVendorAnalyzeRecognition(['Aqua'], KEYED, junk)).size, 0);
   });
 });

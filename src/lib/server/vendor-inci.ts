@@ -23,7 +23,11 @@
  * fetch inside for any provider that returns the same shape.
  */
 
+import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
+
 export const VENDOR_INCI_ENDPOINT = 'https://inciapi.com/v1/products/';
+/** Free-text INCI analysis (POST /v1/analyze per the provider docs). */
+export const VENDOR_INCI_ANALYZE_ENDPOINT = 'https://inciapi.com/v1/analyze';
 type EnvVarMap = Record<string, string | undefined>;
 const VENDOR_TIMEOUT_MS = 3_000;
 const MAX_INCI_LENGTH = 8_000;
@@ -146,4 +150,126 @@ export async function fetchVendorProduct(
 ): Promise<VendorProductInfo | null> {
   const body = await fetchVendorPayload(code, env, fetchImpl);
   return extractVendorProduct(body);
+}
+
+// ---------------------------------------------------------------------------
+// Analysis fallback — coverage enrichment for names the LOCAL CosIng snapshot
+// does not recognize. The provider's per-ingredient entries are adopted ONLY
+// when their reported safety level maps 1:1 to one of our tiers ('safe' →
+// clean); any other verdict is ignored, so a third party can never inject a
+// penalty (or a clean bill) the local model did not intend. Parsing is
+// defensive and every failure degrades to the pure-local result.
+// ---------------------------------------------------------------------------
+
+export interface VendorAnalyzeEntry {
+  /** Name as returned by the provider (already normalized by them). */
+  inciName: string;
+  safetyLevel?: string;
+  safetyScore?: number;
+  found?: boolean;
+}
+
+export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[] {
+  if (!body || typeof body !== 'object') return [];
+  const root = body as {
+    parsedIngredients?: unknown;
+    ingredients?: unknown;
+    analysis?: { parsedIngredients?: unknown };
+  };
+  const raw = root.parsedIngredients ?? root.analysis?.parsedIngredients ?? root.ingredients;
+  if (!Array.isArray(raw)) return [];
+  const entries: VendorAnalyzeEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as {
+      inciName?: unknown;
+      name?: unknown;
+      safetyLevel?: unknown;
+      safetyScore?: unknown;
+      found?: unknown;
+    };
+    const inciName =
+      typeof obj.inciName === 'string'
+        ? obj.inciName.trim()
+        : typeof obj.name === 'string'
+          ? obj.name.trim()
+          : '';
+    if (!inciName) continue;
+    entries.push({
+      inciName,
+      ...(typeof obj.safetyLevel === 'string' && obj.safetyLevel.trim()
+        ? { safetyLevel: obj.safetyLevel.trim() }
+        : {}),
+      ...(typeof obj.safetyScore === 'number' ? { safetyScore: obj.safetyScore } : {}),
+      ...(typeof obj.found === 'boolean' ? { found: obj.found } : {}),
+    });
+  }
+  return entries;
+}
+
+/**
+ * Build the normalized-name → recognition map consumed by the analysis
+ * engine. Keys match the engine's normalizeInciToken output. Only entries the
+ * vendor explicitly reports as 'safe' are adopted (clean tier); anything else
+ * — unknown levels, found:false — is left unrecognized.
+ */
+export function buildVendorRecognition(
+  entries: readonly VendorAnalyzeEntry[],
+): Map<string, { label: string; detail: string; evidence: string[] }> {
+  const map = new Map<string, { label: string; detail: string; evidence: string[] }>();
+  for (const entry of entries) {
+    const name = entry.inciName.trim();
+    if (!name) continue;
+    if (entry.found === false) continue;
+    if ((entry.safetyLevel ?? '').toLowerCase() !== 'safe') continue;
+    const key = normalizeInciToken(name);
+    if (!key) continue;
+    map.set(key, {
+      label: name.toUpperCase(),
+      detail:
+        'Not present in the local CosIng snapshot, but reported safe by the external ' +
+        `ingredient database (provider level "${entry.safetyLevel}").`,
+      evidence: ['INCI API provider analysis (external database)'],
+    });
+  }
+  return map;
+}
+
+type AnalyzeFetchImpl = (
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
+) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
+
+const defaultAnalyzeFetch: AnalyzeFetchImpl = (url, init) =>
+  fetch(url, init as RequestInit) as Promise<{ ok: boolean; json: () => Promise<unknown> }>;
+
+/**
+ * Ask the vendor to analyze the ingredient names the local snapshot missed.
+ * POSTs the raw list; returns the recognized-safe map (empty when the vendor
+ * had nothing to add or anything failed). Never called without a key.
+ */
+export async function fetchVendorAnalyzeRecognition(
+  names: readonly string[],
+  env: EnvVarMap = process.env,
+  fetchImpl: AnalyzeFetchImpl = defaultAnalyzeFetch,
+): Promise<Map<string, { label: string; detail: string; evidence: string[] }>> {
+  const key = vendorKey(env);
+  if (!key || names.length === 0) return new Map();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
+  try {
+    const res = await fetchImpl(VENDOR_INCI_ANALYZE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ ingredients: names.slice(0, 300) }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return new Map();
+    const body = await res.json();
+    return buildVendorRecognition(extractVendorAnalyzeEntries(body));
+  } catch {
+    return new Map();
+  } finally {
+    clearTimeout(timer);
+  }
 }

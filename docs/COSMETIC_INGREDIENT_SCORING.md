@@ -227,7 +227,7 @@ source ladder:
 | 1 | **OFF family, incl. `fr.openbeautyfacts.org`** | direct browser lookup (world food → MA food → world/fr beauty → world products). The French beauty mirror is the largest European cosmetics DB and covers the French brands common on Moroccan shelves. | nothing |
 | 2 | **Vendor fill (barcode proxy)** | the app's `/api/barcode/lookup` proxy finds the product on a beauty mirror but it has no INCI text → asks the vendor for the list (only when `COSMETIC_INCI_API_KEY` is configured; the client triggers it by calling the proxy once when a *direct* beauty hit lacked INCI). | optional key, server-only |
 | 3 | **Vendor find** | no OFF-family mirror knows the code → the proxy asks the vendor for product name + INCI before giving up (last resort). | optional key, server-only |
-| 4 | **Manual paste + device memory** (`CoursesIngredientPanel`) | nothing above produced an INCI list → the pending-product card offers "paste from label". The text is analyzed fully locally and remembered **per barcode on this device** (localStorage overlay `smartjib_inci_overlay`), so the next scan of the same product auto-analyzes without re-pasting. | nothing — works offline |
+| 4 | **Manual paste + memory** (`CoursesIngredientPanel`) | nothing above produced an INCI list → the pending-product card offers "paste from label". The text is analyzed fully locally and remembered **per barcode on this device** (localStorage overlay `smartjib_inci_overlay`) for repeat scans; once the scanned line is confirmed it is also saved **with the product in the account catalog** (`users/{uid}/products/{barcode}.ingredientsText`), so the list follows the account to other devices. | nothing — works offline |
 
 Notes:
 - **The vendor is only ever an INCI/name source.** The deterministic local
@@ -237,10 +237,24 @@ Notes:
 - Enrichment is fail-open and bounded (3 s timeout, 8k-char cap, no key =
   zero vendor calls) and the client never sees the key — only the barcode
   digits go to the proxy, matching the app's privacy stance.
-- The device overlay is intentionally not Firestore-persisted yet
-  (schema/rules follow-up): it travels with the device, not the account, and
-  the manual path is the natural basis for an opt-in "share with Open Beauty
-  Facts" contribution later (the label text already exists, structured).
+- **Analysis coverage fallback (same key, same rules).** `POST /api/inci/analyze`
+  runs fully locally first. When `COSMETIC_INCI_API_KEY` is set and some names
+  stay unrecognized, the route asks the provider to analyze *only those names*
+  (max 300) and adopts **only its `safe` verdicts** as clean-tier coverage —
+  marked `vendorEnriched: true` in the response. Warnings, penalties, and
+  `found:false` entries are dropped, so a third party can raise recognition
+  coverage for genuinely safe newer ingredients but can never inject a penalty
+  or override a verdict the local model already produced; any vendor failure
+  returns the pure-local result unchanged. No key ⇒ the route never calls out.
+- **Two-tier INCI memory.** The device-local overlay (`smartjib_inci_overlay`)
+  is the offline/manual memory: writing happens only when a pasted list is
+  submitted, it stays on the device, and the panel labels it "saved on this
+  device" with a one-tap remove. The account-scoped copy is the product's
+  `ingredientsText` field in Firestore, written only when a scanned line is
+  **confirmed** (never while typing/scanning); it round-trips through the
+  finance backup as an informational field (≤ 8,000 chars, no money
+  semantics). The overlay keeps the device working offline and is the natural
+  basis for an opt-in "share with Open Beauty Facts" contribution later.
 
 **Shipped UI slice — the scan-time glance (Pro course flow):**
 `CoursesIngredientGlance` renders inside the pending-product card whenever a

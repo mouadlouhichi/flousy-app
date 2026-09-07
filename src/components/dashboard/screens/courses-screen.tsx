@@ -22,6 +22,7 @@ import { CoursesBill } from '../courses/courses-bill';
 import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
+import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { useDashboard } from '../dashboard-provider';
 
 /** A resolved (or to-be-entered) product waiting for its price. */
@@ -237,12 +238,19 @@ function CoursesScreenInner() {
       setNotice({ kind: 'warn', text: c.nameRequired });
       return;
     }
+    // Persist the INCI list on the catalog product so the ingredient glance
+    // survives across sessions: the resolution cascade's text when it had
+    // one, else the manual paste remembered on this device.
+    const ingredientsText =
+      pending.ingredientsText?.trim() ||
+      (pending.barcode ? readInciOverlayEntry(pending.barcode) : undefined);
     store.addScannedLine({
       barcode: pending.barcode,
       name: pending.name.trim(),
       category: pending.category,
       unitPrice: price,
       qty: pendingQty,
+      ...(ingredientsText ? { ingredientsText } : {}),
     });
     setPending(null);
     setPendingPrice('');

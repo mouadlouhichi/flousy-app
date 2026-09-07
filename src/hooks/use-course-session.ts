@@ -222,7 +222,15 @@ export function useCourseSession(uid: string | null | undefined) {
 
   /** Add a line for a resolved product, then remember its price in the catalog. */
   const addScannedLine = useCallback(
-    (input: { barcode?: string; name: string; category?: string; unitPrice: number; qty?: number }) => {
+    (input: {
+      barcode?: string;
+      name: string;
+      category?: string;
+      unitPrice: number;
+      qty?: number;
+      /** INCI list to persist on the catalog product (cosmetics). */
+      ingredientsText?: string;
+    }) => {
       const item = createSessionItem(input);
       mutateActive((session) => addItemToSession(session, item));
 
@@ -235,6 +243,11 @@ export function useCourseSession(uid: string | null | undefined) {
           ...(input.category ? { category: input.category } : existing?.category ? { category: existing.category } : {}),
           ...(existing?.brand ? { brand: existing.brand } : {}),
           ...(existing?.imageUrl ? { imageUrl: existing.imageUrl } : {}),
+          ...(input.ingredientsText
+            ? { ingredientsText: input.ingredientsText }
+            : existing?.ingredientsText
+              ? { ingredientsText: existing.ingredientsText }
+              : {}),
           lastPrice: item.unitPrice,
           priceUpdatedAt: nowIso,
           source: existing?.source ?? 'session',

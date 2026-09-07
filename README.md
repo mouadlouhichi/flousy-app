@@ -189,7 +189,8 @@ The three server routes have intentionally narrow responsibilities:
   delivery of an invitation already authorised by Firestore Rules;
 - `GET /api/barcode/lookup`: bounded Open Food Facts proxy/fallback;
 - `POST /api/inci/analyze`: local CosIng-backed INCI risk analysis for scanned
-  cosmetics (deterministic scores, no third-party call — see
+  cosmetics (deterministic scores; an optional key-gated vendor call can add
+  *safe-only* coverage for names the local snapshot misses — see
   [`docs/COSMETIC_INGREDIENT_SCORING.md`](docs/COSMETIC_INGREDIENT_SCORING.md)
   and [`data/cosing/README.md`](data/cosing/README.md)).
 

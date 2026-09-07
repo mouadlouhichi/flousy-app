@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { splitInciList } from '@/lib/ingredient-safety/normalize';
+import {
+  readInciOverlay,
+  removeInciOverlayEntry,
+  writeInciOverlayEntry,
+} from '@/lib/ingredient-device-store';
 import { CoursesIngredientGlance } from './courses-ingredient-glance';
 
 /**
@@ -19,10 +24,11 @@ import { CoursesIngredientGlance } from './courses-ingredient-glance';
  *      pasted it is remembered per barcode on this device.
  *
  * When the analysis text comes from the manual/saved path a small "saved on
- * this device" note is shown; editing overwrites the saved copy. Nothing is
- * written to Firestore — the overlay is localStorage only, so it follows the
- * device, not the account (per-product persistence in Firestore is a
- * follow-up, see docs/COSMETIC_INGREDIENT_SCORING.md).
+ * this device" note is shown; editing overwrites the saved copy. The device
+ * overlay is the offline cache — the account-scoped copy is persisted to the
+ * product catalog (users/{uid}/products/{barcode}, `ingredientsText`) when
+ * the line is confirmed, so the score follows the product across sessions
+ * and devices (see docs/COSMETIC_INGREDIENT_SCORING.md).
  */
 
 interface CoursesIngredientPanelProps {
@@ -34,48 +40,6 @@ interface CoursesIngredientPanelProps {
   name?: string;
   /** OBF-style category used as a leave-on/rinse-off hint. */
   category?: string;
-}
-
-const OVERLAY_KEY = 'smartjib_inci_overlay';
-
-type OverlayMap = Record<string, string>;
-
-function readOverlay(): OverlayMap {
-  try {
-    const raw =
-      typeof window === 'undefined' ? null : window.localStorage.getItem(OVERLAY_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    return parsed && typeof parsed === 'object' ? (parsed as OverlayMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeOverlayEntry(barcode: string, text: string): void {
-  try {
-    const map = readOverlay();
-    map[barcode] = text;
-    // Keep the map bounded (a shopping catalog, not a data lake).
-    const entries = Object.entries(map);
-    if (entries.length > 300) {
-      for (const [key] of entries.slice(0, entries.length - 300)) delete map[key];
-    }
-    window.localStorage.setItem(OVERLAY_KEY, JSON.stringify(map));
-  } catch {
-    /* storage blocked/full — the analysis still works for this scan */
-  }
-}
-
-function removeOverlayEntry(barcode: string): void {
-  try {
-    const map = readOverlay();
-    if (!(barcode in map)) return;
-    delete map[barcode];
-    window.localStorage.setItem(OVERLAY_KEY, JSON.stringify(map));
-  } catch {
-    /* ignore */
-  }
 }
 
 export function CoursesIngredientPanel({
@@ -93,7 +57,7 @@ export function CoursesIngredientPanel({
   const [saved, setSaved] = useState(false);
 
   const fromRecord = initialText?.trim() || '';
-  const overlay = barcode ? (readOverlay()[barcode] ?? '').trim() : '';
+  const overlay = barcode ? (readInciOverlay()[barcode] ?? '').trim() : '';
   // null = no ingredient text available yet (the manual paste prompt shows).
   const [active, setActive] = useState<string | null>(
     fromRecord || overlay || null,
@@ -131,7 +95,7 @@ export function CoursesIngredientPanel({
     setActive(text);
     setEditing(false);
     if (barcode) {
-      writeOverlayEntry(barcode, text);
+      writeInciOverlayEntry(barcode, text);
       setSaved(true);
     } else {
       setSaved(false);
@@ -140,7 +104,7 @@ export function CoursesIngredientPanel({
 
   const clearSaved = () => {
     if (!barcode) return;
-    removeOverlayEntry(barcode);
+    removeInciOverlayEntry(barcode);
     setSaved(false);
     setActive(null);
     setEditing(false);

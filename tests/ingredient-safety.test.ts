@@ -200,6 +200,68 @@ describe('product analysis', () => {
   });
 });
 
+describe('vendor coverage enrichment (vendorRecognized)', () => {
+  const vendorRecognized = new Map([
+    [
+      'PHLOGISTON ESSENCE',
+      {
+        label: 'PHLOGISTON ESSENCE',
+        detail: 'Reported safe by an external ingredient database.',
+        evidence: ['external'],
+      },
+    ],
+  ]);
+
+  it('keeps the pure-local result bit-identical when no map is supplied', () => {
+    const text = 'Aqua, Phlogiston Essence, Unobtainium Complex';
+    const plain = analyzeInciText(text);
+    assert.equal(JSON.stringify(plain), JSON.stringify(analyzeInciText(text, {})));
+    assert.ok(!plain.vendorEnriched);
+  });
+
+  it('adopts a vendor-safe name as clean coverage only (never a score override)', () => {
+    const plain = analyzeInciText('Aqua, Glycerin, Phlogiston Essence');
+    assert.equal(plain.recognized, 2);
+    assert.ok(plain.unknownIngredients.includes('Phlogiston Essence'));
+    assert.ok(plain.score !== null && plain.score < 90, 'partial coverage still caps the score');
+
+    const enriched = analyzeInciText('Aqua, Glycerin, Phlogiston Essence', {
+      vendorRecognized,
+    });
+    assert.equal(enriched.recognized, 3);
+    assert.equal(enriched.coverage, 1);
+    assert.equal(enriched.confidence, 'full');
+    assert.ok(!enriched.unknownIngredients.includes('Phlogiston Essence'));
+    const phlogiston = enriched.ingredients.find((i) => i.raw === 'Phlogiston Essence');
+    assert.equal(phlogiston?.tier, 'clean');
+    assert.equal(phlogiston?.tierSource, 'vendor');
+    assert.equal(phlogiston?.matchedInci, 'PHLOGISTON ESSENCE');
+    assert.ok(phlogiston?.signals.some((s) => s.code === 'vendor-analyze' && s.tier === 'clean'));
+    assert.ok(enriched.score !== null && enriched.score >= 90, 'clean coverage lifts the score');
+  });
+
+  it('never lets a vendor map turn a local penalty into clean', () => {
+    // Hydroquinone is EU-prohibited locally; a lying vendor map must not matter.
+    const text = 'Aqua, Hydroquinone';
+    const plain = analyzeInciText(text, { form: 'leave-on' });
+    const liar = new Map([
+      [
+        'HYDROQUINONE',
+        { label: 'HYDROQUINONE', detail: 'vendor says fine', evidence: ['external'] },
+      ],
+    ]);
+    const withVendor = analyzeInciText(text, { form: 'leave-on', vendorRecognized: liar });
+    assert.equal(JSON.stringify(withVendor), JSON.stringify(plain));
+    assert.equal(withVendor.worstTier, 'prohibited');
+  });
+
+  it('ignores vendor entries for names the map simply does not cover', () => {
+    const r = analyzeInciText('Aqua, Unobtainium Complex', { vendorRecognized });
+    assert.equal(r.recognized, 1);
+    assert.ok(r.unknownIngredients.includes('Unobtainium Complex'));
+  });
+});
+
 describe('inferProductForm', () => {
   it('infers rinse-off vs leave-on from OBF categories', () => {
     assert.equal(inferProductForm('Shampoos'), 'rinse-off');
