@@ -19,6 +19,7 @@ import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
+import { CoursesIngredientGlance } from '../courses/courses-ingredient-glance';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { useDashboard } from '../dashboard-provider';
@@ -31,6 +32,8 @@ interface PendingProduct {
   brand?: string;
   category?: string;
   imageUrl?: string;
+  /** Full INCI list when the remote record had one (cosmetics). */
+  ingredientsText?: string;
   /** Where the metadata came from (drives the helper label). */
   source: 'catalog' | 'seed' | 'remote' | 'manual';
   /** Moroccan product (badge). */
@@ -197,6 +200,7 @@ function CoursesScreenInner() {
           brand: resolution.product.brand,
           category: resolution.product.category,
           imageUrl: resolution.product.imageUrl,
+          ingredientsText: resolution.product.ingredientsText,
           source: resolution.source,
           ma,
         });
@@ -727,6 +731,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
   return (
     <div className="rounded-3xl border border-primary/40 bg-primary-container/40 p-4 md:p-5">
       <div className="flex items-start gap-3">
+
         {pending.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -769,6 +774,16 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
           {c.skip}
         </button>
       </div>
+
+      {/* Ingredient glance for cosmetics that came with a full INCI list —
+          the self-hosted analysis is deterministic and cached per product. */}
+      {pending.ingredientsText?.trim() ? (
+        <CoursesIngredientGlance
+          ingredientsText={pending.ingredientsText}
+          label={needsName ? undefined : pending.name}
+          category={pending.category}
+        />
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <QtyControl value={qty} onChange={onQty} />

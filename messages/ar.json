@@ -2432,5 +2432,33 @@
     "expected": "متوقع",
     "viewList": "قائمة",
     "viewCalendar": "تقويم"
+  },
+  "ingredientGlance": {
+    "title": "المكوّنات",
+    "analyzing": "جارٍ تحليل المكوّنات…",
+    "unavailable": "تحليل المكوّنات غير متاح حالياً.",
+    "disclaimer": "مؤشّر إعلامي مبني على بيانات الاتحاد الأوروبي — وليس نصيحة طبية.",
+    "recognized": "{recognized} من أصل {total} مكوّن معروف",
+    "recognizedAll": "تم تحليل {total} مكوّن",
+    "scoreUnknown": "تعذّر التقييم — معظم المكوّنات غير موجودة في قاعدة البيانات.",
+    "moreFlags": "+{count} أخرى",
+    "viewDetails": "عرض المكوّنات المثارة",
+    "hideDetails": "إخفاء القائمة",
+    "bandExcellent": "ممتاز",
+    "bandGood": "جيّد",
+    "bandModerate": "متوسّط",
+    "bandCaution": "يستدعي الانتباه",
+    "bandAvoid": "يُتجنّب",
+    "bandProhibited": "محظور",
+    "bandRestricted": "مقيّد",
+    "bandWatch": "يستحق الملاحظة",
+    "bandClean": "بلا إشارة",
+    "flagProhibitedOne": "يحتوي على مكوّن محظور في الاتحاد الأوروبي: {name}",
+    "flagProhibitedOther": "يحتوي على مكوّنات محظورة في الاتحاد الأوروبي: {names}",
+    "flagAllergens": "{count} من مسبّبات حساسية العطور في الاتحاد الأوروبي: {names}",
+    "flagRestricted": "مقيّد في الاتحاد الأوروبي: {names}",
+    "flagGeneric": "عطر غير مفصّل — تركيبته غير معلنة",
+    "flagReleasers": "محرّر فورمالدهيد: {names}",
+    "flagUnknown": "{count} من المكوّنات غير معروفة"
   }
 }

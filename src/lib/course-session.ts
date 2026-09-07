@@ -354,7 +354,14 @@ export interface RemoteProductInfo {
 export type ProductResolution =
   | {
       kind: 'found';
-      product: { name: string; brand?: string; category?: string; imageUrl?: string };
+      product: {
+        name: string;
+        brand?: string;
+        category?: string;
+        imageUrl?: string;
+        /** Full INCI list from the remote record (cosmetics) — not persisted. */
+        ingredientsText?: string;
+      };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
       source: 'catalog' | 'seed' | 'remote';
@@ -439,6 +446,7 @@ export async function resolveProduct(opts: {
         brand: seedHit.brand,
         category: seedHit.category,
         imageUrl: seedHit.imageUrl,
+        ...(seedHit.ingredientsText ? { ingredientsText: seedHit.ingredientsText } : {}),
       },
       source: 'seed',
     };
@@ -455,6 +463,7 @@ export async function resolveProduct(opts: {
             brand: remote.brand,
             category: remote.category,
             imageUrl: remote.imageUrl,
+            ...(remote.ingredientsText ? { ingredientsText: remote.ingredientsText } : {}),
           },
           source: 'remote',
         };

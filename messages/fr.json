@@ -2432,5 +2432,33 @@
     "expected": "Attendu",
     "viewList": "Liste",
     "viewCalendar": "Calendrier"
+  },
+  "ingredientGlance": {
+    "title": "Ingrédients",
+    "analyzing": "Analyse des ingrédients…",
+    "unavailable": "Analyse des ingrédients indisponible.",
+    "disclaimer": "Indice informatif fondé sur les données de l'UE — pas un avis médical.",
+    "recognized": "{recognized} / {total} reconnus",
+    "recognizedAll": "{total} ingrédients analysés",
+    "scoreUnknown": "Impossible de noter — la plupart des ingrédients ne sont pas dans la base.",
+    "moreFlags": "+{count} de plus",
+    "viewDetails": "Voir les ingrédients signalés",
+    "hideDetails": "Masquer la liste",
+    "bandExcellent": "Excellent",
+    "bandGood": "Bon",
+    "bandModerate": "Moyen",
+    "bandCaution": "À surveiller",
+    "bandAvoid": "À éviter",
+    "bandProhibited": "Interdit",
+    "bandRestricted": "Restreint",
+    "bandWatch": "Sensible",
+    "bandClean": "Sans signal",
+    "flagProhibitedOne": "Contient un ingrédient interdit dans l'UE : {name}",
+    "flagProhibitedOther": "Contient des ingrédients interdits dans l'UE : {names}",
+    "flagAllergens": "{count} allergènes de parfum UE : {names}",
+    "flagRestricted": "Restreint par l'UE : {names}",
+    "flagGeneric": "Parfum non détaillé — composition non divulguée",
+    "flagReleasers": "Libérateur de formaldéhyde : {names}",
+    "flagUnknown": "{count} ingrédients non reconnus"
   }
 }

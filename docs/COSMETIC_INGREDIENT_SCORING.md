@@ -213,23 +213,29 @@ Sizing limits: `inciText` ≤ 12,000 chars, `ingredients` ≤ 300 items.
 
 The barcode flow already requests `ingredients_text` on every lookup (client +
 server proxy — `product-lookup.ts`, `api/barcode/lookup`), and
-`RemoteProductInfo.ingredientsText` carries it. The natural integration points:
+`RemoteProductInfo.ingredientsText` carries it through `ProductResolution`
+into the scan flow.
 
-1. **Scan-time glance (Pro course flow)**: after a product resolves to a
-   record that has INCI text and looks like a cosmetic, call
-   `/api/inci/analyze` with `{ inciText, category }` and render the band chip
-   + flags on the product card. Deterministic → cacheable per product/barcode
-   (in the existing product catalog or an in-memory LRU like the barcode
-   route's).
-2. **Standalone cosmetic scanner**: barcode → Open Beauty Facts
-   (`world.openbeautyfacts.org` is already in the lookup cascade) →
-   `ingredients_text` → this route.
+**Shipped UI slice — the scan-time glance (Pro course flow):**
+`CoursesIngredientGlance` renders inside the pending-product card whenever a
+resolved product came with a full INCI list (i.e. cosmetics found via Open
+Beauty Facts). It shows the score chip + translated band, recognition
+coverage, the top concern flags, and an expandable per-ingredient tier list.
+Copy is composed locally from response *codes* and message keys
+(`messages/*.json` → `ingredientGlance`) — server prose never leaks into the
+UI, so all three locales (en/fr/ar) render clean. The client
+(`src/lib/ingredient-analysis-client.ts`) caches results in memory per INCI
+text (deterministic responses), so repeat scans of the same product cost one
+call. The glance is inherently Pro-gated: it only appears on the barcode
+scan path, which free plans never see (the upsell replaces the scanner).
 
-Not built yet (deliberately): a public UI screen, per-product score
-persistence, and any LLM-generated explanation. The engine's output is fully
-structured, so explanation copy can be rendered deterministically from
-`flags`/`signals` (auditable, localizable) — an LLM may later polish a
-*cached* copy, never invent one.
+Not built yet (deliberately): a standalone cosmetic-scanner screen
+(barcode → OBF already works in the cascade, so it's a screen away),
+per-product score persistence into the catalog/Firestore, and any
+LLM-generated explanation. The engine's output is fully structured, so longer
+explanation copy can be rendered deterministically from `flags`/`signals`
+(auditable, localizable) — an LLM may later polish a *cached* copy, never
+invent one.
 
 ---
 
