@@ -690,7 +690,8 @@ function parseProduct(raw: unknown, field: string): Product {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
     'barcode', 'name', 'brand', 'category', 'imageUrl', 'lastPrice',
-    'priceUpdatedAt', 'source', 'origin', 'createdAt', 'updatedAt',
+    'priceUpdatedAt', 'source', 'origin', 'ingredientsText',
+    'createdAt', 'updatedAt',
   ], field);
   const barcode = productBarcode(raw.barcode, `${field}.barcode`);
   return {
@@ -703,6 +704,8 @@ function parseProduct(raw: unknown, field: string): Product {
     ...(optionalString(raw.priceUpdatedAt, `${field}.priceUpdatedAt`, 40) ? { priceUpdatedAt: raw.priceUpdatedAt as string } : {}),
     source: enumValueOr(raw.source, `${field}.source`, PRODUCT_SOURCES, 'manual'),
     ...(optionalString(raw.origin, `${field}.origin`, 8) ? { origin: raw.origin as string } : {}),
+    // Cosmetic INCI list (≤ 8,000 chars) — informational only, never money.
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, 8000) ? { ingredientsText: raw.ingredientsText as string } : {}),
     createdAt: isoTimestamp(raw.createdAt ?? fileTimestamp, `${field}.createdAt`),
     updatedAt: isoTimestamp(raw.updatedAt ?? fileTimestamp, `${field}.updatedAt`),
   } as Product;

@@ -2586,6 +2586,13 @@ export interface Product {
   origin?: string;
   /** Nutri-Score grade (a–e) captured from Open Food Facts, when present. */
   ranking?: ProductRanking;
+  /**
+   * Full INCI list when known (cosmetics) — from the remote record, vendor
+   * enrichment or a manual label paste. Persisted with the catalog so the
+   * ingredient glance survives across sessions without re-fetching.
+   * Bounded (≤ 8,000 chars); never used for pricing.
+   */
+  ingredientsText?: string;
   createdAt: string;
   updatedAt: string;
 }

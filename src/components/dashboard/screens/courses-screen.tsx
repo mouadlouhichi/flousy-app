@@ -21,6 +21,8 @@ import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
+import { CoursesLabelAccordion } from '../courses/courses-label-accordion';
+import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { RankingChip } from '@/components/ui/ranking-chip';
 import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { useDashboard } from '../dashboard-provider';
@@ -33,6 +35,8 @@ interface PendingProduct {
   brand?: string;
   category?: string;
   imageUrl?: string;
+  /** Full INCI list when the remote record had one (cosmetics). */
+  ingredientsText?: string;
   /** Pack size / net content when the source exposes it (e.g. "1 L"). */
   quantity?: string;
   /** Where the metadata came from (drives the helper label). */
@@ -205,6 +209,7 @@ function CoursesScreenInner() {
           brand: resolution.product.brand,
           category: resolution.product.category,
           imageUrl: resolution.product.imageUrl,
+          ingredientsText: resolution.product.ingredientsText,
           quantity: resolution.product.quantity,
           ranking: resolution.product.ranking,
           source: resolution.source,
@@ -244,6 +249,12 @@ function CoursesScreenInner() {
       setNotice({ kind: 'warn', text: c.nameRequired });
       return;
     }
+    // Persist the INCI list on the catalog product so the ingredient glance
+    // survives across sessions: the resolution cascade's text when it had
+    // one, else the manual paste remembered on this device.
+    const ingredientsText =
+      pending.ingredientsText?.trim() ||
+      (pending.barcode ? readInciOverlayEntry(pending.barcode) : undefined);
     store.addScannedLine({
       barcode: pending.barcode,
       name: pending.name.trim(),
@@ -251,6 +262,7 @@ function CoursesScreenInner() {
       unitPrice: price,
       qty: pendingQty,
       ranking: pending.ranking,
+      ...(ingredientsText ? { ingredientsText } : {}),
     });
     setPending(null);
     setPendingPrice('');
@@ -745,6 +757,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
   return (
     <div className="rounded-3xl border border-primary/40 bg-primary-container/40 p-4 md:p-5">
       <div className="flex items-start gap-3">
+
         {pending.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -793,6 +806,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </button>
       </div>
 
+      {/* Quantity + price — the point of this step, so it comes first. */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <QtyControl value={qty} onChange={onQty} />
 
@@ -819,6 +833,17 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
           </button>
         </div>
       </div>
+
+      {/* Label-knowledge accordion — domain-aware preview + expandable panel.
+          Cosmetics get the INCI score ring + glance; food gets the coverage
+          hook + food-knowledge panel (incl. the mineral-water view). */}
+      <CoursesLabelAccordion
+        barcode={pending.barcode}
+        name={needsName ? undefined : pending.name}
+        category={pending.category}
+        ingredientsText={pending.ingredientsText}
+        needsName={needsName}
+      />
     </div>
   );
 }

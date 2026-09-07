@@ -229,6 +229,8 @@ export function useCourseSession(uid: string | null | undefined) {
       unitPrice: number;
       qty?: number;
       ranking?: ProductRanking;
+      /** INCI list to persist on the catalog product (cosmetics). */
+      ingredientsText?: string;
     }) => {
       const item = createSessionItem(input);
       mutateActive((session) => addItemToSession(session, item));
@@ -242,6 +244,11 @@ export function useCourseSession(uid: string | null | undefined) {
           ...(input.category ? { category: input.category } : existing?.category ? { category: existing.category } : {}),
           ...(existing?.brand ? { brand: existing.brand } : {}),
           ...(existing?.imageUrl ? { imageUrl: existing.imageUrl } : {}),
+          ...(input.ingredientsText
+            ? { ingredientsText: input.ingredientsText }
+            : existing?.ingredientsText
+              ? { ingredientsText: existing.ingredientsText }
+              : {}),
           lastPrice: item.unitPrice,
           priceUpdatedAt: nowIso,
           source: existing?.source ?? 'session',
