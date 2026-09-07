@@ -216,26 +216,53 @@ server proxy — `product-lookup.ts`, `api/barcode/lookup`), and
 `RemoteProductInfo.ingredientsText` carries it through `ProductResolution`
 into the scan flow.
 
+### 7.1 Getting the INCI list when Open Beauty Facts doesn't have it
+
+OBF is crowd-sourced: many cosmetics resolve to a record with no transcribed
+ingredient list (or no record at all). The scan flow now handles that with a
+source ladder:
+
+| # | Source | When | Needs |
+| --- | --- | --- | --- |
+| 1 | **OFF family, incl. `fr.openbeautyfacts.org`** | direct browser lookup (world food → MA food → world/fr beauty → world products). The French beauty mirror is the largest European cosmetics DB and covers the French brands common on Moroccan shelves. | nothing |
+| 2 | **Vendor fill (barcode proxy)** | the app's `/api/barcode/lookup` proxy finds the product on a beauty mirror but it has no INCI text → asks the vendor for the list (only when `COSMETIC_INCI_API_KEY` is configured; the client triggers it by calling the proxy once when a *direct* beauty hit lacked INCI). | optional key, server-only |
+| 3 | **Vendor find** | no OFF-family mirror knows the code → the proxy asks the vendor for product name + INCI before giving up (last resort). | optional key, server-only |
+| 4 | **Manual paste + device memory** (`CoursesIngredientPanel`) | nothing above produced an INCI list → the pending-product card offers "paste from label". The text is analyzed fully locally and remembered **per barcode on this device** (localStorage overlay `smartjib_inci_overlay`), so the next scan of the same product auto-analyzes without re-pasting. | nothing — works offline |
+
+Notes:
+- **The vendor is only ever an INCI/name source.** The deterministic local
+  engine (`/api/inci/analyze` + `eu-lists.ts` overlay) stays the single
+  scoring authority, so results are consistent no matter which row of the
+  ladder supplied the text.
+- Enrichment is fail-open and bounded (3 s timeout, 8k-char cap, no key =
+  zero vendor calls) and the client never sees the key — only the barcode
+  digits go to the proxy, matching the app's privacy stance.
+- The device overlay is intentionally not Firestore-persisted yet
+  (schema/rules follow-up): it travels with the device, not the account, and
+  the manual path is the natural basis for an opt-in "share with Open Beauty
+  Facts" contribution later (the label text already exists, structured).
+
 **Shipped UI slice — the scan-time glance (Pro course flow):**
 `CoursesIngredientGlance` renders inside the pending-product card whenever a
-resolved product came with a full INCI list (i.e. cosmetics found via Open
-Beauty Facts). It shows the score chip + translated band, recognition
-coverage, the top concern flags, and an expandable per-ingredient tier list.
-Copy is composed locally from response *codes* and message keys
-(`messages/*.json` → `ingredientGlance`) — server prose never leaks into the
-UI, so all three locales (en/fr/ar) render clean. The client
-(`src/lib/ingredient-analysis-client.ts`) caches results in memory per INCI
-text (deterministic responses), so repeat scans of the same product cost one
-call. The glance is inherently Pro-gated: it only appears on the barcode
-scan path, which free plans never see (the upsell replaces the scanner).
+resolved product carries a full INCI list — from OBF, the vendor, or the
+device memory after one manual paste. It shows the score chip + translated
+band, recognition coverage, the top concern flags, and an expandable
+per-ingredient tier list. Copy is composed locally from response *codes* and
+message keys (`messages/*.json` → `ingredientGlance` / `ingredientManual`), so
+server prose never leaks into the UI and all three locales (en/fr/ar) render
+clean. The client (`src/lib/ingredient-analysis-client.ts`) caches results in
+memory per INCI text (deterministic responses), so repeat scans of the same
+product cost one call. The whole thing is inherently Pro-gated: it only
+appears on the barcode scan path, which free plans never see.
 
 Not built yet (deliberately): a standalone cosmetic-scanner screen
 (barcode → OBF already works in the cascade, so it's a screen away),
-per-product score persistence into the catalog/Firestore, and any
-LLM-generated explanation. The engine's output is fully structured, so longer
-explanation copy can be rendered deterministically from `flags`/`signals`
-(auditable, localizable) — an LLM may later polish a *cached* copy, never
-invent one.
+per-product score persistence into the catalog/Firestore, label-photo OCR as
+the paste step's successor (the repo already ships tesseract for receipts),
+and any LLM-generated explanation. The engine's output is fully structured, so
+longer explanation copy can be rendered deterministically from
+`flags`/`signals` (auditable, localizable) — an LLM may later polish a
+*cached* copy, never invent one.
 
 ---
 

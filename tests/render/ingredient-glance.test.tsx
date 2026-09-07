@@ -131,3 +131,49 @@ describe('CoursesIngredientGlance render smoke', () => {
     assert.equal(html, '');
   });
 });
+
+describe('CoursesIngredientPanel render smoke', () => {
+  it('offers the manual paste fallback when no source had an INCI list', async () => {
+    const { CoursesIngredientPanel } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-panel'
+    );
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale];
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientPanel, {
+          barcode: '6111234567890',
+          name: 'Crème inconnue',
+          category: 'Face creams',
+        }),
+      );
+      // This React/SSR version emits apostrophes as `\&#x27;` (a literal
+      // backslash + entity) — strip the backslash and decode before comparing.
+      const decoded = html.replace(/\\/g, '').replace(/&#x27;|&#39;|&apos;/g, "'");
+      assert.ok(
+        decoded.includes(g.ingredientManual.missingHint),
+        `${locale}: manual fallback hint missing`,
+      );
+      assert.ok(decoded.includes(g.ingredientManual.pasteCta), `${locale}: paste CTA missing`);
+    }
+  });
+
+  it('auto-analyzes when the record carried an INCI list (title + fetching state)', async () => {
+    const { CoursesIngredientPanel } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-panel'
+    );
+    current = 'en';
+    const g = catalogs[current];
+    const html = renderToStaticMarkup(
+      React.createElement(CoursesIngredientPanel, {
+        barcode: '6111234567890',
+        initialText: 'Aqua, Glycerin, Niacinamide, Parfum',
+        name: 'Crème',
+        category: 'Face creams',
+      }),
+    );
+    assert.ok(html.includes(g.ingredientGlance.title), 'glance title missing');
+    assert.ok(html.includes(g.ingredientGlance.analyzing), 'fetching state missing');
+    assert.ok(html.includes(g.ingredientManual.editIngredients), 'edit action missing');
+  });
+});

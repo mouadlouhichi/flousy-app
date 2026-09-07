@@ -19,7 +19,7 @@ import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
 import { CoursesBill } from '../courses/courses-bill';
-import { CoursesIngredientGlance } from '../courses/courses-ingredient-glance';
+import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { useDashboard } from '../dashboard-provider';
@@ -775,12 +775,14 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </button>
       </div>
 
-      {/* Ingredient glance for cosmetics that came with a full INCI list —
-          the self-hosted analysis is deterministic and cached per product. */}
-      {pending.ingredientsText?.trim() ? (
-        <CoursesIngredientGlance
-          ingredientsText={pending.ingredientsText}
-          label={needsName ? undefined : pending.name}
+      {/* Ingredient panel — shows the score for cosmetics whose record came
+          with an INCI list, and offers the manual label-entry fallback (plus
+          per-device memory) when no source had the ingredients. */}
+      {pending.barcode || pending.ingredientsText?.trim() ? (
+        <CoursesIngredientPanel
+          barcode={pending.barcode}
+          initialText={pending.ingredientsText}
+          name={needsName ? undefined : pending.name}
           category={pending.category}
         />
       ) : null}

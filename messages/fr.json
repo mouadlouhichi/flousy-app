@@ -2460,5 +2460,15 @@
     "flagGeneric": "Parfum non détaillé — composition non divulguée",
     "flagReleasers": "Libérateur de formaldéhyde : {names}",
     "flagUnknown": "{count} ingrédients non reconnus"
+  },
+  "ingredientManual": {
+    "missingHint": "La liste complète des ingrédients n'est pas disponible pour ce produit.",
+    "pasteCta": "Saisir depuis l'étiquette",
+    "pasteHelp": "Saisissez les ingrédients exactement comme sur l'étiquette — ils sont vérifiés localement.",
+    "pastePlaceholder": "Aqua, Glycerin, Niacinamide, Parfum …",
+    "checkCta": "Analyser",
+    "savedNote": "Enregistré sur cet appareil — réutilisé au prochain scan de ce produit.",
+    "editIngredients": "Modifier la liste",
+    "pasteInvalid": "Cette saisie ne ressemble pas à une liste d'ingrédients — séparez les ingrédients par des virgules."
   }
 }

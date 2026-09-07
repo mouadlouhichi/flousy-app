@@ -1,0 +1,249 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { AppIcon } from '@/components/ui/app-icon';
+import { useLanguage } from '@/lib/i18n-context';
+import { splitInciList } from '@/lib/ingredient-safety/normalize';
+import { CoursesIngredientGlance } from './courses-ingredient-glance';
+
+/**
+ * Ingredient panel for a pending scanned product.
+ *
+ * Source ladder, newest first:
+ *   1. `initialText` — the INCI list that came with the resolved record
+ *      (Open Beauty Facts, vendor-enriched via the barcode proxy, …);
+ *   2. a per-barcode overlay saved on THIS device from a previous manual
+ *      entry (repeat scans of the same product cost one analysis);
+ *   3. a manual paste box — the user types the label INCI and the app checks
+ *      it with the fully local engine. Nothing needs a third party, and once
+ *      pasted it is remembered per barcode on this device.
+ *
+ * When the analysis text comes from the manual/saved path a small "saved on
+ * this device" note is shown; editing overwrites the saved copy. Nothing is
+ * written to Firestore — the overlay is localStorage only, so it follows the
+ * device, not the account (per-product persistence in Firestore is a
+ * follow-up, see docs/COSMETIC_INGREDIENT_SCORING.md).
+ */
+
+interface CoursesIngredientPanelProps {
+  /** Present when the product was identified by a barcode. */
+  barcode?: string;
+  /** INCI list supplied by the resolution cascade (OBF / vendor), if any. */
+  initialText?: string;
+  /** Product name used as a form hint for the analysis. */
+  name?: string;
+  /** OBF-style category used as a leave-on/rinse-off hint. */
+  category?: string;
+}
+
+const OVERLAY_KEY = 'smartjib_inci_overlay';
+
+type OverlayMap = Record<string, string>;
+
+function readOverlay(): OverlayMap {
+  try {
+    const raw =
+      typeof window === 'undefined' ? null : window.localStorage.getItem(OVERLAY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === 'object' ? (parsed as OverlayMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOverlayEntry(barcode: string, text: string): void {
+  try {
+    const map = readOverlay();
+    map[barcode] = text;
+    // Keep the map bounded (a shopping catalog, not a data lake).
+    const entries = Object.entries(map);
+    if (entries.length > 300) {
+      for (const [key] of entries.slice(0, entries.length - 300)) delete map[key];
+    }
+    window.localStorage.setItem(OVERLAY_KEY, JSON.stringify(map));
+  } catch {
+    /* storage blocked/full — the analysis still works for this scan */
+  }
+}
+
+function removeOverlayEntry(barcode: string): void {
+  try {
+    const map = readOverlay();
+    if (!(barcode in map)) return;
+    delete map[barcode];
+    window.localStorage.setItem(OVERLAY_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function CoursesIngredientPanel({
+  barcode,
+  initialText,
+  name,
+  category,
+}: CoursesIngredientPanelProps) {
+  const { messages } = useLanguage();
+  const g = messages.ingredientGlance;
+  const im = messages.ingredientManual;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [invalid, setInvalid] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const fromRecord = initialText?.trim() || '';
+  const overlay = barcode ? (readOverlay()[barcode] ?? '').trim() : '';
+  // null = no ingredient text available yet (the manual paste prompt shows).
+  const [active, setActive] = useState<string | null>(
+    fromRecord || overlay || null,
+  );
+
+  // Keep state coherent when the parent swaps to a different pending product
+  // without unmounting (same PendingCard instance is reused by key change).
+  const [seenKey, setSeenKey] = useState<string>(barcode ?? '');
+  useEffect(() => {
+    const key = barcode ?? '';
+    if (key === seenKey && fromRecord === active) return;
+    if (key !== seenKey) {
+      setSeenKey(key);
+      setEditing(false);
+      setDraft('');
+      setInvalid(false);
+      setActive(fromRecord || overlay || null);
+      setSaved(false);
+    }
+  }, [barcode, fromRecord]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openEditor = () => {
+    setDraft(active ?? '');
+    setInvalid(false);
+    setEditing(true);
+  };
+
+  const submit = () => {
+    const text = draft.trim();
+    if (text.length < 2 || splitInciList(text).length === 0) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    setActive(text);
+    setEditing(false);
+    if (barcode) {
+      writeOverlayEntry(barcode, text);
+      setSaved(true);
+    } else {
+      setSaved(false);
+    }
+  };
+
+  const clearSaved = () => {
+    if (!barcode) return;
+    removeOverlayEntry(barcode);
+    setSaved(false);
+    setActive(null);
+    setEditing(false);
+    setDraft('');
+  };
+
+  // The active text came from this device's per-barcode memory — either on
+  // mount (repeat scan) or because the user just pasted and it was saved.
+  const fromOverlay =
+    active !== null && (saved || (!fromRecord && overlay === active));
+
+  return (
+    <div className="mt-3 rounded-2xl border border-outline-variant bg-surface/70 p-3 md:p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-2 font-label-md text-label-md font-semibold text-on-surface">
+          <AppIcon name="science" className="size-4 text-primary" />
+          {g.title}
+        </p>
+        {active && !editing && (
+          <button
+            type="button"
+            onClick={openEditor}
+            className="flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors"
+          >
+            <AppIcon name="edit" className="size-3.5" />
+            {im.editIngredients}
+          </button>
+        )}
+      </div>
+
+      {active && !editing ? (
+        <>
+          <div className="mt-2">
+            <CoursesIngredientGlance ingredientsText={active} label={name} category={category} />
+          </div>
+          {fromOverlay && (
+            <p className="mt-1.5 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
+              <AppIcon name="save" className="size-3.5" />
+              {im.savedNote}
+              <button
+                type="button"
+                onClick={clearSaved}
+                className="ms-auto font-label-sm text-label-sm text-on-surface-variant underline hover:text-on-surface"
+              >
+                {messages.common.remove}
+              </button>
+            </p>
+          )}
+        </>
+      ) : active === null && !editing ? (
+        <div className="mt-2">
+          <p className="flex items-start gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+            <AppIcon name="info" className="mt-0.5 size-3.5 shrink-0" />
+            {im.missingHint}
+          </p>
+          <button
+            type="button"
+            onClick={openEditor}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface px-3 py-1.5 font-label-md text-label-md text-primary hover:bg-surface-container-high transition-colors"
+          >
+            <AppIcon name="edit" className="size-4" />
+            {im.pasteCta}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-2">
+          <textarea
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (invalid) setInvalid(false);
+            }}
+            placeholder={im.pastePlaceholder}
+            rows={4}
+            autoFocus
+            className="w-full resize-y rounded-xl border border-outline-variant bg-surface px-3 py-2 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
+            aria-label={im.pastePlaceholder}
+          />
+          <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">{im.pasteHelp}</p>
+          {invalid && (
+            <p className="mt-1 font-label-sm text-label-sm text-error">{im.pasteInvalid}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={submit}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+            >
+              <AppIcon name="check" className="size-4" />
+              {im.checkCta}
+            </button>
+            {active && (
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="rounded-full px-3 py-1.5 font-label-md text-label-md text-on-surface-variant hover:text-on-surface"
+              >
+                {messages.common.cancel}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

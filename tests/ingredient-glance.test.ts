@@ -13,10 +13,15 @@ function t(template: string, values: Record<string, string | number> = {}): stri
   );
 }
 
-type AnyMessages = { ingredientGlance?: Record<string, unknown> };
+type AnyMessages = {
+  ingredientGlance?: Record<string, unknown>;
+  ingredientManual?: Record<string, unknown>;
+};
 type GlanceShape = typeof en.ingredientGlance;
 const glanceOf = (messages: AnyMessages): GlanceShape =>
   (messages.ingredientGlance ?? {}) as unknown as GlanceShape;
+
+type AnyGroup = { [key: string]: unknown };
 
 describe('ingredientGlance messages', () => {
   it('keeps identical key sets across en/fr/ar', () => {
@@ -25,6 +30,16 @@ describe('ingredientGlance messages', () => {
     assert.ok(enKeys.length > 20, 'expected the glance message group to exist');
     assert.deepEqual(keys(glanceOf(fr)), enKeys);
     assert.deepEqual(keys(glanceOf(ar)), enKeys);
+  });
+
+  it('keeps the ingredientManual group identical across locales', () => {
+    const manualOf = (m: AnyMessages) =>
+      (m.ingredientManual ?? {}) as AnyGroup;
+    const keys = (obj: AnyGroup) => Object.keys(obj).sort();
+    const enKeys = keys(manualOf(en));
+    assert.ok(enKeys.length >= 7, 'expected the manual-entry message group to exist');
+    assert.deepEqual(keys(manualOf(fr)), enKeys);
+    assert.deepEqual(keys(manualOf(ar)), enKeys);
   });
 
   it('composes localized flag lines from a real engine output', () => {

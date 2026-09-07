@@ -2460,5 +2460,15 @@
     "flagGeneric": "Undeclared fragrance (Parfum) — composition not disclosed",
     "flagReleasers": "Formaldehyde releaser: {names}",
     "flagUnknown": "{count} ingredients not recognized"
+  },
+  "ingredientManual": {
+    "missingHint": "Full ingredient list isn't available for this product.",
+    "pasteCta": "Paste from label",
+    "pasteHelp": "Type the ingredients exactly as printed on the label — they're checked locally.",
+    "pastePlaceholder": "Aqua, Glycerin, Niacinamide, Parfum …",
+    "checkCta": "Check ingredients",
+    "savedNote": "Saved on this device — reused on the next scan of this product.",
+    "editIngredients": "Edit ingredients",
+    "pasteInvalid": "That doesn't look like an ingredient list — separate items with commas."
   }
 }

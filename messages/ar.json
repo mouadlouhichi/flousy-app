@@ -2460,5 +2460,15 @@
     "flagGeneric": "عطر غير مفصّل — تركيبته غير معلنة",
     "flagReleasers": "محرّر فورمالدهيد: {names}",
     "flagUnknown": "{count} من المكوّنات غير معروفة"
+  },
+  "ingredientManual": {
+    "missingHint": "قائمة المكوّنات الكاملة غير متاحة لهذا المنتج.",
+    "pasteCta": "إدخال من الملصق",
+    "pasteHelp": "أدخل المكوّنات تماماً كما هي مطبوعة على الملصق — سيتم فحصها محلياً.",
+    "pastePlaceholder": "Aqua, Glycerin, Niacinamide, Parfum …",
+    "checkCta": "تحليل",
+    "savedNote": "تم الحفظ على هذا الجهاز — سيُعاد استخدامه في المسح القادم لهذا المنتج.",
+    "editIngredients": "تعديل القائمة",
+    "pasteInvalid": "يبدو أن الإدخال ليس قائمة مكوّنات — افصل بين المكوّنات بفواصل."
   }
 }
