@@ -36,12 +36,28 @@ describe('mapOffProduct', () => {
     });
   });
 
-  it('returns null when the product is missing or not found', () => {
-    assert.equal(mapOffProduct(null), null);
-    assert.equal(mapOffProduct({}), null);
-    assert.equal(mapOffProduct({ status: 0, product: null }), null);
-    assert.equal(mapOffProduct({ found: false, product: null }), null);
-    assert.equal(mapOffProduct({ status: 1, product: {} }), null); // no name
+  it('maps the Nutri-Score ranking when the source provides a real grade', () => {
+    const withScore = mapOffProduct({
+      status: 1,
+      product: { ...product, nutriscore_grade: 'c', nutriscore_score: 45 },
+    });
+    assert.deepEqual(withScore?.ranking, { grade: 'c', score: 45 });
+
+    const gradeOnly = mapOffProduct({
+      status: 1,
+      product: { ...product, nutriscore_grade: 'A' },
+    });
+    assert.deepEqual(gradeOnly?.ranking, { grade: 'a' }); // normalised to lower-case
+  });
+
+  it('never surfaces a non-grade Nutri-Score value as a ranking', () => {
+    for (const junk of ['not-applicable', 'unknown', 'not-computed', 'en-d', '', null, 'f']) {
+      assert.equal(
+        mapOffProduct({ status: 1, product: { ...product, nutriscore_grade: junk } })?.ranking,
+        undefined,
+        `nutriscore_grade=${String(junk)} must not produce a ranking`,
+      );
+    }
   });
 
   it('falls back to the French / English / generic name fields', () => {

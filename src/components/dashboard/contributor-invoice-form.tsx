@@ -8,6 +8,7 @@ import { useHousehold } from '@/lib/household-context';
 import { TOOL_AREA } from '@/lib/household-rbac';
 import { useLanguage } from '@/lib/i18n-context';
 import { saveHouseholdInvoice } from '@/lib/db';
+import { parseAmountInput } from '@/lib/parse-amount';
 
 /** Restricted submission form: it never loads or writes the private month budget. */
 export function ContributorInvoiceForm() {
@@ -35,7 +36,7 @@ export function ContributorInvoiceForm() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const value = Number(amount);
+    const value = parseAmountInput(amount);
     if (!name.trim() || !Number.isFinite(value) || value <= 0) {
       setNotice(copy.invalid);
       return;

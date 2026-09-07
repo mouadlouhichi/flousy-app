@@ -2,10 +2,17 @@
 
 import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
-import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import { BarcodeScannerPanel, unlockScanAudio } from '@/components/ui/barcode-scanner-panel';
+import { RankingChip } from '@/components/ui/ranking-chip';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { useLanguage } from '@/lib/i18n-context';
 import type { RemoteProductInfo } from '@/lib/course-session';
+
+type LookupState =
+  | { kind: 'idle' }
+  | { kind: 'busy' }
+  | { kind: 'missing'; code: string }
+  | { kind: 'found'; product: RemoteProductInfo; code: string };
 
 interface ExpenseBarcodeScannerProps {
   onProduct: (product: RemoteProductInfo, barcode: string) => void;
@@ -13,60 +20,122 @@ interface ExpenseBarcodeScannerProps {
 }
 
 /**
- * Inline barcode scanner for the expense sheet (Pro). Reuses the courses
- * scanner hook (native BarcodeDetector → zxing → wedge) and the Open Food
- * Facts proxy; a hit fills the expense name and suggests a category.
+ * Inline barcode scanner for the expense sheet (Pro). Reuses the exact
+ * courses scanner panel (camera feed, scan frame, torch, zoom, beep/flash/
+ * haptic feedback, manual entry) and the Open Food Facts lookup. A hit no
+ * longer fills the form blindly: the product result is shown with image,
+ * brand, category, pack size and — when the source provides one — the
+ * Nutri-Score ranking chip; the user confirms with "Use this product".
  */
 export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScannerProps) {
   const { messages: m, t } = useLanguage();
-  const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'missing'>('idle');
-  const [lastCode, setLastCode] = useState('');
+  const [lookup, setLookup] = useState<LookupState>({ kind: 'idle' });
 
-  const scanner = useBarcodeScanner({
-    enabled: true,
-    onCode: (code) => {
-      setLastCode(code);
-      setLookupState('busy');
-      lookupOffProduct(code)
-        .then((product) => {
-          if (product) {
-            onProduct(product, code);
-          } else {
-            setLookupState('missing');
-          }
-        })
-        .catch(() => setLookupState('missing'));
-    },
-  });
+  const handleCode = (code: string) => {
+    setLookup({ kind: 'busy' });
+    lookupOffProduct(code)
+      .then((product) => {
+        if (product) setLookup({ kind: 'found', product, code });
+        else setLookup({ kind: 'missing', code });
+      })
+      .catch(() => setLookup({ kind: 'missing', code }));
+  };
+
+  // Holds the whole narrowed state so `code` and `product` stay accessible.
+  const found = lookup.kind === 'found' ? lookup : null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-extrabold uppercase tracking-wider text-on-surface-variant">{m.barcode.title}</span>
-        <button type="button" onClick={() => { scanner.stop(); onClose(); }} aria-label={m.common.close} className="tap-target rounded-lg p-1 text-on-surface-variant hover:bg-surface-variant">
+    <BarcodeScannerPanel
+      enabled
+      onCode={handleCode}
+      className="rounded-2xl border border-outline-variant bg-surface-container p-3.5 md:p-4"
+      labels={{
+        title: m.barcode.title,
+        cameraStart: m.courses.cameraStart,
+        cameraStop: m.courses.cameraStop,
+        idleHint: m.barcode.hint,
+        alignHint: m.courses.alignHint,
+        scanned: m.courses.scanned,
+        zoomIn: m.courses.zoomIn,
+        zoomOut: m.courses.zoomOut,
+        torchOn: m.courses.torchOn,
+        torchOff: m.courses.torchOff,
+        cameraUnavailable: m.barcode.cameraUnavailable,
+        manualPlaceholder: m.courses.manualCode,
+        lookup: m.courses.lookup,
+      }}
+      headerAction={
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={m.common.close}
+          className="tap-target rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-variant"
+        >
           <AppIcon name="close" className="text-[18px]" />
         </button>
-      </div>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">
-        <video ref={scanner.videoRef} className="h-full w-full object-cover" muted playsInline />
-        {scanner.error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-3 text-center text-xs font-bold text-white">
-            {scanner.error === 'camera-denied' ? m.barcode.cameraDenied : m.barcode.cameraUnavailable}
+      }
+      status={
+        lookup.kind === 'busy' ? (
+          <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 font-body-md text-body-md text-on-surface-variant">
+            <AppIcon name="search" className="animate-pulse size-5 text-primary" />
+            {m.barcode.lookingUp}
           </div>
-        )}
-        {scanner.torchAvailable && (
-          <button type="button" onClick={scanner.toggleTorch} aria-label="torch" className="absolute bottom-2 end-2 rounded-full bg-black/60 p-2 text-white">
-            <AppIcon name={scanner.torchOn ? 'flashlight_on' : 'flashlight_off'} className="text-[18px]" />
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-on-surface-variant">
-        {lookupState === 'busy'
-          ? m.barcode.lookingUp
-          : lookupState === 'missing'
-            ? t(m.barcode.notFound, { code: lastCode })
-            : m.barcode.hint}
-      </p>
-    </div>
+        ) : found ? (
+          <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/5 p-3.5">
+            <div className="flex items-start gap-3">
+              {found.product.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={found.product.imageUrl}
+                  alt=""
+                  className="h-14 w-14 shrink-0 rounded-xl object-cover bg-surface"
+                />
+              ) : (
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface">
+                  <AppIcon name="inventory_2" className="size-6 text-primary" />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="flex min-w-0 items-center gap-1.5 font-headline-sm text-headline-sm text-on-surface">
+                  <span className="min-w-0 truncate">{found.product.name}</span>
+                  <RankingChip ranking={found.product.ranking} />
+                </p>
+                <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                  {found.product.brand && <span className="min-w-0 truncate">{found.product.brand}</span>}
+                  {found.product.category && <span className="min-w-0 truncate">{found.product.category}</span>}
+                  {found.product.quantity && <span dir="ltr">{found.product.quantity}</span>}
+                  <span dir="ltr" className="font-mono">{found.code}</span>
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLookup({ kind: 'idle' })}
+                className="rounded-full border border-outline-variant px-4 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+              >
+                {m.barcode.scanAnother}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onProduct(found.product, found.code);
+                  onClose();
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:bg-accent-foreground shadow-xs transition-colors"
+              >
+                <AppIcon name="check" className="size-4" />
+                {m.barcode.useProduct}
+              </button>
+            </div>
+          </div>
+        ) : lookup.kind === 'missing' ? (
+          <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 font-body-md text-body-md text-on-surface-variant">
+            <AppIcon name="info" className="size-5 shrink-0 text-tertiary" />
+            <span>{t(m.barcode.notFound, { code: lookup.code })}</span>
+          </div>
+        ) : null
+      }
+    />
   );
 }

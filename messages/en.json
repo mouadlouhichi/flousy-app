@@ -763,6 +763,8 @@
     "fromSeed": "From the Morocco catalog",
     "fromOff": "From Open Food Facts",
     "maBadge": "Made in Morocco",
+    "rankingLabel": "Nutri-Score",
+    "rankingMeaning": "A = best nutritional profile, E = worst",
     "recentTitle": "Recent courses",
     "noRecent": "No finished courses yet.",
     "noItems": "Nothing scanned yet — each product will appear here and in the bill.",
@@ -2386,6 +2388,8 @@
     "hint": "Point the camera at the barcode; the product name fills in automatically.",
     "lookingUp": "Looking up product…",
     "notFound": "No product found for {code}. Type the name instead.",
+    "useProduct": "Use this product",
+    "scanAnother": "Scan another",
     "cameraDenied": "Camera access was denied.",
     "cameraUnavailable": "No camera available on this device."
   },

@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { localizeDebtStatus } from '@/lib/localized-labels';
 import { formatShortDate } from '@/lib/utils';
 import { useMoneyPlaces } from '@/lib/use-money-places';
+import { parseAmountInput } from '@/lib/parse-amount';
 
 interface DebtsTabProps {
   month: MonthBudget;
@@ -80,7 +81,7 @@ export function DebtsTab({
   };
 
   const submitPayment = (debt: DebtItem) => {
-    const value = Number(amount);
+    const value = parseAmountInput(amount);
     if (!Number.isFinite(value) || value <= 0 || value > debtOutstanding(debt)) {
       setError(m.tabs.debts.invalidPayment);
       return;

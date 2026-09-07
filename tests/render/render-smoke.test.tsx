@@ -114,7 +114,7 @@ mock.module('next/link', { defaultExport: ({ href, children }: { href: string; c
 mock.module('next/navigation', { namedExports: { useRouter: () => ({ push: () => {} }), usePathname: () => '/dashboard', useSearchParams: () => new URLSearchParams() } });
 
 async function load() {
-  const [safe, net, debt, goal, cal, upcoming, report, fx, chart, sec, rem, data, search, fixedTab] = await Promise.all([
+  const [safe, net, debt, goal, cal, upcoming, report, fx, chart, sec, rem, data, search, fixedTab, ranking] = await Promise.all([
     import('../../src/components/dashboard/safe-to-spend-card'),
     import('../../src/components/dashboard/net-worth-card'),
     import('../../src/components/dashboard/debt-payoff-planner'),
@@ -129,8 +129,9 @@ async function load() {
     import('../../src/components/dashboard/profile/data-panel'),
     import('../../src/components/dashboard/screens/search-screen'),
     import('../../src/components/tabs/FixedTab'),
+    import('../../src/components/ui/ranking-chip'),
   ]);
-  return { safe, net, debt, goal, cal, upcoming, report, fx, chart, sec, rem, data, search, fixedTab };
+  return { safe, net, debt, goal, cal, upcoming, report, fx, chart, sec, rem, data, search, fixedTab, ranking };
 }
 
 const render = (el: React.ReactElement) => renderToStaticMarkup(el);
@@ -213,6 +214,23 @@ describe('render smoke: new feature components', async () => {
         current = lang;
         const html = render(<c.fixedTab.FixedTab month={m} onOpenAddModal={() => {}} onEditBill={() => {}} forecastUnlocked onUpgrade={() => {}} />);
         assert.match(html, /role="tab"/);
+        // The banner amount renders the currency code AFTER the number (FormattedAmount),
+        // never a "MAD 3 200.00" prefix.
+        const amountAt = html.indexOf('3200.00');
+        const currencyAt = html.indexOf('>MAD<');
+        assert.ok(amountAt !== -1 && currencyAt !== -1 && amountAt < currencyAt, 'currency code must follow the amount');
+      });
+      it('RankingChip', () => {
+        current = lang;
+        const html = render(<c.ranking.RankingChip ranking={{ grade: 'c', score: 45 }} />);
+        assert.doesNotMatch(html, /undefined|NaN/);
+        // The chip carries the grade and its tooltip text.
+        assert.match(html, /C/);
+        assert.match(html, /Nutri-Score|نوتري/);
+        // No grade → nothing rendered.
+        assert.equal(render(<c.ranking.RankingChip ranking={undefined} />), '');
+        // A junk grade → nothing rendered.
+        assert.equal(render(<c.ranking.RankingChip ranking={{ grade: 'not-applicable' } as never} />), '');
       });
       it('MonthTrendChart', () => {
         current = lang;

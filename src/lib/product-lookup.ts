@@ -19,7 +19,7 @@ const OFF_HOSTS = [
   'https://world.openproductsfacts.org/api/v2/product/',
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,nutriscore_grade,nutriscore_score';
 
 /**
  * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
@@ -56,12 +56,21 @@ export function mapOffProduct(data: unknown): RemoteProductInfo | null {
   const imageUrl = pick('image_front_url');
   const quantity = pick('quantity');
 
+  // Nutri-Score ranking: only the real letter grades (a–e) are surfaced. OFF
+  // also emits 'not-applicable' / 'unknown' / 'not-computed', which must never
+  // render as a grade chip.
+  const gradeRaw = pick('nutriscore_grade');
+  const grade = gradeRaw && /^[a-eA-E]$/.test(gradeRaw) ? gradeRaw.toLowerCase() : undefined;
+  const scoreRaw = p.nutriscore_score;
+  const score = typeof scoreRaw === 'number' && Number.isFinite(scoreRaw) ? scoreRaw : undefined;
+
   return {
     name,
     ...(brands ? { brand: brands } : {}),
     ...(category ? { category } : {}),
     ...(imageUrl ? { imageUrl } : {}),
     ...(quantity ? { quantity } : {}),
+    ...(grade ? { ranking: { grade, ...(score !== undefined ? { score } : {}) } } : {}),
   };
 }
 

@@ -190,6 +190,19 @@ describe('createSessionItem', () => {
     assert.equal(item.unitPrice, 0);
     assert.equal(item.lineTotal, 0);
   });
+
+  it('snapshots the ranking on the line (and copies it, not by reference)', () => {
+    const ranking = { grade: 'c', score: 45 };
+    const item = createSessionItem({ name: 'Soda', unitPrice: 4, ranking });
+    assert.deepEqual(item.ranking, { grade: 'c', score: 45 });
+    ranking.grade = 'e'; // mutating the source must not leak into the line
+    assert.equal(item.ranking?.grade, 'c');
+  });
+
+  it('omits ranking entirely when the source provides none', () => {
+    const item = createSessionItem({ name: 'Plain', unitPrice: 4 });
+    assert.equal('ranking' in item, false);
+  });
 });
 
 describe('addItemToSession', () => {
@@ -456,6 +469,47 @@ describe('resolveProduct', () => {
       product: { name: 'Nutella', brand: 'Ferrero', category: undefined, imageUrl: undefined },
       source: 'remote',
     });
+  });
+
+  it('carries the remote ranking + quantity onto the resolved product', async () => {
+    const resolution = await resolveProduct({
+      barcode: '3017620422003',
+      catalog: [],
+      lookupRemote: async () => ({
+        name: 'Nutella',
+        brand: 'Ferrero',
+        quantity: '400 g',
+        ranking: { grade: 'e', score: 12 },
+      }),
+    });
+    assert.deepEqual(resolution, {
+      kind: 'found',
+      product: {
+        name: 'Nutella',
+        brand: 'Ferrero',
+        category: undefined,
+        imageUrl: undefined,
+        quantity: '400 g',
+        ranking: { grade: 'e', score: 12 },
+      },
+      source: 'remote',
+    });
+  });
+
+  it('keeps a catalog ranking on a local hit (no remote call)', async () => {
+    const withRanking: Product = { ...MA_PRODUCT, ranking: { grade: 'a' } };
+    const resolution = await resolveProduct({
+      barcode: MA_PRODUCT.barcode,
+      catalog: [withRanking],
+      lookupRemote: async () => {
+        throw new Error('must not be called');
+      },
+    });
+    assert.equal(resolution.kind, 'found');
+    if (resolution.kind === 'found') {
+      assert.deepEqual(resolution.product.ranking, { grade: 'a' });
+      assert.equal(resolution.source, 'catalog');
+    }
   });
 
   it('resolves from the bundled seed before the network', async () => {

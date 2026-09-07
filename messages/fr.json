@@ -763,6 +763,8 @@
     "fromSeed": "Depuis le catalogue Maroc",
     "fromOff": "Depuis Open Food Facts",
     "maBadge": "Fabriqué au Maroc",
+    "rankingLabel": "Nutri-Score",
+    "rankingMeaning": "A = meilleur profil nutritionnel, E = le moins bon",
     "recentTitle": "Courses récentes",
     "noRecent": "Aucune course terminée pour l'instant.",
     "noItems": "Rien de scanné pour l'instant — chaque produit apparaîtra ici et sur le ticket.",
@@ -2386,6 +2388,8 @@
     "hint": "Visez le code-barres ; le nom du produit se remplit automatiquement.",
     "lookingUp": "Recherche du produit…",
     "notFound": "Aucun produit trouvé pour {code}. Saisissez le nom.",
+    "useProduct": "Utiliser ce produit",
+    "scanAnother": "Scanner un autre",
     "cameraDenied": "L'accès à la caméra a été refusé.",
     "cameraUnavailable": "Aucune caméra disponible sur cet appareil."
   },

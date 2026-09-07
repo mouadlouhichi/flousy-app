@@ -27,7 +27,7 @@ export function FormattedAmount({
       {currency ? (
         <span
           className={cn(
-            'ml-0.5 text-[0.7em] font-semibold text-on-surface-variant',
+            'ms-0.5 text-[0.7em] font-semibold text-on-surface-variant',
             currencyClassName,
           )}
         >

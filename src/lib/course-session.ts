@@ -5,7 +5,7 @@
  * normalization + validation, the session line reducer, deterministic bill
  * rendering, and the product resolution cascade (catalog → remote → manual).
  */
-import type { CourseSession, MoneyPlace, Product, SessionItem } from './store';
+import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItem } from './store';
 
 /** Round to 2 decimals without float drift (0.1 + 0.2 safe). */
 export function round2(value: number): number {
@@ -147,6 +147,7 @@ export function createSessionItem(input: {
   category?: string;
   unitPrice: number;
   qty?: number;
+  ranking?: ProductRanking;
   now?: Date;
   rand?: () => number;
 }): SessionItem {
@@ -166,6 +167,7 @@ export function createSessionItem(input: {
     qty,
     unitPrice,
     lineTotal: computeLineTotal(qty, unitPrice),
+    ...(input.ranking ? { ranking: { ...input.ranking } } : {}),
   };
 }
 
@@ -347,12 +349,23 @@ export interface RemoteProductInfo {
   category?: string;
   imageUrl?: string;
   quantity?: string;
+  /** Quality ranking (Nutri-Score) when the source provides one. */
+  ranking?: ProductRanking;
 }
 
 export type ProductResolution =
   | {
       kind: 'found';
-      product: { name: string; brand?: string; category?: string; imageUrl?: string };
+      product: {
+        name: string;
+        brand?: string;
+        category?: string;
+        imageUrl?: string;
+        /** Pack size / net content when the source exposes it. */
+        quantity?: string;
+        /** Quality ranking (Nutri-Score) when the source provides one. */
+        ranking?: ProductRanking;
+      };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
       source: 'catalog' | 'seed' | 'remote';
@@ -408,7 +421,13 @@ export async function resolveProduct(opts: {
   if (hit) {
     return {
       kind: 'found',
-      product: { name: hit.name, brand: hit.brand, category: hit.category, imageUrl: hit.imageUrl },
+      product: {
+        name: hit.name,
+        brand: hit.brand,
+        category: hit.category,
+        imageUrl: hit.imageUrl,
+        ...(hit.ranking ? { ranking: { ...hit.ranking } } : {}),
+      },
       lastPrice: hit.lastPrice,
       source: 'catalog',
     };
@@ -437,6 +456,8 @@ export async function resolveProduct(opts: {
         brand: seedHit.brand,
         category: seedHit.category,
         imageUrl: seedHit.imageUrl,
+        ...(seedHit.quantity ? { quantity: seedHit.quantity } : {}),
+        ...(seedHit.ranking ? { ranking: { ...seedHit.ranking } } : {}),
       },
       source: 'seed',
     };
@@ -453,6 +474,8 @@ export async function resolveProduct(opts: {
             brand: remote.brand,
             category: remote.category,
             imageUrl: remote.imageUrl,
+            ...(remote.quantity ? { quantity: remote.quantity } : {}),
+            ...(remote.ranking ? { ranking: { ...remote.ranking } } : {}),
           },
           source: 'remote',
         };

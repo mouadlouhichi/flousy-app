@@ -168,6 +168,20 @@
   }
 }
 
+/* iOS/Android browsers zoom the page when a form control smaller than 16px
+   receives focus. Pinch-zoom must stay available (WCAG 1.4.4), so instead of
+   `maximum-scale` every text-entry control is bumped to 16px on phone
+   viewports. This rule sits OUTSIDE cascade layers on purpose: layered
+   Tailwind utilities (text-xs / text-body-md / …) would otherwise win over
+   an `@layer base` declaration and re-enable the focus zoom. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @theme {
   --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;

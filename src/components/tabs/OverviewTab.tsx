@@ -17,6 +17,7 @@ import {
 } from '../../lib/store';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { useCurrency } from '../../lib/currency-context';
+import { parseAmountInput } from '../../lib/parse-amount';
 import { StrategySelectorModal } from '../modals/StrategySelectorModal';
 import { PlaceHistoryModal } from '../modals/PlaceHistoryModal';
 import { useHousehold } from '@/lib/household-context';
@@ -172,7 +173,7 @@ export function OverviewTab({
   }, [isEditingBudget]);
 
   const handleBudgetSave = () => {
-    const parsed = Number.parseFloat(draftBudget.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
+    const parsed = parseAmountInput(draftBudget);
     const safe = Number.isFinite(parsed) ? Math.max(0, parsed) : (month.totalBudget || 0);
 
     setDraftBudget(String(safe));
