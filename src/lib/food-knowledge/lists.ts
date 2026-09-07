@@ -250,35 +250,48 @@ export const CHILDREN_WARNING_CODES = new Set(['E102', 'E104', 'E110', 'E122', '
 
 /** Read an additive out of one folded ingredient token, if any. */
 export function lookupAdditive(folded: string): AdditiveHit | null {
-  const direct = ADDITIVE_ALIASES.get(folded);
-  if (direct) return toHit(direct, folded);
-  // Prefixed phrasing ("acide citrique", "nitrite de sodium" after colons/roles).
+  return lookupAdditives(folded)[0] ?? null;
+}
+
+/**
+ * Read EVERY distinct additive named in one folded ingredient token, in the
+ * order they appear on the label. A single row can nest several additives —
+ * e.g. the seasoning blend
+ * "paprikakruiderij (… smaakversterkers {mononatriumglutamaat, natriumguanylaat,
+ * dinatriuminosinaat} … citroenzuur …)" names E621, E627, E631 and E330.
+ * Earlier code kept only the FIRST additive per token, silently dropping the
+ * others from the summary and from the additive grade.
+ */
+export function lookupAdditives(folded: string): AdditiveHit[] {
+  if (!folded) return [];
+  const found: { at: number; len: number; def: AdditiveDef }[] = [];
+  // Named aliases anywhere in the token (leftmost wins per code, later ones
+  // for the same code are deduped). Pure E-code aliases are skipped here and
+  // matched separately below, word-boundary only.
   for (const [alias, def] of ADDITIVE_ALIASES) {
-    if (alias.length >= 4 && alias !== foldForMatch(def.e) && folded.startsWith(`${alias} `)) {
-      return toHit(def, folded);
+    if (alias === foldForMatch(def.e) || alias.length < 4) continue;
+    let at = folded.indexOf(alias);
+    while (at !== -1) {
+      found.push({ at, len: alias.length, def });
+      at = folded.indexOf(alias, at + alias.length);
     }
   }
   const eMatch = folded.match(/(^|\s)(e\d{3,4}[a-z]?)(\s|$)/);
   if (eMatch) {
     const def = ADDITIVE_BY_CODE.get(eMatch[2].toLowerCase());
-    if (def) return toHit(def, folded);
-  }
-  // Compound tokens can nest an additive name inside parentheses/braces,
-  // e.g. "kleurstof (annatto norbixine)" or the seasoning sub-list of a chips
-  // label. Pick the additive that appears FIRST in the token (leftmost wins,
-  // ties broken by the longer alias) so the row shows the label's first
-  // additive instead of a raw "not recognized".
-  let best: { at: number; alias: string; def: AdditiveDef } | null = null;
-  for (const [alias, def] of ADDITIVE_ALIASES) {
-    if (alias.length < 4 || alias === foldForMatch(def.e)) continue;
-    const at = folded.indexOf(alias);
-    if (at === -1) continue;
-    if (!best || at < best.at || (at === best.at && alias.length > best.alias.length)) {
-      best = { at, alias, def };
+    if (def) {
+      found.push({ at: eMatch.index ?? 0, len: eMatch[2].length, def });
     }
   }
-  if (best) return toHit(best.def, folded);
-  return null;
+  found.sort((a, b) => a.at - b.at || b.len - a.len);
+  const seen = new Set<string>();
+  const hits: AdditiveHit[] = [];
+  for (const { def } of found) {
+    if (seen.has(def.e)) continue;
+    seen.add(def.e);
+    hits.push(toHit(def, folded));
+  }
+  return hits;
 }
 
 function toHit(def: AdditiveDef, rawFolded: string): AdditiveHit {

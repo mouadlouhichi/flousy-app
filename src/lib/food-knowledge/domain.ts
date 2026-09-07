@@ -138,11 +138,17 @@ export function detectFoodKind(input: {
     if (DRINK_MARKERS.some((m) => name.includes(m))) return 'drink';
   }
 
-  // 3. Pasted text without any barcode metadata — the composition tells the story.
-  if (text && !category && !name) {
-    if (text.includes('composition minerale') || (text.includes('residu sec') && text.includes('mg'))) {
-      return 'water';
-    }
+  // 3. The pasted text itself can be a mineral composition (a water label
+  //    prints one instead of an ingredient list). These markers are strong:
+  //    they override a name/category that did not resolve to water — EXCEPT
+  //    when the name/category is clearly a standard food (a cheese label may
+  //    mention "résidu sec" without being a water).
+  if (text) {
+    const foodHint = hasMarker(category, FOOD_MARKERS) || hasMarker(name, FOOD_MARKERS);
+    const waterText =
+      text.includes('composition minerale') ||
+      (text.includes('residu sec') && text.includes('mg'));
+    if (waterText && !foodHint) return 'water';
     if (DRINK_MARKERS.some((m) => text.includes(m))) return 'drink';
   }
 

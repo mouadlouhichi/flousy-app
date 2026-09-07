@@ -32,7 +32,7 @@ import {
   foldForMatch,
   FOOD_DATASET_VERSION,
   FOOD_ROW_COUNT,
-  lookupAdditive,
+  lookupAdditives,
   lookupFoodRow,
 } from './lists';
 import { detectFoodKind } from './domain';
@@ -93,6 +93,7 @@ export function analyzeFoodIngredientList(
   const assessments: FoodIngredientAssessment[] = [];
   const allergenHits: AllergenHit[] = [];
   const additiveHits: AdditiveHit[] = [];
+  const seenAdditiveCodes = new Set<string>();
 
   const wholeFolded = cleaned.map(foldForMatch).join(' ');
 
@@ -112,7 +113,11 @@ export function analyzeFoodIngredientList(
     }
 
     const rowHit = lookupFoodRow(folded);
-    const additive = lookupAdditive(folded);
+    // A token can name several additives (nested seasoning sub-lists): keep
+    // them ALL so the summary and the additive grade are complete. The row
+    // chip shows the first one; the label-level list below is deduped per code.
+    const tokenAdditives = lookupAdditives(folded);
+    const additive = tokenAdditives[0] ?? null;
     const tokenAllergens: AllergenGroup[] = [];
     if (rowHit?.row.allergens) {
       for (const group of rowHit.row.allergens) if (!tokenAllergens.includes(group)) tokenAllergens.push(group);
@@ -126,11 +131,18 @@ export function analyzeFoodIngredientList(
       allergenHits.push({ group, raw });
     }
 
-    if (additive) additiveHits.push(additive);
+    for (const hit of tokenAdditives) {
+      // Same additive repeated later on the label is not a second dose — keep
+      // the first occurrence only (order preserved by insertion here).
+      if (!seenAdditiveCodes.has(hit.code)) {
+        seenAdditiveCodes.add(hit.code);
+        additiveHits.push(hit);
+      }
+    }
 
     const recognized = Boolean(
       rowHit ||
-        additive ||
+        tokenAdditives.length > 0 ||
         tokenAllergens.length > 0 ||
         waterParameters.some((p) => p.raw === raw),
     );

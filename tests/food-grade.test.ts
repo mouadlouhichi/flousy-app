@@ -14,7 +14,7 @@ describe('food additive grade', () => {
     assert.deepEqual(additiveGrade(r), { score: 100, band: 'excellent' });
   });
 
-  it('drops the Dutch crisps list to 85 / good for its watch additive (MSG)', () => {
+  it('drops the Dutch crisps list to 55 / caution for its THREE watch flavour enhancers', () => {
     const r = analyzeFoodText(
       [
         'Gedehydrateerde aardappelen',
@@ -29,10 +29,16 @@ describe('food additive grade', () => {
         'kleurstof (annatto norbixine)',
       ].join(', '),
     );
-    // Exactly one watch additive is surfaced (E621); E471/E160b are
-    // EU-permitted so they do not subtract.
-    assert.deepEqual(r.additives.map((a) => a.band).sort(), ['neutral', 'neutral', 'watch']);
-    assert.deepEqual(additiveGrade(r), { score: 85, band: 'good' });
+    // MSG (E621) AND its usual companions sodium guanylate (E627) and
+    // disodium inosinate (E631) are all named in the seasoning sub-list and
+    // all flagged watch — none may be dropped. E471/E160b stay neutral.
+    assert.deepEqual(
+      r.additives.map((a) => a.code).sort(),
+      ['E160b', 'E471', 'E621', 'E627', 'E631'],
+    );
+    assert.equal(r.additives.filter((a) => a.band === 'watch').length, 3);
+    // 100 − 3 × 15 = 55 → caution.
+    assert.deepEqual(additiveGrade(r), { score: 55, band: 'caution' });
   });
 
   it('penalizes several watch additives harder', () => {

@@ -77,7 +77,8 @@ export function CoursesFoodPanel({
 
   // A scanned water may carry no ingredient text at all (natural mineral
   // waters print a composition instead). Detect it from the OFF metadata so
-  // the panel can still open an adapted "mineral water" view.
+  // the panel can open an adapted "mineral water" prompt inviting the user to
+  // paste the composition printed on the label.
   const autoWater =
     fromRecord === '' &&
     Boolean(name || category) &&
@@ -85,13 +86,7 @@ export function CoursesFoodPanel({
 
   const run = (text: string) => {
     const trimmed = text.trim();
-    if (trimmed === '') {
-      // Only the barcode water case may analyse with an empty label text.
-      if (!autoWater) {
-        setInvalid(true);
-        return;
-      }
-    } else if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
+    if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
       setInvalid(true);
       return;
     }
@@ -121,17 +116,12 @@ export function CoursesFoodPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromRecord]);
 
-  // Water barcode with no ingredient text → analyse the empty label so the
-  // engine can classify the product kind from the barcode metadata.
-  useEffect(() => {
-    if (autoWater && pending.status === 'idle') run('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoWater]);
-
   const analysis = pending.status === 'ready' ? pending.analysis : undefined;
-  const waterHeading =
-    analysis?.kind === 'water' ||
-    (autoWater && pending.status !== 'ready');
+  const waterHeading = analysis?.kind === 'water' || autoWater;
+  // The empty-state prompt is the mineral-composition one once we know this
+  // is a water — either from the barcode metadata (autoWater) or from the
+  // pasted text itself (the engine re-detects it as water on analyze).
+  const waterPrompt = waterHeading;
 
   return (
     <div className="mt-3 rounded-2xl border border-outline-variant bg-surface/70 p-3 md:p-3.5">
@@ -152,9 +142,11 @@ export function CoursesFoodPanel({
         </p>
       )}
 
-      {fromRecord === '' && pending.status !== 'loading' && !autoWater && (
+      {fromRecord === '' && pending.status !== 'loading' && (
         <div className="mt-3">
-          <p className="font-body-sm text-body-sm text-on-surface-variant">{g.pasteHelp}</p>
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            {waterPrompt ? g.waterPasteHelp : g.pasteHelp}
+          </p>
           <textarea
             value={draft}
             onChange={(e) => {
@@ -162,7 +154,7 @@ export function CoursesFoodPanel({
               if (invalid) setInvalid(false);
             }}
             rows={4}
-            placeholder={g.pastePlaceholder}
+            placeholder={waterPrompt ? g.waterPastePlaceholder : g.pastePlaceholder}
             className="mt-2 w-full resize-y rounded-xl border border-outline-variant bg-surface p-3 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
           />
           {invalid && (

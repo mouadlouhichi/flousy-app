@@ -2556,6 +2556,8 @@
     "waterParamSodiumNote": "Sodium occurs naturally in the source water. Its level is part of the declared mineral composition — it is not added salt.",
     "waterParamSulphates": "Sulphates",
     "waterParamSulphatesNote": "Sulphates occur naturally in some mineral waters; they are part of the source’s geological signature.",
+    "waterPasteHelp": "Natural mineral water: the label prints a mineral composition instead of ingredients. Paste it here to see the breakdown — each parameter is explained, never rated.",
+    "waterPastePlaceholder": "Example: Résidu sec à 110°C: 186, Sodium 26, Calcium 12, Magnésium 9, Sulfates 42, Chlorures 14, Potassium 1, Bicarbonates 104, Nitrates 4",
     "waterTitle": "Natural mineral water",
     "waterUnit": "mg/L",
     "waterUnparsed": "Other lines from the label that we could not read as a mineral parameter:",

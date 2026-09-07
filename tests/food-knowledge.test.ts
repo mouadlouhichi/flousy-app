@@ -5,7 +5,7 @@ import {
   analyzeFoodText,
   stripIngredientsHeading,
 } from '../src/lib/food-knowledge/analyze';
-import { foldForMatch, lookupAdditive, lookupFoodRow } from '../src/lib/food-knowledge/lists';
+import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain } from '../src/lib/food-knowledge/domain';
 
 describe('food-knowledge lists', () => {
@@ -36,10 +36,14 @@ describe('food-knowledge lists', () => {
     assert.equal(lookupAdditive('dinatriuminosinaat')?.code, 'E631');
     assert.equal(lookupAdditive('citroenzuur')?.code, 'E330');
     assert.equal(lookupAdditive('kleurstof (annatto norbixine)')?.code, 'E160b');
-    // The seasoning sub-list names are inside one parenthesised token; the
-    // first additive found on the label wins (single chip per row).
+    // A single seasoning token may name SEVERAL additives — all must be
+    // surfaced (the row chip shows the first, the summary counts all).
     const season =
-      'paprikakruiderij (suiker, smaakversterkers {mononatriumglutamaat}, zoet weipoeder MELK)';
+      'paprikakruiderij (smaakversterkers {mononatriumglutamaat, natriumguanylaat, dinatriuminosinaat}, voedingszuur {citroenzuur})';
+    assert.deepEqual(
+      lookupAdditives(season).map((a) => a.code),
+      ['E621', 'E627', 'E631', 'E330'],
+    );
     assert.equal(lookupAdditive(season)?.code, 'E621');
   });
 });
@@ -237,12 +241,45 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
     assert.ok(r.allergenGroups.includes('milk'), 'sweet whey powder / MELK is milk');
     const codes = r.additives.map((a) => a.code);
     assert.ok(codes.includes('E621'));
+    assert.ok(codes.includes('E627'), 'MSG companion sodium guanylate is not dropped');
+    assert.ok(codes.includes('E631'), 'MSG companion disodium inosinate is not dropped');
     assert.ok(codes.includes('E471'));
     assert.ok(codes.includes('E160b'));
     const families = r.ingredients.map((i) => i.family);
     assert.deepEqual(
       [families[0], families[1], families[2], families[3], families[4], families[8]],
       ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal', 'salt'],
+    );
+  });
+});
+
+describe('water regression — scanned Sidi Ali with a pasted composition', () => {
+  it('routes a pasted mineral composition to the water view even when a plain name is present', () => {
+    // OFF category missing and the name carries no "eau"/"water" token: the
+    // composition text itself must still win (a scanned water without a
+    // resolved category).
+    const byKind = detectFoodKind({
+      name: 'Sidi Ali 1,5 L',
+      text: 'Composition minérale en mg, Résidu sec à 110°C: 186, Sodium 26',
+    });
+    assert.equal(byKind, 'water');
+
+    const r = analyzeFoodText(
+      'Composition minérale en mg, Résidu sec à 110°C: 186, Sodium 26, Calcium 12',
+      { label: 'Sidi Ali 1,5 L' },
+    );
+    assert.equal(r.kind, 'water');
+    assert.equal(r.water?.parameters.length, 3);
+    assert.equal(r.water?.parameters[0].key, 'dry-residue');
+    assert.equal(r.water?.parameters[1].key, 'sodium');
+  });
+
+  it('does not hijack a normal food label that merely mentions résidu sec', () => {
+    // A cheese/cream label can mention dry matter without being a water —
+    // the FOOD name/category wins.
+    assert.equal(
+      detectFoodKind({ category: 'fr:fromages', name: 'Fromage blanc', text: 'Lait, résidu sec 25%' }),
+      'standard',
     );
   });
 });

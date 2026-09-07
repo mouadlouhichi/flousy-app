@@ -2556,6 +2556,8 @@
     "waterParamSodiumNote": "Le sodium est naturellement présent dans l’eau de source. Sa teneur fait partie de la composition minérale déclarée — ce n’est pas du sel ajouté.",
     "waterParamSulphates": "Sulfates",
     "waterParamSulphatesNote": "Les sulfates sont naturellement présents dans certaines eaux minérales ; ils font partie de la signature géologique de la source.",
+    "waterPasteHelp": "Eau minérale naturelle : l’étiquette indique une composition minérale et non des ingrédients. Collez-la ici pour voir le détail — chaque paramètre est expliqué, jamais noté.",
+    "waterPastePlaceholder": "Exemple : Résidu sec à 110°C : 186, Sodium 26, Calcium 12, Magnésium 9, Sulfates 42, Chlorures 14, Potassium 1, Bicarbonates 104, Nitrates 4",
     "waterTitle": "Eau minérale naturelle",
     "waterUnit": "mg/L",
     "waterUnparsed": "Autres lignes de l’étiquette que nous n’avons pas pu lire comme paramètre minéral :",
