@@ -6,6 +6,7 @@
  * rendering, and the product resolution cascade (catalog → remote → manual).
  */
 import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItem } from './store';
+import type { LookupOutcome } from './product-lookup';
 
 /** Round to 2 decimals without float drift (0.1 + 0.2 safe). */
 export function round2(value: number): number {
@@ -409,12 +410,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * `lookupSeed` and `lookupRemote` are injected so tests can stub them; any
  * remote failure (timeout, network, bad payload) degrades to `not-found`
  * with `reason: 'lookup-failed'`, never to a thrown error.
+ *
+ * `remoteTimeoutMs` must cover the whole remote cascade (direct attempt +
+ * proxy walk), not just one request — the default below matches
+ * `lookupOffProduct`'s own 4s + 14s budgets with margin.
  */
 export async function resolveProduct(opts: {
   barcode: string;
   catalog: Product[];
   lookupSeed?: (barcode: string) => RemoteProductInfo | null;
-  lookupRemote?: (barcode: string) => Promise<RemoteProductInfo | null>;
+  lookupRemote?: (barcode: string) => Promise<LookupOutcome>;
   remoteTimeoutMs?: number;
 }): Promise<ProductResolution> {
   const hit = opts.catalog.find((product) => product.barcode === opts.barcode && product.name);
@@ -465,23 +470,31 @@ export async function resolveProduct(opts: {
 
   if (opts.lookupRemote) {
     try {
-      const remote = await withTimeout(opts.lookupRemote(opts.barcode), opts.remoteTimeoutMs ?? 4000);
-      if (remote && remote.name) {
-        return {
-          kind: 'found',
-          product: {
-            name: remote.name,
-            brand: remote.brand,
-            category: remote.category,
-            imageUrl: remote.imageUrl,
-            ...(remote.quantity ? { quantity: remote.quantity } : {}),
-            ...(remote.ranking ? { ranking: { ...remote.ranking } } : {}),
-          },
-          source: 'remote',
-        };
+      const outcome = await withTimeout(opts.lookupRemote(opts.barcode), opts.remoteTimeoutMs ?? 20000);
+      if (outcome.kind === 'found') {
+        const remote = outcome.product;
+        if (remote.name) {
+          return {
+            kind: 'found',
+            product: {
+              name: remote.name,
+              brand: remote.brand,
+              category: remote.category,
+              imageUrl: remote.imageUrl,
+              ...(remote.quantity ? { quantity: remote.quantity } : {}),
+              ...(remote.ranking ? { ranking: { ...remote.ranking } } : {}),
+            },
+            source: 'remote',
+          };
+        }
+      } else if (outcome.kind === 'error') {
+        // transient failure (network / timeout / upstream) → retry-able miss,
+        // NOT a claim that the product does not exist
+        return { kind: 'not-found', barcode: opts.barcode, reason: 'lookup-failed' };
       }
+      // `not-found` falls through to the final return below
     } catch {
-      // timeout / network error → surface as a retry-able miss
+      // timeout / thrown error → surface as a retry-able miss
       return { kind: 'not-found', barcode: opts.barcode, reason: 'lookup-failed' };
     }
   }

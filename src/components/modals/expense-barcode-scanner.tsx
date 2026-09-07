@@ -12,6 +12,7 @@ type LookupState =
   | { kind: 'idle' }
   | { kind: 'busy' }
   | { kind: 'missing'; code: string }
+  | { kind: 'lookup-failed'; code: string }
   | { kind: 'found'; product: RemoteProductInfo; code: string };
 
 interface ExpenseBarcodeScannerProps {
@@ -34,11 +35,14 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
   const handleCode = (code: string) => {
     setLookup({ kind: 'busy' });
     lookupOffProduct(code)
-      .then((product) => {
-        if (product) setLookup({ kind: 'found', product, code });
-        else setLookup({ kind: 'missing', code });
+      .then((outcome) => {
+        if (outcome.kind === 'found') setLookup({ kind: 'found', product: outcome.product, code });
+        // `error` (network/timeout/upstream) is retry-able and must NOT be
+        // dressed up as "the product doesn't exist".
+        else if (outcome.kind === 'not-found') setLookup({ kind: 'missing', code });
+        else setLookup({ kind: 'lookup-failed', code });
       })
-      .catch(() => setLookup({ kind: 'missing', code }));
+      .catch(() => setLookup({ kind: 'lookup-failed', code }));
   };
 
   // Holds the whole narrowed state so `code` and `product` stay accessible.
@@ -133,6 +137,18 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
           <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 font-body-md text-body-md text-on-surface-variant">
             <AppIcon name="info" className="size-5 shrink-0 text-tertiary" />
             <span>{t(m.barcode.notFound, { code: lookup.code })}</span>
+          </div>
+        ) : lookup.kind === 'lookup-failed' ? (
+          <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-tertiary/40 bg-tertiary-container/30 px-4 py-3 font-body-md text-body-md text-on-surface">
+            <AppIcon name="cloud_off" className="size-5 shrink-0 text-tertiary" />
+            <span className="min-w-0 flex-1">{m.courses.lookupFailed}</span>
+            <button
+              type="button"
+              onClick={() => handleCode(lookup.code)}
+              className="tap-target shrink-0 rounded-full border border-outline-variant px-3.5 py-1.5 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-variant transition-colors"
+            >
+              {m.common.retry}
+            </button>
           </div>
         ) : null
       }

@@ -1,11 +1,14 @@
 /**
  * Open Food Facts barcode lookup (client side).
  *
- * Tries the OFF API directly from the browser — the world instance first,
- * then the Morocco instance (`ma-fr.openfoodfacts.org`, which carries local
- * MA data); if both fail (offline, CORS, timeout) it falls back to the app's
- * own `/api/barcode/lookup` proxy, which fetches server-side. All paths
- * return the same OFF-shaped payload so there is a single mapper.
+ * Tries the OFF world API directly from the browser (the fast path when OFF
+ * is reachable from this network); when that yields no product it falls back
+ * to the app's own `/api/barcode/lookup` proxy, which walks every instance
+ * (world, Morocco, beauty, products) server-side. All payloads go through
+ * the single `mapOffProduct` mapper, and the outcome distinguishes a
+ * definitive "no such product" from a transient "no answer" (see
+ * `LookupOutcome`) so a cold/overloaded first scan is retryable instead of
+ * a misleading "not found".
  *
  * Privacy: only the barcode digits leave the device — never user data.
  */
@@ -88,28 +91,89 @@ async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null
   }
 }
 
+/** Like `fetchJson` but keeps the HTTP status, so the caller can tell a
+    definitive "no such product" (200 + status 0) apart from a transient
+    failure (timeout, 429, 502, …) — null means "no answer at all". */
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Look up a barcode on Open Food Facts (world → Morocco instance), then via
- * the app proxy. Returns null when the product is not found (or every path
- * failed — the caller then offers manual entry).
+ * Outcome of a remote lookup.
+ *  - `found` — a source answered with the product.
+ *  - `not-found` — a source definitively answered "no such product".
+ *  - `error` — no answer could be obtained (network, timeout, upstream
+ *    failure). The UI must offer a retry, not pretend the product does not
+ *    exist — a cold/overloaded first lookup previously surfaced as a false
+ *    "not found" that a re-scan immediately contradicted.
+ */
+export type LookupOutcome =
+  | { kind: 'found'; product: RemoteProductInfo }
+  | { kind: 'not-found' }
+  | { kind: 'error' };
+
+interface OffRoot {
+  status?: number;
+  found?: boolean;
+  product?: Record<string, unknown>;
+  error?: string;
+}
+
+/**
+ * Look up a barcode on Open Food Facts, then via the app proxy.
+ *
+ * Budgets: the direct world attempt is a fast path (4s); the proxy gets 14s,
+ * covering its own 12s request deadline plus cold-start headroom. (An earlier
+ * 4s proxy timeout aborted the first lookup on every cold edge function, so
+ * the very first scan of a session often read as "not found" and the
+ * re-scan — with a warm function — succeeded.)
  */
 export async function lookupOffProduct(
   barcode: string,
-  opts?: { timeoutMs?: number; proxyUrl?: string },
-): Promise<RemoteProductInfo | null> {
-  const timeoutMs = opts?.timeoutMs ?? 4000;
+  opts?: { directTimeoutMs?: number; proxyTimeoutMs?: number; proxyUrl?: string },
+): Promise<LookupOutcome> {
+  const directTimeoutMs = opts?.directTimeoutMs ?? 4000;
+  const proxyTimeoutMs = opts?.proxyTimeoutMs ?? 14000;
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
 
-  // 1) direct from the browser — world, then the MA instance
-  for (const base of OFF_HOSTS) {
-    const direct = await fetchJson(`${base}${barcode}.json?fields=${FIELDS}`, timeoutMs);
-    const mapped = direct ? mapOffProduct(direct) : null;
-    if (mapped) return mapped;
+  // 1) direct from the browser — the fast path when OFF is reachable from
+  //    this network. Only the world instance is tried client-side: the MA
+  //    and beauty/products instances are walked server-side by the proxy, so
+  //    the client never burns 20s on dead-end fetches before the fallback.
+  //    A direct `status: 0` is NOT final — another instance may know the
+  //    code — it just falls through to the proxy.
+  const direct = await fetchJson(`${OFF_HOSTS[0]}${barcode}.json?fields=${FIELDS}`, directTimeoutMs);
+  const mapped = direct ? mapOffProduct(direct) : null;
+  if (mapped) return { kind: 'found', product: mapped };
+
+  // 2) through the app proxy — the authoritative multi-host walk.
+  const res = await fetchWithTimeout(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, proxyTimeoutMs);
+  if (!res) return { kind: 'error' };
+
+  let body: OffRoot | null = null;
+  try {
+    body = (await res.json()) as OffRoot;
+  } catch {
+    return { kind: 'error' };
   }
 
-  // 2) through the app proxy (server-side fetch — also the CORS fallback)
-  const proxied = await fetchJson(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, timeoutMs);
-  if (proxied) return mapOffProduct(proxied);
-
-  return null;
+  if (res.status === 200 && body && (body.status === 1 || body.found === true)) {
+    const product = mapOffProduct(body);
+    if (product) return { kind: 'found', product };
+    return { kind: 'not-found' };
+  }
+  if (res.status === 200 && body && (body.status === 0 || body.found === false) && !body.error) {
+    return { kind: 'not-found' };
+  }
+  // 400/403/429 (invalid, blocked, rate-limited), 502 (upstream walk failed),
+  // or a malformed body — none of these is evidence about the product.
+  return { kind: 'error' };
 }

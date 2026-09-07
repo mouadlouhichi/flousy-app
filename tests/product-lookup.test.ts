@@ -1,7 +1,7 @@
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { mapOffProduct } from '../src/lib/product-lookup';
+import { lookupOffProduct, mapOffProduct } from '../src/lib/product-lookup';
 import { barcodeChecksumValid } from '../src/lib/course-session';
 import { lookupMaSeed, MA_SEED_COUNT } from '../src/lib/ma-product-seed';
 
@@ -107,5 +107,104 @@ describe('Moroccan seed catalog', () => {
     for (const code of codes) {
       assert.ok(barcodeChecksumValid(code), `seed barcode ${code} fails its EAN checksum`);
     }
+  });
+});
+
+describe('lookupOffProduct outcome contract', () => {
+  const realFetch = globalThis.fetch;
+  const proxyUrl = '/api/barcode/lookup';
+
+  function mockFetch(script: Array<(url: string) => Response | null>) {
+    let i = 0;
+    globalThis.fetch = ((url: string | URL | Request) => {
+      const u = String(url);
+      const make = script[Math.min(i, script.length - 1)];
+      i += 1;
+      return Promise.resolve(make(u));
+    }) as typeof fetch;
+  }
+
+  function json(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  after(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('found directly from the world API without touching the proxy', async () => {
+    const seen: string[] = [];
+    mockFetch([(u) => {
+      seen.push(u);
+      return json(200, { status: 1, product: { product_name: 'Sidi Ali', brands: 'Sidi Ali' } });
+    }]);
+    const out = await lookupOffProduct('6111035002175', { proxyUrl });
+    assert.deepEqual(out, { kind: 'found', product: { name: 'Sidi Ali', brand: 'Sidi Ali' } });
+    assert.equal(seen.length, 1, 'must not fall through to the proxy on a direct hit');
+    assert.ok(seen[0].startsWith('https://world.openfoodfacts.org/'), seen[0]);
+  });
+
+  it('direct status:0 falls through; the proxy hit wins', async () => {
+    mockFetch([
+      () => json(200, { status: 0, status_verbose: 'product found with a different product type: beauty' }),
+      (u) => {
+        assert.ok(u.startsWith(proxyUrl), u);
+        return json(200, {
+          status: 1,
+          found: true,
+          product: { product_name: '68YN5T 400ml', brands: 'Ultra doux', nutriscore_grade: 'not-applicable' },
+        });
+      },
+    ]);
+    const out = await lookupOffProduct('3600541177741', { proxyUrl });
+    // non-grade nutriscore must not surface as a ranking
+    assert.deepEqual(out, { kind: 'found', product: { name: '68YN5T 400ml', brand: 'Ultra doux' } });
+  });
+
+  it('a definitive proxy answer "no such product" is not-found', async () => {
+    mockFetch([
+      () => json(200, { status: 0 }),
+      (u) => {
+        assert.ok(u.startsWith(proxyUrl), u);
+        return json(200, { status: 0, found: false, product: null });
+      },
+    ]);
+    const out = await lookupOffProduct('0000000000000', { proxyUrl });
+    assert.deepEqual(out, { kind: 'not-found' });
+  });
+
+  it('a dead network on both paths is an ERROR, not a false not-found', async () => {
+    // direct attempt throws; proxy attempt throws → the caller must be able
+    // to offer a retry instead of claiming the product does not exist
+    globalThis.fetch = (() => Promise.reject(new Error('offline'))) as typeof fetch;
+    const out = await lookupOffProduct('6111035002175', { proxyUrl });
+    assert.deepEqual(out, { kind: 'error' });
+  });
+
+  it('a proxy 502 (upstream walk failed) is an ERROR, not not-found', async () => {
+    mockFetch([
+      () => json(200, { status: 0 }),
+      (u) => {
+        assert.ok(u.startsWith(proxyUrl), u);
+        return json(502, { status: 0, found: false, product: null, error: 'lookup failed' });
+      },
+    ]);
+    const out = await lookupOffProduct('6111035002175', { proxyUrl });
+    assert.deepEqual(out, { kind: 'error' });
+  });
+
+  it('a proxy rate-limit (429) is an ERROR, not not-found', async () => {
+    mockFetch([
+      () => json(200, { status: 0 }),
+      (u) => {
+        assert.ok(u.startsWith(proxyUrl), u);
+        return json(429, { status: 0, found: false, product: null, error: 'too many lookups' });
+      },
+    ]);
+    const out = await lookupOffProduct('6111035002175', { proxyUrl });
+    assert.deepEqual(out, { kind: 'error' });
   });
 });

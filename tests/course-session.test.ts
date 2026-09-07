@@ -441,7 +441,7 @@ describe('resolveProduct', () => {
       catalog: [MA_PRODUCT],
       lookupRemote: async () => {
         remoteCalls++;
-        return { name: 'WRONG' };
+        return { kind: 'found', product: { name: 'WRONG' } };
       },
     });
     assert.equal(remoteCalls, 0);
@@ -462,7 +462,7 @@ describe('resolveProduct', () => {
     const resolution = await resolveProduct({
       barcode: '3017620422003',
       catalog: [],
-      lookupRemote: async () => ({ name: 'Nutella', brand: 'Ferrero' }),
+      lookupRemote: async () => ({ kind: 'found', product: { name: 'Nutella', brand: 'Ferrero' } }),
     });
     assert.deepEqual(resolution, {
       kind: 'found',
@@ -476,10 +476,13 @@ describe('resolveProduct', () => {
       barcode: '3017620422003',
       catalog: [],
       lookupRemote: async () => ({
-        name: 'Nutella',
-        brand: 'Ferrero',
-        quantity: '400 g',
-        ranking: { grade: 'e', score: 12 },
+        kind: 'found',
+        product: {
+          name: 'Nutella',
+          brand: 'Ferrero',
+          quantity: '400 g',
+          ranking: { grade: 'e', score: 12 },
+        },
       }),
     });
     assert.deepEqual(resolution, {
@@ -520,7 +523,7 @@ describe('resolveProduct', () => {
       lookupSeed: (code) => (code === '6111035002175' ? { name: 'Sidi Ali', brand: 'Sidi Ali' } : null),
       lookupRemote: async () => {
         remoteCalls++;
-        return { name: 'WRONG' };
+        return { kind: 'found', product: { name: 'WRONG' } };
       },
     });
     assert.equal(remoteCalls, 0);
@@ -535,7 +538,7 @@ describe('resolveProduct', () => {
     const resolution = await resolveProduct({
       barcode: '1111111111111',
       catalog: [],
-      lookupRemote: async () => null,
+      lookupRemote: async () => ({ kind: 'not-found' }),
     });
     assert.deepEqual(resolution, { kind: 'not-found', barcode: '1111111111111', reason: 'not-found' });
   });
@@ -556,10 +559,27 @@ describe('resolveProduct', () => {
       barcode: '3333333333333',
       catalog: [],
       lookupRemote: () =>
-        new Promise((resolve) => setTimeout(() => resolve({ name: 'Too late' }), 200)),
+        new Promise((resolve) => setTimeout(() => resolve({ kind: 'found', product: { name: 'Too late' } }), 200)),
       remoteTimeoutMs: 30,
     });
     assert.deepEqual(slow, { kind: 'not-found', barcode: '3333333333333', reason: 'lookup-failed' });
+
+    // A reported `error` outcome (network/timeout upstream) is retry-able —
+    // it must NOT be confused with a definitive "no such product".
+    const errored = await resolveProduct({
+      barcode: '9999999999999',
+      catalog: [],
+      lookupRemote: async () => ({ kind: 'error' }),
+    });
+    assert.deepEqual(errored, { kind: 'not-found', barcode: '9999999999999', reason: 'lookup-failed' });
+
+    // …while a definitive `not-found` outcome keeps its own reason.
+    const definitive = await resolveProduct({
+      barcode: '7777777777777',
+      catalog: [],
+      lookupRemote: async () => ({ kind: 'not-found' }),
+    });
+    assert.deepEqual(definitive, { kind: 'not-found', barcode: '7777777777777', reason: 'not-found' });
   });
 
   it('ignores catalog entries without a name and uses the remote', async () => {
@@ -573,7 +593,7 @@ describe('resolveProduct', () => {
     const resolution = await resolveProduct({
       barcode: '4444444444444',
       catalog: [nameless],
-      lookupRemote: async () => ({ name: 'Recovered' }),
+      lookupRemote: async () => ({ kind: 'found', product: { name: 'Recovered' } }),
     });
     assert.deepEqual(resolution, {
       kind: 'found',
@@ -651,7 +671,7 @@ describe('Variable-measure (in-store price) barcodes', () => {
       catalog: [],
       lookupRemote: async () => {
         remoteCalled = true;
-        return null;
+        return { kind: 'not-found' };
       },
     });
     assert.strictEqual(remoteCalled, false, 'Open Food Facts must not be queried for in-store codes');
