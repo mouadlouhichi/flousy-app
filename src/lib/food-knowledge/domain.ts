@@ -112,10 +112,23 @@ export function detectFoodKind(input: {
   const name = foldForMatch(input.name ?? '');
   const text = foldForMatch(input.text ?? '');
 
+  // STRONGEST signal first: a mineral-composition table printed on the label
+  // only ever belongs to a water ("Composition minérale en mg…", "Résidu sec
+  // à 110 °C … mg/L"). A real food/drink ingredient list never contains it,
+  // so it must win even when the OFF category is a generic "boissons /
+  // beverages" (waters are frequently filed there) — otherwise a scanned
+  // water degrades to a 0/N "not recognized" list.
+  const waterComposition =
+    text &&
+    (text.includes('composition minerale') ||
+      (text.includes('residu sec') && text.includes('mg')));
+
   const flavoured =
     name.includes('aromatisee') || name.includes('flavoured') ||
     category.includes('aromatisee') || category.includes('flavoured') ||
     name.includes('aromes') || name.includes('flavors');
+
+  if (waterComposition && !flavoured) return 'water';
 
   // 1. OFF category tags are the most reliable signal.
   if (category) {
@@ -138,19 +151,8 @@ export function detectFoodKind(input: {
     if (DRINK_MARKERS.some((m) => name.includes(m))) return 'drink';
   }
 
-  // 3. The pasted text itself can be a mineral composition (a water label
-  //    prints one instead of an ingredient list). These markers are strong:
-  //    they override a name/category that did not resolve to water — EXCEPT
-  //    when the name/category is clearly a standard food (a cheese label may
-  //    mention "résidu sec" without being a water).
-  if (text) {
-    const foodHint = hasMarker(category, FOOD_MARKERS) || hasMarker(name, FOOD_MARKERS);
-    const waterText =
-      text.includes('composition minerale') ||
-      (text.includes('residu sec') && text.includes('mg'));
-    if (waterText && !foodHint) return 'water';
-    if (DRINK_MARKERS.some((m) => text.includes(m))) return 'drink';
-  }
+  // 3. A pasted text that mentions drinks but no water composition.
+  if (text && DRINK_MARKERS.some((m) => text.includes(m))) return 'drink';
 
   return 'standard';
 }

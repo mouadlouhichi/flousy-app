@@ -339,3 +339,17 @@ describe('pasted/OCR text sanitizer (extra characters)', () => {
     assert.equal(sanitizeLabelText('C.I. 77491, PEG-40 & Parfum (90%) — 0°C'), 'C.I. 77491, PEG-40 & Parfum (90%) — 0°C');
   });
 });
+
+describe('water scan regression — Sidi Ali under a generic beverages category', () => {
+  it('still shows the mineral-water view when OFF files water under fr:boissons', () => {
+    const compo =
+      'Composition minérale en mg, Résidu sec à 110°C: 186, Sodium 26, Calcium 12';
+    // Old bug: the generic "boisson(s)" drink category fired before the
+    // composition text, so a scanned Sidi Ali degraded to a 0/N list.
+    assert.equal(detectFoodKind({ name: 'Sidi Ali', category: 'fr:boissons', text: compo }), 'water');
+    const r = analyzeFoodText(compo, { label: 'Sidi Ali', category: 'fr:boissons' });
+    assert.equal(r.kind, 'water');
+    assert.equal(r.water?.parameters.length, 3);
+    assert.ok(r.water.parameters.some((p) => p.key === 'dry-residue'));
+  });
+});
