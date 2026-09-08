@@ -140,7 +140,7 @@ export function CoursesLabelAccordion({
   }>({ key: '' });
 
   useEffect(() => {
-    if (domain !== 'cosmetic' || open || !cosmeticText) return;
+    if (domain !== 'cosmetic' || !cosmeticText) return;
     if (cosmetic.key === cosmeticText) return;
     let cancelled = false;
     setCosmetic({ key: cosmeticText });
@@ -157,7 +157,7 @@ export function CoursesLabelAccordion({
     return () => {
       cancelled = true;
     };
-  }, [domain, open, cosmeticText, labelName, category, cosmetic.key]);
+  }, [domain, cosmeticText, labelName, category, cosmetic.key]);
 
   const cosmeticAnalysis =
     cosmetic.key === cosmeticText ? cosmetic.analysis : undefined;
