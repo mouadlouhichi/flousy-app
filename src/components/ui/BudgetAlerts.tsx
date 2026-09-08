@@ -189,7 +189,10 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
       </button>
 
       {isOpen && (
-        <div className="absolute end-0 top-12 w-80 bg-surface-container-high border border-outline-variant shadow-xl rounded-2xl p-md z-50 space-y-sm">
+        // On phones the anchored 320px popover spills off the left edge of the
+        // screen, so it is pinned as a full-width sheet below the sticky
+        // header; from `sm` up it keeps the original anchored popover.
+        <div className="fixed inset-x-3 top-[72px] z-50 rounded-2xl border border-outline-variant bg-surface-container-high shadow-xl p-4 max-h-[calc(100dvh-88px)] overflow-y-auto sm:absolute sm:inset-x-auto sm:end-0 sm:top-12 sm:w-80 sm:max-h-none sm:overflow-visible">
           <div className="flex justify-between items-center border-b border-outline-variant pb-2">
             <div className="flex items-center gap-xs">
               <AppIcon name="notifications" className=" text-primary text-[20px]" />
@@ -197,19 +200,19 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-on-surface-variant hover:text-on-surface text-[18px]"
+              className="tap-target rounded-lg p-1.5 text-on-surface-variant hover:text-on-surface"
               aria-label={m.common.close}
             >
               ✕
             </button>
           </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
-            {pendingInvites.length > 0 && <div className="space-y-1 border-b border-outline-variant pb-2"><p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.householdInvitations}</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">{m.alerts.householdInvitation}</span><span className="block text-xs text-on-surface-variant">{t(m.alerts.openToJoinAs, { role: localizeHouseholdRole(invite.role, m) })}</span></Link>)}</div>}
+          <div className="space-y-3 mt-3">
+            {pendingInvites.length > 0 && <div className="space-y-1.5 border-b border-outline-variant pb-3"><p className="px-1 text-label-sm font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.householdInvitations}</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-xl bg-primary/10 p-2.5 text-sm text-on-surface hover:bg-primary/15"><span className="font-bold">{m.alerts.householdInvitation}</span><span className="block text-xs text-on-surface-variant">{t(m.alerts.openToJoinAs, { role: localizeHouseholdRole(invite.role, m) })}</span></Link>)}</div>}
 
             {reminders.length > 0 && (
-              <div className="space-y-1 border-b border-outline-variant pb-2">
-                <p className="px-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.reminders}</p>
+              <div className="space-y-1.5 border-b border-outline-variant pb-3">
+                <p className="px-1 text-label-sm font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.reminders}</p>
                 {reminders.map((reminder) => (
                   <Alert
                     key={reminder.key}
@@ -222,20 +225,22 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
                 ))}
               </div>
             )}
-            <p className="px-1 pt-1 text-[11px] font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.budgetHealth}</p>
-            {alerts.length > 0 ? (
-              alerts.map((a, idx) => (
-                <Alert key={idx} variant={a.severity === 'error' ? 'destructive' : 'warning'}>
-                  <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} />
-                  <AlertTitle>{a.title}</AlertTitle>
-                  <AlertDescription>{a.message}</AlertDescription>
-                </Alert>
-              ))
-            ) : (
-              <p className="font-body-sm text-body-sm text-on-surface-variant p-2 text-center">
-                {m.alerts.allHealthy}
-              </p>
-            )}
+            <div className="space-y-1.5">
+              <p className="px-1 text-label-sm font-bold uppercase tracking-wide text-on-surface-variant">{m.alerts.budgetHealth}</p>
+              {alerts.length > 0 ? (
+                alerts.map((a, idx) => (
+                  <Alert key={idx} variant={a.severity === 'error' ? 'destructive' : 'warning'}>
+                    <AppIcon name={a.severity === 'error' ? 'error' : 'warning'} />
+                    <AlertTitle>{a.title}</AlertTitle>
+                    <AlertDescription>{a.message}</AlertDescription>
+                  </Alert>
+                ))
+              ) : (
+                <p className="font-body-sm text-body-sm text-on-surface-variant p-2 text-center">
+                  {m.alerts.allHealthy}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

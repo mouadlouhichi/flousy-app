@@ -120,6 +120,36 @@ describe('CoursesIngredientGlance render smoke', () => {
     }
   });
 
+  it('renders the prominent overall rating banner (score, /100, stars, tier strip)', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    current = 'en';
+    const html = renderToStaticMarkup(
+      React.createElement(CoursesIngredientGlanceBody, { analysis }),
+    );
+    const hasBannerRole = html.includes('role="img"');
+    const hasBannerLabel = html.includes('aria-label="20/100 — Avoid"');
+    const hasScoreSuffix = html.includes('/100');
+    assert.ok(hasBannerRole, 'banner missing its role');
+    assert.ok(hasBannerLabel, 'banner aria-label missing');
+    assert.ok(hasScoreSuffix, '/100 suffix missing');
+    // Five-star row (one svg per star; filled = round(20/100 × 5) = 1).
+    // `match` is typed RegExpMatchArray | null; annotate the fallback union as
+    // plain string[] or the .filter callback param collapses to `never`.
+    const starSvgs: string[] = html.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
+    const stars = starSvgs.filter((svg) => svg.includes('polygon points="12 2'));
+    assert.equal(stars.length, 5, 'star row should draw five stars');
+    const filledStars = stars.filter((svg) => svg.includes('fill="currentColor"'));
+    assert.equal(filledStars.length, 1, 'one filled star for a 20 score');
+    // Thin tier-proportion strip under the score:
+    // fixture tiers = clean 1 / (watch+restricted 0) / (caution+prohibited 3) of 4.
+    const hasGreenSegment = html.includes('width:25%');
+    const hasOrangeSegment = html.includes('width:75%');
+    assert.ok(hasGreenSegment, 'green tier segment missing');
+    assert.ok(hasOrangeSegment, 'orange tier segment missing');
+  });
+
   it('renders nothing (not even an error) when no ingredient text is present', async () => {
     const { CoursesIngredientGlance } = await import(
       '../../src/components/dashboard/courses/courses-ingredient-glance'

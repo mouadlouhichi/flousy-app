@@ -496,6 +496,9 @@
         },
         "ranking": {
           "$ref": "#/definitions/ProductRanking"
+        },
+        "quality": {
+          "$ref": "#/definitions/SessionItemQuality"
         }
       },
       "required": [
@@ -504,6 +507,50 @@
         "qty",
         "unitPrice",
         "lineTotal"
+      ]
+    },
+    "SessionItemQuality": {
+      "title": "SessionItemQuality",
+      "description": "Cosmetic ingredient quality summary stored on a session line. Optional — only beauty lines with an INCI list carry one; the score comes from the ingredient-safety engine and is refined once the CosIng index is loaded server-side.",
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "band": {
+          "type": "string",
+          "enum": [
+            "excellent",
+            "good",
+            "moderate",
+            "caution",
+            "avoid"
+          ]
+        },
+        "good": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Green tier — clean ingredients"
+        },
+        "caution": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Yellow tier — watch + restricted ingredients"
+        },
+        "concern": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Orange tier — caution + prohibited ingredients"
+        }
+      },
+      "required": [
+        "score",
+        "band",
+        "good",
+        "caution",
+        "concern"
       ]
     },
     "DebtPayment": {

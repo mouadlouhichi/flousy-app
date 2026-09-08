@@ -14,6 +14,8 @@ import {
   setItemQty,
   setItemPrice,
   setItemName,
+  setItemQuality,
+  summarizeQuality,
   removeSessionItem,
   completeSession,
   sessionUnits,
@@ -25,6 +27,7 @@ import {
   COURSE_FALLBACK_CATEGORY,
 } from '../src/lib/course-session';
 import type { Product } from '../src/lib/store';
+import type { ProductAssessment } from '../src/lib/ingredient-safety/types';
 import {
   courseBillImageFilename,
   renderCourseBillImageSvg,
@@ -272,6 +275,118 @@ describe('line mutations', () => {
     session = removeSessionItem(session, 'a');
     assert.equal(session.items.length, 1);
     assert.equal(session.total, 8);
+  });
+
+  it('setItemQuality stores the summary on the matching line only', () => {
+    let session = makeSession();
+    session = addItemToSession(session, makeItem({ barcode: 'a', name: 'Lait', unitPrice: 10 }));
+    session = addItemToSession(session, makeItem({ barcode: 'b', name: 'Shampooing', unitPrice: 30 }));
+    const quality = { score: 78, band: 'good' as const, good: 5, caution: 1, concern: 0 };
+    session = setItemQuality(session, 'b', quality);
+    assert.equal(session.items[0].quality, undefined);
+    assert.deepEqual(session.items[1].quality, quality);
+    // totals are untouched by a quality update
+    assert.equal(session.total, 40);
+  });
+});
+
+describe('summarizeQuality', () => {
+  function assessment(partial: {
+    score: number | null;
+    band: ProductAssessment['band'];
+    tiers: Array<ProductAssessment['ingredients'][number]['tier']>;
+  }): ProductAssessment {
+    const ingredients = partial.tiers.map((tier, index) => ({
+      index,
+      raw: `ing-${index}`,
+      normalized: `ING-${index}`,
+      matched: true,
+      matchedInci: `INCI-${index}`,
+      signals: [],
+      tier,
+    }));
+    return {
+      form: 'leave-on',
+      total: ingredients.length,
+      recognized: ingredients.length,
+      coverage: 1,
+      score: partial.score,
+      confidence: 'full',
+      band: partial.band,
+      worstTier: undefined,
+      unknownIngredients: [],
+      dataset: { rows: 1, snapshot: 'test', version: 'test' },
+      ingredients,
+      flags: [],
+    } as unknown as ProductAssessment;
+  }
+
+  it('folds the five tiers into the chip\'s three colours', () => {
+    const summary = summarizeQuality(
+      assessment({
+        score: 62,
+        band: 'moderate',
+        tiers: ['clean', 'clean', 'watch', 'restricted', 'caution', 'prohibited'],
+      }),
+    );
+    assert.deepEqual(summary, { score: 62, band: 'moderate', good: 2, caution: 2, concern: 2 });
+  });
+
+  it('ignores unrecognized (null-tier) ingredients in the counts', () => {
+    const summary = summarizeQuality(
+      assessment({
+        score: 90,
+        band: 'good',
+        tiers: ['clean', null, null, 'watch'],
+      }),
+    );
+    assert.deepEqual(summary, { score: 90, band: 'good', good: 1, caution: 1, concern: 0 });
+  });
+
+  it('returns null when the engine could not score the product', () => {
+    assert.equal(summarizeQuality(assessment({ score: null, band: null, tiers: ['clean'] })), null);
+  });
+});
+
+describe('createSessionItem quality snapshot', () => {
+  it('copies a provided quality summary and omits it otherwise', () => {
+    const quality = { score: 88, band: 'excellent' as const, good: 6, caution: 0, concern: 0 };
+    const withQuality = createSessionItem({
+      name: 'Crème',
+      unitPrice: 55,
+      quality,
+      now: NOW,
+      rand: () => 0,
+    });
+    assert.deepEqual(withQuality.quality, quality);
+    // a later mutation of the input must not leak into the stored snapshot
+    quality.good = 0;
+    assert.equal(withQuality.quality?.good, 6);
+
+    const plain = createSessionItem({ name: 'Pain', unitPrice: 8, now: NOW, rand: () => 0 });
+    assert.equal(plain.quality, undefined);
+  });
+
+  it('keeps quality when a re-scan increments the existing line', () => {
+    let session = makeSession();
+    session = addItemToSession(
+      session,
+      createSessionItem({
+        barcode: '611',
+        name: 'Crème',
+        unitPrice: 55,
+        quality: { score: 88, band: 'excellent', good: 6, caution: 0, concern: 0 },
+        now: NOW,
+        rand: () => 0,
+      }),
+    );
+    session = addItemToSession(
+      session,
+      createSessionItem({ barcode: '611', name: 'Crème', unitPrice: 55, now: NOW, rand: () => 0 }),
+    );
+    assert.equal(session.items.length, 1);
+    assert.equal(session.items[0].qty, 2);
+    assert.equal(session.items[0].quality?.score, 88);
   });
 });
 

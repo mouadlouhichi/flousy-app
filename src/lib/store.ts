@@ -2600,6 +2600,24 @@ export interface Product {
 }
 
 /**
+ * Cosmetic quality summary stored on a session line (ingredient-safety
+ * engine). Persisted with the session so the bill view can show the score
+ * chip without re-analyzing the INCI list.
+ */
+export interface SessionItemQuality {
+  /** 0–100 aggregate score from the ingredient-safety engine. */
+  score: number;
+  /** Overall band — drives the chip colour and the rating label. */
+  band: 'excellent' | 'good' | 'moderate' | 'caution' | 'avoid';
+  /** Green tier — ingredients classified clean. */
+  good: number;
+  /** Yellow tier — watch + restricted ingredients. */
+  caution: number;
+  /** Orange tier — caution + prohibited ingredients. */
+  concern: number;
+}
+
+/**
  * One line of a course session. Name/category are snapshots so the bill
  * renders identically even if the catalog entry changes or is deleted later.
  */
@@ -2613,6 +2631,12 @@ export interface SessionItem {
   lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
   /** Snapshot of the product's ranking, when the source provided one. */
   ranking?: ProductRanking;
+  /**
+   * Cosmetic ingredient quality summary (score + tier counts). Optional —
+   * only beauty lines with an INCI list get one, refined async after the
+   * line is added; never present on manual or non-cosmetic lines.
+   */
+  quality?: SessionItemQuality;
 }
 
 /**

@@ -21,12 +21,13 @@ import {
   resolveProduct,
   setItemName,
   setItemPrice,
+  setItemQuality,
   setItemQty,
   type ProductResolution,
 } from '@/lib/course-session';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { lookupMaSeed } from '@/lib/ma-product-seed';
-import type { CourseSession, MoneyPlace, Product, ProductRanking } from '@/lib/store';
+import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItemQuality } from '@/lib/store';
 
 const CATALOG_KEY = 'smartjib_course_catalog';
 const SESSIONS_KEY = 'smartjib_course_sessions';
@@ -220,6 +221,14 @@ export function useCourseSession(uid: string | null | undefined) {
     [persistSession],
   );
 
+  /** Store the async cosmetic quality summary on an active-session line. */
+  const setLineQuality = useCallback(
+    (key: string, quality: SessionItemQuality) => {
+      mutateActive((session) => setItemQuality(session, key, quality));
+    },
+    [mutateActive],
+  );
+
   /** Add a line for a resolved product, then remember its price in the catalog. */
   const addScannedLine = useCallback(
     (input: {
@@ -229,6 +238,8 @@ export function useCourseSession(uid: string | null | undefined) {
       unitPrice: number;
       qty?: number;
       ranking?: ProductRanking;
+      /** Cosmetic quality summary (already scored), when the caller has one. */
+      quality?: SessionItemQuality;
       /** INCI list to persist on the catalog product (cosmetics). */
       ingredientsText?: string;
       /** Source hint that this is a cosmetic/beauty record. */
@@ -298,6 +309,7 @@ export function useCourseSession(uid: string | null | undefined) {
     setQty: (key: string, qty: number) => mutateActive((s) => setItemQty(s, key, qty)),
     setPrice: (key: string, price: number) => mutateActive((s) => setItemPrice(s, key, price)),
     setName: (key: string, name: string) => mutateActive((s) => setItemName(s, key, name)),
+    setLineQuality,
     setPlace: (place: MoneyPlace) => mutateActive((s) => ({ ...s, place })),
     setSessionPlace,
     removeLine: (key: string) => mutateActive((s) => removeSessionItem(s, key)),

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
-import { detectLabelDomain, suggestsCosmeticRecord } from '@/lib/food-knowledge/domain';
+import { detectLabelDomain, isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
 import { additiveGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
@@ -90,10 +90,12 @@ export function CoursesLabelAccordion({
   // chain ("Incorrect product type / non-food-products / open-beauty-facts").
   // Treat those as cosmetic candidates so the INCI fallback (and, on failure,
   // the paste/OCR path) is offered instead of a misleading food panel.
-  const likelyCosmetic =
-    beauty ||
-    detectedDomain === 'cosmetic' ||
-    suggestsCosmeticRecord({ category, name: labelName, ingredientsText });
+  const likelyCosmetic = isCosmeticRecord({
+    beauty,
+    category,
+    name: labelName,
+    ingredientsText,
+  });
   const domain = likelyCosmetic ? 'cosmetic' : detectedDomain;
 
   // The cosmetic engine may read a per-barcode INCI saved on this device.
