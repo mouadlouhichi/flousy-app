@@ -12,6 +12,7 @@ import {
   isVendorConfigured,
   VENDOR_INCI_ANALYZE_ENDPOINT,
   VENDOR_INCI_ENDPOINT,
+  VENDOR_INCI_SAFETY_PATH,
 } from '../src/lib/server/vendor-inci';
 
 type TestEnv = { INCI_API_KEY?: string };
@@ -28,6 +29,44 @@ describe('vendor-inci extractors', () => {
       },
     };
     assert.equal(extractVendorInci(body), 'Aqua, Glycerin, Niacinamide, Parfum.');
+  });
+
+  it('extracts the documented barcode /safety response (top-level rawInci)', () => {
+    const body = {
+      barcode: '0085275710434',
+      rawInci: ['AQUA', 'GLYCERIN', 'NIACINAMIDE', 'CETEARYL ALCOHOL', 'PHENOXYETHANOL'],
+      parsedIngredients: [
+        { inciName: 'AQUA', safetyLevel: 'safe', found: true },
+        { inciName: 'GLYCERIN', safetyLevel: 'safe', found: true },
+      ],
+      overallSafetyScore: 7.3,
+    };
+    assert.equal(extractVendorInci(body), 'AQUA, GLYCERIN, NIACINAMIDE, CETEARYL ALCOHOL, PHENOXYETHANOL');
+  });
+
+  it('extracts parsedIngredients objects when rawInci is absent/' +
+    'null (provider shape drift)', () => {
+    const body = {
+      barcode: '0085275710434',
+      parsedIngredients: [
+        { inciName: 'AQUA', safetyLevel: 'safe', found: true },
+        { name: 'RETINOL', safetyLevel: 'moderate', found: true },
+      ],
+    };
+    assert.equal(extractVendorInci(body), 'AQUA, RETINOL');
+  });
+
+  it('extracts the documented safety product fields (productName/brand)', () => {
+    const body = {
+      productName: 'CeraVe Foaming Facial Cleanser',
+      brand: 'CeraVe',
+      rawInci: ['AQUA', 'GLYCERIN'],
+    };
+    assert.deepEqual(extractVendorProduct(body), {
+      name: 'CeraVe Foaming Facial Cleanser',
+      brand: 'CeraVe',
+      ingredientsText: 'AQUA, GLYCERIN',
+    });
   });
 
   it('falls back to the product.ingredients string', () => {
@@ -94,7 +133,7 @@ describe('vendor-inci fetch', () => {
     const out = await fetchVendorPayload('6111234567890', KEYED, fetchImpl);
     assert.deepEqual(out, { product: { name: 'X' } });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567890`);
+    assert.equal(calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`);
     assert.equal(calls[0].headers?.['X-API-Key'], 'sk-test');
   });
 

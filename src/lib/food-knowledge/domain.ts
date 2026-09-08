@@ -70,6 +70,38 @@ function hasMarker(folded: string, markers: string[]): boolean {
   return markers.some((m) => folded.includes(m));
 }
 
+/** Category strings OFF glues onto beauty/product records that are temporarily
+ *  filed under the wrong database (and therefore often carry no readable
+ *  category). Any of these is a strong hint that a barcode lookup should be
+ *  treated as a candidate cosmetic even when the name is a code-like label. */
+export function suggestsCosmeticRecord(input: {
+  category?: string;
+  name?: string;
+  ingredientsText?: string;
+}): boolean {
+  const category = foldForMatch(input.category ?? '');
+  const name = foldForMatch(input.name ?? '');
+  const text = foldForMatch(input.ingredientsText ?? '');
+
+  if (
+    category.includes('incorrect product type') ||
+    category.includes('non-food-products') ||
+    category.includes('open beauty facts') ||
+    category.includes('open-beauty-facts') ||
+    category.includes('open products facts') ||
+    category.includes('open-products-facts') ||
+    category.includes('cosmetic') ||
+    category.includes('beauty')
+  ) {
+    return true;
+  }
+  // Name-level markers only add signal when the text isn't already a clear
+  // food list; otherwise a product name containing a common word can't be
+  // trusted more than the category chain.
+  if (!text) return hasMarker(name, COSMETIC_MARKERS);
+  return hasMarker(text, INCI_ONLY_TOKENS);
+}
+
 /** WATER markers — folded category/name fragments (singular AND French plural). */
 const WATER_MARKERS = [
   'eau minerale', 'eaux minerales', 'mineral water', 'mineral waters',

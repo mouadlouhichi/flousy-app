@@ -6,7 +6,7 @@ import {
   stripIngredientsHeading,
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
-import { detectFoodKind, detectLabelDomain } from '../src/lib/food-knowledge/domain';
+import { detectFoodKind, detectLabelDomain, suggestsCosmeticRecord } from '../src/lib/food-knowledge/domain';
 import { additiveGrade } from '../src/lib/food-knowledge/grade';
 import { sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
 
@@ -131,6 +131,31 @@ describe('detectLabelDomain', () => {
       detectLabelDomain({ ingredientsText: 'Aqua, Glycerin, Cetearyl Alcohol, Parfum' }),
       'cosmetic',
     );
+  });
+});
+
+describe('suggestsCosmeticRecord', () => {
+  it('catches OFF placeholder/misclassified beauty records', () => {
+    assert.equal(
+      suggestsCosmeticRecord({
+        name: '68YN5T 400ml',
+        category: 'Incorrect product type, non-food-products, open-beauty-facts',
+      }),
+      true,
+    );
+    assert.equal(
+      suggestsCosmeticRecord({
+        name: 'Ultra doux avocat',
+        category: 'Incorrect product type',
+      }),
+      true,
+    );
+  });
+
+  it('is conservative about ordinary food records', () => {
+    assert.equal(suggestsCosmeticRecord({ name: 'Fromage blanc', category: 'Fromages' }), false);
+    assert.equal(suggestsCosmeticRecord({ name: 'Pain complet', category: 'Breads' }), false);
+    assert.equal(suggestsCosmeticRecord({ name: '', category: '' }), false);
   });
 });
 

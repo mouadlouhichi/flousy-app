@@ -35,7 +35,7 @@ const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
   { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
   'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
   'nutriscore_grade,nutriscore_score';
 
@@ -175,15 +175,30 @@ export async function GET(request: NextRequest) {
 type OffProduct = Record<string, unknown>;
 
 /** Raw-beauty hint used when the walk found the record on a food mirror but
- *  the OFF category chain still marks it as a beauty/cosmetic record. */
+ *  the OFF category/tag chain still marks it as a beauty/cosmetic record. */
 function looksLikeBeauty(product: OffProduct | null | undefined): boolean {
   if (!product) return false;
-  const categories = String(product.categories ?? '').toLowerCase();
+  const tagSource = (key: string): string[] => {
+    const value = product[key];
+    return Array.isArray(value)
+      ? value.filter((v): v is string => typeof v === 'string')
+      : value && typeof value === 'string'
+        ? [value]
+        : [];
+  };
+  const markers = [
+    ...tagSource('categories'),
+    ...tagSource('categories_tags'),
+    ...tagSource('labels_tags'),
+    String(product.product_type ?? ''),
+  ]
+    .join(' ')
+    .toLowerCase();
   return (
-    categories.includes('open-beauty-facts') ||
-    categories.includes('open-products-facts') ||
-    categories.includes('cosmetic') ||
-    categories.includes('beauty')
+    markers.includes('open-beauty-facts') ||
+    markers.includes('open-products-facts') ||
+    markers.includes('cosmetic') ||
+    markers.includes('beauty')
   );
 }
 

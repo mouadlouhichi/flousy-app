@@ -9,7 +9,7 @@ import { isProFeatureUnlocked } from '@/lib/household';
 import { normalizeBarcode, resolveProduct } from '@/lib/course-session';
 import { lookupMaSeed } from '@/lib/ma-product-seed';
 import { lookupOffProduct } from '@/lib/product-lookup';
-import { detectLabelDomain } from '@/lib/food-knowledge/domain';
+import { detectLabelDomain, suggestsCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
@@ -97,6 +97,16 @@ export function KnowledgeScreen() {
           ingredientsText: product.ingredientsText,
         })
     : 'food';
+  const likelyCosmetic = Boolean(
+    product &&
+      (product.beauty ||
+        domain === 'cosmetic' ||
+        suggestsCosmeticRecord({
+          category: product.category,
+          name: product.name,
+          ingredientsText: product.ingredientsText,
+        })),
+  );
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -207,7 +217,7 @@ export function KnowledgeScreen() {
             </div>
           </div>
 
-          {domain === 'cosmetic' ? (
+          {domain === 'cosmetic' || likelyCosmetic ? (
             <div className="px-4 pb-4 md:px-5 md:pb-5">
               <CoursesIngredientPanel
                 barcode={product.barcode}

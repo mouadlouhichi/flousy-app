@@ -136,6 +136,24 @@ describe('mapOffProduct', () => {
     assert.equal(mapped?.beauty, true, 'beauty placeholder categories must force the cosmetic panel');
   });
 
+  it('marks cosmetics from categories_tags / product_type (not just the display string)', () => {
+    const fromTags = mapOffProduct({
+      status: 1,
+      product: {
+        product_name: '68YN5T 400ml',
+        categories: 'Incorrect product type, non-food-products',
+        categories_tags: ['incorrect-product-type', 'non-food-products', 'open-beauty-facts'],
+      },
+    });
+    assert.equal(fromTags?.beauty, true);
+
+    const fromType = mapOffProduct({
+      status: 1,
+      product: { product_name: 'Autre doux', product_type: 'beauty' },
+    });
+    assert.equal(fromType?.beauty, true);
+  });
+
   it('carries the proxy beauty_hint through the mapper', () => {
     const mapped = mapOffProduct({ found: true, product: { product_name: 'Crème', beauty_hint: true } });
     assert.equal(mapped?.beauty, true);

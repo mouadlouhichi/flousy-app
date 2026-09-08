@@ -79,7 +79,11 @@ describe('GET /api/inci/lookup', () => {
       calls.push({ url, init });
       return {
         ok: true,
-        json: async () => ({ product: { details: { inci: 'Aqua, Glycerin, Niacinamide, Parfum.' } } }),
+        json: async () => ({
+          barcode: '2000000000002',
+          productName: 'Ultra doux avocat',
+          rawInci: ['Aqua', 'Glycerin', 'Niacinamide', 'Parfum.'],
+        }),
       };
     }) as unknown as typeof fetch;
 
@@ -88,7 +92,7 @@ describe('GET /api/inci/lookup', () => {
     assert.equal(res.body.found, true);
     assert.equal(res.body.ingredientsText, 'Aqua, Glycerin, Niacinamide, Parfum.');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://inciapi.com/v1/products/2000000000002');
+    assert.equal(calls[0].url, 'https://inciapi.com/v1/products/2000000000002/safety');
     assert.equal(calls[0].init?.headers?.['X-API-Key'], 'sk-test');
   });
 

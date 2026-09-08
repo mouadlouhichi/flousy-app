@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
-import { detectLabelDomain } from '@/lib/food-knowledge/domain';
+import { detectLabelDomain, suggestsCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
 import { additiveGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
@@ -78,7 +78,7 @@ export function CoursesLabelAccordion({
   }, [productKey, seenKey]);
 
   const labelName = needsName ? undefined : name;
-  const domain = beauty
+  const detectedDomain = beauty
     ? 'cosmetic'
     : detectLabelDomain({
         category,
@@ -86,18 +86,28 @@ export function CoursesLabelAccordion({
         ingredientsText,
       });
 
+  // Some OFF records carry a code-like name and only the placeholder category
+  // chain ("Incorrect product type / non-food-products / open-beauty-facts").
+  // Treat those as cosmetic candidates so the INCI fallback (and, on failure,
+  // the paste/OCR path) is offered instead of a misleading food panel.
+  const likelyCosmetic =
+    beauty ||
+    detectedDomain === 'cosmetic' ||
+    suggestsCosmeticRecord({ category, name: labelName, ingredientsText });
+  const domain = likelyCosmetic ? 'cosmetic' : detectedDomain;
+
   // The cosmetic engine may read a per-barcode INCI saved on this device.
   const overlayText = barcode ? readInciOverlayEntry(barcode) ?? '' : '';
   const hasInci = Boolean(ingredientsText?.trim() || overlayText.trim() || fallbackText.trim());
   const cosmeticText = (ingredientsText?.trim() || overlayText.trim() || fallbackText.trim()).trim();
 
   // ---- Missing-INCI risk fallback (collapsed-preview friendly) ------------
-  // Run as soon as a cosmetic barcode resolves with no provider text, so the
-  // score ring (not just the expanded panel) benefits from the external list.
-  // The same client cache/in-flight map keeps this and the panel's own lookup
-  // to a single provider request.
+  // Run as soon as a cosmetic candidate barcode resolves with no provider
+  // text, so the score ring (not just the expanded panel) benefits from the
+  // external list. The same client cache/in-flight map keeps this and the
+  // panel's own lookup to a single provider request.
   useEffect(() => {
-    if (domain !== 'cosmetic' || !barcode || hasInci) {
+    if (!likelyCosmetic || !barcode || hasInci) {
       setFallbackLookup('idle');
       return;
     }
@@ -120,7 +130,7 @@ export function CoursesLabelAccordion({
     return () => {
       cancelled = true;
     };
-  }, [domain, barcode, hasInci]);
+  }, [likelyCosmetic, barcode, hasInci]);
 
   // ---- Cosmetic score-ring preview (fetched while the card is collapsed) ----
   const [cosmetic, setCosmetic] = useState<{
