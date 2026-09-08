@@ -115,12 +115,16 @@ export async function GET(request: NextRequest) {
 
   const walk = await walkOffHosts(code);
 
-  if (walk.kind === 'found') {
+    if (walk.kind === 'found') {
     const product = walk.product;
+    // Keep the source hint on the payload: beauty/product mirrors (and
+    // beauty-looking OFF food records) must reach the client as cosmetics so
+    // a code-like name still opens the INCI panel, not the food panel.
+    if (walk.beauty) product.beauty_hint = true;
     // A beauty-mirror hit that lacks an INCI list → ask the vendor to fill it
     // (no-op when no vendor key is configured). Food pages carry real
     // ingredient lists, so only genuinely INCI-less cosmetics records trip it.
-    if (walk.beauty && isVendorConfigured() && !hasInciText(product)) {
+    if ((walk.beauty || looksLikeBeauty(product)) && isVendorConfigured() && !hasInciText(product)) {
       const inci = await fetchVendorInci(code);
       if (inci) attachInci(product, inci);
     }
@@ -143,6 +147,7 @@ export async function GET(request: NextRequest) {
             product_name: vendor.name,
             ...(vendor.brand ? { brands: vendor.brand } : {}),
             ingredients_text: vendor.ingredientsText,
+            beauty_hint: true,
           },
         };
         cacheSet(code, payload);
@@ -168,6 +173,19 @@ export async function GET(request: NextRequest) {
 }
 
 type OffProduct = Record<string, unknown>;
+
+/** Raw-beauty hint used when the walk found the record on a food mirror but
+ *  the OFF category chain still marks it as a beauty/cosmetic record. */
+function looksLikeBeauty(product: OffProduct | null | undefined): boolean {
+  if (!product) return false;
+  const categories = String(product.categories ?? '').toLowerCase();
+  return (
+    categories.includes('open-beauty-facts') ||
+    categories.includes('open-products-facts') ||
+    categories.includes('cosmetic') ||
+    categories.includes('beauty')
+  );
+}
 
 function hasInciText(product: OffProduct | null | undefined): boolean {
   if (!product) return false;

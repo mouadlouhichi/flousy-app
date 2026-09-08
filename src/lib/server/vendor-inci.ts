@@ -2,9 +2,10 @@
  * Optional cosmetic-ingredient enrichment for the barcode proxy.
  *
  * When Open Beauty Facts returns a cosmetic product but no transcribed INCI
- * list (crowd-sourced gap), the proxy may ask a third-party barcode→INCI
- * provider for the ingredient text. The vendor is used ONLY as an INCI data
- * source — the app's own deterministic scoring engine
+ * list (crowd-sourced gap), the barcode proxy (/api/barcode/lookup) or the
+ * client-facing INCI fallback (/api/inci/lookup) may ask a third-party
+ * barcode→INCI provider for the ingredient text. The vendor is used ONLY as
+ * an INCI data source — the app's own deterministic scoring engine
  * (src/lib/ingredient-safety/*) remains the single place that judges
  * ingredients, so the EU overlay and local CosIng snapshot stay consistent
  * regardless of which source supplied the text.

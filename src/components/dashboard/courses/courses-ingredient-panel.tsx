@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { splitInciList } from '@/lib/ingredient-safety/normalize';
@@ -9,6 +9,7 @@ import {
   removeInciOverlayEntry,
   writeInciOverlayEntry,
 } from '@/lib/ingredient-device-store';
+import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
 import { CoursesIngredientGlance } from './courses-ingredient-glance';
 import { LabelOcrButton } from './label-ocr-button';
 
@@ -41,6 +42,12 @@ interface CoursesIngredientPanelProps {
   name?: string;
   /** OBF-style category used as a leave-on/rinse-off hint. */
   category?: string;
+  /**
+   * Called whenever the panel adopts an ingredient text (vendor fallback,
+   * manual paste or OCR). Lets the parent update the pending product/catalog
+   * copy so a vendor-supplied list is persisted when the line is confirmed.
+   */
+  onIngredientsText?: (text: string) => void;
 }
 
 export function CoursesIngredientPanel({
@@ -48,6 +55,7 @@ export function CoursesIngredientPanel({
   initialText,
   name,
   category,
+  onIngredientsText,
 }: CoursesIngredientPanelProps) {
   const { messages } = useLanguage();
   const g = messages.ingredientGlance;
@@ -56,6 +64,10 @@ export function CoursesIngredientPanel({
   const [draft, setDraft] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState<'idle' | 'looking' | 'not-found' | 'failed'>('idle');
+  const [lookupNonce, setLookupNonce] = useState(0);
+  const onIngredientsRef = useRef(onIngredientsText);
+  onIngredientsRef.current = onIngredientsText;
 
   const fromRecord = initialText?.trim() || '';
   const overlay = barcode ? (readInciOverlay()[barcode] ?? '').trim() : '';
@@ -77,8 +89,54 @@ export function CoursesIngredientPanel({
       setInvalid(false);
       setActive(fromRecord || overlay || null);
       setSaved(false);
+      setLookupStatus('idle');
     }
   }, [barcode, fromRecord]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Activate an ingredient text (manual, OCR or vendor fallback) and
+   *  remember it per barcode. Also tells the parent so the account-scoped
+   *  catalog copy can be written on confirm. */
+  const adopt = (text: string) => {
+    setActive(text);
+    setEditing(false);
+    if (barcode) {
+      writeInciOverlayEntry(barcode, text);
+      setSaved(true);
+    } else {
+      setSaved(false);
+    }
+    onIngredientsRef.current?.(text);
+  };
+
+  // ---- Missing-INCI external fallback --------------------------------------
+  // When the record has no ingredient text, ask the app's own key-gated route
+  // for the provider's barcode→INCI answer. Fail-open and non-blocking: the
+  // paste + OCR fallbacks stay visible underneath, so a slow/no/absent key
+  // never wedges the scan step.
+  useEffect(() => {
+    if (!barcode || active) {
+      setLookupStatus('idle');
+      return;
+    }
+    let cancelled = false;
+    setLookupStatus('looking');
+    lookupInciForBarcode(barcode)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.kind === 'found') {
+          adopt(result.ingredientsText);
+          setLookupStatus('idle');
+        } else {
+          setLookupStatus(result.kind === 'not-found' ? 'not-found' : 'failed');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLookupStatus('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [barcode, active, lookupNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEditor = () => {
     setDraft(active ?? '');
@@ -94,18 +152,6 @@ export function CoursesIngredientPanel({
     }
     setInvalid(false);
     adopt(text);
-  };
-
-  /** Activate an ingredient text (manual or OCR) and remember it per barcode. */
-  const adopt = (text: string) => {
-    setActive(text);
-    setEditing(false);
-    if (barcode) {
-      writeInciOverlayEntry(barcode, text);
-      setSaved(true);
-    } else {
-      setSaved(false);
-    }
   };
 
   /** OCR result too short/messy to analyse → open the editor prefilled. */
@@ -169,6 +215,32 @@ export function CoursesIngredientPanel({
         </>
       ) : active === null && !editing ? (
         <div className="mt-2">
+          {lookupStatus === 'looking' && (
+            <p className="flex items-center gap-1.5 font-body-sm text-body-sm text-tertiary">
+              <AppIcon name="hourglass_top" className="size-3.5 animate-spin" />
+              {im.lookingUp}
+            </p>
+          )}
+          {lookupStatus === 'not-found' && (
+            <p className="flex items-start gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+              <AppIcon name="search_off" className="mt-0.5 size-3.5 shrink-0" />
+              {im.lookupNotFound}
+            </p>
+          )}
+          {lookupStatus === 'failed' && (
+            <p className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+              <AppIcon name="cloud_off" className="size-3.5 shrink-0" />
+              {im.lookupFailed}
+              <button
+                type="button"
+                onClick={() => setLookupNonce((v) => v + 1)}
+                className="ms-auto inline-flex items-center gap-1 rounded-full border border-outline-variant px-2.5 py-1 font-label-sm text-label-sm text-primary hover:bg-surface-container-high transition-colors"
+              >
+                <AppIcon name="refresh" className="size-3.5" />
+                {im.retryLookup}
+              </button>
+            </p>
+          )}
           <p className="flex items-start gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
             <AppIcon name="info" className="mt-0.5 size-3.5 shrink-0" />
             {im.missingHint}

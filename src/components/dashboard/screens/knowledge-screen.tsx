@@ -78,6 +78,7 @@ export function KnowledgeScreen() {
       ...(product.category ? { category: product.category } : {}),
       ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
       ...(product.ingredientsText ? { ingredientsText: product.ingredientsText } : {}),
+      ...(product.beauty ? { beauty: true } : {}),
       source: 'off',
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -88,11 +89,13 @@ export function KnowledgeScreen() {
 
   const product = lookup.status === 'found' ? lookup.product : undefined;
   const domain = product
-    ? detectLabelDomain({
-        category: product.category,
-        name: product.name,
-        ingredientsText: product.ingredientsText,
-      })
+    ? product.beauty
+      ? 'cosmetic'
+      : detectLabelDomain({
+          category: product.category,
+          name: product.name,
+          ingredientsText: product.ingredientsText,
+        })
     : 'food';
 
   return (
@@ -211,6 +214,13 @@ export function KnowledgeScreen() {
                 initialText={product.ingredientsText}
                 name={product.name}
                 category={product.category}
+                onIngredientsText={(text) =>
+                  setLookup((prev) =>
+                    prev.status === 'found'
+                      ? { status: 'found', product: { ...prev.product, ingredientsText: text } }
+                      : prev,
+                  )
+                }
               />
             </div>
           ) : (
@@ -267,4 +277,5 @@ type RemoteLike = {
   imageUrl?: string;
   barcode?: string;
   ingredientsText?: string;
+  beauty?: boolean;
 };

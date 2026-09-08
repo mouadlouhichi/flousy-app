@@ -2488,7 +2488,11 @@
     "checkCta": "Analyser",
     "savedNote": "Enregistré sur cet appareil — réutilisé au prochain scan de ce produit.",
     "editIngredients": "Modifier la liste",
-    "pasteInvalid": "Cette saisie ne ressemble pas à une liste d'ingrédients — séparez les ingrédients par des virgules."
+    "pasteInvalid": "Cette saisie ne ressemble pas à une liste d'ingrédients — séparez les ingrédients par des virgules.",
+    "lookingUp": "Recherche de la liste d'ingrédients dans la base externe…",
+    "lookupNotFound": "La base externe ne contient pas encore de liste d'ingrédients pour ce produit.",
+    "lookupFailed": "Impossible d'interroger la base d'ingrédients externe.",
+    "retryLookup": "Réessayer la base externe"
   },
   "foodKnowledge": {
     "additiveBandAvoid": "Non autorisé dans l’UE",

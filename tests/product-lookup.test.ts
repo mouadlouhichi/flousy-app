@@ -126,6 +126,21 @@ describe('mapOffProduct', () => {
     );
   });
 
+  it('marks cosmetics even when every category is an OFF placeholder tag', () => {
+    const showerGel = {
+      product_name: '68YN5T 400ml',
+      categories: 'Incorrect product type, non-food-products, open-beauty-facts',
+    };
+    const mapped = mapOffProduct({ status: 1, product: showerGel });
+    assert.equal(mapped?.category, undefined);
+    assert.equal(mapped?.beauty, true, 'beauty placeholder categories must force the cosmetic panel');
+  });
+
+  it('carries the proxy beauty_hint through the mapper', () => {
+    const mapped = mapOffProduct({ found: true, product: { product_name: 'Crème', beauty_hint: true } });
+    assert.equal(mapped?.beauty, true);
+  });
+
   it('skips empty UI-language names in the priority chain', () => {
     const product = {
       product_name_ar: '',

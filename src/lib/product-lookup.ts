@@ -117,6 +117,19 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
     .map((key) => pick(key))
     .find((v): v is string => Boolean(v));
 
+  // Cosmetic hint: the app proxy tags beauty/product-mirror hits directly
+  // (`beauty_hint`), and the raw category chain still exposes beauty tags even
+  // when `firstRealCategory` had to strip OFF's placeholder tags (the shower
+  // gel filed as "Incorrect product type … open-beauty-facts" case).
+  const categoriesRaw = pick('categories')?.toLowerCase() ?? '';
+  const beauty =
+    p.beauty_hint === true ||
+    p.beauty === true ||
+    categoriesRaw.includes('open-beauty-facts') ||
+    categoriesRaw.includes('open-products-facts') ||
+    categoriesRaw.includes('cosmetic') ||
+    categoriesRaw.includes('beauty');
+
   // Nutri-Score ranking: only the real letter grades (a–e) are surfaced. OFF
   // also emits 'not-applicable' / 'unknown' / 'not-computed', which must never
   // render as a grade chip.
@@ -133,6 +146,7 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
     ...(quantity ? { quantity } : {}),
     ...(grade ? { ranking: { grade, ...(score !== undefined ? { score } : {}) } } : {}),
     ...(ingredientsText ? { ingredientsText } : {}),
+    ...(beauty ? { beauty: true } : {}),
   };
 }
 

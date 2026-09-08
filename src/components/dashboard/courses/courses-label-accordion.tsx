@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { detectLabelDomain } from '@/lib/food-knowledge/domain';
@@ -9,6 +9,7 @@ import { additiveGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
+import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
 import type { Band, ProductAssessment } from '@/lib/ingredient-safety/types';
 import {
   BAND_LABEL_KEY,
@@ -36,8 +37,13 @@ interface CoursesLabelAccordionProps {
   name?: string;
   category?: string;
   ingredientsText?: string;
+  /** Source hint that the record is cosmetic/beauty even when name/category
+   *  are too generic to say so (e.g. a code-like shower-gel name). */
+  beauty?: boolean;
   /** Manual-entry products have no name to classify yet. */
   needsName?: boolean;
+  /** Panel adopted a new ingredient list (external fallback / paste / OCR). */
+  onIngredientsText?: (text: string) => void;
 }
 
 export function CoursesLabelAccordion({
@@ -45,33 +51,76 @@ export function CoursesLabelAccordion({
   name,
   category,
   ingredientsText,
+  beauty,
   needsName,
+  onIngredientsText,
 }: CoursesLabelAccordionProps) {
   const { messages, t } = useLanguage();
   const c = messages.courses;
   const ig = messages.ingredientGlance;
+  const im = messages.ingredientManual;
   const fg = messages.foodKnowledge;
 
   const [open, setOpen] = useState(false);
   const [seenKey, setSeenKey] = useState('');
+  const [fallbackText, setFallbackText] = useState('');
+  const [fallbackLookup, setFallbackLookup] = useState<'idle' | 'looking' | 'done' | 'failed'>('idle');
+  const onIngredientsRef = useRef(onIngredientsText);
+  onIngredientsRef.current = onIngredientsText;
   const productKey = `${barcode ?? ''}\u0001${ingredientsText ?? ''}`;
   useEffect(() => {
     if (seenKey !== productKey) {
       setSeenKey(productKey);
       setOpen(false);
+      setFallbackText('');
+      setFallbackLookup('idle');
     }
   }, [productKey, seenKey]);
 
   const labelName = needsName ? undefined : name;
-  const domain = detectLabelDomain({
-    category,
-    name: labelName,
-    ingredientsText,
-  });
+  const domain = beauty
+    ? 'cosmetic'
+    : detectLabelDomain({
+        category,
+        name: labelName,
+        ingredientsText,
+      });
 
   // The cosmetic engine may read a per-barcode INCI saved on this device.
   const overlayText = barcode ? readInciOverlayEntry(barcode) ?? '' : '';
-  const cosmeticText = (ingredientsText?.trim() || overlayText.trim()).trim();
+  const hasInci = Boolean(ingredientsText?.trim() || overlayText.trim() || fallbackText.trim());
+  const cosmeticText = (ingredientsText?.trim() || overlayText.trim() || fallbackText.trim()).trim();
+
+  // ---- Missing-INCI risk fallback (collapsed-preview friendly) ------------
+  // Run as soon as a cosmetic barcode resolves with no provider text, so the
+  // score ring (not just the expanded panel) benefits from the external list.
+  // The same client cache/in-flight map keeps this and the panel's own lookup
+  // to a single provider request.
+  useEffect(() => {
+    if (domain !== 'cosmetic' || !barcode || hasInci) {
+      setFallbackLookup('idle');
+      return;
+    }
+    let cancelled = false;
+    setFallbackLookup('looking');
+    lookupInciForBarcode(barcode)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.kind === 'found') {
+          setFallbackText(result.ingredientsText);
+          setFallbackLookup('done');
+          onIngredientsRef.current?.(result.ingredientsText);
+        } else {
+          setFallbackLookup(result.kind === 'not-found' ? 'done' : 'failed');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFallbackLookup('failed');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [domain, barcode, hasInci]);
 
   // ---- Cosmetic score-ring preview (fetched while the card is collapsed) ----
   const [cosmetic, setCosmetic] = useState<{
@@ -190,6 +239,32 @@ export function CoursesLabelAccordion({
               )
             ))}
 
+          {/* Missing INCI: show that the external fallback is running / failed */}
+          {domain === 'cosmetic' && barcode && !cosmeticText && fallbackLookup === 'looking' && (
+            <span
+              title={im.lookingUp}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high"
+            >
+              <AppIcon name="hourglass_top" className="size-4 animate-spin text-primary" />
+            </span>
+          )}
+          {domain === 'cosmetic' && barcode && !cosmeticText && fallbackLookup === 'failed' && (
+            <span
+              title={im.lookupFailed}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high"
+            >
+              <AppIcon name="cloud_off" className="size-4 text-on-surface-variant" />
+            </span>
+          )}
+          {domain === 'cosmetic' && barcode && !cosmeticText && fallbackLookup === 'done' && (
+            <span
+              title={im.lookupNotFound}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container-high"
+            >
+              <AppIcon name="search_off" className="size-4 text-on-surface-variant" />
+            </span>
+          )}
+
           {/* Food: additive-grade ring / water droplet */}
           {domain !== 'cosmetic' && foodPreview && (
             foodPreview.kind === 'water' ? (
@@ -234,9 +309,10 @@ export function CoursesLabelAccordion({
           {domain === 'cosmetic' ? (
             <CoursesIngredientPanel
               barcode={barcode}
-              initialText={ingredientsText}
+              initialText={ingredientsText || fallbackText}
               name={labelName}
               category={category}
+              onIngredientsText={onIngredientsText}
             />
           ) : (
             <CoursesFoodPanel
