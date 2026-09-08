@@ -231,6 +231,8 @@ export function useCourseSession(uid: string | null | undefined) {
       ranking?: ProductRanking;
       /** INCI list to persist on the catalog product (cosmetics). */
       ingredientsText?: string;
+      /** Source hint that this is a cosmetic/beauty record. */
+      beauty?: boolean;
     }) => {
       const item = createSessionItem(input);
       mutateActive((session) => addItemToSession(session, item));
@@ -249,6 +251,7 @@ export function useCourseSession(uid: string | null | undefined) {
             : existing?.ingredientsText
               ? { ingredientsText: existing.ingredientsText }
               : {}),
+          ...(input.beauty ? { beauty: true } : existing?.beauty ? { beauty: existing.beauty } : {}),
           lastPrice: item.unitPrice,
           priceUpdatedAt: nowIso,
           source: existing?.source ?? 'session',

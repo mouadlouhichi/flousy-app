@@ -45,6 +45,8 @@ interface PendingProduct {
   ma: boolean;
   /** Nutri-Score ranking, when the source provides one. */
   ranking?: ProductRanking;
+  /** Source hint that this is a cosmetic/beauty record (INCI panel, vendor fallback). */
+  beauty?: boolean;
 }
 
 /**
@@ -214,6 +216,7 @@ function CoursesScreenInner() {
           ranking: resolution.product.ranking,
           source: resolution.source,
           ma,
+          beauty: resolution.product.beauty,
         });
       } else {
         const embeddedPrice =
@@ -263,6 +266,7 @@ function CoursesScreenInner() {
       qty: pendingQty,
       ranking: pending.ranking,
       ...(ingredientsText ? { ingredientsText } : {}),
+      ...(pending.beauty ? { beauty: true } : {}),
     });
     setPending(null);
     setPendingPrice('');
@@ -475,6 +479,9 @@ function CoursesScreenInner() {
               onName={(name) => setPending({ ...pending, name })}
               onConfirm={confirmPending}
               onSkip={() => setPending(null)}
+              onIngredientsText={(text) =>
+                setPending((p) => (p && p.barcode === pending.barcode ? { ...p, ingredientsText: text } : p))
+              }
             />
           ) : resolving ? (
             <ScanLookupCard
@@ -747,9 +754,11 @@ interface PendingCardProps {
   onName: (name: string) => void;
   onConfirm: () => void;
   onSkip: () => void;
+  /** Panel adopted a missing-INCI list (external fallback / paste / OCR). */
+  onIngredientsText: (text: string) => void;
 }
 
-function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip }: PendingCardProps) {
+function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredientsText }: PendingCardProps) {
   const { messages: m } = useLanguage();
   const c = m.courses;
   const needsName = pending.source === 'manual';
@@ -842,7 +851,9 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         name={needsName ? undefined : pending.name}
         category={pending.category}
         ingredientsText={pending.ingredientsText}
+        beauty={pending.beauty}
         needsName={needsName}
+        onIngredientsText={onIngredientsText}
       />
     </div>
   );

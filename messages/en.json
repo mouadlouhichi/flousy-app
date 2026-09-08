@@ -2488,7 +2488,11 @@
     "checkCta": "Check ingredients",
     "savedNote": "Saved on this device — reused on the next scan of this product.",
     "editIngredients": "Edit ingredients",
-    "pasteInvalid": "That doesn't look like an ingredient list — separate items with commas."
+    "pasteInvalid": "That doesn't look like an ingredient list — separate items with commas.",
+    "lookingUp": "Looking up the ingredient list in the external database…",
+    "lookupNotFound": "The external database doesn't have an ingredient list for this product.",
+    "lookupFailed": "Couldn't check the external ingredient database.",
+    "retryLookup": "Try external database again"
   },
   "foodKnowledge": {
     "additiveBandAvoid": "Not permitted in the EU",

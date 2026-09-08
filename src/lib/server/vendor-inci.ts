@@ -2,9 +2,10 @@
  * Optional cosmetic-ingredient enrichment for the barcode proxy.
  *
  * When Open Beauty Facts returns a cosmetic product but no transcribed INCI
- * list (crowd-sourced gap), the proxy may ask a third-party barcode→INCI
- * provider for the ingredient text. The vendor is used ONLY as an INCI data
- * source — the app's own deterministic scoring engine
+ * list (crowd-sourced gap), the barcode proxy (/api/barcode/lookup) or the
+ * client-facing INCI fallback (/api/inci/lookup) may ask a third-party
+ * barcode→INCI provider for the ingredient text. The vendor is used ONLY as
+ * an INCI data source — the app's own deterministic scoring engine
  * (src/lib/ingredient-safety/*) remains the single place that judges
  * ingredients, so the EU overlay and local CosIng snapshot stay consistent
  * regardless of which source supplied the text.
@@ -17,15 +18,23 @@
  *   returns null so the scan flow degrades to today's behaviour.
  *
  * Provider note (2026-09): "INCI API" (inciapi.com) currently advertises a
- * free barcode→product→INCI endpoint (GET /v1/products/:barcode with an
- * X-API-Key header). Free-tier quota varies as the product matures, so the
- * route-level rate limit plus this env gate keep cost under control. Swap the
- * fetch inside for any provider that returns the same shape.
+ * free barcode→product→INCI endpoint (GET /v1/products/:barcode/safety with an
+ * X-API-Key header); fallback shapes are still accepted so a provider rename
+ * degrades to no enrichment rather than a broken score. Free-tier quota varies
+ * as the product matures, so the route-level rate limit plus this env gate
+ * keep cost under control. Swap the fetch inside for any provider that returns
+ * the same shape.
  */
 
 import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
 
 export const VENDOR_INCI_ENDPOINT = 'https://inciapi.com/v1/products/';
+/**
+ * Barcode endpoint per the provider docs: GET /v1/products/:barcode/safety
+ * (the barcode-only path returns the product metadata; /safety returns the
+ * INCI list + analysis used to build the ingredient text).
+ */
+export const VENDOR_INCI_SAFETY_PATH = '/safety';
 /** Free-text INCI analysis (POST /v1/analyze per the provider docs). */
 export const VENDOR_INCI_ANALYZE_ENDPOINT = 'https://inciapi.com/v1/analyze';
 type EnvVarMap = Record<string, string | undefined>;
@@ -47,23 +56,62 @@ export function isVendorConfigured(env: EnvVarMap = process.env): boolean {
  * normalizes to a single comma-separated text our mapper already understands.
  */
 export function extractVendorInci(body: unknown): string | null {
-  const product = (body as { product?: Record<string, unknown> } | null)?.product;
-  if (!product) return null;
+  if (!body || typeof body !== 'object') return null;
+  const root = body as {
+    rawInci?: unknown;
+    parsedIngredients?: unknown;
+    analysis?: { rawInci?: unknown; parsedIngredients?: unknown };
+    product?: Record<string, unknown>;
+  };
+  const product = root.product;
 
-  const details = product.details as { inci?: unknown } | undefined;
-  const rawInci = details?.inci ?? product.ingredients;
+  const details = (product?.details as { inci?: unknown } | undefined)?.inci;
+  // Documented /v1/products/:barcode/safety shape: top-level rawInci or
+  // parsedIngredients. Older/free-tier shapes used product.details.inci or
+  // product.ingredients. Accepting all four keeps the client robust while the
+  // provider evolves.
+  const rawInci =
+    root.rawInci ??
+    root.analysis?.rawInci ??
+    details ??
+    product?.ingredients;
+
   if (typeof rawInci === 'string') {
     const text = rawInci.trim();
     return text && text.length <= MAX_INCI_LENGTH ? text : null;
   }
   if (Array.isArray(rawInci)) {
     const names = rawInci
-      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .map((entry) =>
+        typeof entry === 'string'
+          ? entry.trim()
+          : entry && typeof entry === 'object'
+            ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
+            : '',
+      )
       .filter(Boolean);
     if (names.length === 0) return null;
     const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
     return joined.length > 0 ? joined : null;
   }
+
+  // Safety response may keep INCI only as parsedIngredients (objects with
+  // inciName/name) rather than rawInci.
+  const parsed =
+    root.parsedIngredients ?? root.analysis?.parsedIngredients;
+  if (Array.isArray(parsed)) {
+    const names = parsed
+      .map((entry) =>
+        entry && typeof entry === 'object'
+          ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
+          : '',
+      )
+      .filter(Boolean);
+    if (names.length === 0) return null;
+    const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
+    return joined.length > 0 ? joined : null;
+  }
+
   return null;
 }
 
@@ -75,23 +123,37 @@ export interface VendorProductInfo {
 }
 
 export function extractVendorProduct(body: unknown): VendorProductInfo | null {
-  const product = (body as { product?: Record<string, unknown> } | null)?.product;
-  if (!product) return null;
+  const root = body as {
+    product?: Record<string, unknown>;
+    productName?: unknown;
+    name?: unknown;
+    brand?: unknown;
+    brands?: unknown;
+  } | null;
+  if (!root || typeof root !== 'object') return null;
+  const product: Record<string, unknown> =
+    root.product ?? (root as unknown as Record<string, unknown>);
+  const pickName = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined;
   const name =
-    typeof product.product_name === 'string' && product.product_name.trim()
-      ? product.product_name.trim()
-      : typeof product.name === 'string' && product.name.trim()
-        ? product.name.trim()
-        : undefined;
+    pickName(product.product_name) ??
+    pickName(product.productName) ??
+    pickName(root.productName) ??
+    pickName(product.name) ??
+    pickName(root.name) ??
+    undefined;
   if (!name) return null;
   const ingredientsText = extractVendorInci(body);
   if (!ingredientsText) return null;
   const brand =
-    typeof product.brand === 'string' && product.brand.trim()
-      ? product.brand.trim()
-      : typeof product.brands === 'string' && product.brands.trim()
-        ? product.brands.split(',')[0].trim()
-        : undefined;
+    pickName(product.brand) ??
+    pickName(root.brand) ??
+    (typeof product.brands === 'string' && product.brands.trim()
+      ? product.brands.split(',')[0].trim()
+      : undefined) ??
+    (typeof root.brands === 'string' && root.brands.trim()
+      ? root.brands.split(',')[0].trim()
+      : undefined);
   return { name, ...(brand ? { brand } : {}), ingredientsText };
 }
 
@@ -106,7 +168,13 @@ const defaultFetch: FetchLike = (url, init) =>
     json: () => Promise<unknown>;
   }>;
 
-/** Fetch a vendor payload; null on any failure (fail-open, no key = no call). */
+/** Fetch a vendor payload; null when no endpoint answered (fail-open, no key = no call).
+ *
+ * Tries the documented `/safety` endpoint first, then the plain barcode
+ * endpoint as a fallback (a provider sometimes 404s one shape but not the
+ * other for the same code). Either shape is fed through `extractVendorInci`
+ * / `extractVendorProduct`, so a provider rename still degrades gracefully.
+ */
 export async function fetchVendorPayload(
   code: string,
   env: EnvVarMap = process.env,
@@ -116,16 +184,28 @@ export async function fetchVendorPayload(
   if (!key || (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code))) {
     return null;
   }
+
+  const encoded = encodeURIComponent(code);
+  const endpoints = [
+    `${VENDOR_INCI_ENDPOINT}${encoded}${VENDOR_INCI_SAFETY_PATH}`,
+    `${VENDOR_INCI_ENDPOINT}${encoded}`,
+  ];
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
   try {
-    const res = await fetchImpl(`${VENDOR_INCI_ENDPOINT}${encodeURIComponent(code)}`, {
-      headers: { 'X-API-Key': key, Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    for (const url of endpoints) {
+      try {
+        const res = await fetchImpl(url, {
+          headers: { 'X-API-Key': key, Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        // Try the next endpoint; a fully-quiet network still returns null below.
+      }
+    }
     return null;
   } finally {
     clearTimeout(timer);

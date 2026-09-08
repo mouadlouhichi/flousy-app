@@ -225,9 +225,10 @@ source ladder:
 | # | Source | When | Needs |
 | --- | --- | --- | --- |
 | 1 | **OFF family, incl. `fr.openbeautyfacts.org`** | direct browser lookup (world food → MA food → world/fr beauty → world products). The French beauty mirror is the largest European cosmetics DB and covers the French brands common on Moroccan shelves. | nothing |
-| 2 | **Vendor fill (barcode proxy)** | the app's `/api/barcode/lookup` proxy finds the product on a beauty mirror but it has no INCI text → asks the vendor for the list (only when `INCI_API_KEY` is configured; the client triggers it by calling the proxy once when a *direct* beauty hit lacked INCI). | optional key, server-only |
-| 3 | **Vendor find** | no OFF-family mirror knows the code → the proxy asks the vendor for product name + INCI before giving up (last resort). | optional key, server-only |
-| 4 | **Manual paste + memory** (`CoursesIngredientPanel`) | nothing above produced an INCI list → the pending-product card offers "paste from label". The text is analyzed fully locally and remembered **per barcode on this device** (localStorage overlay `smartjib_inci_overlay`) for repeat scans; once the scanned line is confirmed it is also saved **with the product in the account catalog** (`users/{uid}/products/{barcode}.ingredientsText`), so the list follows the account to other devices. | nothing — works offline |
+| 2 | **Vendor fill (barcode proxy)** | the app's `/api/barcode/lookup` proxy finds the product on a beauty/OPF mirror (or a beauty-looking OFF food record) but it has no INCI text → asks the vendor for the list (only when `INCI_API_KEY` is configured). | optional key, server-only |
+| 3 | **INCI fallback route** | the barcode resolved (or only exists on a food/placeholder record) but still has no ingredient text → the scan panel calls `GET /api/inci/lookup?code=…` and adopts the provider's list when it answers. Purely additive and fail-open: no key / provider miss / network error just keeps the paste + OCR path below. This is how the code-like-name cosmetics (e.g. a shower gel filed as "Incorrect product type … open-beauty-facts") still get a risk score. | optional key, server-only |
+| 4 | **Vendor find** | no OFF-family mirror knows the code → the proxy asks the vendor for product name + INCI before giving up (last resort). | optional key, server-only |
+| 5 | **Manual paste + memory** (`CoursesIngredientPanel`) | nothing above produced an INCI list → the pending-product card offers "paste from label". The text is analyzed fully locally and remembered **per barcode on this device** (localStorage overlay `smartjib_inci_overlay`) for repeat scans; once the scanned line is confirmed it is also saved **with the product in the account catalog** (`users/{uid}/products/{barcode}.ingredientsText`), so the list follows the account to other devices. | nothing — works offline |
 
 Notes:
 - **The vendor is only ever an INCI/name source.** The deterministic local
@@ -266,8 +267,12 @@ message keys (`messages/*.json` → `ingredientGlance` / `ingredientManual`), so
 server prose never leaks into the UI and all three locales (en/fr/ar) render
 clean. The client (`src/lib/ingredient-analysis-client.ts`) caches results in
 memory per INCI text (deterministic responses), so repeat scans of the same
-product cost one call. The whole thing is inherently Pro-gated: it only
-appears on the barcode scan path, which free plans never see.
+product cost one call. When a cosmetic product resolves without a list the
+panel immediately asks the new fallback route (`src/lib/ingredient-lookup-client.ts`
+→ `GET /api/inci/lookup`) and auto-adopts the provider text (showing a
+"looking up" state and a retry for transient failures, with paste/OCR always
+visible below). The whole thing is inherently Pro-gated: it only appears on
+the barcode scan path, which free plans never see.
 
 Not built yet (deliberately): a standalone cosmetic-scanner screen
 (barcode → OBF already works in the cascade, so it's a screen away),

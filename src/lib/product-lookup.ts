@@ -29,7 +29,7 @@ const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
   { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,' +
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
   'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
   'nutriscore_grade,nutriscore_score';
 
@@ -117,6 +117,36 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
     .map((key) => pick(key))
     .find((v): v is string => Boolean(v));
 
+  // Cosmetic hint: the app proxy tags beauty/product-mirror hits directly
+  // (`beauty_hint`), while OFF v2 may mark a record beauty only in
+  // `categories_tags` / `product_type` even when the human-readable
+  // `categories` string is just "Incorrect product type, non-food-products"
+  // (the shower gel filed as "Incorrect product type … open-beauty-facts"
+  // case). Read all of them so a code-like cosmetic name can never fall into
+  // the food panel by accident.
+  const categoriesRaw = [
+    pick('categories'),
+    ...(Array.isArray(p.categories_tags)
+      ? (p.categories_tags as unknown[]).filter((v): v is string => typeof v === 'string')
+      : []),
+    ...(Array.isArray(p.labels_tags)
+      ? (p.labels_tags as unknown[]).filter((v): v is string => typeof v === 'string')
+      : []),
+  ]
+    .join(' ')
+    .toLowerCase();
+  const productType = pick('product_type')?.toLowerCase() ?? '';
+  const beauty =
+    p.beauty_hint === true ||
+    p.beauty === true ||
+    categoriesRaw.includes('open-beauty-facts') ||
+    categoriesRaw.includes('open-products-facts') ||
+    categoriesRaw.includes('cosmetic') ||
+    categoriesRaw.includes('beauty') ||
+    productType === 'beauty' ||
+    productType === 'cosmetic' ||
+    productType === 'cosmetics';
+
   // Nutri-Score ranking: only the real letter grades (a–e) are surfaced. OFF
   // also emits 'not-applicable' / 'unknown' / 'not-computed', which must never
   // render as a grade chip.
@@ -133,6 +163,7 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
     ...(quantity ? { quantity } : {}),
     ...(grade ? { ranking: { grade, ...(score !== undefined ? { score } : {}) } } : {}),
     ...(ingredientsText ? { ingredientsText } : {}),
+    ...(beauty ? { beauty: true } : {}),
   };
 }
 
