@@ -139,9 +139,15 @@ export function CoursesLabelAccordion({
     failed?: boolean;
   }>({ key: '' });
 
+  // Track the text currently requested separately from `cosmetic.key`.
+  // Using `cosmetic.key` in the effect deps makes the first `setCosmetic`
+  // (which sets key to the text) trigger the effect's own cleanup and cancel
+  // the in-flight request before it resolves.
+  const requestedCosmeticRef = useRef('');
   useEffect(() => {
     if (domain !== 'cosmetic' || !cosmeticText) return;
-    if (cosmetic.key === cosmeticText) return;
+    if (requestedCosmeticRef.current === cosmeticText) return;
+    requestedCosmeticRef.current = cosmeticText;
     let cancelled = false;
     setCosmetic({ key: cosmeticText });
     analyzeIngredientsText(cosmeticText, {
@@ -157,7 +163,7 @@ export function CoursesLabelAccordion({
     return () => {
       cancelled = true;
     };
-  }, [domain, cosmeticText, labelName, category, cosmetic.key]);
+  }, [domain, cosmeticText, labelName, category]);
 
   const cosmeticAnalysis =
     cosmetic.key === cosmeticText ? cosmetic.analysis : undefined;
