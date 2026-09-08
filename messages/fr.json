@@ -2752,6 +2752,10 @@
     "gradeTooltip": "Score fondé sur les additifs détectés, les préoccupations explicites et le niveau de reconnaissance — information uniquement, pas un score nutritionnel ou de santé.",
     "gradeUnknown": "Trop peu d’ingrédients ont été reconnus pour calculer un score d’étiquette.",
     "ingredientUnknown": "Non reconnu",
+    "unspecifiedColour": "Colorant (substance exacte non précisée)",
+    "unspecifiedFlavourEnhancer": "Exhausteur de goût (substance exacte non précisée)",
+    "unspecifiedFoodAcid": "Acidifiant (substance exacte non précisée)",
+    "unspecifiedProteinSource": "Source de protéines non précisée",
     "pasteHelp": "Collez la liste d’ingrédients de l’étiquette, séparée par des virgules.",
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",
     "pastePlaceholder": "Exemple : lait entier, crème, ferments lactiques, présure, sel",
@@ -2799,6 +2803,8 @@
     "pasteNote": "Pas de code ? Collez une étiquette ici",
     "productSaved": "Enregistré dans votre catalogue produits",
     "saveProduct": "Enregistrer le produit",
-    "saved": "Enregistré"
+    "saved": "Enregistré",
+    "unknownDomainHint": "Le type de produit n’a pas pu être déterminé automatiquement ; aucun analyseur d’ingrédients n’a donc été sélectionné.",
+    "unsupportedDomain": "Aucun analyseur d’ingrédients n’est encore disponible pour ce type de produit. Les informations du produit peuvent néanmoins être enregistrées."
   }
 }

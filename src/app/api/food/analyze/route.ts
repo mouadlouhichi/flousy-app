@@ -152,10 +152,15 @@ export async function POST(request: NextRequest) {
       ? analyzeFoodText(foodText, options)
       : analyzeFoodIngredientList(items, options);
 
-    // Optional deep-search fallback: ONLY unknown names, ONLY informational
-    // attributed answers, fail-open.
-    if (isKnowledgeConfigured() && result.unknownNames.length > 0) {
-      const answers = await fetchKnowledgeSummaries(result.unknownNames, process.env, language);
+    // Optional deep-search fallback: only genuinely unidentified names. A
+    // generic class such as “colour” already says all the label tells us, so
+    // sending it externally would disclose text without resolving an identity.
+    // Answers remain attributed, informational, and fail-open.
+    const externalLookupNames = result.ingredients
+      .filter((ingredient) => !ingredient.recognized && !ingredient.unspecifiedClass)
+      .map((ingredient) => ingredient.raw);
+    if (isKnowledgeConfigured() && externalLookupNames.length > 0) {
+      const answers = await fetchKnowledgeSummaries(externalLookupNames, process.env, language);
       if (answers.length > 0) {
         const host = safeHost(knowledgeConfig(process.env)?.url);
         result.external = answers.map((a) => ({

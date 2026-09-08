@@ -289,6 +289,63 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
   });
 });
 
+describe('English Pringles Paprika label regression', () => {
+  const label = [
+    'DEHYDRATED POTATOES',
+    'VEGETABLE OILS (SUNFLOWER, CORN)',
+    'RICE FLOUR',
+    'WHEAT STARCH',
+    'CORN FLOUR',
+    'PAPRIKA SEASONING (PAPRIKA POWDER, FLAVOR ENHANCERS, YEAST POWDER, DEXTROSE, ONION POWDER, GRANULATED BOUILLON SALT (VEGETABLE SALT, PROTEIN, GARLIC POWDER), COLOR, FOOD ACID, CHILI EXTRACT)',
+    'EMULSIFIER (E471)',
+    'MALTODEXTRIN',
+    'COLORANT (ANNATTO NORBIXIN E160B)',
+  ].join(', ');
+
+  it('recognizes the specific translated ingredients without guessing generic class identities', () => {
+    const result = analyzeFoodText(label);
+    const byName = new Map(result.ingredients.map((ingredient) => [ingredient.raw, ingredient]));
+
+    assert.equal(result.total, 23);
+    assert.equal(result.recognized, 19);
+    assert.ok(result.coverage >= 0.82);
+    assert.deepEqual(result.unknownNames, [
+      'FLAVOR ENHANCERS',
+      'PROTEIN',
+      'COLOR',
+      'FOOD ACID',
+    ]);
+    assert.deepEqual(
+      result.ingredients
+        .filter((ingredient) => ingredient.unspecifiedClass)
+        .map((ingredient) => [ingredient.raw, ingredient.unspecifiedClass]),
+      [
+        ['FLAVOR ENHANCERS', 'flavour-enhancer'],
+        ['PROTEIN', 'protein-source'],
+        ['COLOR', 'colour'],
+        ['FOOD ACID', 'food-acid'],
+      ],
+    );
+
+    assert.equal(byName.get('DEHYDRATED POTATOES')?.family, 'fruit-veg');
+    assert.equal(byName.get('VEGETABLE OILS')?.family, 'fat-oil');
+    assert.equal(byName.get('SUNFLOWER')?.family, 'nut-seed');
+    assert.equal(byName.get('PAPRIKA SEASONING')?.family, 'herb-spice');
+    assert.equal(byName.get('PAPRIKA POWDER')?.family, 'herb-spice');
+    assert.equal(byName.get('CHILI EXTRACT')?.family, 'herb-spice');
+  });
+
+  it('reports only the declared wheat allergen and explicit additives', () => {
+    const result = analyzeFoodText(label);
+    assert.deepEqual(result.allergenGroups, ['gluten']);
+    assert.deepEqual(result.allergens.map((hit) => hit.raw), ['WHEAT STARCH']);
+    assert.deepEqual(result.ingredients.find((item) => item.raw === 'RICE FLOUR')?.allergens, []);
+    assert.deepEqual(result.ingredients.find((item) => item.raw === 'CORN FLOUR')?.allergens, []);
+    assert.deepEqual(result.additives.map((additive) => additive.code), ['E471', 'E160b']);
+    assert.deepEqual(foodLabelGrade(result), { score: 94, band: 'good' });
+  });
+});
+
 describe('water regression — scanned Sidi Ali with a pasted composition', () => {
   it('routes a pasted mineral composition to the water view even when a plain name is present', () => {
     // OFF category missing and the name carries no "eau"/"water" token: the

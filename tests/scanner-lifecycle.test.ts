@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   KeyboardWedgeCollector,
   armScannerGeneration,
@@ -44,6 +45,24 @@ describe('scanner generation and acceptance lifecycle', () => {
     assert.equal(claimScannerCandidate(state, generation, false), false);
     assert.equal(state.armed, true);
     assert.equal(claimScannerCandidate(state, generation, true), true);
+  });
+});
+
+describe('knowledge scan UX contract', () => {
+  it('routes automatically without a domain selector and keeps the animated scan line', () => {
+    const screen = readFileSync(
+      new URL('../src/components/dashboard/screens/knowledge-screen.tsx', import.meta.url),
+      'utf8',
+    );
+    const scanner = readFileSync(
+      new URL('../src/components/ui/barcode-scanner-panel.tsx', import.meta.url),
+      'utf8',
+    );
+
+    assert.doesNotMatch(screen, /domainOverride|domainSelector|DOMAINS\.map/);
+    assert.match(screen, /const selectedDomain = product\?\.domain \?\? 'food'/);
+    assert.match(screen, /<CoursesScannerPanel/);
+    assert.match(scanner, /animate-scan-line/);
   });
 });
 

@@ -28,20 +28,23 @@ knowledge. The analysis payload itself makes no general health verdict:
   fat other than that naturally occurring in animal fat at 2 g/100 g fat.
   Detection is a source signal, not a
   claim that the product exceeds that quantitative limit;
-- recognition coverage + per-ingredient chips;
+- recognition coverage + per-ingredient chips; generic declarations such as
+  “colour” remain unresolved and are labelled as exact-substance unspecified;
 - optional **deep-search fallback** (below).
 
 ## Where the panel lives
 
-1. **In the course scan flow** — the pending-product card now picks the panel
-   by domain: cosmetic labels (Open Beauty Facts / INCI) keep the score
-   glance; food labels get the food-knowledge panel. Domain is detected from
-   the beauty/food source, category, name and INCI-like text
-   (`src/lib/food-knowledge/domain.ts`); ambiguous cases default to food.
+1. **In the course scan flow** — the pending-product card picks the panel by
+   resolved domain: cosmetic labels (Open Beauty Facts / INCI) keep the score
+   glance; food labels get the food-knowledge panel. Domain is resolved from
+   source declarations, category, name and INCI-like text
+   (`src/lib/food-knowledge/domain.ts`); ambiguity remains `unknown` rather
+   than being guessed from the source database.
 2. **Standalone screen `/dashboard/knowledge`** — Pro users can scan or type
    any barcode (no course session needed), see the product card, save it to
-   the product catalog, and get the same domain-aware panel. A label paste
-   box is always available (free) — knowledge analysis never requires a scan.
+   the product catalog, and get the same automatically selected domain-aware
+   panel. There is no product-type selector in the scan interaction. A manual
+   food-label paste box remains available without a successful barcode scan.
 
 ## Food label-signal grade
 
@@ -72,10 +75,12 @@ The analysis always runs against the **local** knowledge tables first
 (`src/lib/food-knowledge/lists.ts`: families, allergens, additive registry;
 `concerns.ts`: explicit non-additive concern registry).
 When `KNOWLEDGE_API_URL` and `KNOWLEDGE_API_KEY` are both configured and some
-names remain unrecognized, `POST /api/food/analyze` sends ONLY those names
-(≤ 40) to an OpenAI-compatible chat-completions endpoint (DeepSeek, OpenAI, a
-self-hosted gateway… — point the URL anywhere compatible) and asks for short,
-neutral explanations in the requested language.
+names remain genuinely unidentified, `POST /api/food/analyze` sends ONLY those
+names (≤ 40) to an OpenAI-compatible chat-completions endpoint (DeepSeek,
+OpenAI, a self-hosted gateway… — point the URL anywhere compatible) and asks
+for short, neutral explanations in the requested language. Generic label
+classes such as “colour” or “flavour enhancers” are explained locally as
+unspecified identities and are not forwarded.
 
 Guardrails (same philosophy as the cosmetics vendor slot):
 
@@ -97,22 +102,30 @@ version; in-flight work is deduplicated and components reject stale request
 completions. OFF allergen tags are used only as a source-attributed cross-check.
 
 Label text is sent to the app's same-origin analysis endpoint. If an optional
-knowledge provider is configured, only bounded unidentified ingredient names
-and the requested explanation language are forwarded. The label photo stays
-on-device. The explicitly selected Tesseract language model may be downloaded
-from the tessdata CDN on first use. OCR text and parsed rows require editable
-user confirmation before analysis.
+knowledge provider is configured, only bounded, genuinely unidentified
+ingredient names and the requested explanation language are forwarded. The
+label photo stays on-device. The OCR worker/core are served same-origin; the
+explicitly selected language data may be downloaded from Tesseract’s configured
+CDN on first use. OCR text and parsed rows require editable user confirmation
+before analysis.
 
 All barcode surfaces use the same strict GTIN and abortable resolution path.
 The resulting domain is one of `food`, `cosmetic`, `household`, `pet`, or
-`unknown`; source database is provenance rather than proof of domain, and the
-user can override domain before choosing an analyzer. Household/pet products
-currently show metadata without claiming a safety analyzer is available.
+`unknown`; source database is provenance rather than proof of domain. The
+Knowledge screen routes automatically from that metadata and has no visible
+domain selector. An unknown scanned domain receives no guessed analyzer;
+household/pet products show metadata without claiming an ingredient analyzer
+is available.
 
 ## Tests
 
-- `tests/food-knowledge.test.ts` — lists + engine (photo-label fixture,
-  allergen lookalikes, additives, coverage, heading strip, determinism);
+- `tests/food-knowledge.test.ts` — lists + engine (photo-label and English
+  Pringles fixtures, allergen lookalikes, additives, coverage, heading strip,
+  determinism);
 - `tests/knowledge-search.test.ts` — slot config/parsing/bounds/fail-open;
-- `tests/food-knowledge-api.test.ts` — route guards + deep-search wiring;
-- message parity (en/fr/ar) is enforced by the existing catalog test.
+- `tests/food-knowledge-api.test.ts` — route guards, disclosure minimization,
+  and deep-search wiring;
+- `tests/scanner-lifecycle.test.ts` — acquisition lifecycle plus the selector-
+  free/animated Knowledge scan contract;
+- message parity and rendered unresolved-class copy (en/fr/ar) are regression-
+  covered.

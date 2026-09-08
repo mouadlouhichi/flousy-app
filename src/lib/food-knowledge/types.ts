@@ -65,6 +65,17 @@ export type AdditiveRole =
   | 'flavour-enhancer'
   | 'other';
 
+/**
+ * A class/function printed without the identity of the substance that fulfils
+ * it. These labels are useful information, but deliberately do not count as a
+ * recognized ingredient or establish additive authorization/safety.
+ */
+export type FoodUnspecifiedClass =
+  | 'flavour-enhancer'
+  | 'colour'
+  | 'food-acid'
+  | 'protein-source';
+
 export interface AllergenHit {
   /** EU group code (localized client-side). */
   group: AllergenGroup;
@@ -108,6 +119,8 @@ export interface FoodIngredientAssessment {
   normalized: string;
   /** True when the token matched a known family / allergen / additive. */
   recognized: boolean;
+  /** Declared class/function whose exact ingredient identity is not supplied. */
+  unspecifiedClass?: FoodUnspecifiedClass;
   family?: FoodFamily;
   roles?: string[];
   allergens: AllergenGroup[];

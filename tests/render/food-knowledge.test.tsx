@@ -77,6 +77,34 @@ describe('FoodKnowledgeBody render smoke', () => {
     }
   });
 
+  it('renders generic class wording as unresolved identity rather than a known additive', async () => {
+    const { FoodKnowledgeBody } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+    const genericClasses = analyzeFoodText(
+      'Salt, flavor enhancers, protein, color, food acid',
+    );
+
+    assert.equal(genericClasses.recognized, 1);
+    assert.equal(genericClasses.additives.length, 0);
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const messages = catalogs[locale].foodKnowledge;
+      const html = renderToStaticMarkup(
+        React.createElement(FoodKnowledgeBody, { analysis: genericClasses }),
+      );
+      for (const copy of [
+        messages.unspecifiedFlavourEnhancer,
+        messages.unspecifiedProteinSource,
+        messages.unspecifiedColour,
+        messages.unspecifiedFoodAcid,
+      ]) {
+        assert.ok(html.includes(copy), `${locale}: unresolved class label missing`);
+      }
+      assert.ok(!html.includes(messages.ingredientUnknown));
+    }
+  });
+
   it('uses aggregate OFF allergen groups even without a text hit', async () => {
     const { FoodKnowledgeBody } = await import(
       '../../src/components/dashboard/courses/courses-food-panel'

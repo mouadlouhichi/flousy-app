@@ -10,7 +10,7 @@ import { lookupMaSeed } from '@/lib/ma-product-seed';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { resolveScan, type ResolvedProduct } from '@/lib/scan-resolution';
 import type { BarcodeCandidate } from '@/lib/gtin';
-import type { Product, ProductDomain, ProductSource } from '@/lib/store';
+import type { Product, ProductSource } from '@/lib/store';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
@@ -18,8 +18,6 @@ import { CoursesFoodPanel } from '../courses/courses-food-panel';
 import { useCourseSession } from '@/hooks/use-course-session';
 import { saveProduct } from '@/lib/db';
 import { isFirebaseConfigured } from '@/lib/firebase';
-
-const DOMAINS: ProductDomain[] = ['food', 'cosmetic', 'household', 'pet', 'unknown'];
 
 type LookupState =
   | { status: 'idle' }
@@ -39,9 +37,6 @@ export function KnowledgeScreen() {
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [invalid, setInvalid] = useState(false);
   const [saved, setSaved] = useState(false);
-  // null means the user has not overridden source/inferred metadata. `unknown`
-  // is a real explicit choice and must not double as the unset sentinel.
-  const [domainOverride, setDomainOverride] = useState<ProductDomain | null>(null);
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -54,7 +49,6 @@ export function KnowledgeScreen() {
     abortRef.current = controller;
     setInvalid(false);
     setSaved(false);
-    setDomainOverride(null);
     setLookup({ status: 'loading', code: candidate.rawValue });
 
     const resolution = await resolveScan({
@@ -105,16 +99,13 @@ export function KnowledgeScreen() {
       ...(product.ranking ? { ranking: product.ranking } : {}),
       ...(product.allergenTags ? { allergenTags: product.allergenTags } : {}),
       ...(product.cosmeticForm ? { cosmeticForm: product.cosmeticForm } : {}),
-      ...(selectedDomain === 'cosmetic' ? { beauty: true } : {}),
-      domain: selectedDomain,
-      domainSource: domainOverride !== null ? 'user' : product.domainSource,
+      ...(product.domain === 'cosmetic' ? { beauty: true } : {}),
+      domain: product.domain,
+      domainSource: product.domainSource,
       source: product.source,
       sourceUrl: product.sourceUrl,
       sourceDatabase: product.sourceDatabase,
-      provenance: {
-        ...product.provenance,
-        ...(domainOverride !== null ? { domain: { source: 'manual' as const, retrievedAt: now } } : {}),
-      },
+      provenance: { ...product.provenance },
       retrievedAt: product.retrievedAt,
       staleAfter: product.staleAfter,
       createdAt: now,
@@ -126,41 +117,14 @@ export function KnowledgeScreen() {
   };
 
   const product = lookup.status === 'found' ? lookup.product : null;
-  const selectedDomain = domainOverride ?? product?.domain ?? 'unknown';
+  // Scanned products route from source/inferred resolution metadata. A manual
+  // paste (idle or unresolved barcode) keeps the previous food-label default;
+  // an explicitly unresolved scanned domain stays unresolved rather than
+  // being guessed from a database name.
+  const selectedDomain = product?.domain ?? 'food';
   const unresolvedBarcode = lookup.status === 'not-found' || lookup.status === 'failed'
     ? lookup.barcode
     : undefined;
-
-  const domainLabel = (domain: ProductDomain): string => {
-    const labels = g as unknown as Record<string, string>;
-    if (domain === 'food') return g.kindFood;
-    if (domain === 'cosmetic') return g.kindCosmetic;
-    if (domain === 'household') return labels.kindHousehold ?? 'Household';
-    if (domain === 'pet') return labels.kindPet ?? 'Pet product';
-    return labels.kindUnknown ?? 'Choose type';
-  };
-
-  const domainSelector = (
-    <div className="flex flex-wrap gap-2" role="group" aria-label={domainLabel('unknown')}>
-      {DOMAINS.map((domain) => (
-        <button
-          key={domain}
-          type="button"
-          onClick={() => {
-            setDomainOverride(domain);
-            setSaved(false);
-          }}
-          className={`rounded-full border px-3 py-1.5 font-label-sm text-label-sm transition-colors ${
-            selectedDomain === domain
-              ? 'border-primary bg-primary text-on-primary'
-              : 'border-outline-variant bg-surface text-on-surface-variant hover:bg-surface-container-high'
-          }`}
-        >
-          {domainLabel(domain)}
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -226,10 +190,7 @@ export function KnowledgeScreen() {
             </div>
           )}
 
-          <div>
-            <p className="mb-2 font-label-md text-label-md text-on-surface-variant">{g.pasteNote}</p>
-            {domainSelector}
-          </div>
+          <p className="font-label-md text-label-md text-on-surface-variant">{g.pasteNote}</p>
 
           {selectedDomain === 'cosmetic' ? (
             <CoursesIngredientPanel
@@ -292,11 +253,11 @@ export function KnowledgeScreen() {
             />
           ) : selectedDomain === 'household' || selectedDomain === 'pet' ? (
             <div className="rounded-2xl border border-dashed border-outline-variant p-4 font-body-md text-body-md text-on-surface-variant">
-              {domainLabel(selectedDomain)} — {(g as unknown as Record<string, string>).unsupportedDomain ?? 'No safety analyzer is available for this domain yet. Product metadata can still be saved.'}
+              {g.unsupportedDomain}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-outline-variant p-4 font-body-md text-body-md text-on-surface-variant">
-              {(g as unknown as Record<string, string>).chooseDomainHint ?? 'Choose the product type before analyzing a label.'}
+              {g.unknownDomainHint}
             </div>
           )}
 
@@ -308,7 +269,6 @@ export function KnowledgeScreen() {
                   abortRef.current?.abort();
                   requestIdRef.current += 1;
                   setLookup({ status: 'idle' });
-                  setDomainOverride(null);
                 }}
                 className="rounded-full border border-outline-variant px-4 py-2 font-label-md text-label-md text-on-surface-variant"
               >

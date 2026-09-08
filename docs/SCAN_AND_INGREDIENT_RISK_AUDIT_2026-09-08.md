@@ -6,9 +6,9 @@
 - **Remediated revision:** `406f003` on PR [#67](https://github.com/mouadlouhichi/flousy-app/pull/67)
 - **Scope:** barcode acquisition and every scan surface; product resolution and persistence; cosmetic INCI acquisition, parsing, scoring, caching, display, and history
 - **Original release recommendation:** **do not present the audited cosmetic score as a reliable safety or EU-regulatory verdict until A-01 through A-04 are fixed.** The audited shopping scanner also needed a one-scan/one-action state machine.
-- **Current implementation status:** the code remediations for A-01 through A-20 are implemented and regression-covered. Ingredient output remains an informational, EU-source-based label assessment—not a product-safety opinion, medical recommendation, or determination of legal compliance.
+- **Current implementation status:** the code remediations for A-01 through A-20 were implemented and regression-covered at `406f003`. A later product-owner decision, recorded below, supersedes the visible-selector portion of A-08 while retaining conservative automatic domain routing. Ingredient output remains an informational, EU-source-based label assessment—not a product-safety opinion, medical recommendation, or determination of legal compliance.
 
-> **Historical-reading note:** Sections 1–8 preserve the evidence and behavior observed at `eb588a3`. Present-tense statements in those sections describe the audited revision, not `406f003`. Section 0 records the implemented closure and current validation state.
+> **Historical-reading note:** Sections 1–8 preserve the evidence and behavior observed at `eb588a3`. Present-tense statements in those sections describe the audited revision, not `406f003`. Section 0 records the implemented closure, subsequent product-owner decisions, and current validation state.
 
 ## 0. Remediation status (2026-09-09)
 
@@ -43,12 +43,19 @@ Cross-cutting additions requested with the remediation are also present:
 - Unidentified ingredients are reported through a privacy-minimized, bounded, rate-limited aggregate. No raw token, label, barcode, product name, account ID, image, or IP identity is stored; durable reporting requires a deployment-specific HMAC key.
 - The shared 12,000-character label-text ceiling is enforced at UI, OCR, client-cache, API, external-provider, analysis-core, catalog, persistence, and backup boundaries. Oversized consequential values are rejected whole instead of prefix-truncated.
 
+### Post-closure product-owner follow-up (2026-09-09)
+
+- The visible product-domain selector added for A-08 was removed at the product owner’s direction to restore the prior scan interaction. Resolved source/inference metadata now selects the analyzer automatically; an unresolved scanned domain is not guessed, while the no-barcode and unresolved-barcode paste paths retain their prior food-label default. This decision supersedes only the selector/override portion of the original remediation requirement; the five-value domain model, source-provenance separation, and conservative unknown state remain.
+- The shared scanner lifecycle and animated scan-line treatment were retained unchanged, with a regression contract covering both selector removal and animation presence.
+- The local food corpus was advanced to `2026-09-food-v3` with regression-backed English aliases for the supplied Pringles Paprika label. Specific terms such as dehydrated potatoes, vegetable oils, sunflower, paprika seasoning/powder, rice/corn flour, and chilli extract are identified locally. Generic declarations such as “flavor enhancers”, “color”, “food acid”, and “protein” remain unresolved identities, receive explicit “exact substance/source not specified” UI wording, do not establish safety or authorization, and are excluded from external lookup disclosure.
+
 ### Validation at the remediated revision
 
 - `npm run check` passed locally on 2026-09-09: lint, normal and strict TypeScript checks, **798 unit/integration tests**, and **59 render tests**, with zero failures.
 - `npm run build` passed and generated all 55 static pages.
 - GitHub Actions run [`34287229448`](https://github.com/mouadlouhichi/flousy-app/actions/runs/34287229448) passed `check`, the Firestore emulator Rules suite, production build, and browser `e2e`.
 - Vercel preview checks on the documentation pushes have alternated between a successful preview and the account build-rate-limit status. The rate-limit result is an account constraint, not a source/build failure; local and GitHub Actions production builds pass.
+- The post-closure follow-up passed lint, normal and strict TypeScript checks, the full **802 unit/integration + 60 render test** suite, and a production build of all 55 static pages locally on 2026-09-09.
 
 ### Assurance boundaries that remain
 

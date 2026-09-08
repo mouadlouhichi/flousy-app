@@ -38,6 +38,7 @@ import {
   FOOD_ROW_COUNT,
   lookupAdditives,
   lookupFoodRow,
+  lookupUnspecifiedFoodClass,
 } from './lists';
 import { detectFoodKind } from './domain';
 import { detectFoodConcerns } from './concerns';
@@ -137,6 +138,12 @@ export function analyzeFoodIngredientList(
     // chip shows the first one; the label-level list below is deduped per code.
     const tokenAdditives = lookupAdditives(folded);
     const additive = tokenAdditives[0] ?? null;
+    // A translated/provider label may expose only a class such as “colour” or
+    // “flavour enhancers”. Preserve that useful wording, but do not count it
+    // as a known substance or infer an E number, authorization, or safety.
+    const unspecifiedClass = !rowHit && tokenAdditives.length === 0
+      ? lookupUnspecifiedFoodClass(folded)
+      : null;
     const tokenConcerns = detectFoodConcerns(folded, raw);
     const tokenAllergens: AllergenGroup[] = [];
     if (rowHit?.row.allergens) {
@@ -180,6 +187,7 @@ export function analyzeFoodIngredientList(
       raw,
       normalized: folded,
       recognized,
+      ...(unspecifiedClass ? { unspecifiedClass } : {}),
       allergens: tokenAllergens,
       concerns: tokenConcerns,
       ...(rowHit

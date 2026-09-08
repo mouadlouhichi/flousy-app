@@ -2752,6 +2752,10 @@
     "gradeTooltip": "Label score from detected additives, explicit ingredient concerns and recognition confidence — informational only, not a nutrition or health score.",
     "gradeUnknown": "Not enough of this ingredient list was recognized to calculate a label score.",
     "ingredientUnknown": "Not recognized",
+    "unspecifiedColour": "Colouring (exact substance not specified)",
+    "unspecifiedFlavourEnhancer": "Flavour enhancer (exact substance not specified)",
+    "unspecifiedFoodAcid": "Food acid (exact substance not specified)",
+    "unspecifiedProteinSource": "Protein source not specified",
     "pasteHelp": "Paste the ingredient list from the label, separated by commas.",
     "pasteInvalid": "Enter at least one ingredient to analyze.",
     "pastePlaceholder": "Example: Whole milk, cream, lactic ferments, rennet, salt",
@@ -2799,6 +2803,8 @@
     "pasteNote": "No code? Paste a label here",
     "productSaved": "Saved to your product catalog",
     "saveProduct": "Save product",
-    "saved": "Saved"
+    "saved": "Saved",
+    "unknownDomainHint": "The product type could not be determined automatically, so no ingredient analyzer was selected.",
+    "unsupportedDomain": "No ingredient analyzer is available for this product type yet. Product metadata can still be saved."
   }
 }

@@ -17,6 +17,7 @@ import type {
   AllergenGroup,
   FoodFamily,
   FoodKnowledgeRow,
+  FoodUnspecifiedClass,
 } from './types';
 
 /** Lowercase + strip diacritics + collapse whitespace → stable match key. */
@@ -352,12 +353,14 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
   { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
   { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
-  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée'], family: 'fat-oil', roles: ['fat'] },
+  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'huiles végétales', 'vegetable oil', 'vegetable oils', 'plant oil', 'plant oils', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée'], family: 'fat-oil', roles: ['fat'] },
   { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment', 'tarwebloem', 'tarwemeel', 'tarwezetmeel', 'volkorenmeel', 'tarwe', 'wheat'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['blé complet', 'whole wheat', 'whole grain wheat', 'whole grain rolled wheat', 'rolled wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'rolled oats', 'whole grain rolled oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['céréales', 'cereals', 'céréales complètes', 'wholegrain cereals'], family: 'cereal', roles: ['base'] },
-  { keys: ['riz', 'rice', 'farine de riz', 'rijst', 'rijstbloem', 'rijstmeel', 'rijstzetmeel'], family: 'cereal', roles: ['base'] },
-  { keys: ['maïs', 'corn', 'farine de maïs', 'mais', 'maismeel', 'maiszetmeel', 'maisbloem', 'maisvlokken'], family: 'cereal', roles: ['base'] },
+  { keys: ['wheat starch'], family: 'cereal', allergens: ['gluten'], roles: ['texture'] },
+  { keys: ['rice starch', 'corn starch', 'maize starch'], family: 'cereal', roles: ['texture'] },
+  { keys: ['riz', 'rice', 'farine de riz', 'rice flour', 'rijst', 'rijstbloem', 'rijstmeel', 'rijstzetmeel'], family: 'cereal', roles: ['base'] },
+  { keys: ['maïs', 'corn', 'farine de maïs', 'corn flour', 'maize flour', 'mais', 'maismeel', 'maiszetmeel', 'maisbloem', 'maisvlokken'], family: 'cereal', roles: ['base'] },
   { keys: ['amidon', 'starch', 'amidon de maïs', 'fécule de pomme de terre', 'potato starch'], family: 'cereal', roles: ['texture'] },
   { keys: ['œuf', 'oeuf', 'egg', 'œufs', 'oeufs', 'jaune d’œuf', 'blanc d’œuf'], family: 'egg', allergens: ['eggs'], roles: ['protein', 'texture'] },
   { keys: ['arachide', 'peanut', 'cacahuète'], family: 'legume', allergens: ['peanuts'], roles: ['protein'] },
@@ -365,7 +368,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['noix de coco', 'coconut'], family: 'fruit-veg', roles: ['fat', 'natural'] },
   { keys: ['noix', 'walnut', 'walnuts', 'noisette', 'noisettes', 'hazelnut', 'hazelnuts', 'amande', 'amandes', 'almond', 'almonds', 'pistache', 'pistaches', 'pistachio', 'pistachios', 'noix de cajou', 'cashew', 'cashews', 'pecan', 'pecans', 'brazil nut', 'brazil nuts', 'macadamia', 'macadamias'], family: 'nut-seed', allergens: ['nuts'], roles: ['fat'] },
   { keys: ['sésame', 'sesame'], family: 'nut-seed', allergens: ['sesame'], roles: ['seed'] },
-  { keys: ['graines de tournesol', 'sunflower seeds', 'graines de lin', 'flaxseed'], family: 'nut-seed', roles: ['seed'] },
+  { keys: ['graines de tournesol', 'sunflower seeds', 'sunflower', 'tournesol', 'graines de lin', 'flaxseed'], family: 'nut-seed', roles: ['seed'] },
   { keys: ['tomate', 'tomato', 'concentré de tomate', 'purée de tomate'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['oignon', 'onion', 'ui', 'uien', 'uienpoeder', 'ui poeder'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['ail', 'garlic', 'knoflook', 'knoflookpoeder'], family: 'fruit-veg', roles: ['vegetable'] },
@@ -376,7 +379,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['citron', 'lemon', 'jus de citron'], family: 'fruit-veg', roles: ['fruit', 'acidity'] },
   { keys: ['orange', 'orange juice', 'jus d’orange'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['raisin', 'raisins', 'raisins secs', 'grape', 'grapes', 'dried raisin', 'dried raisins'], family: 'fruit-veg', roles: ['fruit'] },
-  { keys: ['pomme de terre', 'potato', 'aardappel', 'aardappelen', 'aardappelzetmeel', 'aardappelvlokken', 'aardappelmeel', 'gedehydrateerde aardappelen', 'gedroogde aardappelen'], family: 'fruit-veg', roles: ['vegetable'] },
+  { keys: ['pomme de terre', 'potato', 'potatoes', 'dehydrated potato', 'dehydrated potatoes', 'dried potato', 'dried potatoes', 'potato flakes', 'aardappel', 'aardappelen', 'aardappelzetmeel', 'aardappelvlokken', 'aardappelmeel', 'gedehydrateerde aardappelen', 'gedroogde aardappelen'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['carotte', 'carrot'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['champignon', 'mushroom', 'champignons'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['lentilles', 'lentils', 'pois chiches', 'chickpeas', 'haricots', 'beans'], family: 'legume', roles: ['protein'] },
@@ -390,7 +393,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['noix de muscade', 'nutmeg'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['cacao', 'cocoa', 'cacao en poudre', 'chocolat', 'chocolate'], family: 'herb-spice', roles: ['flavour'] },
   { keys: ['poivre', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley'], family: 'herb-spice', roles: ['seasoning'] },
-  { keys: ['paprikapoeder', 'paprikakruiderij', 'paprikamix'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['paprika', 'paprika powder', 'paprika seasoning', 'paprika spice mix', 'chili', 'chilli', 'chili extract', 'chilli extract', 'paprikapoeder', 'paprikakruiderij', 'paprikamix'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['glycérol', 'glycerol', 'glycérine', 'glycerin', 'glycerine'], family: 'other', roles: ['humectant'], note: 'Glycerol (E422), used to retain moisture.' },
   { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants', 'aroma s', 'aromen', 'natuurlijke aroma s', 'natuurlijke aroma'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
   { keys: ['maltodextrine', 'maltodextrin'], family: 'cereal', roles: ['texture'] },
@@ -422,8 +425,42 @@ export function lookupFoodRow(folded: string): FoodRowHit | null {
   return null;
 }
 
+/**
+ * Generic label classes that do not identify the substance used. Matching is
+ * exact on purpose: “colour (E160b)” is handled by the additive registry,
+ * while a bare “colour” remains unresolved rather than being treated as a
+ * known/authorized additive.
+ */
+const UNSPECIFIED_CLASS_TERMS: Record<FoodUnspecifiedClass, readonly string[]> = {
+  'flavour-enhancer': [
+    'flavour enhancer', 'flavour enhancers', 'flavor enhancer', 'flavor enhancers',
+    'exhausteur de gout', 'exhausteurs de gout', 'smaakversterker', 'smaakversterkers',
+  ],
+  colour: [
+    'colour', 'color', 'colouring', 'coloring', 'colourant', 'colorant',
+    'colorant alimentaire', 'kleurstof',
+  ],
+  'food-acid': [
+    'food acid', 'food acids', 'acidity regulator', 'acidity regulators',
+    'acidulant', 'acidulants', 'acidifiant', 'acidifiants', 'voedingszuur',
+  ],
+  'protein-source': [
+    'protein', 'proteins', 'protein source', 'source of protein', 'proteine',
+    'proteines', 'source de proteines', 'eiwit', 'eiwitten',
+  ],
+};
+
+const UNSPECIFIED_CLASS_KEYS = Object.entries(UNSPECIFIED_CLASS_TERMS).flatMap(
+  ([kind, terms]) => terms.map((term) => [foldForMatch(term), kind as FoodUnspecifiedClass] as const),
+);
+
+export function lookupUnspecifiedFoodClass(folded: string): FoodUnspecifiedClass | null {
+  if (!folded) return null;
+  return UNSPECIFIED_CLASS_KEYS.find(([term]) => folded === term)?.[1] ?? null;
+}
+
 export const FOOD_ROW_COUNT = ROWS.length;
-export const FOOD_DATASET_VERSION = '2026-09-food-v2';
+export const FOOD_DATASET_VERSION = '2026-09-food-v3';
 
 // --- Mineral-water composition parameters -----------------------------------
 // Natural/spring/table waters print a mineral composition (mg/L) instead of an

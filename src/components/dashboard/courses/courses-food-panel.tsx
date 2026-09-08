@@ -10,6 +10,7 @@ import type {
   FoodAnalysis,
   FoodConcernCode,
   FoodFamily,
+  FoodUnspecifiedClass,
 } from '@/lib/food-knowledge/types';
 import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
@@ -61,6 +62,13 @@ const ALLERGEN_KEY: Record<AllergenGroup, string> = {
 
 const BAND_KEY: Record<AdditiveBand, string> = {
   neutral: 'additiveBandNeutral', watch: 'additiveBandWatch', avoid: 'additiveBandAvoid',
+};
+
+const UNSPECIFIED_CLASS_KEY: Record<FoodUnspecifiedClass, string> = {
+  'flavour-enhancer': 'unspecifiedFlavourEnhancer',
+  colour: 'unspecifiedColour',
+  'food-acid': 'unspecifiedFoodAcid',
+  'protein-source': 'unspecifiedProteinSource',
 };
 
 const CONCERN_LABEL_KEY: Record<FoodConcernCode, string> = {
@@ -442,11 +450,19 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                       <span dir="ltr">{item.additive.code}</span>
                     </Chip>
                   )}
+                  {/* A generic class is useful label information, but its
+                      substance is unresolved: show that distinction instead
+                      of either claiming recognition or saying nothing. */}
+                  {unknown && item.unspecifiedClass && (
+                    <Chip tone="unknown">
+                      {g[UNSPECIFIED_CLASS_KEY[item.unspecifiedClass] as keyof typeof g]}
+                    </Chip>
+                  )}
                   {/* When an external answer explains this row, the 'not
                       recognized' tag would only add noise — the attributed
                       summary below IS the extra knowledge. When NOTHING on the
                       list matched, chips would repeat the banner; keep quiet. */}
-                  {unknown && !nothingKnown && !externalEntry && (
+                  {unknown && !item.unspecifiedClass && !nothingKnown && !externalEntry && (
                     <Chip tone="unknown">{g.ingredientUnknown}</Chip>
                   )}
                 </div>

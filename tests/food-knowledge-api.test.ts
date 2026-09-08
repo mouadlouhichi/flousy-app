@@ -102,6 +102,48 @@ describe('POST /api/food/analyze', () => {
     assert.deepEqual(res.allergenGroups, ['milk']);
   });
 
+  it('does not disclose generic class wording to the external knowledge slot', async () => {
+    process.env.KNOWLEDGE_API_URL = 'https://knowledge.example.test/v1';
+    process.env.KNOWLEDGE_API_KEY = 'sk-x';
+    let requestedNames: string[] = [];
+    globalThis.fetch = (async (_url: string, init?: { body?: string }) => {
+      const body = JSON.parse(init?.body ?? '{}') as { messages: { content: string }[] };
+      requestedNames = (body.messages[1].content.match(/(?:\d+\. )(?:.*)$/gm) ?? [])
+        .map((line) => line.replace(/^\d+\. /, '').trim());
+      return {
+        ok: true,
+        json: async () => ({
+          ingredients: [{ name: 'Farrothus Exoticus', summary: 'An obscure ingredient.' }],
+        }),
+      };
+    }) as unknown as typeof fetch;
+
+    const response = await callRaw(
+      { foodText: 'Salt, Flavor enhancers, Farrothus Exoticus', language: 'en' },
+      '10.2.0.7',
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(requestedNames, ['Farrothus Exoticus']);
+    assert.deepEqual(response.body.unknownNames, ['Flavor enhancers', 'Farrothus Exoticus']);
+    const ingredients = response.body.ingredients as Array<{
+      raw: string;
+      recognized: boolean;
+      unspecifiedClass?: string;
+    }>;
+    assert.deepEqual(
+      ingredients.find((ingredient) => ingredient.raw === 'Flavor enhancers'),
+      {
+        index: 1,
+        raw: 'Flavor enhancers',
+        normalized: 'flavor enhancers',
+        recognized: false,
+        unspecifiedClass: 'flavour-enhancer',
+        allergens: [],
+        concerns: [],
+      },
+    );
+  });
+
   it('fails open to the exact pure-local result when the slot errors', async () => {
     process.env.KNOWLEDGE_API_URL = 'https://knowledge.example.test/v1';
     process.env.KNOWLEDGE_API_KEY = 'sk-x';
