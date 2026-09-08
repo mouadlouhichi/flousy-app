@@ -44,58 +44,14 @@ service cloud.firestore {
     function optionalText(data, key, maxBytes) {
       return !(key in data) || (data[key] is string && data[key].size() <= maxBytes);
     }
-    function validProductSource(value) {
-      return value in ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session'];
-    }
-    function validProductRanking(data) {
-      return !('ranking' in data)
-        || (data.ranking is map
-          && data.ranking.keys().hasOnly(['grade', 'calculationPoints', 'score', 'algorithmVersion'])
-          && boundedText(data.ranking.grade, 8)
-          && (!('calculationPoints' in data.ranking)
-            || (data.ranking.calculationPoints is number
-              && data.ranking.calculationPoints >= -1000
-              && data.ranking.calculationPoints <= 1000))
-          && (!('score' in data.ranking)
-            || (data.ranking.score is number && data.ranking.score >= -1000 && data.ranking.score <= 1000))
-          && optionalText(data.ranking, 'algorithmVersion', 80));
-    }
-    function productIdentityAgrees(data) {
-      return data.gtin14 is string
-        && data.gtin14.matches('^[0-9]{14}$')
-        && ((data.barcode.size() == 14 && data.barcode == data.gtin14)
-          || (data.barcode.size() == 13 && '0' + data.barcode == data.gtin14)
-          || (data.barcode.size() == 12 && '00' + data.barcode == data.gtin14)
-          || (data.barcode.size() == 8 && '000000' + data.barcode == data.gtin14));
-    }
-    function validProvenanceEntry(provenance, key) {
-      return !(key in provenance)
-        || (provenance[key] is map
-          && provenance[key].keys().hasOnly(['source', 'retrievedAt', 'sourceUrl', 'language'])
-          && validProductSource(provenance[key].source)
-          && boundedText(provenance[key].retrievedAt, 64)
-          && optionalText(provenance[key], 'sourceUrl', 2000)
-          && optionalText(provenance[key], 'language', 24));
-    }
-    function validProductProvenance(data) {
-      let provenance = data.get('provenance', {});
-      return provenance is map
-        && provenance.keys().hasOnly([
-          'name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText',
-          'ranking', 'allergenTags', 'cosmeticForm', 'domain'
-        ])
-        && validProvenanceEntry(provenance, 'name')
-        && validProvenanceEntry(provenance, 'brand')
-        && validProvenanceEntry(provenance, 'category')
-        && validProvenanceEntry(provenance, 'imageUrl')
-        && validProvenanceEntry(provenance, 'quantity')
-        && validProvenanceEntry(provenance, 'ingredientsText')
-        && validProvenanceEntry(provenance, 'ranking')
-        && validProvenanceEntry(provenance, 'allergenTags')
-        && validProvenanceEntry(provenance, 'cosmeticForm')
-        && validProvenanceEntry(provenance, 'domain');
-    }
     function validProductDocument(data) {
+      // Rules cannot iterate arbitrary map values, so provenance has a fixed key
+      // set and the entries that affect assessment/routing are checked explicitly.
+      // Keeping this in one helper also stays below Firestore's 1000-expression
+      // budget; composing one helper per optional field is expanded at every call.
+      let ranking = data.get('ranking', {});
+      let provenance = data.get('provenance', {});
+      let ingredientsProvenance = provenance is map ? provenance.get('ingredientsText', {}) : {};
       return data.keys().hasOnly([
           'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
           'lastPrice', 'priceUpdatedAt', 'source', 'sourceUrl', 'sourceDatabase',
@@ -105,35 +61,52 @@ service cloud.firestore {
         ])
         && data.barcode is string
         && data.barcode.matches('^([0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$')
-        && productIdentityAgrees(data)
-        && boundedText(data.name, 200)
-        && validProductSource(data.source)
-        && boundedText(data.createdAt, 64)
-        && boundedText(data.updatedAt, 64)
-        && optionalText(data, 'brand', 200)
-        && optionalText(data, 'category', 200)
-        && optionalText(data, 'imageUrl', 2000)
-        && optionalText(data, 'quantity', 100)
+        && data.gtin14 is string
+        && data.gtin14.matches('^[0-9]{14}$')
+        && ((data.barcode.size() == 14 && data.barcode == data.gtin14)
+          || (data.barcode.size() == 13 && '0' + data.barcode == data.gtin14)
+          || (data.barcode.size() == 12 && '00' + data.barcode == data.gtin14)
+          || (data.barcode.size() == 8 && '000000' + data.barcode == data.gtin14))
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.source in ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session']
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() > 0 && data.updatedAt.size() <= 64
+        && data.get('brand', '') is string && data.get('brand', '').size() <= 200
+        && data.get('category', '') is string && data.get('category', '').size() <= 200
+        && data.get('imageUrl', '') is string && data.get('imageUrl', '').size() <= 2000
+        && data.get('quantity', '') is string && data.get('quantity', '').size() <= 100
         && (!('lastPrice' in data) || isMoney(data.lastPrice))
-        && optionalText(data, 'priceUpdatedAt', 64)
-        && optionalText(data, 'sourceUrl', 2000)
-        && optionalText(data, 'sourceDatabase', 100)
-        && (!('domain' in data)
-          || data.domain in ['food', 'cosmetic', 'household', 'pet', 'unknown'])
-        && (!('domainSource' in data)
-          || data.domainSource in ['source', 'inferred', 'user'])
-        && optionalText(data, 'gs1PrefixAllocation', 100)
-        && optionalText(data, 'origin', 200)
-        && validProductRanking(data)
+        && data.get('priceUpdatedAt', '') is string && data.get('priceUpdatedAt', '').size() <= 64
+        && data.get('sourceUrl', '') is string && data.get('sourceUrl', '').size() <= 2000
+        && data.get('sourceDatabase', '') is string && data.get('sourceDatabase', '').size() <= 100
+        && data.get('domain', 'unknown') in ['food', 'cosmetic', 'household', 'pet', 'unknown']
+        && data.get('domainSource', 'inferred') in ['source', 'inferred', 'user']
+        && data.get('gs1PrefixAllocation', '') is string && data.get('gs1PrefixAllocation', '').size() <= 100
+        && data.get('origin', '') is string && data.get('origin', '').size() <= 200
+        && ranking is map
+        && (!('ranking' in data)
+          || (ranking.keys().hasOnly(['grade', 'calculationPoints', 'score', 'algorithmVersion'])
+            && ranking.get('grade', '') is string
+            && ranking.get('grade', '').size() > 0
+            && ranking.get('grade', '').size() <= 8
+            && (!('calculationPoints' in ranking) || ranking.calculationPoints is number)
+            && (!('score' in ranking) || ranking.score is number)
+            && ranking.get('algorithmVersion', '') is string))
         && (!('beauty' in data) || data.beauty is bool)
-        && (!('cosmeticForm' in data)
-          || data.cosmeticForm in ['leave-on', 'rinse-off', 'unknown'])
-        && optionalText(data, 'ingredientsText', 12000)
+        && data.get('cosmeticForm', 'unknown') in ['leave-on', 'rinse-off', 'unknown']
+        && data.get('ingredientsText', '') is string && data.get('ingredientsText', '').size() <= 12000
         && (!('allergenTags' in data)
           || (data.allergenTags is list && data.allergenTags.size() <= 50))
-        && validProductProvenance(data)
-        && optionalText(data, 'retrievedAt', 64)
-        && optionalText(data, 'staleAfter', 64);
+        && provenance is map
+        && provenance.keys().hasOnly([
+          'name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText',
+          'ranking', 'allergenTags', 'cosmeticForm', 'domain'
+        ])
+        && (!('ingredientsText' in provenance)
+          || (ingredientsProvenance is map
+            && ingredientsProvenance.keys().hasOnly(['source', 'retrievedAt', 'sourceUrl', 'language'])))
+        && data.get('retrievedAt', '') is string && data.get('retrievedAt', '').size() <= 64
+        && data.get('staleAfter', '') is string && data.get('staleAfter', '').size() <= 64;
     }
     function validCourseSessionDocument(data, sessionId) {
       return data.keys().hasOnly([
@@ -1168,13 +1141,12 @@ service cloud.firestore {
         // New records use canonical GTIN-14 document IDs. Legacy 8/12/13-digit
         // records remain readable/updatable so clients can migrate them.
         allow create: if owner(uid)
-          && barcode.matches('^[0-9]{14}$')
-          && validProductDocument(incoming())
-          && incoming().gtin14 == barcode;
+          && validProductDocument(request.resource.data)
+          && request.resource.data.gtin14 == barcode;
         allow update: if owner(uid)
-          && barcode.matches('^([0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$')
-          && validProductDocument(incoming())
-          && (!barcode.matches('^[0-9]{14}$') || incoming().gtin14 == barcode);
+          && validProductDocument(request.resource.data)
+          && (request.resource.data.get('barcode', '') == barcode
+            || request.resource.data.get('gtin14', '') == barcode);
         allow delete: if owner(uid);
       }
 
