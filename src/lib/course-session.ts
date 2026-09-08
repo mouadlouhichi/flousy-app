@@ -352,6 +352,15 @@ export interface RemoteProductInfo {
   quantity?: string;
   /** Quality ranking (Nutri-Score) when the source provides one. */
   ranking?: ProductRanking;
+  /** Full INCI ingredient list from the product page, when the record has one. */
+  ingredientsText?: string;
+  /**
+   * Hint that the source/payload is a cosmetic/beauty record, even when the
+   * mapped name/category are too generic to say so. Kept separate from
+   * `ingredientsText` so a code-like shower-gel name (e.g. "68YN5T 400ml")
+   * still runs the cosmetic INCI panel and can trigger the vendor fallback.
+   */
+  beauty?: boolean;
 }
 
 export type ProductResolution =
@@ -366,6 +375,14 @@ export type ProductResolution =
         quantity?: string;
         /** Quality ranking (Nutri-Score) when the source provides one. */
         ranking?: ProductRanking;
+        /**
+         * Full INCI list from the record (cosmetics). Persisted to the
+         * catalog product when the scanned line is confirmed; the per-device
+         * overlay is the offline fallback for records without a list.
+         */
+        ingredientsText?: string;
+        /** Source hint that the record is cosmetic/beauty (see RemoteProductInfo). */
+        beauty?: boolean;
       };
       /** Last recorded price from the local catalog, when available. */
       lastPrice?: number;
@@ -434,6 +451,8 @@ export async function resolveProduct(opts: {
         category: hit.category,
         imageUrl: hit.imageUrl,
         ...(hit.ranking ? { ranking: { ...hit.ranking } } : {}),
+        ...(hit.ingredientsText ? { ingredientsText: hit.ingredientsText } : {}),
+        ...(hit.beauty ? { beauty: true } : {}),
       },
       lastPrice: hit.lastPrice,
       source: 'catalog',
@@ -465,6 +484,7 @@ export async function resolveProduct(opts: {
         imageUrl: seedHit.imageUrl,
         ...(seedHit.quantity ? { quantity: seedHit.quantity } : {}),
         ...(seedHit.ranking ? { ranking: { ...seedHit.ranking } } : {}),
+        ...(seedHit.ingredientsText ? { ingredientsText: seedHit.ingredientsText } : {}),
       },
       source: 'seed',
     };
@@ -485,6 +505,8 @@ export async function resolveProduct(opts: {
               imageUrl: remote.imageUrl,
               ...(remote.quantity ? { quantity: remote.quantity } : {}),
               ...(remote.ranking ? { ranking: { ...remote.ranking } } : {}),
+              ...(remote.ingredientsText ? { ingredientsText: remote.ingredientsText } : {}),
+              ...(remote.beauty ? { beauty: true } : {}),
             },
             source: 'remote',
           };

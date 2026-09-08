@@ -1,32 +1,43 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { checkArcjet } from '@/lib/server/arcjet';
+import { fetchVendorInci, fetchVendorProduct, isVendorConfigured } from '@/lib/server/vendor-inci';
 
 /**
- * Barcode lookup proxy — Open Food Facts, server-side fetch.
+ * Barcode lookup proxy — Open Food Facts family, server-side fetch.
  *
- * The client tries the OFF API directly first; this route is the fallback
- * when the browser cannot reach it (CORS policies, restrictive networks).
- * Server-side it also avoids any browser CORS questions entirely.
+ * The client tries the OFF world API directly first; this route is the
+ * fallback when the browser cannot reach it (CORS policies, restrictive
+ * networks) and the authoritative multi-host walk (world food → Morocco food
+ * → world beauty → French beauty → world products) so products that only
+ * exist on a localized or beauty mirror still resolve.
  *
- * Tries the world instance then the Morocco instance (`ma-fr`) so products
- * that only exist on the localized index still resolve. The response keeps
- * BOTH `status` (OFF v2 shape) and `found` (historical proxy shape) so the
- * client mapper never mis-reads a successful hit as "not found".
+ * Enrichment (only when INCI_API_KEY is configured — see
+ * src/lib/server/vendor-inci.ts):
+ * - a product found on a beauty/OPF mirror that still lacks an INCI list is
+ *   sent to the vendor to fill the ingredient text;
+ * - a code NO OFF-family mirror knows is asked of the vendor as a last
+ *   resort (name + INCI) before the manual-entry fallback.
+ * The vendor is only ever an INCI/name source — scoring stays local and
+ * deterministic in /api/inci/analyze.
  *
- * Stores no user data — barcodes only — in a small in-memory LRU so
- * repeated scans of the same code don't hammer OFF.
+ * The response keeps BOTH `status` (OFF v2 shape) and `found` (historical
+ * proxy shape) so the client mapper never mis-reads a hit as "not found".
+ * Stores no user data — barcodes only — in a small in-memory LRU.
  */
 
-const OFF_HOSTS = [
-  'https://world.openfoodfacts.org/api/v2/product/',
-  'https://ma-fr.openfoodfacts.org/api/v2/product/',
-  'https://ma.openfoodfacts.org/api/v2/product/',
-  'https://world.openbeautyfacts.org/api/v2/product/',
-  'https://world.openproductsfacts.org/api/v2/product/',
+const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
+  { base: 'https://world.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://world.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://fr.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,nutriscore_grade,nutriscore_score';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
+  'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
+  'nutriscore_grade,nutriscore_score';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,11 +69,12 @@ function cacheSet(key: string, body: unknown): void {
 }
 
 /**
- * Each uncached lookup walks up to five upstream hosts, and an unreachable host
- * burns the full per-request timeout before the next is tried — so one client can
- * hold an edge function for tens of seconds at a time. The route is unauthenticated
- * by design (it returns public product data, no user data), which makes a per-IP
- * budget plus one shared deadline the only bound on that cost.
+ * Each uncached lookup walks up to six upstream hosts, and an unreachable host
+ * burns the full per-request timeout before the next is tried — so one client
+ * can hold an edge function for tens of seconds at a time. The route is
+ * unauthenticated by design (it returns public product data, no user data),
+ * which makes a per-IP budget plus one shared deadline the only bound on that
+ * cost.
  *
  * The budget goes through the SHARED limiter: a private per-instance `Map`
  * meant 60/min *per lambda*, reset on every cold start, and it never became
@@ -103,12 +115,45 @@ export async function GET(request: NextRequest) {
 
   const walk = await walkOffHosts(code);
 
-  if (walk.kind === 'found') {
-    const payload = { status: 1, found: true, product: walk.product };
+    if (walk.kind === 'found') {
+    const product = walk.product;
+    // Keep the source hint on the payload: beauty/product mirrors (and
+    // beauty-looking OFF food records) must reach the client as cosmetics so
+    // a code-like name still opens the INCI panel, not the food panel.
+    if (walk.beauty) product.beauty_hint = true;
+    // A beauty-mirror hit that lacks an INCI list → ask the vendor to fill it
+    // (no-op when no vendor key is configured). Food pages carry real
+    // ingredient lists, so only genuinely INCI-less cosmetics records trip it.
+    if ((walk.beauty || looksLikeBeauty(product)) && isVendorConfigured() && !hasInciText(product)) {
+      const inci = await fetchVendorInci(code);
+      if (inci) attachInci(product, inci);
+    }
+    const payload = { status: 1, found: true, product };
     cacheSet(code, payload);
     return NextResponse.json(payload);
   }
   if (walk.kind === 'not-found') {
+    // Definitive OFF-family miss — but when a vendor is configured it may
+    // still know the code (name + INCI), so it is the last stop before we
+    // cache a miss for the next five minutes.
+    if (isVendorConfigured()) {
+      const vendor = await fetchVendorProduct(code);
+      if (vendor) {
+        const payload = {
+          status: 1,
+          found: true,
+          product: {
+            code,
+            product_name: vendor.name,
+            ...(vendor.brand ? { brands: vendor.brand } : {}),
+            ingredients_text: vendor.ingredientsText,
+            beauty_hint: true,
+          },
+        };
+        cacheSet(code, payload);
+        return NextResponse.json(payload);
+      }
+    }
     const payload = { status: 0, found: false, product: null };
     cacheSet(code, payload);
     return NextResponse.json(payload);
@@ -127,8 +172,54 @@ export async function GET(request: NextRequest) {
   );
 }
 
+type OffProduct = Record<string, unknown>;
+
+/** Raw-beauty hint used when the walk found the record on a food mirror but
+ *  the OFF category/tag chain still marks it as a beauty/cosmetic record. */
+function looksLikeBeauty(product: OffProduct | null | undefined): boolean {
+  if (!product) return false;
+  const tagSource = (key: string): string[] => {
+    const value = product[key];
+    return Array.isArray(value)
+      ? value.filter((v): v is string => typeof v === 'string')
+      : value && typeof value === 'string'
+        ? [value]
+        : [];
+  };
+  const markers = [
+    ...tagSource('categories'),
+    ...tagSource('categories_tags'),
+    ...tagSource('labels_tags'),
+    String(product.product_type ?? ''),
+  ]
+    .join(' ')
+    .toLowerCase();
+  return (
+    markers.includes('open-beauty-facts') ||
+    markers.includes('open-products-facts') ||
+    markers.includes('cosmetic') ||
+    markers.includes('beauty')
+  );
+}
+
+function hasInciText(product: OffProduct | null | undefined): boolean {
+  if (!product) return false;
+  return (
+    ['ingredients_text', 'ingredients_text_en', 'ingredients_text_fr', 'ingredients_text_es', 'ingredients_text_ar']
+      .some((key) => {
+        const value = product[key];
+        return typeof value === 'string' && value.trim().length > 0;
+      })
+  );
+}
+
+function attachInci(product: OffProduct, inciText: string): void {
+  product.ingredients_text = inciText;
+  if (!product.ingredients_text_en) product.ingredients_text_en = inciText;
+}
+
 export type OffWalkResult =
-  | { kind: 'found'; product: Record<string, unknown> }
+  | { kind: 'found'; product: Record<string, unknown>; beauty?: boolean }
   /** Every instance answered and none carried the code — safe to cache. */
   | { kind: 'not-found' }
   /** Some instances answered "no" but others failed to answer — retryable. */
@@ -158,7 +249,7 @@ export async function walkOffHosts(
   let hostFailures = 0;
   const deadline = AbortSignal.timeout(deadlineMs);
 
-  for (const base of OFF_HOSTS) {
+  for (const { base, beauty } of OFF_HOSTS) {
     if (deadline.aborted) break;
     try {
       const res = await fetch(`${base}${code}.json?fields=${FIELDS}`, {
@@ -173,7 +264,7 @@ export async function walkOffHosts(
       }
       const body = (await res.json()) as { status?: number; product?: Record<string, unknown> };
       if (body && body.status === 1 && body.product) {
-        return { kind: 'found', product: body.product };
+        return { kind: 'found', product: body.product, ...(beauty ? { beauty: true } : {}) };
       }
       if (body && typeof body.status === 'number') {
         notFound = true;

@@ -187,7 +187,15 @@ The three server routes have intentionally narrow responsibilities:
   idempotent contact submission with truthful provider-acceptance status;
 - `GET/POST /api/household-invitations`: no-secret readiness plus authenticated
   delivery of an invitation already authorised by Firestore Rules;
-- `GET /api/barcode/lookup`: bounded Open Food Facts proxy/fallback.
+- `GET /api/barcode/lookup`: bounded Open Food Facts proxy/fallback;
+- `GET /api/inci/lookup`: missing-INCI fallback for a resolved cosmetic
+  barcode (key-gated, fail-open; supplies the text to the local scoring
+  engine when `INCI_API_KEY` is set);
+- `POST /api/inci/analyze`: local CosIng-backed INCI risk analysis for scanned
+  cosmetics (deterministic scores; an optional key-gated vendor call can add
+  *safe-only* coverage for names the local snapshot misses — see
+  [`docs/COSMETIC_INGREDIENT_SCORING.md`](docs/COSMETIC_INGREDIENT_SCORING.md)
+  and [`data/cosing/README.md`](data/cosing/README.md)).
 
 Financial records are read and written directly through Firebase; they are not
 sent through the email or barcode routes.

@@ -393,6 +393,25 @@ describe('Finance backup deep validation (M1)', () => {
     assert.ok(read.notices.some((notice) => notice.code === 'generatedIds'));
   });
 
+  it('keeps a bounded cosmetic INCI list and rejects one above its cap', () => {
+    const backed = validBackup();
+    backed.products = [{
+      barcode: '3760044183738', name: 'Crème', source: 'manual',
+      ingredientsText: 'Aqua, Glycerin',
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    const read = readFinanceBackup(serializeFinanceBackup(backed as unknown as FinanceBackup));
+    assert.equal(read.backup.products?.[0].ingredientsText, 'Aqua, Glycerin');
+
+    const oversized = validBackup();
+    oversized.products = [{
+      barcode: '3760044183738', name: 'Crème', source: 'manual',
+      ingredientsText: 'A'.repeat(8001),
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    expectRejected(oversized, 'ingredientsText must be a string of up to 8000 characters');
+  });
+
   it('rejects collections above their safety cardinality', () => {
     const tooManyGoals = validBackup();
     tooManyGoals.goals = Array.from({ length: 201 }, (_, i) => ({
@@ -521,7 +540,7 @@ describe('an exported backup re-imports (M-)', () => {
       } as FinanceBackup['configuration'],
       months: { '2026-07': normalized as MonthBudget },
       goals: [{ id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true, category: 'fun', deposited: 40 }],
-      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
+      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, ingredientsText: 'Aqua, Glycerin, Niacinamide', createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
       sessions: [{
         id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z', endedAt: '2026-07-02T18:30:00.000Z',
         date: '2026-07-02', currency: 'MAD', place: 'wallet', total: 17,
@@ -544,6 +563,11 @@ describe('an exported backup re-imports (M-)', () => {
     assert.deepEqual(month.categoryBudgets, { Rent: 900 });
     assert.deepEqual(restored.goals.map((goal) => goal.name), ['Bike']);
     assert.equal(restored.products?.[0].barcode, '6111234567890');
+    assert.equal(
+      restored.products?.[0].ingredientsText,
+      'Aqua, Glycerin, Niacinamide',
+      'the cosmetic INCI field round-trips through the backup (informational only)',
+    );
     assert.equal(restored.sessions?.[0].total, 17);
     // Identity and entitlement data never come back through a restore.
     assert.equal((restored.configuration as Record<string, unknown>).plan, undefined);
@@ -554,6 +578,11 @@ describe('an exported backup re-imports (M-)', () => {
     const reparsed = parseFinanceBackup(serializeFinanceBackup(restored));
     assert.deepEqual(reparsed.months, restored.months);
     assert.deepEqual(reparsed.goals, restored.goals);
+    assert.equal(
+      reparsed.products?.[0].ingredientsText,
+      restored.products?.[0].ingredientsText,
+      'a re-export of the restore keeps the INCI field',
+    );
     // Nothing had to be forgiven: an export of this build imports into this build
     // without a single notice, so every report the tolerant parser can make means a
     // real difference between the file and the account reading it.

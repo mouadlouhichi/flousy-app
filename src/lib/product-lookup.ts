@@ -1,5 +1,5 @@
 /**
- * Open Food Facts barcode lookup (client side).
+ * Open Food Facts / Open Beauty Facts barcode lookup (client side).
  *
  * Tries the OFF world API directly from the browser (the fast path when OFF
  * is reachable from this network); when that yields no product it falls back
@@ -10,19 +10,28 @@
  * `LookupOutcome`) so a cold/overloaded first scan is retryable instead of
  * a misleading "not found".
  *
- * Privacy: only the barcode digits leave the device — never user data.
+ * Cosmetics: beauty/product records carry their INCI list in the
+ * `ingredients_text*` fields, which the mapper exposes as `ingredientsText`
+ * so a first-time scan can score the label locally. When the configured
+ * vendor key is present the proxy also fills an INCI-less cosmetics record
+ * and can synthesize a vendor-only product — the proxy stays the single
+ * place that ever touches the vendor. Privacy: only the barcode digits
+ * leave the device — never user data.
  */
 import type { RemoteProductInfo } from './course-session';
 
-const OFF_HOSTS = [
-  'https://world.openfoodfacts.org/api/v2/product/',
-  'https://ma-fr.openfoodfacts.org/api/v2/product/',
-  'https://ma.openfoodfacts.org/api/v2/product/',
-  'https://world.openbeautyfacts.org/api/v2/product/',
-  'https://world.openproductsfacts.org/api/v2/product/',
+const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
+  { base: 'https://world.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://ma.openfoodfacts.org/api/v2/product/', beauty: false },
+  { base: 'https://world.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://fr.openbeautyfacts.org/api/v2/product/', beauty: true },
+  { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
 ];
 const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,quantity,nutriscore_grade,nutriscore_score';
+  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
+  'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
+  'nutriscore_grade,nutriscore_score';
 
 /**
  * Placeholder tags OFF attaches to products filed under the wrong database
@@ -98,6 +107,45 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
   const category = firstRealCategory(pick('categories'));
   const imageUrl = pick('image_front_url');
   const quantity = pick('quantity');
+  const ingredientsText = [
+    'ingredients_text',
+    'ingredients_text_en',
+    'ingredients_text_fr',
+    'ingredients_text_es',
+    'ingredients_text_ar',
+  ]
+    .map((key) => pick(key))
+    .find((v): v is string => Boolean(v));
+
+  // Cosmetic hint: the app proxy tags beauty/product-mirror hits directly
+  // (`beauty_hint`), while OFF v2 may mark a record beauty only in
+  // `categories_tags` / `product_type` even when the human-readable
+  // `categories` string is just "Incorrect product type, non-food-products"
+  // (the shower gel filed as "Incorrect product type … open-beauty-facts"
+  // case). Read all of them so a code-like cosmetic name can never fall into
+  // the food panel by accident.
+  const categoriesRaw = [
+    pick('categories'),
+    ...(Array.isArray(p.categories_tags)
+      ? (p.categories_tags as unknown[]).filter((v): v is string => typeof v === 'string')
+      : []),
+    ...(Array.isArray(p.labels_tags)
+      ? (p.labels_tags as unknown[]).filter((v): v is string => typeof v === 'string')
+      : []),
+  ]
+    .join(' ')
+    .toLowerCase();
+  const productType = pick('product_type')?.toLowerCase() ?? '';
+  const beauty =
+    p.beauty_hint === true ||
+    p.beauty === true ||
+    categoriesRaw.includes('open-beauty-facts') ||
+    categoriesRaw.includes('open-products-facts') ||
+    categoriesRaw.includes('cosmetic') ||
+    categoriesRaw.includes('beauty') ||
+    productType === 'beauty' ||
+    productType === 'cosmetic' ||
+    productType === 'cosmetics';
 
   // Nutri-Score ranking: only the real letter grades (a–e) are surfaced. OFF
   // also emits 'not-applicable' / 'unknown' / 'not-computed', which must never
@@ -114,6 +162,8 @@ export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemotePr
     ...(imageUrl ? { imageUrl } : {}),
     ...(quantity ? { quantity } : {}),
     ...(grade ? { ranking: { grade, ...(score !== undefined ? { score } : {}) } } : {}),
+    ...(ingredientsText ? { ingredientsText } : {}),
+    ...(beauty ? { beauty: true } : {}),
   };
 }
 
@@ -190,7 +240,7 @@ export async function lookupOffProduct(
   //    the client never burns 20s on dead-end fetches before the fallback.
   //    A direct `status: 0` is NOT final — another instance may know the
   //    code — it just falls through to the proxy.
-  const direct = await fetchJson(`${OFF_HOSTS[0]}${barcode}.json?fields=${FIELDS}`, directTimeoutMs);
+  const direct = await fetchJson(`${OFF_HOSTS[0].base}${barcode}.json?fields=${FIELDS}`, directTimeoutMs);
   const mapped = direct ? mapOffProduct(direct, { lang: opts?.lang }) : null;
   if (mapped) return { kind: 'found', product: mapped };
 

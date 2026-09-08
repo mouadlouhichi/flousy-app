@@ -1836,6 +1836,15 @@
         "imageUrl": {
           "type": "string"
         },
+        "beauty": {
+          "type": "boolean",
+          "description": "Source hint that this is a cosmetic/beauty record — forces the INCI panel even when the mapped name/category is too generic to detect it."
+        },
+        "ingredientsText": {
+          "type": "string",
+          "maxLength": 8000,
+          "description": "Full cosmetic INCI list (informational only — never pricing or money semantics); account-scoped copy saved when a scanned line is confirmed."
+        },
         "lastPrice": {
           "type": "number",
           "minimum": 0,
