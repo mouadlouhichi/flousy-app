@@ -50,9 +50,18 @@ describe('lookupInciForBarcode', () => {
     assert.equal(seen[0], '/api/inci/lookup?code=6111234567890');
   });
 
-  it('maps found:false to not-found (the provider simply has no list)', async () => {
+  it('maps found:false + reason not-found to not-found (provider has no list)', async () => {
     mockFetch(() => json(200, { found: false, reason: 'not-found' }));
     assert.deepEqual(await lookupInciForBarcode('6111234567891'), { kind: 'not-found' });
+  });
+
+  it('maps provider failures to unavailable (retryable — not "no list")', async () => {
+    mockFetch(() => json(502, { found: false, reason: 'lookup-failed' }));
+    assert.deepEqual(await lookupInciForBarcode('6111234567892'), { kind: 'unavailable' });
+
+    // No key configured server-side is not a product verdict.
+    mockFetch(() => json(200, { found: false, reason: 'not-configured' }));
+    assert.deepEqual(await lookupInciForBarcode('6111234567892'), { kind: 'unavailable' });
   });
 
   it('maps errors and malformed shapes to unavailable (keep paste/OCR)', async () => {

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { fetchVendorInci, isVendorConfigured } from '@/lib/server/vendor-inci';
+import { extractVendorInci, fetchVendorPayload, isVendorConfigured } from '@/lib/server/vendor-inci';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { checkArcjet } from '@/lib/server/arcjet';
 
@@ -11,12 +11,19 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * key-gated provider (see src/lib/server/vendor-inci.ts) for the ingredient
  * text and returns it to the client so the normal, deterministic local
  * analysis can score the label. No key → the route is a one-line, zero
- * network no-op (fail-open); a provider error is also returned as
- * `found: false` so the scan flow degrades to today's paste/OCR path.
+ * network no-op (fail-open).
+ *
+ * Distinguishes "the provider has no list" from "we couldn't check":
+ *  - 200 `{ found: true, ingredientsText }` — provider answered with a list;
+ *  - 200 `{ found: false, reason: 'not-found' }` — a provider payload came
+ *    back but had no parseable INCI list (safe to show paste/OCR as a *data*
+ *    gap);
+ *  - 502 `{ found: false, reason: 'lookup-failed' }` — the provider call
+ *    failed (network, HTTP error, timeout). This is NOT cached and the client
+ *    surfaces it as a retryable "couldn't check", never as "no list".
  *
  * Privacy: only the barcode digits reach the app and the provider — never
- * user data. The key stays server-side. Responses are small and cached
- * in-memory for the same five-minute window as the barcode proxy.
+ * user data. The key stays server-side.
  */
 
 export const runtime = 'nodejs';
@@ -81,13 +88,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(payload);
   }
 
-  const inci = await fetchVendorInci(code);
+  // Call the provider. `fetchVendorPayload` returns null on ANY failure
+  // (network, timeout, HTTP error) and the payload object when the endpoint
+  // answered. Only a *payload* we couldn't parse is a genuine "no list" for
+  // the product — a failed call must be retryable, never a cached verdict.
+  const body = await fetchVendorPayload(code);
+  if (!body) {
+    return NextResponse.json(
+      { found: false, reason: 'lookup-failed' },
+      { status: 502, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
+  const inci = extractVendorInci(body);
   const payload = inci
     ? { found: true, ingredientsText: inci }
     : { found: false, reason: 'not-found' };
-  // Both outcomes are deterministic for the code and are cached; provider
-  // errors return null from `fetchVendorInci` so a one-off failure just
-  // becomes a retryable `not-found` at the UI (never a false risk score).
+  // Found / genuinely-no-list are deterministic for the code and cached.
   cacheSet(code, payload);
   return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
 }

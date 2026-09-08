@@ -90,6 +90,14 @@ export function CoursesIngredientPanel({
       setActive(fromRecord || overlay || null);
       setSaved(false);
       setLookupStatus('idle');
+      return;
+    }
+    // Same barcode but the record just gained an INCI list (e.g. the
+    // accordion's vendor fallback resolved while the panel was already open).
+    // Adopt it immediately so a stale "not found" doesn't stay on screen.
+    if (fromRecord && fromRecord !== active) {
+      setActive(fromRecord);
+      setLookupStatus('idle');
     }
   }, [barcode, fromRecord]); // eslint-disable-line react-hooks/exhaustive-deps
 

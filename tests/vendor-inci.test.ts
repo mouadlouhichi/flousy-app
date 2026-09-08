@@ -142,10 +142,13 @@ describe('vendor-inci fetch', () => {
     assert.equal(await fetchVendorPayload('not-a-code', KEYED, httpStub.fetchImpl), null);
     assert.equal(httpStub.calls.length, 0, 'invalid codes never reach the network');
     assert.equal(await fetchVendorPayload('6111234567890', KEYED, httpStub.fetchImpl), null);
-    assert.equal(httpStub.calls.length, 1, 'HTTP errors return null');
+    // Both endpoint variants are tried before giving up.
+    assert.equal(httpStub.calls.length, 2, 'HTTP errors return null after both variants');
+    assert.equal(httpStub.calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`);
+    assert.equal(httpStub.calls[1].url, `${VENDOR_INCI_ENDPOINT}6111234567890`);
     const netStub = stubFetch({ throwOnCall: true });
     assert.equal(await fetchVendorPayload('6111234567890', KEYED, netStub.fetchImpl), null);
-    assert.equal(netStub.calls.length, 1, 'network errors return null');
+    assert.equal(netStub.calls.length, 2, 'network errors return null after both variants');
   });
 
   it('composes into fetchVendorInci / fetchVendorProduct', async () => {
@@ -159,6 +162,26 @@ describe('vendor-inci fetch', () => {
       brand: 'X',
       ingredientsText: 'Aqua, Glycerin',
     });
+  });
+
+  it('falls back to the plain barcode endpoint when /safety 404s', async () => {
+    const calls: string[] = [];
+    const fetchImpl = async (url: string) => {
+      calls.push(url);
+      if (url.endsWith(VENDOR_INCI_SAFETY_PATH)) {
+        return { ok: false, json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ product: { name: 'Crème', details: { inci: ['Aqua', 'Glycerin'] } } }),
+      };
+    };
+    const body = await fetchVendorPayload('6111234567890', KEYED, fetchImpl as never);
+    assert.equal(extractVendorInci(body), 'Aqua, Glycerin');
+    assert.deepEqual(calls, [
+      `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`,
+      `${VENDOR_INCI_ENDPOINT}6111234567890`,
+    ]);
   });
 });
 

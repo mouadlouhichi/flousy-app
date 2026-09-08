@@ -87,12 +87,18 @@ async function fetchInciLookup(key: string): Promise<InciLookupResult> {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return { kind: 'unavailable' };
-    const body = (await res.json()) as { found?: boolean; ingredientsText?: unknown };
+    const body = (await res.json()) as { found?: boolean; reason?: string; ingredientsText?: unknown };
     if (body.found === true && typeof body.ingredientsText === 'string') {
       const text = body.ingredientsText.trim();
       if (text) return { kind: 'found', ingredientsText: text };
     }
-    if (body.found === false) return { kind: 'not-found' };
+    // Only an explicit `not-found` verdict (provider payload with no list)
+    // is treated as "we checked and there is nothing"; every other state —
+    // no key, rate limit, malformed response — is `unavailable` so the UI
+    // offers a retry rather than a false "the provider doesn't know it".
+    if (body.found === false && body.reason === 'not-found') {
+      return { kind: 'not-found' };
+    }
     return { kind: 'unavailable' };
   } catch {
     return { kind: 'unavailable' };

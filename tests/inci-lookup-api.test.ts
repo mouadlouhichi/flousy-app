@@ -115,8 +115,20 @@ describe('GET /api/inci/lookup', () => {
     }) as unknown as typeof fetch;
 
     const res = await callApi('4000000000004', '10.1.0.5');
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 502);
     assert.equal(res.body.found, false);
-    assert.equal(res.body.reason, 'not-found');
+    assert.equal(res.body.reason, 'lookup-failed');
+  });
+
+  it('returns a clean not-found only when a payload came back without INCI', async () => {
+    process.env.INCI_API_KEY = 'sk-test';
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({ product: { product_name: 'Unknown product' } }),
+    })) as unknown as typeof fetch;
+
+    const res = await callApi('5000000000005', '10.1.0.6');
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { found: false, reason: 'not-found' });
   });
 });

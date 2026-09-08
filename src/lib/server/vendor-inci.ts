@@ -168,7 +168,13 @@ const defaultFetch: FetchLike = (url, init) =>
     json: () => Promise<unknown>;
   }>;
 
-/** Fetch a vendor payload; null on any failure (fail-open, no key = no call). */
+/** Fetch a vendor payload; null when no endpoint answered (fail-open, no key = no call).
+ *
+ * Tries the documented `/safety` endpoint first, then the plain barcode
+ * endpoint as a fallback (a provider sometimes 404s one shape but not the
+ * other for the same code). Either shape is fed through `extractVendorInci`
+ * / `extractVendorProduct`, so a provider rename still degrades gracefully.
+ */
 export async function fetchVendorPayload(
   code: string,
   env: EnvVarMap = process.env,
@@ -178,19 +184,28 @@ export async function fetchVendorPayload(
   if (!key || (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code))) {
     return null;
   }
+
+  const encoded = encodeURIComponent(code);
+  const endpoints = [
+    `${VENDOR_INCI_ENDPOINT}${encoded}${VENDOR_INCI_SAFETY_PATH}`,
+    `${VENDOR_INCI_ENDPOINT}${encoded}`,
+  ];
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
   try {
-    const res = await fetchImpl(
-      `${VENDOR_INCI_ENDPOINT}${encodeURIComponent(code)}${VENDOR_INCI_SAFETY_PATH}`,
-      {
-        headers: { 'X-API-Key': key, Accept: 'application/json' },
-        signal: controller.signal,
-      },
-    );
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    for (const url of endpoints) {
+      try {
+        const res = await fetchImpl(url, {
+          headers: { 'X-API-Key': key, Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        if (!res.ok) continue;
+        return await res.json();
+      } catch {
+        // Try the next endpoint; a fully-quiet network still returns null below.
+      }
+    }
     return null;
   } finally {
     clearTimeout(timer);
