@@ -48,7 +48,7 @@ Cross-cutting additions requested with the remediation are also present:
 - `npm run check` passed locally on 2026-09-09: lint, normal and strict TypeScript checks, **798 unit/integration tests**, and **59 render tests**, with zero failures.
 - `npm run build` passed and generated all 55 static pages.
 - GitHub Actions run [`34287229448`](https://github.com/mouadlouhichi/flousy-app/actions/runs/34287229448) passed `check`, the Firestore emulator Rules suite, production build, and browser `e2e`.
-- The Vercel preview is passing as of 2026-09-09. An earlier check hit the account build-rate limit; that transient deployment-account result did not represent a source/build failure.
+- Vercel preview checks on the documentation pushes have alternated between a successful preview and the account build-rate-limit status. The rate-limit result is an account constraint, not a source/build failure; local and GitHub Actions production builds pass.
 
 ### Assurance boundaries that remain
 
@@ -628,5 +628,5 @@ Authoritative/current references used for the regulatory, nomenclature, and barc
 - **Ingredient feature:** may present source-attributed identity, evidence, and a gated assessment when the parser, review state, product form, applicability, and evidence coverage support it. It must continue to avoid universal “safe”, “clean”, “banned”, medical, or legal-compliance conclusions.
 - **Data handling:** OCR review, unknown-name aggregation, provider boundaries, account-scoped overlays, provenance, historical evidence, and backup/restore now use explicit bounded contracts. Consequential label suffixes are rejected whole rather than silently truncated.
 - **Nutri-Score and origin:** points are no longer represented as a positive `/100`, and GS1 prefixes are not represented as manufacturing origin. Restricted-circulation price interpretation requires issuer-specific configuration and confirmation.
-- **Deployment note:** the Vercel preview is passing as of this update. An earlier rate-limit result was an account constraint rather than a source/build failure; the production build also passes locally and in GitHub Actions.
+- **Deployment note:** Vercel checks on the documentation pushes have alternated between a successful preview and the account build-rate-limit status. The latter is an account constraint rather than a source/build failure; the production build passes locally and in GitHub Actions.
 - **Ongoing posture:** this remains a label-information and evidence feature, not a substitute for a qualified safety assessor, medical advice, or jurisdiction-specific legal review. Regulatory-data changes require dated review and conformance tests; camera releases require representative real-device checks.
