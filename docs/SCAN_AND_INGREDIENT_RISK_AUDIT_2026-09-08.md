@@ -1,11 +1,65 @@
 # Scan and ingredient-risk functional audit
 
-**Audit date:** 2026-09-08
-**Audited revision:** `eb588a3`
-**Scope:** barcode acquisition and every scan surface; product resolution and persistence; cosmetic INCI acquisition, parsing, scoring, caching, display, and history
-**Overall recommendation:** **do not present the current cosmetic score as a reliable safety or EU-regulatory verdict until A-01 through A-04 are fixed.** The shopping scanner also needs a one-scan/one-action state machine before it can be considered data-safe under normal camera use.
+- **Audit date:** 2026-09-08
+- **Audited revision:** `eb588a3`
+- **Remediation update:** 2026-09-09
+- **Remediated revision:** `406f003` on PR [#67](https://github.com/mouadlouhichi/flousy-app/pull/67)
+- **Scope:** barcode acquisition and every scan surface; product resolution and persistence; cosmetic INCI acquisition, parsing, scoring, caching, display, and history
+- **Original release recommendation:** **do not present the audited cosmetic score as a reliable safety or EU-regulatory verdict until A-01 through A-04 are fixed.** The audited shopping scanner also needed a one-scan/one-action state machine.
+- **Current implementation status:** the code remediations for A-01 through A-20 are implemented and regression-covered. Ingredient output remains an informational, EU-source-based label assessment—not a product-safety opinion, medical recommendation, or determination of legal compliance.
 
-## 1. Executive summary
+> **Historical-reading note:** Sections 1–8 preserve the evidence and behavior observed at `eb588a3`. Present-tense statements in those sections describe the audited revision, not `406f003`. Section 0 records the implemented closure and current validation state.
+
+## 0. Remediation status (2026-09-09)
+
+### Closure summary
+
+| Finding | Status at `406f003` | Implemented evidence |
+|---|---|---|
+| **A-01** — current regulatory classifications | **Implemented with claim gates** | Versioned 30,418-name EU glossary plus a 2,385-record condition-preserving Annex II–VI corpus; applicability is explicit and scoring is withheld when conditions cannot be resolved (`data/cosing/`, `src/lib/ingredient-safety/{dataset,regulatory,analyze}.ts`). |
+| **A-02** — parser/OCR suffix loss | **Implemented** | Unicode-aware parsing, delimiter diagnostics, no silent alphabetic-suffix loss, bounded OCR, and mandatory review of OCR text and parsed tokens (`normalize.ts`, `label-ocr.ts`, `label-ocr-button.tsx`). |
+| **A-03** — cache/form context | **Implemented** | Explicit and user-correctable form; completed and in-flight identity includes normalized text, effective context, review source, and engine/dataset version (`form.ts`, `ingredient-analysis-client.ts`). |
+| **A-04** — recognition promoted to “clean” | **Implemented** | Identification, local evidence, external provenance, and assessment are separate; provider observations are attributed and cannot create a local tier, clear a concern, or improve a score (`analyze.ts`, `server/vendor-inci.ts`). |
+| **A-05** — repeat/stale scan actions | **Implemented** | One-acquisition/one-action lifecycle, synchronous acceptance gate, explicit rearm, generation checks, and stale detector suppression (`use-barcode-scanner.ts`, `scanner-lifecycle.ts`). |
+| **A-06** — barcode mutation/format loss | **Implemented** | Shared format-aware GTIN-8/12/13/14 validation, explicit UPC-E expansion, checksum enforcement, and canonical zero-filled GTIN-14 identity across all boundaries (`gtin.ts`). |
+| **A-07** — divergent lookup consumers | **Implemented** | Courses, Knowledge, and Expense use the same abortable `resolveScan` orchestration and origin-aware result contract (`scan-resolution.ts`, `product-lookup.ts`). |
+| **A-08** — binary domain routing | **Implemented** | Food/cosmetic/household/pet/unknown domain model with explicit user selection/override and conservative inference (`food-knowledge/domain.ts`, Courses and Knowledge screens). |
+| **A-09** — lossy catalog learning | **Implemented** | Complete bounded product metadata, per-field provenance, canonical identity, merge semantics, and stale-while-revalidate refresh (`course-session.ts`, `product-lookup.ts`). |
+| **A-10** — non-durable last-write-wins shopping state | **Implemented** | Durable local state, revisioned mutation outbox, transaction/rebase behavior, bounded retention, and synchronized persistence (`use-course-session.ts`, `course-sync.ts`, `db.ts`). |
+| **A-11** — OCR language/stale lifecycle | **Implemented** | Label-language selector independent of UI locale, self-hosted models, acquisition identity, abort handling, bounded preprocessing/output, and mandatory confirmation (`label-ocr.ts`, `label-ocr-button.tsx`). |
+| **A-12** — lossy quality/history/restore | **Implemented** | Origin-bound asynchronous assessment writes, full evidence/version/coverage snapshots, strict nested restore validation, and export→restore→export fixed points (`course-sync.ts`, `finance-backup.ts`). |
+| **A-13** — prefix price/origin overstatement | **Implemented** | Restricted-circulation price parsing requires an explicit issuer layout and confirmation; GS1 prefix copy no longer claims manufacturing origin (`course-session.ts`, `scan-resolution.ts`, localized copy). |
+| **A-14** — privacy/methodology mismatch | **Implemented** | README, privacy text, environment documentation, localized copy, provider fields/recipients, on-device OCR, sync timing, and methodology now match execution (`README.md`, `.env.example`, `docs/COSMETIC_INGREDIENT_SCORING.md`). |
+| **A-15** — inactive ROI/zoom/coarse errors | **Implemented** | Real track zoom capability handling, ROI-aware decoding, camera recovery/restart states, and differentiated media errors (`use-barcode-scanner.ts`, `barcode-scanner-panel.tsx`). |
+| **A-16** — serial lookup starvation | **Implemented** | One end-to-end deadline and cancellation signal with bounded parallel source resolution; provider time is inside the shared budget (`scan-resolution.ts`, barcode lookup route). |
+| **A-17** — Nutri-Score points shown as `/100` | **Implemented** | Only real grades are ranked; calculation points retain their actual direction/semantics and are not rendered as a positive percentage (`product-lookup.ts`, `ranking-chip.tsx`). |
+| **A-18** — device-overlay lifecycle/account leakage | **Implemented** | Account-scoped synchronized overlays, canonical GTIN identity, corruption rejection, 12,000-character/300-entry bounds, precedence, removal, and bounded adoption (`ingredient-device-store.ts`). |
+| **A-19** — food cache/context/allergen gaps | **Implemented** | Context-complete bounded cache and in-flight identity, immediate deterministic local output, independent subscriber cancellation, asynchronous enrichment, and trusted OFF allergen-tag plumbing (`food-analysis-client.ts`, food panels). |
+| **A-20** — missing/defect-encoding tests | **Implemented** | Boundary, current-law, GTIN, request-order, cancellation, OCR, origin-write, multi-tab/outbox, restore, hostile-provider, Firestore Rules, render, and browser lifecycle coverage under `tests/`. |
+
+Cross-cutting additions requested with the remediation are also present:
+
+- Local identity coverage now uses the official 30,418-name EU 2025 glossary with aliases and legacy metadata where useful. A recognized name establishes nomenclature identity only; it does **not** establish safety, authorization, or compliance.
+- Unidentified ingredients are reported through a privacy-minimized, bounded, rate-limited aggregate. No raw token, label, barcode, product name, account ID, image, or IP identity is stored; durable reporting requires a deployment-specific HMAC key.
+- The shared 12,000-character label-text ceiling is enforced at UI, OCR, client-cache, API, external-provider, analysis-core, catalog, persistence, and backup boundaries. Oversized consequential values are rejected whole instead of prefix-truncated.
+
+### Validation at the remediated revision
+
+- `npm run check` passed locally on 2026-09-09: lint, normal and strict TypeScript checks, **798 unit/integration tests**, and **59 render tests**, with zero failures.
+- `npm run build` passed and generated all 55 static pages.
+- GitHub Actions run [`34287229448`](https://github.com/mouadlouhichi/flousy-app/actions/runs/34287229448) passed `check`, the Firestore emulator Rules suite, production build, and browser `e2e`.
+- Vercel's status for the revision points to the account build-rate-limit page. This is a deployment-account limit; both local and GitHub Actions production builds pass.
+
+### Assurance boundaries that remain
+
+Implementation closure is not the same as regulatory certification or physical-device certification:
+
+1. An independently reviewed, dated legal conformance matrix should remain part of release governance whenever the regulatory corpus changes.
+2. Real-device camera behavior should continue to be checked on representative Android Chrome and iOS Safari devices; CI covers deterministic lifecycle and browser-fake contracts, not every camera driver.
+3. An ingredient list cannot establish formulation safety or legal compliance because concentration, product use, exposure, impurities, warnings, and transition facts may be absent. The implementation therefore withholds conclusions when required applicability is unresolved.
+4. Morocco and the EU are distinct jurisdictions. EU source status is displayed as EU context and is not presented as a determination of Moroccan law.
+
+## 1. Executive summary (audited revision `eb588a3`)
 
 The implementation has a thoughtful fallback structure, good localization coverage in many rendered components, explicit timeouts, bounded server caches, manual-entry paths, and useful pure-function test coverage. `npm run check` and `npm run build` both pass at the audited revision. Those checks do not exercise the request-identity, camera lifecycle, multi-tab, OCR-quality, or regulatory-freshness failures below.
 
@@ -26,7 +80,7 @@ The most important reproduced outcomes are:
 7. Current-law probes produce both directions of regulatory error: Quaternium-15, 4-MBC, and TPO can appear reassuring, while Triclosan, Triclocarban, and DINP are labeled universally prohibited.
 8. A backup exported by this build includes modern scan metadata, but this build's own reader removes product `ranking`/`beauty` and session-item `ranking`/`quality` before restore.
 
-## 2. Method and confidence
+## 2. Original audit method and confidence
 
 ### What was exercised
 
@@ -45,7 +99,7 @@ The most important reproduced outcomes are:
 
 No physical camera was available in the audit environment. Camera timing findings are therefore code-path confirmed; pure parsing, scoring, barcode, cache, and backup findings are reproduced.
 
-## 3. Surface map
+## 3. Surface map (audited revision `eb588a3`)
 
 | Surface | Capture | Canonicalization | Resolution | Confirmation | Persistence |
 |---|---|---|---|---|---|
@@ -55,9 +109,11 @@ No physical camera was available in the audit environment. Camera timing finding
 | **Cosmetic label** | OFF/OBF text → optional barcode vendor → device overlay → paste/OCR | `splitInciList` + ASCII-centric normalization | local 2019 CosIng-derived snapshot + hand overlay + optional safe-only vendor recognition | score is shown as soon as text is accepted | ingredient text can enter device overlay and account catalog; a reduced quality summary enters the session later |
 | **Food label** | OFF text or paste/OCR | food parser | local rules + optional external explanation | panel only | analysis is not stored; OFF allergen tags are not plumbed from lookup |
 
-## 4. Prioritized confirmed findings
+## 4. Prioritized confirmed findings (audited revision `eb588a3`)
 
 ### A-01 — Critical — Current EU regulatory classifications are materially wrong
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `data/cosing/README.md`; `src/lib/ingredient-safety/eu-lists.ts:80-207`; `src/lib/ingredient-safety/dataset.ts:18-25,83-129`; `src/lib/ingredient-safety/analyze.ts:160-257`
@@ -87,6 +143,8 @@ The generic Annex parser also produced “prohibited” for records carrying mix
 
 ### A-02 — Critical — Parsing and automatic OCR acceptance can hide hazardous ingredients while returning a reassuring score
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/ingredient-safety/normalize.ts:12-58,108-149`; `src/components/dashboard/courses/courses-ingredient-panel.tsx:151-169,261-275`; `src/components/dashboard/courses/label-ocr-button.tsx:28-46`
 
@@ -111,6 +169,8 @@ The OCR path auto-adopts any output for which the permissive splitter returns at
 ---
 
 ### A-03 — Critical — Score cache and form inference can return the wrong assessment for the current product
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/ingredient-analysis-client.ts:27-37,61-91`; `src/components/dashboard/courses/courses-label-accordion.tsx:148-173`; `src/lib/ingredient-safety/analyze.ts:65-105,313-324`
@@ -140,6 +200,8 @@ There is no form override in the UI even though the API supports one.
 
 ### A-04 — Critical — “Recognized” is incorrectly promoted to “clean”, and a vendor can manufacture 100 / Excellent
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/ingredient-safety/analyze.ts:251-278,324-362`; `src/lib/server/vendor-inci.ts:271-356`; `src/app/api/inci/analyze/route.ts:112-139`
 
@@ -159,6 +221,8 @@ Consequently configuration, quota, latency, or network state can change the same
 ---
 
 ### A-05 — High — The scanner remains armed after acceptance, causing repeat emissions, pending replacement, and stale decoder callbacks
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** code-path confirmed
 **Primary evidence:** `src/hooks/use-barcode-scanner.ts:59-113,151-219`; `src/components/dashboard/screens/courses-screen.tsx:171-239,488-510`; `src/components/ui/barcode-scanner-panel.tsx:122-145`
@@ -184,6 +248,8 @@ All shared scanner surfaces inherit the acquisition problem. Their consumers var
 
 ### A-06 — High — Barcode handling both mutates invalid input and loses valid barcode semantics
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/course-session.ts:36-105`; `tests/course-session.test.ts:87-141`; `src/app/api/barcode/lookup/route.ts:95-102`
 
@@ -206,6 +272,8 @@ Problems reproduced:
 
 ### A-07 — High — Lookup consumers have no request identity and the three scan surfaces implement different products
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed by code; stale completion requires timing
 **Primary evidence:** `src/components/dashboard/screens/knowledge-screen.tsx:46-68`; `src/components/modals/expense-barcode-scanner.tsx:36-48`; `src/components/modals/ExpenseModal.tsx:428-435`
 
@@ -225,6 +293,8 @@ The surfaces are also functionally inconsistent:
 
 ### A-08 — High — Binary domain routing misclassifies unsupported and unknown products, with no user override
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/food-knowledge/domain.ts:77-106,193-232`; `src/lib/product-lookup.ts:23-30`; `src/components/dashboard/screens/knowledge-screen.tsx:93-111,252-280`
 
@@ -239,6 +309,8 @@ An unresolved barcode in Knowledge always gets `CoursesFoodPanel`; the always-fr
 ---
 
 ### A-09 — High — Catalog learning is lossy and catalog/seed precedence makes the loss permanent
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed
 **Primary evidence:** `src/components/dashboard/screens/courses-screen.tsx:198-231,258-268`; `src/hooks/use-course-session.ts:233-276`; `src/lib/course-session.ts:486-537`
@@ -257,6 +329,8 @@ Knowledge's “Save product” write is not consumed by Knowledge (`catalog: []`
 
 ### A-10 — High — Shopping persistence is not durable offline and whole-document writes are last-write-wins
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** code-path confirmed
 **Primary evidence:** `src/lib/firebase.ts:53-60`; `src/hooks/use-course-session.ts:64-149,160-176`; `src/lib/db.ts:980-1031`
 
@@ -271,6 +345,8 @@ Every item/quantity/quality change writes the entire session document; Firestore
 ---
 
 ### A-11 — High — OCR language and lifecycle are tied to UI state, and stale OCR can attach one label to another product
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** code-path confirmed; language behavior confirmed
 **Primary evidence:** `src/lib/label-ocr.ts:18-45`; `src/components/dashboard/courses/label-ocr-button.tsx:27-53`; `src/components/dashboard/courses/courses-ingredient-panel.tsx:107-169`
@@ -288,6 +364,8 @@ There is also no crop, orientation/preprocessing, confidence threshold, image-si
 ---
 
 ### A-12 — High — Quality persistence, historical display, and backup/restore lose safety-critical context
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/components/dashboard/screens/courses-screen.tsx:241-296`; `src/hooks/use-course-session.ts:225-231`; `src/lib/course-session.ts:247-280`; `src/components/ui/quality-score-chip.tsx:105-126`; `src/lib/finance-backup.ts:689-738`; `src/lib/db.ts:519-533`
@@ -311,6 +389,8 @@ Restore uses non-merge batch `set`, so accepting the warning can overwrite riche
 
 ### A-13 — High — Prefix-2 price and “Made in Morocco” interpretations overstate what a GTIN says
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed; standards comparison confirmed
 **Primary evidence:** `src/lib/course-session.ts:57-81,107-109,495-526`; `messages/en.json` (`courses.maBadge`, `courses.priceFromLabel`)
 
@@ -325,6 +405,8 @@ Separately, prefix `611` is rendered as **“Made in Morocco”**. GS1 explicitl
 ---
 
 ### A-14 — High — User-facing privacy, locality, determinism, and backup claims do not match execution
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed
 **Primary evidence:** `messages/en.json` (`ingredientManual.pasteHelp`, `ingredientManual.savedNote`, `legal.privacy`); `docs/COSMETIC_INGREDIENT_SCORING.md`; `src/app/api/inci/analyze/route.ts:112-139`; `src/lib/server/vendor-inci.ts:326-356`
@@ -347,6 +429,8 @@ Examples:
 
 ### A-15 — Medium — The visible scan frame and zoom do not control decoding; permission/error handling is coarse
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed by code
 **Primary evidence:** `src/components/ui/barcode-scanner-panel.tsx:178-245`; `src/hooks/use-barcode-scanner.ts:228-299`
 
@@ -359,6 +443,8 @@ All `getUserMedia` failures are mapped to `camera-denied`, including no device, 
 ---
 
 ### A-16 — Medium — Serial lookup budgets can starve cosmetic sources and outlive the client
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed by code/timing bounds
 **Primary evidence:** `src/lib/product-lookup.ts:229-269`; `src/app/api/barcode/lookup/route.ts:82-90,231-285`
@@ -373,6 +459,8 @@ The proxy may then add a 3 s vendor call outside the 12 s walk deadline, while t
 
 ### A-17 — Medium — Raw OFF Nutri-Score points are rendered as a positive `/100`
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced with live OFF records
 **Primary evidence:** `src/lib/product-lookup.ts:151-166`; `src/components/ui/ranking-chip.tsx:37-42`; `src/lib/store.ts:2556-2574`
 
@@ -385,6 +473,8 @@ The letter grade/color is useful; the numeric suffix and type comments are wrong
 ---
 
 ### A-18 — Medium — Device INCI overlay removal, precedence, validation, and account boundaries are unreliable
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed by code
 **Primary evidence:** `src/lib/ingredient-device-store.ts`; `src/components/dashboard/courses/courses-ingredient-panel.tsx:73-127,172-190`
@@ -399,6 +489,8 @@ The overlay is one global localStorage map, not account-namespaced and not clear
 
 ### A-19 — Medium — Food analysis has the same context/stale-cache pattern and does not receive OFF allergen tags
 
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
+
 **Confidence:** confirmed/reproduced
 **Primary evidence:** `src/lib/food-analysis-client.ts:18-91`; `src/components/dashboard/courses/courses-food-panel.tsx:97-126`; `src/lib/product-lookup.ts:31-35`
 
@@ -411,6 +503,8 @@ Local analysis is computed immediately but withheld while the client waits up to
 ---
 
 ### A-20 — Medium — Existing green tests omit lifecycle/concurrency/current-law contracts and encode two defects
+
+**Remediation status (2026-09-09):** Code remediation implemented and regression-covered at `406f003`; see [Section 0](#0-remediation-status-2026-09-09).
 
 **Confidence:** confirmed
 **Primary evidence:** `tests/course-session.test.ts:87-141`; `tests/ingredient-safety.test.ts:220-265`; `tests/finance-backup.test.ts:540-590`
@@ -443,7 +537,9 @@ The following limitations must remain separate from code defects:
 
 The application's manual blanket entry “phthalates are banned” includes Diisononyl Phthalate. Review of the current Cosmetics Regulation consolidation and its Annex II phthalate sequence did not support that DINP cosmetics prohibition; ECHA/EFSA materials also distinguish DINP from the classified low-molecular-weight phthalates, while separate REACH restrictions apply to certain toys/childcare articles. The correct remediation is to remove the unsupported cosmetics claim pending a structured current source/legal review—not to replace it with a universal “safe” claim.
 
-## 6. Recommended remediation sequence
+## 6. Original recommended remediation sequence (implementation completed)
+
+The sequence below is retained as the original audit plan. Its code work is represented in the Section 0 closure matrix and is complete at `406f003`. The independent legal-review and real-device assurance items remain ongoing release-governance checks rather than claims established by this repository.
 
 ### Release block / first 48 hours
 
@@ -465,7 +561,7 @@ The application's manual blanket entry “phthalates are banned” includes Diis
 13. Correct origin and Nutri-Score wording.
 14. Align privacy policy, localized copy, and technical docs with actual processors/storage.
 
-### Validation before re-enabling claims
+### Original validation gates (retained as ongoing assurance)
 
 - Legally reviewed test matrix against the then-current consolidated Regulation 1223/2009 and effective transitions.
 - Physical Android Chrome, iOS Safari, and Firefox tests with EAN-8/13, UPC-A/E, GTIN-14, Code 128, multiple codes, torch, camera switch, denied/busy permissions, and backgrounding.
@@ -474,9 +570,9 @@ The application's manual blanket entry “phthalates are banned” includes Diis
 - EN/FR/AR tests with Arabic-Indic digits, Arabic/French/Latin labels independent of UI locale, RTL overflow, and current privacy copy.
 - Backup export → parse → restore → export equality using every current scan/risk field.
 
-## 7. Reproduction ledger
+## 7. Historical reproduction ledger (`eb588a3`)
 
-These are minimal probes used during the audit. They are documentation, not committed tests.
+These are minimal probes and outputs recorded during the original audit. They are retained as historical evidence and are **not** expected outputs at `406f003`; equivalent corrected boundaries now have committed regression coverage under `tests/`.
 
 ```bash
 # EAN-8 weighting
@@ -491,12 +587,12 @@ npx tsx -e "import {normalizeBarcode} from './src/lib/course-session'; console.l
 npx tsx -e "import {analyzeInciText} from './src/lib/ingredient-safety/analyze'; console.log(analyzeInciText('Aqua, Glycerin (plant derived, Sodium Laureth Sulfate, Parfum',{label:'Face cream'}))"
 # observed summary: total 2, recognized 2, score 100, band excellent
 
-# Current overlay examples
+# Historical overlay examples at eb588a3
 npx tsx -e "import {analyzeInciText} from './src/lib/ingredient-safety/analyze'; for (const x of ['Quaternium-15','4-Methylbenzylidene Camphor','Trimethylbenzoyl Diphenylphosphine Oxide']) { const a=analyzeInciText('Aqua, '+x,{form:'leave-on'}); console.log(x,a.ingredients[1]?.tier,a.score,a.band) }"
 # observed: caution 93 excellent; clean 100 excellent; clean 100 excellent
 ```
 
-A simulated current-backup round trip produced:
+A simulated backup round trip at `eb588a3` produced:
 
 ```text
 product-ranking accepted-but-restored-as ...
@@ -510,8 +606,9 @@ session-ranking-quality accepted-but-restored-as ...
 
 ## 8. External references
 
-Authoritative/current references used for the regulatory and barcode comparisons:
+Authoritative/current references used for the regulatory, nomenclature, and barcode comparisons:
 
+- [Commission Implementing Decision (EU) 2025/1175 — common ingredient-name glossary](https://eur-lex.europa.eu/eli/dec_impl/2025/1175/oj)
 - [Regulation (EC) No 1223/2009, consolidation of 18 May 2026](https://eur-lex.europa.eu/eli/reg/2009/1223/2026-05-18/eng)
 - [Commission Regulation (EU) 2019/831 — Quaternium-15 and other CMR changes](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32019R0831)
 - [Commission Regulation (EU) 2023/1545 — fragrance allergen labeling](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32023R1545)
@@ -524,8 +621,12 @@ Authoritative/current references used for the regulatory and barcode comparisons
 - [Open Food Facts Nutri-Score formula](https://world.openfoodfacts.org/nutriscore-formula)
 - [EFSA 2019 phthalates opinion, including DINP regulatory context](https://efsa.onlinelibrary.wiley.com/doi/full/10.2903/j.efsa.2019.5838)
 
-## 9. Final disposition
+## 9. Current disposition (updated 2026-09-09)
 
-- **Scan feature:** functionally broad but **not yet one-scan/one-action safe**; repeated scans, stale completions, and non-durable whole-document persistence can change or lose shopping data.
-- **Ingredient risk-rank feature:** **not suitable for safety, purchase, or regulatory decisions in its current presentation**. The critical issue is not merely stale coverage; the system can confidently emit both false positive and false negative legal/safety messages.
-- **Safe interim product posture:** allow barcode-assisted name lookup and display source-attributed raw label information, but remove universal origin claims, misleading Nutri-Score `/100`, and cosmetic safety/legal scoring until the critical remediation and validation plan is complete.
+- **Code remediation:** A-01 through A-20 are implemented at `406f003` and included in PR [#67](https://github.com/mouadlouhichi/flousy-app/pull/67). The branch is clean, and local check/build plus GitHub Actions `check` and browser `e2e` pass.
+- **Scan feature:** strict format-aware identity, one-acquisition/one-action handling, generation guards, cancellation, unified resolution, revisioned persistence, and stale-result protection replace the audited unsafe paths.
+- **Ingredient feature:** may present source-attributed identity, evidence, and a gated assessment when the parser, review state, product form, applicability, and evidence coverage support it. It must continue to avoid universal “safe”, “clean”, “banned”, medical, or legal-compliance conclusions.
+- **Data handling:** OCR review, unknown-name aggregation, provider boundaries, account-scoped overlays, provenance, historical evidence, and backup/restore now use explicit bounded contracts. Consequential label suffixes are rejected whole rather than silently truncated.
+- **Nutri-Score and origin:** points are no longer represented as a positive `/100`, and GS1 prefixes are not represented as manufacturing origin. Restricted-circulation price interpretation requires issuer-specific configuration and confirmation.
+- **Deployment note:** Vercel's check is blocked by the account build-rate limit, not by a source/build failure. The production build passes locally and in GitHub Actions.
+- **Ongoing posture:** this remains a label-information and evidence feature, not a substitute for a qualified safety assessor, medical advice, or jurisdiction-specific legal review. Regulatory-data changes require dated review and conformance tests; camera releases require representative real-device checks.
