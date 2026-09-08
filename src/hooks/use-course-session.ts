@@ -365,7 +365,7 @@ export function useCourseSession(uid: string | null | undefined) {
       startedAt: now,
       date: now.slice(0, 10),
       currency: params.currency,
-      place: params.place,
+      place: params.place ?? '',
       items: [],
       total: 0,
       revision: 0,

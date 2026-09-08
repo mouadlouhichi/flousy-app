@@ -10,7 +10,7 @@ import { lookupMaSeed } from '@/lib/ma-product-seed';
 import { lookupOffProduct } from '@/lib/product-lookup';
 import { resolveScan, type ResolvedProduct } from '@/lib/scan-resolution';
 import type { BarcodeCandidate } from '@/lib/gtin';
-import type { Product, ProductDomain } from '@/lib/store';
+import type { Product, ProductDomain, ProductSource } from '@/lib/store';
 import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { CoursesScanUpsell } from '../courses/courses-scan-upsell';
 import { CoursesIngredientPanel } from '../courses/courses-ingredient-panel';
@@ -111,7 +111,10 @@ export function KnowledgeScreen() {
       source: product.source,
       sourceUrl: product.sourceUrl,
       sourceDatabase: product.sourceDatabase,
-      provenance: product.provenance,
+      provenance: {
+        ...product.provenance,
+        ...(domainOverride !== null ? { domain: { source: 'manual' as const, retrievedAt: now } } : {}),
+      },
       retrievedAt: product.retrievedAt,
       staleAfter: product.staleAfter,
       createdAt: now,
@@ -232,20 +235,51 @@ export function KnowledgeScreen() {
             <CoursesIngredientPanel
               barcode={product?.barcode ?? unresolvedBarcode}
               initialText={product?.ingredientsText}
+              initialSource={product?.provenance?.ingredientsText?.source === 'ocr'
+                ? 'ocr'
+                : product?.provenance?.ingredientsText?.source === 'manual'
+                  ? 'paste'
+                  : 'provider'}
+              initialReviewed={Boolean(product?.ingredientsText)}
               name={product?.name}
               category={product?.category}
               form={product?.cosmeticForm}
               onFormChange={(form) => {
                 setSaved(false);
                 setLookup((previous) => previous.status === 'found'
-                  ? { ...previous, product: { ...previous.product, cosmeticForm: form } }
+                  ? {
+                      ...previous,
+                      product: {
+                        ...previous.product,
+                        cosmeticForm: form,
+                        provenance: {
+                          ...previous.product.provenance,
+                          cosmeticForm: { source: 'manual', retrievedAt: new Date().toISOString() },
+                        },
+                      },
+                    }
                   : previous);
               }}
-              onIngredientsText={(text) => {
+              onIngredientsText={(text, metadata) => {
                 setSaved(false);
-                setLookup((previous) => previous.status === 'found'
-                  ? { ...previous, product: { ...previous.product, ingredientsText: text } }
-                  : previous);
+                setLookup((previous) => {
+                  if (previous.status !== 'found') return previous;
+                  const provenance = { ...previous.product.provenance };
+                  if (text) {
+                    const source: ProductSource = metadata?.source === 'ocr'
+                      ? 'ocr'
+                      : metadata?.source === 'remote'
+                        ? 'vendor'
+                        : 'manual';
+                    provenance.ingredientsText = { source, retrievedAt: new Date().toISOString() };
+                  } else {
+                    delete provenance.ingredientsText;
+                  }
+                  return {
+                    ...previous,
+                    product: { ...previous.product, ingredientsText: text, provenance },
+                  };
+                });
               }}
             />
           ) : selectedDomain === 'food' ? (

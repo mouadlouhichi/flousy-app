@@ -107,6 +107,129 @@ after(async () => {
   await environment.cleanup();
 });
 
+const catalogProduct = (overrides: Record<string, unknown> = {}) => ({
+  barcode: '4006381333931',
+  gtin14: '04006381333931',
+  name: 'Test product',
+  source: 'off',
+  provenance: {
+    name: {
+      source: 'off',
+      retrievedAt: '2026-09-08T12:00:00.000Z',
+      sourceUrl: 'https://world.openfoodfacts.org/product/4006381333931',
+    },
+  },
+  createdAt: '2026-09-08T12:00:00.000Z',
+  updatedAt: '2026-09-08T12:00:00.000Z',
+  ...overrides,
+});
+
+const courseSession = (overrides: Record<string, unknown> = {}) => ({
+  id: 'course-test',
+  status: 'active',
+  startedAt: '2026-09-08T12:00:00.000Z',
+  date: '2026-09-08',
+  currency: 'MAD',
+  place: 'bank',
+  items: [],
+  total: 0,
+  revision: 1,
+  updatedAt: '2026-09-08T12:00:00.000Z',
+  lastMutationId: 'course-mutation-1',
+  ...overrides,
+});
+
+describe('bounded product catalog and shopping-session rules', () => {
+  it('accepts a canonical product with reviewed OCR provenance', async () => {
+    const db = asUser('alice');
+    await assertSucceeds(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      source: 'ocr',
+      ingredientsText: 'Aqua, Glycerin',
+      provenance: {
+        name: { source: 'off', retrievedAt: '2026-09-08T12:00:00.000Z' },
+        ingredientsText: { source: 'ocr', retrievedAt: '2026-09-08T12:01:00.000Z' },
+      },
+    })));
+  });
+
+  it('rejects non-canonical identity, unknown keys, and oversized ingredient text', async () => {
+    const db = asUser('alice');
+    await assertFails(setDoc(doc(db, 'users/alice/products/4006381333931'), catalogProduct()));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      gtin14: '00000000000000',
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      unexpected: true,
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      ingredientsText: 'a'.repeat(12_001),
+    })));
+  });
+
+  it('rejects malformed or unbounded product provenance', async () => {
+    const db = asUser('alice');
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        ingredientsText: {
+          source: 'unattributed',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+        },
+      },
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        secretField: {
+          source: 'manual',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+        },
+      },
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        name: {
+          source: 'manual',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+          payload: 'not allowed',
+        },
+      },
+    })));
+  });
+
+  it('requires revisioned, bounded shopping-session documents', async () => {
+    const db = asUser('alice');
+    const ref = doc(db, 'users/alice/sessions/course-test');
+    await assertSucceeds(setDoc(ref, courseSession()));
+    await assertSucceeds(setDoc(ref, courseSession({
+      revision: 2,
+      lastMutationId: 'course-mutation-2',
+      items: [{ key: 'line-1' }],
+    })));
+    await assertFails(setDoc(ref, courseSession({
+      revision: 2,
+      lastMutationId: 'course-mutation-3',
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/wrong-id'), courseSession()));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/course-large'), courseSession({
+      id: 'course-large',
+      items: Array.from({ length: 501 }, (_, index) => ({ key: `line-${index}` })),
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/course-extra'), courseSession({
+      id: 'course-extra',
+      internal: { unrestricted: true },
+    })));
+  });
+
+  it('does not expose another account catalog or sessions', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct());
+      await setDoc(doc(db, 'users/alice/sessions/course-test'), courseSession());
+    });
+    const mallory = asUser('mallory');
+    await assertFails(getDoc(doc(mallory, 'users/alice/products/04006381333931')));
+    await assertFails(getDoc(doc(mallory, 'users/alice/sessions/course-test')));
+  });
+});
+
 describe('revisioned personal finance rules', () => {
   it('requires an immutable ledger row and an exact revision increment', async () => {
     const db = asUser('alice');

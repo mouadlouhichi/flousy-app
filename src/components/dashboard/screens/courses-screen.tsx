@@ -27,7 +27,7 @@ import {
   type VariableExpense,
 } from '@/lib/store';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
-import type { ProductForm } from '@/lib/ingredient-safety/types';
+import type { ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
 import { isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
@@ -341,9 +341,32 @@ function CoursesScreenInner() {
 
     scanAbortRef.current?.abort();
     scanRequestIdRef.current += 1;
-    const ingredientsText =
-      (pending.barcode ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)?.text : undefined) ||
-      pending.ingredientsText?.trim();
+    const confirmedOverlay = pending.barcode
+      ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)
+      : undefined;
+    const ingredientsText = confirmedOverlay?.text || pending.ingredientsText?.trim();
+    const now = new Date().toISOString();
+    const ingredientsProvenance: ProductFieldProvenance | undefined = ingredientsText
+      ? confirmedOverlay
+        ? {
+            source: confirmedOverlay.source,
+            retrievedAt: confirmedOverlay.updatedAt,
+          }
+        : pending.provenance?.ingredientsText ?? {
+            source: pending.productSource ?? (pending.source === 'manual' ? 'manual' : 'off'),
+            retrievedAt: pending.retrievedAt ?? now,
+          }
+      : undefined;
+    const effectiveProvenance = {
+      ...(pending.provenance ?? {}),
+      ...(ingredientsProvenance ? { ingredientsText: ingredientsProvenance } : {}),
+    };
+    const analysisSource = ingredientsProvenance?.source === 'ocr'
+      ? 'ocr' as const
+      : ingredientsProvenance?.source === 'manual'
+        ? 'paste' as const
+        : 'provider' as const;
+    const analysisReviewed = analysisSource !== 'ocr' || (confirmedOverlay ? confirmedOverlay.reviewed : true);
     const itemKey = typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -366,7 +389,7 @@ function CoursesScreenInner() {
       cosmeticForm: pending.form,
       allergenTags: pending.allergenTags,
       quantity: pending.quantity,
-      provenance: pending.provenance,
+      provenance: effectiveProvenance,
       sourceUrl: pending.sourceUrl,
       sourceDatabase: pending.sourceDatabase,
       retrievedAt: pending.retrievedAt,
@@ -381,7 +404,6 @@ function CoursesScreenInner() {
     });
 
     if (pending.barcode) {
-      const now = new Date().toISOString();
       store.upsertProduct({
         barcode: pending.barcode,
         gtin14: pending.gtin14,
@@ -402,7 +424,7 @@ function CoursesScreenInner() {
         retrievedAt: pending.retrievedAt,
         staleAfter: pending.staleAfter,
         provenance: {
-          ...pending.provenance,
+          ...effectiveProvenance,
           ...(pending.source === 'manual' ? { name: { source: 'manual' as const, retrievedAt: now } } : {}),
           lastPrice: { source: 'manual', retrievedAt: now },
           ...(pending.form ? { cosmeticForm: { source: 'manual' as const, retrievedAt: now } } : {}),
@@ -428,6 +450,8 @@ function CoursesScreenInner() {
         label: pending.name,
         category: pending.category,
         ...(pending.form ? { form: pending.form } : {}),
+        source: analysisSource,
+        reviewed: analysisReviewed,
       })
         .then((analysis) => {
           store.applyAssessment(origin, {
@@ -690,8 +714,22 @@ function CoursesScreenInner() {
                 scanRequestIdRef.current += 1;
                 setPending(null);
               }}
-              onIngredientsText={(text) =>
-                setPending((p) => (p && p.gtin14 === pending.gtin14 ? { ...p, ingredientsText: text } : p))
+              onIngredientsText={(text, metadata) =>
+                setPending((p) => {
+                  if (!p || p.gtin14 !== pending.gtin14) return p;
+                  const provenance = { ...(p.provenance ?? {}) };
+                  if (text) {
+                    const source: ProductSource = metadata?.source === 'ocr'
+                      ? 'ocr'
+                      : metadata?.source === 'remote'
+                        ? 'vendor'
+                        : 'manual';
+                    provenance.ingredientsText = { source, retrievedAt: new Date().toISOString() };
+                  } else {
+                    delete provenance.ingredientsText;
+                  }
+                  return { ...p, ingredientsText: text, provenance };
+                })
               }
               onFormChange={(form) =>
                 setPending((p) => (p && p.gtin14 === pending.gtin14 ? { ...p, form } : p))
@@ -970,7 +1008,10 @@ interface PendingCardProps {
   onConfirm: () => void;
   onSkip: () => void;
   /** Panel adopted a missing-INCI list (external fallback / paste / OCR). */
-  onIngredientsText: (text: string | undefined) => void;
+  onIngredientsText: (
+    text: string | undefined,
+    metadata?: { source: 'manual' | 'ocr' | 'remote'; reviewed: boolean },
+  ) => void;
   onFormChange: (form: ProductForm) => void;
 }
 
@@ -985,6 +1026,8 @@ function useCosmeticQualityPreview(
   name: string,
   category: string | undefined,
   form: ProductForm | undefined,
+  source: ProductAssessment['parser']['source'],
+  reviewed: boolean,
 ): SessionItemQuality | null {
   const [quality, setQuality] = useState<SessionItemQuality | null>(null);
   useEffect(() => {
@@ -993,8 +1036,16 @@ function useCosmeticQualityPreview(
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     setQuality(null);
-    analyzeIngredientsText(text, { label: name || undefined, category, form })
+    analyzeIngredientsText(text, {
+      label: name || undefined,
+      category,
+      form,
+      source,
+      reviewed,
+      signal: controller.signal,
+    })
       .then((analysis) => {
         if (!cancelled) setQuality(summarizeQuality(analysis));
       })
@@ -1003,8 +1054,9 @@ function useCosmeticQualityPreview(
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [isCosmetic, text, name, category, form]);
+  }, [isCosmetic, text, name, category, form, source, reviewed]);
   return quality;
 }
 
@@ -1016,11 +1068,18 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
 
   // Cosmetic quality preview for the chip: the record's INCI list (or the
   // per-device overlay the panel would fall back to), cosmetic records only.
-  const qualityText = (
-    (pending.barcode ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)?.text ?? '' : '') ||
-    pending.ingredientsText?.trim() ||
-    ''
-  ).trim();
+  const previewOverlay = pending.barcode
+    ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)
+    : undefined;
+  const qualityText = (previewOverlay?.text || pending.ingredientsText?.trim() || '').trim();
+  const qualitySource: ProductAssessment['parser']['source'] = previewOverlay
+    ? previewOverlay.source === 'ocr' ? 'ocr' : 'paste'
+    : pending.provenance?.ingredientsText?.source === 'ocr'
+      ? 'ocr'
+      : pending.provenance?.ingredientsText?.source === 'manual'
+        ? 'paste'
+        : 'provider';
+  const qualityReviewed = previewOverlay?.reviewed ?? Boolean(qualityText);
   const cosmeticRecord = !needsName && isCosmeticRecord({
     beauty: pending.beauty,
     category: pending.category,
@@ -1033,6 +1092,8 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
     pending.name,
     pending.category,
     pending.form,
+    qualitySource,
+    qualityReviewed,
   );
 
   return (
@@ -1124,6 +1185,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         name={needsName ? undefined : pending.name}
         category={pending.category}
         ingredientsText={pending.ingredientsText}
+        ingredientsProvenance={pending.provenance?.ingredientsText}
         domain={pending.domain}
         allergenTags={pending.allergenTags}
         form={pending.form}

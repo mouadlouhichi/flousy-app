@@ -31,6 +31,12 @@ const GLOBAL_DEADLINE_MS = 10_000;
 const SOURCE_WALK_BUDGET_MS = 6_500;
 const cache = new Map<string, { at: number; body: unknown }>();
 
+/** Clears only the bounded in-process catalog response cache. Exported for
+ * deterministic route boundary tests and safe to call in server maintenance. */
+export function clearBarcodeLookupCache(): void {
+  cache.clear();
+}
+
 function cacheGet(key: string): unknown | undefined {
   const hit = cache.get(key);
   if (!hit) return undefined;
@@ -92,7 +98,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cacheKey = parsed.value.gtin14;
+  // Source priority changes with the requested domain, so domain is part of
+  // response identity. Language is mapped client-side from the same bounded
+  // multilingual payload and therefore does not fragment this cache.
+  const cacheDomain = domainHint && domainHint !== 'unknown' ? domainHint : 'auto';
+  const cacheKey = `${parsed.value.gtin14}\u0001${cacheDomain}`;
   const cached = cacheGet(cacheKey);
   if (cached !== undefined) return response(cached);
 

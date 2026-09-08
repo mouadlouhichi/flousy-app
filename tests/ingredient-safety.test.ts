@@ -168,6 +168,77 @@ describe('product analysis', () => {
     }
   });
 
+  it('matches the dated Annex II transition matrix for 4-MBC, Quaternium-15, and TPO', () => {
+    const matrix = [
+      ['4-Methylbenzylidene Camphor', '1730'],
+      ['Quaternium-15', '1385'],
+      ['Trimethylbenzoyl Diphenylphosphine Oxide', '1731'],
+    ] as const;
+    for (const [name, entry] of matrix) {
+      const result = analyzeInciText(name, { form: 'leave-on' });
+      const condition = result.ingredients[0]?.signals.find((signal) => signal.regulatory?.annex === 'II')?.regulatory;
+      assert.equal(result.ingredients[0]?.tier, 'prohibited', name);
+      assert.equal(condition?.entry, entry, name);
+      assert.equal(condition?.effectiveAsOf, '2026-05-26', name);
+      assert.equal(condition?.sourceUrl, 'https://eur-lex.europa.eu/eli/reg/2009/1223/2026-05-18/eng', name);
+    }
+  });
+
+  it('keeps conditional Triclosan and Triclocarban entries out of universal prohibition', () => {
+    const triclosan = analyzeInciText('Triclosan', { form: 'leave-on' });
+    assert.equal(triclosan.ingredients[0]?.tier, 'restricted');
+    assert.ok(triclosan.ingredients[0]?.signals.some((signal) => (
+      signal.regulatory?.annex === 'V' &&
+      signal.regulatory.entry === '25' &&
+      signal.applicability === 'conditions-unknown'
+    )));
+    assert.equal(triclosan.scoreStatus, 'withheld-conditions-unknown');
+
+    const triclocarban = analyzeInciText('Triclocarban', { form: 'rinse-off' });
+    assert.equal(triclocarban.ingredients[0]?.tier, 'restricted');
+    assert.ok(triclocarban.ingredients[0]?.signals.some((signal) => (
+      signal.regulatory?.annex === 'III' && signal.regulatory.entry === '100'
+    )));
+    assert.ok(triclocarban.ingredients[0]?.signals.some((signal) => (
+      signal.regulatory?.annex === 'V' && signal.regulatory.entry === '23'
+    )));
+    assert.ok(triclocarban.ingredients[0]?.signals.every((signal) => signal.applicability === 'conditions-unknown'));
+    assert.equal(triclocarban.scoreStatus, 'withheld-conditions-unknown');
+  });
+
+  it('represents 2024 concentration/use restrictions without resolving missing formulation facts', () => {
+    const matrix = [
+      ['Retinol', '376'],
+      ['Genistein', '373'],
+      ['Daidzein', '374'],
+      ['Kojic Acid', '375'],
+      ['Alpha-Arbutin', '377'],
+      ['Arbutin', '378'],
+    ] as const;
+    for (const form of ['leave-on', 'rinse-off'] as const) {
+      for (const [name, entry] of matrix) {
+        const result = analyzeInciText(name, { form });
+        const signal = result.ingredients[0]?.signals.find((item) => item.regulatory?.entry === entry);
+        assert.equal(result.ingredients[0]?.tier, 'restricted', `${name} (${form})`);
+        assert.equal(signal?.regulatory?.annex, 'III', `${name} (${form})`);
+        assert.equal(signal?.applicability, 'conditions-unknown', `${name} (${form})`);
+        assert.equal(result.score, null, `${name} (${form})`);
+        assert.equal(result.scoreStatus, 'withheld-conditions-unknown', `${name} (${form})`);
+      }
+    }
+  });
+
+  it('does not replace the unsupported DINP blanket claim with a positive verdict', () => {
+    const result = analyzeInciText('Diisononyl Phthalate', { form: 'leave-on' });
+    const ingredient = result.ingredients[0];
+    assert.equal(ingredient?.identity.status, 'official-glossary');
+    assert.equal(ingredient?.tier, null);
+    assert.equal(ingredient?.assessmentState, 'identified-no-assessment');
+    assert.equal(ingredient?.signals.some((signal) => signal.regulatory?.legalRole === 'prohibited-list'), false);
+    assert.equal(result.score, null);
+    assert.equal(result.scoreStatus, 'withheld-insufficient-evidence');
+  });
+
   it('preserves Hydroquinone exception/use conditions instead of issuing a blanket compliance verdict', () => {
     const result = analyzeInciText('Aqua, Hydroquinone', { form: 'leave-on' });
     const ingredient = result.ingredients[1];

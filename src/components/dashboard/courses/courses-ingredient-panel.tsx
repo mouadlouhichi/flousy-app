@@ -11,8 +11,8 @@ import {
 } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
 import { CoursesIngredientGlance } from './courses-ingredient-glance';
-import { inferProductForm } from '@/lib/ingredient-safety/analyze';
-import type { ProductForm } from '@/lib/ingredient-safety/types';
+import { inferProductForm } from '@/lib/ingredient-safety/form';
+import type { ParserSummary, ProductForm } from '@/lib/ingredient-safety/types';
 import { LabelOcrButton } from './label-ocr-button';
 import { useDashboard } from '../dashboard-provider';
 
@@ -39,8 +39,10 @@ import { useDashboard } from '../dashboard-provider';
 interface CoursesIngredientPanelProps {
   /** Present when the product was identified by a barcode. */
   barcode?: string;
-  /** INCI list supplied by the resolution cascade (OBF / vendor), if any. */
+  /** INCI list supplied by the resolution cascade/catalog, if any. */
   initialText?: string;
+  initialSource?: ParserSummary['source'];
+  initialReviewed?: boolean;
   /** Product name used as a form hint for the analysis. */
   name?: string;
   /** OBF-style category used as a leave-on/rinse-off hint. */
@@ -52,12 +54,17 @@ interface CoursesIngredientPanelProps {
    * manual paste or OCR). Lets the parent update the pending product/catalog
    * copy so a vendor-supplied list is persisted when the line is confirmed.
    */
-  onIngredientsText?: (text: string | undefined) => void;
+  onIngredientsText?: (
+    text: string | undefined,
+    metadata?: { source: 'manual' | 'ocr' | 'remote'; reviewed: boolean },
+  ) => void;
 }
 
 export function CoursesIngredientPanel({
   barcode,
   initialText,
+  initialSource,
+  initialReviewed,
   name,
   category,
   form,
@@ -81,15 +88,32 @@ export function CoursesIngredientPanel({
   const effectiveForm = form ?? localForm;
 
   const fromRecord = initialText?.trim() || '';
-  const overlay = barcode ? (readInciOverlayEntry(barcode, accountId)?.text ?? '').trim() : '';
+  const overlayEntry = barcode ? readInciOverlayEntry(barcode, accountId) : undefined;
+  const overlay = (overlayEntry?.text ?? '').trim();
+  const overlaySource = overlayEntry?.source;
+  const overlayReviewed = overlayEntry?.reviewed;
+  const overlayAnalysisSource: ParserSummary['source'] = overlaySource === 'ocr'
+    ? 'ocr'
+    : overlaySource === 'manual'
+      ? 'paste'
+      : 'unknown';
   // null = no ingredient text available yet (the manual paste prompt shows).
-  const [active, setActive] = useState<string | null>(
-    overlay || fromRecord || null,
+  const [active, setActive] = useState<string | null>(overlay || fromRecord || null);
+  const [analysisSource, setAnalysisSource] = useState<ParserSummary['source']>(
+    overlay ? overlayAnalysisSource : (fromRecord ? initialSource ?? 'provider' : 'unknown'),
+  );
+  const [analysisReviewed, setAnalysisReviewed] = useState(
+    overlayEntry?.reviewed ?? (fromRecord ? initialReviewed ?? true : false),
   );
 
   useEffect(() => {
-    if (overlay && overlay !== fromRecord) onIngredientsRef.current?.(overlay);
-  }, [overlay, fromRecord]);
+    if (overlay && overlay !== fromRecord && overlaySource) {
+      onIngredientsRef.current?.(overlay, {
+        source: overlaySource,
+        reviewed: overlayReviewed === true,
+      });
+    }
+  }, [overlay, overlaySource, overlayReviewed, fromRecord]);
 
   // Keep state coherent when the parent swaps to a different pending product
   // without unmounting (same PendingCard instance is reused by key change).
@@ -103,6 +127,8 @@ export function CoursesIngredientPanel({
       setDraft('');
       setInvalid(false);
       setActive(overlay || fromRecord || null);
+      setAnalysisSource(overlay ? overlayAnalysisSource : (fromRecord ? initialSource ?? 'provider' : 'unknown'));
+      setAnalysisReviewed(overlayEntry?.reviewed ?? (fromRecord ? initialReviewed ?? true : false));
       setSaved(false);
       setLookupStatus('idle');
       setLocalForm(form ?? inferProductForm(category, name));
@@ -111,17 +137,21 @@ export function CoursesIngredientPanel({
     // Same barcode but the record just gained an INCI list (e.g. the
     // accordion's vendor fallback resolved while the panel was already open).
     // Adopt it immediately so a stale "not found" doesn't stay on screen.
-    if (!overlay && fromRecord && fromRecord !== active) {
-      setActive(fromRecord);
+    if (!overlay && fromRecord) {
+      if (fromRecord !== active) setActive(fromRecord);
+      setAnalysisSource(initialSource ?? 'provider');
+      setAnalysisReviewed(initialReviewed ?? true);
       setLookupStatus('idle');
     }
-  }, [barcode, fromRecord]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [barcode, fromRecord, initialSource, initialReviewed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Activate an ingredient text (manual, OCR or vendor fallback) and
    *  remember it per barcode. Also tells the parent so the account-scoped
    *  catalog copy can be written on confirm. */
   const adopt = (text: string, source: 'manual' | 'ocr' | 'remote' = 'manual') => {
     setActive(text);
+    setAnalysisSource(source === 'manual' ? 'paste' : source === 'remote' ? 'provider' : 'ocr');
+    setAnalysisReviewed(true);
     setEditing(false);
     if (barcode && source !== 'remote') {
       writeInciOverlayEntry(barcode, text, accountId, { source, reviewed: true });
@@ -129,7 +159,7 @@ export function CoursesIngredientPanel({
     } else {
       setSaved(false);
     }
-    onIngredientsRef.current?.(text);
+    onIngredientsRef.current?.(text, { source, reviewed: true });
   };
 
   // ---- Missing-INCI external fallback --------------------------------------
@@ -183,6 +213,8 @@ export function CoursesIngredientPanel({
     removeInciOverlayEntry(barcode, accountId);
     setSaved(false);
     setActive(null);
+    setAnalysisSource('unknown');
+    setAnalysisReviewed(false);
     setEditing(false);
     setDraft('');
     onIngredientsRef.current?.(undefined);
@@ -232,7 +264,15 @@ export function CoursesIngredientPanel({
       {active && !editing ? (
         <>
           <div className="mt-2">
-            <CoursesIngredientGlance ingredientsText={active} label={name} category={category} form={effectiveForm} embedded />
+            <CoursesIngredientGlance
+              ingredientsText={active}
+              label={name}
+              category={category}
+              form={effectiveForm}
+              source={analysisSource}
+              reviewed={analysisReviewed}
+              embedded
+            />
           </div>
           {fromOverlay && (
             <p className="mt-1.5 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">

@@ -10,7 +10,8 @@ import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
-import type { Band, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
+import type { Band, ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
+import type { ProductFieldProvenance } from '@/lib/store';
 import {
   BAND_LABEL_KEY,
   BAND_STYLE,
@@ -38,6 +39,7 @@ interface CoursesLabelAccordionProps {
   name?: string;
   category?: string;
   ingredientsText?: string;
+  ingredientsProvenance?: ProductFieldProvenance;
   domain?: import('@/lib/store').ProductDomain;
   allergenTags?: string[];
   form?: ProductForm;
@@ -48,7 +50,10 @@ interface CoursesLabelAccordionProps {
   /** Manual-entry products have no name to classify yet. */
   needsName?: boolean;
   /** Panel adopted a new ingredient list (external fallback / paste / OCR). */
-  onIngredientsText?: (text: string | undefined) => void;
+  onIngredientsText?: (
+    text: string | undefined,
+    metadata?: { source: 'manual' | 'ocr' | 'remote'; reviewed: boolean },
+  ) => void;
 }
 
 export function CoursesLabelAccordion({
@@ -56,6 +61,7 @@ export function CoursesLabelAccordion({
   name,
   category,
   ingredientsText,
+  ingredientsProvenance,
   domain: explicitDomain,
   allergenTags,
   form,
@@ -112,9 +118,27 @@ export function CoursesLabelAccordion({
   const domain = likelyCosmetic ? 'cosmetic' : detectedDomain;
 
   // The cosmetic engine may read a per-barcode INCI saved on this device.
-  const overlayText = barcode ? readInciOverlayEntry(barcode, accountId)?.text ?? '' : '';
+  const overlayEntry = barcode ? readInciOverlayEntry(barcode, accountId) : undefined;
+  const overlayText = overlayEntry?.text ?? '';
   const hasInci = Boolean(ingredientsText?.trim() || overlayText.trim() || fallbackText.trim());
   const cosmeticText = (overlayText.trim() || ingredientsText?.trim() || fallbackText.trim()).trim();
+  const catalogSource: ParserSummary['source'] = ingredientsProvenance?.source === 'ocr'
+    ? 'ocr'
+    : ingredientsProvenance?.source === 'manual'
+      ? 'paste'
+      : 'provider';
+  const cosmeticSource: ParserSummary['source'] = overlayText.trim()
+    ? overlayEntry?.source === 'ocr' ? 'ocr' : 'paste'
+    : ingredientsText?.trim()
+      ? catalogSource
+      : fallbackText.trim()
+        ? 'provider'
+        : 'unknown';
+  // Persisted OCR text can only enter the catalog after the review dialog's
+  // explicit confirmation; overlay rows also retain their review bit.
+  const cosmeticReviewed = overlayText.trim()
+    ? overlayEntry?.reviewed === true
+    : Boolean(cosmeticText);
 
   // ---- Missing-INCI risk fallback (collapsed-preview friendly) ------------
   // Run as soon as a cosmetic candidate barcode resolves with no provider
@@ -134,7 +158,7 @@ export function CoursesLabelAccordion({
         if (result.kind === 'found') {
           setFallbackText(result.ingredientsText);
           setFallbackLookup('done');
-          onIngredientsRef.current?.(result.ingredientsText);
+          onIngredientsRef.current?.(result.ingredientsText, { source: 'remote', reviewed: true });
         } else {
           setFallbackLookup(result.kind === 'not-found' ? 'done' : 'failed');
         }
@@ -160,6 +184,8 @@ export function CoursesLabelAccordion({
     label: labelName ?? '',
     category: category ?? '',
     form: form ?? 'unknown',
+    source: cosmeticSource,
+    reviewed: cosmeticReviewed,
   });
   useEffect(() => {
     if (domain !== 'cosmetic' || !cosmeticText) {
@@ -172,6 +198,8 @@ export function CoursesLabelAccordion({
       ...(labelName ? { label: labelName } : {}),
       ...(category ? { category } : {}),
       ...(form ? { form } : {}),
+      source: cosmeticSource,
+      reviewed: cosmeticReviewed,
       signal: controller.signal,
     })
       .then((analysis) => setCosmetic({ key: cosmeticRequestKey, analysis }))
@@ -179,7 +207,7 @@ export function CoursesLabelAccordion({
         if (!controller.signal.aborted) setCosmetic({ key: cosmeticRequestKey, failed: true });
       });
     return () => controller.abort();
-  }, [domain, cosmeticText, cosmeticRequestKey, labelName, category, form]);
+  }, [domain, cosmeticText, cosmeticRequestKey, labelName, category, form, cosmeticSource, cosmeticReviewed]);
 
   const cosmeticAnalysis =
     cosmetic.key === cosmeticRequestKey ? cosmetic.analysis : undefined;
@@ -338,6 +366,8 @@ export function CoursesLabelAccordion({
             <CoursesIngredientPanel
               barcode={barcode}
               initialText={ingredientsText || fallbackText}
+              initialSource={cosmeticSource}
+              initialReviewed={cosmeticReviewed}
               name={labelName}
               category={category}
               form={form}

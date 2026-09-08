@@ -1,6 +1,7 @@
 /** Context-complete, bounded client for the same-origin INCI analysis route. */
 
 import type { ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
+import { INGREDIENT_ANALYSIS_CACHE_VERSION } from '@/lib/ingredient-safety/version';
 
 export interface AnalyzeIngredientsOptions {
   label?: string;
@@ -13,7 +14,6 @@ export interface AnalyzeIngredientsOptions {
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 80;
 const REQUEST_TIMEOUT_MS = 10_000;
-const CLIENT_SCHEMA_VERSION = 'ingredient-request-v2';
 
 const cache = new Map<string, { at: number; value: ProductAssessment }>();
 const inFlight = new Map<string, Promise<ProductAssessment>>();
@@ -27,7 +27,7 @@ export function ingredientAnalysisCacheKey(
   opts?: AnalyzeIngredientsOptions,
 ): string {
   return JSON.stringify([
-    CLIENT_SCHEMA_VERSION,
+    INGREDIENT_ANALYSIS_CACHE_VERSION,
     normalizePart(text),
     opts?.form ?? 'infer',
     normalizePart(opts?.label),

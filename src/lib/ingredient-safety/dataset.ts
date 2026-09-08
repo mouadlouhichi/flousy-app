@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AnnexCode, CosIngRecord } from './types';
 import { normalizeInciToken, normalizeWithoutParens, resolveAlias } from './normalize';
+import { INGREDIENT_IDENTITY_DATASET_VERSION } from './version';
 
 export interface CosIngDataset {
   meta: {
@@ -140,7 +141,7 @@ export function loadCosingDataset(): CosIngDataset {
       inventoryRows,
       glossaryRows,
       snapshot: 'EU glossary applies 2026-07-30; legacy CosIng metadata snapshot 2019-03-13',
-      version: 'ingredient-identity-2025-1175-v1',
+      version: INGREDIENT_IDENTITY_DATASET_VERSION,
       glossarySourceUrl: 'https://eur-lex.europa.eu/eli/dec_impl/2025/1175/oj',
     },
     byName,

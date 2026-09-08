@@ -262,7 +262,7 @@ function prepareLines(source: string, diagnostics: ParserDiagnostic[]): string {
       (/[\-–—/]\s*$/u.test(prior) ||
         (priorWords.length <= 4 && CONTINUATION_WORDS.has(firstWord))),
     );
-    if (likelyWrapped) {
+    if (likelyWrapped && prior) {
       lines[lines.length - 1] = `${prior.replace(/[\-–—]\s*$/u, '')} ${line}`.trim();
       diagnostics.push({
         code: 'wrapped-line-joined',

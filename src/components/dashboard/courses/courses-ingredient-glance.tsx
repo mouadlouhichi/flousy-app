@@ -27,6 +27,8 @@ interface CoursesIngredientGlanceProps {
   label?: string;
   category?: string;
   form?: ProductForm;
+  source?: ProductAssessment['parser']['source'];
+  reviewed?: boolean;
   /**
    * Rendered inside the CoursesIngredientPanel card. When true the glance
    * drops its own border/title so the outer panel remains a single card with
@@ -122,6 +124,8 @@ export function CoursesIngredientGlance({
   label,
   category,
   form,
+  source,
+  reviewed,
   embedded = false,
 }: CoursesIngredientGlanceProps) {
   const { messages } = useLanguage();
@@ -134,7 +138,7 @@ export function CoursesIngredientGlance({
     const controller = new AbortController();
     let cancelled = false;
     setState({ status: 'loading' });
-    analyzeIngredientsText(text, { label, category, form, signal: controller.signal })
+    analyzeIngredientsText(text, { label, category, form, source, reviewed, signal: controller.signal })
       .then((analysis) => {
         if (!cancelled) setState({ status: 'ready', analysis });
       })
@@ -145,7 +149,7 @@ export function CoursesIngredientGlance({
       cancelled = true;
       controller.abort();
     };
-  }, [text, label, category, form]);
+  }, [text, label, category, form, source, reviewed]);
 
   if (!text) return null;
   const loading = state.status === 'loading';

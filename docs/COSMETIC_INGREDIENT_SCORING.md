@@ -14,7 +14,7 @@ POST /api/inci/analyze
 
 The label photo used by OCR stays in the browser. The extracted text does not: after the user reviews and confirms it, the text is sent to this endpoint. If `INCI_API_KEY` is configured, only unidentified ingredient names may be sent by the server to the configured INCI evidence provider. Provider observations are attributed external evidence and cannot set a local tier or improve a score.
 
-The server also records a bounded aggregate for unidentified names. It stores a keyed/bounded token hash, count, dataset version, product-form bucket, and parser-validity bucket. It does not store the label, barcode, product name, account ID, image, or raw ingredient token. Reporting is rate limited and best effort.
+The server also records a bounded aggregate for unidentified names. It stores only a bounded token hash, count, dataset version, product-form bucket, and parser-validity bucket; it does not store the label, barcode, product name, account ID, IP, image, or raw ingredient token. Reporting is rate limited and best effort. Durable Firestore aggregation is enabled only when `UNKNOWN_INGREDIENT_HASH_KEY` supplies a deployment-specific HMAC key; otherwise the fallback is a bounded process-local aggregate, avoiding a dictionary-guessable durable digest.
 
 OCR engine/worker assets are self-hosted. Selected Tesseract language data can be downloaded from the configured tessdata CDN on first use; the UI and privacy policy disclose this.
 

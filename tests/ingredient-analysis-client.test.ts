@@ -6,6 +6,7 @@ import {
   ingredientAnalysisCacheKey,
 } from '../src/lib/ingredient-analysis-client';
 import { analyzeInciText } from '../src/lib/ingredient-safety/analyze';
+import { INGREDIENT_ANALYSIS_CACHE_VERSION } from '../src/lib/ingredient-safety/version';
 
 const originalFetch = globalThis.fetch;
 const assessment = analyzeInciText('Aqua', {
@@ -35,6 +36,7 @@ describe('ingredient analysis client request identity', () => {
       source: 'ocr',
       reviewed: true,
     });
+    assert.ok(base.includes(INGREDIENT_ANALYSIS_CACHE_VERSION));
     assert.equal(base, ingredientAnalysisCacheKey('AQUA, GLYCERIN', {
       form: 'leave-on',
       label: ' night cream ',

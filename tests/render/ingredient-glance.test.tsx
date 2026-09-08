@@ -2,7 +2,7 @@
  * Server-renders the cosmetic ingredient glance (the scan-flow slice) with a
  * stubbed analysis client, in all three locales. Catches runtime crashes —
  * missing i18n keys, undefined access, bad hook usage — plus verifies that the
- * localized band label and score chip actually make it into the markup.
+ * localized evidence-index caveat and value actually make it into the markup.
  */
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,12 +39,12 @@ const analysis: ProductAssessment = {
   label: 'Test cream',
   form: 'leave-on',
   formSource: 'explicit',
-  total: 4,
-  recognized: 4,
-  localRecognized: 4,
+  total: 3,
+  recognized: 3,
+  localRecognized: 3,
   externallyIdentified: 0,
   coverage: 1,
-  assessed: 4,
+  assessed: 3,
   assessmentCoverage: 1,
   score: 20,
   scoreStatus: 'available',
@@ -57,7 +57,6 @@ const analysis: ProductAssessment = {
   dataset: { rows: 28733, snapshot: 'test snapshot', version: 'test' },
   assessedAt: '2026-09-08T00:00:00.000Z',
   ingredients: [
-    { index: 0, raw: 'Aqua', normalized: 'AQUA', matched: true, matchedInci: 'AQUA', identity: { status: 'official-glossary', canonicalName: 'AQUA' }, signals: [], tier: 'clean', assessmentState: 'assessed-signal' },
     {
       index: 1,
       raw: 'Hydroquinone',
@@ -105,14 +104,14 @@ mock.module('@/lib/ingredient-analysis-client', {
   },
 });
 
-const EXPECTED_BAND: Record<Language, string> = {
-  en: (en.ingredientGlance.bandAvoid as string).toLowerCase(),
-  fr: (fr.ingredientGlance.bandAvoid as string).toLowerCase(),
-  ar: ar.ingredientGlance.bandAvoid as string,
-};
+mock.module('@/components/dashboard/dashboard-provider', {
+  namedExports: {
+    useDashboard: () => ({ user: null }),
+  },
+});
 
 describe('CoursesIngredientGlance render smoke', () => {
-  it('renders score, translated band and flags in all three locales', async () => {
+  it('renders the bounded evidence index, caveat, and flags in all three locales', async () => {
     // The async wrapper needs effects to fetch; the exported presentational
     // body is what renderToStaticMarkup can exercise directly.
     const { CoursesIngredientGlanceBody } = await import(
@@ -123,12 +122,10 @@ describe('CoursesIngredientGlance render smoke', () => {
       const html = renderToStaticMarkup(
         React.createElement(CoursesIngredientGlanceBody, { analysis }),
       );
-      assert.ok(html.includes('20'), `${locale}: score chip missing`);
-      assert.ok(
-        html.toLowerCase().includes(EXPECTED_BAND[locale]) ||
-          html.includes(EXPECTED_BAND[locale]),
-        `${locale}: translated band label missing`,
-      );
+      assert.ok(html.includes('20'), `${locale}: evidence index missing`);
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.evidenceIndex), `${locale}: evidence-index label missing`);
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.indexNotSafetyVerdict), `${locale}: safety caveat missing`);
+      assert.equal(html.includes(catalogs[locale].ingredientGlance.bandAvoid), false, `${locale}: band must not be presented as a product verdict`);
       assert.ok(html.includes('HYDROQUINONE'), `${locale}: flagged ingredient name missing`);
       assert.ok(html.includes('disclaimer') === false, `${locale}: disclaimer key leaked raw`);
     }
@@ -149,12 +146,10 @@ describe('CoursesIngredientGlance render smoke', () => {
     assert.ok(hasBannerLabel, 'banner aria-label missing');
     assert.ok(hasScoreSuffix, '/100 suffix missing');
     assert.ok(!html.includes('polygon points="12 2'), 'safety-rating stars must not be rendered');
-    // Thin tier-proportion strip under the score:
-    // fixture tiers = clean 1 / (watch+restricted 0) / (caution+prohibited 3) of 4.
-    const hasGreenSegment = html.includes('width:25%');
-    const hasOrangeSegment = html.includes('width:75%');
-    assert.ok(hasGreenSegment, 'green tier segment missing');
-    assert.ok(hasOrangeSegment, 'orange tier segment missing');
+    // All fixture rows carry explicit caution/prohibited evidence. No
+    // identity-only ingredient is converted into a positive green verdict.
+    assert.ok(html.includes('width:100%'), 'explicit concern segment missing');
+    assert.equal(html.includes('width:25%'), false, 'unsupported positive segment must not appear');
   });
 
   it('renders nothing (not even an error) when no ingredient text is present', async () => {

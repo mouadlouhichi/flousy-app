@@ -524,6 +524,7 @@
           "type": "string",
           "enum": [
             "manual",
+            "ocr",
             "off",
             "obf",
             "opf",
@@ -1252,6 +1253,7 @@
           "type": "string",
           "enum": [
             "manual",
+            "ocr",
             "off",
             "obf",
             "opf",
@@ -1377,6 +1379,7 @@
           "type": "string",
           "enum": [
             "manual",
+            "ocr",
             "off",
             "obf",
             "opf",
@@ -2283,6 +2286,7 @@
           "type": "string",
           "enum": [
             "manual",
+            "ocr",
             "off",
             "obf",
             "opf",
@@ -2574,8 +2578,8 @@
     },
     "/users/{uid}/products/{barcode}": {
       "schema": "Product",
-      "description": "Course catalog by normalized barcode",
-      "idPattern": "^[0-9]{8}$|^[0-9]{13}$"
+      "description": "Private product catalog keyed by zero-filled canonical GTIN-14",
+      "idPattern": "^[0-9]{14}$"
     },
     "/users/{uid}/sessions/{sessionId}": {
       "schema": "CourseSession",

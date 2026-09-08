@@ -5,7 +5,9 @@ import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
 import { getAdminFirestore } from '@/lib/server/firebase-admin';
 
 const MAX_TOKENS_PER_REPORT = 12;
+const MAX_TOKEN_CANDIDATES = 300;
 const MAX_NORMALIZED_LENGTH = 120;
+const MAX_DATASET_VERSION_LENGTH = 160;
 const MAX_MEMORY_BUCKETS = 2_000;
 
 export interface UnknownIngredientReportContext {
@@ -38,7 +40,10 @@ function contextKey(context: UnknownIngredientReportContext): string {
 
 function boundedUniqueTokens(tokens: readonly string[]): string[] {
   const unique = new Set<string>();
+  let inspected = 0;
   for (const raw of tokens) {
+    inspected += 1;
+    if (inspected > MAX_TOKEN_CANDIDATES) break;
     const normalized = normalizeInciToken(raw);
     if (!normalized || normalized.length > MAX_NORMALIZED_LENGTH) continue;
     // Refuse numbers and very short/noisy OCR fragments.
@@ -61,21 +66,22 @@ export async function reportUnknownIngredientAggregates(
 ): Promise<number> {
   const normalized = boundedUniqueTokens(tokens);
   if (normalized.length === 0) return 0;
+  const datasetVersion = context.datasetVersion.normalize('NFKC').trim().slice(0, MAX_DATASET_VERSION_LENGTH) || 'unknown';
   const contextValue = contextKey(context);
   const buckets = normalized.map((token) => ({
-    hash: hashToken(token, context.datasetVersion),
+    hash: hashToken(token, datasetVersion),
     context: contextValue,
   }));
 
   for (const bucket of buckets) {
-    const key = `${context.datasetVersion}:${bucket.hash}:${bucket.context}`;
+    const key = `${datasetVersion}:${bucket.hash}:${bucket.context}`;
     const prior = memoryAggregates.get(key);
     if (prior) prior.count += 1;
     else {
       memoryAggregates.set(key, {
         hash: bucket.hash,
         count: 1,
-        datasetVersion: context.datasetVersion,
+        datasetVersion,
         context: bucket.context,
       });
     }
@@ -86,6 +92,10 @@ export async function reportUnknownIngredientAggregates(
     memoryAggregates.delete(oldest);
   }
 
+  // Durable hashes require a deployment-specific HMAC key. Without one, keep
+  // only the bounded process-local aggregate rather than writing a
+  // dictionary-guessable unsalted token digest to Firestore.
+  if (!process.env.UNKNOWN_INGREDIENT_HASH_KEY?.trim()) return buckets.length;
   const db = await getAdminFirestore();
   if (!db) return buckets.length;
   try {
@@ -97,7 +107,7 @@ export async function reportUnknownIngredientAggregates(
       batch.set(ref, {
         schemaVersion: 1,
         tokenHash: bucket.hash,
-        datasetVersion: context.datasetVersion.slice(0, 160),
+        datasetVersion,
         context: bucket.context,
         count: FieldValue.increment(1),
         lastSeenAt: FieldValue.serverTimestamp(),

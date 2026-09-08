@@ -7,19 +7,15 @@
  * compliance verdict.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import bundledAnnexPayload from '../../../data/cosing/eu-cosmetics-annexes-2026-05-26.json';
 import type { ProductForm, RegulatoryCondition, RiskTier, Signal } from './types';
 import { normalizeInciToken } from './normalize';
+import { REGULATORY_DATASET_VERSION } from './version';
 
-const DATA_PATH =
-  process.env.EU_COSMETICS_ANNEX_PATH ??
-  join(process.cwd(), 'data', 'cosing', 'eu-cosmetics-annexes-2026-05-26.json');
-
+export { REGULATORY_DATASET_VERSION } from './version';
 export const EU_REGULATION_SOURCE_URL =
   'https://eur-lex.europa.eu/eli/reg/2009/1223/2026-05-18/eng';
 export const EU_REGULATION_AS_OF = '2026-05-26';
-export const REGULATORY_DATASET_VERSION = 'eu-cosmetics-annexes-2026-05-26-v1';
 
 interface RawAnnexRecord {
   annex: 'II' | 'III' | 'IV' | 'V' | 'VI';
@@ -81,12 +77,9 @@ function namesFrom(record: RawAnnexRecord): string[] {
 
 function loadRegulatoryDataset(): RegulatoryDataset {
   if (cache) return cache;
-  let payload: RawPayload;
-  try {
-    payload = JSON.parse(readFileSync(DATA_PATH, 'utf8')) as RawPayload;
-  } catch (error) {
-    throw new Error(`EU cosmetics annex dataset not found or invalid at ${DATA_PATH} (${(error as Error).message})`);
-  }
+  // Static import keeps Next.js file tracing scoped to this committed corpus;
+  // a dynamic filesystem path would pull the whole project into the route.
+  const payload = bundledAnnexPayload as unknown as RawPayload;
   if (payload.schemaVersion !== 1 || !Array.isArray(payload.records)) {
     throw new Error('EU cosmetics annex dataset schema is unsupported');
   }

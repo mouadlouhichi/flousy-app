@@ -2572,7 +2572,7 @@ export function createNewMonth(
 // --- Course session (shopping trip capture) ----------------------------------
 
 /** Where a product's metadata came from. */
-export type ProductSource = 'manual' | 'off' | 'obf' | 'opf' | 'opff' | 'vendor' | 'seed' | 'session';
+export type ProductSource = 'manual' | 'ocr' | 'off' | 'obf' | 'opf' | 'opff' | 'vendor' | 'seed' | 'session';
 export type ProductDomain = 'food' | 'cosmetic' | 'household' | 'pet' | 'unknown';
 
 export interface ProductFieldProvenance {
@@ -2601,7 +2601,7 @@ export interface ProductRanking {
 }
 
 /**
- * One known product, keyed by its normalized barcode (8 or 13 digits).
+ * One known product, keyed by its zero-filled canonical GTIN-14 identity.
  * This is the user's self-learning catalog: every resolved product is
  * stored once and becomes an instant local hit afterwards.
  */
