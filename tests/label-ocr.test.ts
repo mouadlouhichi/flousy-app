@@ -55,6 +55,19 @@ describe('label OCR language and cancellation lifecycle', () => {
     assert.equal(terminated, 1);
   });
 
+  it('rejects oversized recognition instead of silently dropping the label suffix', async () => {
+    let terminated = 0;
+    const factory: LabelOcrWorkerFactory = async () => ({
+      recognize: async () => ({ data: { text: 'A'.repeat(12_001), confidence: 90 } }),
+      terminate: async () => { terminated += 1; },
+    });
+    await assert.rejects(
+      recognizeLabelText('image', 'fr', undefined, undefined, { createWorker: factory }),
+      /ocr-text-too-large/,
+    );
+    assert.equal(terminated, 1);
+  });
+
   it('rejects a pre-aborted operation before loading or creating a worker', async () => {
     const controller = new AbortController();
     controller.abort();

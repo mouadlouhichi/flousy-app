@@ -13,6 +13,7 @@ import type {
 import type { Household } from './household';
 import { isSmartJibCsvExport } from './csv-import';
 import { calculateGtinCheckDigit, gtinIdentity } from './gtin';
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
 export const FINANCE_BACKUP_FORMAT = 'smartjib-finance-backup' as const;
 export const FINANCE_BACKUP_VERSION = 2 as const;
@@ -523,7 +524,7 @@ function parseProductAttachment(raw: unknown, field: string): ExpenseProductAtta
     ...(optionalString(raw.quantity, `${field}.quantity`, 100) ? { quantity: raw.quantity as string } : {}),
     domain: enumValue(raw.domain, `${field}.domain`, PRODUCT_DOMAINS),
     ...(raw.ranking !== undefined ? { ranking: parseProductRanking(raw.ranking, `${field}.ranking`) } : {}),
-    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, 8000)
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH)
       ? { ingredientsText: raw.ingredientsText as string }
       : {}),
     ...(raw.allergenTags !== undefined
@@ -970,7 +971,7 @@ function parseProduct(raw: unknown, field: string): Product {
         })()
       : {}),
     ...(raw.cosmeticForm !== undefined ? { cosmeticForm: enumValue(raw.cosmeticForm, `${field}.cosmeticForm`, ['leave-on', 'rinse-off', 'unknown'] as const) } : {}),
-    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, 8000) ? { ingredientsText: raw.ingredientsText as string } : {}),
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
     ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
     ...(provenance ? { provenance } : {}),
     ...(optionalString(raw.retrievedAt, `${field}.retrievedAt`, 40) ? { retrievedAt: raw.retrievedAt as string } : {}),
@@ -1044,7 +1045,7 @@ function parseSessionItem(raw: unknown, field: string) {
     ...(provenance ? { provenance } : {}),
     ...(optionalString(raw.retrievedAt, `${field}.retrievedAt`, 40) ? { retrievedAt: raw.retrievedAt as string } : {}),
     ...(optionalString(raw.staleAfter, `${field}.staleAfter`, 40) ? { staleAfter: raw.staleAfter as string } : {}),
-    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, 8000) ? { ingredientsText: raw.ingredientsText as string } : {}),
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
     ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
     ...(optionalString(raw.assessmentRequestId, `${field}.assessmentRequestId`, 160) ? { assessmentRequestId: raw.assessmentRequestId as string } : {}),
     ...(assessmentOrigin ? { assessmentOrigin } : {}),

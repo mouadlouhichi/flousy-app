@@ -7,6 +7,7 @@ import {
   splitFoodList,
 } from './food-knowledge/analyze';
 import { FOOD_DATASET_VERSION } from './food-knowledge/lists';
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
 type AnalyzeInput = { text?: string; ingredients?: string[] };
 export type FoodAnalysisContext = FoodAnalyzeOptions & {
@@ -32,11 +33,38 @@ const CACHE_TTL_MS = 30 * 60_000;
 const memoryCache = new Map<string, { analysis: FoodAnalysis; expiresAt: number }>();
 const inFlight = new Map<string, Promise<FoodAnalysisResult>>();
 
+function assertBoundedInput(input: AnalyzeInput, options: FoodAnalysisContext): void {
+  if ((input.text?.trim().length ?? 0) > MAX_INGREDIENT_TEXT_LENGTH) {
+    throw new RangeError('food label text is too long');
+  }
+  const ingredients = input.ingredients ?? [];
+  if (
+    !Array.isArray(ingredients)
+    || ingredients.length > 300
+    || ingredients.some((item) => typeof item !== 'string' || item.trim().length > 500)
+  ) throw new RangeError('invalid food ingredient list');
+  if (
+    ingredients.reduce((length, item) => length + item.trim().length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) throw new RangeError('food ingredient list is too long');
+  if ((options.label?.trim().length ?? 0) > 200 || (options.category?.trim().length ?? 0) > 200) {
+    throw new RangeError('food analysis context is too long');
+  }
+  const tags = options.offAllergenTags ?? [];
+  if (tags.length > 50 || tags.some((tag) => tag.trim().length > 100)) {
+    throw new RangeError('food allergen context is too long');
+  }
+  if ((options.language?.trim().length ?? 0) > 16) {
+    throw new RangeError('food language context is too long');
+  }
+}
+
 function normalizeKeyText(value: string | undefined): string {
   return (value ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('und');
 }
 
 export function foodAnalysisCacheKey(input: AnalyzeInput, options: FoodAnalysisContext = {}): string {
+  assertBoundedInput(input, options);
   return JSON.stringify({
     version: FOOD_DATASET_VERSION,
     input: input.text !== undefined
@@ -186,6 +214,7 @@ export function analyzeFoodKnowledgeLocal(
   input: AnalyzeInput,
   options: FoodAnalyzeOptions = {},
 ): FoodAnalysis {
+  assertBoundedInput(input, options);
   return localAnalysis(input, options);
 }
 

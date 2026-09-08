@@ -219,12 +219,18 @@ export function CoursesLabelAccordion({
     const opts = {
       ...(labelName ? { label: labelName } : {}),
       ...(category ? { category } : {}),
+      ...(allergenTags?.length ? { offAllergenTags: allergenTags } : {}),
     };
-    if (foodText) return analyzeFoodText(foodText, opts);
-    // A barcode water has no ingredient text; classify kind from metadata.
-    if (labelName || category) return analyzeFoodIngredientList([], opts);
-    return null;
-  }, [domain, ingredientsText, labelName, category]);
+    try {
+      if (foodText) return analyzeFoodText(foodText, opts);
+      // A barcode water has no ingredient text; classify kind from metadata.
+      if (labelName || category) return analyzeFoodIngredientList([], opts);
+      return null;
+    } catch {
+      // Corrupt legacy/provider state must not crash the pending-product card.
+      return null;
+    }
+  }, [domain, ingredientsText, labelName, category, allergenTags]);
 
   const showKnowledge = Boolean(barcode || ingredientsText?.trim());
   if (!showKnowledge) return null;

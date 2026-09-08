@@ -1,5 +1,7 @@
 /** On-device label OCR with bounded preprocessing and explicit language choice. */
 
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
+
 export type OcrProgress = (percent: number | null) => void;
 export type LabelOcrLanguage = 'fr' | 'en' | 'ar' | 'multi';
 
@@ -159,8 +161,12 @@ export async function recognizeLabelText(
     worker = await abortable(creating, signal, (lateWorker) => { void terminate(lateWorker); });
     const recognized = abortable(worker.recognize(prepared), signal);
     const { data } = await recognized;
+    const text = (data.text || '').trim();
+    // Refuse an incomplete label instead of truncating its suffix: the end of
+    // an INCI list commonly contains preservatives, fragrance, and colorants.
+    if (text.length > MAX_INGREDIENT_TEXT_LENGTH) throw new Error('ocr-text-too-large');
     return {
-      text: (data.text || '').trim(),
+      text,
       confidence: Number.isFinite(data.confidence) ? Math.max(0, Math.min(100, data.confidence ?? 0)) : 0,
       language,
       remoteModelsMayBeDownloaded: true,

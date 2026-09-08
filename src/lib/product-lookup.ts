@@ -3,6 +3,7 @@
 import type { RemoteProductInfo } from './course-session';
 import { detectLabelDomain } from './food-knowledge/domain';
 import type { ProductDomain, ProductSource } from './store';
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
 export const PRODUCT_LOOKUP_FIELDS =
   'code,product_name,product_name_fr,product_name_en,product_name_ar,generic_name,abbreviated_product_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
@@ -60,7 +61,7 @@ export function mapOffProduct(
     const trimmed = value.trim();
     return trimmed && trimmed.length <= max ? trimmed : undefined;
   };
-  const pick = (key: string, max = 12_000): string | undefined =>
+  const pick = (key: string, max = MAX_INGREDIENT_TEXT_LENGTH): string | undefined =>
     boundedText(product[key], max);
 
   const language = opts?.lang?.toLowerCase().split('-')[0];
@@ -89,10 +90,17 @@ export function mapOffProduct(
     'ingredients_text_fr',
     'ingredients_text_ar',
     'ingredients_text_es',
-  ].map((key) => pick(key, 12_000)).find(Boolean);
-  const allergenTags = Array.isArray(product.allergens_tags)
-    ? product.allergens_tags.filter((value): value is string => typeof value === 'string' && value.length <= 100).slice(0, 50)
-    : undefined;
+  ].map((key) => pick(key, MAX_INGREDIENT_TEXT_LENGTH)).find(Boolean);
+  const rawAllergenTags = product.allergens_tags;
+  const allergenTags = (() => {
+    if (
+      !Array.isArray(rawAllergenTags)
+      || rawAllergenTags.length > 50
+      || rawAllergenTags.some((value) => typeof value !== 'string')
+    ) return undefined;
+    const tags = (rawAllergenTags as string[]).map((value) => value.trim()).filter(Boolean);
+    return tags.every((value) => value.length <= 100) ? tags : undefined;
+  })();
 
   // A raw mapOffProduct call is, by definition, an Open Food Facts payload.
   // Generic/non-food proxy responses carry an explicit lookupSource.

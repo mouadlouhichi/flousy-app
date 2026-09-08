@@ -44,6 +44,27 @@ describe('food analysis client cache and lifecycle', () => {
     assert.notEqual(base, foodAnalysisCacheKey({ text: 'Milk, E 331' }, { label: 'Yogurt', category: 'Dairy', language: 'fr', offAllergenTags: ['en:milk', 'en:nuts'] }));
   });
 
+  it('rejects oversized input/context before local analysis, caching, or fetch', () => {
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return jsonResponse({});
+    }) as typeof fetch;
+    assert.throws(
+      () => analyzeFoodKnowledgeImmediate({ text: 'A'.repeat(12_001) }),
+      /food label text is too long/,
+    );
+    assert.throws(
+      () => foodAnalysisCacheKey({ ingredients: new Array(301).fill('Salt') }),
+      /invalid food ingredient list/,
+    );
+    assert.throws(
+      () => foodAnalysisCacheKey({ text: 'Milk' }, { offAllergenTags: new Array(51).fill('en:milk') }),
+      /food allergen context is too long/,
+    );
+    assert.equal(fetches, 0);
+  });
+
   it('deduplicates same-context enrichment while preserving an enrichment subscription for every caller', async () => {
     clearFoodAnalysisCache();
     let release!: () => void;

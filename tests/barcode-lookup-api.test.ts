@@ -147,6 +147,34 @@ describe('GET /api/barcode/lookup strict identity and cache context', () => {
     assert.equal(fetches, 14, 'language selection maps the same multilingual payload client-side');
   });
 
+  it('omits oversized provider fields whole before caching the proxy response', async () => {
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      const found = databaseFor(url) === 'off';
+      return new Response(JSON.stringify({
+        status: found ? 1 : 0,
+        ...(found ? { product: {
+          product_name: 'Bounded product',
+          quantity: '1 L',
+          ingredients_text: 'A'.repeat(12_001),
+          allergens_tags: new Array(51).fill('en:milk'),
+          categories_tags: ['x'.repeat(101)],
+          nutriscore_score: 10_000,
+        } } : {}),
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+
+    const result = await call('code=4006381333931&domain=food', '10.23.1.1');
+    assert.equal(result.status, 200);
+    const product = result.body.product as Record<string, unknown>;
+    assert.equal(product.product_name, 'Bounded product');
+    assert.equal(product.quantity, '1 L');
+    assert.equal(product.ingredients_text, undefined);
+    assert.equal(product.allergens_tags, undefined);
+    assert.equal(product.categories_tags, undefined);
+    assert.equal(product.nutriscore_score, undefined);
+  });
+
   it('distinguishes definitive all-source misses from incomplete upstream evidence', async () => {
     globalThis.fetch = (async () => new Response(JSON.stringify({ status: 0 }), {
       status: 200,

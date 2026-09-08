@@ -15,6 +15,7 @@ import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analys
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
 import { LabelOcrButton } from './label-ocr-button';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -105,7 +106,11 @@ export function CoursesFoodPanel({
     analysisAbortRef.current?.abort();
     analysisAbortRef.current = null;
     const trimmed = text.trim();
-    if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
+    if (
+      trimmed.length < 2
+      || trimmed.length > MAX_INGREDIENT_TEXT_LENGTH
+      || splitFoodLabel(trimmed).length === 0
+    ) {
       setInvalid(true);
       return;
     }
@@ -196,6 +201,7 @@ export function CoursesFoodPanel({
               if (invalid) setInvalid(false);
             }}
             rows={4}
+            maxLength={MAX_INGREDIENT_TEXT_LENGTH}
             placeholder={waterPrompt ? g.waterPastePlaceholder : g.pastePlaceholder}
             className="mt-2 w-full resize-y rounded-xl border border-outline-variant bg-surface p-3 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
           />

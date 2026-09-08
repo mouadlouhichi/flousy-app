@@ -82,9 +82,13 @@ describe('vendor-inci extractors', () => {
     assert.equal(extractVendorInci({}), null);
   });
 
-  it('rejects over-long lists instead of silently dropping the ingredient suffix', () => {
-    const body = { product: { name: 'X', details: { inci: new Array(2_000).fill('Aqua') } } };
-    assert.equal(extractVendorInci(body), null);
+  it('accepts the shared exact text limit and rejects longer lists whole', () => {
+    assert.equal(extractVendorInci({ rawInci: 'A'.repeat(12_000) }), 'A'.repeat(12_000));
+    assert.equal(extractVendorInci({ rawInci: 'A'.repeat(12_001) }), null);
+    const tooMany = { product: { name: 'X', details: { inci: new Array(301).fill('Aqua') } } };
+    assert.equal(extractVendorInci(tooMany), null);
+    const aggregateOverflow = { rawInci: new Array(25).fill('A'.repeat(500)) };
+    assert.equal(extractVendorInci(aggregateOverflow), null);
   });
 
   it('extracts a minimal product (name + brand + inci)', () => {
@@ -206,6 +210,14 @@ describe('vendor analyze (analysis-fallback unit)', () => {
       [{ inciName: 'Y' }],
     );
     assert.deepEqual(extractVendorAnalyzeEntries({ parsedIngredients: [{ nope: 1 }, 'junk', null] }), []);
+    assert.deepEqual(
+      extractVendorAnalyzeEntries({ parsedIngredients: new Array(301).fill({ inciName: 'Aqua' }) }),
+      [],
+    );
+    assert.deepEqual(
+      extractVendorAnalyzeEntries({ parsedIngredients: [{ inciName: 'A'.repeat(501) }] }),
+      [],
+    );
     assert.deepEqual(extractVendorAnalyzeEntries({ parsedIngredients: [] }), []);
     assert.deepEqual(extractVendorAnalyzeEntries(null), []);
     assert.deepEqual(extractVendorAnalyzeEntries({ something: 'else' }), []);
@@ -229,25 +241,38 @@ describe('vendor analyze (analysis-fallback unit)', () => {
     assert.equal(map.get('GONEBOTANICAL')?.found, false);
   });
 
-  it('never calls the network without a key, and caps the posted list at 300', async () => {
+  it('never calls without a key and rejects oversized requests without dropping a suffix', async () => {
     let calls = 0;
-    const boom: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async () => {
+    const spy: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async () => {
       calls++;
-      throw new Error('must not be reached');
+      return { ok: true, json: async () => ({ parsedIngredients: [] }) };
     };
-    assert.deepEqual([...(await fetchVendorAnalyzeRecognition(['Aqua'], KEYLESS, boom))], []);
+    assert.deepEqual([...(await fetchVendorAnalyzeRecognition(['Aqua'], KEYLESS, spy))], []);
+    assert.deepEqual([...(await fetchVendorAnalyzeRecognition(
+      Array.from({ length: 301 }, (_, i) => `Xtra ${i}`),
+      KEYED,
+      spy,
+    ))], []);
+    assert.deepEqual([...(await fetchVendorAnalyzeRecognition(
+      Array.from({ length: 25 }, () => 'A'.repeat(500)),
+      KEYED,
+      spy,
+    ))], []);
     assert.equal(calls, 0);
 
-    const long = Array.from({ length: 500 }, (_, i) => `Xtra ${i}`);
     let posted: unknown[] | null = null;
-    const spy: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async (url, init) => {
+    const postingSpy: Parameters<typeof fetchVendorAnalyzeRecognition>[2] = async (url, init) => {
       posted = JSON.parse(init?.body ?? '{}').ingredients;
       assert.equal(url, VENDOR_INCI_ANALYZE_ENDPOINT);
       return { ok: true, json: async () => ({ parsedIngredients: [] }) };
     };
-    await fetchVendorAnalyzeRecognition(long, KEYED, spy);
-    assert.notEqual(posted, null, 'the spy must have run');
-    assert.equal((posted as unknown as unknown[]).length, 300);
+    const exact = [
+      ...Array.from({ length: 24 }, () => 'A'.repeat(478)),
+      'B'.repeat(480),
+    ];
+    assert.equal(exact.join(', ').length, 12_000);
+    await fetchVendorAnalyzeRecognition(exact, KEYED, postingSpy);
+    assert.deepEqual(posted, exact);
   });
 
   it('fails open on HTTP errors, thrown network errors, and hostile payloads', async () => {

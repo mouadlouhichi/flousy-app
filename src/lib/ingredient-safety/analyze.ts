@@ -14,7 +14,7 @@ import type {
   Signal,
   TierSource,
 } from './types';
-import { strongerTier } from './types';
+import { MAX_INGREDIENT_TEXT_LENGTH, strongerTier } from './types';
 import { loadCosingDataset, lookupIngredient } from './dataset';
 import { lookupOverlay } from './eu-lists';
 import { normalizeInciToken, parseInciList } from './normalize';
@@ -221,6 +221,11 @@ function scoreStatusFor(input: {
 }
 
 function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeResult {
+  if (
+    (opts?.label?.trim().length ?? 0) > 200
+    || (opts?.category?.trim().length ?? 0) > 200
+    || (opts?.vendorEvidence?.size ?? 0) > 300
+  ) throw new RangeError('ingredient analysis context is too long');
   const ingredients = input.ingredients.map((item) => String(item).trim()).filter(Boolean);
   const total = ingredients.length;
   const label = opts?.label?.trim() || undefined;
@@ -333,12 +338,15 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
       text: '“Parfum/Fragrance” does not disclose its complete composition; no safety conclusion is inferred.',
     });
   }
+  const unknownCount = assessments.filter((item) => !item.matched).length;
+  // Raw unknown names are response/reporting inputs, not evidence. Keep that
+  // privacy-sensitive list bounded while reporting the complete count.
   const unknown = assessments.filter((item) => !item.matched).map((item) => item.raw).slice(0, 20);
-  if (unknown.length > 0) {
+  if (unknownCount > 0) {
     flags.push({
       level: 'info',
       code: 'unknown-ingredients',
-      text: `${unknown.length} of ${total} label entr${total === 1 ? 'y is' : 'ies are'} not identified by the local glossary or attributed external evidence.`,
+      text: `${unknownCount} of ${total} label entr${total === 1 ? 'y is' : 'ies are'} not identified by the local glossary or attributed external evidence.`,
     });
   }
   if (scoreStatus !== 'available') {
@@ -386,6 +394,9 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
 }
 
 export function analyzeInciText(text: string, opts?: AnalyzeOptions): AnalyzeResult {
+  if (text.trim().length > MAX_INGREDIENT_TEXT_LENGTH) {
+    throw new RangeError('ingredient text is too long');
+  }
   const parsed = parseInciList(text);
   return analyzePrepared({
     ingredients: parsed.tokens,
@@ -395,5 +406,11 @@ export function analyzeInciText(text: string, opts?: AnalyzeOptions): AnalyzeRes
 }
 
 export function analyzeIngredientList(ingredients: string[], opts?: AnalyzeOptions): AnalyzeResult {
+  if (
+    ingredients.length > 300
+    || ingredients.some((item) => typeof item !== 'string' || item.trim().length > 500)
+    || ingredients.reduce((length, item) => length + item.trim().length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) throw new RangeError('ingredient list is too long');
   return analyzePrepared({ ingredients, parserDiagnostics: [], parserValid: true }, opts);
 }

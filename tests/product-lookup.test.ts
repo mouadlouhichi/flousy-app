@@ -58,6 +58,7 @@ describe('mapOffProduct', () => {
         image_front_url: `https://example.test/${'x'.repeat(2_100)}`,
         quantity: 'x'.repeat(101),
         ingredients_text: 'A'.repeat(12_001),
+        allergens_tags: new Array(51).fill('en:milk'),
         nutriscore_grade: 'b',
         nutriscore_score: 10_000,
       },
@@ -69,6 +70,7 @@ describe('mapOffProduct', () => {
     assert.equal(mapped.imageUrl, undefined);
     assert.equal(mapped.quantity, undefined);
     assert.equal(mapped.ingredientsText, undefined);
+    assert.equal(mapped.allergenTags, undefined);
     assert.equal(mapped.sourceUrl, undefined);
     assert.deepEqual(mapped.ranking, { grade: 'b' });
 

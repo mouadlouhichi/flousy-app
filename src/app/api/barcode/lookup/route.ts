@@ -5,6 +5,7 @@ import { fetchVendorInci, fetchVendorProduct, isVendorConfigured } from '@/lib/s
 import { parseGtin } from '@/lib/gtin';
 import { PRODUCT_LOOKUP_FIELDS, type LookupDatabase } from '@/lib/product-lookup';
 import type { ProductDomain } from '@/lib/store';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -172,6 +173,70 @@ export async function GET(request: NextRequest) {
 
 type OffProduct = Record<string, unknown>;
 
+const PRODUCT_TEXT_LIMITS: Readonly<Record<string, number>> = {
+  code: 20,
+  product_name: 200,
+  product_name_fr: 200,
+  product_name_en: 200,
+  product_name_ar: 200,
+  generic_name: 200,
+  abbreviated_product_name: 200,
+  brands: 2_000,
+  image_front_url: 2_000,
+  categories: 2_000,
+  product_type: 50,
+  quantity: 100,
+  ingredients_text: MAX_INGREDIENT_TEXT_LENGTH,
+  ingredients_text_en: MAX_INGREDIENT_TEXT_LENGTH,
+  ingredients_text_fr: MAX_INGREDIENT_TEXT_LENGTH,
+  ingredients_text_es: MAX_INGREDIENT_TEXT_LENGTH,
+  ingredients_text_ar: MAX_INGREDIENT_TEXT_LENGTH,
+  nutriscore_grade: 8,
+  nutriscore_version: 80,
+  manufacturing_places: 2_000,
+};
+const PRODUCT_ARRAY_KEYS = new Set([
+  'categories_tags',
+  'labels_tags',
+  'allergens_tags',
+  'countries_tags',
+]);
+
+/** Keep provider-controlled fields bounded before response caching or domain
+ * inference. Oversized arrays/values are omitted whole, never prefix-truncated. */
+function sanitizeUpstreamProduct(product: Record<string, unknown>): OffProduct {
+  const bounded: OffProduct = {};
+  for (const [key, max] of Object.entries(PRODUCT_TEXT_LIMITS)) {
+    const value = product[key];
+    if (typeof value !== 'string') continue;
+    const text = value.trim();
+    if (text && text.length <= max) bounded[key] = text;
+  }
+  for (const key of PRODUCT_ARRAY_KEYS) {
+    const value = product[key];
+    if (!Array.isArray(value) || value.length > 50 || value.some((item) => typeof item !== 'string')) continue;
+    const items = (value as string[]).map((item) => item.trim()).filter(Boolean);
+    if (items.every((item) => item.length <= 100)) bounded[key] = items;
+  }
+  if (
+    typeof product.nutriscore_score === 'number'
+    && Number.isFinite(product.nutriscore_score)
+    && Math.abs(product.nutriscore_score) <= 1_000
+  ) bounded.nutriscore_score = product.nutriscore_score;
+  return bounded;
+}
+
+function hasUsableProductName(product: OffProduct): boolean {
+  return [
+    'product_name',
+    'product_name_fr',
+    'product_name_en',
+    'product_name_ar',
+    'generic_name',
+    'abbreviated_product_name',
+  ].some((key) => typeof product[key] === 'string');
+}
+
 function looksLikeBeauty(product: OffProduct): boolean {
   const values = ['categories', 'categories_tags', 'labels_tags', 'product_type']
     .flatMap((key) => {
@@ -233,7 +298,12 @@ export async function walkOffHosts(
       });
       if (!result.ok) return { host, status: 'failed' };
       const body = await result.json() as { status?: number; product?: Record<string, unknown> };
-      if (body.status === 1 && body.product) return { host, status: 'found', product: body.product };
+      if (body.status === 1 && body.product && typeof body.product === 'object') {
+        const product = sanitizeUpstreamProduct(body.product);
+        return hasUsableProductName(product)
+          ? { host, status: 'found', product }
+          : { host, status: 'failed' };
+      }
       if (body.status === 0) return { host, status: 'not-found' };
       return { host, status: 'failed' };
     } catch {

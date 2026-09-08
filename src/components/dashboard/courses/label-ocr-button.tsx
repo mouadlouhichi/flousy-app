@@ -5,6 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { recognizeLabelText, type LabelOcrLanguage, type LabelOcrResult } from '@/lib/label-ocr';
 import { parseInciList } from '@/lib/ingredient-safety/normalize';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 import { splitFoodLabel } from '@/lib/food-analysis-client';
 
 interface LabelOcrButtonProps {
@@ -53,10 +54,16 @@ export function LabelOcrButton({ onText, disabled, productKey = '', mode = 'inci
     if (!draft.trim()) return { tokens: [] as string[], valid: false };
     if (mode === 'inci') {
       const parsed = parseInciList(draft);
-      return { tokens: parsed.tokens, valid: parsed.valid && parsed.tokens.length > 0 };
+      return {
+        tokens: parsed.tokens,
+        valid: draft.length <= MAX_INGREDIENT_TEXT_LENGTH && parsed.valid && parsed.tokens.length > 0,
+      };
     }
     const tokens = splitFoodLabel(draft);
-    return { tokens, valid: bracketsBalanced(draft) && tokens.length > 0 };
+    return {
+      tokens,
+      valid: draft.length <= MAX_INGREDIENT_TEXT_LENGTH && bracketsBalanced(draft) && tokens.length > 0,
+    };
   }, [draft, mode]);
 
   const run = async (file: File | undefined) => {
@@ -165,6 +172,7 @@ export function LabelOcrButton({ onText, disabled, productKey = '', mode = 'inci
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             rows={5}
+            maxLength={MAX_INGREDIENT_TEXT_LENGTH}
             className="mt-2 w-full resize-y rounded-lg border border-outline-variant bg-surface p-2 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
           />
           <span className="mt-2 block font-label-sm text-label-sm font-semibold text-on-surface">

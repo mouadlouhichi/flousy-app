@@ -1,4 +1,5 @@
 import { parseGtin } from '@/lib/gtin';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 
 /**
  * Client for the missing-INCI fallback route.
@@ -121,7 +122,9 @@ async function fetchInciLookup(key: string): Promise<InciLookupResult> {
     const body = (await res.json()) as { found?: boolean; reason?: string; ingredientsText?: unknown };
     if (body.found === true && typeof body.ingredientsText === 'string') {
       const text = body.ingredientsText.trim();
-      if (text) return { kind: 'found', ingredientsText: text };
+      if (text && text.length <= MAX_INGREDIENT_TEXT_LENGTH) {
+        return { kind: 'found', ingredientsText: text };
+      }
     }
     // Only an explicit `not-found` verdict (provider payload with no list)
     // is treated as "we checked and there is nothing"; every other state —

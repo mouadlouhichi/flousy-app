@@ -366,6 +366,20 @@ describe('external provider evidence', () => {
   });
 });
 
+describe('ingredient analysis boundaries', () => {
+  it('rejects oversized raw, pre-split, and context input at the core boundary', () => {
+    assert.throws(() => analyzeInciText('A'.repeat(12_001)), /ingredient text is too long/);
+    assert.throws(
+      () => analyzeIngredientList(new Array(301).fill('Aqua')),
+      /ingredient list is too long/,
+    );
+    assert.throws(
+      () => analyzeInciText('Aqua', { label: 'A'.repeat(201) }),
+      /ingredient analysis context is too long/,
+    );
+  });
+});
+
 describe('inferProductForm', () => {
   it('infers rinse-off vs leave-on from OBF categories', () => {
     assert.equal(inferProductForm('Shampoos'), 'rinse-off');

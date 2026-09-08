@@ -18,6 +18,7 @@
  */
 
 import type { AdditiveBand, AdditiveRole } from './types';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '../ingredient-safety/types';
 import type {
   AllergenGroup,
   AllergenHit,
@@ -72,6 +73,9 @@ export function splitFoodList(text: string): string[] {
 }
 
 export function analyzeFoodText(text: string, opts?: FoodAnalyzeOptions): FoodAnalysis {
+  if (text.trim().length > MAX_INGREDIENT_TEXT_LENGTH) {
+    throw new RangeError('food label text is too long');
+  }
   return analyzeFoodIngredientList(splitFoodList(text), opts);
 }
 
@@ -79,9 +83,20 @@ export function analyzeFoodIngredientList(
   ingredients: string[],
   opts?: FoodAnalyzeOptions,
 ): FoodAnalysis {
-  const cleaned = ingredients
-    .map((t) => String(t).trim())
-    .filter((t) => t.length > 0);
+  if (
+    ingredients.length > 300
+    || ingredients.some((item) => typeof item !== 'string' || item.trim().length > 500)
+    || ingredients.reduce((length, item) => length + item.trim().length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) throw new RangeError('food ingredient list is too long');
+  const tags = opts?.offAllergenTags ?? [];
+  if (
+    (opts?.label?.trim().length ?? 0) > 200
+    || (opts?.category?.trim().length ?? 0) > 200
+    || tags.length > 50
+    || tags.some((tag) => typeof tag !== 'string' || tag.trim().length > 100)
+  ) throw new RangeError('food analysis context is too long');
+  const cleaned = ingredients.map((item) => item.trim()).filter(Boolean);
   const label = opts?.label?.trim() || undefined;
   const category = opts?.category?.trim() || undefined;
 

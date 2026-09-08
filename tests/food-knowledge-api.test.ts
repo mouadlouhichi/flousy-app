@@ -33,15 +33,23 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+async function callRaw(body: unknown, ip: string): Promise<{ status: number; body: Record<string, unknown> }> {
   const req = new NextRequest('http://localhost/api/food/analyze', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
-    body: JSON.stringify({ foodText: text, label: 'Fromage blanc', category: 'Dairies', language: 'fr' }),
+    body: JSON.stringify(body),
   });
   const res = await POST(req);
-  assert.equal(res.status, 200);
-  return (await res.json()) as Record<string, unknown>;
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+  const result = await callRaw(
+    { foodText: text, label: 'Fromage blanc', category: 'Dairies', language: 'fr' },
+    ip,
+  );
+  assert.equal(result.status, 200);
+  return result.body;
 }
 
 describe('POST /api/food/analyze', () => {
@@ -104,6 +112,39 @@ describe('POST /api/food/analyze', () => {
     const res = await callApi(TEXT, '10.2.0.4');
     assert.equal(res.deepSearched, undefined);
     assert.equal(JSON.stringify(res), JSON.stringify(plain));
+  });
+
+  it('rejects malformed or oversized arrays without partial analysis', async () => {
+    const cases: Array<[unknown, string]> = [
+      [{ ingredients: [] }, 'provide at least one ingredient'],
+      [{ ingredients: 'Milk' }, 'ingredients must be an array'],
+      [{ ingredients: ['Milk', { name: 'Salt' }] }, 'ingredients must be strings'],
+      [{ ingredients: ['A'.repeat(501)] }, 'ingredient too long'],
+      [{ ingredients: Array.from({ length: 25 }, () => 'A'.repeat(500)) }, 'ingredient list too long'],
+      [{ foodText: 'A'.repeat(12_001), ingredients: ['Milk'] }, 'invalid text field'],
+      [{ foodText: 'Milk', label: 'A'.repeat(201) }, 'invalid text field'],
+      [{ foodText: 'Milk', offAllergenTags: 'en:milk' }, 'allergen tags must be an array'],
+      [{ foodText: 'Milk', offAllergenTags: new Array(51).fill('en:milk') }, 'invalid allergen tags'],
+      [{ foodText: 'Milk', offAllergenTags: [42] }, 'invalid allergen tags'],
+      [{ foodText: 'Milk', offAllergenTags: ['x'.repeat(101)] }, 'invalid allergen tags'],
+      [{ foodText: 'Milk', language: 'es' }, 'invalid language'],
+    ];
+    for (const [index, [body, error]] of cases.entries()) {
+      const result = await callRaw(body, `10.2.1.${index + 1}`);
+      assert.equal(result.status, 400);
+      assert.equal(result.body.error, error);
+    }
+  });
+
+  it('accepts a pre-split list at the exact shared aggregate limit', async () => {
+    const ingredients = [
+      ...Array.from({ length: 24 }, () => 'A'.repeat(478)),
+      'B'.repeat(480),
+    ];
+    assert.equal(ingredients.join(', ').length, 12_000);
+    const result = await callRaw({ ingredients }, '10.2.2.1');
+    assert.equal(result.status, 200);
+    assert.equal(result.body.total, 25);
   });
 
   it('rejects an empty body', async () => {

@@ -27,7 +27,10 @@
  */
 
 import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
-import type { ExternalIngredientEvidence } from '@/lib/ingredient-safety/types';
+import {
+  MAX_INGREDIENT_TEXT_LENGTH,
+  type ExternalIngredientEvidence,
+} from '@/lib/ingredient-safety/types';
 import { isValidGtin } from '@/lib/gtin';
 
 export const VENDOR_INCI_ENDPOINT = 'https://inciapi.com/v1/products/';
@@ -41,7 +44,9 @@ export const VENDOR_INCI_SAFETY_PATH = '/safety';
 export const VENDOR_INCI_ANALYZE_ENDPOINT = 'https://inciapi.com/v1/analyze';
 type EnvVarMap = Record<string, string | undefined>;
 const VENDOR_TIMEOUT_MS = 3_000;
-const MAX_INCI_LENGTH = 8_000;
+const MAX_VENDOR_INGREDIENTS = 300;
+const MAX_VENDOR_INGREDIENT_NAME_LENGTH = 500;
+const MAX_VENDOR_VERDICT_LENGTH = 100;
 
 export function vendorKey(env: EnvVarMap = process.env): string | undefined {
   const key = env.INCI_API_KEY;
@@ -50,6 +55,25 @@ export function vendorKey(env: EnvVarMap = process.env): string | undefined {
 
 export function isVendorConfigured(env: EnvVarMap = process.env): boolean {
   return vendorKey(env) !== undefined;
+}
+
+function joinVendorIngredientArray(value: unknown, objectsOnly = false): string | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_VENDOR_INGREDIENTS) return null;
+  const names: string[] = [];
+  for (const entry of value) {
+    let rawName: unknown;
+    if (!objectsOnly && typeof entry === 'string') rawName = entry;
+    else if (entry && typeof entry === 'object') {
+      rawName = (entry as { inciName?: unknown; name?: unknown }).inciName
+        ?? (entry as { name?: unknown }).name;
+    } else return null;
+    if (typeof rawName !== 'string') return null;
+    const name = rawName.trim();
+    if (!name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) return null;
+    names.push(name);
+  }
+  const joined = names.join(', ');
+  return joined.length <= MAX_INGREDIENT_TEXT_LENGTH ? joined : null;
 }
 
 /**
@@ -80,39 +104,15 @@ export function extractVendorInci(body: unknown): string | null {
 
   if (typeof rawInci === 'string') {
     const text = rawInci.trim();
-    return text && text.length <= MAX_INCI_LENGTH ? text : null;
+    return text && text.length <= MAX_INGREDIENT_TEXT_LENGTH ? text : null;
   }
-  if (Array.isArray(rawInci)) {
-    const names = rawInci
-      .map((entry) =>
-        typeof entry === 'string'
-          ? entry.trim()
-          : entry && typeof entry === 'object'
-            ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
-            : '',
-      )
-      .filter(Boolean);
-    if (names.length === 0) return null;
-    const joined = names.join(', ');
-    return joined.length > 0 && joined.length <= MAX_INCI_LENGTH ? joined : null;
-  }
+  if (Array.isArray(rawInci)) return joinVendorIngredientArray(rawInci);
 
   // Safety response may keep INCI only as parsedIngredients (objects with
   // inciName/name) rather than rawInci.
   const parsed =
     root.parsedIngredients ?? root.analysis?.parsedIngredients;
-  if (Array.isArray(parsed)) {
-    const names = parsed
-      .map((entry) =>
-        entry && typeof entry === 'object'
-          ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
-          : '',
-      )
-      .filter(Boolean);
-    if (names.length === 0) return null;
-    const joined = names.join(', ');
-    return joined.length > 0 && joined.length <= MAX_INCI_LENGTH ? joined : null;
-  }
+  if (Array.isArray(parsed)) return joinVendorIngredientArray(parsed, true);
 
   return null;
 }
@@ -135,8 +135,11 @@ export function extractVendorProduct(body: unknown): VendorProductInfo | null {
   if (!root || typeof root !== 'object') return null;
   const product: Record<string, unknown> =
     root.product ?? (root as unknown as Record<string, unknown>);
-  const pickName = (value: unknown): string | undefined =>
-    typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  const pickName = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const text = value.trim();
+    return text && text.length <= 200 ? text : undefined;
+  };
   const name =
     pickName(product.product_name) ??
     pickName(product.productName) ??
@@ -150,12 +153,8 @@ export function extractVendorProduct(body: unknown): VendorProductInfo | null {
   const brand =
     pickName(product.brand) ??
     pickName(root.brand) ??
-    (typeof product.brands === 'string' && product.brands.trim()
-      ? product.brands.split(',')[0].trim()
-      : undefined) ??
-    (typeof root.brands === 'string' && root.brands.trim()
-      ? root.brands.split(',')[0].trim()
-      : undefined);
+    pickName(typeof product.brands === 'string' ? product.brands.split(',')[0] : undefined) ??
+    pickName(typeof root.brands === 'string' ? root.brands.split(',')[0] : undefined);
   return { name, ...(brand ? { brand } : {}), ingredientsText };
 }
 
@@ -259,7 +258,7 @@ export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[]
     analysis?: { parsedIngredients?: unknown };
   };
   const raw = root.parsedIngredients ?? root.analysis?.parsedIngredients ?? root.ingredients;
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_VENDOR_INGREDIENTS) return [];
   const entries: VendorAnalyzeEntry[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
@@ -276,13 +275,17 @@ export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[]
         : typeof obj.name === 'string'
           ? obj.name.trim()
           : '';
-    if (!inciName) continue;
+    if (!inciName || inciName.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) continue;
+    const safetyLevel = typeof obj.safetyLevel === 'string' ? obj.safetyLevel.trim() : '';
+    const safetyScore = typeof obj.safetyScore === 'number' && Number.isFinite(obj.safetyScore)
+      ? obj.safetyScore
+      : undefined;
     entries.push({
       inciName,
-      ...(typeof obj.safetyLevel === 'string' && obj.safetyLevel.trim()
-        ? { safetyLevel: obj.safetyLevel.trim() }
+      ...(safetyLevel && safetyLevel.length <= MAX_VENDOR_VERDICT_LENGTH
+        ? { safetyLevel }
         : {}),
-      ...(typeof obj.safetyScore === 'number' ? { safetyScore: obj.safetyScore } : {}),
+      ...(safetyScore !== undefined ? { safetyScore } : {}),
       ...(typeof obj.found === 'boolean' ? { found: obj.found } : {}),
     });
   }
@@ -294,15 +297,21 @@ export function buildVendorEvidence(
   entries: readonly VendorAnalyzeEntry[],
 ): Map<string, ExternalIngredientEvidence> {
   const map = new Map<string, ExternalIngredientEvidence>();
+  if (entries.length > MAX_VENDOR_INGREDIENTS) return map;
   for (const entry of entries) {
     const name = entry.inciName.trim();
+    if (!name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) continue;
     const key = normalizeInciToken(name);
     if (!key) continue;
+    const verdict = entry.safetyLevel?.trim();
+    const score = typeof entry.safetyScore === 'number' && Number.isFinite(entry.safetyScore)
+      ? entry.safetyScore
+      : undefined;
     map.set(key, {
       provider: 'INCI API (inciapi.com)',
       reportedName: name,
-      ...(entry.safetyLevel ? { verdict: entry.safetyLevel } : {}),
-      ...(entry.safetyScore !== undefined ? { score: entry.safetyScore } : {}),
+      ...(verdict && verdict.length <= MAX_VENDOR_VERDICT_LENGTH ? { verdict } : {}),
+      ...(score !== undefined ? { score } : {}),
       ...(entry.found !== undefined ? { found: entry.found } : {}),
       informationalOnly: true,
     });
@@ -334,13 +343,20 @@ export async function fetchVendorAnalyzeEvidence(
 ): Promise<Map<string, ExternalIngredientEvidence>> {
   const key = vendorKey(env);
   if (!key || names.length === 0) return new Map();
+  const ingredients = names.map((name) => name.trim());
+  if (
+    ingredients.length > MAX_VENDOR_INGREDIENTS
+    || ingredients.some((name) => !name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH)
+    || ingredients.reduce((length, name) => length + name.length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) return new Map();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
   try {
     const res = await fetchImpl(VENDOR_INCI_ANALYZE_ENDPOINT, {
       method: 'POST',
       headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ ingredients: names.slice(0, 300) }),
+      body: JSON.stringify({ ingredients }),
       signal: controller.signal,
     });
     if (!res.ok) return new Map();

@@ -1,6 +1,11 @@
 /** Context-complete, bounded client for the same-origin INCI analysis route. */
 
-import type { ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
+import {
+  MAX_INGREDIENT_TEXT_LENGTH,
+  type ParserSummary,
+  type ProductAssessment,
+  type ProductForm,
+} from '@/lib/ingredient-safety/types';
 import { INGREDIENT_ANALYSIS_CACHE_VERSION } from '@/lib/ingredient-safety/version';
 
 export interface AnalyzeIngredientsOptions {
@@ -22,10 +27,20 @@ function normalizePart(value: string | undefined): string {
   return (value ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function assertBoundedContext(text: string, opts?: AnalyzeIngredientsOptions): void {
+  if (text.trim().length > MAX_INGREDIENT_TEXT_LENGTH) {
+    throw new RangeError('ingredient text is too long');
+  }
+  if ((opts?.label?.trim().length ?? 0) > 200 || (opts?.category?.trim().length ?? 0) > 200) {
+    throw new RangeError('ingredient analysis context is too long');
+  }
+}
+
 export function ingredientAnalysisCacheKey(
   text: string,
   opts?: AnalyzeIngredientsOptions,
 ): string {
+  assertBoundedContext(text, opts);
   return JSON.stringify([
     INGREDIENT_ANALYSIS_CACHE_VERSION,
     normalizePart(text),

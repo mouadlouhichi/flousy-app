@@ -416,10 +416,10 @@ describe('Finance backup deep validation (M1)', () => {
     const oversized = validBackup();
     oversized.products = [{
       barcode: '3760044183738', name: 'Crème', source: 'manual',
-      ingredientsText: 'A'.repeat(8001),
+      ingredientsText: 'A'.repeat(12_001),
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     }];
-    expectRejected(oversized, 'ingredientsText must be a string of up to 8000 characters');
+    expectRejected(oversized, 'ingredientsText must be a string of up to 12000 characters');
   });
 
   it('validates nested product attachments instead of trusting arbitrary backup objects', () => {

@@ -21,15 +21,20 @@ const UNKNOWN_TEXT = 'Aqua, Glycerin, Phlogiston Essence, Unobtainium Complex';
 
 type FetchCall = { url: string; init?: { headers?: Record<string, string>; body?: string } };
 
-async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+async function callRaw(body: unknown, ip: string): Promise<{ status: number; body: Record<string, unknown> }> {
   const req = new NextRequest('http://localhost/api/inci/analyze', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
-    body: JSON.stringify({ inciText: text, form: 'leave-on' }),
+    body: JSON.stringify(body),
   });
   const res = await POST(req);
-  assert.equal(res.status, 200);
-  return (await res.json()) as Record<string, unknown>;
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+  const result = await callRaw({ inciText: text, form: 'leave-on' }, ip);
+  assert.equal(result.status, 200);
+  return result.body;
 }
 
 function makeFetchStub(handler: (call: FetchCall) => Promise<unknown> | unknown) {
@@ -73,6 +78,43 @@ function withoutVolatileTime(value: Record<string, unknown>): Record<string, unk
   delete copy.assessedAt;
   return copy;
 }
+
+describe('POST /api/inci/analyze input boundaries', () => {
+  it('rejects empty, non-string, per-token, and aggregate-overflow arrays', async () => {
+    const cases: Array<[unknown, string]> = [
+      [{ ingredients: [] }, 'provide at least one ingredient'],
+      [{ ingredients: 'Aqua' }, 'ingredients must be an array'],
+      [{ ingredients: ['Aqua', { name: 'Glycerin' }] }, 'ingredients must be strings'],
+      [{ ingredients: ['A'.repeat(501)] }, 'ingredient too long'],
+      [{ ingredients: Array.from({ length: 25 }, () => 'A'.repeat(500)) }, 'ingredient list too long'],
+      [{ inciText: 'A'.repeat(12_001), ingredients: ['Aqua'] }, 'invalid text field'],
+      [{ inciText: 'Aqua', category: 'A'.repeat(201) }, 'invalid text field'],
+      [{ inciText: 'Aqua', form: 'spray' }, 'invalid product form'],
+      [{ inciText: 'Aqua', source: 'OCR' }, 'invalid input source'],
+      [{ inciText: 'Aqua', source: 'ocr', reviewed: 'true' }, 'reviewed must be boolean'],
+    ];
+    for (const [index, [body, error]] of cases.entries()) {
+      const result = await callRaw(body, `10.8.0.${index + 1}`);
+      assert.equal(result.status, 400);
+      assert.equal(result.body.error, error);
+    }
+  });
+
+  it('accepts a pre-split list at the exact shared aggregate limit', async () => {
+    const ingredients = [
+      ...Array.from({ length: 24 }, () => 'A'.repeat(478)),
+      'B'.repeat(480),
+    ];
+    assert.equal(ingredients.join(', ').length, 12_000);
+    const result = await callRaw({ ingredients, form: 'leave-on' }, '10.8.1.1');
+    assert.equal(result.status, 200);
+    assert.equal(result.body.total, 25);
+    assert.equal((result.body.unknownIngredients as unknown[]).length, 20);
+    const unknownFlag = (result.body.flags as Array<{ code: string; text: string }>)
+      .find((flag) => flag.code === 'unknown-ingredients');
+    assert.match(unknownFlag?.text ?? '', /^25 of 25 /);
+  });
+});
 
 describe('POST /api/inci/analyze vendor fallback', () => {
   it('never calls the vendor without a key (pure-local result)', async () => {

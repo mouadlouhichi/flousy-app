@@ -388,6 +388,20 @@ describe('audit regression — almonds and partially hydrogenated oil', () => {
   });
 });
 
+describe('food analysis boundaries', () => {
+  it('rejects oversized raw, pre-split, and context input at the core boundary', () => {
+    assert.throws(() => analyzeFoodText('A'.repeat(12_001)), /food label text is too long/);
+    assert.throws(
+      () => analyzeFoodIngredientList(new Array(301).fill('Salt')),
+      /food ingredient list is too long/,
+    );
+    assert.throws(
+      () => analyzeFoodText('Milk', { offAllergenTags: new Array(51).fill('en:milk') }),
+      /food analysis context is too long/,
+    );
+  });
+});
+
 describe('pasted/OCR text sanitizer (extra characters)', () => {
   it('removes branding, quotes, pipes and emoji from pasted label text', () => {
     const dirty = '© Marque | Lait « frais » ® — 2L ½™';

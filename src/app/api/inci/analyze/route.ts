@@ -77,16 +77,36 @@ export async function POST(request: NextRequest) {
   }
   const obj = (body ?? {}) as Record<string, unknown>;
 
+  if (
+    (obj.inciText !== undefined && (
+      typeof obj.inciText !== 'string'
+      || obj.inciText.trim().length > MAX_INGREDIENT_TEXT_LENGTH
+    ))
+    || (obj.label !== undefined && (typeof obj.label !== 'string' || obj.label.trim().length > 200))
+    || (obj.category !== undefined && (typeof obj.category !== 'string' || obj.category.trim().length > 200))
+  ) {
+    return NextResponse.json({ error: 'invalid text field' }, { status: 400 });
+  }
+  if (obj.ingredients !== undefined && !Array.isArray(obj.ingredients)) {
+    return NextResponse.json({ error: 'ingredients must be an array' }, { status: 400 });
+  }
+  if (obj.form !== undefined && (typeof obj.form !== 'string' || !FORMS.has(obj.form))) {
+    return NextResponse.json({ error: 'invalid product form' }, { status: 400 });
+  }
+  if (obj.source !== undefined && (typeof obj.source !== 'string' || !INPUT_SOURCES.has(obj.source))) {
+    return NextResponse.json({ error: 'invalid input source' }, { status: 400 });
+  }
+  if (obj.reviewed !== undefined && typeof obj.reviewed !== 'boolean') {
+    return NextResponse.json({ error: 'reviewed must be boolean' }, { status: 400 });
+  }
+
   const inciText = asString(obj.inciText, MAX_INGREDIENT_TEXT_LENGTH);
   const label = asString(obj.label, 200);
   const category = asString(obj.category, 200);
   const rawIngredients = Array.isArray(obj.ingredients) ? obj.ingredients : undefined;
-  const form: ProductForm | undefined =
-    typeof obj.form === 'string' && FORMS.has(obj.form) ? (obj.form as ProductForm) : undefined;
+  const form: ProductForm | undefined = obj.form as ProductForm | undefined;
   const source: AnalyzeOptions['source'] =
-    typeof obj.source === 'string' && INPUT_SOURCES.has(obj.source)
-      ? (obj.source as AnalyzeOptions['source'])
-      : 'paste';
+    obj.source === undefined ? 'paste' : obj.source as AnalyzeOptions['source'];
   const reviewed = obj.reviewed === true;
 
   if (!inciText && !rawIngredients) {
@@ -101,9 +121,20 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const items = rawIngredients?.map((t) => String(t).trim()).filter(Boolean) ?? [];
-  if (items.some((t) => t.length > 500)) {
+  if (rawIngredients?.some((item) => typeof item !== 'string')) {
+    return NextResponse.json({ error: 'ingredients must be strings' }, { status: 400 });
+  }
+  const items = (rawIngredients as string[] | undefined)?.map((item) => item.trim()).filter(Boolean) ?? [];
+  if (!inciText && items.length === 0) {
+    return NextResponse.json({ error: 'provide at least one ingredient' }, { status: 400 });
+  }
+  if (items.some((item) => item.length > 500)) {
     return NextResponse.json({ error: 'ingredient too long' }, { status: 400 });
+  }
+  const aggregateLength = items.reduce((length, item) => length + item.length, 0)
+    + Math.max(0, items.length - 1) * 2;
+  if (aggregateLength > MAX_INGREDIENT_TEXT_LENGTH) {
+    return NextResponse.json({ error: 'ingredient list too long' }, { status: 400 });
   }
 
   try {

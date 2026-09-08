@@ -51,6 +51,23 @@ describe('ingredient analysis client request identity', () => {
     assert.notEqual(base, ingredientAnalysisCacheKey('Aqua, Glycerin', { form: 'leave-on', label: 'Night cream', category: 'Face care', source: 'ocr', reviewed: false }));
   });
 
+  it('rejects oversized text/context before allocating a cache entry or request', async () => {
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return response();
+    }) as typeof fetch;
+    assert.throws(
+      () => ingredientAnalysisCacheKey('A'.repeat(12_001)),
+      /ingredient text is too long/,
+    );
+    await assert.rejects(
+      analyzeIngredientsText('Aqua', { label: 'A'.repeat(201) }),
+      /ingredient analysis context is too long/,
+    );
+    assert.equal(fetches, 0);
+  });
+
   it('deduplicates only identical complete contexts and forwards that context to the API', async () => {
     clearIngredientAnalysisCache();
     let release!: () => void;

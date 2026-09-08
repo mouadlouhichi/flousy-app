@@ -75,6 +75,9 @@ describe('lookupInciForBarcode', () => {
 
     mockFetch(() => json(200, { found: 'yes' }));
     assert.deepEqual(await lookupInciForBarcode('6111234567826'), { kind: 'unavailable' });
+
+    mockFetch(() => json(200, { found: true, ingredientsText: 'A'.repeat(12_001) }));
+    assert.deepEqual(await lookupInciForBarcode('6111234567826'), { kind: 'unavailable' });
   });
 
   it('caches a deterministic result and never refetches the same code', async () => {
