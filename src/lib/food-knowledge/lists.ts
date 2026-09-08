@@ -32,8 +32,8 @@ export function foldForMatch(text: string): string {
     .trim();
 }
 
-/** True when `term` appears in `hay` on word-ish boundaries (no false hit in
- *  "laitue" for "lait", "noix" swallowed by "noix de coco" excluded). */
+/** True when `term` appears in `hay` on word-ish boundaries (so "lait" does
+ * not match "laitue"). Optional exclusions are retained for other callers. */
 export function includesTerm(hay: string, term: string, excluded: string[] = []): boolean {
   if (!term) return false;
   for (const ex of excluded) {
@@ -44,7 +44,9 @@ export function includesTerm(hay: string, term: string, excluded: string[] = [])
 }
 
 export function allergenTermMatches(hay: string, terms: readonly string[]): boolean {
-  return terms.some((t) => includesTerm(hay, t));
+  // Alias tables remain readable (accented, punctuated label spellings) while
+  // the scanner always works on folded OCR text.
+  return terms.some((term) => includesTerm(hay, foldForMatch(term)));
 }
 
 // --- EU 1169/2011 Annex II allergen groups ----------------------------------
@@ -94,15 +96,26 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'creme fraiche', 'lait de vache', 'lait écrémé', 'lait entier', 'lait en poudre',
       'melk', 'weipoeder', 'wei', 'magere melkpoeder', 'volle melkpoeder',
     ],
-    guard: ['crème de riz', 'crème de marron', 'crème de coco', 'cream cheese frosting'],
+    guard: [
+      'crème de riz', 'crème de marron', 'crème de coco', 'coconut cream',
+      'lait de coco', 'coconut milk', 'lait d’amande', 'lait d amande', 'almond milk',
+      'lait d’avoine', 'lait d avoine', 'oat milk', 'lait de soja', 'soy milk', 'soya milk',
+    ],
   },
   nuts: {
     terms: [
-      'noix', 'walnut', 'noisette', 'hazelnut', 'amande', 'almond', 'pistache',
-      'pistachio', 'noix de cajou', 'cashew', 'noix de pécan', 'pecan', 'noix du brésil',
-      'brazil nut', 'noix de macadamia', 'macadamia', 'noix de pacane',
+      'noix', 'walnut', 'walnuts', 'noisette', 'noisettes', 'hazelnut', 'hazelnuts',
+      'amande', 'amandes', 'almond', 'almonds', 'pistache', 'pistaches', 'pistachio',
+      'pistachios', 'noix de cajou', 'cashew', 'cashews', 'noix de pécan',
+      'noix de pecan', 'pecan', 'pecans', 'pecan nut', 'pecan nuts', 'noix du brésil',
+      'noix du bresil', 'brazil nut', 'brazil nuts', 'noix de macadamia', 'macadamia',
+      'macadamias', 'macadamia nut', 'macadamia nuts', 'queensland nut',
+      'queensland nuts', 'noix de pacane',
     ],
-    guard: ['noix de coco', 'coconut', 'huile de coco', 'coco râpé', 'coco rape'],
+    guard: [
+      'noix de coco', 'coconut', 'huile de coco', 'coco râpé', 'coco rape',
+      'noix de muscade',
+    ],
   },
   celery: {
     terms: ['céleri', 'celeri', 'celery', 'graines de céleri', 'celery seed', 'céleri-rave'],
@@ -144,9 +157,14 @@ export function detectAllergenGroups(foldedText: string): AllergenGroup[] {
   const found: AllergenGroup[] = [];
   for (const group of ALLERGEN_GROUPS) {
     const { terms, guard } = ALLERGEN_TERMS[group];
-    if (allergenTermMatches(foldedText, terms) && !allergenTermMatches(foldedText, guard)) {
-      found.push(group);
-    }
+    // Remove only the guarded phrase, rather than suppressing the whole token.
+    // A compound ingredient such as "almonds and coconut" must still report
+    // nuts even though "coconut" itself is not an Annex II nut.
+    const searchable = guard.reduce(
+      (text, phrase) => text.replaceAll(foldForMatch(phrase), ' '),
+      foldedText,
+    ).replace(/\s+/g, ' ').trim();
+    if (allergenTermMatches(searchable, terms)) found.push(group);
   }
   return found;
 }
@@ -214,8 +232,9 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E466', names: ['carboxyméthylcellulose', 'carboxymethylcellulose'], band: 'neutral', role: 'stabiliser' },
   { e: 'E471', names: ['mono- et diglycérides d’acides gras', 'mono- and diglycerides of fatty acids', 'monoglycérides'], band: 'neutral', role: 'emulsifier' },
   { e: 'E481', names: ['stéaroyl-2-lactylate de sodium', 'sodium stearoyl lactylate'], band: 'neutral', role: 'emulsifier' },
-  // Sweeteners
+  // Sweeteners / humectants
   { e: 'E420', names: ['sorbitol', 'sirop de sorbitol'], band: 'neutral', role: 'sweetener' },
+  { e: 'E422', names: ['glycérol', 'glycerol', 'glycérine', 'glycerin', 'glycerine'], band: 'neutral', role: 'other', note: 'Glycerol; permitted humectant/sweetener (E422).' },
   { e: 'E951', names: ['aspartame', 'aspartam'], band: 'watch', role: 'sweetener', notices: ['phenylalanine'], note: 'Labels must state "contains a source of phenylalanine" (EU).' },
   { e: 'E950', names: ['acésulfame k', 'acesulfame potassium', 'acesulfame k'], band: 'neutral', role: 'sweetener' },
   { e: 'E954', names: ['saccharine', 'saccharin'], band: 'watch', role: 'sweetener' },
@@ -260,23 +279,27 @@ export function lookupAdditive(folded: string): AdditiveHit | null {
  * "paprikakruiderij (… smaakversterkers {mononatriumglutamaat, natriumguanylaat,
  * dinatriuminosinaat} … citroenzuur …)" names E621, E627, E631 and E330.
  * Earlier code kept only the FIRST additive per token, silently dropping the
- * others from the summary and from the additive grade.
+ * others from the summary and from the label grade.
  */
 export function lookupAdditives(folded: string): AdditiveHit[] {
-  if (!folded) return [];
+  const hay = foldForMatch(folded);
+  if (!hay) return [];
   const found: { at: number; len: number; def: AdditiveDef }[] = [];
   // Named aliases anywhere in the token (leftmost wins per code, later ones
   // for the same code are deduped). Pure E-code aliases are skipped here and
   // matched separately below, word-boundary only.
   for (const [alias, def] of ADDITIVE_ALIASES) {
     if (alias === foldForMatch(def.e) || alias.length < 4) continue;
-    let at = folded.indexOf(alias);
+    let at = hay.indexOf(alias);
     while (at !== -1) {
-      found.push({ at, len: alias.length, def });
-      at = folded.indexOf(alias, at + alias.length);
+      const beforeBoundary = at === 0 || hay[at - 1] === ' ';
+      const end = at + alias.length;
+      const afterBoundary = end === hay.length || hay[end] === ' ';
+      if (beforeBoundary && afterBoundary) found.push({ at, len: alias.length, def });
+      at = hay.indexOf(alias, at + 1);
     }
   }
-  const eMatch = folded.match(/(^|\s)(e\d{3,4}[a-z]?)(\s|$)/);
+  const eMatch = hay.match(/(^|\s)(e\d{3,4}[a-z]?)(\s|$)/);
   if (eMatch) {
     const def = ADDITIVE_BY_CODE.get(eMatch[2].toLowerCase());
     if (def) {
@@ -289,7 +312,7 @@ export function lookupAdditives(folded: string): AdditiveHit[] {
   for (const { def } of found) {
     if (seen.has(def.e)) continue;
     seen.add(def.e);
-    hits.push(toHit(def, folded));
+    hits.push(toHit(def, hay));
   }
   return hits;
 }
@@ -329,9 +352,9 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
   { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
   { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
-  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja'], family: 'fat-oil', roles: ['fat'] },
-  { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment', 'tarwebloem', 'tarwemeel', 'tarwezetmeel', 'volkorenmeel', 'tarwe'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
-  { keys: ['blé complet', 'whole wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
+  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'vegetable oil', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée'], family: 'fat-oil', roles: ['fat'] },
+  { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment', 'tarwebloem', 'tarwemeel', 'tarwezetmeel', 'volkorenmeel', 'tarwe', 'wheat'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
+  { keys: ['blé complet', 'whole wheat', 'whole grain wheat', 'whole grain rolled wheat', 'rolled wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'rolled oats', 'whole grain rolled oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['céréales', 'cereals', 'céréales complètes', 'wholegrain cereals'], family: 'cereal', roles: ['base'] },
   { keys: ['riz', 'rice', 'farine de riz', 'rijst', 'rijstbloem', 'rijstmeel', 'rijstzetmeel'], family: 'cereal', roles: ['base'] },
   { keys: ['maïs', 'corn', 'farine de maïs', 'mais', 'maismeel', 'maiszetmeel', 'maisbloem', 'maisvlokken'], family: 'cereal', roles: ['base'] },
@@ -340,7 +363,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['arachide', 'peanut', 'cacahuète'], family: 'legume', allergens: ['peanuts'], roles: ['protein'] },
   { keys: ['soja', 'soya', 'soy', 'lécithine de soja'], family: 'legume', allergens: ['soybeans'], roles: ['protein'] },
   { keys: ['noix de coco', 'coconut'], family: 'fruit-veg', roles: ['fat', 'natural'] },
-  { keys: ['noix', 'walnut', 'noisette', 'hazelnut', 'amande', 'almond', 'pistache', 'pistachio', 'noix de cajou', 'cashew'], family: 'nut-seed', allergens: ['nuts'], roles: ['fat'] },
+  { keys: ['noix', 'walnut', 'walnuts', 'noisette', 'noisettes', 'hazelnut', 'hazelnuts', 'amande', 'amandes', 'almond', 'almonds', 'pistache', 'pistaches', 'pistachio', 'pistachios', 'noix de cajou', 'cashew', 'cashews', 'pecan', 'pecans', 'brazil nut', 'brazil nuts', 'macadamia', 'macadamias'], family: 'nut-seed', allergens: ['nuts'], roles: ['fat'] },
   { keys: ['sésame', 'sesame'], family: 'nut-seed', allergens: ['sesame'], roles: ['seed'] },
   { keys: ['graines de tournesol', 'sunflower seeds', 'graines de lin', 'flaxseed'], family: 'nut-seed', roles: ['seed'] },
   { keys: ['tomate', 'tomato', 'concentré de tomate', 'purée de tomate'], family: 'fruit-veg', roles: ['vegetable'] },
@@ -352,7 +375,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['abricot', 'abricots', 'abricot sec', 'abricots secs', 'apricot', 'apricots', 'dried apricot', 'dried apricots'], family: 'fruit-veg', roles: ['fruit'], note: 'Stone fruit; dried or in syrup form keeps the same food family.' },
   { keys: ['citron', 'lemon', 'jus de citron'], family: 'fruit-veg', roles: ['fruit', 'acidity'] },
   { keys: ['orange', 'orange juice', 'jus d’orange'], family: 'fruit-veg', roles: ['fruit'] },
-  { keys: ['raisin', 'grape'], family: 'fruit-veg', roles: ['fruit'] },
+  { keys: ['raisin', 'raisins', 'raisins secs', 'grape', 'grapes', 'dried raisin', 'dried raisins'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['pomme de terre', 'potato', 'aardappel', 'aardappelen', 'aardappelzetmeel', 'aardappelvlokken', 'aardappelmeel', 'gedehydrateerde aardappelen', 'gedroogde aardappelen'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['carotte', 'carrot'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['champignon', 'mushroom', 'champignons'], family: 'fruit-veg', roles: ['vegetable'] },
@@ -364,9 +387,11 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['gélatine', 'gelatin'], family: 'other', roles: ['texture'], note: 'Usually of animal (bovine/porcine) origin.' },
   { keys: ['plantaardig eiwit', 'gehydrolyseerd plantaardig eiwit', 'planteiwit', 'gehydrolyseerd eiwit', 'vegetable protein', 'hydrolyzed vegetable protein', 'hydrolysed vegetable protein'], family: 'other', roles: ['protein'], note: 'Protein of plant origin (EU phrase on savoury labels).' },
   { keys: ['vanille', 'vanilla', 'extrait de vanille', 'arôme naturel de vanille'], family: 'herb-spice', roles: ['flavour', 'natural'] },
+  { keys: ['noix de muscade', 'nutmeg'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['cacao', 'cocoa', 'cacao en poudre', 'chocolat', 'chocolate'], family: 'herb-spice', roles: ['flavour'] },
   { keys: ['poivre', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['paprikapoeder', 'paprikakruiderij', 'paprikamix'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['glycérol', 'glycerol', 'glycérine', 'glycerin', 'glycerine'], family: 'other', roles: ['humectant'], note: 'Glycerol (E422), used to retain moisture.' },
   { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants', 'aroma s', 'aromen', 'natuurlijke aroma s', 'natuurlijke aroma'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
   { keys: ['maltodextrine', 'maltodextrin'], family: 'cereal', roles: ['texture'] },
   { keys: ['levure', 'yeast', 'levure de boulanger', 'gist', 'gistpoeder', 'bakkersgist', 'brouwersgist'], family: 'culture', roles: ['ferment'] },
@@ -398,7 +423,7 @@ export function lookupFoodRow(folded: string): FoodRowHit | null {
 }
 
 export const FOOD_ROW_COUNT = ROWS.length;
-export const FOOD_DATASET_VERSION = '2026-09-food-v1';
+export const FOOD_DATASET_VERSION = '2026-09-food-v2';
 
 // --- Mineral-water composition parameters -----------------------------------
 // Natural/spring/table waters print a mineral composition (mg/L) instead of an

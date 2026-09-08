@@ -26,7 +26,8 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * }
  *
  * Analysis runs against the LOCAL food-knowledge base (families, EU Annex II
- * allergens, E-number additive registry) and is deterministic. When
+ * allergens, E-number additives and explicit ingredient concerns) and is
+ * deterministic. When
  * KNOWLEDGE_API_URL + KNOWLEDGE_API_KEY are configured, names the local base
  * does not recognise may be asked of the external knowledge slot; its answers
  * are returned ONLY as attributed informational `external` entries (clearly
@@ -34,9 +35,9 @@ import { checkArcjet } from '@/lib/server/arcjet';
  * purely local and never calls out. Failures fall back to the pure-local
  * result.
  *
- * The response contains no numeric score and makes no safety judgement:
- * allergen/additive presence is factual, structured information (EU Reg.
- * 1169/2011 & 1333/2008 context) — never "good"/"bad".
+ * The response contains no numeric score and makes no general food-safety
+ * verdict. Allergen/additive presence and explicit concern-source wording are
+ * returned as factual, structured signals with regulatory context.
  */
 
 export const runtime = 'nodejs';

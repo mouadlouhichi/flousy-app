@@ -1,0 +1,93 @@
+/**
+ * Server-render the food knowledge body for the audit fixture. This catches
+ * missing localization keys and verifies that the safety-relevant signals are
+ * actually visible, rather than existing only in the analysis JSON.
+ */
+import { describe, it, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import en from '../../messages/en.json';
+import fr from '../../messages/fr.json';
+import ar from '../../messages/ar.json';
+import { formatMessage, getIntlLocale, type Language, type Messages } from '../../src/lib/i18n-core';
+import { analyzeFoodText } from '../../src/lib/food-knowledge/analyze';
+
+const catalogs: Record<Language, Messages> = {
+  en: en as Messages,
+  fr: fr as Messages,
+  ar: ar as Messages,
+};
+let current: Language = 'en';
+
+const languageValue = () => ({
+  language: current,
+  setLanguage: () => {},
+  messages: catalogs[current],
+  t: (template: string, values?: Record<string, string | number>) =>
+    formatMessage(template, values, getIntlLocale(current)),
+  translate: (path: string) => path,
+  isRTL: current === 'ar',
+  intlLocale: getIntlLocale(current),
+  localeNames: { en: 'English', fr: 'Français', ar: 'العربية' },
+});
+
+mock.module('@/lib/i18n-context', {
+  namedExports: {
+    useLanguage: languageValue,
+    LanguageProvider: ({ children }: { children: React.ReactNode }) => children,
+  },
+});
+
+const analysis = analyzeFoodText(
+  [
+    'WHOLE GRAIN ROLLED OATS',
+    'VEGETABLE OIL (PARTIALLY HYDROGENATED COTTONSEED AND/OR SOYBEAN OIL)',
+    'ALMONDS',
+    'DRIED UNSWEETENED COCONUT',
+    'NONFAT MILK',
+    'GLYCERIN',
+  ].join(', '),
+);
+
+describe('FoodKnowledgeBody render smoke', () => {
+  it('renders nuts, the hydrogenated-oil concern and E422 in every locale', async () => {
+    const { FoodKnowledgeBody } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const messages = catalogs[locale].foodKnowledge;
+      const html = renderToStaticMarkup(
+        React.createElement(FoodKnowledgeBody, { analysis }),
+      );
+
+      assert.ok(html.includes(messages.allergenNuts), `${locale}: nut allergen missing`);
+      assert.ok(
+        html.includes(messages.concernPartiallyHydrogenatedOil),
+        `${locale}: partially hydrogenated oil signal missing`,
+      );
+      assert.ok(
+        html.includes(messages.concernPartiallyHydrogenatedOilNote),
+        `${locale}: trans-fat explanation missing`,
+      );
+      assert.ok(html.includes('E422'), `${locale}: glycerin additive code missing`);
+      assert.doesNotMatch(html, /undefined|concernPartiallyHydrogenatedOil/);
+    }
+  });
+
+  it('uses aggregate OFF allergen groups even without a text hit', async () => {
+    const { FoodKnowledgeBody } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+    current = 'en';
+    const offOnly = analyzeFoodText('Salt', { offAllergenTags: ['en:nuts'] });
+    assert.equal(offOnly.allergens.length, 0);
+    assert.deepEqual(offOnly.allergenGroups, ['nuts']);
+    const html = renderToStaticMarkup(
+      React.createElement(FoodKnowledgeBody, { analysis: offOnly }),
+    );
+    assert.ok(html.includes(en.foodKnowledge.allergenNuts));
+  });
+});

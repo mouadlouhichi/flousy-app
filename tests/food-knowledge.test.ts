@@ -7,7 +7,7 @@ import {
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain, suggestsCosmeticRecord } from '../src/lib/food-knowledge/domain';
-import { additiveGrade } from '../src/lib/food-knowledge/grade';
+import { additiveGrade, foodLabelGrade } from '../src/lib/food-knowledge/grade';
 import { sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
 
 describe('food-knowledge lists', () => {
@@ -73,8 +73,17 @@ describe('food knowledge engine', () => {
   it('detects EU allergen groups from plain labels and ignores lookalikes', () => {
     const r = analyzeFoodText('Farine de blé, œuf, lait, noix de coco râpée');
     assert.deepEqual(r.allergenGroups, ['gluten', 'eggs', 'milk']);
-    const nuts = analyzeFoodText('Cocktail de fruits exotiques (ananas, noix de coco)');
-    assert.ok(!nuts.allergenGroups.includes('nuts'));
+    const coconut = analyzeFoodText('Cocktail de fruits exotiques (ananas, noix de coco)');
+    assert.ok(!coconut.allergenGroups.includes('nuts'));
+
+    const almonds = analyzeFoodText('ALMONDS, dried unsweetened coconut');
+    assert.ok(almonds.allergenGroups.includes('nuts'), 'plural ALMONDS is an Annex II nut');
+    const compound = analyzeFoodText('almonds and coconut');
+    assert.ok(compound.allergenGroups.includes('nuts'), 'a coconut guard must not hide almonds in the same token');
+
+    assert.deepEqual(analyzeFoodText('coconut milk').allergenGroups, []);
+    assert.deepEqual(analyzeFoodText('almond milk').allergenGroups, ['nuts']);
+    assert.deepEqual(analyzeFoodText('noix de muscade').allergenGroups, []);
   });
 
   it('flags watch/avoid additives with their EU notices', () => {
@@ -320,10 +329,9 @@ describe('audit regression — apricots and sesame products', () => {
     }
   });
 
-  it('keeps the additive grade at 100 for allergen-only and permitted-additive lists', () => {
-    // The audit's two examples: no 'watch'/'avoid' additive ⇒ 100, even when
-    // an EU allergen (sesame) is present — allergens are disclosure, not part
-    // of the additive grade.
+  it('keeps the label grade at 100 for allergen-only and permitted-additive lists', () => {
+    // The audit's two examples: no penalized label signal ⇒ 100, even when an
+    // EU allergen (sesame) is present — allergens are a separate disclosure.
     const apricot = analyzeFoodText('Abricots, sucre, acidifiant : acide citrique');
     assert.equal(apricot.ingredients.find((i) => i.family === 'fruit-veg')?.raw, 'Abricots');
     assert.equal(additiveGrade(apricot)?.score, 100);
@@ -333,6 +341,50 @@ describe('audit regression — apricots and sesame products', () => {
     assert.equal(sesame.additives.length, 1);
     assert.equal(sesame.additives[0].code, 'E330');
     assert.equal(additiveGrade(sesame)?.score, 100);
+  });
+});
+
+describe('audit regression — almonds and partially hydrogenated oil', () => {
+  const granolaLabel = [
+    'WHOLE GRAIN ROLLED OATS',
+    'BROWN SUGAR',
+    'WHOLE GRAIN ROLLED WHEAT',
+    'RAISINS',
+    'VEGETABLE OIL (PARTIALLY HYDROGENATED COTTONSEED AND/OR SOYBEAN OIL)',
+    'ALMONDS',
+    'DRIED UNSWEETENED COCONUT',
+    'NONFAT MILK',
+    'HONEY',
+    'GLYCERIN',
+    'NATURAL FLAVOR',
+  ].join(', ');
+
+  it('reports almonds as an EU nut allergen and recognizes the ordinary rows', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.allergenGroups, ['gluten', 'soybeans', 'milk', 'nuts']);
+    assert.equal(r.ingredients.find((item) => item.raw === 'ALMONDS')?.family, 'nut-seed');
+    assert.deepEqual(
+      r.ingredients.find((item) => item.raw === 'ALMONDS')?.allergens,
+      ['nuts'],
+    );
+    assert.equal(r.ingredients.find((item) => item.raw === 'RAISINS')?.family, 'fruit-veg');
+    assert.equal(r.ingredients.find((item) => item.raw === 'GLYCERIN')?.family, 'other');
+    assert.equal(r.recognized, r.total);
+    assert.deepEqual(r.unknownNames, []);
+  });
+
+  it('maps glycerin to permitted E422 and keeps it neutral', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.additives.map((additive) => additive.code), ['E422']);
+    assert.equal(r.additives[0]?.band, 'neutral');
+  });
+
+  it('surfaces the explicit trans-fat source and prevents a false 100', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.concerns.map((concern) => concern.code), ['partially-hydrogenated-oil']);
+    assert.equal(r.concerns[0]?.level, 'high');
+    assert.ok(r.flags.some((flag) => flag.code === 'ingredient-concern-high'));
+    assert.deepEqual(foodLabelGrade(r), { score: 55, band: 'caution' });
   });
 });
 

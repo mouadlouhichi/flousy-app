@@ -1,40 +1,41 @@
 /**
- * Food additive-grade — the numeric "rank" shown on the food accordion ring.
+ * Food label-signal grade — the numeric rank shown on the food accordion ring.
  *
- * Scope (per product decision): the ring measures ONLY EU food-additive risk,
- * derived from the same local registry used everywhere else (Reg. (EC) No
- * 1333/2008 context — see lists.ts). It is deliberately NOT a health score,
- * NOT Nutri-Score, and NOT an ultra-processing/quality judgement:
+ * This is deliberately NOT Nutri-Score, a complete health score, or a generic
+ * ultra-processing judgement. It is a bounded index of signals that can be
+ * established from the printed ingredient wording itself:
  *
- *   - every food starts at 100;
- *   - a "watch" additive (e.g. E621 glutamate, E320/321, E407, E211, nitrites)
- *     subtracts 15 each — these are EU-permitted but flagged for attention;
- *   - an "avoid" additive (no longer authorised in the EU, e.g. E171) subtracts
- *     60 and additionally caps the grade at 34, so a banned substance never
- *     reads as anything better than "avoid";
- *   - EU-permitted ("neutral") additives do not subtract — being authorised is
- *     the neutral state, not a penalty;
- *   - allergens NEVER subtract: per the EU framing their presence is factual
- *     and only concerns allergic people;
- *   - the result is clamped to 0–100 and rounded, then mapped to a band.
+ *   - EU food additives from the local E-number registry;
+ *   - narrowly curated explicit ingredient concerns (currently partially
+ *     hydrogenated oils, a source of industrial trans fat);
+ *   - recognition coverage, so an unassessed list cannot receive a perfect
+ *     score merely because no known E number was found.
  *
- * The number equals the penalties for the additives the panel actually shows,
- * so the ring can never contradict the expanded list. Informational only.
+ * Allergens never subtract: they are a separate disclosure for people with an
+ * allergy/intolerance. Permitted neutral additives also do not subtract.
+ * The same input always produces the same auditable result.
  */
 
 import type { FoodAnalysis } from './types';
 
 /** Five-step scale — identical literals to the cosmetic Band so the ring
- *  component accepts it without importing the cosmetics engine. */
+ * component accepts it without importing the cosmetics engine. */
 export type GradeBand = 'excellent' | 'good' | 'moderate' | 'caution' | 'avoid';
 
 export const FOOD_GRADE_WATCH_PENALTY = 15;
 export const FOOD_GRADE_AVOID_PENALTY = 60;
-/** Hard ceiling when any avoid (banned) additive is present. */
+export const FOOD_GRADE_CONCERN_WATCH_PENALTY = 15;
+/** Explicit high-concern wording is weighted like a strong ingredient signal. */
+export const FOOD_GRADE_CONCERN_HIGH_PENALTY = 45;
+/** Hard ceiling when an additive is no longer authorised in the EU. */
 export const FOOD_GRADE_AVOID_CAP = 34;
+/** A high ingredient concern may not read better than the caution band. */
+export const FOOD_GRADE_HIGH_CONCERN_CAP = 59;
+/** Unknown ingredients limit confidence instead of being treated as clean. */
+export const FOOD_GRADE_PARTIAL_COVERAGE_CAP = 94;
+export const FOOD_GRADE_LIMITED_COVERAGE_CAP = 79;
 
-/** Band for an additive grade (stricter than the cosmetic scale on purpose:
- *  only a no-additive list reaches 95+, a watch additive keeps you under 95). */
+/** Band for a food label-signal grade. */
 export function gradeBandFor(score: number): GradeBand {
   if (score >= 95) return 'excellent';
   if (score >= 80) return 'good';
@@ -49,32 +50,57 @@ export interface FoodGrade {
 }
 
 /**
- * Compute the additive grade for a food analysis.
- * Returns null when there is nothing to rank: empty lists and mineral waters
- * (no ingredient list — their adapted view already explains that).
+ * Compute the label-signal grade for a food analysis.
+ *
+ * Returns null when there is nothing honest to rank: empty lists, mineral
+ * waters (which have no ingredient list), and lists where zero items could be
+ * recognized. Callers should show an unknown state rather than a false 100.
  */
-export function additiveGrade(analysis: FoodAnalysis | null | undefined): FoodGrade | null {
+export function foodLabelGrade(analysis: FoodAnalysis | null | undefined): FoodGrade | null {
   if (!analysis) return null;
-  if (analysis.total <= 0 || analysis.kind === 'water') return null;
+  if (analysis.total <= 0 || analysis.kind === 'water' || analysis.recognized <= 0) return null;
 
-  const hasAvoid = analysis.additives.some((a) => a.band === 'avoid');
+  const additives = analysis.additives ?? [];
+  const concerns = analysis.concerns ?? [];
+  const hasAvoid = additives.some((additive) => additive.band === 'avoid');
+  const hasHighConcern = concerns.some((concern) => concern.level === 'high');
   let deduction = 0;
-  for (const additive of analysis.additives) {
+
+  for (const additive of additives) {
     if (additive.band === 'avoid') deduction += FOOD_GRADE_AVOID_PENALTY;
     else if (additive.band === 'watch') deduction += FOOD_GRADE_WATCH_PENALTY;
+  }
+  for (const concern of concerns) {
+    deduction += concern.level === 'high'
+      ? FOOD_GRADE_CONCERN_HIGH_PENALTY
+      : FOOD_GRADE_CONCERN_WATCH_PENALTY;
   }
 
   let score = Math.max(0, Math.min(100, 100 - deduction));
   if (hasAvoid) score = Math.min(score, FOOD_GRADE_AVOID_CAP);
+  if (hasHighConcern) score = Math.min(score, FOOD_GRADE_HIGH_CONCERN_CAP);
 
-  return { score: Math.round(score), band: gradeBandFor(score) };
+  // Unknown ingredients are not assumed harmful, but they are not silently
+  // treated as clean either. The caps communicate incomplete coverage without
+  // inventing a penalty for a specific unknown ingredient.
+  const coverage = Math.max(0, Math.min(1, analysis.coverage));
+  if (coverage < 0.6) score = Math.min(score, FOOD_GRADE_LIMITED_COVERAGE_CAP);
+  else if (analysis.unknownNames.length > 0) {
+    score = Math.min(score, FOOD_GRADE_PARTIAL_COVERAGE_CAP);
+  }
+
+  const rounded = Math.round(score);
+  return { score: rounded, band: gradeBandFor(rounded) };
 }
+
+/** Backwards-compatible name for callers shipped with the first food rubric. */
+export const additiveGrade = foodLabelGrade;
 
 /** Per-band human impact statement used only by tests/docs (never UI copy). */
 export const GRADE_BAND_EXPLANATION: Record<GradeBand, string> = {
-  excellent: 'no watch/avoid additives',
-  good: 'one watch additive, or none',
-  moderate: 'several watch additives',
-  caution: 'many watch additives',
+  excellent: 'full recognition and no penalized label signals',
+  good: 'minor signals or partial recognition',
+  moderate: 'several watch signals or limited recognition',
+  caution: 'a high ingredient concern or many watch signals',
   avoid: 'contains an additive no longer authorised in the EU',
 };

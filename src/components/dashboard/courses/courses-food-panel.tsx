@@ -8,6 +8,7 @@ import type {
   AdditiveRole,
   AllergenGroup,
   FoodAnalysis,
+  FoodConcernCode,
   FoodFamily,
 } from '@/lib/food-knowledge/types';
 import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
@@ -57,6 +58,14 @@ const ALLERGEN_KEY: Record<AllergenGroup, string> = {
 
 const BAND_KEY: Record<AdditiveBand, string> = {
   neutral: 'additiveBandNeutral', watch: 'additiveBandWatch', avoid: 'additiveBandAvoid',
+};
+
+const CONCERN_LABEL_KEY: Record<FoodConcernCode, string> = {
+  'partially-hydrogenated-oil': 'concernPartiallyHydrogenatedOil',
+};
+
+const CONCERN_NOTE_KEY: Record<FoodConcernCode, string> = {
+  'partially-hydrogenated-oil': 'concernPartiallyHydrogenatedOilNote',
 };
 
 export function CoursesFoodPanel({
@@ -217,12 +226,15 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
     return <WaterKnowledgeBody analysis={analysis} />;
   }
 
-  const { allergens, additives, ingredients } = analysis;
+  const { additives, ingredients } = analysis;
+  const concerns = analysis.concerns ?? [];
   // Deep-search answers keyed by folded raw name, so they attach to the row.
   const externalByFolded = new Map(
     analysis.external.map((e) => [foldForMatch(e.name), e]),
   );
-  const allergenGroups = allergens.length > 0 ? [...new Set(allergens.map((a) => a.group))] : [];
+  // Use the aggregate set, not only text hits: it also includes trusted OFF
+  // allergen tags supplied as a cross-check when label text is abbreviated.
+  const allergenGroups = analysis.allergenGroups;
   const showAdditives = additives.length > 0;
   const watch = additives.filter((a) => a.band === 'watch');
   const avoid = additives.filter((a) => a.band === 'avoid');
@@ -235,7 +247,7 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
     <div className="mt-3 space-y-3">
       {/* When NOTHING was recognized the panel stays calm and explains why
           (composition/nutrition text pasted as ingredients) — no coverage
-          counts: the ring on the accordion is the additive grade only. */}
+          counts: the ring on the accordion carries the bounded label grade. */}
       {nothingKnown && (
         <p className="flex items-start gap-2 rounded-xl bg-surface-container-high/60 px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
           <AppIcon name="search_off" className="mt-0.5 size-4 shrink-0 text-on-surface-variant" />
@@ -267,6 +279,34 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
               <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.allergenNote}</p>
             </>
           )}
+        </section>
+      )}
+
+      {/* Explicit ingredient-level concerns — separate from both allergens and
+          E-number additives so a non-E-number signal cannot disappear. */}
+      {concerns.length > 0 && (
+        <section className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="health_and_safety" className="size-4 text-orange-600 dark:text-orange-400" />
+            {g.concernsTitle}
+          </h4>
+          <ul className="mt-2 space-y-2">
+            {concerns.map((concern) => (
+              <li key={concern.code}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-body-sm text-body-sm font-medium text-on-surface">
+                    {g[CONCERN_LABEL_KEY[concern.code] as keyof typeof g]}
+                  </span>
+                  <span className="rounded-full bg-orange-500/15 px-2 py-0.5 font-label-sm text-label-sm font-semibold text-orange-700 dark:text-orange-300">
+                    {concern.level === 'high' ? g.concernBandHigh : g.concernBandWatch}
+                  </span>
+                </div>
+                <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">
+                  {g[CONCERN_NOTE_KEY[concern.code] as keyof typeof g]}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -350,6 +390,11 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                   {item.allergens.map((group) => (
                     <Chip key={group} tone="allergen">
                       {g[ALLERGEN_KEY[group] as keyof typeof g]}
+                    </Chip>
+                  ))}
+                  {(item.concerns ?? []).map((concern) => (
+                    <Chip key={concern.code} tone="concern">
+                      {g[CONCERN_LABEL_KEY[concern.code] as keyof typeof g]}
                     </Chip>
                   ))}
                   {item.additive && (
@@ -465,10 +510,11 @@ function WaterKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   );
 }
 
-function Chip({ children, tone }: { children: React.ReactNode; tone?: 'allergen' | 'additive' | 'unknown' }) {
+function Chip({ children, tone }: { children: React.ReactNode; tone?: 'allergen' | 'additive' | 'concern' | 'unknown' }) {
   const base = 'rounded-full px-2 py-0.5 font-label-sm text-label-sm ';
   if (tone === 'allergen') return <span className={base + 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}>{children}</span>;
   if (tone === 'additive') return <span className={base + 'bg-primary/10 text-primary'}>{children}</span>;
+  if (tone === 'concern') return <span className={base + 'bg-orange-500/15 text-orange-700 dark:text-orange-300'}>{children}</span>;
   if (tone === 'unknown') return <span className={base + 'bg-surface-container-high text-on-surface-variant italic'}>{children}</span>;
   return <span className={base + 'bg-primary/10 text-primary'}>{children}</span>;
 }

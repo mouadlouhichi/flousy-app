@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { detectLabelDomain, isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
-import { additiveGrade } from '@/lib/food-knowledge/grade';
+import { foodLabelGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
@@ -25,9 +25,9 @@ import { ScoreRing } from './courses-score-ring';
  * The trigger carries a live preview so the card explains WHY it is worth
  * opening without sacrificing the price step:
  *  - cosmetics: the same band-colored score ring as the glance + band label;
- *  - food: an additive-grade ring (EU additive data — informational, never a
- *    health score), or a droplet when the product is a water (no ingredient
- *    list — mineral composition instead).
+ *  - food: a bounded label-signal ring (EU additive data, explicit ingredient
+ *    concerns and recognition confidence — never a health score), or a
+ *    droplet when the product is a water (no ingredient list).
  * The matching panel (INCI glance / food-knowledge) mounts only when opened.
  * Collapsed by default and reset per scanned product.
  */
@@ -187,9 +187,9 @@ export function CoursesLabelAccordion({
   const showKnowledge = Boolean(barcode || ingredientsText?.trim());
   if (!showKnowledge) return null;
 
-  // Food: additive-grade ring (deterministic, local, informational). Waters
+  // Food: label-signal ring (deterministic, local, informational). Waters
   // keep their droplet — they have no ingredient list to grade.
-  const foodGrade = domain !== 'cosmetic' ? additiveGrade(foodPreview) : null;
+  const foodGrade = domain !== 'cosmetic' ? foodLabelGrade(foodPreview) : null;
 
   // Narrowed view of the analysis: only defined when a score + band exist.
   const readyCosmetic =
@@ -275,7 +275,7 @@ export function CoursesLabelAccordion({
             </span>
           )}
 
-          {/* Food: additive-grade ring / water droplet */}
+          {/* Food: label-signal ring / water droplet */}
           {domain !== 'cosmetic' && foodPreview && (
             foodPreview.kind === 'water' ? (
               <span
@@ -285,23 +285,27 @@ export function CoursesLabelAccordion({
                 <AppIcon name="water_drop" className="size-3.5" />
                 <span className="hidden sm:inline">{fg.waterTitle}</span>
               </span>
-            ) : (
-              foodGrade && (
-                <>
-                  <ScoreRing
-                    score={foodGrade.score}
-                    band={foodGrade.band}
-                    label={`${foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
-                    toneClass={BAND_STYLE[foodGrade.band].text}
-                  />
-                  <span
-                    className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[foodGrade.band].text}`}
-                  >
-                    {t(ig[BAND_LABEL_KEY[foodGrade.band]])}
-                  </span>
-                </>
-              )
-            )
+            ) : foodGrade ? (
+              <>
+                <ScoreRing
+                  score={foodGrade.score}
+                  band={foodGrade.band}
+                  label={`${foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
+                  toneClass={BAND_STYLE[foodGrade.band].text}
+                />
+                <span
+                  className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[foodGrade.band].text}`}
+                >
+                  {t(ig[BAND_LABEL_KEY[foodGrade.band]])}
+                </span>
+              </>
+            ) : foodPreview.total > 0 ? (
+              <ScoreRing
+                unknown
+                label={fg.gradeUnknown}
+                toneClass="text-on-surface-variant"
+              />
+            ) : null
           )}
 
           <AppIcon
