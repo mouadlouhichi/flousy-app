@@ -52,6 +52,7 @@ service cloud.firestore {
       let ranking = data.get('ranking', {});
       let provenance = data.get('provenance', {});
       let ingredientsProvenance = provenance is map ? provenance.get('ingredientsText', {}) : {};
+      let ingredientsSource = ingredientsProvenance is map ? ingredientsProvenance.get('source', '') : '';
       return data.keys().hasOnly([
           'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
           'lastPrice', 'priceUpdatedAt', 'source', 'sourceUrl', 'sourceDatabase',
@@ -76,13 +77,13 @@ service cloud.firestore {
         && data.get('imageUrl', '') is string && data.get('imageUrl', '').size() <= 2000
         && data.get('quantity', '') is string && data.get('quantity', '').size() <= 100
         && (!('lastPrice' in data) || isMoney(data.lastPrice))
-        && data.get('priceUpdatedAt', '') is string && data.get('priceUpdatedAt', '').size() <= 64
+        && data.get('priceUpdatedAt', '') is string
         && data.get('sourceUrl', '') is string && data.get('sourceUrl', '').size() <= 2000
-        && data.get('sourceDatabase', '') is string && data.get('sourceDatabase', '').size() <= 100
+        && data.get('sourceDatabase', '') is string
         && data.get('domain', 'unknown') in ['food', 'cosmetic', 'household', 'pet', 'unknown']
         && data.get('domainSource', 'inferred') in ['source', 'inferred', 'user']
-        && data.get('gs1PrefixAllocation', '') is string && data.get('gs1PrefixAllocation', '').size() <= 100
-        && data.get('origin', '') is string && data.get('origin', '').size() <= 200
+        && data.get('gs1PrefixAllocation', '') is string
+        && data.get('origin', '') is string
         && ranking is map
         && (!('ranking' in data)
           || (ranking.keys().hasOnly(['grade', 'calculationPoints', 'score', 'algorithmVersion'])
@@ -104,9 +105,10 @@ service cloud.firestore {
         ])
         && (!('ingredientsText' in provenance)
           || (ingredientsProvenance is map
-            && ingredientsProvenance.keys().hasOnly(['source', 'retrievedAt', 'sourceUrl', 'language'])))
-        && data.get('retrievedAt', '') is string && data.get('retrievedAt', '').size() <= 64
-        && data.get('staleAfter', '') is string && data.get('staleAfter', '').size() <= 64;
+            && ingredientsProvenance.keys().hasOnly(['source', 'retrievedAt', 'sourceUrl', 'language'])
+            && ingredientsSource in ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session']))
+        && data.get('retrievedAt', '') is string
+        && data.get('staleAfter', '') is string;
     }
     function validCourseSessionDocument(data, sessionId) {
       return data.keys().hasOnly([

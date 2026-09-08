@@ -186,7 +186,7 @@ describe('bounded product catalog and shopping-session rules', () => {
     })));
     await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
       provenance: {
-        name: {
+        ingredientsText: {
           source: 'manual',
           retrievedAt: '2026-09-08T12:00:00.000Z',
           payload: 'not allowed',
