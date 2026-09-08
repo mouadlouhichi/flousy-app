@@ -5,7 +5,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import type { Messages } from '@/lib/i18n';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
-import type { Band, ProductAssessment, RiskTier } from '@/lib/ingredient-safety/types';
+import type { Band, ProductAssessment, ProductForm, RiskTier } from '@/lib/ingredient-safety/types';
 
 /**
  * Ingredient glance for a scanned cosmetic.
@@ -26,6 +26,7 @@ interface CoursesIngredientGlanceProps {
   ingredientsText: string;
   label?: string;
   category?: string;
+  form?: ProductForm;
   /**
    * Rendered inside the CoursesIngredientPanel card. When true the glance
    * drops its own border/title so the outer panel remains a single card with
@@ -98,29 +99,6 @@ export const BANNER_STYLE: Record<Band, { bg: string }> = {
   avoid: { bg: 'bg-rose-600 text-white' },
 };
 
-/** Five-star row; filled count = round(score/100 × 5). Decorative. */
-function StarRow({ score, className }: { score: number; className?: string }) {
-  const filled = Math.max(0, Math.min(5, Math.round((score / 100) * 5)));
-  return (
-    <span className={`flex items-center gap-0.5 ${className ?? ''}`} aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <svg
-          key={i}
-          viewBox="0 0 24 24"
-          className="size-3.5 shrink-0"
-          fill={i < filled ? 'currentColor' : 'none'}
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-        </svg>
-      ))}
-    </span>
-  );
-}
-
 /** Colored tier pill used on ingredient rows inside the details list. */
 const TIER_STYLE: Record<RiskTier, string> = {
   prohibited: 'bg-rose-600 text-white',
@@ -143,6 +121,7 @@ export function CoursesIngredientGlance({
   ingredientsText,
   label,
   category,
+  form,
   embedded = false,
 }: CoursesIngredientGlanceProps) {
   const { messages } = useLanguage();
@@ -155,7 +134,7 @@ export function CoursesIngredientGlance({
     const controller = new AbortController();
     let cancelled = false;
     setState({ status: 'loading' });
-    analyzeIngredientsText(text, { label, category, signal: controller.signal })
+    analyzeIngredientsText(text, { label, category, form, signal: controller.signal })
       .then((analysis) => {
         if (!cancelled) setState({ status: 'ready', analysis });
       })
@@ -166,7 +145,7 @@ export function CoursesIngredientGlance({
       cancelled = true;
       controller.abort();
     };
-  }, [text, label, category]);
+  }, [text, label, category, form]);
 
   if (!text) return null;
   const loading = state.status === 'loading';
@@ -213,16 +192,9 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
   const [showDetails, setShowDetails] = useState(false);
   const a = analysis;
 
-  if (a.score === null || a.band === null) {
-    return (
-      <div>
-        <p className="mt-2 font-body-sm text-body-sm text-on-surface-variant">{g.scoreUnknown}</p>
-        <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant/70">
-          {g.disclaimer}
-        </p>
-      </div>
-    );
-  }
+  const scored = a.score !== null && a.band !== null
+    ? { score: a.score, band: a.band }
+    : null;
 
   const flagged = a.ingredients.filter(
     (i) => i.tier && i.tier !== 'clean' && i.tier !== null,
@@ -231,6 +203,7 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
     (i) => i.tier === 'prohibited' || i.tier === 'restricted',
   );
   const unknownCount = a.total - a.recognized;
+  const unassessedCount = a.ingredients.filter((item) => item.assessmentState === 'identified-no-assessment' || item.assessmentState === 'externally-identified').length;
   const recognizedLabel =
     a.recognized === a.total && a.total > 0
       ? t(g.recognizedAll, { total: a.total })
@@ -250,42 +223,45 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
 
   return (
     <div className="mt-2.5 space-y-2.5">
-      {/* Overall quality rating — the prominent banner: big score + /100,
-          rating label, five-star row on a band-coloured background, with a
-          thin strip under the score keeping the green/yellow/orange tier
-          proportions the old dial showed. */}
-      <div
-        className={`rounded-2xl p-3.5 md:p-4 ${BANNER_STYLE[a.band].bg}`}
-        role="img"
-        aria-label={`${a.score}/100 — ${t(g[BAND_LABEL_KEY[a.band]])}`}
-      >
-        <div className="flex items-center gap-3.5">
-          <div className="shrink-0">
-            <p className="flex items-baseline font-headline-lg text-headline-lg font-bold leading-none tabular-nums" dir="ltr">
-              {a.score}
-              <span className="ms-0.5 font-label-md text-label-md font-semibold opacity-70">/100</span>
-            </p>
-            {tierTotal > 0 && (
-              <div className="mt-2 flex h-1 w-16 overflow-hidden rounded-full bg-white/25" aria-hidden="true">
-                <span className="bg-green-400" style={{ width: `${(tierGood / tierTotal) * 100}%` }} />
-                <span className="bg-yellow-400" style={{ width: `${(tierCaution / tierTotal) * 100}%` }} />
-                <span className="bg-orange-400" style={{ width: `${(tierConcern / tierTotal) * 100}%` }} />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-label-lg text-label-lg font-bold">{t(g[BAND_LABEL_KEY[a.band]])}</p>
-            <StarRow score={a.score} className="mt-0.5 opacity-90" />
-            <p className="mt-1 flex items-center gap-1.5 font-label-sm text-label-sm opacity-75">
-              <AppIcon name="task_alt" className="size-3.5 shrink-0" />
-              <span className="truncate">{recognizedLabel}</span>
-            </p>
+      {scored ? (
+        <div
+          className={`rounded-2xl p-3.5 md:p-4 ${BANNER_STYLE[scored.band].bg}`}
+          role="img"
+          aria-label={`${g.evidenceIndex}: ${scored.score}/100`}
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="shrink-0">
+              <p className="font-label-sm text-label-sm font-semibold opacity-80">{g.evidenceIndex}</p>
+              <p className="flex items-baseline font-headline-lg text-headline-lg font-bold leading-none tabular-nums" dir="ltr">
+                {scored.score}
+                <span className="ms-0.5 font-label-md text-label-md font-semibold opacity-70">/100</span>
+              </p>
+              {tierTotal > 0 && (
+                <div className="mt-2 flex h-1 w-16 overflow-hidden rounded-full bg-white/25" aria-hidden="true">
+                  <span className="bg-green-400" style={{ width: `${(tierGood / tierTotal) * 100}%` }} />
+                  <span className="bg-yellow-400" style={{ width: `${(tierCaution / tierTotal) * 100}%` }} />
+                  <span className="bg-orange-400" style={{ width: `${(tierConcern / tierTotal) * 100}%` }} />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-label-md text-label-md font-semibold">{g.indexNotSafetyVerdict}</p>
+              <p className="mt-1 flex items-center gap-1.5 font-label-sm text-label-sm opacity-80">
+                <AppIcon name="database" className="size-3.5 shrink-0" />
+                <span className="truncate">{recognizedLabel}</span>
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-outline-variant bg-surface-container-high/60 px-3 py-2">
+          <p className="font-body-sm text-body-sm font-medium text-on-surface">{g.scoreUnknown}</p>
+          <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">{g.indexNotSafetyVerdict}</p>
+        </div>
+      )}
 
       {/* Takeaway chips — color-coded counts; the flagged pill toggles the list */}
-      {(flagged.length > 0 || unknownCount > 0) && (
+      {(flagged.length > 0 || unknownCount > 0 || unassessedCount > 0) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {flagged.length > 0 && (
             <button
@@ -316,23 +292,21 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
               {t(g.chipUnknown, { count: unknownCount })}
             </span>
           )}
-          {flagged.length > 0 && !showDetails && (
-            <span className="inline-flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant/80">
-              <AppIcon name="chevron_right" className="size-3.5" />
-              {g.viewDetails}
+          {unassessedCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 font-label-sm text-label-sm text-on-surface-variant">
+              <AppIcon name="help" className="size-3.5 shrink-0" />
+              {t(g.chipUnassessed, { count: unassessedCount })}
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => setShowDetails((value) => !value)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm text-on-surface-variant"
+          >
+            <AppIcon name="list" className="size-3.5" />
+            {showDetails ? g.hideDetails : g.reviewIngredients}
+          </button>
         </div>
-      )}
-
-      {flagged.length === 0 && unknownCount === 0 && (
-        <p className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface">
-          <AppIcon
-            name="check_circle"
-            className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-          />
-          {g.chipNoConcern}
-        </p>
       )}
 
       {/* Concern flags (composed locally from response codes) */}
@@ -365,21 +339,30 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         </ul>
       )}
 
-      {/* Expandable list of flagged ingredients — colored tier pills */}
-      {flagged.length > 0 && showDetails && (
+      {showDetails && (
         <ul className="divide-y divide-outline-variant/70 overflow-hidden rounded-xl border border-outline-variant bg-surface/60">
-          {flagged.map((i) => {
-            const tier = i.tier as RiskTier;
+          {a.ingredients.map((ingredient) => {
+            const tier = ingredient.tier;
+            const identityLabel = ingredient.identity.status === 'unidentified'
+              ? g.identityUnknown
+              : ingredient.identity.status === 'externally-identified'
+                ? g.identityExternal
+                : ingredient.assessmentState === 'identified-no-assessment'
+                  ? g.identityOnly
+                  : g.identityAssessed;
             return (
-              <li key={i.index} className="flex items-center gap-2.5 px-3 py-2">
-                <span className={`size-2 shrink-0 rounded-full ${TIER_DOT[tier]}`} aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
-                  {i.matchedInci ?? i.raw}
+              <li key={ingredient.index} className="flex items-center gap-2.5 px-3 py-2">
+                <span className={`size-2 shrink-0 rounded-full ${tier ? TIER_DOT[tier] : 'bg-outline'}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-body-sm text-body-sm text-on-surface">
+                    {ingredient.matchedInci ?? ingredient.raw}
+                  </span>
+                  {ingredient.matchedInci && ingredient.matchedInci !== ingredient.raw && (
+                    <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">{ingredient.raw}</span>
+                  )}
                 </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${TIER_STYLE[tier]}`}
-                >
-                  {t(g[TIER_LABEL_KEY[tier]])}
+                <span className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${tier ? TIER_STYLE[tier] : 'bg-surface-container-high text-on-surface-variant'}`}>
+                  {tier ? t(g[TIER_LABEL_KEY[tier]]) : identityLabel}
                 </span>
               </li>
             );
@@ -387,6 +370,12 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         </ul>
       )}
 
+      <p className="font-label-sm text-label-sm text-on-surface-variant">
+        {t(g.assessmentMeta, {
+          date: a.dataset.regulationAsOf ?? a.dataset.snapshot,
+          form: a.form === 'leave-on' ? g.formLeaveOn : a.form === 'rinse-off' ? g.formRinseOff : g.formUnknown,
+        })}
+      </p>
       <p className="font-label-sm text-label-sm text-on-surface-variant/70">{g.disclaimer}</p>
     </div>
   );
@@ -412,7 +401,8 @@ export function ingredientFlagText(
         ? t(g.flagProhibitedOne, { name: list[0] ?? '' })
         : t(g.flagProhibitedOther, { names: list.join(', ') });
     }
-    case 'fragrance-allergens': {
+    case 'fragrance-allergens':
+    case 'fragrance-allergen-name-matches': {
       const list = names((i) => i.signals.some((s) => s.code === 'eu-fragrance-allergen'));
       return t(g.flagAllergens, { count: list.length, names: list.slice(0, 3).join(', ') });
     }
@@ -430,6 +420,23 @@ export function ingredientFlagText(
       const count = a.total - a.recognized;
       return t(g.flagUnknown, { count });
     }
+    case 'eu-annex-ii-name-match': {
+      const list = names((i) => i.signals.some((s) => s.regulatory?.annex === 'II'));
+      return t(g.flagAnnexII, { names: list.join(', ') });
+    }
+    case 'regulatory-conditions-unknown':
+      return g.flagConditionsUnknown;
+    case 'parser-review-required':
+      return g.flagParserReview;
+    case 'ocr-review-required':
+      return g.flagOcrReview;
+    case 'withheld-no-ingredients':
+    case 'withheld-invalid-parse':
+    case 'withheld-review-required':
+    case 'withheld-form-unknown':
+    case 'withheld-conditions-unknown':
+    case 'withheld-insufficient-evidence':
+      return g.flagScoreWithheld;
     default:
       return '';
   }

@@ -1041,13 +1041,18 @@ service cloud.firestore {
 
       match /products/{barcode} {
         allow get, list: if owner(uid);
+        // New records use canonical GTIN-14 document IDs. Legacy 8/13-digit
+        // records remain readable/updatable so clients can migrate them.
         allow create: if owner(uid)
-          && (barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
-          && boundedText(incoming().name, 100)
+          && barcode.matches('^[0-9]{14}$')
+          && incoming().get('gtin14', '') == barcode
+          && boundedText(incoming().name, 200)
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
         allow update: if owner(uid)
+          && (barcode.matches('^[0-9]{14}$') || barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
+          && (!('gtin14' in incoming()) || incoming().gtin14.matches('^[0-9]{14}$'))
           && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice))
-          && (!('name' in incoming()) || boundedText(incoming().name, 100));
+          && (!('name' in incoming()) || boundedText(incoming().name, 200));
         allow delete: if owner(uid);
       }
 
@@ -1060,12 +1065,24 @@ service cloud.firestore {
           && incoming().place.size() <= 80
           && isMoney(incoming().total)
           && incoming().items is list
-          && incoming().items.size() <= 500;
+          && incoming().items.size() <= 500
+          && incoming().revision == 1
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160;
         allow update: if owner(uid)
           && isMoney(incoming().total)
           && incoming().items is list
           && incoming().items.size() <= 500
-          && (!('status' in incoming()) || incoming().status in ['active', 'completed']);
+          && incoming().status in ['active', 'completed']
+          && !(existing().get('status', 'active') == 'completed' && incoming().status == 'active')
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || ('revision' in existing()
+              && existing().revision is int
+              && incoming().revision == existing().revision + 1))
+          && incoming().lastMutationId is string
+          && incoming().lastMutationId.size() > 0
+          && incoming().lastMutationId.size() <= 160;
         allow delete: if owner(uid);
       }
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import type {
@@ -11,7 +11,7 @@ import type {
   FoodConcernCode,
   FoodFamily,
 } from '@/lib/food-knowledge/types';
-import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
+import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
 import { LabelOcrButton } from './label-ocr-button';
@@ -38,6 +38,8 @@ interface CoursesFoodPanelProps {
   name?: string;
   /** OFF-style category. */
   category?: string;
+  /** Trusted OFF allergen tags used only as a cross-check. */
+  offAllergenTags?: string[];
 }
 
 const FAMILY_KEY: Record<FoodFamily, string> = {
@@ -69,9 +71,11 @@ const CONCERN_NOTE_KEY: Record<FoodConcernCode, string> = {
 };
 
 export function CoursesFoodPanel({
+  barcode,
   initialText,
   name,
   category,
+  offAllergenTags,
 }: CoursesFoodPanelProps) {
   const { messages: m, t, language } = useLanguage();
   const g = m.foodKnowledge;
@@ -79,6 +83,8 @@ export function CoursesFoodPanel({
 
   const [draft, setDraft] = useState('');
   const [invalid, setInvalid] = useState(false);
+  const requestIdRef = useRef(0);
+  const analysisAbortRef = useRef<AbortController | null>(null);
   const [pending, setPending] = useState<{
     status: 'idle' | 'loading' | 'ready';
     analysis?: FoodAnalysis;
@@ -95,36 +101,62 @@ export function CoursesFoodPanel({
     detectFoodKind({ ...(name ? { name } : {}), ...(category ? { category } : {}) }) === 'water';
 
   const run = (text: string) => {
+    const requestId = ++requestIdRef.current;
+    analysisAbortRef.current?.abort();
+    analysisAbortRef.current = null;
     const trimmed = text.trim();
     if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    setPending({ status: 'loading' });
-    analyzeFoodKnowledge(
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
+    const result = analyzeFoodKnowledgeImmediate(
       { text: trimmed },
       {
         ...(name ? { label: name } : {}),
         ...(category ? { category } : {}),
+        ...(offAllergenTags?.length ? { offAllergenTags } : {}),
         language,
+        signal: controller.signal,
       },
-    )
-      .then((result) => {
+    );
+    // Deterministic local output is rendered immediately; the optional server
+    // enrichment may replace only the same request/context.
+    setPending({
+      status: 'ready',
+      analysis: result.analysis,
+      ...(result.offline ? { offline: true } : {}),
+    });
+    if (result.enrichment) {
+      void result.enrichment.then((enriched) => {
+        if (requestId !== requestIdRef.current) return;
         setPending({
           status: 'ready',
-          analysis: result.analysis,
-          ...(result.offline ? { offline: true } : {}),
+          analysis: enriched.analysis,
+          ...(enriched.offline ? { offline: true } : {}),
         });
-      })
-      .catch(() => setPending({ status: 'ready' }));
+      }).catch(() => undefined);
+    }
   };
 
-  // Scanned records analyse themselves as soon as the text arrives.
+  // Scanned records re-analyse whenever any assessment context changes.
+  const contextKey = JSON.stringify({ name, category, language, offAllergenTags: [...(offAllergenTags ?? [])].sort() });
   useEffect(() => {
     if (fromRecord) run(fromRecord);
+    else {
+      requestIdRef.current += 1;
+      analysisAbortRef.current?.abort();
+      setPending({ status: 'idle' });
+    }
+    return () => {
+      requestIdRef.current += 1;
+      analysisAbortRef.current?.abort();
+    };
+    // `contextKey` deliberately captures every assessment-affecting input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromRecord]);
+  }, [fromRecord, contextKey]);
 
   const analysis = pending.status === 'ready' ? pending.analysis : undefined;
   const waterHeading = analysis?.kind === 'water' || autoWater;
@@ -184,6 +216,8 @@ export function CoursesFoodPanel({
             {/* No ingredient text on the scanned product? Photograph the label
                 instead of typing it — OCR runs on-device. */}
             <LabelOcrButton
+              productKey={`${barcode ?? 'manual'}\u0001${name ?? ''}`}
+              mode="food"
               onText={(text) => {
                 setDraft(text);
                 run(text);

@@ -122,7 +122,7 @@ describe('vendor-inci fetch', () => {
 
   it('never calls the network when no key is configured', async () => {
     const { fetchImpl, calls } = stubFetch({ throwOnCall: true });
-    const out = await fetchVendorPayload('6111234567890', KEYLESS, fetchImpl);
+    const out = await fetchVendorPayload('6111234567895', KEYLESS, fetchImpl);
     assert.equal(out, null);
     assert.equal(calls.length, 0);
     assert.equal(isVendorConfigured(KEYLESS), false);
@@ -130,10 +130,10 @@ describe('vendor-inci fetch', () => {
 
   it('sends the key header and returns the payload when configured', async () => {
     const { fetchImpl, calls } = stubFetch({ body: { product: { name: 'X' } } });
-    const out = await fetchVendorPayload('6111234567890', KEYED, fetchImpl);
+    const out = await fetchVendorPayload('6111234567895', KEYED, fetchImpl);
     assert.deepEqual(out, { product: { name: 'X' } });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`);
+    assert.equal(calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567895${VENDOR_INCI_SAFETY_PATH}`);
     assert.equal(calls[0].headers?.['X-API-Key'], 'sk-test');
   });
 
@@ -141,13 +141,13 @@ describe('vendor-inci fetch', () => {
     const httpStub = stubFetch({ ok: false });
     assert.equal(await fetchVendorPayload('not-a-code', KEYED, httpStub.fetchImpl), null);
     assert.equal(httpStub.calls.length, 0, 'invalid codes never reach the network');
-    assert.equal(await fetchVendorPayload('6111234567890', KEYED, httpStub.fetchImpl), null);
+    assert.equal(await fetchVendorPayload('6111234567895', KEYED, httpStub.fetchImpl), null);
     // Both endpoint variants are tried before giving up.
     assert.equal(httpStub.calls.length, 2, 'HTTP errors return null after both variants');
-    assert.equal(httpStub.calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`);
-    assert.equal(httpStub.calls[1].url, `${VENDOR_INCI_ENDPOINT}6111234567890`);
+    assert.equal(httpStub.calls[0].url, `${VENDOR_INCI_ENDPOINT}6111234567895${VENDOR_INCI_SAFETY_PATH}`);
+    assert.equal(httpStub.calls[1].url, `${VENDOR_INCI_ENDPOINT}6111234567895`);
     const netStub = stubFetch({ throwOnCall: true });
-    assert.equal(await fetchVendorPayload('6111234567890', KEYED, netStub.fetchImpl), null);
+    assert.equal(await fetchVendorPayload('6111234567895', KEYED, netStub.fetchImpl), null);
     assert.equal(netStub.calls.length, 2, 'network errors return null after both variants');
   });
 
@@ -156,8 +156,8 @@ describe('vendor-inci fetch', () => {
       product: { name: 'Crème', brands: 'X', ingredients: 'Aqua, Glycerin' },
     };
     const { fetchImpl } = stubFetch({ body });
-    assert.equal(await fetchVendorInci('6111234567890', KEYED, fetchImpl), 'Aqua, Glycerin');
-    assert.deepEqual(await fetchVendorProduct('6111234567890', KEYED, fetchImpl), {
+    assert.equal(await fetchVendorInci('6111234567895', KEYED, fetchImpl), 'Aqua, Glycerin');
+    assert.deepEqual(await fetchVendorProduct('6111234567895', KEYED, fetchImpl), {
       name: 'Crème',
       brand: 'X',
       ingredientsText: 'Aqua, Glycerin',
@@ -176,11 +176,11 @@ describe('vendor-inci fetch', () => {
         json: async () => ({ product: { name: 'Crème', details: { inci: ['Aqua', 'Glycerin'] } } }),
       };
     };
-    const body = await fetchVendorPayload('6111234567890', KEYED, fetchImpl as never);
+    const body = await fetchVendorPayload('6111234567895', KEYED, fetchImpl as never);
     assert.equal(extractVendorInci(body), 'Aqua, Glycerin');
     assert.deepEqual(calls, [
-      `${VENDOR_INCI_ENDPOINT}6111234567890${VENDOR_INCI_SAFETY_PATH}`,
-      `${VENDOR_INCI_ENDPOINT}6111234567890`,
+      `${VENDOR_INCI_ENDPOINT}6111234567895${VENDOR_INCI_SAFETY_PATH}`,
+      `${VENDOR_INCI_ENDPOINT}6111234567895`,
     ]);
   });
 });
@@ -213,7 +213,7 @@ describe('vendor analyze (analysis-fallback unit)', () => {
     assert.deepEqual(extractVendorAnalyzeEntries({ something: 'else' }), []);
   });
 
-  it('normalizes name keys and adopts only explicit safe entries', () => {
+  it('normalizes name keys and retains every provider observation as informational evidence', () => {
     const map = buildVendorRecognition([
       { inciName: '  phlogiston essence ', safetyLevel: 'Safe' },
       { inciName: 'Unobtainium Complex', safetyLevel: 'unsafe' },
@@ -221,11 +221,14 @@ describe('vendor analyze (analysis-fallback unit)', () => {
       { inciName: 'GoneBotanical', found: false, safetyLevel: 'safe' },
       { inciName: '', safetyLevel: 'safe' },
     ]);
-    assert.equal(map.size, 1);
+    assert.equal(map.size, 4);
     const entry = map.get('PHLOGISTON ESSENCE');
     assert.ok(entry, 'normalized key present');
-    assert.equal(entry.label, 'PHLOGISTON ESSENCE');
-    assert.ok(entry.detail.length > 0 && entry.evidence.length > 0);
+    assert.equal(entry.reportedName, 'phlogiston essence');
+    assert.equal(entry.verdict, 'Safe');
+    assert.equal(entry.informationalOnly, true);
+    assert.equal(map.get('UNOBTAINIUM COMPLEX')?.verdict, 'unsafe');
+    assert.equal(map.get('GONEBOTANICAL')?.found, false);
   });
 
   it('never calls the network without a key, and caps the posted list at 300', async () => {

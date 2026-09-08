@@ -10,7 +10,9 @@
  * nutrition/health verdict. See docs/FEATURE_LABEL_KNOWLEDGE.md.
  */
 
-export type FoodDomain = 'food' | 'cosmetic' | 'unknown';
+export type ProductDomain = 'food' | 'cosmetic' | 'household' | 'pet' | 'unknown';
+/** @deprecated Kept as an import-compatible alias. */
+export type FoodDomain = ProductDomain;
 
 /** High-level "what kind of ingredient is this" — used for localized chips. */
 export type FoodFamily =

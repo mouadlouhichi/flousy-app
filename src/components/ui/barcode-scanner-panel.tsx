@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import type { BarcodeCandidate } from '@/lib/gtin';
 
 let scanAudioCtx: AudioContext | null = null;
 
@@ -64,6 +65,11 @@ export interface ScannerPanelLabels {
   torchOn: string;
   torchOff: string;
   cameraUnavailable: string;
+  cameraDenied?: string;
+  cameraNotFound?: string;
+  cameraBusy?: string;
+  insecureContext?: string;
+  cameraSelect?: string;
   manualPlaceholder: string;
   lookup: string;
 }
@@ -71,7 +77,7 @@ export interface ScannerPanelLabels {
 interface BarcodeScannerPanelProps {
   /** Session is active — attach the hardware-wedge listener + camera. */
   enabled: boolean;
-  onCode: (rawCode: string) => void;
+  onCode: (candidate: BarcodeCandidate) => void;
   labels: ScannerPanelLabels;
   /** Optional header control (e.g. a close button for sheet usage). */
   headerAction?: React.ReactNode;
@@ -102,8 +108,24 @@ export function BarcodeScannerPanel({
   className,
 }: BarcodeScannerPanelProps) {
   const [manualCode, setManualCode] = useState('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [flash, setFlash] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appliedDeviceRef = useRef('');
+
+  const handleAccepted = (candidate: BarcodeCandidate) => {
+    setManualCode('');
+    playScanBeep();
+    setFlash(true);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(false), 700);
+    try {
+      navigator.vibrate?.(30);
+    } catch {
+      // Haptics are optional.
+    }
+    onCode(candidate);
+  };
 
   const {
     videoRef,
@@ -116,26 +138,16 @@ export function BarcodeScannerPanel({
     zoomOut,
     canZoomIn,
     canZoomOut,
+    hardwareZoomAvailable,
     torchOn,
     torchAvailable,
     toggleTorch,
+    roiActive,
+    devices,
   } = useBarcodeScanner({
     enabled,
-    onCode: (code) => {
-      setManualCode('');
-      // Captured feedback: beep + frame flash + "Scanned" chip + haptic, even
-      // when the barcode is unknown and the lookup later fails.
-      playScanBeep();
-      setFlash(true);
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlash(false), 700);
-      try {
-        navigator.vibrate?.(30);
-      } catch {
-        /* haptics unsupported */
-      }
-      onCode(code);
-    },
+    deviceId: selectedDeviceId || undefined,
+    onCode: handleAccepted,
   });
 
   useEffect(() => {
@@ -145,13 +157,30 @@ export function BarcodeScannerPanel({
     };
   }, [enabled, stop]);
 
+  useEffect(() => {
+    if (!enabled || !selectedDeviceId || appliedDeviceRef.current === selectedDeviceId) return;
+    appliedDeviceRef.current = selectedDeviceId;
+    stop();
+    void start(selectedDeviceId);
+  }, [enabled, selectedDeviceId, start, stop]);
+
   const submitManual = (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = manualCode.trim();
     if (!trimmed) return;
-    onCode(trimmed);
-    setManualCode('');
+    stop();
+    handleAccepted({ rawValue: trimmed, format: 'UNKNOWN', source: 'manual' });
   };
+
+  const cameraErrorText = error === 'camera-denied'
+    ? labels.cameraDenied ?? labels.cameraUnavailable
+    : error === 'camera-not-found'
+      ? labels.cameraNotFound ?? labels.cameraUnavailable
+      : error === 'camera-busy'
+        ? labels.cameraBusy ?? labels.cameraUnavailable
+        : error === 'insecure-context'
+          ? labels.insecureContext ?? labels.cameraUnavailable
+          : labels.cameraUnavailable;
 
   return (
     <div className={className ?? 'rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5'}>
@@ -182,8 +211,7 @@ export function BarcodeScannerPanel({
           ref={videoRef}
           playsInline
           muted
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 ease-out"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {!running ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
@@ -192,16 +220,19 @@ export function BarcodeScannerPanel({
           </div>
         ) : (
           <>
-            {/* Scan frame: corner brackets + sweeping line */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="relative h-20 w-[78%] max-w-md md:h-24">
-                <span className="absolute left-0 top-0 h-7 w-7 rounded-tl-xl border-l-[3px] border-t-[3px] border-primary" />
-                <span className="absolute right-0 top-0 h-7 w-7 rounded-tr-xl border-r-[3px] border-t-[3px] border-primary" />
-                <span className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-xl border-b-[3px] border-l-[3px] border-primary" />
-                <span className="absolute bottom-0 right-0 h-7 w-7 rounded-br-xl border-b-[3px] border-r-[3px] border-primary" />
-                <span className="animate-scan-line absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary shadow-[0_0_10px_1px_rgba(0,104,95,0.7)]" />
+            {/* Native decoding receives this real center crop. The frame is
+                hidden for fallback decoders that inspect the full image. */}
+            {roiActive && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="relative h-[38%] w-[82%] max-w-md">
+                  <span className="absolute left-0 top-0 h-7 w-7 rounded-tl-xl border-l-[3px] border-t-[3px] border-primary" />
+                  <span className="absolute right-0 top-0 h-7 w-7 rounded-tr-xl border-r-[3px] border-t-[3px] border-primary" />
+                  <span className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-xl border-b-[3px] border-l-[3px] border-primary" />
+                  <span className="absolute bottom-0 right-0 h-7 w-7 rounded-br-xl border-b-[3px] border-r-[3px] border-primary" />
+                  <span className="animate-scan-line absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary shadow-[0_0_10px_1px_rgba(0,104,95,0.7)]" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Torch */}
             {torchAvailable && (
@@ -219,30 +250,31 @@ export function BarcodeScannerPanel({
               </button>
             )}
 
-            {/* Zoom */}
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/20 bg-black/50 px-1.5 py-1 backdrop-blur">
-              <button
-                type="button"
-                onClick={zoomOut}
-                disabled={!canZoomOut}
-                aria-label={labels.zoomOut}
-                className="flex size-7 items-center justify-center rounded-full text-white hover:bg-white/15 disabled:opacity-35 transition-colors"
-              >
-                <AppIcon name="zoom_out" className="size-4" />
-              </button>
-              <span className="min-w-12 select-none text-center font-label-sm text-label-sm text-white tabular-nums">
-                {zoom.toFixed(1)}×
-              </span>
-              <button
-                type="button"
-                onClick={zoomIn}
-                disabled={!canZoomIn}
-                aria-label={labels.zoomIn}
-                className="flex size-7 items-center justify-center rounded-full text-white hover:bg-white/15 disabled:opacity-35 transition-colors"
-              >
-                <AppIcon name="zoom_in" className="size-4" />
-              </button>
-            </div>
+            {hardwareZoomAvailable && (
+              <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/20 bg-black/50 px-1.5 py-1 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={zoomOut}
+                  disabled={!canZoomOut}
+                  aria-label={labels.zoomOut}
+                  className="flex size-7 items-center justify-center rounded-full text-white hover:bg-white/15 disabled:opacity-35 transition-colors"
+                >
+                  <AppIcon name="zoom_out" className="size-4" />
+                </button>
+                <span className="min-w-12 select-none text-center font-label-sm text-label-sm text-white tabular-nums">
+                  {zoom.toFixed(1)}×
+                </span>
+                <button
+                  type="button"
+                  onClick={zoomIn}
+                  disabled={!canZoomIn}
+                  aria-label={labels.zoomIn}
+                  className="flex size-7 items-center justify-center rounded-full text-white hover:bg-white/15 disabled:opacity-35 transition-colors"
+                >
+                  <AppIcon name="zoom_in" className="size-4" />
+                </button>
+              </div>
+            )}
 
             {flash ? (
               <div className="absolute inset-0 flex items-center justify-center bg-primary/10">
@@ -251,19 +283,37 @@ export function BarcodeScannerPanel({
                   {labels.scanned}
                 </span>
               </div>
-            ) : (
+            ) : roiActive ? (
               <p className="pointer-events-none absolute inset-x-0 bottom-14 px-4 text-center font-label-sm text-label-sm text-white/90 drop-shadow md:bottom-16">
                 {labels.alignHint}
               </p>
-            )}
+            ) : null}
           </>
         )}
       </div>
 
+      {devices.length > 1 && (
+        <label className="mt-2 flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+          <span>{labels.cameraSelect ?? labels.cameraStart}</span>
+          <select
+            value={selectedDeviceId}
+            onChange={(event) => setSelectedDeviceId(event.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-2 py-1.5 text-on-surface"
+          >
+            <option value="">{labels.cameraStart}</option>
+            {devices.map((device, index) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `${labels.cameraStart} ${index + 1}`}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       {error && (
         <p className="mt-2 flex items-center gap-1.5 font-body-md text-body-md text-tertiary">
           <AppIcon name="info" className="size-4" />
-          {labels.cameraUnavailable}
+          {cameraErrorText}
         </p>
       )}
 
@@ -273,7 +323,7 @@ export function BarcodeScannerPanel({
         <form onSubmit={submitManual} className="mt-3 flex gap-2">
           <Input
             value={manualCode}
-            onChange={(e) => setManualCode(e.target.value.replace(/[^\d\s-]/g, ''))}
+            onChange={(e) => setManualCode(e.target.value.replace(/[^\p{Nd}\s-]/gu, ''))}
             placeholder={labels.manualPlaceholder}
             inputMode="numeric"
             autoComplete="off"

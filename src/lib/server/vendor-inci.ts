@@ -27,6 +27,8 @@
  */
 
 import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
+import type { ExternalIngredientEvidence } from '@/lib/ingredient-safety/types';
+import { isValidGtin } from '@/lib/gtin';
 
 export const VENDOR_INCI_ENDPOINT = 'https://inciapi.com/v1/products/';
 /**
@@ -179,9 +181,10 @@ export async function fetchVendorPayload(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  outerSignal?: AbortSignal,
 ): Promise<unknown | null> {
   const key = vendorKey(env);
-  if (!key || (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code))) {
+  if (!key || !isValidGtin(code) || outerSignal?.aborted) {
     return null;
   }
 
@@ -198,7 +201,7 @@ export async function fetchVendorPayload(
       try {
         const res = await fetchImpl(url, {
           headers: { 'X-API-Key': key, Accept: 'application/json' },
-          signal: controller.signal,
+          signal: outerSignal ? AbortSignal.any([outerSignal, controller.signal]) : controller.signal,
         });
         if (!res.ok) continue;
         return await res.json();
@@ -217,8 +220,9 @@ export async function fetchVendorInci(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  signal?: AbortSignal,
 ): Promise<string | null> {
-  const body = await fetchVendorPayload(code, env, fetchImpl);
+  const body = await fetchVendorPayload(code, env, fetchImpl, signal);
   return extractVendorInci(body);
 }
 
@@ -227,18 +231,16 @@ export async function fetchVendorProduct(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  signal?: AbortSignal,
 ): Promise<VendorProductInfo | null> {
-  const body = await fetchVendorPayload(code, env, fetchImpl);
+  const body = await fetchVendorPayload(code, env, fetchImpl, signal);
   return extractVendorProduct(body);
 }
 
 // ---------------------------------------------------------------------------
-// Analysis fallback — coverage enrichment for names the LOCAL CosIng snapshot
-// does not recognize. The provider's per-ingredient entries are adopted ONLY
-// when their reported safety level maps 1:1 to one of our tiers ('safe' →
-// clean); any other verdict is ignored, so a third party can never inject a
-// penalty (or a clean bill) the local model did not intend. Parsing is
-// defensive and every failure degrades to the pure-local result.
+// External analysis evidence. Every provider verdict is retained with source
+// attribution, but it is informational only: it never creates a local tier,
+// clears a concern, or improves the numeric score.
 // ---------------------------------------------------------------------------
 
 export interface VendorAnalyzeEntry {
@@ -287,33 +289,30 @@ export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[]
   return entries;
 }
 
-/**
- * Build the normalized-name → recognition map consumed by the analysis
- * engine. Keys match the engine's normalizeInciToken output. Only entries the
- * vendor explicitly reports as 'safe' are adopted (clean tier); anything else
- * — unknown levels, found:false — is left unrecognized.
- */
-export function buildVendorRecognition(
+/** Build a normalized-name → attributed provider-evidence map. */
+export function buildVendorEvidence(
   entries: readonly VendorAnalyzeEntry[],
-): Map<string, { label: string; detail: string; evidence: string[] }> {
-  const map = new Map<string, { label: string; detail: string; evidence: string[] }>();
+): Map<string, ExternalIngredientEvidence> {
+  const map = new Map<string, ExternalIngredientEvidence>();
   for (const entry of entries) {
     const name = entry.inciName.trim();
-    if (!name) continue;
-    if (entry.found === false) continue;
-    if ((entry.safetyLevel ?? '').toLowerCase() !== 'safe') continue;
     const key = normalizeInciToken(name);
     if (!key) continue;
     map.set(key, {
-      label: name.toUpperCase(),
-      detail:
-        'Not present in the local CosIng snapshot, but reported safe by the external ' +
-        `ingredient database (provider level "${entry.safetyLevel}").`,
-      evidence: ['INCI API provider analysis (external database)'],
+      provider: 'INCI API (inciapi.com)',
+      reportedName: name,
+      ...(entry.safetyLevel ? { verdict: entry.safetyLevel } : {}),
+      ...(entry.safetyScore !== undefined ? { score: entry.safetyScore } : {}),
+      ...(entry.found !== undefined ? { found: entry.found } : {}),
+      informationalOnly: true,
     });
   }
   return map;
 }
+
+/** @deprecated Use buildVendorEvidence. Kept for integrations compiled against
+ * the old name; semantics are now informational-only and include all verdicts. */
+export const buildVendorRecognition = buildVendorEvidence;
 
 type AnalyzeFetchImpl = (
   url: string,
@@ -324,15 +323,15 @@ const defaultAnalyzeFetch: AnalyzeFetchImpl = (url, init) =>
   fetch(url, init as RequestInit) as Promise<{ ok: boolean; json: () => Promise<unknown> }>;
 
 /**
- * Ask the vendor to analyze the ingredient names the local snapshot missed.
- * POSTs the raw list; returns the recognized-safe map (empty when the vendor
- * had nothing to add or anything failed). Never called without a key.
+ * Ask the vendor about names the local glossary missed. Raw names are sent only
+ * when the optional provider is configured; every returned verdict is kept as
+ * attributed informational evidence.
  */
-export async function fetchVendorAnalyzeRecognition(
+export async function fetchVendorAnalyzeEvidence(
   names: readonly string[],
   env: EnvVarMap = process.env,
   fetchImpl: AnalyzeFetchImpl = defaultAnalyzeFetch,
-): Promise<Map<string, { label: string; detail: string; evidence: string[] }>> {
+): Promise<Map<string, ExternalIngredientEvidence>> {
   const key = vendorKey(env);
   if (!key || names.length === 0) return new Map();
   const controller = new AbortController();
@@ -346,10 +345,13 @@ export async function fetchVendorAnalyzeRecognition(
     });
     if (!res.ok) return new Map();
     const body = await res.json();
-    return buildVendorRecognition(extractVendorAnalyzeEntries(body));
+    return buildVendorEvidence(extractVendorAnalyzeEntries(body));
   } catch {
     return new Map();
   } finally {
     clearTimeout(timer);
   }
 }
+
+/** @deprecated Use fetchVendorAnalyzeEvidence. */
+export const fetchVendorAnalyzeRecognition = fetchVendorAnalyzeEvidence;

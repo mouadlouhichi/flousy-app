@@ -16,24 +16,34 @@ describe('mapOffProduct', () => {
     quantity: '2 L',
   };
 
-  it('maps the raw Open Food Facts v2 shape ({ status: 1, product })', () => {
-    assert.deepEqual(mapOffProduct({ status: 1, product }), {
-      name: 'Sidi Ali',
-      brand: 'Sidi Ali',
-      category: 'Natural mineral waters',
-      imageUrl: 'https://example.com/sidi.jpg',
-      quantity: '2 L',
-    });
-  });
-
-  it('maps the app-proxy shape ({ found: true, product }) — the historical bug', () => {
-    assert.deepEqual(mapOffProduct({ found: true, product }), {
-      name: 'Sidi Ali',
-      brand: 'Sidi Ali',
-      category: 'Natural mineral waters',
-      imageUrl: 'https://example.com/sidi.jpg',
-      quantity: '2 L',
-    });
+  it('maps raw and same-origin proxy shapes with complete source metadata', () => {
+    for (const root of [{ status: 1, product }, { found: true, product }]) {
+      const mapped = mapOffProduct(root, { retrievedAt: '2026-09-08T12:00:00.000Z' });
+      assert.ok(mapped);
+      assert.deepEqual({
+        name: mapped.name,
+        brand: mapped.brand,
+        category: mapped.category,
+        imageUrl: mapped.imageUrl,
+        quantity: mapped.quantity,
+        domain: mapped.domain,
+        source: mapped.source,
+        sourceDatabase: mapped.sourceDatabase,
+        retrievedAt: mapped.retrievedAt,
+      }, {
+        name: 'Sidi Ali',
+        brand: 'Sidi Ali',
+        category: 'Natural mineral waters',
+        imageUrl: 'https://example.com/sidi.jpg',
+        quantity: '2 L',
+        domain: 'food',
+        source: 'off',
+        sourceDatabase: 'off',
+        retrievedAt: '2026-09-08T12:00:00.000Z',
+      });
+      assert.equal(mapped.provenance?.name?.source, 'off');
+      assert.equal(mapped.provenance?.name?.retrievedAt, '2026-09-08T12:00:00.000Z');
+    }
   });
 
   it('maps the Nutri-Score ranking when the source provides a real grade', () => {
@@ -41,7 +51,7 @@ describe('mapOffProduct', () => {
       status: 1,
       product: { ...product, nutriscore_grade: 'c', nutriscore_score: 45 },
     });
-    assert.deepEqual(withScore?.ranking, { grade: 'c', score: 45 });
+    assert.deepEqual(withScore?.ranking, { grade: 'c', calculationPoints: 45 });
 
     const gradeOnly = mapOffProduct({
       status: 1,
@@ -126,14 +136,17 @@ describe('mapOffProduct', () => {
     );
   });
 
-  it('marks cosmetics even when every category is an OFF placeholder tag', () => {
+  it('does not treat source placeholder tags as proof of a cosmetic domain', () => {
     const showerGel = {
       product_name: '68YN5T 400ml',
       categories: 'Incorrect product type, non-food-products, open-beauty-facts',
     };
     const mapped = mapOffProduct({ status: 1, product: showerGel });
     assert.equal(mapped?.category, undefined);
-    assert.equal(mapped?.beauty, true, 'beauty placeholder categories must force the cosmetic panel');
+    assert.equal(mapped?.beauty, undefined);
+    assert.equal(mapped?.domain, 'food', 'raw mapOffProduct payloads default to the food database');
+    const obf = mapOffProduct({ status: 1, product: showerGel }, { database: 'obf' });
+    assert.equal(obf?.domain, 'cosmetic');
   });
 
   it('marks cosmetics from categories_tags / product_type (not just the display string)', () => {
@@ -145,7 +158,7 @@ describe('mapOffProduct', () => {
         categories_tags: ['incorrect-product-type', 'non-food-products', 'open-beauty-facts'],
       },
     });
-    assert.equal(fromTags?.beauty, true);
+    assert.equal(fromTags?.beauty, undefined, 'database-family tags are provenance, not domain proof');
 
     const fromType = mapOffProduct({
       status: 1,
@@ -208,19 +221,9 @@ describe('Moroccan seed catalog', () => {
   });
 });
 
-describe('lookupOffProduct outcome contract', () => {
+describe('lookupOffProduct same-origin outcome contract', () => {
   const realFetch = globalThis.fetch;
   const proxyUrl = '/api/barcode/lookup';
-
-  function mockFetch(script: Array<(url: string) => Response | null>) {
-    let i = 0;
-    globalThis.fetch = ((url: string | URL | Request) => {
-      const u = String(url);
-      const make = script[Math.min(i, script.length - 1)];
-      i += 1;
-      return Promise.resolve(make(u));
-    }) as typeof fetch;
-  }
 
   function json(status: number, body: unknown): Response {
     return new Response(JSON.stringify(body), {
@@ -233,76 +236,80 @@ describe('lookupOffProduct outcome contract', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('found directly from the world API without touching the proxy', async () => {
+  it('makes one same-origin request and retains server source provenance', async () => {
     const seen: string[] = [];
-    mockFetch([(u) => {
-      seen.push(u);
-      return json(200, { status: 1, product: { product_name: 'Sidi Ali', brands: 'Sidi Ali' } });
-    }]);
-    const out = await lookupOffProduct('6111035002175', { proxyUrl });
-    assert.deepEqual(out, { kind: 'found', product: { name: 'Sidi Ali', brand: 'Sidi Ali' } });
-    assert.equal(seen.length, 1, 'must not fall through to the proxy on a direct hit');
-    assert.ok(seen[0].startsWith('https://world.openfoodfacts.org/'), seen[0]);
+    globalThis.fetch = (async (input) => {
+      seen.push(String(input));
+      return json(200, {
+        status: 1,
+        found: true,
+        lookupSource: 'off',
+        sourceUrl: 'https://world.openfoodfacts.org/product/6111035002175',
+        retrievedAt: '2026-09-08T12:00:00.000Z',
+        product: { product_name: 'Sidi Ali', brands: 'Sidi Ali' },
+      });
+    }) as typeof fetch;
+
+    const out = await lookupOffProduct('6111035002175', { proxyUrl, lang: 'fr' });
+    assert.equal(out.kind, 'found');
+    if (out.kind === 'found') {
+      assert.equal(out.product.name, 'Sidi Ali');
+      assert.equal(out.product.domain, 'food');
+      assert.equal(out.product.sourceDatabase, 'off');
+      assert.equal(out.product.sourceUrl, 'https://world.openfoodfacts.org/product/6111035002175');
+      assert.equal(out.product.retrievedAt, '2026-09-08T12:00:00.000Z');
+    }
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0], `${proxyUrl}?code=6111035002175&lang=fr`);
   });
 
-  it('direct status:0 falls through; the proxy hit wins', async () => {
-    mockFetch([
-      () => json(200, { status: 0, status_verbose: 'product found with a different product type: beauty' }),
-      (u) => {
-        assert.ok(u.startsWith(proxyUrl), u);
-        return json(200, {
-          status: 1,
-          found: true,
-          product: { product_name: '68YN5T 400ml', brands: 'Ultra doux', nutriscore_grade: 'not-applicable' },
-        });
+  it('maps a found response while refusing non-grade Nutri-Score values', async () => {
+    globalThis.fetch = (async () => json(200, {
+      status: 1,
+      found: true,
+      lookupSource: 'obf',
+      product: {
+        product_name: '68YN5T 400ml',
+        brands: 'Ultra doux',
+        nutriscore_grade: 'not-applicable',
       },
-    ]);
+    })) as typeof fetch;
     const out = await lookupOffProduct('3600541177741', { proxyUrl });
-    // non-grade nutriscore must not surface as a ranking
-    assert.deepEqual(out, { kind: 'found', product: { name: '68YN5T 400ml', brand: 'Ultra doux' } });
+    assert.equal(out.kind, 'found');
+    if (out.kind === 'found') {
+      assert.equal(out.product.name, '68YN5T 400ml');
+      assert.equal(out.product.ranking, undefined);
+      assert.equal(out.product.domain, 'cosmetic');
+    }
   });
 
-  it('a definitive proxy answer "no such product" is not-found', async () => {
-    mockFetch([
-      () => json(200, { status: 0 }),
-      (u) => {
-        assert.ok(u.startsWith(proxyUrl), u);
-        return json(200, { status: 0, found: false, product: null });
-      },
-    ]);
-    const out = await lookupOffProduct('0000000000000', { proxyUrl });
-    assert.deepEqual(out, { kind: 'not-found' });
+  it('returns not-found only for a definitive successful miss', async () => {
+    globalThis.fetch = (async () => json(200, { status: 0, found: false, product: null })) as typeof fetch;
+    assert.deepEqual(await lookupOffProduct('0000000000000', { proxyUrl }), { kind: 'not-found' });
   });
 
-  it('a dead network on both paths is an ERROR, not a false not-found', async () => {
-    // direct attempt throws; proxy attempt throws → the caller must be able
-    // to offer a retry instead of claiming the product does not exist
+  it('classifies network/abort, invalid JSON, and upstream HTTP failures', async () => {
     globalThis.fetch = (() => Promise.reject(new Error('offline'))) as typeof fetch;
-    const out = await lookupOffProduct('6111035002175', { proxyUrl });
-    assert.deepEqual(out, { kind: 'error' });
-  });
+    assert.deepEqual(await lookupOffProduct('6111035002175', { proxyUrl }), {
+      kind: 'error', reason: 'timeout',
+    });
 
-  it('a proxy 502 (upstream walk failed) is an ERROR, not not-found', async () => {
-    mockFetch([
-      () => json(200, { status: 0 }),
-      (u) => {
-        assert.ok(u.startsWith(proxyUrl), u);
-        return json(502, { status: 0, found: false, product: null, error: 'lookup failed' });
-      },
-    ]);
-    const out = await lookupOffProduct('6111035002175', { proxyUrl });
-    assert.deepEqual(out, { kind: 'error' });
-  });
+    globalThis.fetch = (async () => new Response('not-json', { status: 200 })) as typeof fetch;
+    assert.deepEqual(await lookupOffProduct('6111035002175', { proxyUrl }), {
+      kind: 'error', reason: 'invalid-response',
+    });
 
-  it('a proxy rate-limit (429) is an ERROR, not not-found', async () => {
-    mockFetch([
-      () => json(200, { status: 0 }),
-      (u) => {
-        assert.ok(u.startsWith(proxyUrl), u);
-        return json(429, { status: 0, found: false, product: null, error: 'too many lookups' });
-      },
-    ]);
-    const out = await lookupOffProduct('6111035002175', { proxyUrl });
-    assert.deepEqual(out, { kind: 'error' });
+    for (const status of [429, 502]) {
+      globalThis.fetch = (async () => json(status, { status: 0, found: false, error: 'upstream' })) as typeof fetch;
+      assert.deepEqual(await lookupOffProduct('6111035002175', { proxyUrl }), {
+        kind: 'error', reason: 'upstream',
+      });
+    }
+
+    const controller = new AbortController();
+    controller.abort();
+    assert.deepEqual(await lookupOffProduct('6111035002175', { proxyUrl, signal: controller.signal }), {
+      kind: 'error', reason: 'aborted',
+    });
   });
 });

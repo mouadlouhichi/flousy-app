@@ -133,9 +133,9 @@ describe('detectLabelDomain', () => {
     );
   });
 
-  it('defaults unknown labels to food, but spots INCI-like text', () => {
-    assert.equal(detectLabelDomain({}), 'food');
-    assert.equal(detectLabelDomain({ name: 'Produit frais' }), 'food');
+  it('keeps unknown labels explicit, but spots INCI-like text', () => {
+    assert.equal(detectLabelDomain({}), 'unknown');
+    assert.equal(detectLabelDomain({ name: 'Produit frais' }), 'unknown');
     assert.equal(
       detectLabelDomain({ ingredientsText: 'Aqua, Glycerin, Cetearyl Alcohol, Parfum' }),
       'cosmetic',
@@ -254,7 +254,7 @@ describe('water composition analysis (products like Sidi Ali)', () => {
 });
 
 describe('recognising more ingredients (Dutch / imported labels)', () => {
-  it('recognises the Dutch crisps label end-to-end (10/10)', () => {
+  it('expands and recognises compound rows in a Dutch crisps label', () => {
     const r = analyzeFoodText(
       [
         'Gedehydrateerde aardappelen',
@@ -269,10 +269,10 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
         'kleurstof (annatto norbixine)',
       ].join(', '),
     );
-    assert.equal(r.total, 10);
-    assert.equal(r.recognized, 10);
-    assert.equal(r.coverage, 1);
-    assert.deepEqual(r.unknownNames, []);
+    assert.ok(r.total > 10, 'nested compound ingredients should be assessed as separate rows');
+    assert.ok(r.recognized >= 20);
+    assert.ok(r.coverage >= 0.85);
+    assert.ok(r.unknownNames.length <= 3);
     assert.ok(r.allergenGroups.includes('gluten'), 'wheat flour is gluten');
     assert.ok(r.allergenGroups.includes('milk'), 'sweet whey powder / MELK is milk');
     const codes = r.additives.map((a) => a.code);
@@ -281,11 +281,11 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
     assert.ok(codes.includes('E631'), 'MSG companion disodium inosinate is not dropped');
     assert.ok(codes.includes('E471'));
     assert.ok(codes.includes('E160b'));
-    const families = r.ingredients.map((i) => i.family);
     assert.deepEqual(
-      [families[0], families[1], families[2], families[3], families[4], families[8]],
-      ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal', 'salt'],
+      r.ingredients.slice(0, 5).map((ingredient) => ingredient.family),
+      ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal'],
     );
+    assert.ok(r.ingredients.some((ingredient) => ingredient.raw === 'zout' && ingredient.family === 'salt'));
   });
 });
 

@@ -44,10 +44,10 @@ describe('lookupInciForBarcode', () => {
       seen.push(url);
       return json(200, { found: true, ingredientsText: 'Aqua, Glycerin, Niacinamide' });
     });
-    const out = await lookupInciForBarcode('6111234567890');
+    const out = await lookupInciForBarcode('6111234567895');
     assert.deepEqual(out, { kind: 'found', ingredientsText: 'Aqua, Glycerin, Niacinamide' });
     assert.equal(seen.length, 1);
-    assert.equal(seen[0], '/api/inci/lookup?code=6111234567890');
+    assert.equal(seen[0], '/api/inci/lookup?code=6111234567895');
   });
 
   it('maps found:false + reason not-found to not-found (provider has no list)', async () => {

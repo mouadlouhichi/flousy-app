@@ -38,26 +38,36 @@ mock.module('@/lib/i18n-context', {
 const analysis: ProductAssessment = {
   label: 'Test cream',
   form: 'leave-on',
+  formSource: 'explicit',
   total: 4,
   recognized: 4,
+  localRecognized: 4,
+  externallyIdentified: 0,
   coverage: 1,
+  assessed: 4,
+  assessmentCoverage: 1,
   score: 20,
+  scoreStatus: 'available',
   confidence: 'full',
   band: 'avoid',
   worstTier: 'prohibited',
   unknownIngredients: [],
   cappedReason: 'prohibited-ingredient',
+  parser: { valid: true, reviewed: true, source: 'typed', diagnostics: [] },
   dataset: { rows: 28733, snapshot: 'test snapshot', version: 'test' },
+  assessedAt: '2026-09-08T00:00:00.000Z',
   ingredients: [
-    { index: 0, raw: 'Aqua', normalized: 'AQUA', matched: true, matchedInci: 'AQUA', signals: [], tier: 'clean' },
+    { index: 0, raw: 'Aqua', normalized: 'AQUA', matched: true, matchedInci: 'AQUA', identity: { status: 'official-glossary', canonicalName: 'AQUA' }, signals: [], tier: 'clean', assessmentState: 'assessed-signal' },
     {
       index: 1,
       raw: 'Hydroquinone',
       normalized: 'HYDROQUINONE',
       matched: true,
       matchedInci: 'HYDROQUINONE',
-      signals: [{ code: 'cosing-annex-II', label: '', detail: '', tier: 'prohibited', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'HYDROQUINONE' },
+      signals: [{ code: 'cosing-annex-II', kind: 'regulatory', label: '', detail: '', tier: 'prohibited', evidence: [] }],
       tier: 'prohibited',
+      assessmentState: 'assessed-signal',
     },
     {
       index: 2,
@@ -65,8 +75,10 @@ const analysis: ProductAssessment = {
       normalized: 'PARFUM',
       matched: true,
       matchedInci: 'PARFUM',
-      signals: [{ code: 'fragrance-generic', label: '', detail: '', tier: 'caution', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'PARFUM' },
+      signals: [{ code: 'fragrance-generic', kind: 'comfort', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      assessmentState: 'assessed-signal',
     },
     {
       index: 3,
@@ -74,8 +86,10 @@ const analysis: ProductAssessment = {
       normalized: 'LINALOOL',
       matched: true,
       matchedInci: 'LINALOOL',
-      signals: [{ code: 'eu-fragrance-allergen', label: '', detail: '', tier: 'caution', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'LINALOOL' },
+      signals: [{ code: 'eu-fragrance-allergen', kind: 'regulatory', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      assessmentState: 'assessed-signal',
     },
   ],
   flags: [
@@ -120,7 +134,7 @@ describe('CoursesIngredientGlance render smoke', () => {
     }
   });
 
-  it('renders the prominent overall rating banner (score, /100, stars, tier strip)', async () => {
+  it('renders the evidence-index banner without a safety-rating star metaphor', async () => {
     const { CoursesIngredientGlanceBody } = await import(
       '../../src/components/dashboard/courses/courses-ingredient-glance'
     );
@@ -129,19 +143,12 @@ describe('CoursesIngredientGlance render smoke', () => {
       React.createElement(CoursesIngredientGlanceBody, { analysis }),
     );
     const hasBannerRole = html.includes('role="img"');
-    const hasBannerLabel = html.includes('aria-label="20/100 — Avoid"');
+    const hasBannerLabel = html.includes(`aria-label="${en.ingredientGlance.evidenceIndex}: 20/100"`);
     const hasScoreSuffix = html.includes('/100');
     assert.ok(hasBannerRole, 'banner missing its role');
     assert.ok(hasBannerLabel, 'banner aria-label missing');
     assert.ok(hasScoreSuffix, '/100 suffix missing');
-    // Five-star row (one svg per star; filled = round(20/100 × 5) = 1).
-    // `match` is typed RegExpMatchArray | null; annotate the fallback union as
-    // plain string[] or the .filter callback param collapses to `never`.
-    const starSvgs: string[] = html.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
-    const stars = starSvgs.filter((svg) => svg.includes('polygon points="12 2'));
-    assert.equal(stars.length, 5, 'star row should draw five stars');
-    const filledStars = stars.filter((svg) => svg.includes('fill="currentColor"'));
-    assert.equal(filledStars.length, 1, 'one filled star for a 20 score');
+    assert.ok(!html.includes('polygon points="12 2'), 'safety-rating stars must not be rendered');
     // Thin tier-proportion strip under the score:
     // fixture tiers = clean 1 / (watch+restricted 0) / (caution+prohibited 3) of 4.
     const hasGreenSegment = html.includes('width:25%');
@@ -172,7 +179,7 @@ describe('CoursesIngredientPanel render smoke', () => {
       const g = catalogs[locale];
       const html = renderToStaticMarkup(
         React.createElement(CoursesIngredientPanel, {
-          barcode: '6111234567890',
+          barcode: '6111234567895',
           name: 'Crème inconnue',
           category: 'Face creams',
         }),
@@ -196,7 +203,7 @@ describe('CoursesIngredientPanel render smoke', () => {
     const g = catalogs[current];
     const html = renderToStaticMarkup(
       React.createElement(CoursesIngredientPanel, {
-        barcode: '6111234567890',
+        barcode: '6111234567895',
         initialText: 'Aqua, Glycerin, Niacinamide, Parfum',
         name: 'Crème',
         category: 'Face creams',

@@ -37,6 +37,24 @@ describe('splitInciList', () => {
     );
   });
 
+  it('supports Arabic and compatibility-width punctuation without dropping ingredient boundaries', () => {
+    assert.deepEqual(splitInciList('ماء، جلسرين؛ عطر'), ['ماء', 'جلسرين', 'عطر']);
+    assert.deepEqual(splitInciList('Aqua，Glycerin；Linalool'), ['Aqua', 'Glycerin', 'Linalool']);
+  });
+
+  it('expands nested parenthetical ingredient lists for mandatory row review', () => {
+    assert.deepEqual(
+      splitInciList('Aqua, Parfum (Linalool, Citral), Glycerin'),
+      ['Aqua', 'Parfum', 'Linalool', 'Citral', 'Glycerin'],
+    );
+  });
+
+  it('does not hide the suffix after an unmatched opening delimiter', () => {
+    const parsed = splitInciList('Aqua, Glycerin (Parfum, Linalool, Hydroquinone');
+    assert.ok(parsed.includes('Linalool'));
+    assert.ok(parsed.includes('Hydroquinone'));
+  });
+
   it('drops pure-number residues and empty tokens', () => {
     assert.deepEqual(splitInciList('Aqua, 3%, , Glycerin, .'), ['Aqua', 'Glycerin']);
   });
@@ -47,7 +65,8 @@ describe('CosIng dataset lookup', () => {
     const { loadCosingDataset } = await import('../src/lib/ingredient-safety/dataset');
     const ds = loadCosingDataset();
     assert.ok(ds.meta.rows > 20_000, `expected >20k rows, got ${ds.meta.rows}`);
-    assert.equal(ds.meta.version, 'cosing-tsv-1');
+    assert.equal(ds.meta.version, 'ingredient-identity-2025-1175-v1');
+    assert.equal(ds.meta.glossaryRows, 30_418);
   });
 
   it('resolves exact INCI names with functions and annex codes', () => {
@@ -101,164 +120,178 @@ describe('EU overlay', () => {
     }
   });
 
-  it('flags post-2019 bans (Lilial) and leave-on-only comfort signals', () => {
-    assert.ok(
-      lookupOverlay(normalizeInciToken('Lilial')).some((m) => m.signal.tier === 'prohibited'),
-    );
+  it('resolves the Lilial alias to current Annex II evidence and keeps comfort evidence context-bound', () => {
+    const lilial = analyzeInciText('Lilial', { form: 'leave-on' }).ingredients[0];
+    assert.equal(lilial?.matchedInci, 'BUTYLPHENYL METHYLPROPIONAL');
+    assert.equal(lilial?.tier, 'prohibited');
+    assert.ok(lilial?.signals.some((signal) => signal.regulatory?.legalRole === 'prohibited-list'));
     const coconut = lookupOverlay(normalizeInciToken('Cocos Nucifera Oil'));
     const comedogenic = coconut.find((m) => m.signal.code === 'comedogenic-history');
-    assert.ok(comedogenic?.signal.leaveOnOnly, 'comedogenicity must be leave-on-only');
+    assert.ok(comedogenic?.signal.leaveOnOnly, 'comfort evidence must be leave-on-only');
   });
 });
 
 describe('product analysis', () => {
-  it('is deterministic for identical input', () => {
+  it('is deterministic for identical input and explicit assessment time', () => {
     const text = 'Aqua, Glycerin, Niacinamide, Parfum, Linalool';
-    const a = analyzeInciText(text, { form: 'leave-on' });
-    const b = analyzeInciText(text, { form: 'leave-on' });
-    assert.equal(JSON.stringify(a), JSON.stringify(b));
+    const options = { form: 'leave-on' as const, assessedAt: '2026-09-08T12:00:00.000Z' };
+    assert.equal(JSON.stringify(analyzeInciText(text, options)), JSON.stringify(analyzeInciText(text, options)));
   });
 
-  it('scores a simple recognisable leave-on list as excellent', () => {
-    const r = analyzeInciText('Aqua, Glycerin, Niacinamide, Dimethicone, Phenoxyethanol', {
+  it('does not convert glossary identity into clean evidence or a positive score', () => {
+    const result = analyzeInciText('Aqua, Glycerin, Niacinamide, Dimethicone', { form: 'leave-on' });
+    assert.equal(result.coverage, 1);
+    assert.equal(result.assessmentCoverage, 0);
+    assert.ok(result.ingredients.every((item) => item.assessmentState === 'identified-no-assessment'));
+    assert.ok(result.ingredients.every((item) => item.tier === null));
+    assert.equal(result.score, null);
+    assert.equal(result.band, null);
+    assert.equal(result.scoreStatus, 'withheld-insufficient-evidence');
+  });
+
+  it('retains exact current Annex II evidence even when a numeric score is withheld', () => {
+    for (const name of [
+      'Quaternium-15',
+      'Butylphenyl Methylpropional',
+      'Trimethylbenzoyl Diphenylphosphine Oxide',
+    ]) {
+      const result = analyzeInciText(`Aqua, ${name}`, { form: 'leave-on' });
+      const ingredient = result.ingredients[1];
+      assert.equal(ingredient?.tier, 'prohibited', name);
+      assert.ok(ingredient?.signals.some((signal) =>
+        signal.regulatory?.annex === 'II' &&
+        signal.regulatory.legalRole === 'prohibited-list' &&
+        signal.applicability === 'applies'), name);
+      assert.equal(result.score, null);
+      assert.equal(result.band, null);
+      assert.ok(result.flags.some((flag) => flag.code === 'eu-annex-ii-name-match'));
+    }
+  });
+
+  it('preserves Hydroquinone exception/use conditions instead of issuing a blanket compliance verdict', () => {
+    const result = analyzeInciText('Aqua, Hydroquinone', { form: 'leave-on' });
+    const ingredient = result.ingredients[1];
+    assert.equal(ingredient?.tier, 'restricted');
+    assert.ok(ingredient?.signals.some((signal) => signal.applicability === 'conditions-unknown'));
+    assert.equal(result.scoreStatus, 'withheld-conditions-unknown');
+    assert.equal(result.score, null);
+    assert.ok(result.flags.some((flag) => flag.code === 'regulatory-conditions-unknown'));
+  });
+
+  it('does not infer concentration-dependent MIT or fragrance compliance from label order', () => {
+    for (const form of ['leave-on', 'rinse-off'] as const) {
+      const result = analyzeInciText('Aqua, Methylisothiazolinone, Linalool', { form });
+      assert.equal(result.score, null);
+      assert.equal(result.scoreStatus, 'withheld-conditions-unknown');
+      assert.ok(result.ingredients.slice(1).every((item) =>
+        item.signals.some((signal) => signal.applicability === 'conditions-unknown')));
+    }
+  });
+
+  it('applies context-bound comfort evidence only for leave-on products', () => {
+    const text = 'Cocos Nucifera Oil';
+    const leaveOn = analyzeInciText(text, { form: 'leave-on' });
+    assert.equal(leaveOn.ingredients[0]?.tier, 'watch');
+    assert.ok(leaveOn.ingredients[0]?.signals.some((signal) => signal.code === 'comedogenic-history'));
+    const rinseOff = analyzeInciText(text, { form: 'rinse-off' });
+    assert.equal(rinseOff.ingredients[0]?.tier, null);
+    assert.equal(rinseOff.ingredients[0]?.assessmentState, 'identified-no-assessment');
+  });
+
+  it('withholds a score for unknown form and insufficient assessed-evidence coverage', () => {
+    const unknownForm = analyzeInciText('Cocos Nucifera Oil');
+    assert.equal(unknownForm.scoreStatus, 'withheld-form-unknown');
+    assert.equal(unknownForm.score, null);
+
+    const partial = analyzeInciText('Aqua, Glycerin, Cocos Nucifera Oil, Mystery Polymer', {
       form: 'leave-on',
     });
-    assert.equal(r.coverage, 1);
-    assert.equal(r.confidence, 'full');
-    assert.ok(r.score !== null && r.score >= 90);
-    assert.equal(r.band, 'excellent');
+    assert.ok(partial.coverage > 0.5 && partial.coverage < 1);
+    assert.ok(partial.assessmentCoverage < 0.8);
+    assert.equal(partial.scoreStatus, 'withheld-insufficient-evidence');
+    assert.equal(partial.score, null);
   });
 
-  it('hard-caps and flags an EU-prohibited ingredient (hydroquinone)', () => {
-    const r = analyzeInciText('Aqua, Glycerin, Hydroquinone, Cetearyl Alcohol', { form: 'leave-on' });
-    const hq = r.ingredients.find((i) => i.tier === 'prohibited');
-    assert.ok(hq, 'hydroquinone should be tier=prohibited');
-    assert.equal(r.cappedReason, 'prohibited-ingredient');
-    assert.ok(r.score !== null && r.score <= 35);
-    assert.equal(r.band, 'avoid');
-    assert.ok(r.flags.some((f) => f.level === 'error' && f.code === 'contains-prohibited'));
-  });
-
-  it('distinguishes leave-on MIT (not permitted) from rinse-off MIT (capped)', () => {
-    const text = 'Aqua, Glycerin, Methylisothiazolinone, Parfum';
-    const leaveOn = analyzeInciText(text, { form: 'leave-on' });
-    const mit = leaveOn.ingredients.find((i) => i.normalized === 'METHYLISOTHIAZOLINONE');
-    assert.equal(mit?.tier, 'restricted');
-    assert.ok(leaveOn.flags.some((f) => f.code === 'eu-restricted-ingredients'));
-
-    const rinseOff = analyzeInciText(text, { form: 'rinse-off' });
-    const mitRinse = rinseOff.ingredients.find((i) => i.normalized === 'METHYLISOTHIAZOLINONE');
-    assert.equal(mitRinse?.tier, 'watch');
-  });
-
-  it('flags EU fragrance allergens and generic parfum; rinse-off downgrades them', () => {
-    const text = 'Aqua, Glycerin, Parfum, Linalool, Limonene';
-    const leaveOn = analyzeInciText(text, { form: 'leave-on' });
-    assert.ok(leaveOn.flags.some((f) => f.code === 'fragrance-generic'));
-    assert.ok(leaveOn.flags.some((f) => f.code === 'fragrance-allergens'));
-    const rinseOff = analyzeInciText(text, { form: 'rinse-off' });
-    const linaloolRinse = rinseOff.ingredients.find((i) => i.normalized === 'LINALOOL');
-    assert.equal(linaloolRinse?.tier, 'watch');
-    assert.ok(
-      (leaveOn.score ?? 0) < (rinseOff.score ?? 100),
-      'rinse-off should score better than leave-on for the same fragrance allergens',
-    );
-  });
-
-  it('applies comedogenic / drying-alcohol flags only to leave-on', () => {
-    const text = 'Cocos Nucifera Oil, Isopropyl Myristate, Aqua, Glycerin';
-    const leaveOn = analyzeInciText(text, { form: 'leave-on' });
-    const oil = leaveOn.ingredients.find((i) => i.normalized === 'COCOS NUCIFERA OIL');
-    assert.equal(oil?.tier, 'watch');
-    assert.ok(oil?.signals.some((s) => s.code === 'comedogenic-history'));
-
-    const rinseOff = analyzeInciText(text, { form: 'rinse-off' });
-    const oilRinse = rinseOff.ingredients.find((i) => i.normalized === 'COCOS NUCIFERA OIL');
-    assert.equal(oilRinse?.tier, 'clean');
-  });
-
-  it('never lets an unrecognized list read as excellent (coverage caps)', () => {
-    const r = analyzeInciText('Aqua, Glycerin, Phlogiston Essence, Unobtainium Complex');
-    assert.equal(r.confidence, 'limited');
-    assert.ok(r.score !== null && r.score <= 64, `score ${r.score} must be capped`);
-    assert.ok(r.band === 'moderate' || r.band === 'caution' || r.band === 'avoid');
-    assert.ok(r.flags.some((f) => f.code === 'unknown-ingredients'));
-  });
-
-  it('returns null score when nothing is recognizable', () => {
-    const r = analyzeIngredientList(['Phlogiston Essence', 'ZzzyXaa 1'], {});
-    assert.equal(r.recognized, 0);
-    assert.equal(r.score, null);
-    assert.equal(r.band, null);
-    assert.equal(r.confidence, 'limited');
-  });
-
-  it('blends toward a neutral score, never punishes, for partial coverage', () => {
-    const r = analyzeInciText('Aqua, Glycerin, Niacinamide, UnknownBotanical X, MysteryPolymer Y');
-    assert.ok(r.coverage > 0.3 && r.coverage < 0.9);
-    assert.equal(r.confidence, 'partial');
+  it('requires explicit review before any OCR-derived score can be available', () => {
+    const draft = analyzeInciText('Cocos Nucifera Oil', {
+      form: 'leave-on',
+      source: 'ocr',
+      reviewed: false,
+    });
+    assert.equal(draft.score, null);
+    assert.equal(draft.scoreStatus, 'withheld-review-required');
+    assert.ok(draft.flags.some((flag) => flag.code === 'ocr-review-required'));
   });
 });
 
-describe('vendor coverage enrichment (vendorRecognized)', () => {
-  const vendorRecognized = new Map([
+describe('external provider evidence', () => {
+  const vendorEvidence = new Map([
     [
       'PHLOGISTON ESSENCE',
       {
-        label: 'PHLOGISTON ESSENCE',
-        detail: 'Reported safe by an external ingredient database.',
-        evidence: ['external'],
+        provider: 'Example evidence provider',
+        reportedName: 'PHLOGISTON ESSENCE',
+        verdict: 'safe',
+        found: true,
+        informationalOnly: true as const,
       },
     ],
   ]);
 
   it('keeps the pure-local result bit-identical when no map is supplied', () => {
     const text = 'Aqua, Phlogiston Essence, Unobtainium Complex';
-    const plain = analyzeInciText(text);
-    assert.equal(JSON.stringify(plain), JSON.stringify(analyzeInciText(text, {})));
+    const plain = analyzeInciText(text, { form: 'leave-on' });
+    assert.equal(JSON.stringify(plain), JSON.stringify(analyzeInciText(text, { form: 'leave-on' })));
     assert.ok(!plain.vendorEnriched);
   });
 
-  it('adopts a vendor-safe name as clean coverage only (never a score override)', () => {
-    const plain = analyzeInciText('Aqua, Glycerin, Phlogiston Essence');
-    assert.equal(plain.recognized, 2);
-    assert.ok(plain.unknownIngredients.includes('Phlogiston Essence'));
-    assert.ok(plain.score !== null && plain.score < 90, 'partial coverage still caps the score');
+  it('retains attributed provider output without converting it to local recognition or a verdict', () => {
+    const text = 'Aqua, Glycerin, Phlogiston Essence';
+    const plain = analyzeInciText(text, { form: 'leave-on' });
+    const enriched = analyzeInciText(text, { form: 'leave-on', vendorEvidence });
 
-    const enriched = analyzeInciText('Aqua, Glycerin, Phlogiston Essence', {
-      vendorRecognized,
-    });
-    assert.equal(enriched.recognized, 3);
-    assert.equal(enriched.coverage, 1);
-    assert.equal(enriched.confidence, 'full');
+    assert.equal(enriched.localRecognized, plain.localRecognized);
+    assert.equal(enriched.externallyIdentified, 1);
+    assert.equal(enriched.recognized, plain.recognized + 1);
+    assert.ok(enriched.coverage > plain.coverage);
+    assert.equal(enriched.assessmentCoverage, plain.assessmentCoverage);
+    assert.equal(enriched.score, plain.score);
+    assert.equal(enriched.band, plain.band);
     assert.ok(!enriched.unknownIngredients.includes('Phlogiston Essence'));
     const phlogiston = enriched.ingredients.find((i) => i.raw === 'Phlogiston Essence');
-    assert.equal(phlogiston?.tier, 'clean');
-    assert.equal(phlogiston?.tierSource, 'vendor');
-    assert.equal(phlogiston?.matchedInci, 'PHLOGISTON ESSENCE');
-    assert.ok(phlogiston?.signals.some((s) => s.code === 'vendor-analyze' && s.tier === 'clean'));
-    assert.ok(enriched.score !== null && enriched.score >= 90, 'clean coverage lifts the score');
+    assert.equal(phlogiston?.tier, null);
+    assert.equal(phlogiston?.assessmentState, 'externally-identified');
+    assert.deepEqual(phlogiston?.externalEvidence, [vendorEvidence.get('PHLOGISTON ESSENCE')]);
+    assert.ok(enriched.vendorEnriched);
   });
 
-  it('never lets a vendor map turn a local penalty into clean', () => {
-    // Hydroquinone is EU-prohibited locally; a lying vendor map must not matter.
+  it('never lets provider output change a local regulatory assessment', () => {
     const text = 'Aqua, Hydroquinone';
     const plain = analyzeInciText(text, { form: 'leave-on' });
-    const liar = new Map([
-      [
-        'HYDROQUINONE',
-        { label: 'HYDROQUINONE', detail: 'vendor says fine', evidence: ['external'] },
-      ],
+    const provider = new Map([
+      ['HYDROQUINONE', {
+        provider: 'Untrusted provider',
+        reportedName: 'HYDROQUINONE',
+        verdict: 'safe',
+        informationalOnly: true as const,
+      }],
     ]);
-    const withVendor = analyzeInciText(text, { form: 'leave-on', vendorRecognized: liar });
-    assert.equal(JSON.stringify(withVendor), JSON.stringify(plain));
-    assert.equal(withVendor.worstTier, 'prohibited');
+    const enriched = analyzeInciText(text, { form: 'leave-on', vendorEvidence: provider });
+    assert.equal(enriched.score, plain.score);
+    assert.equal(enriched.band, plain.band);
+    assert.equal(enriched.worstTier, plain.worstTier);
+    assert.equal(enriched.ingredients[1]?.tier, plain.ingredients[1]?.tier);
+    assert.equal(enriched.ingredients[1]?.externalEvidence?.[0]?.verdict, 'safe');
   });
 
-  it('ignores vendor entries for names the map simply does not cover', () => {
-    const r = analyzeInciText('Aqua, Unobtainium Complex', { vendorRecognized });
+  it('ignores provider entries for names the map does not cover', () => {
+    const r = analyzeInciText('Aqua, Unobtainium Complex', {
+      form: 'leave-on',
+      vendorEvidence,
+    });
     assert.equal(r.recognized, 1);
     assert.ok(r.unknownIngredients.includes('Unobtainium Complex'));
+    assert.equal(r.ingredients[1]?.externalEvidence, undefined);
   });
 });
 

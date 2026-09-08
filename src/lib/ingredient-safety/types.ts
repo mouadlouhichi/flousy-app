@@ -1,95 +1,150 @@
 /**
- * Types for the local ingredient-safety engine (CosIng-derived + EU overlay).
+ * Public contracts for the ingredient identity, evidence, and assessment model.
  *
- * The engine answers one question about a scanned cosmetic product: "given the
- * INCI list on the label, what do the EU regulatory datasets and the curated
- * risk overlay say about each ingredient?" — it never attempts a medical
- * verdict. See docs/COSMETIC_INGREDIENT_SCORING.md for the model and limits.
+ * These concepts are deliberately separate:
+ * - identity answers whether a label name can be resolved;
+ * - evidence records what a dated source says;
+ * - applicability records whether the product context is sufficient;
+ * - assessment is a cautious interpretation and may be withheld.
+ *
+ * A glossary/inventory match never means authorised, compliant, or safe.
  */
 
-/** Where the product is expected to stay on the skin after use. */
 export type ProductForm = 'leave-on' | 'rinse-off' | 'unknown';
 
-/**
- * Risk tiers, strongest first. `clean` is only assigned to a *recognized*
- * ingredient that carries no negative signal — unrecognized ingredients are
- * tracked separately through `coverage`, never as "clean".
- */
+/** Historical API/UI tiers. `clean` is retained for old snapshots only and is
+ * never inferred from identity membership by the current engine. */
 export type RiskTier = 'prohibited' | 'restricted' | 'caution' | 'watch' | 'clean';
 
-/** Where a signal comes from: the local CosIng snapshot, the EU overlay, or
- *  a key-gated external ingredient database (coverage enrichment only). */
-export type TierSource = 'cosing' | 'eu-overlay' | 'vendor';
+export type TierSource = 'structured-eu' | 'curated' | 'historical' | 'vendor';
+
+export type IdentityStatus =
+  | 'official-glossary'
+  | 'legacy-inventory'
+  | 'externally-identified'
+  | 'unidentified';
+
+export type EvidenceKind =
+  | 'regulatory'
+  | 'comfort'
+  | 'historical'
+  | 'identity'
+  | 'external';
+
+export type Applicability = 'applies' | 'does-not-apply' | 'conditions-unknown';
 
 export interface AnnexCode {
-  /** Annex of Regulation (EC) No 1223/2009 referenced by CosIng. */
   annex: string;
-  /** Entry number inside that annex (when the text carries one). */
   entry?: string;
 }
 
-/** A normalized row of the local CosIng inventory snapshot. */
+export interface IngredientIdentity {
+  status: IdentityStatus;
+  canonicalName?: string;
+  /** Dated source that resolved the name; this is identity evidence only. */
+  source?: string;
+  sourceVersion?: string;
+  sourceUrl?: string;
+  entry?: string;
+  via?: 'exact' | 'alias' | 'paren-stripped' | 'external' | 'none';
+}
+
+/** A normalized local ingredient record. Functions come from the older CosIng
+ * inventory; glossary fields come from Decision (EU) 2025/1175. */
 export interface CosIngRecord {
-  /** Canonical INCI name as stored in the dataset. */
   inci: string;
   cas?: string;
   ec?: string;
-  /** Cosmetic function labels from CosIng (e.g. "HUMECTANT, SKIN CONDITIONING"). */
   functions?: string[];
-  /** Raw restriction text from CosIng (annex codes + conditions, if any). */
+  /** Legacy free text retained as provenance; never parsed into legal status. */
   restrictionText?: string;
-  /** Annex codes parsed from `restrictionText`. */
+  /** Legacy parsed references retained for compatibility/debug only. */
   annexCodes: AnnexCode[];
+  identitySource: 'official-glossary' | 'legacy-inventory';
+  glossaryEntry?: string;
+  glossaryName?: string;
+  legacyInventoryMatch?: boolean;
+}
+
+export interface RegulatoryCondition {
+  jurisdiction: 'EU';
+  framework: 'Regulation (EC) No 1223/2009';
+  annex: 'II' | 'III' | 'IV' | 'V' | 'VI';
+  entry: string;
+  /** Annex II is a prohibited-list match. Other annexes carry conditions that
+   * cannot normally be resolved from an INCI list alone. */
+  legalRole: 'prohibited-list' | 'restricted-list' | 'positive-list-with-conditions';
+  applicability: Applicability;
+  applicabilityReason: string;
+  productType?: string;
+  maxConcentration?: string;
+  otherRestrictions?: string;
+  warnings?: string;
+  regulation?: string;
+  effectiveAsOf: string;
+  sourceUpdated: string;
+  sourceUrl: string;
+}
+
+export interface EvidenceReference {
+  title: string;
+  url?: string;
+  sourceVersion?: string;
+  retrievedAt?: string;
 }
 
 export interface Signal {
-  /** Stable machine code (UI/i18n key). */
   code: string;
   tier: RiskTier;
-  /** Short human label (EN, for tooltips/debug; i18n later). */
+  kind: EvidenceKind;
   label: string;
-  /** Longer human explanation. */
   detail?: string;
-  /** Only meaningful when the product is (or may be) leave-on. */
   leaveOnOnly?: boolean;
-  /** Only meaningful when the product is rinse-off. */
   rinseOffOnly?: boolean;
-  /** Short evidence references, e.g. "Reg (EC) No 1223/2009 Annex II". */
+  applicability?: Applicability;
+  /** Human-readable citations retained for old UI and exports. */
   evidence: string[];
+  references?: EvidenceReference[];
+  regulatory?: RegulatoryCondition;
+}
+
+export interface ExternalIngredientEvidence {
+  provider: string;
+  reportedName: string;
+  verdict?: string;
+  score?: number;
+  found?: boolean;
+  retrievedAt?: string;
+  /** Always true: provider output is provenance, not a local safety verdict. */
+  informationalOnly: true;
 }
 
 export interface IngredientAssessment {
-  /** 0-based position in the label INCI list (label order = descending conc.). */
   index: number;
-  /** Raw text as it appeared on the label. */
   raw: string;
-  /** Normalized lookup key. */
   normalized: string;
-  /** Whether any CosIng record matched the name. */
+  /** Compatibility alias for identity.status !== unidentified. */
   matched: boolean;
-  /** Matched canonical INCI name (when matched). */
   matchedInci?: string;
+  identity: IngredientIdentity;
   cas?: string;
-  /** Cosmetic functions from CosIng (when matched and recorded). */
   functions?: string[];
-  /** Signals found (CosIng annex codes + EU overlay). Empty when none. */
   signals: Signal[];
-  /** Combined tier; null when the ingredient is not recognizable at all. */
+  /** Strongest supported concern. Null means no assessed signal, not "safe". */
   tier: RiskTier | null;
-  /** Where the combined tier came from (when tier != null). */
   tierSource?: TierSource;
-  /** 0–100 sub-score contribution base for the tier (when tier != null). */
   subScore?: number;
-  /** Restriction text as stored in CosIng (annex codes, conditions). */
+  /** Legacy informational text; never itself establishes legal status. */
   restrictionText?: string;
+  externalEvidence?: ExternalIngredientEvidence[];
+  assessmentState:
+    | 'assessed-signal'
+    | 'identified-no-assessment'
+    | 'externally-identified'
+    | 'unidentified';
 }
 
-export type Band =
-  | 'excellent' // >= 85 — green
-  | 'good' //     70–84 — light green
-  | 'moderate' // 55–69 — yellow
-  | 'caution' //  40–54 — orange
-  | 'avoid'; //   < 40 — red
+export type Band = 'excellent' | 'good' | 'moderate' | 'caution' | 'avoid';
 
 export interface ProductFlag {
   level: 'error' | 'warn' | 'info';
@@ -97,44 +152,66 @@ export interface ProductFlag {
   text: string;
 }
 
+export type ParserDiagnosticSeverity = 'info' | 'warning' | 'error';
+
+export interface ParserDiagnostic {
+  code: string;
+  severity: ParserDiagnosticSeverity;
+  message: string;
+  offset?: number;
+  length?: number;
+}
+
+export interface ParserSummary {
+  valid: boolean;
+  reviewed: boolean;
+  source: 'typed' | 'paste' | 'ocr' | 'provider' | 'unknown';
+  diagnostics: ParserDiagnostic[];
+}
+
+export type ScoreStatus =
+  | 'available'
+  | 'withheld-invalid-parse'
+  | 'withheld-review-required'
+  | 'withheld-form-unknown'
+  | 'withheld-conditions-unknown'
+  | 'withheld-insufficient-evidence'
+  | 'withheld-no-ingredients';
+
 export interface ProductAssessment {
-  /** Optional product label echoed back for the caller's convenience. */
   label?: string;
-  /** Product form used for scoring (leave-on defaults when unknown). */
   form: ProductForm;
+  formSource: 'explicit' | 'inferred' | 'unknown';
   ingredients: IngredientAssessment[];
-  /** Number of label entries (after cleaning). */
   total: number;
-  /** Number of entries that matched CosIng (recognized names). */
+  /** Identity coverage (local glossary/inventory + attributed external identity). */
   recognized: number;
-  /** recognized / total — how much of the list could be evaluated. */
+  localRecognized: number;
+  externallyIdentified: number;
   coverage: number;
-  /**
-   * 0–100 aggregate score, or null when nothing could be evaluated.
-   * Never shown without its `confidence` caveat (see docs).
-   */
+  /** Ingredients carrying assessment evidence, distinct from identity coverage. */
+  assessed: number;
+  assessmentCoverage: number;
   score: number | null;
-  /**
-   * full      — coverage >= 0.9
-   * partial   — 0.6 <= coverage < 0.9
-   * limited   — coverage < 0.6 (score blends toward the neutral 78)
-   */
+  scoreStatus: ScoreStatus;
   confidence: 'full' | 'partial' | 'limited';
   band: Band | null;
-  /** Strongest tier seen among ingredients (null when all unknown). */
   worstTier: RiskTier | null;
-  /** Names that could not be matched against the local dataset. */
   unknownIngredients: string[];
   flags: ProductFlag[];
-  /** Set when the score was hard-capped (e.g. an EU-prohibited ingredient). */
+  parser: ParserSummary;
   cappedReason?: string;
-  /**
-   * Set when a key-gated external ingredient database supplied extra
-   * recognitions for names the local snapshot missed (coverage enrichment).
-   */
   vendorEnriched?: boolean;
-  /** Snapshot metadata so callers can surface data freshness. */
-  dataset: { rows: number; snapshot: string; version: string };
+  dataset: {
+    rows: number;
+    snapshot: string;
+    version: string;
+    glossaryRows?: number;
+    inventoryRows?: number;
+    regulationAsOf?: string;
+    engineVersion?: string;
+  };
+  assessedAt: string;
 }
 
 export const TIER_ORDER: RiskTier[] = ['prohibited', 'restricted', 'caution', 'watch', 'clean'];

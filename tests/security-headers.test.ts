@@ -154,9 +154,10 @@ describe('server endpoint abuse limits', () => {
     assert.match(invitations, /idempotencyKey: `household-invite-\$\{inviteId\}`/);
   });
 
-  it('validates the barcode argument and bounds the outbound fan-out', () => {
-    assert.match(barcode, /\/\^\[0-9\]\{8\}\$\//);
-    assert.match(barcode, /\/\^\[0-9\]\{13\}\$\//);
+  it('validates canonical GTIN semantics and bounds the outbound fan-out', () => {
+    assert.match(barcode, /parseGtin\(\{/);
+    assert.match(barcode, /source: 'api'/);
+    assert.match(barcode, /parsed\.value\.lookupCode/);
     assert.match(barcode, /AbortSignal\.timeout\(/);
     // A per-IP budget is what stops this being a free proxy against Open Food
     // Facts; without it one client can occupy five upstream fetches per request.

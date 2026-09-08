@@ -85,12 +85,27 @@ Guardrails (same philosophy as the cosmetics vendor slot):
 - bounded (4 s timeout, ≤ 40 names, summary ≤ 400 chars) and fail-open — any
   error returns the exact pure-local result.
 
-## Offline & privacy
+## Offline, cache identity, and privacy
 
-The client (`src/lib/food-analysis-client.ts`) falls back to computing the
-same deterministic local analysis in the browser when the API is unreachable.
-Only the ingredient names leave the device (to the app's own server, then to
-the optional knowledge provider), never user data.
+The client (`src/lib/food-analysis-client.ts`) renders the deterministic local
+analysis immediately, caches it in a bounded/expiring context-complete cache,
+and optionally replaces it with attributed server enrichment. Cache identity
+includes text, label, category, language, OFF allergen tags, and dataset
+version; in-flight work is deduplicated and components reject stale request
+completions. OFF allergen tags are used only as a source-attributed cross-check.
+
+Label text is sent to the app's same-origin analysis endpoint. If an optional
+knowledge provider is configured, only bounded unidentified ingredient names
+and the requested explanation language are forwarded. The label photo stays
+on-device. The explicitly selected Tesseract language model may be downloaded
+from the tessdata CDN on first use. OCR text and parsed rows require editable
+user confirmation before analysis.
+
+All barcode surfaces use the same strict GTIN and abortable resolution path.
+The resulting domain is one of `food`, `cosmetic`, `household`, `pet`, or
+`unknown`; source database is provenance rather than proof of domain, and the
+user can override domain before choosing an analyzer. Household/pet products
+currently show metadata without claiming a safety analyzer is available.
 
 ## Tests
 

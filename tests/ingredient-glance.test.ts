@@ -44,17 +44,18 @@ describe('ingredientGlance messages', () => {
 
   it('composes localized flag lines from a real engine output', () => {
     const analysis = analyzeIngredientList(
-      ['Aqua', 'Glycerin', 'Hydroquinone', 'Parfum', 'Linalool', 'Limonene'],
+      ['Aqua', 'Glycerin', 'Quaternium-15', 'Parfum', 'Linalool', 'Limonene'],
       { form: 'leave-on' },
     );
     const g = glanceOf(en);
     const textOf = (code: string) => ingredientFlagText(code, analysis, g, t);
 
-    const prohibited = textOf('contains-prohibited');
-    assert.match(prohibited, /EU-banned/);
-    assert.match(prohibited, /Hydroquinone/i);
+    const prohibited = textOf('eu-annex-ii-name-match');
+    assert.match(prohibited, /Annex II/);
+    assert.match(prohibited, /Quaternium-15/i);
+    assert.doesNotMatch(prohibited, /product (?:is )?(?:banned|safe|compliant)/i);
 
-    const allergens = textOf('fragrance-allergens');
+    const allergens = textOf('fragrance-allergen-name-matches');
     assert.match(allergens, /Linalool/i);
 
     assert.equal(textOf('fragrance-generic'), g.flagGeneric);
@@ -66,11 +67,11 @@ describe('ingredientGlance messages', () => {
 
   it('composes in French and Arabic for every flag code', () => {
     const analysis = analyzeIngredientList(
-      ['Aqua', 'Glycerin', 'Hydroquinone', 'Parfum', 'Linalool', 'Limonene', 'Methylisothiazolinone'],
+      ['Aqua', 'Glycerin', 'Quaternium-15', 'Parfum', 'Linalool', 'Limonene', 'Methylisothiazolinone'],
       { form: 'leave-on' },
     );
     const codes = analysis.flags.map((f) => f.code);
-    assert.ok(codes.includes('contains-prohibited'));
+    assert.ok(codes.includes('eu-annex-ii-name-match'));
     for (const messages of [fr, ar]) {
       const g = glanceOf(messages);
       for (const code of codes) {
@@ -83,9 +84,10 @@ describe('ingredientGlance messages', () => {
     }
   });
 
-  it('exposes band labels used by the score chip', () => {
-    const analysis = analyzeIngredientList(['Aqua', 'Glycerin'], {});
-    assert.equal(analysis.band, 'excellent');
+  it('exposes band labels while identity-only lists remain unscored', () => {
+    const analysis = analyzeIngredientList(['Aqua', 'Glycerin'], { form: 'leave-on' });
+    assert.equal(analysis.band, null);
+    assert.equal(analysis.score, null);
     const g = glanceOf(en);
     assert.ok(g.bandExcellent.length > 0);
     assert.ok(g.bandAvoid.length > 0);

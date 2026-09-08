@@ -1,31 +1,40 @@
-/**
- * Client for the self-hosted INCI analysis route.
- *
- * Thin wrapper over POST /api/inci/analyze with a small in-memory cache keyed
- * by the ingredient text (a scanned basket is repetitive, and analyses are
- * deterministic — same INCI text always yields the same result). Results are
- * never persisted and never leave the device beyond the same-origin call.
- *
- * Server-only data stays server-side: this module only ever sees the JSON
- * response, never the dataset loader.
- */
+/** Context-complete, bounded client for the same-origin INCI analysis route. */
 
-import type { ProductAssessment } from '@/lib/ingredient-safety/types';
+import type { ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
 
 export interface AnalyzeIngredientsOptions {
   label?: string;
   category?: string;
-  form?: 'leave-on' | 'rinse-off' | 'unknown';
+  form?: ProductForm;
+  source?: ParserSummary['source'];
+  reviewed?: boolean;
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 80;
 const REQUEST_TIMEOUT_MS = 10_000;
+const CLIENT_SCHEMA_VERSION = 'ingredient-request-v2';
 
 const cache = new Map<string, { at: number; value: ProductAssessment }>();
+const inFlight = new Map<string, Promise<ProductAssessment>>();
 
-function cacheKey(text: string): string {
-  return text.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+function normalizePart(value: string | undefined): string {
+  return (value ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export function ingredientAnalysisCacheKey(
+  text: string,
+  opts?: AnalyzeIngredientsOptions,
+): string {
+  return JSON.stringify([
+    CLIENT_SCHEMA_VERSION,
+    normalizePart(text),
+    opts?.form ?? 'infer',
+    normalizePart(opts?.label),
+    normalizePart(opts?.category),
+    opts?.source ?? 'paste',
+    opts?.reviewed === true,
+  ]);
 }
 
 function cacheGet(key: string): ProductAssessment | undefined {
@@ -36,7 +45,7 @@ function cacheGet(key: string): ProductAssessment | undefined {
     return undefined;
   }
   cache.delete(key);
-  cache.set(key, hit); // refresh LRU position
+  cache.set(key, hit);
   return hit.value;
 }
 
@@ -49,29 +58,47 @@ function cacheSet(key: string, value: ProductAssessment): void {
   }
 }
 
-/** Empty the analysis cache (used by tests and future logout flows). */
-export function clearIngredientAnalysisCache(): void {
-  cache.clear();
+function abortError(): Error {
+  if (typeof DOMException !== 'undefined') return new DOMException('The operation was aborted.', 'AbortError');
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  return error;
 }
 
-/**
- * Analyze a product's full INCI text through the app's own route.
- * Throws on network failure / non-200 (callers render a muted fallback).
- */
-export async function analyzeIngredientsText(
-  ingredientsText: string,
-  opts?: AnalyzeIngredientsOptions & { signal?: AbortSignal },
-): Promise<ProductAssessment> {
-  const key = cacheKey(ingredientsText);
-  const cached = cacheGet(key);
-  if (cached) return cached;
+/** Give each subscriber independent cancellation; aborting one waiter never
+ * cancels the shared in-flight request used by another component. */
+function waitForSubscriber<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        if (!signal.aborted) resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        if (!signal.aborted) reject(error);
+      },
+    );
+  });
+}
 
+export function clearIngredientAnalysisCache(): void {
+  cache.clear();
+  inFlight.clear();
+}
+
+async function requestAnalysis(
+  ingredientsText: string,
+  opts: AnalyzeIngredientsOptions | undefined,
+): Promise<ProductAssessment> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const onOuterAbort = () => controller.abort();
-  opts?.signal?.addEventListener('abort', onOuterAbort, { once: true });
   try {
-    const res = await fetch('/api/inci/analyze', {
+    const response = await fetch('/api/inci/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -79,15 +106,43 @@ export async function analyzeIngredientsText(
         ...(opts?.label ? { label: opts.label } : {}),
         ...(opts?.category ? { category: opts.category } : {}),
         ...(opts?.form ? { form: opts.form } : {}),
+        source: opts?.source ?? 'paste',
+        reviewed: opts?.reviewed === true,
       }),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`ingredient analysis failed: HTTP ${res.status}`);
-    const data = (await res.json()) as ProductAssessment;
-    cacheSet(key, data);
-    return data;
+    if (!response.ok) throw new Error(`ingredient analysis failed: HTTP ${response.status}`);
+    return (await response.json()) as ProductAssessment;
   } finally {
     clearTimeout(timer);
-    opts?.signal?.removeEventListener('abort', onOuterAbort);
   }
+}
+
+export async function analyzeIngredientsText(
+  ingredientsText: string,
+  opts?: AnalyzeIngredientsOptions & { signal?: AbortSignal },
+): Promise<ProductAssessment> {
+  const context: AnalyzeIngredientsOptions = {
+    ...(opts?.label ? { label: opts.label } : {}),
+    ...(opts?.category ? { category: opts.category } : {}),
+    ...(opts?.form ? { form: opts.form } : {}),
+    ...(opts?.source ? { source: opts.source } : {}),
+    ...(opts?.reviewed !== undefined ? { reviewed: opts.reviewed } : {}),
+  };
+  const key = ingredientAnalysisCacheKey(ingredientsText, context);
+  const cached = cacheGet(key);
+  if (cached) return waitForSubscriber(Promise.resolve(cached), opts?.signal);
+
+  let shared = inFlight.get(key);
+  if (!shared) {
+    shared = requestAnalysis(ingredientsText, context).then((value) => {
+      cacheSet(key, value);
+      return value;
+    });
+    inFlight.set(key, shared);
+    void shared.finally(() => {
+      if (inFlight.get(key) === shared) inFlight.delete(key);
+    }).catch(() => undefined);
+  }
+  return waitForSubscriber(shared, opts?.signal);
 }

@@ -66,7 +66,7 @@ describe('GET /api/inci/lookup', () => {
       fetchCalls++;
       throw new Error('no-key run must not call out');
     }) as unknown as typeof fetch;
-    const res = await callApi('1000000000001', '10.1.0.2');
+    const res = await callApi('1000000000009', '10.1.0.2');
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, { found: false, reason: 'not-configured' });
     assert.equal(fetchCalls, 0);
@@ -80,19 +80,19 @@ describe('GET /api/inci/lookup', () => {
       return {
         ok: true,
         json: async () => ({
-          barcode: '2000000000002',
+          barcode: '2000000000008',
           productName: 'Ultra doux avocat',
           rawInci: ['Aqua', 'Glycerin', 'Niacinamide', 'Parfum.'],
         }),
       };
     }) as unknown as typeof fetch;
 
-    const res = await callApi('2000000000002', '10.1.0.3');
+    const res = await callApi('2000000000008', '10.1.0.3');
     assert.equal(res.status, 200);
     assert.equal(res.body.found, true);
     assert.equal(res.body.ingredientsText, 'Aqua, Glycerin, Niacinamide, Parfum.');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://inciapi.com/v1/products/2000000000002/safety');
+    assert.equal(calls[0].url, 'https://inciapi.com/v1/products/2000000000008/safety');
     assert.equal(calls[0].init?.headers?.['X-API-Key'], 'sk-test');
   });
 
@@ -103,7 +103,7 @@ describe('GET /api/inci/lookup', () => {
       json: async () => ({ product: { product_name: 'Unknown product' } }),
     })) as unknown as typeof fetch;
 
-    const res = await callApi('3000000000003', '10.1.0.4');
+    const res = await callApi('3000000000007', '10.1.0.4');
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, { found: false, reason: 'not-found' });
   });
@@ -114,7 +114,7 @@ describe('GET /api/inci/lookup', () => {
       throw new Error('network down');
     }) as unknown as typeof fetch;
 
-    const res = await callApi('4000000000004', '10.1.0.5');
+    const res = await callApi('4000000000006', '10.1.0.5');
     assert.equal(res.status, 502);
     assert.equal(res.body.found, false);
     assert.equal(res.body.reason, 'lookup-failed');

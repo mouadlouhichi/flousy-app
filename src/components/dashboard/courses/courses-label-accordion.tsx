@@ -10,7 +10,7 @@ import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
-import type { Band, ProductAssessment } from '@/lib/ingredient-safety/types';
+import type { Band, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
 import {
   BAND_LABEL_KEY,
   BAND_STYLE,
@@ -18,6 +18,7 @@ import {
 import { CoursesIngredientPanel } from './courses-ingredient-panel';
 import { CoursesFoodPanel } from './courses-food-panel';
 import { ScoreRing } from './courses-score-ring';
+import { useDashboard } from '../dashboard-provider';
 
 /**
  * Collapsible "Label & ingredients" section of the pending-product card.
@@ -37,13 +38,17 @@ interface CoursesLabelAccordionProps {
   name?: string;
   category?: string;
   ingredientsText?: string;
+  domain?: import('@/lib/store').ProductDomain;
+  allergenTags?: string[];
+  form?: ProductForm;
+  onFormChange?: (form: ProductForm) => void;
   /** Source hint that the record is cosmetic/beauty even when name/category
    *  are too generic to say so (e.g. a code-like shower-gel name). */
   beauty?: boolean;
   /** Manual-entry products have no name to classify yet. */
   needsName?: boolean;
   /** Panel adopted a new ingredient list (external fallback / paste / OCR). */
-  onIngredientsText?: (text: string) => void;
+  onIngredientsText?: (text: string | undefined) => void;
 }
 
 export function CoursesLabelAccordion({
@@ -51,11 +56,17 @@ export function CoursesLabelAccordion({
   name,
   category,
   ingredientsText,
+  domain: explicitDomain,
+  allergenTags,
+  form,
+  onFormChange,
   beauty,
   needsName,
   onIngredientsText,
 }: CoursesLabelAccordionProps) {
   const { messages, t } = useLanguage();
+  const { user } = useDashboard();
+  const accountId = user?.uid ?? null;
   const c = messages.courses;
   const ig = messages.ingredientGlance;
   const im = messages.ingredientManual;
@@ -81,6 +92,7 @@ export function CoursesLabelAccordion({
   const detectedDomain = beauty
     ? 'cosmetic'
     : detectLabelDomain({
+        domain: explicitDomain,
         category,
         name: labelName,
         ingredientsText,
@@ -92,6 +104,7 @@ export function CoursesLabelAccordion({
   // the paste/OCR path) is offered instead of a misleading food panel.
   const likelyCosmetic = isCosmeticRecord({
     beauty,
+    domain: explicitDomain,
     category,
     name: labelName,
     ingredientsText,
@@ -99,9 +112,9 @@ export function CoursesLabelAccordion({
   const domain = likelyCosmetic ? 'cosmetic' : detectedDomain;
 
   // The cosmetic engine may read a per-barcode INCI saved on this device.
-  const overlayText = barcode ? readInciOverlayEntry(barcode) ?? '' : '';
+  const overlayText = barcode ? readInciOverlayEntry(barcode, accountId)?.text ?? '' : '';
   const hasInci = Boolean(ingredientsText?.trim() || overlayText.trim() || fallbackText.trim());
-  const cosmeticText = (ingredientsText?.trim() || overlayText.trim() || fallbackText.trim()).trim();
+  const cosmeticText = (overlayText.trim() || ingredientsText?.trim() || fallbackText.trim()).trim();
 
   // ---- Missing-INCI risk fallback (collapsed-preview friendly) ------------
   // Run as soon as a cosmetic candidate barcode resolves with no provider
@@ -141,34 +154,35 @@ export function CoursesLabelAccordion({
     failed?: boolean;
   }>({ key: '' });
 
-  // Track the text currently requested separately from `cosmetic.key`.
-  // Using `cosmetic.key` in the effect deps makes the first `setCosmetic`
-  // (which sets key to the text) trigger the effect's own cleanup and cancel
-  // the in-flight request before it resolves.
-  const requestedCosmeticRef = useRef('');
+  const cosmeticRequestKey = JSON.stringify({
+    barcode,
+    text: cosmeticText,
+    label: labelName ?? '',
+    category: category ?? '',
+    form: form ?? 'unknown',
+  });
   useEffect(() => {
-    if (domain !== 'cosmetic' || !cosmeticText) return;
-    if (requestedCosmeticRef.current === cosmeticText) return;
-    requestedCosmeticRef.current = cosmeticText;
-    let cancelled = false;
-    setCosmetic({ key: cosmeticText });
+    if (domain !== 'cosmetic' || !cosmeticText) {
+      setCosmetic({ key: cosmeticRequestKey });
+      return;
+    }
+    const controller = new AbortController();
+    setCosmetic({ key: cosmeticRequestKey });
     analyzeIngredientsText(cosmeticText, {
       ...(labelName ? { label: labelName } : {}),
       ...(category ? { category } : {}),
+      ...(form ? { form } : {}),
+      signal: controller.signal,
     })
-      .then((analysis) => {
-        if (!cancelled) setCosmetic({ key: cosmeticText, analysis });
-      })
+      .then((analysis) => setCosmetic({ key: cosmeticRequestKey, analysis }))
       .catch(() => {
-        if (!cancelled) setCosmetic({ key: cosmeticText, failed: true });
+        if (!controller.signal.aborted) setCosmetic({ key: cosmeticRequestKey, failed: true });
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [domain, cosmeticText, labelName, category]);
+    return () => controller.abort();
+  }, [domain, cosmeticText, cosmeticRequestKey, labelName, category, form]);
 
   const cosmeticAnalysis =
-    cosmetic.key === cosmeticText ? cosmetic.analysis : undefined;
+    cosmetic.key === cosmeticRequestKey ? cosmetic.analysis : undefined;
 
   // ---- Food hook preview (deterministic local analysis, no network) ---------
   const foodPreview = useMemo<FoodAnalysis | null>(() => {
@@ -326,6 +340,8 @@ export function CoursesLabelAccordion({
               initialText={ingredientsText || fallbackText}
               name={labelName}
               category={category}
+              form={form}
+              onFormChange={onFormChange}
               onIngredientsText={onIngredientsText}
             />
           ) : (
@@ -334,6 +350,7 @@ export function CoursesLabelAccordion({
               initialText={ingredientsText}
               name={labelName}
               category={category}
+              offAllergenTags={allergenTags}
             />
           )}
         </div>

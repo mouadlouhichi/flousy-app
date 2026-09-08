@@ -93,7 +93,7 @@ describe('barcodeChecksumValid', () => {
   });
 
   it('accepts a valid EAN-8 code', () => {
-    assert.equal(barcodeChecksumValid('96385078'), true);
+    assert.equal(barcodeChecksumValid('96385074'), true);
   });
 
   it('rejects corrupted check digits', () => {
@@ -111,7 +111,7 @@ describe('barcodeChecksumValid', () => {
 
 describe('normalizeBarcode', () => {
   it('keeps a clean EAN-13 as-is', () => {
-    assert.deepEqual(normalizeBarcode('6111246721261'), { barcode: '6111246721261', warning: null });
+    assert.deepEqual(normalizeBarcode('6111246721261'), { barcode: '6111246721261', gtin14: '06111246721261', warning: null });
   });
 
   it('strips spaces and hyphens', () => {
@@ -119,15 +119,16 @@ describe('normalizeBarcode', () => {
     assert.equal(normalizeBarcode('611-1246-7212-61').barcode, '6111246721261');
   });
 
-  it('pads 12-digit UPC-A to EAN-13', () => {
+  it('preserves verified UPC-A semantics and supplies canonical GTIN-14 identity', () => {
     const result = normalizeBarcode('012345678905');
-    assert.equal(result.barcode, '0012345678905');
+    assert.equal(result.barcode, '012345678905');
+    assert.equal(result.gtin14, '00012345678905');
     assert.equal(result.warning, null);
   });
 
-  it('flags a bad checksum but keeps the code for manual entry', () => {
+  it('blocks a bad checksum from verified barcode use', () => {
     const result = normalizeBarcode('6111246721262');
-    assert.equal(result.barcode, '6111246721262');
+    assert.equal(result.barcode, null);
     assert.equal(result.warning, 'bad-checksum');
   });
 
@@ -147,7 +148,7 @@ describe('isMoroccanBarcode', () => {
     assert.equal(isMoroccanBarcode('6111246721261'), true);
     assert.equal(isMoroccanBarcode('6110000000000'), true);
     assert.equal(isMoroccanBarcode('3017620422003'), false);
-    assert.equal(isMoroccanBarcode('6110'), true); // prefix only
+    assert.equal(isMoroccanBarcode('6110'), false); // prefixes are not product identities
   });
 });
 
@@ -302,49 +303,77 @@ describe('summarizeQuality', () => {
       normalized: `ING-${index}`,
       matched: true,
       matchedInci: `INCI-${index}`,
+      identity: { status: 'official-glossary' as const, canonicalName: `INCI-${index}` },
       signals: [],
       tier,
+      assessmentState: tier ? 'assessed-signal' as const : 'identified-no-assessment' as const,
     }));
+    const assessed = ingredients.filter((item) => item.tier !== null).length;
     return {
       form: 'leave-on',
+      formSource: 'explicit',
       total: ingredients.length,
       recognized: ingredients.length,
+      localRecognized: ingredients.length,
+      externallyIdentified: 0,
       coverage: 1,
+      assessed,
+      assessmentCoverage: ingredients.length ? assessed / ingredients.length : 0,
       score: partial.score,
-      confidence: 'full',
+      scoreStatus: partial.score === null ? 'withheld-insufficient-evidence' : 'available',
+      confidence: assessed === ingredients.length ? 'full' : 'partial',
       band: partial.band,
-      worstTier: undefined,
+      worstTier: null,
       unknownIngredients: [],
-      dataset: { rows: 1, snapshot: 'test', version: 'test' },
+      dataset: { rows: 1, snapshot: 'test', version: 'test', engineVersion: 'test-engine' },
       ingredients,
       flags: [],
-    } as unknown as ProductAssessment;
+      parser: { valid: true, reviewed: true, source: 'typed', diagnostics: [] },
+      assessedAt: '2026-09-08T12:00:00.000Z',
+    };
   }
 
-  it('folds the five tiers into the chip\'s three colours', () => {
-    const summary = summarizeQuality(
-      assessment({
-        score: 62,
-        band: 'moderate',
-        tiers: ['clean', 'clean', 'watch', 'restricted', 'caution', 'prohibited'],
-      }),
-    );
-    assert.deepEqual(summary, { score: 62, band: 'moderate', good: 2, caution: 2, concern: 2 });
+  it('retains exact six-tier counts without softening restricted or prohibited evidence', () => {
+    const source = assessment({
+      score: 62,
+      band: 'moderate',
+      tiers: ['clean', 'clean', 'watch', 'restricted', 'caution', 'prohibited'],
+    });
+    const summary = summarizeQuality(source);
+    assert.equal(summary.schemaVersion, 2);
+    assert.deepEqual(summary.tiers, {
+      clean: 2,
+      watch: 1,
+      caution: 1,
+      restricted: 1,
+      prohibited: 1,
+      unassessed: 0,
+    });
+    assert.deepEqual(summary.assessment, source);
+    assert.notEqual(summary.assessment, source);
+    assert.equal(summary.assessmentId, 'assessment-2026-09-08T12:00:00.000Z-test-engine');
   });
 
-  it('ignores unrecognized (null-tier) ingredients in the counts', () => {
-    const summary = summarizeQuality(
-      assessment({
-        score: 90,
-        band: 'good',
-        tiers: ['clean', null, null, 'watch'],
-      }),
-    );
-    assert.deepEqual(summary, { score: 90, band: 'good', good: 1, caution: 1, concern: 0 });
+  it('retains identified-but-unassessed rows separately from concern tiers', () => {
+    const summary = summarizeQuality(assessment({
+      score: 90,
+      band: 'good',
+      tiers: ['clean', null, null, 'watch'],
+    }));
+    assert.equal(summary.tiers?.unassessed, 2);
+    assert.equal(summary.tiers?.restricted, 0);
+    assert.equal(summary.tiers?.prohibited, 0);
   });
 
-  it('returns null when the engine could not score the product', () => {
-    assert.equal(summarizeQuality(assessment({ score: null, band: null, tiers: ['clean'] })), null);
+  it('persists the complete historical assessment when a score is deliberately withheld', () => {
+    const source = assessment({ score: null, band: null, tiers: [null, 'restricted'] });
+    const summary = summarizeQuality(source);
+    assert.equal(summary.score, null);
+    assert.equal(summary.band, null);
+    assert.equal(summary.scoreStatus, 'withheld-insufficient-evidence');
+    assert.equal(summary.assessment?.ingredients.length, 2);
+    assert.equal(summary.tiers?.unassessed, 1);
+    assert.equal(summary.tiers?.restricted, 1);
   });
 });
 
@@ -814,22 +843,33 @@ describe('budget logging (course → variable expense)', () => {
 
 
 describe('Variable-measure (in-store price) barcodes', () => {
+  const issuerLayout = {
+    enabled: true as const, issuer: 'Test grocer', prefix: '2',
+    itemStart: 1, itemLength: 6, amountStart: 7, amountLength: 5,
+    amountDecimals: 2, currency: 'MAD',
+  };
   it('reads the price printed inside a prefix-2 EAN-13', () => {
-    assert.deepEqual(parseVariableMeasurePrice('2003200020807'), {
+    assert.deepEqual(parseVariableMeasurePrice('2003200020807', issuerLayout), {
       itemRef: '003200',
       price: 20.8,
+      issuer: 'Test grocer',
+      currency: 'MAD',
+      rawAmount: '02080',
     });
-    assert.deepEqual(parseVariableMeasurePrice('2003400075003'), {
+    assert.deepEqual(parseVariableMeasurePrice('2003400075003', issuerLayout), {
       itemRef: '003400',
       price: 75,
+      issuer: 'Test grocer',
+      currency: 'MAD',
+      rawAmount: '07500',
     });
   });
 
   it('refuses codes that are not a valid prefix-2 EAN-13', () => {
-    assert.strictEqual(parseVariableMeasurePrice('5003200020807'), null, 'wrong prefix');
-    assert.strictEqual(parseVariableMeasurePrice('2003200020808'), null, 'bad checksum');
-    assert.strictEqual(parseVariableMeasurePrice('200320002080'), null, 'too short');
-    assert.strictEqual(parseVariableMeasurePrice(''), null, 'empty');
+    assert.strictEqual(parseVariableMeasurePrice('5003200020807', issuerLayout), null, 'wrong prefix');
+    assert.strictEqual(parseVariableMeasurePrice('2003200020808', issuerLayout), null, 'bad checksum');
+    assert.strictEqual(parseVariableMeasurePrice('200320002080', issuerLayout), null, 'too short');
+    assert.strictEqual(parseVariableMeasurePrice('', issuerLayout), null, 'empty');
   });
 
   it('resolveProduct returns the embedded price and skips remote lookups', async () => {
@@ -837,6 +877,7 @@ describe('Variable-measure (in-store price) barcodes', () => {
     const resolution = await resolveProduct({
       barcode: '2003200020807',
       catalog: [],
+      restrictedCirculation: issuerLayout,
       lookupRemote: async () => {
         remoteCalled = true;
         return { kind: 'not-found' };

@@ -108,7 +108,7 @@ function validBackup(): Record<string, unknown> {
     ],
     products: [
       {
-        barcode: '6111234567890', name: 'Milk', source: 'manual',
+        barcode: '6111234567895', name: 'Milk', source: 'manual',
         createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z',
       },
     ],
@@ -117,7 +117,7 @@ function validBackup(): Record<string, unknown> {
         id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
         endedAt: '2026-07-02T18:30:00.000Z', date: '2026-07-02', currency: 'MAD', place: 'wallet',
         items: [
-          { key: '6111234567890', barcode: '6111234567890', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 },
+          { key: '6111234567895', barcode: '6111234567895', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 },
         ],
         total: 17,
       },
@@ -231,7 +231,7 @@ describe('Finance backup deep validation (M1)', () => {
     expectRejected(duplicateLines, 'duplicate key: k1');
 
     const product = {
-      barcode: '6111234567890', name: 'Milk', source: 'manual',
+      barcode: '6111234567895', name: 'Milk', source: 'manual',
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     };
     expectRejected({ ...validBackup(), products: [product, { ...product }] }, 'duplicate barcode');
@@ -384,7 +384,7 @@ describe('Finance backup deep validation (M1)', () => {
       barcode: '1234', name: 'Milk', source: 'manual',
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     }];
-    expectRejected(backup, '8 or 13 digits');
+    expectRejected(backup, '8, 12, 13, or 14 digits');
 
     const unbarcoded = validBackup();
     unbarcoded.products = [{ name: 'Milk' }];
@@ -540,11 +540,11 @@ describe('an exported backup re-imports (M-)', () => {
       } as FinanceBackup['configuration'],
       months: { '2026-07': normalized as MonthBudget },
       goals: [{ id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true, category: 'fun', deposited: 40 }],
-      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, ingredientsText: 'Aqua, Glycerin, Niacinamide', createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
+      products: [{ barcode: '6111234567895', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, ingredientsText: 'Aqua, Glycerin, Niacinamide', createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
       sessions: [{
         id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z', endedAt: '2026-07-02T18:30:00.000Z',
         date: '2026-07-02', currency: 'MAD', place: 'wallet', total: 17,
-        items: [{ key: '6111234567890', barcode: '6111234567890', name: 'Milk', category: 'Dairy', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
+        items: [{ key: '6111234567895', barcode: '6111234567895', name: 'Milk', category: 'Dairy', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
         loggedWorkspace: 'personal', loggedWorkspaceId: 'user-1', loggedMonthKey: '2026-07',
         loggedMutationId: 'mutation-1', loggedExpenseId: 'v1', loggedAt: '2026-07-02T18:31:00.000Z',
       }],
@@ -562,7 +562,7 @@ describe('an exported backup re-imports (M-)', () => {
     assert.equal(month.customRatios ? Object.keys(month.customRatios as object).length : 0, 3);
     assert.deepEqual(month.categoryBudgets, { Rent: 900 });
     assert.deepEqual(restored.goals.map((goal) => goal.name), ['Bike']);
-    assert.equal(restored.products?.[0].barcode, '6111234567890');
+    assert.equal(restored.products?.[0].barcode, '6111234567895');
     assert.equal(
       restored.products?.[0].ingredientsText,
       'Aqua, Glycerin, Niacinamide',

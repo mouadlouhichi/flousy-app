@@ -5,8 +5,9 @@ import {
   type AnalyzeOptions,
 } from '@/lib/ingredient-safety/analyze';
 import type { ProductForm } from '@/lib/ingredient-safety/types';
-import { isVendorConfigured, fetchVendorAnalyzeRecognition } from '@/lib/server/vendor-inci';
+import { isVendorConfigured, fetchVendorAnalyzeEvidence } from '@/lib/server/vendor-inci';
 import { isRateLimited } from '@/lib/server/rate-limit';
+import { reportUnknownIngredientAggregates } from '@/lib/server/unknown-ingredients';
 import { checkArcjet } from '@/lib/server/arcjet';
 
 /**
@@ -23,16 +24,14 @@ import { checkArcjet } from '@/lib/server/arcjet';
  *   "category": "Moisturizers"                            // optional (form hint)
  * }
  *
- * Everything runs against the LOCAL CosIng snapshot + the versioned EU overlay
- * (src/lib/ingredient-safety/*). No user data leaves the server, and the
- * pipeline is deterministic — the same INCI text always returns the same JSON,
- * so scores are auditable and reproducible.
+ * Identity and regulatory assessment run against the local dated datasets.
+ * When INCI_API_KEY is configured, names missed locally may be sent to the
+ * named provider; every provider verdict is returned as attributed,
+ * informational-only evidence and never changes the local score/tier.
  *
- * Optional vendor coverage fallback: when INCI_API_KEY is set and the
- * local snapshot cannot recognize part of the list, the unrecognized names are
- * asked of a key-gated external ingredient database, which may add SAFE-only
- * recognitions (response then carries `vendorEnriched: true`). No key → the
- * route is purely local and never calls out.
+ * Unidentified names are also aggregated automatically as bounded token hashes
+ * (never full labels, barcodes, products, accounts, IPs, or images) so local
+ * recognition can improve without collecting product-level histories.
  *
  * The response includes dataset freshness metadata; treat any aggregate score
  * as informational (see docs/COSMETIC_INGREDIENT_SCORING.md).
@@ -46,6 +45,7 @@ const MAX_INGREDIENTS = 300;
 const ANALYSES_PER_MINUTE = 60;
 
 const FORMS = new Set(['leave-on', 'rinse-off', 'unknown']);
+const INPUT_SOURCES = new Set(['typed', 'paste', 'ocr', 'provider', 'unknown']);
 
 function asString(v: unknown, max: number): string | undefined {
   if (typeof v !== 'string') return undefined;
@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
   const rawIngredients = Array.isArray(obj.ingredients) ? obj.ingredients : undefined;
   const form: ProductForm | undefined =
     typeof obj.form === 'string' && FORMS.has(obj.form) ? (obj.form as ProductForm) : undefined;
+  const source: AnalyzeOptions['source'] =
+    typeof obj.source === 'string' && INPUT_SOURCES.has(obj.source)
+      ? (obj.source as AnalyzeOptions['source'])
+      : 'paste';
+  const reviewed = obj.reviewed === true;
 
   if (!inciText && !rawIngredients) {
     return NextResponse.json(
@@ -103,38 +108,34 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const baseOptions: AnalyzeOptions = { form, label, category };
-    const analyzeLocal = () =>
-      inciText
-        ? analyzeInciText(inciText, baseOptions)
-        : analyzeIngredientList(items, baseOptions);
+    const assessedAt = new Date().toISOString();
+    const baseOptions: AnalyzeOptions = { form, label, category, source, reviewed, assessedAt };
+    const run = (options: AnalyzeOptions) => inciText
+      ? analyzeInciText(inciText, options)
+      : analyzeIngredientList(items, options);
 
-    let result = analyzeLocal();
+    let result = run(baseOptions);
 
-    // Vendor coverage fallback (only when INCI_API_KEY is set — no
-    // key, no external call): names the local CosIng snapshot could not match
-    // are asked of the provider, which may add *safe-only* recognitions so a
-    // sparse local snapshot doesn't tank coverage for genuinely safe newer
-    // ingredients. Any vendor verdict other than "safe" is ignored; failures
-    // return the pure-local result unchanged.
-    if (
-      isVendorConfigured() &&
-      result.total > 0 &&
-      result.recognized < result.total
-    ) {
+    if (isVendorConfigured() && result.total > 0 && result.localRecognized < result.total) {
       const unknownNames = result.ingredients
-        .filter((i) => i.tier === null)
-        .map((i) => i.raw);
-      const recognition = await fetchVendorAnalyzeRecognition(unknownNames);
-      if (recognition.size > 0) {
-        // Re-run on the SAME parsed input (full text or the pre-split token
-        // list) so tokenization is identical — only recognition changes.
-        const enriched = inciText
-          ? analyzeInciText(inciText, { ...baseOptions, vendorRecognized: recognition })
-          : analyzeIngredientList(items, { ...baseOptions, vendorRecognized: recognition });
-        enriched.vendorEnriched = true;
-        result = enriched;
-      }
+        .filter((ingredient) => ingredient.identity.status === 'unidentified')
+        .map((ingredient) => ingredient.raw);
+      const evidence = await fetchVendorAnalyzeEvidence(unknownNames);
+      if (evidence.size > 0) result = run({ ...baseOptions, vendorEvidence: evidence });
+    }
+
+    // A separate coarse limit prevents a caller from creating unbounded
+    // aggregate writes. The IP is used only as a limiter key and is never sent
+    // to or stored by the aggregate reporter.
+    if (
+      result.unknownIngredients.length > 0 &&
+      !(await isRateLimited('inci-unknown-aggregate', ip, 8, 60 * 60_000))
+    ) {
+      await reportUnknownIngredientAggregates(result.unknownIngredients, {
+        datasetVersion: result.dataset.version,
+        form: result.form,
+        parserValid: result.parser.valid,
+      });
     }
 
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });

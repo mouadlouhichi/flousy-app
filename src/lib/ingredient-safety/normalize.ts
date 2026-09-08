@@ -1,78 +1,137 @@
-/**
- * INCI token normalization + label-list parsing.
- *
- * Label text is messy: mixed case, "(common name)" annotations, "C.I. 77491"
- * colour-index spellings, brand headings above the list. Everything is reduced
- * to a canonical uppercase key before matching against the CosIng dataset and
- * the EU overlay — the same key is used for both sides so aliases stay
- * centralized here.
- */
+/** Unicode-safe ingredient normalization and diagnostic parser. */
 
-/** NFKC-fold, uppercase, collapse every non-alphanumeric run to a space. */
+import type { ParserDiagnostic } from './types';
+
+const OPEN_TO_CLOSE: Readonly<Record<string, string>> = { '(': ')', '[': ']', '{': '}' };
+const CLOSE_TO_OPEN: Readonly<Record<string, string>> = { ')': '(', ']': '[', '}': '{' };
+
+/** Convert decimal digits used by common localized keyboards to ASCII. */
+export function normalizeDecimalDigits(raw: string): string {
+  return String(raw ?? '').replace(/[٠-٩۰-۹०-९]/gu, (digit) => {
+    const cp = digit.codePointAt(0) ?? 0;
+    if (cp >= 0x0660 && cp <= 0x0669) return String(cp - 0x0660);
+    if (cp >= 0x06f0 && cp <= 0x06f9) return String(cp - 0x06f0);
+    if (cp >= 0x0966 && cp <= 0x096f) return String(cp - 0x0966);
+    return digit;
+  });
+}
+
+/**
+ * Canonical identity key. It preserves letters from every script, folds
+ * compatibility forms/diacritics, normalizes localized digits, and collapses
+ * punctuation. Arabic aliases therefore remain matchable instead of being
+ * reduced to an empty string.
+ */
 export function normalizeInciToken(raw: string): string {
-  let s = String(raw ?? '').normalize('NFKC').toUpperCase();
-  // First collapse punctuation: "C.I. 77491" → "C I 77491".
-  s = s.replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-  // Then merge the colour-index spelling: "C I 77491" → "CI 77491" (CosIng
-  // stores "CI 77491"). Only merges when a space separates C and I.
-  s = s.replace(/\bC I(?=\s*\d)/g, 'CI');
+  let s = normalizeDecimalDigits(String(raw ?? ''))
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .toUpperCase();
+  s = s.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+  s = s.replace(/\bC I(?=\s*\d)/gu, 'CI');
   return s;
 }
 
-/**
- * Strip characters that never belong on a food/INCI ingredient list before
- * the text is split into tokens. Paste and OCR input carries noise — bullets,
- * «typographic quotes», © ® ™, | box/pipe characters, emoji, currency signs…
- * Letters, digits, whitespace and the punctuation labels actually use
- * (commas/semicolons as separators, parentheses for sub-lists and INCI
- * annotations, %/°C/units, +, &, hyphens…) are kept.
- */
-const LABEL_KEEP = /[^\p{L}\p{N}\s,;:()\[\]{}%°+./&'’!?=,\-–—]/gu;
+const LABEL_KEEP = /[^\p{L}\p{M}\p{N}\s,;،؛:()\[\]{}%°+./&'’!?=\-–—]/gu;
 
-export function sanitizeLabelText(raw: string): string {
-  let s = String(raw ?? '')
-    // Control characters are not \p{L}\p{N}\s, so LABEL_KEEP already removes
-    // them; the collapse below is for the horizontal spaces it leaves behind.
-    .replace(LABEL_KEEP, ' ')
-    // Collapse horizontal runs only — newlines (line structure) are kept.
-    .replace(/[ \t]{2,}/g, ' ');
-  return s.trim();
+export interface SanitizeResult {
+  text: string;
+  diagnostics: ParserDiagnostic[];
 }
 
-/** Remove balanced parenthetical groups entirely, then normalize. */
+export function sanitizeLabelTextDetailed(raw: string): SanitizeResult {
+  // Fold compatibility-width forms before allowlisting so full-width Latin
+  // text and punctuation (for example `Aqua，Glycerin；Linalool`) retain their
+  // separator semantics instead of being silently replaced with spaces.
+  const input = String(raw ?? '')
+    // Remove branding marks before NFKC; otherwise ™ expands to the letters
+    // “TM” and becomes a phantom part of the preceding ingredient.
+    .replace(/[©®™℠]/gu, ' ')
+    .normalize('NFKC');
+  const diagnostics: ParserDiagnostic[] = [];
+  let removed = 0;
+  const text = input
+    .replace(LABEL_KEEP, (match, offset: number) => {
+      removed += [...match].length;
+      if (/\p{L}|\p{N}/u.test(match)) {
+        diagnostics.push({
+          code: 'alphabetic-span-removed',
+          severity: 'error',
+          message: 'The parser removed a letter or number span.',
+          offset,
+          length: match.length,
+        });
+      }
+      return ' ';
+    })
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+  if (removed > 0 && !diagnostics.some((d) => d.code === 'alphabetic-span-removed')) {
+    diagnostics.push({
+      code: 'unsupported-characters-removed',
+      severity: 'info',
+      message: `${removed} unsupported label character${removed === 1 ? '' : 's'} removed.`,
+    });
+  }
+  return { text, diagnostics };
+}
+
+export function sanitizeLabelText(raw: string): string {
+  return sanitizeLabelTextDetailed(raw).text;
+}
+
+/** Remove only balanced parenthetical groups. Unmatched openers never hide the
+ * suffix; they are retained and normalized with the rest of the name. */
 export function normalizeWithoutParens(raw: string): string {
-  let s = String(raw ?? '');
-  let depth = 0;
+  const source = String(raw ?? '');
+  const pairs = balancedPairs(source).pairs;
+  if (pairs.size === 0) return normalizeInciToken(source);
   let out = '';
-  for (const ch of s) {
-    if (ch === '(' || ch === '[' || ch === '{') {
-      depth += 1;
+  let skippingUntil = -1;
+  for (let i = 0; i < source.length; i += 1) {
+    if (i <= skippingUntil) continue;
+    const end = pairs.get(i);
+    if (end !== undefined) {
+      skippingUntil = end;
       continue;
     }
-    if (ch === ')' || ch === ']' || ch === '}') {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-    if (depth === 0) out += ch;
+    out += source[i];
   }
   return normalizeInciToken(out);
 }
 
-/**
- * Label spellings → canonical normalized INCI keys. Used when a label uses the
- * common name instead of the INCI name (or when both appear with/without the
- * parenthetical annotation).
- */
+/** Arabic/common-language label aliases. Membership is identity only. */
 export const INCI_ALIASES: Readonly<Record<string, string>> = {
   WATER: 'AQUA',
+  EAU: 'AQUA',
+  ماء: 'AQUA',
+  المياه: 'AQUA',
+  'ماء منقى': 'AQUA',
+  GLYCERINE: 'GLYCERIN',
+  GLYCEROL: 'GLYCERIN',
+  جلسرين: 'GLYCERIN',
+  غليسرين: 'GLYCERIN',
   FRAGRANCE: 'PARFUM',
   PERFUME: 'PARFUM',
+  // Common trade/label name; identity alias only. Regulatory status still
+  // comes exclusively from the dated structured annex match.
+  LILIAL: 'BUTYLPHENYL METHYLPROPIONAL',
+  BMHCA: 'BUTYLPHENYL METHYLPROPIONAL',
   AROMA: 'PARFUM',
   FLAVOUR: 'PARFUM',
+  عطر: 'PARFUM',
+  عطور: 'PARFUM',
   'COCONUT OIL': 'COCOS NUCIFERA OIL',
+  'HUILE DE COCO': 'COCOS NUCIFERA OIL',
+  'زيت جوز الهند': 'COCOS NUCIFERA OIL',
   'SHEA BUTTER': 'BUTYROSPERMUM PARKII BUTTER',
+  'BEURRE DE KARITE': 'BUTYROSPERMUM PARKII BUTTER',
+  'زبدة الشيا': 'BUTYROSPERMUM PARKII BUTTER',
   'COCOA BUTTER': 'THEOBROMA CACAO SEED BUTTER',
   'ARGAN OIL': 'ARGANIA SPINOSA KERNEL OIL',
+  'HUILE D ARGAN': 'ARGANIA SPINOSA KERNEL OIL',
+  'زيت الارغان': 'ARGANIA SPINOSA KERNEL OIL',
+  'زيت الاركان': 'ARGANIA SPINOSA KERNEL OIL',
   'JOJOBA OIL': 'SIMMONDSIA CHINENSIS SEED OIL',
   'JOJOBA BUTTER': 'SIMMONDSIA CHINENSIS SEED OIL',
   'ALMOND OIL': 'PRUNUS AMYGDALUS DULCIS OIL',
@@ -83,67 +142,228 @@ export const INCI_ALIASES: Readonly<Record<string, string>> = {
   'AVOCADO OIL': 'PERSEA GRATISSIMA OIL',
   'ROSEHIP OIL': 'ROSA CANINA FRUIT OIL',
   'VITAMIN E': 'TOCOPHEROL',
+  'فيتامين ه': 'TOCOPHEROL',
   'VITAMIN C': 'ASCORBIC ACID',
+  'فيتامين ج': 'ASCORBIC ACID',
   'VITAMIN B3': 'NIACINAMIDE',
+  NIACINAMIDE: 'NIACINAMIDE',
+  نياسيناميد: 'NIACINAMIDE',
   'VITAMIN B5': 'PANTHENOL',
+  بانثينول: 'PANTHENOL',
   'VITAMIN A': 'RETINOL',
+  ريتينول: 'RETINOL',
+  'HYALURONIC ACID': 'HYALURONIC ACID',
+  'حمض الهيالورونيك': 'HYALURONIC ACID',
   'METHYL PARABEN': 'METHYLPARABEN',
   'ETHYL PARABEN': 'ETHYLPARABEN',
   'PROPYL PARABEN': 'PROPYLPARABEN',
   'BUTYL PARABEN': 'BUTYLPARABEN',
-  'SODIUM LAURETH SULFATE': 'SODIUM LAURETH SULFATE',
+  'كحول سيتيريل': 'CETEARYL ALCOHOL',
 };
 
 export function resolveAlias(normalized: string): string | undefined {
   return INCI_ALIASES[normalized];
 }
 
-/**
- * Split a full label INCI text into single-ingredient tokens.
- *
- * Handles: leading "INGREDIENTS:" headings, bullets/numbering, CRLF, and
- * parentheses that may themselves contain commas (multi-name INCI) — commas
- * inside parentheses are not treated as separators.
- */
-export function splitInciList(text: string): string[] {
-  if (!text) return [];
-  // Paste/OCR noise (branding symbols, «quotes», pipe/box characters, emoji…)
-  // is removed before splitting so it can never become a phantom ingredient.
-  let s = sanitizeLabelText(String(text)).replace(/\r\n?/g, '\n');
-  // Strip a leading "INGREDIENTS : / INCI / COMPOSITION :" heading once.
-  s = s.replace(/^\s*(?:INGREDIENTS?|INGR[ÉE]DIENTS?|INCI|COMPOSITION|LIST(?:E)?|CONTAINS?)\s*[:.\-]\s*/i, '');
-  // Bullets / numbering at the start of each line.
-  s = s
-    .split('\n')
-    .map((line) => line.replace(/^\s*(?:[-*•·]|\d+[.)])\s*/, ''))
-    .join('\n');
+export interface ParsedInciList {
+  tokens: string[];
+  diagnostics: ParserDiagnostic[];
+  valid: boolean;
+  sanitizedText: string;
+}
 
+interface PairResult {
+  pairs: Map<number, number>;
+  diagnostics: ParserDiagnostic[];
+}
+
+function balancedPairs(source: string): PairResult {
+  const stack: Array<{ ch: string; offset: number }> = [];
+  const pairs = new Map<number, number>();
+  const diagnostics: ParserDiagnostic[] = [];
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (OPEN_TO_CLOSE[ch]) {
+      stack.push({ ch, offset: i });
+      continue;
+    }
+    const expectedOpen = CLOSE_TO_OPEN[ch];
+    if (!expectedOpen) continue;
+    const top = stack.at(-1);
+    if (!top || top.ch !== expectedOpen) {
+      diagnostics.push({
+        code: 'unmatched-closing-delimiter',
+        severity: 'error',
+        message: `Unmatched closing delimiter “${ch}”.`,
+        offset: i,
+        length: 1,
+      });
+      continue;
+    }
+    stack.pop();
+    pairs.set(top.offset, i);
+  }
+  for (const item of stack) {
+    diagnostics.push({
+      code: 'unmatched-opening-delimiter',
+      severity: 'error',
+      message: `Unmatched opening delimiter “${item.ch}”; following ingredients were not hidden.`,
+      offset: item.offset,
+      length: 1,
+    });
+  }
+  return { pairs, diagnostics };
+}
+
+const HEADING = /(?:^|\n)\s*(?:INGREDIENTS?|INGR[ÉE]DIENTS?|INCI|COMPOSITION|LISTE\s+D['’]?INGR[ÉE]DIENTS?|المكونات|مكونات)\s*[:.\-–—]?\s*/iu;
+const TERMINAL_SECTION = /^\s*(?:DIRECTIONS?|HOW TO USE|WARNINGS?|CAUTION|NET(?:\s+WT)?|POIDS NET|MODE D['’]EMPLOI|تحذير|طريقة الاستعمال|الوزن الصافي)\b/iu;
+const CONTINUATION_WORDS = new Set([
+  'ACID', 'ALCOHOL', 'BUTTER', 'CHLORIDE', 'COPOLYMER', 'ESTER', 'EXTRACT', 'GLUCOSIDE',
+  'GLYCOL', 'HYDROXIDE', 'OIL', 'OLEATE', 'PALMITATE', 'PHOSPHATE', 'POWDER', 'ROOT',
+  'SEED', 'SODIUM', 'SORBATE', 'STEARATE', 'SULFATE', 'SULPHATE', 'WATER',
+]);
+
+function prepareLines(source: string, diagnostics: ParserDiagnostic[]): string {
+  let s = source.replace(/\r\n?/g, '\n');
+  const heading = HEADING.exec(s);
+  if (heading) {
+    const start = (heading.index ?? 0) + heading[0].length;
+    if ((heading.index ?? 0) > 0 && /\p{L}/u.test(s.slice(0, heading.index))) {
+      diagnostics.push({
+        code: 'text-before-ingredients-heading',
+        severity: 'warning',
+        message: 'Text before the ingredients heading was excluded from parsing.',
+        offset: 0,
+        length: heading.index,
+      });
+    }
+    s = s.slice(start);
+  }
+
+  const rawLines = s.split('\n');
+  const lines: string[] = [];
+  for (const rawLine of rawLines) {
+    let line = rawLine.replace(/^\s*(?:[-*•·▪◦]|\d+[.)])\s*/u, '').trim();
+    if (!line) continue;
+    if (TERMINAL_SECTION.test(line)) {
+      diagnostics.push({
+        code: 'non-ingredient-section-excluded',
+        severity: 'warning',
+        message: `A non-ingredient section beginning “${line.slice(0, 32)}” was excluded.`,
+      });
+      break;
+    }
+    const prior = lines.at(-1);
+    const firstWord = normalizeInciToken(line).split(' ')[0] ?? '';
+    const priorWords = prior ? normalizeInciToken(prior).split(' ') : [];
+    const likelyWrapped = Boolean(
+      prior &&
+      !/[,;:]\s*$/u.test(prior) &&
+      (/[\-–—/]\s*$/u.test(prior) ||
+        (priorWords.length <= 4 && CONTINUATION_WORDS.has(firstWord))),
+    );
+    if (likelyWrapped) {
+      lines[lines.length - 1] = `${prior.replace(/[\-–—]\s*$/u, '')} ${line}`.trim();
+      diagnostics.push({
+        code: 'wrapped-line-joined',
+        severity: 'info',
+        message: 'A likely wrapped ingredient line was joined before parsing.',
+      });
+    } else {
+      lines.push(line);
+    }
+  }
+  return lines.join('\n');
+}
+
+function cleanToken(raw: string): string | undefined {
+  const token = String(raw ?? '').trim().replace(/[.]+$/u, '').trim();
+  if (!token) return undefined;
+  const normalized = normalizeInciToken(token);
+  if (!normalized || !/\p{L}{2,}/u.test(normalized)) return undefined;
+  return token;
+}
+
+function splitAtTopLevel(source: string, pairs: Map<number, number>): string[] {
   const tokens: string[] = [];
-  let depth = 0;
   let current = '';
-  for (const ch of s) {
-    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
-    else if (ch === ')' || ch === ']' || ch === '}') depth = Math.max(0, depth - 1);
-    if ((ch === ',' || ch === ';' || ch === '\n') && depth === 0) {
-      const t = cleanToken(current);
-      if (t) tokens.push(t);
+  const closeOffsets = new Set<number>(pairs.values());
+  let depth = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (pairs.has(i)) depth += 1;
+    const separator = (ch === ',' || ch === ';' || ch === '\n' || ch === '،' || ch === '؛') && depth === 0;
+    if (separator) {
+      const token = cleanToken(current);
+      if (token) tokens.push(token);
       current = '';
     } else {
       current += ch;
     }
+    if (closeOffsets.has(i)) depth = Math.max(0, depth - 1);
   }
   const last = cleanToken(current);
   if (last) tokens.push(last);
   return tokens;
 }
 
-function cleanToken(raw: string): string | undefined {
-  let t = String(raw ?? '').trim().replace(/[.]+$/, '').trim();
-  if (!t) return undefined;
-  // Footnote markers / trailing stray punctuation that normalize away fully.
-  const normalized = normalizeInciToken(t);
-  if (!normalized) return undefined;
-  // Pure numbers, percentages, or "and/or" residues are not ingredients.
-  if (!/[A-Z]{2,}/.test(normalized)) return undefined;
-  return t;
+/** Expand comma/semicolon-separated parenthetical ingredient sub-lists while
+ * retaining the meaningful outer token. This catches `Parfum (Limonene,
+ * Linalool)` without splitting ordinary botanical annotations. */
+function expandNestedLists(token: string, diagnostics: ParserDiagnostic[]): string[] {
+  const { pairs } = balancedPairs(token);
+  const nested: string[] = [];
+  let outer = token;
+  const allPairs = [...pairs.entries()];
+  // Recurse from outermost sibling groups only. Processing both an outer pair
+  // and its nested pairs in the same pass would duplicate nested ingredients.
+  const ordered = allPairs
+    .filter(([start, end]) => !allPairs.some(([parentStart, parentEnd]) =>
+      parentStart < start && parentEnd > end))
+    .sort((a, b) => b[0] - a[0]);
+  for (const [start, end] of ordered) {
+    const inner = token.slice(start + 1, end);
+    if (!/[,;،؛\n]/u.test(inner)) continue;
+    const innerPairs = balancedPairs(inner).pairs;
+    const parts = splitAtTopLevel(inner, innerPairs).flatMap((part) => expandNestedLists(part, diagnostics));
+    if (parts.length < 2) continue;
+    nested.unshift(...parts);
+    outer = `${outer.slice(0, start)} ${outer.slice(end + 1)}`;
+    diagnostics.push({
+      code: 'nested-ingredient-list-expanded',
+      severity: 'warning',
+      message: `Expanded ${parts.length} ingredients from a nested label group. Review the parsed rows.`,
+    });
+  }
+  const cleanedOuter = cleanToken(outer);
+  return [...(cleanedOuter ? [cleanedOuter] : []), ...nested];
+}
+
+export function parseInciList(text: string): ParsedInciList {
+  if (!text) return { tokens: [], diagnostics: [], valid: true, sanitizedText: '' };
+  const sanitized = sanitizeLabelTextDetailed(text);
+  const diagnostics = [...sanitized.diagnostics];
+  const prepared = prepareLines(sanitized.text, diagnostics);
+  const delimiters = balancedPairs(prepared);
+  diagnostics.push(...delimiters.diagnostics);
+  const topLevel = splitAtTopLevel(prepared, delimiters.pairs);
+  const tokens = topLevel.flatMap((token) => expandNestedLists(token, diagnostics));
+  if (tokens.length === 0 && /\p{L}/u.test(prepared)) {
+    diagnostics.push({
+      code: 'no-ingredient-tokens',
+      severity: 'error',
+      message: 'No ingredient tokens could be parsed from the label text.',
+    });
+  }
+  return {
+    tokens,
+    diagnostics,
+    valid: !diagnostics.some((d) => d.severity === 'error'),
+    sanitizedText: prepared,
+  };
+}
+
+/** Compatibility wrapper. Call parseInciList when diagnostics affect scoring. */
+export function splitInciList(text: string): string[] {
+  return parseInciList(text).tokens;
 }

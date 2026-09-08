@@ -1,3 +1,5 @@
+import type { ProductAssessment } from './ingredient-safety/types';
+
 export type Envelope = 'needs' | 'wants' | 'savings';
 export type BuiltinMoneyPlace = 'bank' | 'home' | 'wallet';
 /** Built-in or user-defined money source id (bank, wallet, a custom cash jar…). */
@@ -227,6 +229,25 @@ export interface IncomeSource {
   payDay?: number;
 }
 
+export interface ExpenseProductAttachment {
+  barcode: string;
+  gtin14: string;
+  name: string;
+  brand?: string;
+  category?: string;
+  imageUrl?: string;
+  quantity?: string;
+  domain: ProductDomain;
+  ranking?: ProductRanking;
+  ingredientsText?: string;
+  allergenTags?: string[];
+  source: ProductSource;
+  sourceUrl?: string;
+  sourceDatabase?: string;
+  retrievedAt: string;
+  provenance?: Record<string, ProductFieldProvenance>;
+}
+
 export interface VariableExpense {
   id: string;
   name: string;
@@ -241,7 +262,8 @@ export interface VariableExpense {
   updatedByUserId?: string;
   tags?: string[];
   receiptUrl?: string;
-  sourceType?: 'invoice' | 'course' | 'csv' | 'manual';
+  productAttachment?: ExpenseProductAttachment;
+  sourceType?: 'invoice' | 'course' | 'barcode' | 'csv' | 'manual';
   sourceId?: string;
   importFingerprint?: string;
 }
@@ -2550,22 +2572,32 @@ export function createNewMonth(
 // --- Course session (shopping trip capture) ----------------------------------
 
 /** Where a product's metadata came from. */
-export type ProductSource = 'manual' | 'off' | 'session';
+export type ProductSource = 'manual' | 'off' | 'obf' | 'opf' | 'opff' | 'vendor' | 'seed' | 'session';
+export type ProductDomain = 'food' | 'cosmetic' | 'household' | 'pet' | 'unknown';
+
+export interface ProductFieldProvenance {
+  source: ProductSource;
+  retrievedAt: string;
+  sourceUrl?: string;
+  language?: string;
+}
 
 /** Lifecycle of a course session. */
 export type SessionStatus = 'active' | 'completed';
 
 /**
  * A product's quality ranking when the source provides one — the Nutri-Score
- * letter grade (a–e) from Open Food Facts, with the 0–100 score when known.
- * Only set for food products that actually carry a grade; the UI hides the
- * chip entirely when absent.
+ * letter grade (a–e) from Open Food Facts. Optional calculation points are
+ * raw formula points (lower is generally better), never a percentage.
  */
 export interface ProductRanking {
   /** Letter grade, lower-case: 'a' … 'e'. */
   grade: string;
-  /** 0–100 points, when the source exposes them. */
+  /** Raw Nutri-Score formula points; not bounded to 0–100. */
+  calculationPoints?: number;
+  /** @deprecated Legacy field read during migration only. */
   score?: number;
+  algorithmVersion?: string;
 }
 
 /**
@@ -2574,27 +2606,36 @@ export interface ProductRanking {
  * stored once and becomes an instant local hit afterwards.
  */
 export interface Product {
-  barcode: string; // doc id: 8 or 13 digits, checksum-verified
+  /** Native validated GTIN used for display/lookups. */
+  barcode: string;
+  /** Zero-filled GTIN-14 canonical identity used for equality/document IDs. */
+  gtin14?: string;
   name: string;
   brand?: string;
   category?: string;
   imageUrl?: string;
+  quantity?: string;
   lastPrice?: number;
   priceUpdatedAt?: string;
   source: ProductSource;
-  /** 'MA' for Moroccan products (GS1 prefix 611). */
+  sourceUrl?: string;
+  sourceDatabase?: string;
+  domain?: ProductDomain;
+  domainSource?: 'source' | 'inferred' | 'user';
+  /** Prefix allocation is not manufacturing origin. */
+  gs1PrefixAllocation?: string;
+  /** Trusted product-data origin only; never derived from a GS1 prefix. */
   origin?: string;
-  /** Nutri-Score grade (a–e) captured from Open Food Facts, when present. */
   ranking?: ProductRanking;
-  /** Source hint that this is a cosmetic/beauty record (drives the INCI panel). */
   beauty?: boolean;
-  /**
-   * Full INCI list when known (cosmetics) — from the remote record, vendor
-   * enrichment or a manual label paste. Persisted with the catalog so the
-   * ingredient glance survives across sessions without re-fetching.
-   * Bounded (≤ 8,000 chars); never used for pricing.
-   */
+  cosmeticForm?: ProductAssessment['form'];
   ingredientsText?: string;
+  /** Trusted OFF allergen tag cross-checks (e.g. en:milk). */
+  allergenTags?: string[];
+  /** Field-level source history; user corrections can outrank stale providers. */
+  provenance?: Record<string, ProductFieldProvenance>;
+  retrievedAt?: string;
+  staleAfter?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -2605,16 +2646,36 @@ export interface Product {
  * chip without re-analyzing the INCI list.
  */
 export interface SessionItemQuality {
-  /** 0–100 aggregate score from the ingredient-safety engine. */
-  score: number;
-  /** Overall band — drives the chip colour and the rating label. */
-  band: 'excellent' | 'good' | 'moderate' | 'caution' | 'avoid';
-  /** Green tier — ingredients classified clean. */
-  good: number;
-  /** Yellow tier — watch + restricted ingredients. */
-  caution: number;
-  /** Orange tier — caution + prohibited ingredients. */
-  concern: number;
+  schemaVersion?: 2;
+  assessmentId?: string;
+  /** Nullable because unsupported scores are deliberately withheld. */
+  score: number | null;
+  scoreStatus?: ProductAssessment['scoreStatus'];
+  band: ProductAssessment['band'];
+  assessedAt?: string;
+  form?: ProductAssessment['form'];
+  dataset?: ProductAssessment['dataset'];
+  recognitionCoverage?: number;
+  assessmentCoverage?: number;
+  worstTier?: ProductAssessment['worstTier'];
+  unknownCount?: number;
+  /** Exact counts; prohibited/restricted are never relabeled as softer tiers. */
+  tiers?: Record<'clean' | 'watch' | 'caution' | 'restricted' | 'prohibited' | 'unassessed', number>;
+  /** Immutable evidence snapshot used for historical display and backup. */
+  assessment?: ProductAssessment;
+  /** @deprecated Legacy three-bucket summaries. */
+  good?: number;
+  caution?: number;
+  concern?: number;
+}
+
+export interface AssessmentOrigin {
+  /** Session and line that initiated the request; never inferred from current UI state. */
+  sessionId: string;
+  lineItemId: string;
+  requestId: string;
+  gtin14?: string;
+  requestedAt: string;
 }
 
 /**
@@ -2624,8 +2685,27 @@ export interface SessionItemQuality {
 export interface SessionItem {
   key: string; // stable line id (the barcode when present, else generated)
   barcode?: string;
+  gtin14?: string;
   name: string;
+  brand?: string;
   category?: string;
+  imageUrl?: string;
+  quantity?: string;
+  domain?: ProductDomain;
+  beauty?: boolean;
+  cosmeticForm?: ProductAssessment['form'];
+  source?: ProductSource;
+  sourceUrl?: string;
+  sourceDatabase?: string;
+  provenance?: Record<string, ProductFieldProvenance>;
+  retrievedAt?: string;
+  staleAfter?: string;
+  ingredientsText?: string;
+  allergenTags?: string[];
+  assessmentRequestId?: string;
+  assessmentOrigin?: AssessmentOrigin;
+  /** Immutable full response, retained even when scoring was deliberately withheld. */
+  assessment?: ProductAssessment | null;
   qty: number; // >= 1
   unitPrice: number; // >= 0
   lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
@@ -2654,6 +2734,10 @@ export interface CourseSession {
   place: MoneyPlace; // where it was paid from
   items: SessionItem[]; // capped at 500 lines
   total: number; // denormalized sum of lineTotals
+  /** Monotonic optimistic-concurrency revision. */
+  revision?: number;
+  updatedAt?: string;
+  lastMutationId?: string;
   loggedExpenseId?: string; // set once the total is logged as a variable expense
   loggedMonthKey?: string;
   loggedWorkspace?: 'personal' | 'household';
