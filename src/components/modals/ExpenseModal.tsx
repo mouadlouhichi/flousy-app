@@ -14,7 +14,6 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
 import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
-import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { suggestCategory } from '../../lib/insights';
@@ -92,7 +91,7 @@ export function ExpenseModal({
   periodEndDate,
   canSeeBalances = true,
 }: ExpenseModalProps) {
-  const { symbol, currency, format } = useCurrency();
+  const { symbol, format } = useCurrency();
   const { profile } = useAuth();
   const { workspace, household } = useHousehold();
   const { intlLocale, messages: m, t } = useLanguage();
@@ -393,18 +392,18 @@ export function ExpenseModal({
           )}
         </div>
 
-        {/* ── Amount Input ── */}
-        <div className="flex flex-col items-center justify-center py-2">
-          <div className="flex items-center gap-2 mb-1">
-            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
-              {e.amount}
-            </label>
-            <span className="rounded-md bg-surface-container-high px-1.5 py-0.5 text-[10px] font-extrabold tracking-widest text-on-surface-variant uppercase">
-              {currency}
+        {/* ── Amount Input ──
+            Matches the production build exactly: tall 48px number (max-w-220),
+            one small MAD prefix at headline-lg (24px), no currency pill,
+            label-md / py-sm tokens. */}
+        <div className="flex flex-col items-center justify-center py-sm">
+          <label className="font-label-md text-label-md font-bold uppercase tracking-wider text-on-surface-variant">
+            {e.amount}
+          </label>
+          <div className="mt-1 flex items-center text-primary font-bold">
+            <span className="mr-1.5 self-center font-headline-lg text-headline-lg font-bold text-on-surface-variant" aria-hidden="true">
+              {symbol}
             </span>
-          </div>
-          <div className="flex items-center text-primary font-bold">
-            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
@@ -414,13 +413,40 @@ export function ExpenseModal({
                 setErrors((prev) => ({ ...prev, amount: '' }));
               }}
               placeholder="0.00"
-              className="keep-font-40 bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
+              className="keep-font-48 bg-transparent border-none text-[48px] leading-[1.1] text-center w-full max-w-[220px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
           </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>
           )}
         </div>
+
+        {/* ── Barcode → product name (Pro) — the primary Pro action, so it
+            sits directly under the amount with a prominent full-width entry. */}
+        {isPro && !initialExpense && (
+          scannerOpen ? (
+            <ExpenseBarcodeScanner
+              onClose={() => setScannerOpen(false)}
+              onProduct={(product) => {
+                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+                setScannerOpen(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                // Prime Web Audio on this gesture so the scan beep can play.
+                unlockScanAudio();
+                setScannerOpen(true);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-label-lg text-label-lg font-bold text-on-primary shadow-xs transition-colors hover:bg-accent-foreground"
+            >
+              <AppIcon name="scan_barcode" className="size-5" />
+              {m.barcode.scanProduct}
+            </button>
+          )
+        )}
 
         {/* ── Category — add a new one inline, like fixed charges ── */}
         <div className="flex flex-col gap-2">
@@ -599,32 +625,6 @@ export function ExpenseModal({
           placeholder={e.notePlaceholder}
           rows={2}
         />
-
-        {/* ── Barcode → product name (Pro) ── */}
-        {isPro && !initialExpense && (
-          scannerOpen ? (
-            <ExpenseBarcodeScanner
-              onClose={() => setScannerOpen(false)}
-              onProduct={(product) => {
-                setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
-                setScannerOpen(false);
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                // Prime Web Audio on this gesture so the scan beep can play.
-                unlockScanAudio();
-                setScannerOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-outline-variant bg-surface px-3 py-2.5 text-xs font-bold text-on-surface-variant hover:bg-surface-variant/30"
-            >
-              <AppIcon name="scan_barcode" className="text-[18px] text-primary" />
-              {m.barcode.scanProduct}
-            </button>
-          )
-        )}
 
         {/* ── Tags (Pro) ── */}
         {isPro && (

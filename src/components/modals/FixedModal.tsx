@@ -21,7 +21,6 @@ import {
   fixedCategoryVisual,
 } from '../../lib/store';
 import { fixedBillSchema, customCategorySchema } from '../../lib/validation';
-import { AmountSymbol } from '../ui/amount-symbol';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
 import { useAuth } from '../../lib/auth-context';
@@ -84,7 +83,7 @@ export function FixedModal({
   canSeeBalances = true,
   onRenameCategory,
 }: FixedModalProps) {
-  const { symbol, currency, format } = useCurrency();
+  const { currency, format } = useCurrency();
   const { profile, updateProfileData } = useAuth();
   const { workspace, household, isOwner, updateConfiguration } = useHousehold();
   const { messages: m, t } = useLanguage();
@@ -332,8 +331,9 @@ export function FixedModal({
               {currency}
             </span>
           </div>
+          {/* The currency renders AFTER the number at 20px in a muted tone —
+              Intl would otherwise prefix "MAD" at the full 40px size. */}
           <div className="flex items-center text-primary font-bold">
-            <AmountSymbol symbol={symbol} />
             <input
               type="number"
               step="any"
@@ -346,6 +346,9 @@ export function FixedModal({
               placeholder="0.00"
               className="keep-font-40 bg-transparent border-none text-[40px] leading-[1.1] text-center w-full max-w-[200px] text-on-surface focus:ring-0 p-0 placeholder:text-outline-variant font-extrabold outline-none"
             />
+            <span className="ml-1.5 self-center font-bold text-[20px] text-on-surface-variant" aria-hidden="true">
+              {currency}
+            </span>
           </div>
           {errors.amount && (
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{errors.amount}</p>

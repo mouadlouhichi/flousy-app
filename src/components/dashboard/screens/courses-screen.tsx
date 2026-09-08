@@ -8,13 +8,15 @@ import { isProFeatureUnlocked } from '@/lib/household';
 import { normalizeDigitsToAscii, parseAmountInput } from '@/lib/parse-amount';
 import { useHousehold } from '@/lib/household-context';
 import { trackEvent } from '@/lib/analytics';
-import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits } from '@/lib/course-session';
+import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits, summarizeQuality } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { postCourseSession } from '@/lib/db';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
-import { addVariableExpense, type CourseSession, type MoneyPlace, type ProductRanking, type VariableExpense } from '@/lib/store';
+import { addVariableExpense, type CourseSession, type MoneyPlace, type ProductRanking, type SessionItemQuality, type VariableExpense } from '@/lib/store';
+import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
+import { isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { CoursesBudgetLogger } from '../courses/courses-budget-logger';
@@ -24,6 +26,7 @@ import { CoursesScannerPanel } from '../courses/courses-scanner-panel';
 import { CoursesLabelAccordion } from '../courses/courses-label-accordion';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { RankingChip } from '@/components/ui/ranking-chip';
+import { QualityScoreChip } from '@/components/ui/quality-score-chip';
 import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { useDashboard } from '../dashboard-provider';
 
@@ -197,14 +200,8 @@ function CoursesScreenInner() {
       const { barcode, resolution } = result;
       const ma = isMoroccanBarcode(barcode);
       if (resolution.kind === 'found') {
-        // A catalog hit is silent: the pending card opening is the feedback,
-        // and "From your product catalog" was just noise on every re-scan.
-        if (resolution.source !== 'catalog') {
-          setNotice({
-            kind: 'info',
-            text: resolution.source === 'seed' ? c.fromSeed : c.fromOff,
-          });
-        }
+        // No "from catalog / from Open Food Facts" toast: the pending card
+        // already shows the product, so the source line was just noise.
         openPending({
           barcode,
           name: resolution.product.name,
@@ -268,6 +265,33 @@ function CoursesScreenInner() {
       ...(ingredientsText ? { ingredientsText } : {}),
       ...(pending.beauty ? { beauty: true } : {}),
     });
+
+    // Cosmetic quality score for the session line: the same engine the label
+    // panel runs (server-side, CosIng-backed — the in-memory cache means the
+    // panel and this share one request). The summary lands on the line once
+    // the analysis resolves; a re-scan keeps the existing quality.
+    if (
+      pending.barcode &&
+      ingredientsText &&
+      isCosmeticRecord({ beauty: pending.beauty, category: pending.category, name: pending.name, ingredientsText })
+    ) {
+      const barcode = pending.barcode;
+      const alreadyScored = active?.items.some((line) => line.barcode === barcode && line.quality);
+      if (!alreadyScored) {
+        void analyzeIngredientsText(ingredientsText, {
+          label: pending.name,
+          category: pending.category,
+        })
+          .then((analysis) => {
+            const quality = summarizeQuality(analysis);
+            if (quality) store.setLineQuality(barcode, quality);
+          })
+          .catch(() => {
+            /* analysis is informational — the line simply has no chip */
+          });
+      }
+    }
+
     setPending(null);
     setPendingPrice('');
     setPendingQty(1);
@@ -572,6 +596,7 @@ function CoursesScreenInner() {
                     <p className="flex items-center gap-2 font-body-md text-body-md font-semibold text-on-surface">
                       <span className="min-w-0 truncate">{line.name}</span>
                       <RankingChip ranking={line.ranking} />
+                      {line.quality && <QualityScoreChip quality={line.quality} />}
                       {line.barcode && isMoroccanBarcode(line.barcode) && (
                         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-sm text-label-sm text-primary">
                           {c.maBadge}
@@ -758,10 +783,62 @@ interface PendingCardProps {
   onIngredientsText: (text: string) => void;
 }
 
+/**
+ * Runs the same ingredient analysis the label panel runs (the client's
+ * in-memory cache dedupes the request) and collapses it to the chip's
+ * score + tier counts, so the chip after the name matches the panel.
+ */
+function useCosmeticQualityPreview(
+  isCosmetic: boolean,
+  text: string,
+  name: string,
+  category: string | undefined,
+): SessionItemQuality | null {
+  const [quality, setQuality] = useState<SessionItemQuality | null>(null);
+  useEffect(() => {
+    if (!isCosmetic || !text) {
+      setQuality(null);
+      return;
+    }
+    let cancelled = false;
+    setQuality(null);
+    analyzeIngredientsText(text, { label: name || undefined, category })
+      .then((analysis) => {
+        if (!cancelled) setQuality(summarizeQuality(analysis));
+      })
+      .catch(() => {
+        if (!cancelled) setQuality(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCosmetic, text, name, category]);
+  return quality;
+}
+
 function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredientsText }: PendingCardProps) {
   const { messages: m } = useLanguage();
   const c = m.courses;
   const needsName = pending.source === 'manual';
+
+  // Cosmetic quality preview for the chip: the record's INCI list (or the
+  // per-device overlay the panel would fall back to), cosmetic records only.
+  const qualityText = (
+    pending.ingredientsText?.trim() ||
+    (pending.barcode ? readInciOverlayEntry(pending.barcode) ?? '' : '')
+  ).trim();
+  const cosmeticRecord = !needsName && isCosmeticRecord({
+    beauty: pending.beauty,
+    category: pending.category,
+    name: pending.name,
+    ingredientsText: qualityText || undefined,
+  });
+  const quality = useCosmeticQualityPreview(
+    cosmeticRecord,
+    qualityText,
+    pending.name,
+    pending.category,
+  );
 
   return (
     <div className="rounded-3xl border border-primary/40 bg-primary-container/40 p-4 md:p-5">
@@ -793,6 +870,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
             <p className="flex min-w-0 items-center gap-1.5 font-headline-sm text-headline-sm text-on-surface">
               <span className="min-w-0 truncate">{pending.name}</span>
               <RankingChip ranking={pending.ranking} />
+              {quality && <QualityScoreChip quality={quality} />}
             </p>
           )}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-label-sm text-label-sm text-on-surface-variant">

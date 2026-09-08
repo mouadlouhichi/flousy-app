@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
+import { FormattedAmount } from '@/components/ui/formatted-amount';
 import { useCurrency } from '@/lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { localizeCategoryName } from '@/lib/localized-labels';
@@ -79,19 +80,27 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
         </span>
       </div>
 
-      {/* Forecast strip */}
+      {/* Forecast strip — amounts render via FormattedAmount (amount first,
+          the currency code after at 0.7em) so "MAD" no longer shouts ahead
+          of the figure in EN/AR locales. */}
       {forecastUnlocked ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label={c.cashToday} value={format(forecast.startingCash)} />
-          <Stat label={c.endOfPeriod} value={format(forecast.endBalance)} tone={balanceTone(forecast.endBalance)} />
+          <Stat label={c.cashToday} value={<FormattedAmount value={forecast.startingCash} />} />
+          <Stat label={c.endOfPeriod} value={<FormattedAmount value={forecast.endBalance} />} tone={balanceTone(forecast.endBalance)} />
           <Stat
             label={t(c.lowestOn, { date: shortDate(forecast.lowest.date) })}
-            value={format(forecast.lowest.balance)}
+            value={<FormattedAmount value={forecast.lowest.balance} />}
             tone={balanceTone(forecast.lowest.balance)}
           />
           <Stat
             label={forecast.nextBill ? t(c.nextBillIn, { count: forecast.nextBill.daysUntil }) : c.noMoreBills}
-            value={forecast.nextBill ? `${forecast.nextBill.name} · ${format(forecast.nextBill.pending)}` : format(0)}
+            value={
+              forecast.nextBill ? (
+                <FormattedAmount value={forecast.nextBill.pending} prefix={`${forecast.nextBill.name} · `} />
+              ) : (
+                <FormattedAmount value={0} />
+              )
+            }
             small
           />
         </div>
@@ -199,7 +208,7 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
   );
 }
 
-function Stat({ label, value, tone = 'text-on-surface', small = false }: { label: string; value: string; tone?: string; small?: boolean }) {
+function Stat({ label, value, tone = 'text-on-surface', small = false }: { label: string; value: ReactNode; tone?: string; small?: boolean }) {
   return (
     <div className="min-w-0 rounded-2xl bg-surface p-3">
       <p className="truncate text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">{label}</p>

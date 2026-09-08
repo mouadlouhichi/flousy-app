@@ -8,6 +8,7 @@ import { renderBillCsv, renderBillText } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { formatShortDate } from '@/lib/utils';
 import type { CourseSession } from '@/lib/store';
+import { QualityScoreChip } from '@/components/ui/quality-score-chip';
 
 interface CoursesBillProps {
   session: CourseSession;
@@ -160,6 +161,26 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
         >
           {billText}
         </pre>
+
+        {/* Cosmetic quality — only lines the ingredient engine scored show a
+            chip (after the item name, matching the pending/active list). */}
+        {session.items.some((line) => line.quality) && (
+          <div className="mt-4 border-t border-dashed border-outline-variant pt-4">
+            <p className="mb-2 font-label-md text-label-md font-semibold text-on-surface-variant">
+              {c.qualitySummary}
+            </p>
+            <ul className="space-y-1.5">
+              {session.items
+                .filter((line) => line.quality)
+                .map((line) => (
+                  <li key={line.key} className="flex items-center gap-2 font-body-sm text-body-sm">
+                    <span className="min-w-0 flex-1 truncate text-on-surface">{line.name}</span>
+                    {line.quality && <QualityScoreChip quality={line.quality} />}
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Summary + actions */}

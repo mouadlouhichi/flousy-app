@@ -189,6 +189,23 @@ export function detectFoodKind(input: {
   return 'standard';
 }
 
+/**
+ * True when a resolved record should be treated as a cosmetic (runs the INCI
+ * engine, offers the ingredient panel): the source `beauty` hint wins, then
+ * explicit domain detection, then the generic placeholder-category heuristic
+ * (code-like OFF names that only carry the open-beauty-facts chain).
+ */
+export function isCosmeticRecord(input: {
+  beauty?: boolean;
+  category?: string;
+  name?: string;
+  ingredientsText?: string;
+}): boolean {
+  if (input.beauty) return true;
+  if (detectLabelDomain(input) === 'cosmetic') return true;
+  return suggestsCosmeticRecord(input);
+}
+
 export function detectLabelDomain(input: {
   category?: string;
   name?: string;

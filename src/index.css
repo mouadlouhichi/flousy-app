@@ -203,6 +203,9 @@
 .keep-font-40 {
   font-size: 40px;
 }
+.keep-font-48 {
+  font-size: 48px;
+}
 @media (min-width: 640px) {
   /* The onboarding income figure steps up to 36px from `sm:`, matching its
      `sm:text-[36px]` utility. */

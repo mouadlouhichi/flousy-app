@@ -85,6 +85,42 @@ export const BAND_LABEL_KEY: Record<Band, keyof GlanceMessages> = {
   avoid: 'bandAvoid',
 };
 
+/**
+ * Coloured banner behind the overall rating. The colour follows the band
+ * (teal for excellent → red for avoid); text sits on it, so each band keeps
+ * a legible foreground.
+ */
+export const BANNER_STYLE: Record<Band, { bg: string }> = {
+  excellent: { bg: 'bg-teal-600 text-white' },
+  good: { bg: 'bg-emerald-600 text-white' },
+  moderate: { bg: 'bg-amber-500 text-amber-950' },
+  caution: { bg: 'bg-orange-600 text-white' },
+  avoid: { bg: 'bg-rose-600 text-white' },
+};
+
+/** Five-star row; filled count = round(score/100 × 5). Decorative. */
+function StarRow({ score, className }: { score: number; className?: string }) {
+  const filled = Math.max(0, Math.min(5, Math.round((score / 100) * 5)));
+  return (
+    <span className={`flex items-center gap-0.5 ${className ?? ''}`} aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <svg
+          key={i}
+          viewBox="0 0 24 24"
+          className="size-3.5 shrink-0"
+          fill={i < filled ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
 /** Colored tier pill used on ingredient rows inside the details list. */
 const TIER_STYLE: Record<RiskTier, string> = {
   prohibited: 'bg-rose-600 text-white',
@@ -188,7 +224,6 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
     );
   }
 
-  const style = BAND_STYLE[a.band];
   const flagged = a.ingredients.filter(
     (i) => i.tier && i.tier !== 'clean' && i.tier !== null,
   );
@@ -201,25 +236,51 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
       ? t(g.recognizedAll, { total: a.total })
       : t(g.recognized, { recognized: a.recognized, total: a.total });
 
+  // Three-colour tier proportions for the strip under the score
+  // (clean → green, watch/restricted → yellow, caution/prohibited → orange).
+  let tierGood = 0;
+  let tierCaution = 0;
+  let tierConcern = 0;
+  for (const ingredient of a.ingredients) {
+    if (ingredient.tier === 'clean') tierGood += 1;
+    else if (ingredient.tier === 'watch' || ingredient.tier === 'restricted') tierCaution += 1;
+    else if (ingredient.tier === 'caution' || ingredient.tier === 'prohibited') tierConcern += 1;
+  }
+  const tierTotal = tierGood + tierCaution + tierConcern;
+
   return (
     <div className="mt-2.5 space-y-2.5">
-      {/* Score banner — chip + band + coverage on a tinted card */}
+      {/* Overall quality rating — the prominent banner: big score + /100,
+          rating label, five-star row on a band-coloured background, with a
+          thin strip under the score keeping the green/yellow/orange tier
+          proportions the old dial showed. */}
       <div
-        className={`flex items-center gap-3 rounded-2xl border p-3 ${style.ring} bg-surface/40`}
+        className={`rounded-2xl p-3.5 md:p-4 ${BANNER_STYLE[a.band].bg}`}
+        role="img"
+        aria-label={`${a.score}/100 — ${t(g[BAND_LABEL_KEY[a.band]])}`}
       >
-        <span
-          className={`flex size-12 shrink-0 items-center justify-center rounded-full font-headline-sm text-headline-sm font-bold tabular-nums shadow-sm ${style.chip}`}
-        >
-          {a.score}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className={`font-label-md text-label-md font-bold ${style.text}`}>
-            {t(g[BAND_LABEL_KEY[a.band]])}
-          </p>
-          <p className="mt-0.5 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
-            <AppIcon name="task_alt" className="size-3.5 shrink-0" />
-            <span className="truncate">{recognizedLabel}</span>
-          </p>
+        <div className="flex items-center gap-3.5">
+          <div className="shrink-0">
+            <p className="flex items-baseline font-headline-lg text-headline-lg font-bold leading-none tabular-nums" dir="ltr">
+              {a.score}
+              <span className="ms-0.5 font-label-md text-label-md font-semibold opacity-70">/100</span>
+            </p>
+            {tierTotal > 0 && (
+              <div className="mt-2 flex h-1 w-16 overflow-hidden rounded-full bg-white/25" aria-hidden="true">
+                <span className="bg-green-400" style={{ width: `${(tierGood / tierTotal) * 100}%` }} />
+                <span className="bg-yellow-400" style={{ width: `${(tierCaution / tierTotal) * 100}%` }} />
+                <span className="bg-orange-400" style={{ width: `${(tierConcern / tierTotal) * 100}%` }} />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-label-lg text-label-lg font-bold">{t(g[BAND_LABEL_KEY[a.band]])}</p>
+            <StarRow score={a.score} className="mt-0.5 opacity-90" />
+            <p className="mt-1 flex items-center gap-1.5 font-label-sm text-label-sm opacity-75">
+              <AppIcon name="task_alt" className="size-3.5 shrink-0" />
+              <span className="truncate">{recognizedLabel}</span>
+            </p>
+          </div>
         </div>
       </div>
 

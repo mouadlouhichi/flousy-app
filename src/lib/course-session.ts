@@ -5,8 +5,9 @@
  * normalization + validation, the session line reducer, deterministic bill
  * rendering, and the product resolution cascade (catalog → remote → manual).
  */
-import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItem } from './store';
+import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItem, SessionItemQuality } from './store';
 import type { LookupOutcome } from './product-lookup';
+import type { ProductAssessment } from './ingredient-safety/types';
 
 /** Round to 2 decimals without float drift (0.1 + 0.2 safe). */
 export function round2(value: number): number {
@@ -149,6 +150,8 @@ export function createSessionItem(input: {
   unitPrice: number;
   qty?: number;
   ranking?: ProductRanking;
+  /** Cosmetic quality summary (already scored), when the caller has one. */
+  quality?: SessionItemQuality;
   now?: Date;
   rand?: () => number;
 }): SessionItem {
@@ -169,6 +172,7 @@ export function createSessionItem(input: {
     unitPrice,
     lineTotal: computeLineTotal(qty, unitPrice),
     ...(input.ranking ? { ranking: { ...input.ranking } } : {}),
+    ...(input.quality ? { quality: { ...input.quality } } : {}),
   };
 }
 
@@ -221,6 +225,53 @@ export function setItemName(session: CourseSession, key: string, name: string): 
 
 export function removeSessionItem(session: CourseSession, key: string): CourseSession {
   return withTotal({ ...session, items: session.items.filter((line) => line.key !== key) });
+}
+
+/**
+ * Store the cosmetic quality summary on a line (set once the async
+ * ingredient analysis resolves after the line was added).
+ */
+export function setItemQuality(
+  session: CourseSession,
+  key: string,
+  quality: SessionItemQuality,
+): CourseSession {
+  const items = session.items.map((line) =>
+    line.key === key ? { ...line, quality: { ...quality } } : line,
+  );
+  return { ...session, items };
+}
+
+/**
+ * Collapse an engine assessment onto the line's quality summary: the 0–100
+ * score + band, and the five RiskTiers folded into the chip's three colours
+ * (clean → green, watch/restricted → yellow, caution/prohibited → orange).
+ * Unrecognized ingredients count in the engine's coverage, not here.
+ * Returns null when nothing could be scored (unknown score/band).
+ */
+export function summarizeQuality(analysis: ProductAssessment): SessionItemQuality | null {
+  if (analysis.score == null || analysis.band == null) return null;
+  let good = 0;
+  let caution = 0;
+  let concern = 0;
+  for (const ingredient of analysis.ingredients) {
+    switch (ingredient.tier) {
+      case 'clean':
+        good += 1;
+        break;
+      case 'watch':
+      case 'restricted':
+        caution += 1;
+        break;
+      case 'caution':
+      case 'prohibited':
+        concern += 1;
+        break;
+      default:
+        break; // null = unrecognized
+    }
+  }
+  return { score: analysis.score, band: analysis.band, good, caution, concern };
 }
 
 /** Mark the session finished — the document becomes its bill. */
