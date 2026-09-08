@@ -1,6 +1,6 @@
 {
   "$comment": "Machine-readable Firestore data model for SmartJib. Kept in lockstep with src/lib/store.ts, src/lib/db.ts and firestore.rules by tests/blueprint.test.ts — run `npm run test` after changing any of them.",
-  "description": "SmartJib stores private finance records under /users/{uid}, shared workspaces under /households/{householdId}, and verified-email invitations at /householdInvites/{inviteId}. Monthly and savings documents are revisioned and paired with immutable ledger entries.",
+  "description": "SmartJib stores private finance records under /users/{uid}, shared workspaces under /households/{householdId}, and verified-email invitations at /householdInvites/{inviteId}. Monthly and savings documents are revisioned and paired with immutable ledger entries. Darat circles live under /circles/{circleId} (shared, organizer-owned) with per-member subcollections and an invite pool at /daratInvites/{inviteId}. Each member keeps a lightweight pointer at /users/{uid}/circles/{circleId} so the dashboard can list the user's circles without scanning.",
   "definitions": {
     "IncomeSource": {
       "title": "IncomeSource",
@@ -651,6 +651,340 @@
       },
       "required": [
         "grade"
+      ]
+    },
+    "DaratCircle": {
+      "type": "object",
+      "description": "A Darat (rotating savings circle) owned by one organizer and shared with invited members. One currency per circle, one schedule, one rotation algorithm.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "organizerId": {
+          "type": "string",
+          "description": "uid of the circle creator and sole owner of the lifecycle"
+        },
+        "currency": {
+          "type": "string",
+          "maxLength": 3,
+          "description": "ISO currency code, e.g. 'MAD'"
+        },
+        "contribution": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "Per-member amount paid each round"
+        },
+        "frequency": {
+          "type": "string",
+          "enum": [
+            "weekly",
+            "biweekly",
+            "monthly"
+          ]
+        },
+        "rotation": {
+          "type": "string",
+          "enum": [
+            "random",
+            "fixed",
+            "bidding"
+          ]
+        },
+        "startDate": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "fixedOrder": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Agreed order of uids for `fixed` rotation, recipient of round 1 first"
+        },
+        "randomSeed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Seed for the random rotation; same seed → same order on every device"
+        },
+        "memberOrder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Member uids in join order; used as tie-breaker and as the order bidders are evaluated"
+        },
+        "rounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DaratRound"
+          },
+          "description": "The full schedule of rounds, one per member"
+        },
+        "createdAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ms since epoch"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "ms since epoch"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "closed"
+          ]
+        },
+        "closedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "organizerId",
+        "currency",
+        "contribution",
+        "frequency",
+        "rotation",
+        "startDate",
+        "memberOrder",
+        "rounds",
+        "createdAt",
+        "updatedAt",
+        "status"
+      ]
+    },
+    "DaratRound": {
+      "type": "object",
+      "description": "One scheduled round in a Darat circle: one pot, one recipient, one per-member payment map.",
+      "properties": {
+        "number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Round number, 1-based"
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "recipientId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "uid of the member who receives the pot; null for undecided bidding rounds"
+        },
+        "pot": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Pre-discount pot (contribution × active members)"
+        },
+        "discount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "For bidding rounds: the discount the winner offered, redistributed to the rest"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "collected",
+            "paid_out",
+            "closed"
+          ]
+        },
+        "payments": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "late",
+              "refunded"
+            ]
+          },
+          "description": "Per-member payment status for this round"
+        }
+      },
+      "required": [
+        "number",
+        "date",
+        "pot",
+        "status",
+        "payments"
+      ]
+    },
+    "DaratMember": {
+      "type": "object",
+      "description": "A member of a Darat circle. uid-indexed, one document per member.",
+      "properties": {
+        "uid": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "left",
+            "removed"
+          ]
+        },
+        "isOrganizer": {
+          "type": "boolean"
+        },
+        "joinedAt": {
+          "type": "string"
+        },
+        "sourcePlaceId": {
+          "type": "string",
+          "description": "Money place id the user funds contributions from"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number carried over from the invite (or empty for the organizer). The rules require it to pass the loose shape check when present."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "status",
+        "isOrganizer",
+        "joinedAt",
+        "sourcePlaceId",
+        "phone"
+      ]
+    },
+    "DaratInvite": {
+      "type": "object",
+      "description": "Code-scoped, expiry-bound invitation to join a Darat circle. The doc id is the UUID code the recipient pastes or follows from a share link.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "circleId": {
+          "type": "string"
+        },
+        "invitedByUid": {
+          "type": "string"
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "acceptedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "accepted",
+            "expired",
+            "revoked"
+          ]
+        },
+        "phone": {
+          "type": "string",
+          "description": "Loose phone number typed by the organizer (8+ digits, separators allowed). Reference, not a gate."
+        }
+      },
+      "required": [
+        "id",
+        "circleId",
+        "invitedByUid",
+        "expiresAt",
+        "status",
+        "phone"
+      ]
+    },
+    "DaratLedgerEntry": {
+      "type": "object",
+      "description": "Immutable audit entry for a Darat mutation. Patterned on the existing LedgerEntry but circle-scoped.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "circleId": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "created",
+            "member_added",
+            "member_joined",
+            "member_left",
+            "payment_marked",
+            "payment_reverted",
+            "round_resolved",
+            "closed"
+          ]
+        },
+        "at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "roundNumber": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "circleId",
+        "uid",
+        "kind",
+        "at"
+      ]
+    },
+    "DaratMemberPointer": {
+      "type": "object",
+      "properties": {
+        "circleId": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        },
+        "joinedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "circleId",
+        "uid",
+        "joinedAt"
       ]
     }
   },
@@ -1767,6 +2101,32 @@
     "/households/{householdId}/invoices/{invoiceId}": {
       "schema": "HouseholdInvoice",
       "description": "Contributor submissions with atomic approval posting"
+    }
+  },
+  "paths": {
+    "/circles/{circleId}": {
+      "schema": "DaratCircle",
+      "description": "Shared Darat circle document; readable by all members, writable by the organizer"
+    },
+    "/circles/{circleId}/members/{uid}": {
+      "schema": "DaratMember",
+      "description": "Per-member roster for a Darat circle. Members can write their own row (e.g. leave); organizer can write any row"
+    },
+    "/circles/{circleId}/invites/{inviteId}": {
+      "schema": "DaratInvite",
+      "description": "Expiry-bound invitation; organizer-managed"
+    },
+    "/circles/{circleId}/ledger/{entryId}": {
+      "schema": "DaratLedgerEntry",
+      "description": "Immutable audit trail for circle mutations"
+    },
+    "/daratInvites/{inviteId}": {
+      "schema": "DaratInvite",
+      "description": "Top-level invite lookup so the join page can resolve a code without knowing the circle id"
+    },
+    "/users/{uid}/circles/{circleId}": {
+      "schema": "DaratMemberPointer",
+      "description": "Lightweight per-user pointer so the dashboard widget can list 'your circles' without scanning the shared collection"
     }
   }
 }

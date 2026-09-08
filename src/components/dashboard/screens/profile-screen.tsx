@@ -3,6 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db as firestoreDb, isFirebaseConfigured } from '@/lib/firebase';
 import { AppIcon } from '@/components/ui/app-icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ProfileIdentity } from '../profile/profile-identity';
@@ -15,6 +24,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
 import { useAuth } from '@/lib/auth-context';
 import { formatLocalizedDayOfMonth } from '@/lib/localized-labels';
+import { isProUser } from '@/lib/pro-features';
 
 /**
  * Profile hub — Facebook-style. Identity on top, then grouped settings
@@ -30,12 +40,67 @@ export function ProfileScreen() {
     }
   }, [inviteCode, router]);
 
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { currency } = useCurrency();
   const { language, messages: m, t, intlLocale, isRTL, localeNames } = useLanguage();
   const p = m.profile;
   const { month, isPro, openIncomeModal, openProModal, closeCurrentMonth, isMounted, syncState } = useDashboard();
   const { workspace, household, isOwner, canViewArea } = useHousehold();
+  // Live count of active Darat circles the user belongs to (organizer or
+  // member). Used as the hint under the Profile → Workspace group entry so
+  // the user can see "3 active circles" at a glance without opening the page.
+  const [daratCount, setDaratCount] = useState<number | null>(null);
+  const proForDarat = isProUser(profile);
+  useEffect(() => {
+    // Demo mode (no Firebase) and un-pro accounts both short-circuit:
+    // the hint then falls back to the Pro-gate copy, no subscription needed.
+    if (!isFirebaseConfigured || !firestoreDb || !user?.uid || !proForDarat) {
+      setDaratCount(null);
+      return;
+    }
+    const db = firestoreDb;
+    // Two live sources, last-writer-wins, no Math.max gymnastics:
+    //   - `circles` where organizerId == uid  (circles this user organized)
+    //   - `users/{uid}/circles` pointer       (circles this user joined)
+    // Each snapshot is the source of truth at that moment, so the count
+    // reflects the larger of the two. We don't need to union here because
+    // a user can be both organizer and member of the same circle, and
+    // `active` filter on each side prevents a double-count.
+    let latest = { joined: 0, organized: 0 };
+    const recompute = () => setDaratCount(Math.max(latest.joined, latest.organized));
+    const pointerUnsub = onSnapshot(
+      collection(db, 'users', user.uid, 'circles'),
+      async (snap) => {
+        const ids = snap.docs.map((d) => d.id);
+        if (ids.length === 0) {
+          latest = { ...latest, joined: 0 };
+          recompute();
+          return;
+        }
+        const docs = await Promise.all(ids.map((id) => getDoc(doc(db, 'circles', id))));
+        latest = { ...latest, joined: docs.filter((s) => s.exists() && (s.data() as { status?: string }).status === 'active').length };
+        recompute();
+      },
+    );
+    const organizedUnsub = onSnapshot(
+      query(collection(db, 'circles'), where('organizerId', '==', user.uid)),
+      (snap) => {
+        latest = { ...latest, organized: snap.docs.filter((d) => (d.data() as { status?: string }).status === 'active').length };
+        recompute();
+      },
+    );
+    return () => {
+      pointerUnsub();
+      organizedUnsub();
+    };
+    // firestoreDb is module-level and won't change, so the effect only needs
+    // to re-run when the user or their Pro state flips.
+  }, [user?.uid, proForDarat]);
+  const daratHint = !proForDarat
+    ? m.darat.proGate.perk1
+    : daratCount === null
+      ? m.darat.title
+      : t(m.darat.list.active, { count: daratCount });
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const monthIsClosed = month.periodStatus === 'closed';
   const canManageMonth = workspace === 'personal' || isOwner;
@@ -106,6 +171,15 @@ export function ProfileScreen() {
           icon: 'inventory_2',
           title: p.links.workspace,
           hint: p.hints.personalAndHousehold,
+        },
+        {
+          href: '/dashboard/darat',
+          icon: 'groups',
+          title: m.darat.shortTitle,
+          hint: daratHint,
+          // Pro-only feature, but the entry stays visible to free users so
+          // they can discover it. The destination page shows the Pro gate;
+          // the Pro upgrade modal opens from the page itself.
         },
         { href: '/dashboard/profile/pro', icon: 'workspace_premium', title: p.links.pro, hint: p.hints.planIncomeInsights },
         {

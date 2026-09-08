@@ -53,7 +53,7 @@ describe('Dashboard navigation items', () => {
 
     const proSidebar = getSidebarNavItems(true).map((item) => item.id);
     assert.deepEqual(proSidebar, [
-      'overview', 'fixed', 'variable', 'courses', 'knowledge', 'savings', 'trends', 'debts',
+      'overview', 'fixed', 'variable', 'courses', 'knowledge', 'savings', 'trends', 'debts', 'darat',
     ]);
   });
 

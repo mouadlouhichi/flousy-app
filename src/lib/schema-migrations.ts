@@ -47,7 +47,13 @@ export const HOUSEHOLD_DEFAULT_AVATAR_COLOR = '#00685f';
  * really addresses, and `tests/schema-migrations.test.ts` pins both spellings against
  * `firestore.rules` so the two can never drift apart in silence.
  */
-export type PersistedCollection = 'households' | 'householdMembers' | 'householdInvites';
+export type PersistedCollection =
+  | 'households'
+  | 'householdMembers'
+  | 'householdInvites'
+  | 'daratCircles'
+  | 'daratCircleMembers'
+  | 'daratInvites';
 
 export interface SchemaField {
   /** Field name as stored in the document. */
@@ -205,10 +211,96 @@ const inviteModel: SchemaModel = {
   ],
 };
 
+const daratCircleModel: SchemaModel = {
+  collection: 'daratCircles',
+  fields: [
+    {
+      field: 'currency',
+      breaks: 'Rules reject an update whose post-image lacks a 3-letter currency; '
+        + 'a circle created before the field was added can no longer be edited.',
+      // A legacy circle predating `currency` was always MAD in the current build.
+      repair: () => 'MAD',
+    },
+    {
+      field: 'updatedAt',
+      breaks: 'Updated rounds and the closing flow require an updatedAt ms-since-epoch; '
+        + 'without it the create-then-update path returns a bare permission-denied.',
+      repair: (document) => {
+        const created = document.createdAt;
+        if (typeof created === 'number' && Number.isFinite(created)) return created;
+        return null;
+      },
+    },
+    {
+      field: 'closedAt',
+      breaks: 'A null is fine; the rules require the key to exist (string or null), so '
+        + 'an older document returns a bare permission-denied on the next edit.',
+      // A legacy circle is open by definition; recording that as null is the right answer.
+      repair: () => null,
+    },
+    {
+      field: 'fixedOrder',
+      breaks: 'A fixed-order rotation needs the array (or null) to exist; a missing field aborts '
+        + 'the update rule and the circle cannot be edited.',
+      repair: () => null,
+    },
+    {
+      field: 'randomSeed',
+      breaks: 'A random rotation needs a non-empty seed to be reproducible across devices; '
+        + 'without it, every device draws a different order.',
+      // Reports only: we have no information about the intended seed, so the value is not guessed.
+      repair: () => null,
+    },
+  ],
+};
+
+const daratMemberModel: SchemaModel = {
+  collection: 'daratCircleMembers',
+  fields: [
+    {
+      field: 'isOrganizer',
+      breaks: 'A member row missing isOrganizer is indistinguishable from a placeholder; '
+        + 'organizer-only actions (e.g. closing the circle) silently skip the founder.',
+      // Reports only: the app cannot derive isOrganizer from the row alone.
+      repair: () => null,
+    },
+    {
+      field: 'sourcePlaceId',
+      breaks: 'The dashboard widget cannot tell which money place to deduct the contribution from; '
+        + 'the create flow needs the field to be non-empty.',
+      repair: () => null,
+    },
+  ],
+};
+
+const daratInviteModel: SchemaModel = {
+  collection: 'daratInvites',
+  fields: [
+    {
+      field: 'phone',
+      breaks: 'Documents predating the phone migration still carry `email`; the rules tolerate that on read, '
+        + 'but the join modal now expects `phone` so the invitee display name can be filled in.',
+      // Reports only: we cannot guess the invitee phone from the document
+      // alone (the email is the only legacy identity we have). The
+      // organizer's UI surfaces the missing phone in the invite list.
+      repair: () => null,
+    },
+    {
+      field: 'acceptedAt',
+      breaks: 'A null is fine; the rules require the key to exist (string or null).',
+      // Reports only: we cannot guess when an existing invite was accepted.
+      repair: () => null,
+    },
+  ],
+};
+
 export const SCHEMA_MODELS: Record<PersistedCollection, SchemaModel> = {
   households: householdModel,
   householdMembers: memberModel,
   householdInvites: inviteModel,
+  daratCircles: daratCircleModel,
+  daratCircleMembers: daratMemberModel,
+  daratInvites: daratInviteModel,
 };
 
 export interface DocumentMigration {
