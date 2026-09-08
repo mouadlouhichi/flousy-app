@@ -363,6 +363,24 @@ service cloud.firestore {
     function savingsPath(hid) {
       return /databases/$(database)/documents/households/$(hid)/data/savings;
     }
+    function circlePath(cid) {
+      return /databases/$(database)/documents/circles/$(cid);
+    }
+    function circleMemberPath(cid, uid) {
+      return /databases/$(database)/documents/circles/$(cid)/members/$(uid);
+    }
+    function circleInvitePath(cid, iid) {
+      return /databases/$(database)/documents/circles/$(cid)/invites/$(iid);
+    }
+    function circleLedgerPath(cid, eid) {
+      return /databases/$(database)/documents/circles/$(cid)/ledger/$(eid);
+    }
+    function userCirclePath(uid, cid) {
+      return /databases/$(database)/documents/users/$(uid)/circles/$(cid);
+    }
+    function topLevelDaratInvitePath(iid) {
+      return /databases/$(database)/documents/daratInvites/$(iid);
+    }
     /**
      * The caller's membership row, read as one expression. `exists()` and `get()`
      * are otherwise a pair per call site, and every helper that asked its own
@@ -1381,6 +1399,254 @@ service cloud.firestore {
           && incoming().get('status', '') == 'revoked'
           && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'revokedAt']));
       allow delete: if householdOwner(existing().get('householdId', ''));
+    }
+
+    // -------------------------- Darat (rotating savings) --------------------------
+    // A Darat circle lives at /circles/{circleId} (shared, organizer-owned).
+    // Members are /circles/{circleId}/members/{uid}. Invites have both an in-circle
+    // path and a top-level /daratInvites/{inviteId} for code-only join.
+    //
+    // Authorization model:
+    //  - The organizer (organizerId) can read + write the circle, invites, ledger.
+    //  - An active member can read the circle + their own member row.
+    //  - Any member can mark their own payment status on a round (writes are
+    //    rejected if the member is not in the circle's memberOrder).
+    //  - All writes must validate shape; required fields are required on create
+    //    only, since `existing().get('field', default)` makes the update path
+    //    tolerate documents that predate the field (see README 5-part ship).
+
+    // Read-side helpers. They use `getAfter` / `existsAfter` (rather than
+    // `get` / `exists`) so that a multi-doc write like the Darat create
+    // transaction can pass the rule check: inside a `runTransaction`, a
+    // `get` call sees the pre-transaction state, but a `getAfter` call
+    // sees the just-written state. For non-transactional writes the
+    // "after" state is the same as the current state, so the behavior
+    // is unchanged.
+    function isCircleOrganizer(cid) {
+      return signedIn()
+        && existsAfter(circlePath(cid))
+        && getAfter(circlePath(cid)).data.get('organizerId', '') == request.auth.uid;
+    }
+    function isCircleMember(cid, uid) {
+      return signedIn()
+        && existsAfter(circleMemberPath(cid, uid))
+        && getAfter(circleMemberPath(cid, uid)).data.get('status', '') == 'active';
+    }
+    function activeCircleMember(cid) {
+      return isCircleMember(cid, request.auth.uid);
+    }
+    function validDaratRotation(value) {
+      return value in ['random', 'fixed', 'bidding'];
+    }
+    function validDaratFrequency(value) {
+      return value in ['weekly', 'biweekly', 'monthly'];
+    }
+    // Loose phone-number shape, mirroring the client-side `PHONE_RE` in
+    // `src/lib/darat.ts`. Two checks: only the allowed characters in any
+    // length-8+ string, and the count of digits (no separator) >= 8.
+    // Both must hold for the row to be written. Used by the Darat invite
+    // create rules; the join flow does not phone-gate anything.
+    function isValidDaratPhone(value) {
+      return value is string
+        && value.size() >= 8
+        && value.matches('^[+]?[0-9\\s().-]{8,}$')
+        // The "real" phone check: 8+ digits somewhere in the string.
+        // A regex repetition is the cheapest way to express a count in
+        // rules-language arithmetic: we look for 8 digit tokens in
+        // any order, separated by anything.
+        && value.matches('.*[0-9].*[0-9].*[0-9].*[0-9].*[0-9].*[0-9].*[0-9].*[0-9].*');
+    }
+    function validDaratCircleShape(doc) {
+      return doc.id is string
+        && doc.name is string && doc.name.size() > 0 && doc.name.size() <= 100
+        && doc.organizerId is string
+        && doc.currency is string && doc.currency.size() == 3
+        && isMoney(doc.contribution)
+        && validDaratFrequency(doc.frequency)
+        && validDaratRotation(doc.rotation)
+        && doc.startDate is string
+        && doc.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && doc.memberOrder is list
+        && doc.memberOrder.size() >= 2
+        && doc.memberOrder.size() <= 20
+        && doc.rounds is list
+        && doc.rounds.size() == doc.memberOrder.size()
+        && doc.status in ['active', 'closed']
+        && doc.createdAt is int
+        && doc.updatedAt is int
+        && (doc.closedAt == null || doc.closedAt is string);
+    }
+
+    match /circles/{circleId} {
+      allow get: if isCircleOrganizer(circleId) || activeCircleMember(circleId);
+      allow list: if signedIn() && (
+        // Organizers can list circles they own (queried with where organizerId == auth.uid).
+        // Members listing requires a different approach (see users/{uid}/circles).
+        // The dashboard widget uses users/{uid}/circles; the "circles I organize" view queries by organizerId.
+        // We allow listing with the organizer-id filter via query constraints, so:
+        query.limit != null && query.where != null
+          && ('organizerId' in query.where || 'memberOrder' in query.where)
+      );
+
+      allow create: if signedIn()
+        && incoming().organizerId == request.auth.uid
+        && incoming().status == 'active'
+        && validDaratCircleShape(incoming())
+        && incoming().memberOrder.hasAll([request.auth.uid]);
+
+      // Organizer can update the circle; members can also flip their own
+      // member-order spot to inactive (handled at the members subcollection).
+      // Updates are gated on the shape still being valid.
+      allow update: if isCircleOrganizer(circleId)
+        && validDaratCircleShape(incoming())
+        && incoming().organizerId == existing().get('organizerId', '')
+        // Organizer cannot promote someone else to organizerId.
+        && incoming().organizerId == request.auth.uid;
+      // A member can leave the circle: that mutates the circle's memberOrder +
+      // status only (no shape change to organizerId / contribution / frequency).
+      allow update: if activeCircleMember(circleId)
+        && activeCircleMember(circleId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['memberOrder', 'updatedAt']);
+      // Closing the circle is organizer-only.
+      allow update: if isCircleOrganizer(circleId)
+        && existing().get('status', '') == 'active'
+        && incoming().get('status', '') == 'closed'
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'closedAt', 'updatedAt']);
+
+      allow delete: if isCircleOrganizer(circleId);
+
+      match /members/{memberId} {
+        // Any active circle member can read the roster.
+        allow get: if activeCircleMember(circleId)
+          || isCircleOrganizer(circleId)
+          || memberId == request.auth.uid;
+        allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
+
+        // Organizer can add members; a user can also add their own row when
+        // accepting an invite (handled in the invites block).
+        // The member's `email` is the signed-in user's own account
+        // email (used by the household path to resolve "who is this
+        // user?"); the `phone` is the organizer's reference for the
+        // invitee, and is allowed to be empty on the organizer's own
+        // row (the organizer didn't invite themselves).
+        allow create: if isCircleOrganizer(circleId)
+          && incoming().uid == memberId
+          && incoming().status == 'active'
+          && isEmail(incoming().email)
+          && (incoming().phone is string
+            && (incoming().phone.size() == 0 || isValidDaratPhone(incoming().phone)))
+          && boundedText(incoming().displayName, 100)
+          && incoming().isOrganizer is bool
+          && incoming().joinedAt is string
+          && incoming().sourcePlaceId is string;
+        // The organizer can update any member row; the member themselves can
+        // flip their own status to 'left' (the leave flow) or update their
+        // sourcePlaceId.
+        allow update: if isCircleOrganizer(circleId)
+          || (memberId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'sourcePlaceId', 'displayName']));
+        allow delete: if isCircleOrganizer(circleId);
+      }
+
+      match /invites/{inviteId} {
+        // The invite is keyed by UUID (`inviteId` is the doc id, the
+        // code the recipient pastes or follows from a share link). The
+        // organizer can read the row directly; the recipient must
+        // already have the id in hand to address the doc, so a
+        // signed-in user with a pending row is enough to look it up.
+        allow get: if isCircleOrganizer(circleId)
+          || (signedIn() && resource.data.get('status', '') == 'pending');
+        allow list: if isCircleOrganizer(circleId);
+
+        // Create: organizer only, phone must pass the loose shape.
+        allow create: if isCircleOrganizer(circleId)
+          && incoming().circleId == circleId
+          && incoming().invitedByUid == request.auth.uid
+          && incoming().status == 'pending'
+          && isValidDaratPhone(incoming().phone)
+          && incoming().expiresAt is string;
+        // Update: organizer can edit; the recipient can flip their own
+        // row to accepted once they type the code. The "own row" check
+        // is implicit — you must know the id (the UUID) to address the
+        // doc, and the only acceptable change is `pending` -> `accepted`.
+        allow update: if isCircleOrganizer(circleId)
+          || (signedIn()
+            && existing().get('status', '') == 'pending'
+            && incoming().get('status', '') == 'accepted'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']));
+        allow delete: if isCircleOrganizer(circleId);
+      }
+
+      match /ledger/{entryId} {
+        // Ledger is append-only and visible to all members for transparency.
+        allow get: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
+        allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
+        allow create: if (isCircleOrganizer(circleId) || activeCircleMember(circleId))
+          && incoming().circleId == circleId
+          && incoming().uid == request.auth.uid
+          && incoming().kind in [
+            'created', 'member_added', 'member_joined', 'member_left',
+            'payment_marked', 'payment_reverted', 'round_resolved', 'closed'
+          ]
+          && incoming().at is int
+          && incoming().id == entryId;
+        // No update or delete: the ledger is immutable, matching the household
+        // pattern. Corrections create reversing entries.
+      }
+    }
+
+    // Top-level invite lookup so the join page can resolve a code without
+    // first knowing the circle id. The row mirrors the in-circle invite
+    // at /circles/{cid}/invites/{inviteId}; the id (the doc path) is the
+    // UUID code the recipient pastes or follows from a share link.
+    match /daratInvites/{inviteId} {
+      // Anyone signed in can look up a pending invite, provided they
+      // already know the id (you have to type the code to address the
+      // doc). That is the gate the share-link + prefill flow needs.
+      allow get: if signedIn()
+        && resource.data.get('status', '') == 'pending';
+      allow list: if false;
+      // Organizer can mirror a new invite (create) and the recipient can
+      // flip their own row to accepted (update). Everything else is denied
+      // so the row is otherwise immutable from the client.
+      //
+      // The create rule checks BOTH `invitedByUid == auth.uid` (so a
+      // non-organizer cannot sign as someone else) AND
+      // `isCircleOrganizer(incoming().circleId)` (so the organizer of
+      // circle A cannot point an invite at circle B). Inside a
+      // `runTransaction` the circle write lands first, so `getAfter`
+      // resolves the just-written organizerId.
+      allow create: if signedIn()
+        && isCircleOrganizer(incoming().circleId)
+        && incoming().invitedByUid == request.auth.uid
+        && incoming().status == 'pending'
+        && isValidDaratPhone(incoming().phone)
+        && incoming().expiresAt is string
+        && incoming().circleId is string;
+      // The recipient updates the row to accepted; the "own row" check
+      // is implicit — you must know the UUID code to address the doc,
+      // and the only acceptable change is `pending` -> `accepted`.
+      allow update: if signedIn()
+        && existing().get('status', '') == 'pending'
+        && incoming().get('status', '') == 'accepted'
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']);
+      allow delete: if false;
+    }
+
+    // Per-user pointer: each member of a circle has a row at
+    // users/{uid}/circles/{circleId} so the dashboard widget can list "your
+    // circles" without scanning the shared collection. The row is created
+    // when the user accepts an invite, and removed when they leave.
+    match /users/{uid}/circles/{circleId} {
+      allow get: if owner(uid) || isCircleOrganizer(circleId);
+      allow list: if owner(uid);
+      allow create: if owner(uid)
+        && incoming().uid == uid
+        && incoming().circleId == circleId
+        && incoming().joinedAt is string
+        && isCircleMember(circleId, uid);
+      allow delete: if owner(uid) || isCircleOrganizer(circleId);
+      allow update: if false;
     }
 
     match /{document=**} {

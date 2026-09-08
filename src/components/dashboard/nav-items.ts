@@ -9,6 +9,7 @@ export type DashboardScreenId =
   | 'savings'
   | 'trends'
   | 'debts'
+  | 'darat'
   | 'profile';
 
 export interface DashboardNavItem {
@@ -82,6 +83,18 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     mobileIcon: 'account_balance',
   },
   {
+    id: 'darat',
+    href: '/dashboard/darat',
+    sidebarIcon: 'groups',
+    mobileIcon: 'groups',
+    proOnly: true,
+    // Pro-only feature reached from the sidebar's "Tools" group. The
+    // mobile bottom nav is capped at 5 destinations (asserted in
+    // tests/nav-items.test.ts), so Darat is reached by deep-link, the
+    // Pro features card, or the dashboard widget — not the bottom bar.
+    hiddenFromNav: true,
+  },
+  {
     id: 'search',
     href: '/dashboard/search',
     sidebarIcon: 'search',
@@ -109,6 +122,7 @@ const NAVIGATION_LABEL_KEYS: Record<DashboardScreenId, keyof Messages['navigatio
   savings: 'savings',
   trends: 'trends',
   debts: 'debts',
+  darat: 'darat',
   profile: 'profile',
 };
 
@@ -121,6 +135,7 @@ const NAVIGATION_TITLE_KEYS: Record<DashboardScreenId, keyof Messages['navigatio
   savings: 'savingsGoals',
   trends: 'trendsAnalytics',
   debts: 'debtsCredits',
+  darat: 'darat',
   profile: 'profileAccount',
 };
 

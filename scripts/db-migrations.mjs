@@ -89,6 +89,40 @@ export const MODEL = {
       },
     ],
   },
+  daratCircles: {
+    parent: null,
+    collectionId: 'circles',
+    fields: [
+      { field: 'currency', repair: (d) => (blank(d, 'currency') ? 'MAD' : null) },
+      {
+        field: 'updatedAt',
+        repair: (d) => {
+          if (!blank(d, 'updatedAt')) return null;
+          if (typeof d.createdAt === 'number' && Number.isFinite(d.createdAt)) return d.createdAt;
+          return null;
+        },
+      },
+      { field: 'closedAt', repair: () => null },
+      { field: 'fixedOrder', repair: () => null },
+      { field: 'randomSeed', repair: () => null },
+    ],
+  },
+  daratCircleMembers: {
+    parent: 'circles/{circleId}',
+    collectionId: 'members',
+    fields: [
+      { field: 'isOrganizer', repair: () => null },
+      { field: 'sourcePlaceId', repair: () => null },
+    ],
+  },
+  daratInvites: {
+    parent: null,
+    collectionId: 'daratInvites',
+    fields: [
+      { field: 'phone', repair: () => null },
+      { field: 'acceptedAt', repair: () => null },
+    ],
+  },
 };
 
 export function blank(document, field) {
@@ -225,7 +259,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help || !options.project) {
     process.stdout.write([
-      'Usage: npm run db:migrate -- --project <id> [--dry-run|--apply|--check] [--collection all|households|householdMembers|householdInvites]',
+      'Usage: npm run db:migrate -- --project <id> [--dry-run|--apply|--check] [--collection all|households|householdMembers|householdInvites|daratCircles|daratCircleMembers|daratInvites]',
       '       [--limit N] [--verbose] [--json] [--token <oauth-access-token>]',
       '',
       'Completes household documents whose stored shape predates a field the app and the',

@@ -211,8 +211,8 @@ describe('the model, the rules and the maintenance script agree', () => {
     // checks it, so both spellings are pinned against the rules - renaming or inventing a
     // collection now fails a test instead of quietly migrating documents nobody reads.
     const script = readFileSync('scripts/db-migrations.mjs', 'utf8');
-    const collectionIds = [...script.matchAll(/collectionId: '([^']+)'/g)].map((match) => match[1]);
-    assert.deepEqual(collectionIds.sort(), ['householdInvites', 'households', 'members']);
+    const collectionIds = [...new Set([...script.matchAll(/collectionId: '([^']+)'/g)].map((match) => match[1]))];
+    assert.deepEqual(collectionIds.sort(), ['circles', 'daratInvites', 'householdInvites', 'households', 'members']);
     for (const collectionId of collectionIds) {
       assert.match(
         rules,
@@ -220,7 +220,10 @@ describe('the model, the rules and the maintenance script agree', () => {
         `the rules never match /${collectionId}, so a migration writing there would protect nothing`,
       );
     }
-    assert.deepEqual(Object.keys(SCHEMA_MODELS).sort(), ['householdInvites', 'householdMembers', 'households']);
+    assert.deepEqual(Object.keys(SCHEMA_MODELS).sort(), [
+      'daratCircleMembers', 'daratCircles', 'daratInvites',
+      'householdInvites', 'householdMembers', 'households',
+    ]);
   });
 
   it('keeps the rules a workspace save depends on inside their recorded budget', () => {

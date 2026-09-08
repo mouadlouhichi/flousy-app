@@ -1339,3 +1339,191 @@ describe('Pro profile preferences and workspace kind', () => {
     await assertFails(setDoc(doc(db, 'households/biz-2'), { ...base, kind: 'corporate' }));
   });
 });
+
+describe('darat circle create transaction', () => {
+  const TODAY_MS = Date.now();
+  const startDate = new Date(TODAY_MS + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // The real product always creates a circle with the organizer + at least
+  // one invitee (DARAT_MIN_MEMBERS = 2), so the test must reflect that. A
+  // 1-member circle is rejected by `validDaratCircleShape` (memberOrder
+  // must be >= 2 and rounds must match it), and that rejection was the
+  // first failure of the previous test revision.
+  function buildRounds(memberOrder: string[]) {
+    return memberOrder.map((_, i) => ({
+      number: i + 1,
+      date: startDate,
+      recipientId: null,
+      pot: 100 * memberOrder.length,
+      discount: 0,
+      status: 'pending',
+      payments: Object.fromEntries(memberOrder.map((id) => [id, 'pending'])),
+    }));
+  }
+
+  function circleDoc(organizerId: string, memberOrder: string[]) {
+    return {
+      id: 'circle-1',
+      name: 'Family',
+      organizerId,
+      currency: 'MAD',
+      contribution: 100,
+      frequency: 'monthly',
+      rotation: 'random',
+      startDate,
+      fixedOrder: null,
+      randomSeed: 'abcde-1234',
+      memberOrder,
+      rounds: buildRounds(memberOrder),
+      status: 'active',
+      closedAt: null,
+      createdAt: TODAY_MS,
+      updatedAt: TODAY_MS,
+    };
+  }
+
+  function memberDoc(uid: string, isOrganizer: boolean) {
+    return {
+      uid,
+      displayName: isOrganizer ? 'Org' : 'Member',
+      email: `${uid}@example.com`,
+      // Phone is optional on the organizer's own row (they didn't
+      // invite themselves); always populated for invitees, and the
+      // rules require it to pass the loose shape check when present.
+      phone: isOrganizer ? '' : '+212 6 12 34 56 78',
+      status: 'active',
+      isOrganizer,
+      joinedAt: new Date(TODAY_MS).toISOString(),
+      sourcePlaceId: 'bank',
+    };
+  }
+
+  // The phone numbers used by the Darat invite tests. Reused as
+  // `memberOrder` placeholders too (the placeholder is the only
+  // identity the create flow has for non-organizer members before
+  // they accept).
+  const INVITEE_PHONE = '+212 6 12 34 56 78';
+  const SECOND_PHONE = '+1-555-123-4567';
+
+  it('lets the organizer write the circle, member row, pointer, ledger, invites, and mirrors in one transaction', async () => {
+    // The exact shape the create modal sends: every doc in one
+    // runTransaction so the rules see the freshly-written member row
+    // when they check the pointer's `isCircleMember` guard, and so a
+    // rejection on any one row rolls the whole batch back instead of
+    // leaving the circle half-created.
+    const db = asUser('org', { email: 'org@example.com' });
+    const circleRef = doc(db, 'circles/circle-1');
+    const memberRef = doc(db, 'circles/circle-1/members/org');
+    const pointerRef = doc(db, 'users/org/circles/circle-1');
+    const ledgerRef = doc(db, 'circles/circle-1/ledger/created-1');
+    const inviteRef = doc(db, 'circles/circle-1/invites/inv-1');
+    const mirrorRef = doc(db, 'daratInvites/inv-1');
+
+    await assertSucceeds(runTransaction(db, async (tx) => {
+      tx.set(circleRef, circleDoc('org', ['org', INVITEE_PHONE]));
+      tx.set(memberRef, memberDoc('org', true));
+      tx.set(pointerRef, { uid: 'org', circleId: 'circle-1', joinedAt: new Date(TODAY_MS).toISOString() });
+      tx.set(ledgerRef, { circleId: 'circle-1', uid: 'org', kind: 'created', at: TODAY_MS, id: 'created-1' });
+      tx.set(inviteRef, { circleId: 'circle-1', phone: INVITEE_PHONE, invitedByUid: 'org', expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(), acceptedAt: null, status: 'pending' });
+      tx.set(mirrorRef, { circleId: 'circle-1', phone: INVITEE_PHONE, invitedByUid: 'org', expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(), acceptedAt: null, status: 'pending' });
+    }));
+
+    // Every doc the organizer can read round-trips. The mirror is now
+    // read by any signed-in user with a pending status, so the
+    // organizer (who knows the id) can read it too. The recipient
+    // looks it up the same way on the join page.
+    await assertSucceeds(getDoc(circleRef));
+    await assertSucceeds(getDoc(memberRef));
+    await assertSucceeds(getDoc(pointerRef));
+    await assertSucceeds(getDoc(ledgerRef));
+    await assertSucceeds(getDoc(inviteRef));
+    await assertSucceeds(getDoc(mirrorRef));
+  });
+
+  it('refuses a non-organizer who tries to create a circle pretending to own one', async () => {
+    const db = asUser('imposter');
+    await assertFails(setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', INVITEE_PHONE])));
+  });
+
+  it('refuses a non-organizer who tries to create a member row inside an existing circle', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', INVITEE_PHONE]));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+    });
+    const db = asUser('imposter');
+    await assertFails(runTransaction(db, async (tx) => {
+      tx.set(doc(db, 'circles/circle-1/members/imposter'), memberDoc('imposter', false));
+    }));
+  });
+
+  it('refuses a top-level invite mirror that does not match the in-circle invite', async () => {
+    // The mirror is allowed (organizer can create), but only with the
+    // same `invitedByUid` as a circle they organize and a valid
+    // phone. A row signed by somebody else is a forged grant.
+    const db = asUser('org', { email: 'org@example.com' });
+    await assertFails(setDoc(doc(db, 'daratInvites/forged'), {
+      circleId: 'circle-1',
+      phone: INVITEE_PHONE,
+      invitedByUid: 'someone-else',
+      expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      acceptedAt: null,
+      status: 'pending',
+    }));
+  });
+
+  it('refuses a Darat invite whose phone does not pass the loose shape check', async () => {
+    // The server enforces the same regex the client does. An invite
+    // with too few digits (or non-phone characters) is denied before
+    // it ever lands in Firestore.
+    const db = asUser('org', { email: 'org@example.com' });
+    await assertFails(setDoc(doc(db, 'daratInvites/bad-phone'), {
+      circleId: 'circle-1',
+      phone: 'not-a-phone',
+      invitedByUid: 'org',
+      expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      acceptedAt: null,
+      status: 'pending',
+    }));
+  });
+
+  it('lets a different signed-in user look up a pending invite by code', async () => {
+    // The share-link + prefill flow: an invitee who knows the UUID
+    // code (received via link or message) can read the row, see the
+    // circle id, and call join. The "knows the code" gate is implicit
+    // — you have to type the id to address the doc. No email-match
+    // check, no phone-match check; the UUID is the gate.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'daratInvites/inv-1'), {
+        circleId: 'circle-1',
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      });
+    });
+    const inviteeDb = asUser('invitee', { email: 'invitee@example.com' });
+    await assertSucceeds(getDoc(doc(inviteeDb, 'daratInvites/inv-1')));
+  });
+
+  it('lets the recipient flip their own invite from pending to accepted', async () => {
+    // The recipient, who has the code, can update the row to
+    // accepted. The update is restricted to the `pending -> accepted`
+    // transition (no other fields can be touched).
+    await seed(async (db) => {
+      await setDoc(doc(db, 'daratInvites/inv-1'), {
+        circleId: 'circle-1',
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      });
+    });
+    const inviteeDb = asUser('invitee', { email: 'invitee@example.com' });
+    await assertSucceeds(updateDoc(doc(inviteeDb, 'daratInvites/inv-1'), {
+      status: 'accepted',
+      acceptedAt: new Date(TODAY_MS).toISOString(),
+    }));
+  });
+});
