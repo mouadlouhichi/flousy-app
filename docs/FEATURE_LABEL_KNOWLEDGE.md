@@ -5,6 +5,8 @@ Extends the scanned-label feature (see
 cosmetics/INCI side) to **food** labels, and auto-detects which side a label
 belongs to.
 
+
+
 A barcode scan of a dairy label such as
 
 > Ingrédients : Lait de Vache pasteurisé, Crème fraîche pasteurisée,
