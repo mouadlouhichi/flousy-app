@@ -197,7 +197,7 @@ export function CoursesIngredientPanel({
       {active && !editing ? (
         <>
           <div className="mt-2">
-            <CoursesIngredientGlance ingredientsText={active} label={name} category={category} />
+            <CoursesIngredientGlance ingredientsText={active} label={name} category={category} embedded />
           </div>
           {fromOverlay && (
             <p className="mt-1.5 flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">

@@ -26,6 +26,12 @@ interface CoursesIngredientGlanceProps {
   ingredientsText: string;
   label?: string;
   category?: string;
+  /**
+   * Rendered inside the CoursesIngredientPanel card. When true the glance
+   * drops its own border/title so the outer panel remains a single card with
+   * one "Ingredients" header (avoids the double inner card duplicated title).
+   */
+  embedded?: boolean;
 }
 
 type GlanceState =
@@ -101,6 +107,7 @@ export function CoursesIngredientGlance({
   ingredientsText,
   label,
   category,
+  embedded = false,
 }: CoursesIngredientGlanceProps) {
   const { messages } = useLanguage();
   const g = messages.ingredientGlance;
@@ -131,12 +138,14 @@ export function CoursesIngredientGlance({
   return (
     <div
       aria-live="polite"
-      className="mt-3 rounded-2xl border border-outline-variant bg-surface/70 p-3 md:p-3.5"
+      className={embedded ? '' : 'mt-3 rounded-2xl border border-outline-variant bg-surface/70 p-3 md:p-3.5'}
     >
-      <div className="flex items-center gap-2">
-        <AppIcon name="science" className="size-4 text-primary" />
-        <p className="font-label-md text-label-md font-semibold text-on-surface">{g.title}</p>
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-2">
+          <AppIcon name="science" className="size-4 text-primary" />
+          <p className="font-label-md text-label-md font-semibold text-on-surface">{g.title}</p>
+        </div>
+      )}
 
       {loading && (
         <p className="mt-2 flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">

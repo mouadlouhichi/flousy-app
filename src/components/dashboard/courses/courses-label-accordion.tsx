@@ -214,7 +214,9 @@ export function CoursesLabelAccordion({
         </span>
 
         <span className="flex shrink-0 items-center gap-2.5">
-          {/* Cosmetic: Yuka-style score ring (arc = score/100, colour = band) */}
+          {/* Cosmetic: Yuka-style score ring (arc = score/100, colour = band).
+              Always rendered — while the analysis is loading/failed it stays
+              as an "unknown" risk ring so the trigger never loses its badge. */}
           {domain === 'cosmetic' &&
             cosmeticText &&
             (readyCosmetic ? (
@@ -231,22 +233,12 @@ export function CoursesLabelAccordion({
                   {t(ig[BAND_LABEL_KEY[readyCosmetic.band]])}
                 </span>
               </>
-            ) : scoreUnknown ? (
+            ) : (
               <ScoreRing
                 unknown
-                label={ig.scoreUnknown}
+                label={cosmetic.failed ? ig.unavailable : scoreUnknown ? ig.scoreUnknown : ig.analyzing}
                 toneClass="text-on-surface-variant"
               />
-            ) : (
-              !cosmetic.failed &&
-              !open && (
-                <span
-                  aria-hidden="true"
-                  className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant"
-                >
-                  …
-                </span>
-              )
             ))}
 
           {/* Missing INCI: show that the external fallback is running / failed */}
