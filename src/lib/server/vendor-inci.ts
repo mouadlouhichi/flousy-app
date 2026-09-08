@@ -93,8 +93,8 @@ export function extractVendorInci(body: unknown): string | null {
       )
       .filter(Boolean);
     if (names.length === 0) return null;
-    const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
-    return joined.length > 0 ? joined : null;
+    const joined = names.join(', ');
+    return joined.length > 0 && joined.length <= MAX_INCI_LENGTH ? joined : null;
   }
 
   // Safety response may keep INCI only as parsedIngredients (objects with
@@ -110,8 +110,8 @@ export function extractVendorInci(body: unknown): string | null {
       )
       .filter(Boolean);
     if (names.length === 0) return null;
-    const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
-    return joined.length > 0 ? joined : null;
+    const joined = names.join(', ');
+    return joined.length > 0 && joined.length <= MAX_INCI_LENGTH ? joined : null;
   }
 
   return null;

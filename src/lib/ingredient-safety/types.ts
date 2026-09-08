@@ -10,6 +10,8 @@
  * A glossary/inventory match never means authorised, compliant, or safe.
  */
 
+export const MAX_INGREDIENT_TEXT_LENGTH = 12_000;
+
 export type ProductForm = 'leave-on' | 'rinse-off' | 'unknown';
 
 /** Historical API/UI tiers. `clean` is retained for old snapshots only and is

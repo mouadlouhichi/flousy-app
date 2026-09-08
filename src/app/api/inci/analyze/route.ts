@@ -4,7 +4,7 @@ import {
   analyzeIngredientList,
   type AnalyzeOptions,
 } from '@/lib/ingredient-safety/analyze';
-import type { ProductForm } from '@/lib/ingredient-safety/types';
+import { MAX_INGREDIENT_TEXT_LENGTH, type ProductForm } from '@/lib/ingredient-safety/types';
 import { isVendorConfigured, fetchVendorAnalyzeEvidence } from '@/lib/server/vendor-inci';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { reportUnknownIngredientAggregates } from '@/lib/server/unknown-ingredients';
@@ -40,7 +40,6 @@ import { checkArcjet } from '@/lib/server/arcjet';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MAX_TEXT_LENGTH = 12_000;
 const MAX_INGREDIENTS = 300;
 const ANALYSES_PER_MINUTE = 60;
 
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
   }
   const obj = (body ?? {}) as Record<string, unknown>;
 
-  const inciText = asString(obj.inciText, MAX_TEXT_LENGTH);
+  const inciText = asString(obj.inciText, MAX_INGREDIENT_TEXT_LENGTH);
   const label = asString(obj.label, 200);
   const category = asString(obj.category, 200);
   const rawIngredients = Array.isArray(obj.ingredients) ? obj.ingredients : undefined;

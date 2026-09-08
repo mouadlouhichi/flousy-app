@@ -46,6 +46,35 @@ describe('mapOffProduct', () => {
     }
   });
 
+  it('bounds provider-controlled metadata before it can enter the catalog', () => {
+    const mapped = mapOffProduct({
+      status: 1,
+      sourceUrl: `https://example.test/${'x'.repeat(2_100)}`,
+      product: {
+        product_name: 'x'.repeat(201),
+        product_name_fr: 'Bounded fallback name',
+        brands: `Brand, ${'x'.repeat(2_100)}`,
+        categories: 'x'.repeat(2_001),
+        image_front_url: `https://example.test/${'x'.repeat(2_100)}`,
+        quantity: 'x'.repeat(101),
+        ingredients_text: 'A'.repeat(12_001),
+        nutriscore_grade: 'b',
+        nutriscore_score: 10_000,
+      },
+    });
+    assert.ok(mapped);
+    assert.equal(mapped.name, 'Bounded fallback name');
+    assert.equal(mapped.brand, undefined);
+    assert.equal(mapped.category, undefined);
+    assert.equal(mapped.imageUrl, undefined);
+    assert.equal(mapped.quantity, undefined);
+    assert.equal(mapped.ingredientsText, undefined);
+    assert.equal(mapped.sourceUrl, undefined);
+    assert.deepEqual(mapped.ranking, { grade: 'b' });
+
+    assert.equal(mapOffProduct({ status: 1, product: { product_name: 'x'.repeat(201) } }), null);
+  });
+
   it('maps the Nutri-Score ranking when the source provides a real grade', () => {
     const withScore = mapOffProduct({
       status: 1,

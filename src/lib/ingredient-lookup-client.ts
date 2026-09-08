@@ -1,3 +1,5 @@
+import { parseGtin } from '@/lib/gtin';
+
 /**
  * Client for the missing-INCI fallback route.
  *
@@ -21,6 +23,32 @@ const cache = new Map<string, { at: number; value: InciLookupResult }>();
 // In-flight promise dedupe: while a barcode lookup is running, any other part
 // of the scan UI (collapsed preview + opened panel) shares the same request.
 const inFlight = new Map<string, Promise<InciLookupResult>>();
+
+function abortError(): Error {
+  if (typeof DOMException !== 'undefined') return new DOMException('The operation was aborted.', 'AbortError');
+  const error = new Error('The operation was aborted.');
+  error.name = 'AbortError';
+  return error;
+}
+
+function waitForSubscriber<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        if (!signal.aborted) resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        if (!signal.aborted) reject(error);
+      },
+    );
+  });
+}
 
 function cacheGet(key: string): InciLookupResult | undefined {
   const hit = cache.get(key);
@@ -58,24 +86,27 @@ export function clearInciLookupCache(): void {
  *    rate limit, malformed response). The UI must degrade to the existing
  *    paste/OCR path, never show a risk verdict.
  */
-export function lookupInciForBarcode(barcode: string): Promise<InciLookupResult> {
-  const key = barcode.trim();
-  if (!/^[0-9]{8}$/.test(key) && !/^[0-9]{13}$/.test(key)) {
-    return Promise.resolve({ kind: 'unavailable' });
-  }
+export function lookupInciForBarcode(
+  barcode: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<InciLookupResult> {
+  if (options.signal?.aborted) return Promise.reject(abortError());
+  const parsed = parseGtin({ rawValue: barcode, source: 'api' });
+  if (!parsed.ok) return Promise.resolve({ kind: 'unavailable' });
+  const key = parsed.value.gtin14;
   const cached = cacheGet(key);
-  if (cached) return Promise.resolve(cached);
+  if (cached) return waitForSubscriber(Promise.resolve(cached), options.signal);
   const pending = inFlight.get(key);
-  if (pending) return pending;
+  if (pending) return waitForSubscriber(pending, options.signal);
 
-  const promise = fetchInciLookup(key)
+  const promise = fetchInciLookup(parsed.value.lookupCode)
     .then((value) => {
       if (value.kind !== 'unavailable') cacheSet(key, value);
       return value;
     })
     .finally(() => inFlight.delete(key));
   inFlight.set(key, promise);
-  return promise;
+  return waitForSubscriber(promise, options.signal);
 }
 
 async function fetchInciLookup(key: string): Promise<InciLookupResult> {

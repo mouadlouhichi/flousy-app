@@ -55,10 +55,13 @@ export function mapOffProduct(
   } | null;
   if (!root?.product || (root.status !== 1 && root.found !== true)) return null;
   const product = root.product;
-  const pick = (key: string): string | undefined => {
-    const value = product[key];
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  const boundedText = (value: unknown, max: number): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed && trimmed.length <= max ? trimmed : undefined;
   };
+  const pick = (key: string, max = 12_000): string | undefined =>
+    boundedText(product[key], max);
 
   const language = opts?.lang?.toLowerCase().split('-')[0];
   const nameKeys = [
@@ -70,13 +73,15 @@ export function mapOffProduct(
     'generic_name',
     'abbreviated_product_name',
   ];
-  const name = nameKeys.map(pick).find(Boolean);
+  const name = nameKeys.map((key) => pick(key, 200)).find(Boolean);
   if (!name) return null;
 
-  const brand = pick('brands')?.split(',')[0]?.trim();
-  const category = firstRealCategory(pick('categories'));
-  const imageUrl = pick('image_front_url');
-  const quantity = pick('quantity');
+  const brandCandidate = pick('brands', 2_000)?.split(',')[0]?.trim();
+  const brand = brandCandidate && brandCandidate.length <= 200 ? brandCandidate : undefined;
+  const categoryCandidate = firstRealCategory(pick('categories', 2_000));
+  const category = categoryCandidate && categoryCandidate.length <= 200 ? categoryCandidate : undefined;
+  const imageUrl = pick('image_front_url', 2_000);
+  const quantity = pick('quantity', 100);
   const ingredientsText = [
     ...(language ? [`ingredients_text_${language}`] : []),
     'ingredients_text',
@@ -84,7 +89,7 @@ export function mapOffProduct(
     'ingredients_text_fr',
     'ingredients_text_ar',
     'ingredients_text_es',
-  ].map(pick).find(Boolean);
+  ].map((key) => pick(key, 12_000)).find(Boolean);
   const allergenTags = Array.isArray(product.allergens_tags)
     ? product.allergens_tags.filter((value): value is string => typeof value === 'string' && value.length <= 100).slice(0, 50)
     : undefined;
@@ -93,13 +98,18 @@ export function mapOffProduct(
   // Generic/non-food proxy responses carry an explicit lookupSource.
   const database = opts?.database ?? root.lookupSource ??
     (typeof product.lookup_source === 'string' ? product.lookup_source as LookupDatabase : 'off');
-  const sourceUrl = opts?.sourceUrl ?? root.sourceUrl ?? pick('lookup_source_url');
-  const retrievedAt = opts?.retrievedAt ?? root.retrievedAt ?? pick('lookup_retrieved_at') ?? new Date().toISOString();
+  const sourceUrl = boundedText(opts?.sourceUrl, 2_000)
+    ?? boundedText(root.sourceUrl, 2_000)
+    ?? pick('lookup_source_url', 2_000);
+  const retrievedAt = boundedText(opts?.retrievedAt, 64)
+    ?? boundedText(root.retrievedAt, 64)
+    ?? pick('lookup_retrieved_at', 64)
+    ?? new Date().toISOString();
   const source = sourceFromDatabase(database);
 
-  const productType = pick('product_type')?.toLowerCase();
+  const productType = pick('product_type', 50)?.toLowerCase();
   const declaredDomain = (() => {
-    const raw = pick('domain')?.toLowerCase();
+    const raw = pick('domain', 20)?.toLowerCase();
     if (raw && ['food', 'cosmetic', 'household', 'pet', 'unknown'].includes(raw)) {
       return raw as ProductDomain;
     }
@@ -113,11 +123,15 @@ export function mapOffProduct(
   const domain = inferred === 'unknown' ? defaultDomainForDatabase(database) : inferred;
   const beauty = domain === 'cosmetic';
 
-  const gradeRaw = pick('nutriscore_grade');
+  const gradeRaw = pick('nutriscore_grade', 8);
   const grade = gradeRaw && /^[a-e]$/i.test(gradeRaw) ? gradeRaw.toLowerCase() : undefined;
   const pointsRaw = product.nutriscore_score;
-  const calculationPoints = typeof pointsRaw === 'number' && Number.isFinite(pointsRaw) ? pointsRaw : undefined;
-  const algorithmVersion = pick('nutriscore_version');
+  const calculationPoints = typeof pointsRaw === 'number'
+    && Number.isFinite(pointsRaw)
+    && Math.abs(pointsRaw) <= 1_000
+    ? pointsRaw
+    : undefined;
+  const algorithmVersion = pick('nutriscore_version', 80);
   const provenance = {
     name: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}), ...(language ? { language } : {}) },
     ...(brand ? { brand: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}) } } : {}),

@@ -82,11 +82,9 @@ describe('vendor-inci extractors', () => {
     assert.equal(extractVendorInci({}), null);
   });
 
-  it('caps over-long lists', () => {
-    const long = new Array(300).fill('Aqua').join(', ');
-    const body = { product: { name: 'X', details: { inci: long.split(', ') } } };
-    const out = extractVendorInci(body);
-    assert.ok(out && out.length <= 8_000);
+  it('rejects over-long lists instead of silently dropping the ingredient suffix', () => {
+    const body = { product: { name: 'X', details: { inci: new Array(2_000).fill('Aqua') } } };
+    assert.equal(extractVendorInci(body), null);
   });
 
   it('extracts a minimal product (name + brand + inci)', () => {

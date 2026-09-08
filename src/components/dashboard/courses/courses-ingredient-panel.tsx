@@ -7,33 +7,29 @@ import { splitInciList } from '@/lib/ingredient-safety/normalize';
 import {
   readInciOverlayEntry,
   removeInciOverlayEntry,
+  subscribeInciOverlay,
   writeInciOverlayEntry,
 } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
 import { CoursesIngredientGlance } from './courses-ingredient-glance';
 import { inferProductForm } from '@/lib/ingredient-safety/form';
-import type { ParserSummary, ProductForm } from '@/lib/ingredient-safety/types';
+import { MAX_INGREDIENT_TEXT_LENGTH, type ParserSummary, type ProductForm } from '@/lib/ingredient-safety/types';
 import { LabelOcrButton } from './label-ocr-button';
 import { useDashboard } from '../dashboard-provider';
 
 /**
  * Ingredient panel for a pending scanned product.
  *
- * Source ladder, newest first:
- *   1. `initialText` — the INCI list that came with the resolved record
- *      (Open Beauty Facts, vendor-enriched via the barcode proxy, …);
- *   2. a per-barcode overlay saved on THIS device from a previous manual
- *      entry (repeat scans of the same product cost one analysis);
- *   3. a manual paste box — the user types the label INCI and the app checks
- *      it with the fully local engine. Nothing needs a third party, and once
- *      pasted it is remembered per barcode on this device.
+ * Source ladder, highest precedence first:
+ *   1. an account-scoped device overlay the user explicitly reviewed;
+ *   2. `initialText` from the resolved/catalog record (Open Beauty Facts,
+ *      vendor-enriched through the same-origin API, or a prior account save);
+ *   3. a manual paste or on-device OCR draft that requires explicit review.
  *
- * When the analysis text comes from the manual/saved path a small "saved on
- * this device" note is shown; editing overwrites the saved copy. The device
- * overlay is the offline cache — the account-scoped copy is persisted to the
- * product catalog (users/{uid}/products/{barcode}, `ingredientsText`) when
- * the line is confirmed, so the score follows the product across sessions
- * and devices (see docs/COSMETIC_INGREDIENT_SCORING.md).
+ * The reviewed overlay is the immediate device copy. When a course line is
+ * confirmed, the same text and field provenance enter the account catalog at
+ * users/{uid}/products/{gtin14}; analysis itself uses the same-origin API and
+ * may include attributed provider evidence as documented in the methodology.
  */
 
 interface CoursesIngredientPanelProps {
@@ -74,6 +70,11 @@ export function CoursesIngredientPanel({
   const { messages } = useLanguage();
   const { user } = useDashboard();
   const accountId = user?.uid ?? null;
+  const [, setOverlayRevision] = useState(0);
+  useEffect(
+    () => subscribeInciOverlay(accountId, () => setOverlayRevision((revision) => revision + 1)),
+    [accountId],
+  );
   const g = messages.ingredientGlance;
   const im = messages.ingredientManual;
   const [editing, setEditing] = useState(false);
@@ -115,51 +116,71 @@ export function CoursesIngredientPanel({
     }
   }, [overlay, overlaySource, overlayReviewed, fromRecord]);
 
-  // Keep state coherent when the parent swaps to a different pending product
-  // without unmounting (same PendingCard instance is reused by key change).
-  const [seenKey, setSeenKey] = useState<string>(barcode ?? '');
+  // Keep state coherent when the parent swaps products, a remote fallback
+  // resolves, or another tab changes this account's overlay map.
+  const seenKeyRef = useRef(barcode ?? '');
   useEffect(() => {
     const key = barcode ?? '';
-    if (key === seenKey && fromRecord === active) return;
-    if (key !== seenKey) {
-      setSeenKey(key);
+    if (key !== seenKeyRef.current) {
+      seenKeyRef.current = key;
       setEditing(false);
       setDraft('');
       setInvalid(false);
       setActive(overlay || fromRecord || null);
       setAnalysisSource(overlay ? overlayAnalysisSource : (fromRecord ? initialSource ?? 'provider' : 'unknown'));
-      setAnalysisReviewed(overlayEntry?.reviewed ?? (fromRecord ? initialReviewed ?? true : false));
+      setAnalysisReviewed(overlayReviewed ?? (fromRecord ? initialReviewed ?? true : false));
       setSaved(false);
       setLookupStatus('idle');
       setLocalForm(form ?? inferProductForm(category, name));
       return;
     }
+    if (overlay) {
+      setActive((current) => current === overlay ? current : overlay);
+      setAnalysisSource(overlayAnalysisSource);
+      setAnalysisReviewed(overlayReviewed === true);
+      setLookupStatus('idle');
+      return;
+    }
     // Same barcode but the record just gained an INCI list (e.g. the
     // accordion's vendor fallback resolved while the panel was already open).
-    // Adopt it immediately so a stale "not found" doesn't stay on screen.
-    if (!overlay && fromRecord) {
-      if (fromRecord !== active) setActive(fromRecord);
+    if (fromRecord) {
+      setActive((current) => current === fromRecord ? current : fromRecord);
       setAnalysisSource(initialSource ?? 'provider');
       setAnalysisReviewed(initialReviewed ?? true);
       setLookupStatus('idle');
     }
-  }, [barcode, fromRecord, initialSource, initialReviewed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    barcode,
+    category,
+    form,
+    fromRecord,
+    initialReviewed,
+    initialSource,
+    name,
+    overlay,
+    overlayAnalysisSource,
+    overlayReviewed,
+  ]);
 
   /** Activate an ingredient text (manual, OCR or vendor fallback) and
    *  remember it per barcode. Also tells the parent so the account-scoped
    *  catalog copy can be written on confirm. */
   const adopt = (text: string, source: 'manual' | 'ocr' | 'remote' = 'manual') => {
-    setActive(text);
+    const normalizedText = text.trim();
+    if (!normalizedText || normalizedText.length > MAX_INGREDIENT_TEXT_LENGTH) {
+      setInvalid(true);
+      return;
+    }
+    setActive(normalizedText);
     setAnalysisSource(source === 'manual' ? 'paste' : source === 'remote' ? 'provider' : 'ocr');
     setAnalysisReviewed(true);
     setEditing(false);
     if (barcode && source !== 'remote') {
-      writeInciOverlayEntry(barcode, text, accountId, { source, reviewed: true });
-      setSaved(true);
+      setSaved(writeInciOverlayEntry(barcode, normalizedText, accountId, { source, reviewed: true }));
     } else {
       setSaved(false);
     }
-    onIngredientsRef.current?.(text, { source, reviewed: true });
+    onIngredientsRef.current?.(normalizedText, { source, reviewed: true });
   };
 
   // ---- Missing-INCI external fallback --------------------------------------
@@ -173,8 +194,9 @@ export function CoursesIngredientPanel({
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     setLookupStatus('looking');
-    lookupInciForBarcode(barcode)
+    lookupInciForBarcode(barcode, { signal: controller.signal })
       .then((result) => {
         if (cancelled) return;
         if (result.kind === 'found') {
@@ -189,8 +211,9 @@ export function CoursesIngredientPanel({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [barcode, active, lookupNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accountId, barcode, active, lookupNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEditor = () => {
     setDraft(active ?? '');
@@ -200,7 +223,7 @@ export function CoursesIngredientPanel({
 
   const submit = () => {
     const text = draft.trim();
-    if (text.length < 2 || splitInciList(text).length === 0) {
+    if (text.length < 2 || text.length > MAX_INGREDIENT_TEXT_LENGTH || splitInciList(text).length === 0) {
       setInvalid(true);
       return;
     }
@@ -348,6 +371,7 @@ export function CoursesIngredientPanel({
             }}
             placeholder={im.pastePlaceholder}
             rows={4}
+            maxLength={MAX_INGREDIENT_TEXT_LENGTH}
             autoFocus
             className="w-full resize-y rounded-xl border border-outline-variant bg-surface px-3 py-2 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
             aria-label={im.pastePlaceholder}

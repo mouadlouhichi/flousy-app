@@ -1,5 +1,6 @@
 /** Account-scoped, bounded local INCI overlays. */
 
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 import { gtinIdentity } from './gtin';
 
 const LEGACY_OVERLAY_KEY = 'smartjib_inci_overlay';
@@ -20,6 +21,22 @@ function scope(uid: string | null | undefined): string {
 
 function overlayKey(uid: string | null | undefined): string {
   return `smartjib_inci_overlay:v2:${encodeURIComponent(scope(uid))}`;
+}
+
+/** Listen for another tab changing this account's overlay map. The browser does
+ * not fire `storage` in the tab that performed the write; local callers already
+ * update their own component state, while this closes the cross-tab gap. */
+export function subscribeInciOverlay(
+  uid: string | null | undefined,
+  onChange: () => void,
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const key = overlayKey(uid);
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === key) onChange();
+  };
+  window.addEventListener('storage', handleStorage);
+  return () => window.removeEventListener('storage', handleStorage);
 }
 
 function identity(barcode: string): string {
@@ -54,10 +71,11 @@ export function readInciOverlay(uid?: string | null): InciOverlayMap {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
     const valid: InciOverlayMap = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!value || typeof value !== 'object') continue;
+    const entries = Object.entries(parsed as Record<string, unknown>).slice(-OVERLAY_MAX_ENTRIES);
+    for (const [key, value] of entries) {
+      if (!value || typeof value !== 'object' || key.length > 200) continue;
       const item = value as Partial<InciOverlayEntry>;
-      if (typeof item.text !== 'string' || !item.text.trim()) continue;
+      if (typeof item.text !== 'string' || !item.text.trim() || item.text.length > MAX_INGREDIENT_TEXT_LENGTH) continue;
       if (item.source !== 'manual' && item.source !== 'ocr') continue;
       valid[key] = {
         text: item.text.trim(),
@@ -83,10 +101,12 @@ export function writeInciOverlayEntry(
   metadata: { source?: 'manual' | 'ocr'; reviewed?: boolean } = {},
 ): boolean {
   try {
-    const map = readInciOverlay(uid);
+    const normalizedText = text.trim();
     const key = identity(barcode);
+    if (!key || key.length > 200 || !normalizedText || normalizedText.length > MAX_INGREDIENT_TEXT_LENGTH) return false;
+    const map = readInciOverlay(uid);
     map[key] = {
-      text: text.trim(),
+      text: normalizedText,
       source: metadata.source ?? 'manual',
       reviewed: metadata.reviewed ?? metadata.source !== 'ocr',
       updatedAt: new Date().toISOString(),
