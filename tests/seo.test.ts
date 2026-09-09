@@ -45,6 +45,17 @@ describe('SEO and GEO configuration', () => {
     assert.ok(llmsText.includes(pricingAnswer));
   });
 
+  it('publishes llms.txt as Markdown with detectable links', () => {
+    // Lighthouse's agentic-browsing audit requires llms.txt to be Markdown
+    // with an H1 and real `[label](url)` links — bare URLs are not counted.
+    assert.match(llmsText, /^# .+/m);
+    const markdownLinks = llmsText.match(/\[[^\]]+\]\(https:\/\/[^)]+\)/g) ?? [];
+    assert.ok(
+      markdownLinks.length >= 10,
+      `llms.txt should publish Markdown links, found ${markdownLinks.length}`,
+    );
+  });
+
   it('publishes public routes while excluding private routes from the sitemap', () => {
     const urls = sitemap().map((entry) => entry.url);
     assert.ok(urls.includes(SITE_URL));

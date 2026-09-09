@@ -1,6 +1,6 @@
 # SmartJib – Private Budget Tracker
 
-SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.
+> SmartJib is a private budget tracker that separates what money is for—needs, wants, and savings—from where money is held—bank, home, or wallet. It supports 12 currencies and 4 budgeting strategies: 50/30/20, zero-based budgeting, envelope budgeting, and pay-yourself-first. SmartJib does not connect to your bank; you enter transactions manually. Account data is cached locally and synced to Firebase when you sign in.
 
 ## Key Features
 
@@ -17,25 +17,25 @@ SmartJib is a private budget tracker that separates what money is for—needs, w
 
 SmartJib’s core budget is free with no time limit. Eligible accounts can start one 90-day Pro trial without a card; it does not renew automatically, and billing is not currently enabled.
 
-## Links
+## Pages
 
-- Website: https://smartjib.app
-- Features: https://smartjib.app/features
-- Budget Tracker MAD & Dirham: https://smartjib.app/features/multi-currency-mad
-- Bank, Home, Wallet Tracking: https://smartjib.app/features/track-bank-home-wallet
-- Expense Tracking: https://smartjib.app/features/expense-tracking
-- No Bank Connection Privacy: https://smartjib.app/features/no-bank-connection
-- Budgeting Methods: https://smartjib.app/budgeting-methods
-- 50/30/20 Rule: https://smartjib.app/budgeting-methods/50-30-20-rule
-- Zero-Based Budgeting: https://smartjib.app/budgeting-methods/zero-based-budgeting
-- Envelope Budgeting: https://smartjib.app/budgeting-methods/envelope-budgeting
-- Pay Yourself First: https://smartjib.app/budgeting-methods/pay-yourself-first
-- Privacy Policy: https://smartjib.app/privacy
-- Terms of Service: https://smartjib.app/terms
+- [SmartJib home](https://smartjib.app): Private budget tracker for needs, wants, savings, bank, home, and wallet.
+- [Features](https://smartjib.app/features): Overview of SmartJib budgeting features.
+- [Budget tracker with MAD and dirham support](https://smartjib.app/features/multi-currency-mad): Multi-currency budgeting in MAD, dirham, and 10 more currencies.
+- [Track bank, home, and wallet money](https://smartjib.app/features/track-bank-home-wallet): See where money is held separately from what it is for.
+- [Expense tracking](https://smartjib.app/features/expense-tracking): Manual expense tracking without bank connections.
+- [No bank connection privacy](https://smartjib.app/features/no-bank-connection): Why SmartJib never connects to your bank.
+- [Budgeting methods](https://smartjib.app/budgeting-methods): Compare the 4 budgeting strategies SmartJib supports.
+- [50/30/20 rule](https://smartjib.app/budgeting-methods/50-30-20-rule): Budgeting guide for the 50/30/20 rule.
+- [Zero-based budgeting](https://smartjib.app/budgeting-methods/zero-based-budgeting): Budgeting guide for zero-based budgeting.
+- [Envelope budgeting](https://smartjib.app/budgeting-methods/envelope-budgeting): Budgeting guide for envelope budgeting.
+- [Pay yourself first](https://smartjib.app/budgeting-methods/pay-yourself-first): Budgeting guide for pay-yourself-first.
+- [Privacy Policy](https://smartjib.app/privacy): How SmartJib handles personal and budgeting data.
+- [Terms of Service](https://smartjib.app/terms): Terms of using SmartJib.
 
 ## Budgeting Guides
 
-- Purpose vs. money location: https://smartjib.app/blog/what-its-for-vs-where-it-is
-- Choosing a budgeting strategy: https://smartjib.app/blog/pick-a-budgeting-style
-- Tracking cash and wallet spending: https://smartjib.app/blog/track-cash-wallet-spending
-- All guides: https://smartjib.app/blog
+- [What money is for vs. where it is](https://smartjib.app/blog/what-its-for-vs-where-it-is): Purpose vs. money location, explained.
+- [Pick a budgeting style](https://smartjib.app/blog/pick-a-budgeting-style): Choosing a budgeting strategy.
+- [Track cash and wallet spending](https://smartjib.app/blog/track-cash-wallet-spending): Tracking cash and wallet spending.
+- [All budgeting guides](https://smartjib.app/blog): Every SmartJib budgeting guide.
