@@ -44,6 +44,21 @@ service cloud.firestore {
     function optionalText(data, key, maxBytes) {
       return !(key in data) || (data[key] is string && data[key].size() <= maxBytes);
     }
+    // Wrong-result reports from the scan flow: a bounded, write-once record a
+    // signed-in account files about a lookup that resolved to the wrong
+    // product. Review happens through an admin path that bypasses rules.
+    function validProductReportDocument(data) {
+      return data.keys().hasOnly([
+          'barcode', 'resolvedName', 'note', 'domain', 'locale', 'createdAt'])
+        && boundedText(data.barcode, 20)
+        && boundedText(data.resolvedName, 200)
+        && optionalText(data, 'note', 500)
+        && optionalText(data, 'domain', 32)
+        && optionalText(data, 'locale', 8)
+        && data.createdAt is string
+        && data.createdAt.size() > 0
+        && data.createdAt.size() <= 40;
+    }
     function validProductDocument(data) {
       // Rules cannot iterate arbitrary map values, so provenance has a fixed key
       // set and the entries that affect assessment/routing are checked explicitly.
@@ -1166,6 +1181,16 @@ service cloud.firestore {
               && incoming().revision == existing().revision + 1))
           && incoming().lastMutationId != existing().get('lastMutationId', '');
         allow delete: if owner(uid);
+      }
+
+      // Wrong-result reports from the scan flow: owner-scoped, write-once,
+      // bounded shape. Clients never read another account's reports; review
+      // happens through an admin path that bypasses these rules.
+      match /productReports/{reportId} {
+        allow read: if owner(uid);
+        allow create: if owner(uid)
+          && validProductReportDocument(incoming());
+        allow update, delete: if false;
       }
     }
 

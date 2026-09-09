@@ -167,6 +167,37 @@ describe('shared scanner camera UX contract', () => {
     assert.doesNotMatch(submitBody, /stop\(\)/);
   });
 
+  it('stop really stops: teardown resets the preview state so Start is reachable', () => {
+    // The panel header button toggles on `running`; if teardown left the
+    // stream marked live, the button stayed on Stop and the camera could
+    // never be restarted.
+    const tearDownBody = hook.slice(
+      hook.indexOf('const tearDown ='),
+      hook.indexOf('const stop ='),
+    );
+    assert.ok(tearDownBody.length > 0, 'tearDown() block not found');
+    assert.match(tearDownBody, /setStreamLive\(false\)/);
+    assert.match(scanner, /if \(running\) stop\(\);\s*else void start\(\);/);
+  });
+
+  it('offers a wrong-result report and keeps qty/price/add on one row', () => {
+    const courses = readFileSync(
+      new URL('../src/components/dashboard/screens/courses-screen.tsx', import.meta.url),
+      'utf8',
+    );
+    // The pending card exposes the report control wired to the shared
+    // submitter, with localized sent/saved-offline confirmations.
+    assert.match(courses, /submitProductReport/);
+    assert.match(courses, /c\.reportWrong\b/);
+    assert.match(courses, /c\.reportSent/);
+    assert.match(courses, /c\.reportSavedOffline/);
+    // Qty + price + Add share a single non-wrapping row; the price field
+    // flexes into the remaining space instead of wrapping to a second line.
+    assert.match(courses, /mt-3 flex items-center gap-2">\s*\n\s*<QtyControl/);
+    assert.match(courses, /min-w-0 flex-1 bg-surface text-right/);
+    assert.doesNotMatch(courses, /mt-3 flex flex-wrap items-center gap-3/);
+  });
+
   it('keeps the Add-Expense scan-product entry and its shared scanner', () => {
     const modal = readFileSync(
       new URL('../src/components/modals/ExpenseModal.tsx', import.meta.url),

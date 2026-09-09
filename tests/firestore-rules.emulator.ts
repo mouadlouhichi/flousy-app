@@ -1650,3 +1650,40 @@ describe('darat circle create transaction', () => {
     }));
   });
 });
+
+describe('wrong-result product report rules', () => {
+  const productReport = (overrides: Record<string, unknown> = {}) => ({
+    barcode: '4006381333931',
+    resolvedName: 'Wrong product name',
+    note: 'This is a different product',
+    domain: 'food',
+    locale: 'en',
+    createdAt: '2026-09-09T12:00:00.000Z',
+    ...overrides,
+  });
+
+  it('accepts a bounded report and only exposes it to its owner', async () => {
+    await assertSucceeds(setDoc(doc(asUser('alice'), 'users/alice/productReports/r-1'), productReport()));
+    await assertSucceeds(getDoc(doc(asUser('alice'), 'users/alice/productReports/r-1')));
+    await assertFails(getDoc(doc(asUser('bob'), 'users/alice/productReports/r-1')));
+  });
+
+  it('rejects unknown keys and empty or oversized required fields', async () => {
+    const mine = 'users/alice/productReports';
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-2`), productReport({ extra: 'x' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-3`), productReport({ barcode: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-4`), productReport({ resolvedName: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-5`), productReport({ note: 'x'.repeat(501) })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-6`), productReport({ createdAt: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-7`), productReport({ createdAt: 12 })));
+  });
+
+  it('is write-once: clients cannot update or delete a filed report', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/alice/productReports/r-8'), productReport());
+    });
+    const mine = doc(asUser('alice'), 'users/alice/productReports/r-8');
+    await assertFails(setDoc(mine, productReport({ note: 'edited' }), { merge: true }));
+    await assertFails(deleteDoc(mine));
+  });
+});

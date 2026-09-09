@@ -161,6 +161,9 @@ export function useBarcodeScanner({
       track.stop();
     });
     if (videoRef.current) videoRef.current.srcObject = null;
+    // The preview state must follow the teardown, or the panel's Stop button
+    // stays in its "running" branch and the camera can never be restarted.
+    setStreamLive(false);
     torchOnRef.current = false;
     setTorchOn(false);
     setTorchAvailable(false);

@@ -11,6 +11,7 @@ import { trackEvent } from '@/lib/analytics';
 import { isMoroccanBarcode, round2, sessionUnits, summarizeQuality } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { postCourseSession } from '@/lib/db';
+import { submitProductReport } from '@/lib/product-report';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
@@ -1077,10 +1078,33 @@ function useCosmeticQualityPreview(
 }
 
 function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredientsText, onFormChange }: PendingCardProps) {
-  const { messages: m } = useLanguage();
+  const { messages: m, language } = useLanguage();
   const { user } = useDashboard();
   const c = m.courses;
   const needsName = pending.source === 'manual';
+
+  // Wrong-result report: lightweight feedback loop for bad scan lookups.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNote, setReportNote] = useState('');
+  const [reportOutcome, setReportOutcome] = useState<'idle' | 'sending' | 'stored' | 'saved-offline'>('idle');
+  useEffect(() => {
+    setReportOpen(false);
+    setReportNote('');
+    setReportOutcome('idle');
+  }, [pending.barcode, pending.name]);
+
+  const submitReport = () => {
+    if (!pending.barcode || reportOutcome === 'sending') return;
+    setReportOutcome('sending');
+    void submitProductReport({
+      barcode: pending.barcode,
+      resolvedName: pending.name,
+      note: reportNote,
+      domain: pending.domain,
+      locale: language,
+    }, { uid: user?.uid ?? null })
+      .then((outcome) => setReportOutcome(outcome));
+  };
 
   // Cosmetic quality preview for the chip: the record's INCI list (or the
   // per-device overlay the panel would fall back to), cosmetic records only.
@@ -1165,33 +1189,85 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </button>
       </div>
 
-      {/* Quantity + price — the point of this step, so it comes first. */}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      {/* Quantity + price — the point of this step, so it comes first.
+          One row at every width: the stepper and the Add button are fixed,
+          the price field absorbs the remaining space instead of wrapping. */}
+      <div className="mt-3 flex items-center gap-2">
         <QtyControl value={qty} onChange={onQty} />
 
-        <div className="flex items-center gap-2">
-          <Input
-            value={price}
-            onChange={(e) => onPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-            placeholder="0.00"
-            inputMode="decimal"
-            autoFocus={!needsName}
-            dir="ltr"
-            aria-label={c.unitPrice}
-            className="w-32 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
-          />
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={resolving}
-            className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
-          >
-            <AppIcon name="add" className="size-4" />
-            {c.add}
-          </button>
-        </div>
+        <Input
+          value={price}
+          onChange={(e) => onPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
+          onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+          placeholder="0.00"
+          inputMode="decimal"
+          autoFocus={!needsName}
+          dir="ltr"
+          aria-label={c.unitPrice}
+          className="min-w-0 flex-1 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
+        />
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={resolving}
+          className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
+        >
+          <AppIcon name="add" className="size-4" />
+          {c.add}
+        </button>
       </div>
+
+      {/* Wrong-result report — quick feedback loop for bad scan lookups. */}
+      {pending.barcode && !needsName && (
+        <div className="mt-2.5">
+          {reportOutcome === 'stored' || reportOutcome === 'saved-offline' ? (
+            <p className="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
+              <AppIcon name="check" className="size-3.5 text-primary" />
+              {reportOutcome === 'stored' ? c.reportSent : c.reportSavedOffline}
+            </p>
+          ) : reportOpen ? (
+            <form
+              onSubmit={(event) => { event.preventDefault(); submitReport(); }}
+              className="flex flex-col gap-1.5"
+            >
+              <span className="font-label-md text-label-md text-on-surface">{c.reportWrongTitle}</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={reportNote}
+                  onChange={(e) => setReportNote(e.target.value)}
+                  placeholder={c.reportNotePlaceholder}
+                  maxLength={500}
+                  className="min-w-0 flex-1 bg-surface"
+                />
+                <button
+                  type="submit"
+                  disabled={reportOutcome === 'sending'}
+                  className="flex h-9 shrink-0 items-center rounded-xl border border-outline-variant bg-surface px-4 font-label-md text-label-md text-on-surface hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+                >
+                  {c.reportSend}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setReportOpen(false); setReportNote(''); }}
+                  aria-label={m.common.close}
+                  className="tap-target shrink-0 p-1 text-on-surface-variant hover:text-on-surface"
+                >
+                  <AppIcon name="close" className="size-4" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <AppIcon name="flag" className="size-3.5" />
+              {c.reportWrong}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Label-knowledge accordion — domain-aware preview + expandable panel.
           Cosmetics get the INCI score ring + glance; food gets the coverage
