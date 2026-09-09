@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   collection,
   doc,
@@ -67,8 +68,9 @@ export function DaratScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, loading: authLoading } = useAuth();
-  const { messages: m, intlLocale } = useLanguage();
+  const { messages: m, t, intlLocale } = useLanguage();
   const { currency: userCurrency } = useCurrency();
+  const reduceMotion = useReducedMotion();
   const db = getFirestore();
 
   const isPro = isProUser(profile);
@@ -113,6 +115,12 @@ export function DaratScreen() {
     const cleaned = next.pathname + (next.search ? next.search : '');
     window.history.replaceState({}, '', cleaned);
   }, [searchParams, joinInitialCode]);
+
+  // Opening a circle is a forward navigation: land at the top, exactly
+  // like the dashboard shell does on a pathname change.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, [view]);
 
   // Subscribe to the user's circles pointer + scan the shared collection for
   // circles the user organized. Each source is independent: a missing
@@ -386,6 +394,10 @@ export function DaratScreen() {
           const inviteFields = {
             circleId: circleRef.id,
             phone: member.phone,
+            // The name the organizer typed. The roster shows it until the
+            // invitee accepts — without it a pending seat renders as an
+            // opaque placeholder instead of a person.
+            displayName: member.displayName,
             invitedByUid: user.uid,
             expiresAt,
             acceptedAt: null,
@@ -499,6 +511,17 @@ export function DaratScreen() {
     }
   }, [db, user]);
 
+  // The in-page list <-> detail switch gets the same push-transition feel
+  // the shell gives routed pages: the outgoing view fades while the incoming
+  // one slides up. `mode="wait"` keeps the two from overlapping while their
+  // heights differ, and `useReducedMotion` collapses it to an instant swap.
+  const viewMotion = {
+    initial: reduceMotion ? false : { opacity: 0, y: 10 },
+    animate: reduceMotion ? undefined : { opacity: 1, y: 0 },
+    exit: reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -6 },
+    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const },
+  };
+
   // Pro gate — the feature is locked for non-Pro users. Rendered AFTER
   // all hooks so we never violate the rules of hooks.
   if (!isPro) {
@@ -521,32 +544,42 @@ export function DaratScreen() {
     const circle = circles.find((c) => c.id === view.circleId);
     if (!circle) {
       return (
-        <div className="flex flex-col gap-3">
-          <Alert variant="destructive">
-            <AlertTitle>{m.errors.notFoundTitle}</AlertTitle>
-            <AlertDescription>{m.errors.notFoundDescription}</AlertDescription>
-          </Alert>
-          <button
-            type="button"
-            onClick={() => setView({ kind: 'list' })}
-            className="self-start text-sm font-semibold text-primary underline"
-          >
-            {m.common.back}
-          </button>
-        </div>
+        <AnimatePresence initial={false} mode="wait">
+          <motion.div key="detail-missing" {...viewMotion}>
+            <div className="flex flex-col gap-3">
+              <Alert variant="destructive">
+                <AlertTitle>{m.errors.notFoundTitle}</AlertTitle>
+                <AlertDescription>{m.errors.notFoundDescription}</AlertDescription>
+              </Alert>
+              <button
+                type="button"
+                onClick={() => setView({ kind: 'list' })}
+                className="self-start text-sm font-semibold text-primary underline"
+              >
+                {m.common.back}
+              </button>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       );
     }
     return (
-      <DaratDetailScreen
-        circle={circle}
-        onBack={() => setView({ kind: 'list' })}
-        onEdit={handleEdit}
-      />
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div key={`detail-${circle.id}`} {...viewMotion}>
+          <DaratDetailScreen
+            circle={circle}
+            onBack={() => setView({ kind: 'list' })}
+            onEdit={handleEdit}
+          />
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <AnimatePresence initial={false} mode="wait">
+      <motion.div key="list" {...viewMotion}>
+      <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -628,8 +661,7 @@ export function DaratScreen() {
                   {m.darat.list.pot.replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))}
                 </p>
                 <p className="text-xs text-on-surface-variant">
-                  {m.darat.list.membersCount
-                    .replace('{count}', String(circle.memberOrder.length))}
+                  {t(m.darat.list.membersCount, { count: circle.memberOrder.length })}
                   {' · '}
                   {circle.rotation === 'random' && m.darat.create.rotationRandom}
                   {circle.rotation === 'fixed' && m.darat.create.rotationFixed}
@@ -678,6 +710,8 @@ export function DaratScreen() {
           initialCode={joinInitialCode}
         />
       )}
-    </div>
+      </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

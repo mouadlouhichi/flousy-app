@@ -141,6 +141,12 @@ export interface DaratInvite {
   circleId: string;
   /** Loose phone number (8+ digits, separators allowed). See `PHONE_RE`. */
   phone: string;
+  /**
+   * The name the organizer typed for this invitee. The roster shows it until
+   * the invitee accepts and their own member row exists — without it the
+   * pending seat renders as an opaque placeholder instead of a person.
+   */
+  displayName: string;
   invitedByUid: string;
   /** ISO timestamp. */
   expiresAt: string;
@@ -618,6 +624,9 @@ export function normalizeDaratInvite(raw: Partial<DaratInvite> & { id: string })
     // Phone may be missing on documents predating the phone migration;
     // the join flow tolerates that — the gate is the id, not the phone.
     phone: typeof raw.phone === 'string' ? raw.phone : '',
+    // Same tolerance for the name: invites created before this field existed
+    // simply fall back to the phone on the roster.
+    displayName: typeof raw.displayName === 'string' ? raw.displayName : '',
     invitedByUid: typeof raw.invitedByUid === 'string' ? raw.invitedByUid : '',
     expiresAt: typeof raw.expiresAt === 'string' ? raw.expiresAt : '',
     acceptedAt: typeof raw.acceptedAt === 'string' ? raw.acceptedAt : null,

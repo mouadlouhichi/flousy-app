@@ -37,7 +37,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 export function DaratWidget() {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { messages: m, intlLocale } = useLanguage();
+  const { messages: m, t, intlLocale } = useLanguage();
   const db = getFirestore();
   const [circles, setCircles] = useState<DaratCircle[] | null>(null);
 
@@ -162,7 +162,7 @@ export function DaratWidget() {
           {m.darat.monthlyHook.widgetTitle}
         </h3>
         <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-          {m.darat.monthlyHook.activeIn.replace('{count}', String(myCircles.length))}
+          {t(m.darat.monthlyHook.activeIn, { count: myCircles.length })}
         </span>
       </div>
       {nextEvent && (

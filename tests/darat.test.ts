@@ -465,6 +465,14 @@ describe('darat: normalizers', () => {
     assert.equal(inv.status, 'pending');
     assert.equal(inv.acceptedAt, null);
     assert.equal(inv.phone, '');
+    // Invites predating the roster-name field keep working; the roster
+    // falls back to the phone for those seats.
+    assert.equal(inv.displayName, '');
+  });
+
+  it('keeps the name the organizer typed on the invite', () => {
+    const inv = normalizeDaratInvite({ id: 'i2', displayName: 'Auntie', phone: '+212 6 12 34 56 78' });
+    assert.equal(inv.displayName, 'Auntie');
   });
 });
 

@@ -1589,6 +1589,8 @@ describe('darat circle create transaction', () => {
         const inviteFields = {
           circleId: circleRef.id,
           phone: invite.phone,
+          // The roster shows this name until the invitee accepts.
+          displayName: invite.name,
           invitedByUid: 'org',
           expiresAt: new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString(),
           acceptedAt: null,

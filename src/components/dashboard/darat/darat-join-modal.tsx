@@ -105,9 +105,14 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
         // row at all.
         tx.set(memberRef, {
           uid: user.uid,
-          // The rules require 1-100 chars; a blank account display name
-          // falls through to the email instead of a refused row.
-          displayName: (user.displayName && user.displayName.trim()) || user.email || 'Member',
+          // The rules require 1-100 chars. A blank account display name
+          // falls through to the name the organizer typed on the invite (so
+          // the roster keeps calling them what the circle calls them), then
+          // the email — never a refused empty row.
+          displayName: (user.displayName && user.displayName.trim())
+            || invite.displayName
+            || user.email
+            || 'Member',
           email: (user.email ?? '').toLowerCase(),
           phone: invite.phone ?? '',
           status: 'active',

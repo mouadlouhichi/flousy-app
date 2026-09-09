@@ -2580,7 +2580,12 @@
       "close": "Close circle",
       "closeConfirm": "Close this circle? Once closed, no more rounds run and no payouts are made.",
       "inviteCode": "Invite code",
-      "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page."
+      "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
+      "waiting": "Waiting to join",
+      "waitingCount": "{count} waiting",
+      "inviteLinkAria": "Copy invite link for {name}",
+      "leftBadge": "Left",
+      "rosterLoading": "Loading members…"
     },
     "join": {
       "title": "Join a Darat circle",

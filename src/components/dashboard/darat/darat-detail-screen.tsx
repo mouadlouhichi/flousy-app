@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/currency';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { normalizeDaratCircle, normalizeDaratMember, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { normalizeDaratCircle, normalizeDaratInvite, normalizeDaratMember, type DaratCircle, type DaratInvite, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
 
 interface Props {
@@ -47,6 +47,9 @@ function todayYmd(): string {
  */
 function formatMemberId(uid: string, locale: string): string {
   if (uid.includes('@')) return uid;
+  // A phone placeholder (the invitee's number, waiting for them to join)
+  // is readable as-is — truncating it is how the roster lost the number.
+  if (/^[+]?[\d\s().-]{8,}$/.test(uid)) return uid;
   // The trailing uid slice is the user-facing identifier on this surface;
   // we deliberately don't prefix with the localized "Name" word here —
   // that prefix only matters in the editor, not when reading back.
@@ -55,11 +58,17 @@ function formatMemberId(uid: string, locale: string): string {
 
 export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   const { user } = useAuth();
-  const { messages: m, intlLocale, language } = useLanguage();
+  const { messages: m, t, intlLocale, language } = useLanguage();
   const db = getFirestore();
 
   const [circle, setCircle] = useState<DaratCircle>(initial);
   const [members, setMembers] = useState<Record<string, DaratMember>>({});
+  // Roster + invite rows arrive over separate subscriptions; the roster
+  // skeleton shows until the first members snapshot lands.
+  const [membersLoaded, setMembersLoaded] = useState(false);
+  const [invites, setInvites] = useState<DaratInvite[]>([]);
+  // Per-invite "Copied!" feedback on the re-share button (auto-clears).
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -82,8 +91,30 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         next[docSnap.id] = member;
       });
       setMembers(next);
+      setMembersLoaded(true);
     });
-    return () => { unsubCircle(); unsubMembers(); };
+    // Invites carry the name the organizer typed for each invitee plus the
+    // join code, so the roster can label pending seats with a person (not a
+    // truncated placeholder) and the organizer can re-copy a share link at
+    // any time — the create modal shows the links exactly once. Only the
+    // organizer may list invites; for everyone else the read is denied and
+    // the roster simply falls back to what the member rows carry.
+    const unsubInvites = onSnapshot(
+      collection(db, 'circles', circle.id, 'invites'),
+      (snap) => {
+        const rows: DaratInvite[] = [];
+        snap.forEach((docSnap) => {
+          rows.push(normalizeDaratInvite({ id: docSnap.id, ...(docSnap.data() as Record<string, unknown>) }));
+        });
+        setInvites(rows);
+      },
+      () => {
+        // Expected for non-organizers (rules deny the listing); nothing to
+        // surface — the roster degrades to phone labels for pending seats.
+        setInvites([]);
+      },
+    );
+    return () => { unsubCircle(); unsubMembers(); unsubInvites(); };
   }, [db, circle.id]);
 
   const isOrganizer = user?.uid === circle.organizerId;
@@ -91,6 +122,60 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   const today = todayYmd();
   const currentRoundIdx = circle.rounds.findIndex((r) => r.date >= today);
   const myPayoutIdx = circle.rounds.findIndex((r) => r.recipientId === user?.uid);
+
+  // Pending invitees hold a seat in memberOrder (keyed by the phone the
+  // organizer typed) with no active member row yet; the matching invite
+  // carries the name they were invited under plus the join code.
+  const digitsOnly = (value: string) => value.replace(/\D/g, '');
+  const inviteFor = (seatId: string): DaratInvite | undefined => {
+    const digits = digitsOnly(seatId);
+    return invites.find(
+      (inv) => inv.phone === seatId || (digits.length > 0 && digitsOnly(inv.phone) === digits),
+    );
+  };
+  // Resolve a seat to a readable label: the joined member's name, else the
+  // name the organizer typed on the invite, else the raw seat id (a phone
+  // placeholder renders whole; only opaque uids are truncated).
+  const displayNameFor = (seatId: string): string => {
+    const member = members[seatId];
+    if (member?.displayName) return member.displayName;
+    const invite = inviteFor(seatId);
+    if (invite?.displayName) return invite.displayName;
+    return formatMemberId(seatId, language);
+  };
+  const pendingSeats = circle.memberOrder.filter((seatId) => {
+    const member = members[seatId];
+    return !member || member.status !== 'active';
+  });
+
+  // Re-share an invite link. The create modal shows each link exactly once;
+  // this is the organizer's way back to it afterwards.
+  const copyInviteLink = useCallback(async (invite: DaratInvite) => {
+    const link = typeof window === 'undefined'
+      ? `/dashboard/darat?join=${invite.id}`
+      : `${window.location.origin}/dashboard/darat?join=${invite.id}`;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else if (typeof document !== 'undefined') {
+        const ta = document.createElement('textarea');
+        ta.value = link;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedInviteId(invite.id);
+      window.setTimeout(() => {
+        setCopiedInviteId((current) => (current === invite.id ? null : current));
+      }, 1500);
+    } catch (err) {
+      console.error('[darat] clipboard copy failed', err);
+    }
+  }, []);
 
   const recordPayment = useCallback(async (roundNumber: number, paid: boolean) => {
     if (!user) return;
@@ -279,35 +364,91 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
 
       <Card className="gap-3 p-4">
         <h2 className="text-sm font-bold text-on-surface">
-          {m.darat.list.membersCount.replace('{count}', String(circle.memberOrder.length))}
+          {t(m.darat.list.membersCount, { count: circle.memberOrder.length })}
+          {pendingSeats.length > 0 && (
+            <span className="font-medium text-on-surface-variant">
+              {' · '}
+              {t(m.darat.detail.waitingCount, { count: pendingSeats.length })}
+            </span>
+          )}
         </h2>
-        <ul className="flex flex-col gap-2">
-          {circle.memberOrder.map((uid) => {
-            const member = members[uid];
-            const isMe = uid === user?.uid;
+        {!membersLoaded ? (
+          // The roster arrives on its own subscription; until the first
+          // snapshot lands, hold the layout with quiet placeholder rows
+          // instead of an empty list that flashes "nobody".
+          <ul className="flex flex-col gap-2" aria-busy="true" aria-label={m.darat.detail.rosterLoading}>
+            {[0, 1].map((i) => (
+              <li key={i} className="flex items-center gap-3 text-sm">
+                <span className="size-6 animate-pulse rounded-md bg-surface-variant" />
+                <span className="h-4 w-28 animate-pulse rounded-md bg-surface-variant" />
+                <span className="ms-auto h-5 w-16 animate-pulse rounded-full bg-surface-variant" />
+              </li>
+            ))}
+          </ul>
+        ) : (
+        <ul className="flex flex-col gap-1.5">
+          {circle.memberOrder.map((seatId, index) => {
+            const member = members[seatId];
+            const invite = inviteFor(seatId);
+            const isMe = seatId === user?.uid;
+            const isActive = member && member.status === 'active';
+            const seatPhone = member?.phone || invite?.phone || '';
             return (
-              <li key={uid} className="flex items-center gap-2 text-sm">
-                <AppIcon
-                  name={isMe ? 'person' : 'person_outline'}
-                  className="text-[18px] text-on-surface-variant"
-                />
-                <span className="truncate font-semibold text-on-surface">
-                  {member?.displayName || formatMemberId(uid, language)}
-                </span>
-                {member?.isOrganizer && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {m.darat.detail.organizerShort}
+              <li
+                key={seatId}
+                className="flex flex-col gap-1 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2.5 text-sm">
+                  {/* Position = the seat's place in the rotation order. */}
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-surface-container-high text-[11px] font-extrabold text-on-surface-variant">
+                    {index + 1}
                   </span>
-                )}
-                {member?.status === 'left' && (
-                  <span className="rounded-full bg-surface-variant px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                    {m.darat.detail.status.closed}
+                  <AppIcon
+                    name={isMe ? 'person' : 'person_outline'}
+                    className="text-[18px] text-on-surface-variant"
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-semibold text-on-surface">
+                      {displayNameFor(seatId)}
+                    </span>
+                    {seatPhone && (
+                      <span className="truncate text-[11px] text-on-surface-variant">
+                        {seatPhone}
+                      </span>
+                    )}
                   </span>
+                  {member?.isOrganizer && (
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                      {m.darat.detail.organizerShort}
+                    </span>
+                  )}
+                  {!member && (
+                    <span className="shrink-0 rounded-full bg-tertiary-container/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                      {m.darat.detail.waiting}
+                    </span>
+                  )}
+                  {member?.status === 'left' && (
+                    <span className="shrink-0 rounded-full bg-surface-variant px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                      {m.darat.detail.leftBadge}
+                    </span>
+                  )}
+                </div>
+                {isOrganizer && !isActive && invite && invite.status === 'pending' && (
+                  <button
+                    type="button"
+                    onClick={() => copyInviteLink(invite)}
+                    className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 sm:self-auto"
+                    aria-label={t(m.darat.detail.inviteLinkAria, { name: displayNameFor(seatId) })}
+                  >
+                    <AppIcon name={copiedInviteId === invite.id ? 'check' : 'copy'} className="text-[14px]" />
+                    {copiedInviteId === invite.id ? m.darat.create.copied : m.darat.create.copyLink}
+                  </button>
                 )}
               </li>
             );
           })}
         </ul>
+        )}
       </Card>
 
       <section className="flex flex-col gap-3">
@@ -317,7 +458,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
             const myPayment = round.payments[user?.uid ?? ''] ?? 'pending';
             const isUpcoming = round.number >= (currentRoundIdx >= 0 ? currentRoundIdx + 1 : circle.rounds.length + 1);
             const recipientName = round.recipientId
-              ? (members[round.recipientId]?.displayName || formatMemberId(round.recipientId, language))
+              ? displayNameFor(round.recipientId)
               : m.darat.detail.noRecipient;
             return (
               <li
