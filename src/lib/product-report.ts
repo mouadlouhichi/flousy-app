@@ -99,7 +99,11 @@ export async function submitProductReport(
     if (deps.submit) {
       await deps.submit(record, uid);
     } else {
-      const { db, auth, isFirebaseConfigured } = await import('./firebase');
+      // Firestore lives in ./firebase-db (lazy, offline-persistent); auth stays here.
+      const [{ db }, { auth, isFirebaseConfigured }] = await Promise.all([
+        import('./firebase-db'),
+        import('./firebase'),
+      ]);
       if (!isFirebaseConfigured || !db || !auth?.currentUser) {
         return 'saved-offline';
       }

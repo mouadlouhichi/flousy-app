@@ -21,8 +21,18 @@ import {
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { setAuthCookie } from './auth-status';
 import { UserProfile } from './store';
-import { getUserProfile, setUserProfile, deleteUserAccountData, deleteUserBudgetData, type DeletionReport } from './db';
+import type { DeletionReport } from './db';
 import { resolveProEntitlement } from './pro-features';
+
+/**
+ * The Firestore-backed profile/deletion helpers in ./db are loaded on demand:
+ * AuthProvider mounts on /login too, and a static import here used to put the
+ * whole Firestore SDK (~150 KiB) into the bundle of the first page every
+ * anonymous visitor loads. Every consumer below is async, so the additional
+ * await changes no control flow — the chunk arrives exactly when a signed-in
+ * user first needs their profile.
+ */
+const loadDb = () => import('./db');
 
 /** Firebase refuses destructive calls on an older session; the UI must ask for the password. */
 export class RequiresRecentLoginError extends Error {
@@ -205,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName?: string,
   ): Promise<{ profile: UserProfile | null; isNewUser: boolean }> => {
     let isNewUser = false;
+    const { getUserProfile, setUserProfile } = await loadDb();
     const read = await getUserProfile(u.uid);
     if (read.status === 'unavailable') {
       // Keep a previously verified cache visible, but never synthesize defaults
@@ -362,6 +373,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       // `householdIdChange` writes householdIds atomically server-side; the
       // computed array in `data` only mirrors the expected result locally.
+      const { setUserProfile } = await loadDb();
       await setUserProfile(user.uid, data, householdIdChange);
       const next = (prev: UserProfile | null) => (prev ? { ...prev, ...data } : null);
       setProfile(next);
@@ -412,6 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
+    const { deleteUserAccountData } = await loadDb();
     const report = await deleteUserAccountData(uid, {
       email,
       householdIds: profile?.householdIds || [],
@@ -447,6 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAllData = async (): Promise<DeletionReport> => {
     if (!user || !auth) return { removed: [], failed: [] };
     const uid = user.uid;
+    const { deleteUserBudgetData } = await loadDb();
     const report = await deleteUserBudgetData(uid);
     // Keep the local recovery copy until the cloud has confirmed every delete.
     if (report.failed.length === 0) {

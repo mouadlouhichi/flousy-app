@@ -8,59 +8,84 @@ import { LightLanguageProvider } from '@/lib/i18n-light';
 import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SkipToContentLink } from '@/components/ui/skip-to-content';
 import { Toaster } from '@/components/ui/toaster';
-import { SITE_URL } from '@/lib/seo';
+import { DEFAULT_ROBOTS, OG_IMAGE, OG_LOCALE, SITE_NAME, SITE_URL, TWITTER_CARD } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import '@fontsource-variable/cairo/wght.css';
 
 const instrumentSans = localFont({
+  // Single latin file: its unicode-range covers ASCII + Latin-1 (é è ç à « »)
+  // + œ, i.e. everything the en/fr UI renders — Arabic is served by Cairo.
+  // The latin-ext file used to be declared too, and next/font preloads every
+  // src entry, so every first visit high-priority-downloaded ~11 KiB of
+  // glyphs (ă, ș, ą… U+0100-024F) no supported language uses, competing with
+  // the hero font during LCP. Extended glyphs now fall back to the system
+  // sans for those rare cases.
   src: [
     {
       path: './fonts/instrument-sans-latin-wght-normal.woff2',
       weight: '400 700',
       style: 'normal',
     },
-    {
-      path: './fonts/instrument-sans-latin-ext-wght-normal.woff2',
-      weight: '400 700',
-      style: 'normal',
-    },
   ],
   variable: '--font-instrument',
+  // `swap` + preload: first paint happens in next/font's size-adjusted
+  // system-ui fallback (so the font never blocks LCP text), then swaps to
+  // Instrument Sans with near-zero CLS. (Measured against `optional`, which
+  // made no simulated-LCP difference and only risked never showing the brand
+  // font on slow connections.)
   display: 'swap',
   preload: true,
 });
 
+const defaultTitle = 'SmartJib - Free Private Budget Tracker & Money Manager App';
+const defaultDescription =
+  'SmartJib is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.';
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'SmartJib - Free Private Budget Tracker & Money Manager App',
+    default: defaultTitle,
     template: '%s · SmartJib',
   },
-  description:
-    'SmartJib is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.',
+  description: defaultDescription,
+  // Site-wide social defaults so every route without its own openGraph/
+  // twitter block (login, dashboard, error pages…) still unfurls with the
+  // brand title, description and generated OG image. Private routes stay
+  // noindex via their own metadata; their OG tags only affect unfurls.
+  openGraph: {
+    title: defaultTitle,
+    description: defaultDescription,
+    url: '/',
+    siteName: SITE_NAME,
+    type: 'website',
+    locale: OG_LOCALE,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: TWITTER_CARD,
+    title: defaultTitle,
+    description: defaultDescription,
+    images: [OG_IMAGE.url],
+  },
+  robots: DEFAULT_ROBOTS,
   applicationName: 'SmartJib',
   authors: [{ name: 'SmartJib Team' }],
   creator: 'SmartJib Team',
   publisher: 'SmartJib',
+  category: 'finance',
+  // Kept to factual multi-word phrases. Google ignores meta keywords and
+  // Bing treats single generic words (money, free, bank…) as a spam signal,
+  // so the old list did more harm than good.
   keywords: [
     'budget tracker',
+    'private budget tracker',
     'expense manager',
-    'private budgeting',
-    'PWA',
-    'no bank connection',
     'needs wants savings budget',
     'money place tracking',
-    'budgeting',
-    'smartjib',
-    'money',
-    'free',
-    'dirham',
-    'bank',
-    'mad',
-    'start',
-    'budgeting styles',
-    'start budgeting'
+    'no bank connection',
+    'budgeting methods',
+    'multi-currency budget app',
   ],
   generator: 'Next.js',
   manifest: '/manifest.json',
@@ -132,7 +157,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <InstallPromptCapture />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* Next.js already emits apple-mobile-web-app-capable from the
+            appleWebApp metadata above; a second tag here only duplicated it. */}
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { formatCurrency, formatCurrencyParts, getCurrencySymbol } from './currency';
 import { useAuth } from './auth-context';
 import { useLanguage } from './i18n-context';
-import { useOptionalHousehold } from './household-context';
+import { useOptionalHousehold } from './household-context-lite';
 import { trackEvent } from './analytics';
 
 interface CurrencyContextType {

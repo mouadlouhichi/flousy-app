@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
@@ -94,13 +93,14 @@ export function DashboardHeader() {
         {/* Mobile Logo — the wordmark only fits alongside the month pill and
             the action buttons from ~440px; below that keep just the icon. */}
         <div className="md:hidden flex min-w-0 items-center gap-2">
-          <Image
-            src="/logo.png"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-128.png"
             alt={m.common.appName}
             width={26}
             height={28}
             className="shrink-0 object-contain"
-            priority
+            fetchPriority="high"
           />
           <span className="hidden min-[440px]:inline truncate font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
             SmartJib

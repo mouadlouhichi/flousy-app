@@ -8,7 +8,24 @@ import { useLanguage } from '@/lib/i18n-context';
 import { planDebtPayoff, type PayoffMethod } from '@/lib/insights';
 import type { MonthBudget } from '@/lib/store';
 import { ProLockedCard } from './pro-locked-card';
-import { DebtPayoffChart } from '../charts/debt-payoff-chart';
+import dynamic from 'next/dynamic';
+
+/**
+ * Recharts (~500 KB) is the heaviest dashboard dependency, and the debts
+ * route is prefetched from the overview nav — a static import would make
+ * every overview visit download and parse it (Lighthouse `unused-javascript`
+ * on /dashboard). Loaded on demand instead; the chart is an aria-hidden
+ * visual double of the payoff steps below, so the skeleton is a11y-neutral.
+ */
+const DebtPayoffChart = dynamic(
+  () => import('../charts/debt-payoff-chart').then((m) => m.DebtPayoffChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-48 w-full animate-pulse rounded-2xl bg-surface-variant/30" aria-hidden="true" />
+    ),
+  },
+);
 
 interface DebtPayoffPlannerProps {
   month: MonthBudget;

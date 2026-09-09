@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import { BlogList } from '@/components/static/blog-list';
-import { OG_IMAGE, SITE_NAME } from '@/lib/seo';
+import { JsonLd } from '@/components/seo/json-ld';
+import { BLOG_POSTS } from '@/lib/blog';
+import { DEFAULT_ROBOTS, OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/seo';
 
 const description = 'Practical guides from SmartJib about budgeting methods, money places, and building reliable spending habits.';
 
 export const metadata: Metadata = {
-  title: 'Blog',
+  // Rendered as "Budgeting Guides · SmartJib" via the root title template,
+  // matching the Open Graph / Twitter titles below. (It used to be "Blog",
+  // so the <title> and the social titles disagreed.)
+  title: 'Budgeting Guides',
   description,
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: DEFAULT_ROBOTS,
   alternates: {
     canonical: '/blog',
   },
@@ -31,6 +33,41 @@ export const metadata: Metadata = {
   },
 };
 
+const blogSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: 'SmartJib Budgeting Guides',
+  description,
+  url: `${SITE_URL}/blog`,
+  inLanguage: 'en',
+  publisher: {
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${SITE_URL}/web-app-manifest-512x512.png`,
+    },
+  },
+  blogPost: BLOG_POSTS.map((post) => ({
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.excerpt,
+    url: `${SITE_URL}/blog/${post.slug}`,
+    datePublished: post.dateTime,
+    author: {
+      '@type': 'Organization',
+      name: 'SmartJib Team',
+      url: SITE_URL,
+    },
+  })),
+};
+
 export default function BlogPage() {
-  return <BlogList />;
+  return (
+    <>
+      <JsonLd id="blog-json-ld" data={blogSchema} />
+      <BlogList />
+    </>
+  );
 }

@@ -18,6 +18,7 @@ function marketingEntry(path: string, priority: number, changeFrequency: ChangeF
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     marketingEntry('', 1, 'monthly'),
+    marketingEntry('/login', 0.4, 'monthly'),
     // New topical silos - higher priority for money pages
     marketingEntry('/features', 0.8, 'monthly'),
     marketingEntry('/features/multi-currency-mad', 0.85, 'monthly'),

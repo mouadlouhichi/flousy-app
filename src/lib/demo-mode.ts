@@ -39,16 +39,23 @@ export function isDemoMode(): boolean {
   return safeGet(DEMO_MODE_KEY) === 'true';
 }
 
+import { setAuthCookie } from './auth-status';
+
 /** Enter demo mode (used by the preview login + the demo banner CTA). */
 export function enableDemoMode(email?: string): void {
   safeSet(DEMO_MODE_KEY, 'true');
   if (email) safeSet(DEMO_EMAIL_KEY, email);
+  // src/proxy.ts sends cookie-less hits on /dashboard|/onboarding to /login —
+  // a demo session is a session, so it must carry the same gate cookie the
+  // middleware checks (Firestore Rules still guard any real data).
+  setAuthCookie(true);
 }
 
 /** Leave demo mode so the real sign-in form is reachable again. */
 export function exitDemoMode(): void {
   safeRemove(DEMO_MODE_KEY);
   safeRemove(DEMO_EMAIL_KEY);
+  setAuthCookie(false);
 }
 
 function onboardingKeyFor(uid: string): string {

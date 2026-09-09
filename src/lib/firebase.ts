@@ -1,12 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
-import {
-  getFirestore,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  type Firestore,
-} from 'firebase/firestore';
 // Analytics is loaded on demand from ./analytics (type-only import here) so
 // its chunk is not part of the dashboard's initial JavaScript.
 import type { Analytics } from 'firebase/analytics';
@@ -54,34 +47,22 @@ export const firebaseConfig = getFirebaseConfig();
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
-let db: Firestore | null = null;
 let analytics: Analytics | null = null;
 
 if (firebaseConfig) {
   try {
     app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     auth = getAuth(app);
-    // Durable IndexedDB persistence keeps shopping mutations across weak-signal
-    // reloads; multi-tab coordination prevents two tabs owning isolated caches.
-    if (typeof window !== 'undefined') {
-      try {
-        db = initializeFirestore(app, {
-          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-        });
-      } catch {
-        // Hot reload or another bundle may already have initialized Firestore.
-        db = getFirestore(app);
-      }
-    } else {
-      db = getFirestore(app);
-    }
     // Analytics is initialised lazily in ./analytics (client-only, fetched
     // the first time an event is tracked).
+    // Firestore deliberately lives in ./firebase-db: it is ~150 KiB of SDK —
+    // auth-only pages (e.g. /login, every anonymous visitor's first page)
+    // must not pay to download and parse it before they can even sign in.
   } catch (err) {
     console.warn('Firebase initialization error:', err);
   }
 }
 
-export const isFirebaseConfigured = Boolean(app && auth && db);
-export { app, auth, db, analytics };
+export const isFirebaseConfigured = Boolean(app && auth);
+export { app, auth, analytics };
 export const googleProvider = new GoogleAuthProvider();
