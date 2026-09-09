@@ -738,6 +738,7 @@
     "torchOn": "Turn on flashlight",
     "torchOff": "Turn off flashlight",
     "scannedAdded": "{name} +1 (×{qty})",
+    "finishCurrent": "Finish or skip the current product before scanning another.",
     "scanProTitle": "Barcode scanning is a Pro feature",
     "scanProHint": "With Pro, point your camera at a product — SmartJib recognizes it, fills in the name and builds your bill as you shop.",
     "scanProPerk1": "Camera scanner with instant product recognition",

@@ -220,6 +220,22 @@ function CoursesScreenInner() {
     }
 
     const canonical = parsed.value;
+    // POS behavior (main-branch parity): with a pending card open, scanning
+    // the SAME product increments its quantity; a different product must not
+    // silently replace the pending one.
+    if (pending) {
+      if (pending.gtin14 && pending.gtin14 === canonical.gtin14) {
+        const nextQty = pendingQty + 1;
+        setPendingQty(nextQty);
+        setNotice({
+          kind: 'info',
+          text: t(c.scannedAdded, { name: pending.name || pending.barcode || '', qty: nextQty }),
+        });
+        return;
+      }
+      setNotice({ kind: 'warn', text: c.finishCurrent });
+      return;
+    }
     const existing = active.items.find((line) => line.gtin14 === canonical.gtin14);
     if (existing) {
       store.setQty(existing.key, existing.qty + 1);
@@ -690,7 +706,7 @@ function CoursesScreenInner() {
           {/* Scanner — Pro feature; free plans see the upgrade card instead */}
           {scanUnlocked ? (
             <CoursesScannerPanel
-              enabled={!resolving && !pending && !notice}
+              enabled
               onCode={(candidate) => void handleCode(candidate)}
             />
           ) : (

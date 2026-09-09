@@ -738,6 +738,7 @@
     "torchOn": "Allumer la lampe",
     "torchOff": "Éteindre la lampe",
     "scannedAdded": "{name} +1 (×{qty})",
+    "finishCurrent": "Terminez ou ignorez le produit en cours avant d'en scanner un autre.",
     "scanProTitle": "Le scan de code-barres est une fonction Pro",
     "scanProHint": "Avec Pro, visez un produit avec la caméra — SmartJib le reconnaît, remplit le nom et construit votre ticket pendant vos courses.",
     "scanProPerk1": "Scanner caméra avec reconnaissance instantanée",

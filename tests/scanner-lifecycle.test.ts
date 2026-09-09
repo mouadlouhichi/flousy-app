@@ -122,6 +122,51 @@ describe('shared scanner camera UX contract', () => {
     assert.doesNotMatch(hook, /decodeFromStream\(/);
   });
 
+  it('re-arms decoding inside accept() — the camera never waits for an enabled flip', () => {
+    // Main-branch behavior: once enabled, the camera decodes continuously.
+    // accept() itself re-arms a new generation on the still-live stream, so
+    // consumers no longer toggle `enabled` to resume after a scan.
+    const acceptBody = hook.slice(
+      hook.indexOf('const accept ='),
+      hook.indexOf('const getVideoTrack'),
+    );
+    assert.ok(acceptBody.length > 0, 'accept() block not found');
+    assert.match(acceptBody, /armScannerGeneration\(acceptanceRef\.current\)/);
+    assert.match(acceptBody, /restartDecodersRef\.current\(rearmGeneration\)/);
+    assert.match(hook, /restartDecodersRef = useRef/);
+    // A stationary barcode must not machine-gun repeated accepts: the same
+    // raw camera code is suppressed inside a short re-trigger window.
+    assert.match(hook, /SAME_CODE_RETRIGGER_MS = 1500/);
+    assert.match(acceptBody, /lastAcceptedAtRef\.current < SAME_CODE_RETRIGGER_MS/);
+  });
+
+  it('keeps the course scanner always on and re-scans increment quantity', () => {
+    // The courses screen no longer gates `enabled` off during resolving,
+    // pending card, or notice — the camera stays on (main parity) while the
+    // screen simply ignores candidates it does not want.
+    const courses = readFileSync(
+      new URL('../src/components/dashboard/screens/courses-screen.tsx', import.meta.url),
+      'utf8',
+    );
+    assert.match(courses, /<CoursesScannerPanel\s*\n\s*enabled\s*\n/);
+    assert.doesNotMatch(courses, /!resolving && !pending && !notice/);
+    // POS behavior: with a pending card open, scanning the SAME product
+    // increments its quantity instead of failing or replacing the card.
+    assert.match(courses, /pending\.gtin14 === canonical\.gtin14/);
+    assert.match(courses, /setPendingQty\(nextQty\)/);
+    assert.match(courses, /c\.scannedAdded/);
+    // The manual code lookup must not stop the camera either.
+    const panel = readFileSync(
+      new URL('../src/components/ui/barcode-scanner-panel.tsx', import.meta.url),
+      'utf8',
+    );
+    const submitBody = panel.slice(
+      panel.indexOf('const submitManual'),
+      panel.indexOf('const cameraErrorText'),
+    );
+    assert.doesNotMatch(submitBody, /stop\(\)/);
+  });
+
   it('keeps the Add-Expense scan-product entry and its shared scanner', () => {
     const modal = readFileSync(
       new URL('../src/components/modals/ExpenseModal.tsx', import.meta.url),

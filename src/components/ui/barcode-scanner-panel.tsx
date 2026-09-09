@@ -158,7 +158,8 @@ export function BarcodeScannerPanel({
     event.preventDefault();
     const trimmed = manualCode.trim();
     if (!trimmed) return;
-    stop();
+    // Deliberately no camera teardown: the viewfinder stays on (main-branch
+    // behavior) — the manual lookup resolves while decoding continues.
     handleAccepted({ rawValue: trimmed, format: 'UNKNOWN', source: 'manual' });
   };
 

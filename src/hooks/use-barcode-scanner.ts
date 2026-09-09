@@ -60,6 +60,10 @@ interface VideoSettings extends MediaTrackSettings {
 const DECODE_INTERVAL_MS = 70;
 const ROI_WIDTH_RATIO = 0.82;
 const ROI_HEIGHT_RATIO = 0.38;
+/** A just-accepted camera code is suppressed for this long, so holding a
+ * product in view cannot machine-gun quantity increments; intentionally
+ * re-presenting the product (the POS gesture) always takes longer. */
+const SAME_CODE_RETRIGGER_MS = 1500;
 /** Digital zoom bounds/step for devices whose camera track has no zoom
  * capability — the feed is then scaled in CSS, exactly like the original
  * scanner behaviour (default 2× so barcodes fill the frame). */
@@ -113,6 +117,11 @@ export function useBarcodeScanner({
   const onCodeRef = useRef(onCode);
   const torchOnRef = useRef(false);
   const lastCameraCodeRef = useRef<string | null>(null);
+  const lastAcceptedAtRef = useRef(0);
+  /** Late-bound decoder restarter — `accept` re-arms decoding, but the native/
+   * zxing starters are defined later in the hook (TDZ), so they are bound here
+   * after their definitions on every render. */
+  const restartDecodersRef = useRef<(generation: number) => void>(() => undefined);
   const clearFramesRef = useRef(0);
   const pauseReasonRef = useRef<'visibility' | 'accepted' | null>(null);
 
@@ -206,16 +215,38 @@ export function useBarcodeScanner({
 
   /** Synchronously locks acceptance, then stops every decoder before the
    * consumer callback or feedback runs. The camera itself keeps streaming —
-   * re-arming restarts decoding on the same live feed with no camera restart. */
+   * decoding re-arms on the same live feed immediately (main-branch behavior:
+   * once enabled, the camera stays on), and consumer gates simply ignore
+   * candidates they do not want. */
   const accept = useCallback((candidate: BarcodeCandidate, generation: number) => {
+    const isCamera = candidate.source === 'camera-native' || candidate.source === 'camera-zxing';
+    // Same-code retrigger window — checked BEFORE the claim so a suppressed
+    // candidate never consumes the armed generation. The native path also
+    // gates on empty frames, so a stationary barcode never re-fires there.
+    if (
+      isCamera
+      && candidate.rawValue === lastCameraCodeRef.current
+      && Date.now() - lastAcceptedAtRef.current < SAME_CODE_RETRIGGER_MS
+    ) return false;
     if (!claimScannerCandidate(acceptanceRef.current, generation, enabledRef.current)) return false;
     pauseReasonRef.current = 'accepted';
-    if (candidate.source === 'camera-native' || candidate.source === 'camera-zxing') {
+    if (isCamera) {
       lastCameraCodeRef.current = candidate.rawValue;
+      lastAcceptedAtRef.current = Date.now();
     }
     pauseDecoders();
     setState('accepted');
     onCodeRef.current(candidate);
+    // Auto-rearm on the still-live stream: no consumer `enabled` flip is
+    // needed to resume scanning — the original scanner never turned off
+    // after a code.
+    if (enabledRef.current && streamRef.current) {
+      const rearmGeneration = armScannerGeneration(acceptanceRef.current);
+      activeRef.current = true;
+      pauseReasonRef.current = null;
+      setState('ready');
+      restartDecodersRef.current(rearmGeneration);
+    }
     return true;
   }, [pauseDecoders]);
 
@@ -394,6 +425,11 @@ export function useBarcodeScanner({
     };
     rafRef.current = requestAnimationFrame(tick);
   }, [accept, startZxing]);
+
+  restartDecodersRef.current = (generation: number) => {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
+    else void startZxing(generation);
+  };
 
   const start = useCallback(async (requestedDeviceId?: string) => {
     if (!enabledRef.current || activeRef.current) return;
