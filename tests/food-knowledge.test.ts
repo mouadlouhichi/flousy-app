@@ -296,9 +296,10 @@ describe('English Pringles Paprika label regression', () => {
     'RICE FLOUR',
     'WHEAT STARCH',
     'CORN FLOUR',
-    'PAPRIKA SEASONING (PAPRIKA POWDER, FLAVOR ENHANCERS, YEAST POWDER, DEXTROSE, ONION POWDER, GRANULATED BOUILLON SALT (VEGETABLE SALT, PROTEIN, GARLIC POWDER), COLOR, FOOD ACID, CHILI EXTRACT)',
+    'PAPRIKA SEASONING (SUGAR, PAPRIKA POWDER, FLAVOR ENHANCERS, YEAST POWDER, DEXTROSE, ONION POWDER, GRANULATED BOUILLON SALT (VEGETABLE SALT, PROTEIN, GARLIC POWDER), COLOR, FOOD ACID, CHILI EXTRACT)',
     'EMULSIFIER (E471)',
     'MALTODEXTRIN',
+    'SALT',
     'COLORANT (ANNATTO NORBIXIN E160B)',
   ].join(', ');
 
@@ -306,9 +307,9 @@ describe('English Pringles Paprika label regression', () => {
     const result = analyzeFoodText(label);
     const byName = new Map(result.ingredients.map((ingredient) => [ingredient.raw, ingredient]));
 
-    assert.equal(result.total, 23);
-    assert.equal(result.recognized, 19);
-    assert.ok(result.coverage >= 0.82);
+    assert.equal(result.total, 25);
+    assert.equal(result.recognized, 21);
+    assert.ok(result.coverage >= 0.84);
     assert.deepEqual(result.unknownNames, [
       'FLAVOR ENHANCERS',
       'PROTEIN',
