@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { LoginProviders } from '@/components/app-providers';
+import { LoginProviders } from '@/components/login-providers';
 
 export const metadata: Metadata = {
   title: 'Sign in',

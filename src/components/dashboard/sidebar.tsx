@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -86,13 +85,14 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 border-e border-outline-variant/40 bg-surface-container-high shadow-[1px_0_16px_rgba(23,29,28,0.10)] shrink-0 fixed top-0 bottom-0 start-0 z-30">
       {/* Brand Logo */}
       <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
-        <Image
-          src="/logo.png"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-128.png"
           alt={m.common.appName}
           width={40}
           height={40}
           className="object-contain"
-          priority
+          fetchPriority="high"
         />
         <span className="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">
           SmartJib

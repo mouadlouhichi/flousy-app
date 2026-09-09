@@ -3,7 +3,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema, signUpSchema } from '../../lib/validation';
@@ -193,14 +192,11 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
           <a href="/" className="flex flex-col items-center gap-1.5 group">
-            <Image
-              src="/logo.png"
-              alt={m.common.appName}
-              width={64}
-              height={64}
-              className="object-contain"
-              priority
-            />
+            {/* Pre-resized 7 KB logo served as a static file: the /_next/image
+                optimizer hop (cold on every uncached hit) sat on the LCP
+                critical chain of the first page every visitor loads. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-128.png" alt={m.common.appName} width={64} height={64} className="object-contain" fetchPriority="high" />
             <span className="font-display text-[32px] font-extrabold text-primary tracking-tight">
               SmartJib
             </span>

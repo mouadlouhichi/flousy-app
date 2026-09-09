@@ -3,7 +3,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { Suspense, useEffect, useState } from 'react';
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useHousehold } from '../../lib/household-context';
@@ -448,13 +447,14 @@ function OnboardingFlow() {
           </button>
 
           <span className="flex items-center gap-2">
-            <Image
-              src="/logo.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-128.png"
               alt={m.common.appName}
               width={30}
               height={30}
               className="object-contain"
-              priority
+              fetchPriority="high"
             />
             <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">SmartJib</span>
           </span>
