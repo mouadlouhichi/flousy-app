@@ -15,7 +15,8 @@ import {
   arrayRemove,
   deleteField,
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from './firebase';
+import { auth, isFirebaseConfigured } from './firebase';
+import { db } from './firebase-db';
 import {
   FinanceConflictError,
   mergeGoalsMutation,

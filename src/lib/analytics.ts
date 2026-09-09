@@ -1,14 +1,15 @@
-import { app } from './firebase';
-
 import type { Analytics } from 'firebase/analytics';
 
 /**
  * Analytics and Telemetry Seam
  * Opt-in telemetry. By default, it is a clean no-op seam that respects privacy.
  *
- * The `firebase/analytics` module is code-split: it is imported the first
- * time an event is actually tracked instead of being bunded into the
- * dashboard's initial load.
+ * Firebase itself is code-split: `./firebase` and `firebase/analytics` are
+ * dynamic-imported the first time a consented event is actually tracked. A
+ * static `import { app } from './firebase'` here used to drag firebase/app +
+ * firebase/auth + firebase/firestore (~190 KiB) into EVERY page's initial
+ * bundle — including the public landing — because the root layout's
+ * <ObservabilityReporter/> imports `trackEvent` from this module.
  */
 
 /**
@@ -59,7 +60,15 @@ async function ensureAnalytics(): Promise<Analytics | null> {
   if (!analyticsPromise) {
     analyticsPromise = (async () => {
       try {
-        const { getAnalytics, isSupported, logEvent: log } = await import('firebase/analytics');
+        // Both imports resolve together, on demand, so the Firebase SDK stays
+        // out of the initial JavaScript of pages that never track an event.
+        const [analyticsModule, firebaseModule] = await Promise.all([
+          import('firebase/analytics'),
+          import('./firebase'),
+        ]);
+        const { getAnalytics, isSupported, logEvent: log } = analyticsModule;
+        // Destructure so the null-narrowing survives the `await` below.
+        const { app } = firebaseModule;
         if (app && (await isSupported())) {
           analytics = getAnalytics(app);
         }

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
+import { HouseholdContext } from './household-context-lite';
 import { isProUser } from './pro-features';
 import {
   acceptHouseholdInvite,
@@ -75,7 +76,7 @@ export type HouseholdConfigurationPatch = Pick<
   | 'enableRollover'
 >;
 
-type HouseholdContextValue = {
+export type HouseholdContextValue = {
   household: Household | null;
   members: HouseholdMember[];
   loading: boolean;
@@ -145,7 +146,9 @@ export interface HouseholdAccessRepair {
 
 export type { SponsorRebindOutcome };
 
-const HouseholdContext = createContext<HouseholdContextValue | null>(null);
+// The context object lives in ./household-context-lite so that light
+// consumers (e.g. currency-context on /login) can read it without bundling
+// the Firestore-backed data layer this provider module needs.
 
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, updateProfileData } = useAuth();
@@ -743,6 +746,4 @@ export function useHousehold() {
 }
 
 /** Currency/auth providers are also used on login routes where no household provider exists. */
-export function useOptionalHousehold() {
-  return useContext(HouseholdContext);
-}
+export { useOptionalHousehold } from './household-context-lite';

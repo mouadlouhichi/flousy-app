@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedWave } from "./animated-wave";
 
@@ -53,7 +52,8 @@ export function FooterSection() {
           <div className="grid grid-cols-2 md:grid-cols-7 gap-12 lg:gap-8">
             <div className="col-span-2">
               <a href="/" className="inline-flex items-center gap-2 mb-6">
-                <Image src="/logo.png" alt={common.appName} width={30} height={30} className="object-contain" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-128.png" alt={common.appName} width={30} height={30} className="object-contain" loading="lazy" />
                 <span className="text-2xl font-display">SmartJib</span>
               </a>
               <p className="text-muted-foreground leading-relaxed max-w-xs">{ft.tagline}</p>

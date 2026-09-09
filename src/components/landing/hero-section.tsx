@@ -29,10 +29,18 @@ export function HeroSection() {
   const isLoggedIn = Boolean(user || isDemo);
   const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
+  // The per-character blur-in animation (`.animate-char-in`) starts every
+  // glyph at opacity:0 with a 0.5s animation + up to ~0.5s of stagger delay.
+  // Applied to the FIRST render, the hero headline — the LCP element — isn't
+  // fully painted until the animation finishes, adding ~1s to LCP. The staged
+  // entrance now only plays for rotation N>0; the initial word paints
+  // instantly (and identically between SSR and hydration).
+  const [hasRotated, setHasRotated] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       setWordIndex((current) => (current + 1) % words.length);
+      setHasRotated(true);
     }, 2500);
 
     return () => window.clearInterval(interval);
@@ -90,8 +98,8 @@ export function HeroSection() {
                     words[wordIndex].split('').map((character, index) => (
                       <span
                         key={`${wordIndex}-${index}`}
-                        className="animate-char-in inline-block"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className={hasRotated ? 'animate-char-in inline-block' : 'inline-block'}
+                        style={hasRotated ? { animationDelay: `${index * 50}ms` } : undefined}
                       >
                         {character}
                       </span>
