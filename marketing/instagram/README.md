@@ -1,6 +1,6 @@
 # SmartJib Instagram launch kit
 
-A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**, refreshed for a friendly **Morocco-first** audience. It uses the product’s existing wallet mark, warm teal/mint/coral/saffron visual language, real Instrument Sans and Cairo typography, and French plus Arabic/Darija content. The refreshed launch grid combines a tactile original editorial still life with crisp product-style information cards, and renders Arabic/Darija with an explicit shaping and bidi pass. It does **not** copy artwork or copy from the supplied reference profile.
+A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**, refreshed for a friendly **Morocco-first** audience. It uses the product’s existing wallet mark, warm teal/mint/coral/saffron visual language, the selected Plus Jakarta Sans / Inter and Cairo / IBM Plex Sans Arabic typography, and French plus Arabic/Darija content. The refreshed launch grid combines a tactile original editorial still life with crisp product-style information cards, and renders Arabic/Darija with an explicit shaping and bidi pass. It does **not** copy artwork or copy from the supplied reference profile.
 
 > **Start with:** [`previews/smartjib-instagram-profile-preview.png`](previews/smartjib-instagram-profile-preview.png) for the profile and first-grid preview.
 
@@ -12,7 +12,7 @@ A ready-to-upload, original Instagram identity and first-launch content system f
 | Official transparent logo mark | [`brand/`](brand/) | `smartjib-logo-mark-transparent.png` |
 | Horizontal wordmark | [`brand/`](brand/) | `smartjib-horizontal-wordmark.png` — transparent 1800 × 600 PNG |
 | Palette reference | [`brand/`](brand/) | `smartjib-social-palette.png` — warm teal, mint, coral, saffron, and cream |
-| Production fonts + licenses | [`fonts/`](fonts/) | Instrument Sans for Latin/French and Cairo for Arabic/Darija |
+| Production fonts + licenses | [`fonts/`](fonts/) | Plus Jakarta Sans + Inter for Latin/French, and Cairo + IBM Plex Sans Arabic for Arabic/Darija |
 | Highlight covers | [`highlights/`](highlights/) | 8 × 1080 × 1920 PNG story covers with refreshed friendly icons |
 | First feed grid | [`posts/`](posts/) | 9 × 1080 × 1350 PNG posts, designed as a coherent French + Arabic/Darija 3 × 3 launch grid |
 | Starter stories | [`stories/`](stories/) | 8 × 1080 × 1920 PNG frames, one starter item for each Highlight |

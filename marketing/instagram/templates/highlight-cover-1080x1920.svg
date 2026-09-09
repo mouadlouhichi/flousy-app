@@ -2,7 +2,7 @@
   <title id="title">SmartJib editable Highlight cover template</title>
   <desc id="desc">A centered, friendly Highlight cover designed for Instagram's circular crop.</desc>
   <style>
-    .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
+    .latin { font-family: Inter, "Inter Variable", Arial, sans-serif; }
     .label { font-size: 32px; font-weight: 700; letter-spacing: 1.2px; }
     .eyebrow { font-size: 23px; font-weight: 700; letter-spacing: 1px; }
   </style>

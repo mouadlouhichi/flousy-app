@@ -4,7 +4,8 @@
  *
  * The checked-in PNGs under marketing/instagram are the upload-ready files.
  * This script recreates them using only ImageMagick plus the licensed local
- * Instrument Sans and Cairo font files stored with the launch kit.
+ * Plus Jakarta Sans, Inter, Cairo, and IBM Plex Sans Arabic files stored with
+ * the launch kit.
  *
  * Run: node scripts/generate-instagram-kit.mjs
  */
@@ -41,6 +42,9 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const kitRoot = join(repoRoot, 'marketing', 'instagram');
 const logo = join(repoRoot, 'public', 'logo.png');
 const generatedFlatlay = join(kitRoot, 'source', 'morocco-budget-flatlay-ai.png');
+const modernBudgetIllustration = join(kitRoot, 'source', 'modern-budget-desk-illustration.png');
+const savingsIllustration = join(kitRoot, 'source', 'savings-goal-editorial-illustration.png');
+const moneyPlacesIllustration = join(kitRoot, 'source', 'money-places-editorial-illustration.png');
 const fontRoot = join(kitRoot, 'fonts');
 
 const colors = {
@@ -64,10 +68,15 @@ const colors = {
 };
 
 const font = {
-  display: join(fontRoot, 'InstrumentSans-Variable.ttf'),
-  displayBold: join(fontRoot, 'InstrumentSans-Bold.ttf'),
-  arabic: join(fontRoot, 'Cairo-Variable.ttf'),
-  arabicBold: join(fontRoot, 'Cairo-ExtraBold.ttf'),
+  // Modern FinTech system: a confident, friendly Jakarta display plus
+  // data-first Inter supporting copy. Arabic uses Cairo for impact and IBM
+  // Plex Sans Arabic for precise small copy.
+  display: join(fontRoot, 'PlusJakartaSans-ExtraBold.ttf'),
+  body: join(fontRoot, 'Inter-Regular.ttf'),
+  bodyStrong: join(fontRoot, 'Inter-SemiBold.ttf'),
+  arabicDisplay: join(fontRoot, 'Cairo-ExtraBold.ttf'),
+  arabicBody: join(fontRoot, 'IBMPlexSansArabic-Regular.ttf'),
+  arabicBodyStrong: join(fontRoot, 'IBMPlexSansArabic-SemiBold.ttf'),
 };
 
 const bidi = bidiFactory();
@@ -163,18 +172,18 @@ function label(args, text, x, y, options = {}) {
   const {
     size = 26,
     color = colors.muted,
-    family = font.display,
+    family = font.body,
     gravity = 'NorthWest',
     weight = 500,
     kerning,
   } = options;
-  // ImageMagick ignores `-weight` for a direct variable-font file. Switch
-  // intentionally labelled display/strong text to checked-in static instances
-  // so the visual boldness survives every export host.
-  const resolvedFamily = family === font.display && weight >= 700
-    ? font.displayBold
-    : family === font.arabic && weight >= 700
-      ? font.arabicBold
+  // ImageMagick ignores `-weight` for a direct variable-font file. Strong
+  // labels therefore resolve to static Inter / IBM Plex instances, keeping
+  // weight and mobile legibility consistent on every export host.
+  const resolvedFamily = family === font.body && weight >= 650
+    ? font.bodyStrong
+    : family === font.arabicBody && weight >= 650
+      ? font.arabicBodyStrong
       : family;
   args.push(
     '-font',
@@ -205,7 +214,7 @@ function headline(args, lines, x, y, options = {}) {
     size = 102,
     color = colors.ink,
     family = font.display,
-    weight = 700,
+    weight = 800,
     leading = 0.94,
   } = options;
   // Campaign headlines must carry at a small grid size. Do not let an older
@@ -232,6 +241,7 @@ function arabicHeadline(args, lines, right, y, options = {}) {
   lines.forEach((text, index) => arabicLabel(args, text, right, Math.round(y + index * size * leading), {
     size,
     color,
+    family: font.arabicDisplay,
     weight: displayWeight,
   }));
 }
@@ -244,7 +254,7 @@ function arabicHeadline(args, lines, right, y, options = {}) {
  */
 function arabicLabel(args, text, right, y, options = {}) {
   label(args, prepareArabic(text), 1080 - right, y, {
-    family: font.arabic,
+    family: font.arabicBody,
     gravity: 'NorthEast',
     weight: 600,
     ...options,
@@ -502,12 +512,12 @@ function miniTag(args, text, x, y, width, fill, textColor = colors.ink) {
   });
 }
 
-function photoCard(args, imagePath, x, y, width, height, radius = 48) {
+function photoCard(args, imagePath, x, y, width, height, radius = 48, gravity = 'Center') {
   // Crop an editorial source image to an exact social-artboard card and apply
   // a real transparent rounded mask so it sits cleanly in the layout.
   args.push(
     '(',
-    '(', imagePath, '-resize', `${width}x${height}^`, '-gravity', 'Center', '-crop', `${width}x${height}+0+0`, '+repage', ')',
+    '(', imagePath, '-resize', `${width}x${height}^`, '-gravity', gravity, '-crop', `${width}x${height}+0+0`, '+repage', ')',
     '(', '-size', `${width}x${height}`, 'xc:none', '-fill', 'white', '-stroke', 'none', '-draw', `roundrectangle 0,0 ${width - 1},${height - 1} ${radius},${radius}`, ')',
     '-alpha', 'off', '-compose', 'CopyOpacity', '-composite',
     ')',
@@ -747,8 +757,8 @@ function createPosts() {
   // 04 — SmartJib's product distinction with friendly, tactile icons.
   {
     const args = canvas(1080, 1350, colors.mist);
-    circle(args, 944, 178, 250, colors.lavender);
-    sparkle(args, 814, 248, 50, colors.coral);
+    photoCard(args, moneyPlacesIllustration, 746, 76, 268, 374, 42, 'South');
+    roundedRect(args, 746, 76, 1014, 450, 42, 'none', colors.white, 4);
     postSignature(args, 4, colors.mist, 'CLARTÉ · SANS PRESSION');
     headline(args, ['Pour quoi ?', 'Et où ?'], 78, 214, {
       size: 111,
@@ -843,8 +853,8 @@ function createPosts() {
   // 07 — low-pressure planning habit in a friendly visual rhythm.
   {
     const args = canvas(1080, 1350, colors.cream);
-    circle(args, 920, 194, 240, colors.mint);
-    moonIcon(args, 847, 216, 58, { fill: colors.gold, cutout: colors.mint });
+    photoCard(args, savingsIllustration, 768, 72, 246, 388, 42, 'South');
+    roundedRect(args, 768, 72, 1014, 460, 42, 'none', colors.white, 4);
     postSignature(args, 7, colors.cream, 'RESET DU MOIS · MAD');
     headline(args, ['Planifier.', 'Ajuster.', 'Respirer.'], 78, 205, {
       size: 103,
@@ -924,19 +934,19 @@ function createPosts() {
     elevatedCard(args, 72, 568, 1008, 1014, 58, colors.cream, { shadow: '#C96C50', offset: 13 });
     label(args, 'CHOISIS TA LANGUE', 122, 633, { size: 19, color: colors.teal, weight: 740, kerning: 1 });
     const languages = [
-      ['العربية', colors.teal, font.arabic, 620],
-      ['Français', colors.mint, font.display, 700],
-      ['English', colors.sand, font.display, 700],
+      ['العربية', colors.teal, font.arabicBody, 650],
+      ['Français', colors.mint, font.bodyStrong, 600],
+      ['English', colors.sand, font.bodyStrong, 600],
     ];
     languages.forEach(([text, fill, family, weight], index) => {
       const y = 709 + index * 91;
       roundedRect(args, 122, y, 958, y + 62, 31, fill);
-      if (family === font.arabic) {
+      if (family === font.arabicBody) {
         arabicLabel(args, text, 887, y + 7, { size: 28, color: colors.white, weight, gravity: 'NorthEast' });
       } else {
         label(args, text, 158, y + 13, { size: 27, color: colors.ink, family, weight });
       }
-      circle(args, 907, y + 31, 10, family === font.arabic ? colors.mint : colors.teal);
+      circle(args, 907, y + 31, 10, family === font.arabicBody ? colors.mint : colors.teal);
     });
     label(args, '12 monnaies, dont le MAD.', 82, 1114, { size: 31, color: colors.ink, weight: 700 });
     footer(args, colors.coral);
@@ -1109,6 +1119,8 @@ function createReelCovers() {
     sparkle(args, 819, 344, 60, colors.gold);
     storySignature(args, 1, colors.cream, 'REEL · 30 SECONDES');
     headline(args, ['Donne un rôle', 'à chaque', 'dirham.'], 80, 300, { size: 113, color: colors.ink, leading: 0.9 });
+    photoCard(args, modernBudgetIllustration, 518, 638, 446, 252, 42, 'South');
+    roundedRect(args, 518, 638, 964, 890, 42, 'none', colors.white, 4);
     elevatedCard(args, 72, 960, 1008, 1380, 62, colors.teal, { shadow: '#BBD9D2', offset: 13 });
     label(args, 'UN RESET DU MOIS, SIMPLE', 124, 1032, { size: 21, color: colors.mint, weight: 730, kerning: 1 });
     label(args, 'La méthode en', 124, 1136, { size: 51, color: colors.white, weight: 780 });
@@ -1211,7 +1223,19 @@ function createPreviews() {
 }
 
 function main() {
-  for (const source of [logo, font.display, font.displayBold, font.arabic, font.arabicBold, generatedFlatlay]) {
+  for (const source of [
+    logo,
+    font.display,
+    font.body,
+    font.bodyStrong,
+    font.arabicDisplay,
+    font.arabicBody,
+    font.arabicBodyStrong,
+    generatedFlatlay,
+    modernBudgetIllustration,
+    savingsIllustration,
+    moneyPlacesIllustration,
+  ]) {
     if (!existsSync(source)) throw new Error(`Required source asset not found: ${source}`);
   }
   // Preserve copy docs, source fonts, and editable SVG templates on refresh.

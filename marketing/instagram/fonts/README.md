@@ -1,12 +1,21 @@
 # Social-kit font files
 
-These files make the generated social assets reproducible without depending on the host machine’s font list.
+These checked-in font files make the generated social assets reproducible without relying on a host machine's font list. The selected system is intentionally split by purpose, so a viewer can read the hook at grid size and still scan supporting amounts comfortably on a phone.
 
-| File | Purpose | Source | License |
-| --- | --- | --- | --- |
-| `InstrumentSans-Variable.ttf` | Supporting French, English, and Latin typography | [Google Fonts: Instrument Sans](https://github.com/google/fonts/tree/main/ofl/instrumentsans) | SIL Open Font License 1.1 — see `InstrumentSans-OFL.txt` |
-| `InstrumentSans-Bold.ttf` | Static **700 Bold** instance for display and strong labels | Derived from the checked-in Instrument Sans variable font | SIL Open Font License 1.1 — see `InstrumentSans-OFL.txt` |
-| `Cairo-Variable.ttf` | Supporting Arabic and Darija typography | [Google Fonts: Cairo](https://github.com/google/fonts/tree/main/ofl/cairo) | SIL Open Font License 1.1 — see `Cairo-OFL.txt` |
-| `Cairo-ExtraBold.ttf` | Static **850 ExtraBold** instance for Arabic/Darija display | Derived from the checked-in Cairo variable font | SIL Open Font License 1.1 — see `Cairo-OFL.txt` |
+| Use | File | Weight | Why it is used | License |
+| --- | --- | ---: | --- | --- |
+| French / Latin hook | `PlusJakartaSans-ExtraBold.ttf` | 800 | Confident, modern FinTech display face with friendly geometry | SIL Open Font License 1.1 — `PlusJakartaSans-OFL.txt` |
+| French / Latin body | `Inter-Regular.ttf` | 400 | Highly legible at small sizes for figures, steps, and supporting copy | SIL Open Font License 1.1 — `Inter-OFL.txt` |
+| French / Latin strong labels | `Inter-SemiBold.ttf` | 600 | Keeps labels and numbers crisp without competing with the hook | SIL Open Font License 1.1 — `Inter-OFL.txt` |
+| Arabic / Darija hook | `Cairo-ExtraBold.ttf` | 850 | Strong, contemporary display face with clear Arabic forms | SIL Open Font License 1.1 — `Cairo-OFL.txt` |
+| Arabic / Darija body | `IBMPlexSansArabic-Regular.ttf` | 400 | Calm, technical clarity for RTL support lines and labels | SIL Open Font License 1.1 — `IBMPlexSansArabic-OFL.txt` |
+| Arabic / Darija strong labels | `IBMPlexSansArabic-SemiBold.ttf` | 600 | Maintains hierarchy in compact RTL cards | SIL Open Font License 1.1 — `IBMPlexSansArabic-OFL.txt` |
 
-Use **Instrument Sans Bold** for Latin display copy and **Cairo ExtraBold** for Arabic/Darija display copy; use their variable counterparts for supporting text. The generator automatically selects the static instance for display and strong label weights, which keeps bold text consistent even on ImageMagick installations that ignore variable-font `-weight` values.
+`PlusJakartaSans-Variable.ttf` and `Inter-Variable.ttf` are included as editable source families. The generator uses the static instances above because ImageMagick does not reliably honour the weight axis in direct variable-font paths.
+
+## Rules
+
+- Use **Plus Jakarta Sans ExtraBold** only for short French/Latin display hooks. Use **Inter** for all supporting French/Latin text, data, labels, and captions embedded in art.
+- Use **Cairo ExtraBold** only for short Arabic/Darija hooks. Use **IBM Plex Sans Arabic** for all supporting Arabic/Darija text.
+- Arabic runs are shaped and bidi-reordered by `scripts/generate-instagram-kit.mjs`. Do not add a kashida/tatweel or a faux leading dash to force a connection; letters such as `ا د ذ ر ز و` remain naturally unjoined.
+- Keep Arabic copy right aligned, use Western numerals consistently (`10 000 MAD`, `68%`), and leave visibly more line-height than a Latin hook.

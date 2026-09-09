@@ -2,10 +2,12 @@
   <title id="title">SmartJib Morocco-first editable feed template</title>
   <desc id="desc">Warm cream portrait feed template with a friendly headline, a rounded information card, and a logo placeholder.</desc>
   <style>
-    .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
-    .arabic { font-family: Cairo, "Noto Sans Arabic", sans-serif; }
+    .latin { font-family: Inter, "Inter Variable", Arial, sans-serif; }
+    .arabic { font-family: "IBM Plex Sans Arabic", Cairo, "Noto Sans Arabic", sans-serif; }
     .eyebrow { font-size: 24px; font-weight: 700; letter-spacing: 1.2px; }
-    .headline { font-size: 104px; font-weight: 700; letter-spacing: -2px; }
+    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", Inter, Arial, sans-serif; }
+    .arabic-display { font-family: "Cairo ExtraBold", Cairo, "Noto Sans Arabic", sans-serif; }
+    .headline { font-size: 104px; font-weight: 800; letter-spacing: -2px; }
     .body { font-size: 31px; font-weight: 520; }
     .label { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   </style>
@@ -16,8 +18,8 @@
   <rect x="252" y="76" width="86" height="36" rx="18" fill="#DDF6EF"/>
   <text x="276" y="102" fill="#006B62" class="latin label">00</text>
   <text x="82" y="139" fill="#5E716B" class="latin label">PILIER · MAD</text>
-  <text x="82" y="312" fill="#172622" class="latin headline">Ton idée,</text>
-  <text x="82" y="408" fill="#172622" class="latin headline">sans pression.</text>
+  <text x="82" y="312" fill="#172622" class="latin-display headline">Ton idée,</text>
+  <text x="82" y="408" fill="#172622" class="latin-display headline">sans pression.</text>
   <text x="82" y="474" fill="#5E716B" class="latin body">Une ligne de soutien, simple et locale.</text>
   <rect x="82" y="608" width="916" height="456" rx="58" fill="#006B62" transform="translate(12 14)" opacity=".18"/>
   <rect x="72" y="594" width="936" height="456" rx="58" fill="#FFFFFF" stroke="#D6E4DE" stroke-width="2"/>
@@ -34,5 +36,5 @@
     <path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1.9c1.6 1.6 4.1 1.6 5.7 0l1.1-.9c.5-.5 1.3-.9 2.1-.9H21"/>
   </svg>
   <text x="82" y="1272" fill="#5E716B" class="latin label">smartjib.app</text>
-  <!-- Use Instrument Sans for French/Latin and Cairo for Arabic. Use a Lucide icon or ../brand/smartjib-logo-mark-transparent.png when a visual anchor helps. -->
+  <!-- Use Plus Jakarta Sans for French/Latin display and Cairo for Arabic/Darija display; use Inter / IBM Plex Sans Arabic for supporting copy. Use a Lucide icon or ../brand/smartjib-logo-mark-transparent.png when a visual anchor helps. -->
 </svg>
