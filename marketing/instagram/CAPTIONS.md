@@ -1,263 +1,249 @@
-# Feed captions, alt text & hashtags
+# Feed captions, alt text & hashtags — Morocco-first
 
-Each section matches a ready-to-upload asset in [`posts/`](posts/). Captions are written in the calm, practical SmartJib voice: useful, never shaming, and accurate to the current product.
+Each section matches an upload-ready asset in [`posts/`](posts/). The launch grid alternates friendly French and Arabic/Darija so the account feels made for Morocco without repeating every sentence three times.
 
-**Use one primary publishing language per post.** The English captions below are launch-ready; localized hook translations appear after each caption for French and Arabic-led accounts. Do not duplicate all three versions in one caption unless the audience explicitly expects it.
+**Use the primary caption language that matches the artwork.** English can be used as a comment reply or a later alternate—not as a third copy/paste block under every launch post.
 
-## 01 — Your money, on purpose
+| Post | Primary visual language | Caption language | Main purpose |
+| --- | --- | --- | --- |
+| 01 | French | French | Warm account introduction |
+| 02 | French | French | Simple MAD budget starting point |
+| 03 | Arabic / Darija, Cairo | Arabic / Darija | Needs, wants, savings framework |
+| 04 | French | French | Explain purpose vs. money location |
+| 05 | Arabic / Darija, Cairo | Arabic / Darija | Make money places tangible |
+| 06 | French | French | Clarify no-bank-connection trust position |
+| 07 | French | French | Low-pressure monthly reset |
+| 08 | Arabic / Darija, Cairo | Arabic / Darija | Saving goals without guilt |
+| 09 | Arabic / Darija, Cairo | Arabic / Darija | Language and MAD invitation |
+
+## 01 — Ton budget. Ton rythme.
 
 **Asset:** `01-your-money-on-purpose.png`<br>
-**Objective:** Introduce the brand and earn follows.
+**Objective:** Introduce SmartJib as a calm, locally relevant budgeting space.
 
 ```text
-Your money is already doing important work.
+Ton budget n’a pas besoin d’être parfait. Il doit juste te ressembler.
 
-The clearer its purpose, the easier everyday decisions become. SmartJib helps you separate needs, wants and savings — then see where your money is held.
+Avec SmartJib, tu peux donner une place aux besoins, aux envies et à l’épargne — en MAD, à ton rythme.
 
-No shame. No impossible rules. Just a clearer view of what matters to you.
+On commence petit. On ajuste avec la vraie vie. ✦
 
-Follow for practical budget habits that fit real life. ✦
+Bienvenue ici.
 
-#SmartJib #Budgeting #PersonalFinance #MoneyHabits #BudgetPlanner #SavingsGoals
+#SmartJib #BudgetMaroc #BudgetMAD #GestionBudget #BudgetSimple #ArgentAuQuotidien
 ```
 
-**French hook:** `Votre argent a déjà un rôle. Donnons-lui une place claire.`<br>
-**Arabic hook:** `فلوسك عندها دور بالفعل. خلّيه واضح.`<br>
-**Alt text:** `Teal SmartJib graphic reading “Your money, on purpose,” with the SmartJib wallet mark.`
+**Darija hook:** `فلوسك بوضوح، بلا ضغط.`<br>
+**Alt text:** `Illustration SmartJib sur fond crème : le texte “Ton budget. Ton rythme.” et un portefeuille vert entouré d’étiquettes besoins, envies et épargne.`
 
 ---
 
-## 02 — Give your money a plan
+## 02 — Donne un rôle à chaque dirham.
 
 **Asset:** `02-give-your-money-a-plan.png`<br>
-**Objective:** Deliver a saveable budget-basics post.
+**Objective:** Give a saveable, practical starting point in MAD.
 
 ```text
-A 50 / 30 / 20 split can be a useful place to start:
+Chaque dirham peut avoir un rôle.
 
-50% for needs
-30% for wants
-20% for savings
+Tu peux commencer par regarder ce qui entre, puis répartir entre besoins, envies et épargne. Le 50 / 30 / 20 est un point de départ utile — pas une règle à subir.
 
-But it is a starting point — not a scorecard. Rent, family support, debt, goals and income all change the shape of a real budget.
+Ton loyer, ta famille, tes objectifs et ton revenu comptent. Fais un plan qui respecte ta vraie vie.
 
-Start with your actual numbers. Adjust with intention. Keep the version that works for your life.
+Enregistre ce post pour ton prochain reset du mois.
 
-Save this for your next monthly reset.
-
-#SmartJib #BudgetBasics #503020Budget #BudgetingTips #PersonalFinance #MoneyMindset
+#SmartJib #BudgetMAD #BudgetMaroc #GestionBudget #BudgetDuMois #FinancesPerso
 ```
 
-**French hook:** `Le 50 / 30 / 20 est un point de départ, pas une règle à subir.`<br>
-**Arabic hook:** `قاعدة 50 / 30 / 20 نقطة بداية، ماشي قانون.`<br>
-**Alt text:** `A pale SmartJib post showing a 50, 30, 20 budget split for needs, wants, and savings.`
+**Darija hook:** `عطي لكل درهم مهمة، وعدّل مع واقع الشهر.`<br>
+**Alt text:** `Post SmartJib clair avec un exemple de budget de 10 000 MAD réparti en besoins 50 %, envies 30 % et épargne 20 %.`
 
 ---
 
-## 03 — Three buckets, one clear view
+## 03 — كل درهم عندو مهمة.
 
 **Asset:** `03-three-buckets-one-clear-view.png`<br>
-**Objective:** Explain the core planning language.
+**Objective:** Make the three-bucket idea feel supportive rather than restrictive.
 
 ```text
-Needs. Wants. Savings.
+كل درهم عندو مهمة.
 
-These are not labels for “good” or “bad” spending. They are three ways to make your money easier to understand.
+الاحتياجات كاتخلي الحياة تمشي.
+الرغبات كاتخلي بلاصة للفرحة والاختيار.
+والادخار كيدعم اللي بغيتي تبني لقدّام.
 
-• Needs keep life moving.
-• Wants make room for joy and choice.
-• Savings support the life you are building.
+هاد الخانات ماشي حكم على مصاريفك. غير طريقة باش تشوف فلوسك بوضوح أكثر.
 
-A useful budget gives each one a visible place — so you can make choices without guessing.
+شنو هي الخانة اللي بغيتي تنظّمها هاد الشهر؟
 
-Which bucket is hardest to plan for right now?
-
-#SmartJib #MoneyHabits #BudgetCategories #PersonalFinance #SavingsJourney #Budgeting
+#SmartJib #BudgetMaroc #BudgetMAD #تدبير_الميزانية #ادخار #فلوسي
 ```
 
-**French hook:** `Besoins, envies, épargne : trois repères, pas trois jugements.`<br>
-**Arabic hook:** `احتياجات، رغبات، ادخار: 3 خانات للفهم، مش للحكم.`<br>
-**Alt text:** `Dark green SmartJib graphic with three labeled bars: Needs, Wants, and Savings.`
+**French hook:** `Besoins, envies, épargne : trois repères, zéro jugement.`<br>
+**Alt text:** `Post arabe SmartJib sur fond vert avec le titre “Chaque dirham a une mission” et trois cartes pour les besoins, les envies et l’épargne.`
 
 ---
 
-## 04 — Purpose and place
+## 04 — Pour quoi ? Et où ?
 
 **Asset:** `04-purpose-and-place.png`<br>
-**Objective:** Explain SmartJib’s differentiator.
+**Objective:** Explain SmartJib’s distinctive planning model.
 
 ```text
-A budget answers two different questions:
+Un budget répond à deux questions différentes :
 
-1. What is this money for?
-2. Where is this money held?
+1. À quoi sert cet argent ?
+2. Où est-il gardé ?
 
-For example, money for rent might be held in your bank account. Cash in your wallet might be for transport. The purpose and the place are connected — but they are not the same thing.
+Par exemple, l’argent du loyer peut être dans ton compte. Le cash dans ton portefeuille peut servir au transport. Le rôle et l’endroit sont liés — mais ce n’est pas la même chose.
 
-SmartJib keeps both visible, so your budget tells a fuller story.
+SmartJib garde les deux visibles pour que ton plan soit plus clair.
 
-Save this if you have ever wondered why your money “looks right” in one place but does not feel planned.
-
-#SmartJib #BudgetPlanning #MoneyManagement #PersonalFinance #BudgetTracker #MoneyClarity
+#SmartJib #BudgetMaroc #GestionBudget #BudgetMAD #OrganisationFinanciere #FinancesPerso
 ```
 
-**French hook:** `Un budget répond à deux questions : “pour quoi ?” et “où ?”`<br>
-**Arabic hook:** `الميزانية كتجاوب على جوج أسئلة: لفاش؟ وفين كاينة الفلوس؟`<br>
-**Alt text:** `Teal SmartJib graphic explaining two questions: what money is for and where money is held.`
+**Darija hook:** `فلوسك لفاش مخصصة؟ وفين كاينة؟`<br>
+**Alt text:** `Post SmartJib avec deux cartes : “Pour quoi ? Le rôle de ton argent” et “Où ? L’endroit où il est”.`
 
 ---
 
-## 05 — Money places
+## 05 — فين كاينة فلوسك؟
 
 **Asset:** `05-money-places.png`<br>
-**Objective:** Make the money-place feature tangible.
+**Objective:** Make bank, home, and wallet tracking immediately understandable.
 
 ```text
-A category tells you what money is for.
-A money place tells you where it is.
+فلوسك ممكن تكون فالبنك، فالدار، ولا فالمحفظة.
 
-Bank. Home. Wallet.
+ملي كتكون الأماكن واضحة، كتقدر تشوف فين كاين المبلغ بلا ما تضيع الخطة ديالك.
 
-When those places are visible, you spend less time reconstructing the picture in your head. You can see your cash, account money and wallet money without losing sight of the plan behind them.
+المكان ماشي هو الهدف. ولكن بجوجهم كيعطيوك الصورة كاملة.
 
-Where do you usually keep the money you use most often?
+فين كتخلي غالباً الفلوس اللي كتستعمل أكثر؟
 
-#SmartJib #MoneyManagement #BudgetTracker #CashBudgeting #PersonalFinance #BudgetingTips
+#SmartJib #BudgetMaroc #BudgetMAD #تدبير_الفلوس #فلوسي #تنظيم_الميزانية
 ```
 
-**French hook:** `Une catégorie explique “pour quoi”. Un emplacement explique “où”.`<br>
-**Arabic hook:** `الفئة كتقول لفاش، والمكان كيقول فين.`<br>
-**Alt text:** `Pale SmartJib graphic with three cards labeled Bank, Home, and Wallet.`
+**French hook:** `Vois où est ton argent sans perdre ton plan.`<br>
+**Alt text:** `Post arabe SmartJib clair avec trois cartes pour la banque, la maison et le portefeuille.`
 
 ---
 
-## 06 — Private by design
+## 06 — Sans connexion bancaire.
 
 **Asset:** `06-private-by-design.png`<br>
-**Objective:** Establish the product’s trust position.
+**Objective:** Establish the privacy-conscious, manual product choice.
 
 ```text
-SmartJib does not connect to your bank account.
+SmartJib ne se connecte pas à ton compte bancaire.
 
-It is a focused, manual budget tracker: you add the information that matters to you, then use it to plan with more clarity.
+C’est un suivi de budget manuel et ciblé : tu ajoutes les informations qui comptent pour toi, puis tu les utilises pour mieux planifier.
 
-That means no bank credentials in SmartJib and no pressure to turn budgeting into a complicated data project.
+Pas d’identifiants bancaires à partager. Pas besoin de transformer ton budget en projet compliqué.
 
-A clear habit can start with one income number, one expense and one decision.
+Un revenu, une dépense, une décision : c’est déjà un début.
 
-#SmartJib #PrivateBudgeting #PrivacyByDesign #BudgetTracker #PersonalFinance #MoneyHabits
+#SmartJib #BudgetMaroc #BudgetPrive #SansConnexionBancaire #GestionBudget #FinancesPerso
 ```
 
-**French hook:** `Pas de connexion bancaire. Juste les informations que vous choisissez de suivre.`<br>
-**Arabic hook:** `ما كاينش ربط بنكي. كتضيف غير المعلومات اللي بغيتي تتابع.`<br>
-**Alt text:** `Dark green SmartJib graphic reading “Track your money. Keep control.” with a shield check icon.`
+**Darija hook:** `كتضيف غير اللي بغيتي تتابع، وبس.`<br>
+**Alt text:** `Post vert foncé SmartJib avec un bouclier et le texte “Sans connexion bancaire. Tes choix. Tes données.”`
 
 ---
 
-## 07 — Give every dirham a job
+## 07 — Planifier. Ajuster. Respirer.
 
 **Asset:** `07-give-every-dirham-a-job.png`<br>
-**Objective:** Encourage a small, actionable monthly habit.
+**Objective:** Encourage a low-pressure monthly planning habit.
 
 ```text
-A monthly reset does not need a perfect spreadsheet.
+Un reset du mois n’a pas besoin d’être lourd.
 
-Try this instead:
+1. Regarde ce qui entre.
+2. Donne une place aux besoins, aux envies et à l’épargne.
+3. Vérifie où est ton argent.
+4. Ajuste quand la vraie vie bouge.
 
-1. Write down the income you expect.
-2. Give needs, wants and savings an intentional share.
-3. Check where your money is held.
-4. Adjust as real life happens.
+Le but n’est pas de prévoir chaque dépense. C’est de faire le prochain choix avec un peu plus de clarté.
 
-The goal is not to predict every expense. It is to make the next choice with a little more clarity.
-
-What is one job you want your money to do this month?
-
-#SmartJib #DirhamBudget #MonthlyBudget #BudgetReset #MoneyHabits #PersonalFinance
+#SmartJib #BudgetDuMois #BudgetMAD #BudgetMaroc #GestionBudget #HabitudesFinancieres
 ```
 
-**French hook:** `Donnez un rôle à chaque dirham, puis ajustez au fil du mois.`<br>
-**Arabic hook:** `عطي لكل درهم مهمة، وعدّل مع واقع الشهر.`<br>
-**Alt text:** `SmartJib monthly plan card showing income of 10,000 MAD and allocations for needs, wants, and savings.`
+**Darija hook:** `خطّط، عدّل، وخلي راسك مرتاح.`<br>
+**Alt text:** `Post SmartJib crème avec un plan de 10 000 MAD et trois étapes : prévoir, répartir, ajuster.`
 
 ---
 
-## 08 — Save for what matters
+## 08 — وفّر للي كيهمّك.
 
 **Asset:** `08-save-for-what-matters.png`<br>
-**Objective:** Position saving as visible, personal progress.
+**Objective:** Make saving personal, visible, and shame-free.
 
 ```text
-Saving feels different when it has a name.
+الادخار ما خاصوش يبدا بمبلغ كبير.
 
-Instead of “I should save more,” try:
+بدا بهدف عندو اسم. اختار مبلغ صغير تقدر عليه. وخلي التقدم باين قدّامك.
 
-• Name one goal.
-• Pick a realistic next amount.
-• Make progress visible.
-• Return to it without guilt when life changes.
+إلا تبدّل الشهر، ماشي مشكل. رجع للهدف ديالك بلا لوم.
 
-A goal can be small or big. What matters is giving future-you something concrete to move toward.
+شنو هو الهدف اللي بغيتي توصل ليه خطوة بخطوة؟ ✦
 
-What are you saving for right now? ✦
-
-#SmartJib #SavingsGoals #SaveMoney #MoneyGoals #Budgeting #PersonalFinance
+#SmartJib #ادخار #BudgetMaroc #BudgetMAD #أهداف_مالية #تدبير_الميزانية
 ```
 
-**French hook:** `Épargner change de sens quand votre objectif a un nom.`<br>
-**Arabic hook:** `الادخار كيولي أوضح ملي الهدف ديالك عندو اسم.`<br>
-**Alt text:** `Mint SmartJib graphic reading “Save for what matters to you” above a goal card showing 68 percent funded.`
+**French hook:** `Même petit, chaque pas compte.`<br>
+**Alt text:** `Post arabe SmartJib sur fond menthe avec un objectif d’épargne affiché à 68 % et une barre de progression.`
 
 ---
 
-## 09 — Budget in your language
+## 09 — ميزانيتك بلغتك.
 
 **Asset:** `09-budget-in-your-language.png`<br>
-**Objective:** Close the initial grid with an inclusive, link-focused invitation.
+**Objective:** Close the launch grid with an inclusive invitation to try SmartJib in MAD.
 
 ```text
-Budgeting language should feel natural — not like another barrier to getting started.
+الميزانية خاصها تهضر باللغة اللي مريحة ليك.
 
-SmartJib is available in English, Français and العربية, with support for 12 currencies including MAD.
+SmartJib متوفر بالعربية، بالفرنسية، وبالإنجليزية — وكيخدم مع 12 عملة من بينها الدرهم المغربي.
 
-Start in the language that helps you think clearly. Make the budget yours from the first step.
+بدا باللغة اللي كتعاونك تفكّر بوضوح، وخلي الميزانية ديالك على قدّك.
 
-Try SmartJib from the link in our bio.
+جرّب SmartJib من الرابط فالبايو.
 
-#SmartJib #BudgetMAD #BudgetingApp #PersonalFinance #MoneyManagement #MoroccoTech
+#SmartJib #BudgetMaroc #BudgetMAD #الدرهم_المغربي #تدبير_الميزانية #FinancesPerso
 ```
 
-**French hook:** `Votre budget devrait parler une langue qui vous ressemble.`<br>
-**Arabic hook:** `الميزانية ديالك خاصها تهضر باللغة اللي مريحة ليك.`<br>
-**Alt text:** `Bright teal SmartJib graphic reading “Budget in the language that feels natural,” with EN, FR, and AR language chips.`
+**French hook:** `Ton budget devrait parler une langue qui te ressemble.`<br>
+**Alt text:** `Post SmartJib corail, en arabe Cairo, avec le texte “Ton budget dans ta langue” et trois choix de langue : arabe, français, anglais.`
 
 ---
 
 ## Hashtag rotation bank
 
-Use **4–7 relevant hashtags**, not every tag on every post. Place them at the end of the caption or in the first comment according to the account’s normal practice.
+Use **4–7 relevant hashtags**, not every tag in every caption. Keep #SmartJib plus one local term, then rotate the rest.
 
 | Theme | Suggested hashtags |
 | --- | --- |
-| Broad brand / planning | `#SmartJib #Budgeting #BudgetPlanner #PersonalFinance #MoneyManagement` |
-| Habits / mindset | `#MoneyHabits #MoneyMindset #BudgetReset #BudgetingTips #FinancialWellbeing` |
-| Savings | `#SavingsGoals #SaveMoney #MoneyGoals #SavingsJourney #BudgetBetter` |
-| Morocco / MAD (only when relevant) | `#BudgetMAD #DirhamBudget #MoroccoTech #MoroccoBusiness` |
-| Product / privacy | `#BudgetTracker #PrivateBudgeting #PrivacyByDesign #NoBankConnection` |
+| Morocco / MAD | `#BudgetMaroc #BudgetMAD #Dirham #DirhamMarocain #MarocDigital` |
+| Budget habits | `#GestionBudget #BudgetDuMois #BudgetSimple #ArgentAuQuotidien #FinancesPerso` |
+| Arabic / Darija | `#تدبير_الميزانية #تدبير_الفلوس #ادخار #فلوسي #الدرهم_المغربي` |
+| Savings | `#Epargne #ObjectifsFinanciers #SavingsGoals #ادخار` |
+| Privacy / product | `#BudgetPrive #SansConnexionBancaire #BudgetTracker #SmartJib` |
 
 ## First-comment prompts
 
-Use one clear prompt per post rather than stacking multiple questions:
+Use one clear prompt per post rather than stacking questions:
 
-- `What would make planning your month feel easier?`
-- `Save this for your next monthly reset. ✦`
-- `Which budget bucket needs the most attention this month?`
-- `Reply with one goal you are working toward.`
-- `Want a short app tour next? Tell us below.`
+- `Quel est le prochain petit pas utile pour ton budget ?`
+- `شنو هي الخانة اللي بغيتي توضّح هاد الشهر؟`
+- `Tu préfères planifier au début ou à la fin du mois ?`
+- `شنو هو الهدف اللي كتوفر عليه دابا؟`
+- `Tu veux voir un petit tour de SmartJib ?`
 
 ## Accessibility and moderation reminders
 
 - Paste the matching alt text in Instagram’s **Advanced settings → Write alt text** field.
-- Put key information in the caption, not only inside the visual.
+- Put the key information in the caption, not only in the visual.
 - Add generated captions/subtitles to every Reel.
 - Never ask followers to publish account numbers, balances, passwords, or personally identifying financial details in comments or DMs.
+- SmartJib is a budgeting tool, not individualized financial, tax, legal, or investment advice.

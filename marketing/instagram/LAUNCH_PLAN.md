@@ -1,4 +1,4 @@
-# SmartJib Instagram launch plan
+# SmartJib Instagram launch plan — Morocco first
 
 ## Before the first post
 
@@ -9,25 +9,27 @@
 - [ ] Confirm the website opens on a mobile browser and that the link owner can see its analytics.
 - [ ] Add an Email contact button only if someone will answer it.
 - [ ] Load the eight Highlight covers and publish the eight starter Stories from [`stories/`](stories/).
-- [ ] Add the saved replies from `PROFILE_COPY.md` to the Professional dashboard.
+- [ ] Add the French and Darija/Arabic saved replies from `PROFILE_COPY.md` to the Professional dashboard.
 - [ ] Confirm a community/moderation owner and a response window for questions.
+- [ ] Confirm the publishing owner can reply in French and Darija/Arabic, or has a clear escalation path to someone who can.
+- [ ] Have a Morocco-based Arabic/Darija reviewer check all paid-ad, legal, and new colloquial wording before it goes live.
 - [ ] Make sure the person publishing can access the original full-resolution PNGs, not compressed chat copies.
 
 ## First nine feed posts
 
 Instagram uses reverse chronological order in the grid. Publish the assets in this sequence so the finished feed matches `previews/smartjib-3x3-launch-grid.png`:
 
-| Publish day | File to upload | Caption section | Main action |
-| ---: | --- | --- | --- |
-| 1 | `09-budget-in-your-language.png` | 09 | Visit bio link |
-| 2 | `08-save-for-what-matters.png` | 08 | Comment with a goal |
-| 3 | `07-give-every-dirham-a-job.png` | 07 | Save for a monthly reset |
-| 4 | `06-private-by-design.png` | 06 | Learn how it works |
-| 5 | `05-money-places.png` | 05 | Answer a simple question |
-| 6 | `04-purpose-and-place.png` | 04 | Save the concept |
-| 7 | `03-three-buckets-one-clear-view.png` | 03 | Comment on a bucket |
-| 8 | `02-give-your-money-a-plan.png` | 02 | Save for later |
-| 9 | `01-your-money-on-purpose.png` | 01 | Follow the account |
+| Publish day | File to upload | Caption section | Language | Main action |
+| ---: | --- | --- | --- | --- |
+| 1 | `09-budget-in-your-language.png` | 09 | Darija / Arabic | Visit bio link |
+| 2 | `08-save-for-what-matters.png` | 08 | Darija / Arabic | Comment with a goal |
+| 3 | `07-give-every-dirham-a-job.png` | 07 | French | Save for a monthly reset |
+| 4 | `06-private-by-design.png` | 06 | French | Learn how it works |
+| 5 | `05-money-places.png` | 05 | Darija / Arabic | Answer a simple question |
+| 6 | `04-purpose-and-place.png` | 04 | French | Save the concept |
+| 7 | `03-three-buckets-one-clear-view.png` | 03 | Darija / Arabic | Comment on a bucket |
+| 8 | `02-give-your-money-a-plan.png` | 02 | French | Save for later |
+| 9 | `01-your-money-on-purpose.png` | 01 | French | Follow the account |
 
 After Day 9, pin posts **01, 04 and 06**.
 
@@ -37,9 +39,9 @@ A sustainable launch rhythm is more valuable than a large one-time content dump:
 
 | Cadence | Content | Asset / source |
 | --- | --- | --- |
-| 2 Reels/week | One practical habit + one product clarity Reel | The three scripts and covers in [`REELS_AND_STORIES.md`](REELS_AND_STORIES.md) |
-| 2 feed posts/week | One saveable educational post + one conversation prompt | Rework a first-grid idea into a 3–5 slide carousel using `templates/feed-post-1080x1350.svg` |
-| 3–5 Stories/week | Poll, question response, one tip, product glimpse | Starter Story system in [`stories/`](stories/) |
+| 2 Reels/week | One practical habit + one product clarity Reel; alternate French and Darija/Arabic | The three scripts and covers in [`REELS_AND_STORIES.md`](REELS_AND_STORIES.md) |
+| 2 feed posts/week | One saveable educational post + one conversation prompt; rotate French and Darija/Arabic | Rework a first-grid idea into a 3–5 slide carousel using `templates/feed-post-1080x1350.svg` |
+| 3–5 Stories/week | Poll, question response, one tip, product glimpse in the same language as the post | Starter Story system in [`stories/`](stories/) |
 | 1 FAQ Story/week | Answer one anonymized question | `stories/05-ask-a-budget-question.png` plus native Question sticker |
 | 1 app walkthrough/month | Demonstrate a live feature with demo data | Tour Highlight and a new Reel |
 
@@ -47,24 +49,24 @@ A sustainable launch rhythm is more valuable than a large one-time content dump:
 
 Use the same brand system for these next twelve posts:
 
-1. `What counts as a need in your budget?`
-2. `Three things to do on payday.`
-3. `How to restart a budget after an unexpected expense.`
-4. `A category is not the same as a money place.`
-5. `One small saving goal is still a goal.`
-6. `A 15-minute end-of-week money check-in.`
-7. `What to track manually — and what to ignore.`
-8. `The difference between a fixed charge and a one-off expense.`
-9. `How a budget month start day can fit your pay cycle.`
-10. `A gentle reset after overspending.`
-11. `What “private, manual tracking” means in practice.`
-12. `Ask SmartJib: your most common budget question.`
+1. `شنو كيدخل فالاحتياجات فميزانيتك؟`
+2. `Trois choses à faire le jour de paie.`
+3. `كيفاش ترجع لميزانيتك من بعد مصروف مفاجئ؟`
+4. `Une catégorie n’est pas la même chose qu’un endroit où l’argent est gardé.`
+5. `هدف صغير فالادخار راه هدف.`
+6. `Un check-in argent de 15 minutes en fin de semaine.`
+7. `شنو تتابع يدوياً وشنو تقدر تخليه؟`
+8. `La différence entre une charge fixe et une dépense ponctuelle.`
+9. `كيفاش تخلي بداية شهر الميزانية مناسبة مع وقت الخلاص؟`
+10. `Un reset sans culpabilité après une dépense imprévue.`
+11. `شنو كيعني تتبع يدوي وخاص فالواقع؟`
+12. `Ask SmartJib / سول SmartJib: le budget question le plus fréquent.`
 
 ## Community response rules
 
 | Situation | Reply approach |
 | --- | --- |
-| General setup question | Answer with a short step, then link to the relevant Highlight or help page. |
+| General setup question | Reply in the sender’s French or Darija/Arabic where possible, answer with one short step, then link to the relevant Highlight or help page. |
 | Feature request | Thank the person, restate the need, and record it internally. Do not promise a delivery date. |
 | Sensitive money situation | Be kind; offer general educational support only. Avoid personal financial recommendations. |
 | Account, password or privacy issue | Move to a secure support channel. Never request credentials, account numbers, full screenshots, or sensitive data in DMs. |

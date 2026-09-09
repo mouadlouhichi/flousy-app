@@ -1,6 +1,6 @@
 # SmartJib Instagram launch kit
 
-A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**. It uses the product’s existing wallet mark and the app’s teal/mint visual language; it does **not** copy artwork or copy from the supplied reference profile.
+A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**, refreshed for a friendly **Morocco-first** audience. It uses the product’s existing wallet mark, warm teal/mint/coral/saffron visual language, real Instrument Sans and Cairo typography, and French plus Arabic/Darija content. It does **not** copy artwork or copy from the supplied reference profile.
 
 > **Start with:** [`previews/smartjib-instagram-profile-preview.png`](previews/smartjib-instagram-profile-preview.png) for the profile and first-grid preview.
 
@@ -11,9 +11,10 @@ A ready-to-upload, original Instagram identity and first-launch content system f
 | Profile logo / avatar | [`brand/`](brand/) | `smartjib-instagram-avatar-1080.png` — 1080 × 1080 PNG, circular-crop safe |
 | Official transparent logo mark | [`brand/`](brand/) | `smartjib-logo-mark-transparent.png` |
 | Horizontal wordmark | [`brand/`](brand/) | `smartjib-horizontal-wordmark.png` — transparent 1800 × 600 PNG |
-| Palette reference | [`brand/`](brand/) | `smartjib-social-palette.png` |
-| Highlight covers | [`highlights/`](highlights/) | 8 × 1080 × 1920 PNG story covers |
-| First feed grid | [`posts/`](posts/) | 9 × 1080 × 1350 PNG posts, designed as a coherent 3 × 3 launch grid |
+| Palette reference | [`brand/`](brand/) | `smartjib-social-palette.png` — warm teal, mint, coral, saffron, and cream |
+| Production fonts + licenses | [`fonts/`](fonts/) | Instrument Sans for Latin/French and Cairo for Arabic/Darija |
+| Highlight covers | [`highlights/`](highlights/) | 8 × 1080 × 1920 PNG story covers with refreshed friendly icons |
+| First feed grid | [`posts/`](posts/) | 9 × 1080 × 1350 PNG posts, designed as a coherent French + Arabic/Darija 3 × 3 launch grid |
 | Starter stories | [`stories/`](stories/) | 8 × 1080 × 1920 PNG frames, one starter item for each Highlight |
 | Reel covers | [`reels/`](reels/) | 3 × 1080 × 1920 PNG covers |
 | Captions, alt text, hashtags | [`CAPTIONS.md`](CAPTIONS.md) | Copy/paste-ready text for all 9 feed posts |
@@ -27,12 +28,12 @@ A ready-to-upload, original Instagram identity and first-launch content system f
 Use the exact setup card in [`PROFILE_COPY.md`](PROFILE_COPY.md). The recommended starting configuration is:
 
 - **Username:** `@smartjib.app` *(confirm availability first; backup options are included)*
-- **Name field:** `SmartJib | Budget & Money Tracker`
+- **Name field:** `SmartJib | Budget Maroc`
 - **Account type:** Professional **Business** account
 - **Category:** `Product/service` (hide the category label if it makes the profile feel crowded)
-- **Website:** `https://smartjib.app/?utm_source=instagram&utm_medium=social&utm_campaign=launch`
+- **Website:** `https://smartjib.app/?utm_source=instagram&utm_medium=social&utm_campaign=launch_ma`
 - **Profile image:** `brand/smartjib-instagram-avatar-1080.png`
-- **Primary bio:** the English version in `PROFILE_COPY.md`
+- **Primary bio:** the local bilingual version in `PROFILE_COPY.md`
 - **Contact button:** add Email only when `hello@smartjib.app` is monitored and replies have an owner.
 
 ## Upload order for the 3 × 3 launch grid
@@ -44,6 +45,8 @@ Instagram puts the **newest** post in the top-left of the grid, so publish in th
 ```text
 09 → 08 → 07 → 06 → 05 → 04 → 03 → 02 → 01
 ```
+
+Posts **03, 05, 08, and 09** are Arabic/Darija-first and rendered in Cairo; pair them with the matching Arabic/Darija caption option. The remaining launch posts lead in friendly French and use Moroccan MAD examples.
 
 A sustainable launch cadence is one post each day for nine days. If the account is already warm and the grid matters more than gradual release, schedule three posts per day over three days instead. After publishing, pin:
 

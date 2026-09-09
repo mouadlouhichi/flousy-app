@@ -1,18 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920" role="img" aria-labelledby="title desc">
   <title id="title">SmartJib editable Reel cover template</title>
-  <desc id="desc">A vertical Reel cover with a bold headline that remains readable in a feed crop.</desc>
-  <rect width="1080" height="1920" fill="#F4F8F6"/>
-  <circle cx="910" cy="292" r="280" fill="#DDF7F1"/>
-  <text x="86" y="108" fill="#00685F" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="25" font-weight="700" letter-spacing="1">SMARTJIB / REEL</text>
-  <text x="86" y="150" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="20" letter-spacing="1">TOPIC / 00</text>
-  <text x="86" y="432" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="104" font-weight="800">Your Reel</text>
-  <text x="86" y="550" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="104" font-weight="800">hook here.</text>
-  <rect x="86" y="860" width="908" height="420" rx="54" fill="#00685F"/>
-  <text x="136" y="950" fill="#89F5E7" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22" font-weight="700" letter-spacing="1">SHORT SUPPORTING LINE</text>
-  <text x="136" y="1061" fill="#FFFFFF" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="54" font-weight="800">One practical idea.</text>
-  <text x="136" y="1127" fill="#DDF7F1" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="30">Make it easy to understand without sound.</text>
-  <circle cx="807" cy="1095" r="108" fill="#DDF7F1"/>
-  <path d="M 778 1038 L 778 1152 L 876 1095 Z" fill="#00685F"/>
-  <text x="86" y="1818" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22">smartjib.app</text>
-  <!-- Keep the headline within the central 4:5 region for Feed preview cropping. -->
+  <desc id="desc">A friendly Reel cover with readable central content and room for a play motif.</desc>
+  <style>
+    .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
+    .arabic { font-family: Cairo, "Noto Sans Arabic", sans-serif; }
+    .eyebrow { font-size: 27px; font-weight: 720; letter-spacing: 1.2px; }
+    .headline { font-size: 112px; font-weight: 800; letter-spacing: -2px; }
+    .body { font-size: 33px; font-weight: 520; }
+    .label { font-size: 21px; font-weight: 720; letter-spacing: 1px; }
+  </style>
+  <rect width="1080" height="1920" fill="#FFF9F1"/>
+  <circle cx="910" cy="312" r="290" fill="#9CE9DB"/>
+  <path d="M 822 289 L 840 326 L 878 344 L 840 362 L 822 400 L 804 362 L 766 344 L 804 326 Z" fill="#E9B35C"/>
+  <text x="82" y="118" fill="#006B62" class="latin eyebrow">SMARTJIB</text>
+  <rect x="290" y="91" width="98" height="40" rx="20" fill="#DDF6EF"/>
+  <text x="315" y="119" fill="#006B62" class="latin label">REEL</text>
+  <text x="82" y="159" fill="#5E716B" class="latin label">SUJET · MAD</text>
+  <text x="82" y="406" fill="#172622" class="latin headline">Ton hook</text>
+  <text x="82" y="510" fill="#172622" class="latin headline">ici.</text>
+  <rect x="82" y="896" width="916" height="420" rx="62" fill="#006B62" transform="translate(13 14)" opacity=".18"/>
+  <rect x="72" y="882" width="936" height="420" rx="62" fill="#006B62"/>
+  <text x="122" y="958" fill="#9CE9DB" class="latin label">UNE PROMESSE SIMPLE</text>
+  <text x="122" y="1068" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">Explique le bénéfice</text>
+  <text x="122" y="1136" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">sans le sur-vendre.</text>
+  <circle cx="818" cy="1090" r="108" fill="#9CE9DB"/>
+  <path d="M 786 1033 L 786 1147 L 888 1090 Z" fill="#006B62"/>
+  <text x="82" y="1823" fill="#5E716B" class="latin label">smartjib.app</text>
+  <!-- Keep title inside the central 4:5 crop-safe area. Use Cairo for Arabic and add native captions to the Reel. -->
 </svg>

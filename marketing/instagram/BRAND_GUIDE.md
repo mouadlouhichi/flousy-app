@@ -1,101 +1,113 @@
-# SmartJib social brand guide
+# SmartJib social brand guide — Morocco-first refresh
 
-## Positioning in one line
+## The feeling
 
-**SmartJib helps people budget needs, wants and savings while keeping track of where their money is held.**
+SmartJib should feel like a helpful friend who makes money planning less intimidating: **warm, clear, practical, and never judgmental**.
 
-Use this as the anchor for every piece of content. The product is a private, manual budget tracker; it does not connect to bank accounts or request bank credentials.
+The product is a private, manual budget tracker. It separates what money is for from where it is held, does not connect to bank accounts, and never requests bank credentials. Social content must keep those claims factual.
+
+## Audience and language
+
+The primary audience is people in **Morocco** planning everyday money in **MAD**. Use familiar local context—dirhams, monthly expenses, cash, bank, and wallet—without assuming one household type, income, city, or financial situation.
+
+| Use | Default language | Notes |
+| --- | --- | --- |
+| Community hooks, quick tips, question stickers | Darija / Arabic | Friendly and direct; use Cairo for every Arabic word in visual artwork. |
+| Product explainers, carousels, help | French | Clear, warm, conversational French. |
+| Wider product discovery | English | Use sparingly when it adds clarity. |
+
+Do not put three full language versions in one graphic. Let individual posts lead in one language, use a short supporting translation only when it improves comprehension, and rotate languages across the feed.
 
 ## Voice
 
-| Do | Do not |
+| Do | Avoid |
 | --- | --- |
-| Be calm, useful and specific. | Shame spending, debt or missed goals. |
-| Say “start where you are” and “adjust with real life.” | Promise that an app will make someone rich, debt-free or stress-free. |
-| Explain one practical idea at a time. | Give individualized investment, tax, legal or financial advice. |
-| Use familiar examples: rent, transport, a goal, cash, wallet. | Use unexplained finance jargon or fear-based urgency. |
-| Use “you” and “your plan.” | Frame a framework as a universal rule. |
+| “Ton budget, ton rythme.” | Scolding, shame, or “you must” language. |
+| “Commence avec ton vrai montant.” | Claiming one rule works for everyone. |
+| “بشوية وبلا ضغط.” | Overly formal or literal translations of English marketing copy. |
+| “Chaque dirham peut avoir un rôle.” | Promises of wealth, guaranteed savings, or investment outcomes. |
+| Explain the next small step. | Dense finance jargon and fear-based urgency. |
 
-**Core phrases:**
+## Color system
 
-- `Your money, on purpose.`
-- `Budget with purpose, not pressure.`
-- `Start with a clear view.`
-- `Give every dirham a job.`
-- `Plan the next step — not the perfect month.`
-- `Purpose and place are not the same thing.`
+The refreshed palette is friendly and recognizably SmartJib: deep teal carries trust; cream, mint, coral, and saffron add warmth and local everyday energy.
 
-## Palette
-
-| Color | Hex | Use |
+| Name | Hex | Role |
 | --- | --- | --- |
-| Deep teal | `#00685F` | Primary fields, product identity, CTA blocks |
-| Bright teal | `#008378` | Secondary teal fields and interactive accents |
-| Mint | `#89F5E7` | Key emphasis, icons, optimistic highlights |
-| Mist | `#DDF7F1` | Soft backgrounds and card tints |
-| Paper | `#F4F8F6` | Main light canvas |
-| Ink | `#12211E` | Large text and dark backgrounds |
-| Muted | `#58706A` | Supporting text on light backgrounds |
-| Coral | `#D9724D` | Wants / optional warm accent — use sparingly |
-| Gold | `#E7B85D` | Wallet / cash accent — use sparingly |
-| Savings green | `#16785F` | Savings progress only |
+| Teal | `#006B62` | Primary brand surface, buttons, key icons |
+| Deep teal | `#004F49` | High-contrast dark panels |
+| Bright teal | `#058F82` | Secondary emphasis |
+| Mint | `#9CE9DB` | Gentle support, progress, icon accent |
+| Cream | `#FFF9F1` | Friendly default background |
+| Paper | `#F7FAF8` | Cool neutral background |
+| Coral | `#E98362` | Joy, warmth, needs / wants emphasis |
+| Saffron | `#E9B35C` | Savings, optimism, small sparkles |
+| Ink | `#172622` | Main text |
+| Muted | `#5E716B` | Supporting text only |
 
-The reference swatch sheet is at [`brand/smartjib-social-palette.png`](brand/smartjib-social-palette.png).
+Use one warm accent per layout. Do not flood a post with all accent colors at once.
 
 ## Typography
 
-| Role | First choice | Fallback for Canva / mobile editing | Style |
+The generator now uses the actual licensed font files in [`fonts/`](fonts/), not DejaVu fallback fonts.
+
+| Role | Font | Weight | Rule |
 | --- | --- | --- | --- |
-| Display headline | Instrument Sans Bold | Manrope ExtraBold or DM Sans Bold | Big, left-aligned, short phrases |
-| Body | Instrument Sans Regular | Inter or DM Sans | 24–36 px equivalent on a 1080 px post |
-| Metadata / labels | JetBrains Mono | IBM Plex Mono or Space Mono | ALL CAPS, 18–26 px equivalent, airy tracking |
-| Arabic body | Cairo | Noto Sans Arabic | Use natural Arabic line spacing and RTL alignment |
+| Latin / French display | **Instrument Sans** | 750–800 | Short, confident headlines; sentence case. |
+| Latin / French body & labels | **Instrument Sans** | 520–740 | Clear and friendly; avoid technical all-caps blocks longer than 3 words. |
+| Arabic / Darija display | **Cairo** | 750–790 | Always use Cairo in visual assets; right-align the headline. |
+| Arabic / Darija body | **Cairo** | 550–650 | Leave generous vertical rhythm and a clear right edge. |
 
-The shipped PNGs use a compatible clean sans/mono fallback so text remains crisp. Future Arabic-first graphics should be created with **Cairo** or **Noto Sans Arabic**, not an automatic machine translation overlay.
+### Correct line-height
 
-## Logo use
+The previous designs were too loose for Latin display and too tight for Arabic display. Preserve this corrected rhythm:
 
-- **Avatar:** Use `brand/smartjib-instagram-avatar-1080.png` as-is. It is designed for the round profile crop.
-- **Mark:** `brand/smartjib-logo-mark-transparent.png` is the existing official transparent wallet mark.
-- **Wordmark:** `brand/smartjib-horizontal-wordmark.png` is appropriate for Stories, press one-pagers and partnerships. It has a transparent background.
-- Keep a clear space around the wallet mark equal to roughly one quarter of the mark’s width.
-- Do not stretch, recolor the wallet mark, add effects, or place it on a similarly dark teal field without a pale container.
+- **Latin display, multi-line:** `0.91–0.96` of the font size in the generator’s explicit placement system.
+- **Arabic display, multi-line:** `1.24–1.28` of the font size. Arabic glyphs need more vertical breathing room.
+- **Body copy:** use approximately `1.35–1.5` line-height; do not stack text closer than 24 px at final 1080 px width.
+- Keep a visible gap of at least one small-text line between a headline and its support line.
+- Never place display text over a dark decorative shape unless the contrast remains clear.
 
-## Layout rules
+The source font files are included with their SIL Open Font License files:
 
-1. **Make one thought the headline.** Aim for 3–9 words, ideally broken across 2–3 lines.
-2. **Leave breathing room.** Keep large headings at least 80 px from a 1080 px canvas edge.
-3. **Use cards for explanations.** A pale card on teal or a white card on Paper gives product content hierarchy.
-4. **Keep supporting text short.** The image earns the pause; the caption carries the explanation.
-5. **Use one accent.** If coral identifies wants, do not add gold and mint as equal competing accents.
-6. **End with a gentle action.** Save, comment, try the app, or tap through — never a pressure-heavy CTA.
+- `fonts/InstrumentSans-Variable.ttf` + `fonts/InstrumentSans-OFL.txt`
+- `fonts/Cairo-Variable.ttf` + `fonts/Cairo-OFL.txt`
 
-## Format and safe-area specification
+## Icon language
 
-| Placement | Dimensions | Safe area / crop rule | Export |
-| --- | ---: | --- | --- |
-| Profile avatar | 1080 × 1080 | Keep the mark inside the central 760 × 760 area for a circular crop. | PNG |
-| Feed post | 1080 × 1350 (4:5) | Keep headlines 80 px from left/right/top and at least 140 px from the bottom. | PNG or high-quality JPG |
-| Carousel | 1080 × 1350 each | Keep slide number and key idea in the same location on every slide. | PNG or high-quality JPG |
-| Story | 1080 × 1920 (9:16) | Keep vital text approximately between y=250 and y=1650 to avoid app UI. | PNG / MP4 |
-| Reel cover | 1080 × 1920 | Keep the title visible inside the centered 4:5 crop preview. | PNG |
-| Highlight cover | 1080 × 1920 | Place the icon in the vertical center; Instagram crops it to a circle. | PNG |
+Use the custom rounded line icons in the generated kit: wallet, target, location pin, shield, calendar, coins, language, and chat. They use a consistent soft stroke, circular color field, and a mint accent.
 
-## Accessibility standard
+- Put an icon in a generous circle or card—not in a cramped corner.
+- Keep icon strokes at a consistent visual weight.
+- Use a familiar symbol before adding explanatory words.
+- Do not mix outlined icons with random emoji, clip-art, or glossy 3D stock illustrations.
+- Use the official SmartJib wallet mark for the avatar and primary brand moments only.
 
-- Prefer Ink on Paper/Mist or white/mint on Deep Teal/Ink for core text.
-- Maintain strong contrast. Do not use Muted text below 24 px equivalent for critical information.
-- Write descriptive alt text for static posts and captions for all video.
-- Avoid color-only meanings: label `Needs`, `Wants`, and `Savings` in addition to their color.
-- Use sentence case in body copy; all-caps is reserved for small metadata labels.
+## Illustration and layout
 
-## Content pillars
+1. Prefer rounded cards, small sparkles, circles, and calm progress graphics.
+2. Use real-but-generic amounts such as `10 000 MAD`; never show user financial data.
+3. Let one message dominate each post. A viewer should understand the topic before reading the caption.
+4. Keep the top 110 px quiet enough for Instagram interface overlays in Stories/Reels.
+5. Keep critical Story/Reel information within approximately `y=220–1650` on a 1080 × 1920 canvas.
+6. Highlights must keep the icon in the central circle-safe area; titles outside that zone are only a production aid.
+7. Use original abstract motifs, not copied layouts, wording, or artwork from other Instagram accounts.
 
-Use these four pillars to keep the page coherent after the first grid:
+## Dimensions and export
 
-1. **Start simple** — monthly resets, beginner questions, one-step practices.
-2. **Budget clarity** — needs/wants/savings, framework explainers, categories and tradeoffs.
-3. **See the whole picture** — money places, goals, trends, and product walkthroughs.
-4. **Private by design** — manual entry, no bank connection, data-aware habits and boundaries.
+| Asset | Canvas | Delivery format |
+| --- | ---: | --- |
+| Feed post / carousel slide | 1080 × 1350 | PNG |
+| Story / Reel cover | 1080 × 1920 | PNG |
+| Highlight cover | 1080 × 1920 | PNG, icon centered for circle crop |
+| Profile avatar | 1080 × 1080 | PNG, wallet mark stays in the central crop-safe area |
 
-A practical monthly mix: 40% education, 25% product how-to, 20% community prompts, 15% trust/brand stories.
+Export at native dimensions, use sRGB, and do not upscale a smaller canvas.
+
+## Accessibility and trust
+
+- Keep key claim text at readable contrast; avoid mint or saffron text on cream for essential information.
+- Write alt text for every feed post. The matching fields are in [`CAPTIONS.md`](CAPTIONS.md).
+- Burn subtitles into every Reel and leave visual room for native Instagram captions.
+- Never invite people to share account numbers, balances, passwords, bank credentials, or private screenshots.
+- SmartJib is a planning tool, not personalized financial, legal, tax, or investment advice.

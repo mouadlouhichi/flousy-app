@@ -1,134 +1,132 @@
-# Reels and Stories playbook
+# Reels & Stories — Morocco-first execution plan
 
-The covers and Story frames are ready to upload. Record real product footage for Reels rather than inventing financial data or using fake testimonials.
+Use the supplied static cover/frame files as production artwork. Add video, live screen capture, voiceover, subtitles, polls, question stickers, and link stickers natively in Instagram.
 
-## Three launch Reels
+## Reel inventory
 
-| Reel | Cover asset | Length | Goal |
-| --- | --- | ---: | --- |
-| 01 — Give every dirham a job | `reels/01-give-every-dirham-a-job-cover.png` | 20–30 sec | Teach a simple monthly reset |
-| 02 — Budgeting is not a punishment | `reels/02-budgeting-is-not-a-punishment-cover.png` | 15–20 sec | Establish the brand’s non-judgmental point of view |
-| 03 — Why no bank connection? | `reels/03-why-no-bank-connection-cover.png` | 20–25 sec | Explain the manual, privacy-conscious product choice |
+| Reel | Cover | Length | Primary language | Goal |
+| --- | --- | ---: | --- | --- |
+| 01 — Donne un rôle à chaque dirham | `reels/01-give-every-dirham-a-job-cover.png` | 25–35 sec | French | Make the monthly-plan method feel easy to start. |
+| 02 — الميزانية ماشي عقاب | `reels/02-budgeting-is-not-a-punishment-cover.png` | 20–30 sec | Darija / Arabic | Make the brand feel kind, human, and non-judgmental. |
+| 03 — Pourquoi pas de connexion bancaire ? | `reels/03-why-no-bank-connection-cover.png` | 20–25 sec | French | Explain the manual, privacy-conscious product choice. |
 
-### Reel 01 — Give every dirham a job
+## Recording rules
 
-**On-screen hook (0–2 sec):** `Give every dirham a job.`<br>
-**Shot list:**
+- Record vertical at **1080 × 1920**; leave the key title/action within the central safe area.
+- Burn in accurate subtitles. Use **Cairo** for Arabic/Darija captions and **Instrument Sans** for French/English captions.
+- Keep Latin multi-line display text compact. Give Arabic display lines visibly more vertical space; do not copy Latin line-height settings into Arabic.
+- Use only realistic, consented, or demo SmartJib data. Blur names, balances, email addresses, account numbers, and notifications.
+- Make the first two seconds understandable without sound.
+- Lead in French or Darija/Arabic, not both at full length in the same spoken Reel. A brief translated end-card is enough when useful.
+- Add a Morocco-relevant context where it fits: MAD, a monthly reset, cash, wallet, bank, or a common everyday goal—never stereotypes.
 
-1. Show the supplied cover for 1–2 seconds.
-2. Screen-record creating or opening a sample month with non-sensitive demo data.
-3. Add simple text overlays: `Income → Needs → Wants → Savings`.
-4. Show the final overview for 2–3 seconds.
-5. End on the SmartJib logo and `Start with a clear view.`
+## Reel 01 — Donne un rôle à chaque dirham
 
-**Voiceover / captions:**
+**Cover:** `01-give-every-dirham-a-job-cover.png`<br>
+**On-screen hook (0–2 sec):** `Donne un rôle à chaque dirham.`
 
-```text
-A monthly budget does not need to predict everything.
-Start with the income you expect. Give needs, wants and savings an intentional share. Then adjust as real life happens.
-The goal is not perfection. It is making the next decision with a clearer view.
-```
+### Shot list
 
-**Post caption:**
+1. **0–2 sec:** Cover/title, then a calm hand opening a simple monthly note or SmartJib’s plan screen.
+2. **2–7 sec:** `1. Commence par ton vrai montant.` Show `10 000 MAD` as clearly labeled demo data.
+3. **7–14 sec:** `2. Répartis : besoins, envies, épargne.` Show three friendly color markers, not a dense spreadsheet.
+4. **14–21 sec:** `3. Vérifie où est ton argent.` Briefly show Bank, Maison, and Portefeuille places.
+5. **21–28 sec:** `Ajuste quand la vraie vie bouge.`
+6. **End:** `Ton budget. Ton rythme. Lien dans la bio.`
 
-```text
-A small monthly reset can make the next choice easier. Start with your real numbers, give each area a purpose, and adjust as the month unfolds. Save this for your next reset. ✦
-
-#SmartJib #DirhamBudget #MonthlyBudget #BudgetReset #MoneyHabits
-```
-
-**CTA:** `Save this for your next monthly reset.`
-
----
-
-### Reel 02 — Budgeting is not a punishment
-
-**On-screen hook (0–2 sec):** `Budgeting is not a punishment.`<br>
-**Shot list:**
-
-1. Open with the supplied cover.
-2. Show three single-word cards in sequence: `Clarity`, `Choice`, `Room to adjust`.
-3. Use a calm screen recording of the budget overview or simple branded text screens.
-4. End with: `Plan the next step. Not the perfect month.`
-
-**Voiceover / captions:**
+**Caption:**
 
 ```text
-A budget is not proof that you are doing something wrong.
-It is a way to see your choices before the month decides for you.
-Needs, wants and savings can all have a place. Start where you are, and make one helpful adjustment at a time.
+Un budget simple commence avec le montant réel, pas avec un tableau parfait.
+
+Prévois. Répartis. Ajuste.
+
+Essaie SmartJib en MAD via le lien dans la bio.
+
+#SmartJib #BudgetMaroc #BudgetMAD #GestionBudget
 ```
 
-**Post caption:**
+## Reel 02 — الميزانية ماشي عقاب
+
+**Cover:** `02-budgeting-is-not-a-punishment-cover.png`<br>
+**On-screen hook (0–2 sec):** `الميزانية ماشي عقاب.`
+
+### Darija voiceover / subtitle script
 
 ```text
-A useful budget leaves room for real life. It is a choice tool, not a guilt tool. What is one small adjustment that would make this month feel clearer?
+الميزانية ماشي باش تحاسب راسك.
+هي غير طريقة باش تشوف فلوسك بوضوح.
 
-#SmartJib #MoneyMindset #BudgetingTips #PersonalFinance #MoneyHabits
+بدا بشنو داخل.
+قسمه بين الاحتياجات، الرغبات، والادخار.
+ومن بعد عدّل على حساب واقعك.
+
+ما خاصكش تكون كامل. خصك غير تعرف الخطوة الجاية.
 ```
 
-**CTA:** `Comment with one small adjustment you are making this month.`
+### Shot list
 
----
+1. **0–2 sec:** Arabic Cairo hook on the supplied cover.
+2. **2–8 sec:** A friendly “before” moment: too many notes, then simplify to one income amount.
+3. **8–15 sec:** Three cards appear: احتياجات, رغبات, ادخار.
+4. **15–22 sec:** Show one adjustment—not a “failed” budget.
+5. **End:** `فلوسك بوضوح، بلا ضغط. / smartjib.app`
 
-### Reel 03 — Why no bank connection?
-
-**On-screen hook (0–2 sec):** `Why no bank connection?`<br>
-**Shot list:**
-
-1. Open with the supplied cover.
-2. Add animated text: `You choose what to track.`
-3. Show an expense or income being added manually with safe demo values.
-4. Show the overview updating.
-5. End: `No bank credentials. A focused budget view.`
-
-**Voiceover / captions:**
+**Caption:**
 
 ```text
-SmartJib does not connect to your bank account.
-It is a manual budget tracker, so you add the information that matters to you and use it to make a clearer plan.
-No bank credentials. No unnecessary complexity. Just a focused view of your money.
+الميزانية ماشي حكم عليك. هي طريقة باش القرار الجاي يكون أسهل.
+
+بدا صغير، وعدّل مع واقع الشهر.
+
+#SmartJib #BudgetMaroc #تدبير_الميزانية #BudgetMAD
 ```
 
-**Post caption:**
+## Reel 03 — Pourquoi pas de connexion bancaire ?
+
+**Cover:** `03-why-no-bank-connection-cover.png`<br>
+**On-screen hook (0–2 sec):** `Pourquoi pas de connexion bancaire ?`
+
+### Shot list
+
+1. **0–2 sec:** Cover/title.
+2. **2–7 sec:** `Parce que tu choisis ce que tu veux suivre.`
+3. **7–13 sec:** Show a manual income entry, then one expense entry with fictional demo data.
+4. **13–18 sec:** `Pas d’identifiants bancaires à partager.` Use the shield icon, not a fake bank-login interface.
+5. **18–23 sec:** `Un suivi simple. Un plan plus clair.`
+6. **End:** `Découvre SmartJib — lien dans la bio.`
+
+**Caption:**
 
 ```text
-A manual budget can be a deliberate choice: you decide what to track, then use that information to plan with intention. SmartJib does not connect to bank accounts or request bank credentials.
+SmartJib ne se connecte pas à ton compte bancaire.
 
-#SmartJib #PrivateBudgeting #PrivacyByDesign #BudgetTracker #PersonalFinance
+Tu ajoutes ce que tu choisis de suivre, puis tu l’utilises pour mieux planifier. Pas d’identifiants bancaires à partager.
+
+#SmartJib #BudgetPrive #SansConnexionBancaire #BudgetMaroc
 ```
 
-**CTA:** `Visit the link in bio to see how SmartJib works.`
+## Eight-Highlight Story plan
 
-## Recording specification
+Publish at least the listed starter Story before creating each Highlight. Refresh each Highlight as new content is published.
 
-- **Frame:** 1080 × 1920, vertical 9:16.
-- **Safe area:** keep titles and captions roughly between 250 px and 1,650 px from the top of the canvas so they are not covered by Instagram UI.
-- **Captions:** burn in accurate captions and also use Instagram’s native caption tool when posting.
-- **Footage:** use only demo data, an explicitly consented test account, or a staged screen recording. Blur user names, balances, notes, receipts and account references.
-- **Audio:** choose an available Instagram audio track or use clear original speech. Do not rely on trending audio for a claim that needs to remain understandable without sound.
-- **Thumbnail:** choose the supplied cover after uploading the video. Check the 4:5 crop preview; the headline is already centered for it.
+| Highlight | Cover | Starter Story | Add next |
+| --- | --- | --- | --- |
+| Start | `highlights/01-start-cover.png` | `stories/01-welcome-to-smartjib.png` | Short French/Darija welcome, what SmartJib helps with, link sticker |
+| Budget | `highlights/02-budget-cover.png` | `stories/02-three-buckets.png` | 50/30/20 as a flexible starting point, poll: “Tu planifies déjà ?” |
+| Places | `highlights/03-places-cover.png` | `stories/03-money-places.png` | Bank/home/wallet explanation, slider sticker |
+| Goals | `highlights/04-goals-cover.png` | `stories/06-savings-goals.png` | Goal ideas and 68% progress example |
+| Private | `highlights/05-private-cover.png` | `stories/04-private-by-design.png` | Manual-tracking and no-bank-connection FAQ |
+| Tour | `highlights/06-tour-cover.png` | `stories/07-app-tour.png` | 3-step screen-recorded walkthrough |
+| Tips | `highlights/07-tips-cover.png` | `stories/08-budget-tip.png` | One low-pressure tip per week |
+| FAQ | `highlights/08-faq-cover.png` | `stories/05-ask-a-budget-question.png` | Question sticker answers in the sender’s language |
 
-## Eight starter Stories
+## Native sticker prompts
 
-Post the Starter Stories in the order below, then add them to the matching Highlight. Add native stickers only at posting time — that makes them interactive and lets Instagram report results.
+Use Instagram-native stickers rather than baking fake interactive controls into a PNG.
 
-| Order | Asset | Highlight | Native action to add | Suggested sticker / copy |
-| ---: | --- | --- | --- | --- |
-| 01 | `stories/01-welcome-to-smartjib.png` | Start | Link sticker | `Start your budget` → SmartJib launch URL |
-| 02 | `stories/02-three-buckets.png` | Budget | Poll | `Which bucket needs attention?` / Needs / Wants / Savings *(use the Quiz sticker for 3 options)* |
-| 03 | `stories/03-money-places.png` | Places | Poll | `Where do you use money most?` / Bank / Cash |
-| 04 | `stories/04-private-by-design.png` | Private | Link sticker | `How it works` → SmartJib launch URL |
-| 05 | `stories/05-ask-a-budget-question.png` | FAQ | Question sticker | `Ask us anything about budgeting` |
-| 06 | `stories/06-savings-goals.png` | Goals | Emoji slider | `How motivated do you feel about your next goal?` |
-| 07 | `stories/07-app-tour.png` | Tour | Link sticker | `Watch the walkthrough` → a final Reel or app URL |
-| 08 | `stories/08-budget-tip.png` | Tips | “Add yours” or link sticker | `One helpful money habit` |
-
-### Story posting checklist
-
-1. Upload at full resolution; do not screenshot the PNG in a messaging app first.
-2. Put stickers in the clear lower-middle or upper-middle space, not on top of the headline.
-3. Test every link before publishing.
-4. Add the Story to the Highlight immediately after publishing.
-5. Use `Close Friends` only for drafts, not for the final public Highlight version.
-6. Review questions and poll results within 24 hours, then answer useful questions in a follow-up Story.
+- **Poll (French):** `Tu fais ton budget quand ?` — `Début du mois` / `Quand je peux`
+- **Poll (Darija):** `كتخطّط لفلوسك؟` — `آه` / `باغي نبدا`
+- **Question:** `شنو هو أكثر حاجة كتقلقك فالميزانية؟` *(review wording before paid promotion)*
+- **Slider:** `À quel point ton budget est clair aujourd’hui ?`
+- **Link sticker:** `Commencer avec SmartJib` → `https://smartjib.app/?utm_source=instagram&utm_medium=story&utm_campaign=launch_ma`
