@@ -208,7 +208,6 @@ export function OverviewTab({
                 type="button"
                 disabled={!canSeeBalances}
                 onClick={canSeeBalances ? () => setHistoryPlaceId(place.id) : undefined}
-                aria-label={canSeeBalances ? t(m.moneyHistory.openHistory, { name: placeTitle }) : undefined}
                 className="flex flex-1 min-w-0 items-center gap-3 text-start rounded-xl disabled:cursor-default focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all"
               >
                 <span className={`w-10 h-10 rounded-2xl ${tone.icon} flex items-center justify-center shadow-2xs shrink-0`}>
@@ -230,6 +229,12 @@ export function OverviewTab({
                     name="history"
                     className="text-[18px] shrink-0 text-on-surface-variant"
                   />
+                )}
+                {/* Screen-reader action note: the accessible name comes from
+                    the visible contents (WCAG 2.5.3) — an aria-label here
+                    would drop the place name and balance. */}
+                {canSeeBalances && (
+                  <span className="sr-only"> {t(m.moneyHistory.openHistory, { name: placeTitle })}</span>
                 )}
               </button>
               {canEditBalances && (
@@ -261,13 +266,16 @@ export function OverviewTab({
                   type="button"
                   onClick={() => setIsStrategyModalOpen(true)}
                   className="flex items-center gap-1.5 bg-surface-variant/60 hover:bg-surface-variant rounded-full px-3 py-1.5 transition-all cursor-pointer group"
-                  aria-label={m.strategySelector.changeStrategy}
                 >
                   <AppIcon name="package" className="text-[12px] text-primary " />
                   <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface">
                     {strategyCopy.name}
                   </span>
                   <AppIcon name="chevron_right" className="text-[12px] text-on-surface-variant rotate-90" />
+                  {/* Screen-reader action note: the accessible name comes from
+                      the visible contents (WCAG 2.5.3) — an aria-label here
+                      would drop the visible strategy name. */}
+                  <span className="sr-only"> {m.strategySelector.changeStrategy}</span>
                 </button>
               ) : (
                 <span className="text-[10px] font-bold tracking-wider uppercase text-on-surface-variant">

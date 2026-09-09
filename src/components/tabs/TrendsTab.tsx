@@ -14,7 +14,24 @@ import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 import { CustomReportCard } from '../dashboard/custom-report-card';
-import { MonthTrendChart } from '../charts/month-trend-chart';
+import dynamic from 'next/dynamic';
+
+/**
+ * Recharts (~500 KB) is the heaviest dashboard dependency, and the trends
+ * route is prefetched from the overview nav — a static import would make
+ * every overview visit download and parse it (Lighthouse `unused-javascript`
+ * on /dashboard). Loaded on demand instead; the chart is an aria-hidden
+ * visual double of the table below, so the skeleton is a11y-neutral.
+ */
+const MonthTrendChart = dynamic(
+  () => import('../charts/month-trend-chart').then((m) => m.MonthTrendChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-56 w-full animate-pulse rounded-2xl bg-surface-variant/30" aria-hidden="true" />
+    ),
+  },
+);
 
 interface TrendsTabProps {
   month: MonthBudget;

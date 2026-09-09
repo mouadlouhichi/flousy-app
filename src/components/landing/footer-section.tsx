@@ -29,9 +29,11 @@ export function FooterSection() {
       { name: t('helpCenter', 'Help center'), href: '/help' },
       { name: t('contactUs', 'Contact us'), href: '/contact' },
     ]},
+    // One link per URL per nav block: a second /about link with a different
+    // anchor added nothing — crawlers count only the first link's anchor —
+    // and duplicate-anchor footer links read as manipulative.
     { title: t('company', 'Company'), links: [
       { name: t('about', 'About'), href: '/about' },
-      { name: t('privateTracker', 'About Private Budget Tracker'), href: '/about' },
       { name: t('careers', 'Careers'), href: '/careers' },
       { name: t('freeMorocco', 'Free Budget Tracker Morocco'), href: '/' },
     ]},
