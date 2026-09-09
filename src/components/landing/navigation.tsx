@@ -198,9 +198,15 @@ export function Navigation() {
       <div
         id="mobile-menu"
         aria-hidden={!isMobileMenuOpen}
+        // `inert` (not just aria-hidden): the closed menu is only
+        // opacity-0/pointer-events-none, so its links and buttons stayed in the
+        // tab order — an `[aria-hidden]` ancestor with focusable descendants
+        // (WCAG 4.1.2 / axe aria-hidden-focus). inert removes them from both
+        // the sequential focus order and the accessibility tree while closed.
+        inert={!isMobileMenuOpen}
         className={`md:hidden fixed inset-0 bg-background z-40 transition-all duration-500 ${
-          isMobileMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
+          isMobileMenuOpen
+            ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         }`}
         style={{ top: 0 }}
