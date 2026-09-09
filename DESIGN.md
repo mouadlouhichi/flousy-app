@@ -166,7 +166,7 @@ Input fields are "ghost" style: background matches the surface level, defined by
 Chips include a 6px color-coded dot (dot-indicator) aligned to the left of the label. The background of the chip should be a 10% opacity tint of the category color to ensure high-contrast text remains legible.
 
 ### Navigation
-The PWA utilizes a bottom navigation bar on mobile with outline-style icons. Active states are indicated by a change in icon stroke weight (from 1.5px to 2px) and a color shift to Primary Teal.
+The PWA utilizes a bottom navigation bar on mobile with outline-style icons. Active states are indicated by a change in icon stroke weight (from 1.5px to 2px) and a color shift to Primary Teal!
 
 ### Data Visualization
 Progress bars and donut charts use a 12px stroke width. The "remaining" portion of a budget uses a low-contrast neutral gray, while the "spent" portion uses the semantic colors (Success/Warning/Error) based on the percentage of the budget consumed.
