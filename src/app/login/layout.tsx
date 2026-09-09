@@ -3,10 +3,15 @@ import { LoginProviders } from '@/components/login-providers';
 
 export const metadata: Metadata = {
   title: 'Sign in',
-  description: 'Sign in to your SmartJib account.',
+  description: 'Sign in to SmartJib or create a free account to start tracking your budget.',
+  alternates: {
+    canonical: '/login',
+  },
+  // This is the public account entry point linked from the landing page. Keep
+  // it crawlable; only authenticated and onboarding screens are private.
   robots: {
-    index: false,
-    follow: false,
+    index: true,
+    follow: true,
   },
 };
 

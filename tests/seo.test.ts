@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import sitemap from '../src/app/sitemap';
 import robots from '../src/app/robots';
+import { metadata as loginMetadata } from '../src/app/login/layout';
 import { BLOG_POSTS } from '../src/lib/blog';
 import { SUPPORTED_CURRENCIES } from '../src/lib/currency';
 import {
@@ -67,11 +68,17 @@ describe('SEO and GEO configuration', () => {
       assert.ok(llmsText.includes(`${SITE_URL}/blog/${post.slug}`));
     }
 
-    for (const privatePath of ['/login', '/dashboard', '/onboarding']) {
+    assert.ok(urls.includes(`${SITE_URL}/login`));
+    for (const privatePath of ['/dashboard', '/onboarding']) {
       assert.ok(!urls.includes(`${SITE_URL}${privatePath}`));
     }
 
     const robotsConfig = robots();
     assert.equal(robotsConfig.sitemap, `${SITE_URL}/sitemap.xml`);
+    const rules = Array.isArray(robotsConfig.rules) ? robotsConfig.rules : [robotsConfig.rules];
+    const defaultRule = rules.find((rule) => rule.userAgent === '*');
+    assert.ok(defaultRule);
+    assert.ok(!defaultRule.disallow?.includes('/login'));
+    assert.deepStrictEqual(loginMetadata.robots, { index: true, follow: true });
   });
 });
