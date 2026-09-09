@@ -1,6 +1,6 @@
 # SmartJib (smartjib-app) — Deep Functional Audit
 
-> **Scope:** product/functional review of the 2026-09-03 tree
+> **Scope:** product/functional review of the 2026-09-03 tree all
 > (`main` @ `31dcf72`), read against the history in
 > [`AUDIT_2026-08-31.md`](AUDIT_2026-08-31.md), [`MVP_TODO.md`](MVP_TODO.md),
 > [`PERFORMANCE_REPORT.md`](PERFORMANCE_REPORT.md) and
