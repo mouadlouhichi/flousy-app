@@ -181,8 +181,28 @@ The app is already Cloudflare-friendly: the middleware emits explicit
 static. To move hosting from Vercel to Cloudflare Workers, build with
 [`@opennextjs/cloudflare`](https://open-next.js.org/cloudflare)
 (`npx opennextjs-cloudflare build && wrangler deploy`) and set the
-`NEXT_PUBLIC_FIREBASE_*` vars in the Worker environment. No code changes
-required; the static routes, CSP and cache headers run as a Worker as-is.
+`NEXT_PUBLIC_FIREBASE_*` vars in the Worker environment.
+
+> Evaluated 2026-09-09 — **not integrated, and not recommended today.**
+> Every Cloudflare product overlaps something already in place: CDN/caching
+> (explicit `Cache-Control` honored by Vercel's edge; authed/API responses
+> are `no-store` and must not be cached by anyone), DDoS (Vercel),
+> WAF/bots/rate limits (Arcjet Shield + `detectBot` on every abusable API
+> route, own rate limiter, per-route Firebase-auth/`CRON_SECRET` checks;
+> the two Arcjet-less routes need none — `fx` proxies keyless upstream
+> APIs with allowlisted currencies and 12 h edge caching, `client-errors`
+> is per-IP rate-limited with capped 204-ack payloads). Orange-clouding
+> would add a second CDN hop plus SSL/purge/IP complexity for no
+> measurable gain; a Workers migration is high-risk for this codebase
+> (`runtime: 'nodejs'` routes, firebase-admin in the dispatcher, the
+> 300 s dispatch window vs Workers CPU-time limits, Vercel Cron and
+> preview env vars to rewire) with no payoff at this scale; R2/KV/D1,
+> Turnstile, and extra analytics beacons have no corresponding need
+> (Firestore + on-device data by privacy design, Google OAuth login,
+> in-house consent-based analytics, zero third-party JS to manage).
+> Revisit only to leave Vercel or for cost at scale — the IP detection
+> (`x-forwarded-for`/`x-real-ip`) and cache policy already work behind
+> any proxy, so no code prep is needed.
 
 ---
 
