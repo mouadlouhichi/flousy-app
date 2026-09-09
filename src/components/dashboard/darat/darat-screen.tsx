@@ -318,7 +318,10 @@ export function DaratScreen() {
         // (the pointer's create rule checks `isCircleMember`).
         tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
           uid: user.uid,
-          displayName: user.displayName ?? user.email ?? 'Organizer',
+          // A display name can be missing (or blank) on a Firebase account;
+          // the rules require 1-100 chars, so fall through to the email
+          // rather than write a row the ledger gate would refuse.
+          displayName: (user.displayName && user.displayName.trim()) || user.email || 'Organizer',
           // The organizer's email identifies their SmartJib account;
           // it is not used as an invite gate. We keep it on the row
           // for the household path.
@@ -336,8 +339,13 @@ export function DaratScreen() {
           circleId: circleRef.id,
           joinedAt: new Date(now).toISOString(),
         });
-        // Initial ledger entry.
-        tx.set(doc(ledgerCol), {
+        // Initial ledger entry. The ledger create rule requires the row to
+        // carry its own doc id (`incoming().id == entryId`); a row without
+        // it aborts the rule and the whole transaction comes back as a bare
+        // permission-denied — the exact failure this ref-then-set avoids.
+        const ledgerRef = doc(ledgerCol);
+        tx.set(ledgerRef, {
+          id: ledgerRef.id,
           circleId: circleRef.id,
           uid: user.uid,
           kind: 'created',
@@ -440,9 +448,12 @@ export function DaratScreen() {
         updatedAt: Date.now(),
       });
 
-      // Audit trail.
+      // Audit trail. The row carries its own doc id, as the ledger create
+      // rule requires (`incoming().id == entryId`).
       const ledgerCol = collection(db, 'circles', input.circleId, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: input.circleId,
         uid: user.uid,
         kind: 'edited',

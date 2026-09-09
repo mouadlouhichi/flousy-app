@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
+  deleteDoc,
   doc,
   getFirestore,
   onSnapshot,
@@ -109,7 +110,10 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
       );
       await updateDoc(circleRef, { rounds: newRounds, updatedAt: Date.now() });
       const ledgerCol = collection(db, 'circles', circle.id, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      // The ledger create rule requires the row to carry its own doc id.
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: circle.id,
         uid: user.uid,
         kind: paid ? 'payment_marked' : 'payment_reverted',
@@ -139,13 +143,19 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         memberOrder: newOrder,
         updatedAt: Date.now(),
       });
-      // Remove the user pointer.
-      await updateDoc(doc(db, 'users', user.uid, 'circles', circle.id), {}).catch(() => {
+      // Remove the user pointer. The pointer is delete-only
+      // (`allow update: if false`), so the updateDoc that used to be here
+      // was always refused and silently swallowed — the row survived and
+      // the dashboard widget kept listing the circle after the leave.
+      await deleteDoc(doc(db, 'users', user.uid, 'circles', circle.id)).catch(() => {
         // best effort; the row may not exist if the user was invited but never accepted
       });
-      // Append a ledger entry.
+      // Append a ledger entry. The row carries its own doc id, as the
+      // ledger create rule requires (`incoming().id == entryId`).
       const ledgerCol = collection(db, 'circles', circle.id, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: circle.id,
         uid: user.uid,
         kind: 'member_left',
@@ -171,7 +181,10 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         updatedAt: Date.now(),
       });
       const ledgerCol = collection(db, 'circles', circle.id, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      // The ledger create rule requires the row to carry its own doc id.
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: circle.id,
         uid: user.uid,
         kind: 'closed',

@@ -1409,8 +1409,12 @@ service cloud.firestore {
     // Authorization model:
     //  - The organizer (organizerId) can read + write the circle, invites, ledger.
     //  - An active member can read the circle + their own member row.
-    //  - Any member can mark their own payment status on a round (writes are
-    //    rejected if the member is not in the circle's memberOrder).
+    //  - Any active member can mark their own payment status on a round: the
+    //    payment map lives inside each round, so the rounds array rewrite is
+    //    limited to `rounds` + `updatedAt`.
+    //  - An invitee joins by flipping a pending invite to accepted — signing
+    //    it with their uid (`acceptedByUserId`) — and then writing their own
+    //    member row, gated on that same accepted invite.
     //  - All writes must validate shape; required fields are required on create
     //    only, since `existing().get('field', default)` makes the update path
     //    tolerate documents that predate the field (see README 5-part ship).
@@ -1434,6 +1438,22 @@ service cloud.firestore {
     }
     function activeCircleMember(cid) {
       return isCircleMember(cid, request.auth.uid);
+    }
+    /**
+     * The invite that lets a non-organizer write their own member row on
+     * join: an in-circle invite that this same account just flipped to
+     * 'accepted' (the update rule signs it with `acceptedByUserId`), addressed
+     * by the id the joining client carries on the member row. The empty id is
+     * checked before it reaches a path: a malformed path aborts the rule,
+     * which is a failure this file cannot afford (see the household invite
+     * notes).
+     */
+    function joinInviteAgrees(cid, inviteId, uid) {
+      return inviteId is string
+        && inviteId.size() > 0
+        && existsAfter(circleInvitePath(cid, inviteId))
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('status', '') == 'accepted'
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('acceptedByUserId', '') == uid;
     }
     function validDaratRotation(value) {
       return value in ['random', 'fixed', 'bidding'];
@@ -1505,8 +1525,14 @@ service cloud.firestore {
       // A member can leave the circle: that mutates the circle's memberOrder +
       // status only (no shape change to organizerId / contribution / frequency).
       allow update: if activeCircleMember(circleId)
-        && activeCircleMember(circleId)
         && incoming().diff(existing()).affectedKeys().hasOnly(['memberOrder', 'updatedAt']);
+      // A member marks their own round payment: the payment map lives inside
+      // each round, so the whole rounds array is rewritten. The diff is
+      // limited to rounds + updatedAt — the same trust level as the
+      // memberOrder branch above (the client only ever flips the caller's
+      // own payment key; organizer edits still full-validate the shape).
+      allow update: if activeCircleMember(circleId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['rounds', 'updatedAt']);
       // Closing the circle is organizer-only.
       allow update: if isCircleOrganizer(circleId)
         && existing().get('status', '') == 'active'
@@ -1523,14 +1549,16 @@ service cloud.firestore {
         allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
 
         // Organizer can add members; a user can also add their own row when
-        // accepting an invite (handled in the invites block).
+        // accepting an invite — the join transaction flips the in-circle
+        // invite to 'accepted' (signed with their uid) and writes the member
+        // row in the same batch, so the gate is an accepted invite that
+        // names them (`joinInviteAgrees`).
         // The member's `email` is the signed-in user's own account
         // email (used by the household path to resolve "who is this
         // user?"); the `phone` is the organizer's reference for the
         // invitee, and is allowed to be empty on the organizer's own
         // row (the organizer didn't invite themselves).
-        allow create: if isCircleOrganizer(circleId)
-          && incoming().uid == memberId
+        allow create: if incoming().uid == memberId
           && incoming().status == 'active'
           && isEmail(incoming().email)
           && (incoming().phone is string
@@ -1538,7 +1566,13 @@ service cloud.firestore {
           && boundedText(incoming().displayName, 100)
           && incoming().isOrganizer is bool
           && incoming().joinedAt is string
-          && incoming().sourcePlaceId is string;
+          && incoming().sourcePlaceId is string
+          && (
+            isCircleOrganizer(circleId)
+            || (memberId == request.auth.uid
+              && incoming().isOrganizer == false
+              && joinInviteAgrees(circleId, incoming().get('inviteId', ''), request.auth.uid))
+          );
         // The organizer can update any member row; the member themselves can
         // flip their own status to 'left' (the leave flow) or update their
         // sourcePlaceId.
@@ -1568,12 +1602,15 @@ service cloud.firestore {
         // Update: organizer can edit; the recipient can flip their own
         // row to accepted once they type the code. The "own row" check
         // is implicit — you must know the id (the UUID) to address the
-        // doc, and the only acceptable change is `pending` -> `accepted`.
+        // doc, and the only acceptable change is `pending` -> `accepted`,
+        // signed with the accepting account's uid (the member-row create
+        // rule gates the join on that signature).
         allow update: if isCircleOrganizer(circleId)
           || (signedIn()
             && existing().get('status', '') == 'pending'
             && incoming().get('status', '') == 'accepted'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']));
+            && incoming().get('acceptedByUserId', '') == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']));
         allow delete: if isCircleOrganizer(circleId);
       }
 
@@ -1586,7 +1623,8 @@ service cloud.firestore {
           && incoming().uid == request.auth.uid
           && incoming().kind in [
             'created', 'member_added', 'member_joined', 'member_left',
-            'payment_marked', 'payment_reverted', 'round_resolved', 'closed'
+            'payment_marked', 'payment_reverted', 'round_resolved', 'closed',
+            'edited'
           ]
           && incoming().at is int
           && incoming().id == entryId;
@@ -1625,11 +1663,14 @@ service cloud.firestore {
         && incoming().circleId is string;
       // The recipient updates the row to accepted; the "own row" check
       // is implicit — you must know the UUID code to address the doc,
-      // and the only acceptable change is `pending` -> `accepted`.
+      // and the only acceptable change is `pending` -> `accepted`, signed
+      // with the accepting account's uid (the member-row create rule
+      // gates the join on that signature).
       allow update: if signedIn()
         && existing().get('status', '') == 'pending'
         && incoming().get('status', '') == 'accepted'
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']);
+        && incoming().get('acceptedByUserId', '') == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']);
       allow delete: if false;
     }
 
