@@ -324,8 +324,30 @@ function prepareLines(source: string, diagnostics: ParserDiagnostic[]): string {
   return lines.join('\n');
 }
 
+/** A truncated label can end a token with a stray unmatched closing bracket
+ * (e.g. `chili extract)`). The unmatched-closing-delimiter diagnostic is
+ * already recorded by `balancedPairs`; drop only the stray bracket so the
+ * ingredient stays identifiable, without hiding any preceding text. */
+function dropUnmatchedTrailingClosers(input: string): string {
+  let token = input;
+  for (;;) {
+    const last = token.at(-1);
+    if (!last || !CLOSE_TO_OPEN[last]) return token;
+    let openers = 0;
+    let closers = 0;
+    for (const ch of token) {
+      if (OPEN_TO_CLOSE[ch]) openers += 1;
+      else if (CLOSE_TO_OPEN[ch]) closers += 1;
+    }
+    if (closers <= openers) return token;
+    token = token.slice(0, -1).trimEnd();
+  }
+}
+
 function cleanToken(raw: string): string | undefined {
-  const token = String(raw ?? '').trim().replace(/[.]+$/u, '').trim();
+  const token = dropUnmatchedTrailingClosers(
+    String(raw ?? '').trim().replace(/[.]+$/u, '').trim(),
+  );
   if (!token) return undefined;
   const normalized = normalizeInciToken(token);
   if (!normalized || !/\p{L}{2,}/u.test(normalized)) return undefined;

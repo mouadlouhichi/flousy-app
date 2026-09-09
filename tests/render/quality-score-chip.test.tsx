@@ -1,7 +1,8 @@
 /**
  * Server-renders the course-line quality score chip (and its open popover) in
  * all three locales: catches missing i18n keys / bad hook usage, and pins the
- * visible "score/100" text, evidence-index caveat, and exact six-state
+ * visible "risk/100" text (100 − engine index, higher = riskier),
+ * risk caveat, and exact six-state
  * evidence breakdown inside the popover.
  */
 import { describe, it, mock } from 'node:test';
@@ -53,7 +54,7 @@ describe('QualityScoreChip render smoke', () => {
       current = locale;
       const html = renderToStaticMarkup(React.createElement(QualityScoreChip, { quality }));
       const [hasScore, hasEvidenceLabel] = probes(html, [
-        '87/100',
+        '13/100',
         catalogs[current].ingredientGlance.evidenceIndex,
       ]);
       assert.ok(hasScore, `${locale}: score/100 missing`);
@@ -77,7 +78,7 @@ describe('QualityScoreChip render smoke', () => {
     assert.ok(isButton, 'chip should be a button');
     assert.equal(hasDialog, false, 'popover must not render while closed');
 
-    const chipLabel = `${en.ingredientGlance.evidenceIndex} — 87/100`;
+    const chipLabel = `${en.ingredientGlance.evidenceIndex} — 13/100`;
     const popover = renderToStaticMarkup(
       React.createElement(QualityScorePopover, { quality, chipLabel }),
     );
@@ -95,7 +96,7 @@ describe('QualityScoreChip render smoke', () => {
     ] = probes(popover, [
       'role="dialog"',
       en.ingredientGlance.evidenceIndex,
-      '87/100',
+      '13/100',
       en.ingredientGlance.bandClean,
       en.ingredientGlance.bandWatch,
       en.ingredientGlance.bandCaution,

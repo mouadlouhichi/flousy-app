@@ -16,7 +16,7 @@
  * The same input always produces the same auditable result.
  */
 
-import type { FoodAnalysis } from './types';
+import type { FoodAnalysis, FoodUnspecifiedClass } from './types';
 
 /** Five-step scale — identical literals to the cosmetic Band so the ring
  * component accepts it without importing the cosmetics engine. */
@@ -27,6 +27,11 @@ export const FOOD_GRADE_AVOID_PENALTY = 60;
 export const FOOD_GRADE_CONCERN_WATCH_PENALTY = 15;
 /** Explicit high-concern wording is weighted like a strong ingredient signal. */
 export const FOOD_GRADE_CONCERN_HIGH_PENALTY = 45;
+/** A generic class declaration ("flavour enhancers", "food acid", "colour",
+ * "protein"…) hides whether a watch-level substance is present. Vague wording
+ * must never score better than transparent wording, so every distinct
+ * unspecified class carries the same penalty as a watch additive. */
+export const FOOD_GRADE_UNSPECIFIED_PENALTY = 15;
 /** Hard ceiling when an additive is no longer authorised in the EU. */
 export const FOOD_GRADE_AVOID_CAP = 34;
 /** A high ingredient concern may not read better than the caution band. */
@@ -49,16 +54,56 @@ export interface FoodGrade {
   band: GradeBand;
 }
 
-/** One ranked row of the "what moved the score" food breakdown. */
+/** One ranked row of the "what raises the risk" food breakdown. */
 export interface FoodGradeDriver {
-  kind: 'additive' | 'concern';
-  /** Additive E-code (e.g. "E171") or FoodConcernCode. */
+  kind: 'additive' | 'concern' | 'unspecified';
+  /** Additive E-code (e.g. "E171"), FoodConcernCode, or FoodUnspecifiedClass. */
   key: string;
   /** Raw label text the signal was read from. */
   raw: string;
   level: 'avoid' | 'high' | 'watch';
-  /** Points the signal removed from the 100-point grade. */
+  /** Points the signal removed from the 100-point grade (i.e. added risk). */
   deduction: number;
+}
+
+/** Distinct unspecified-class declarations on the label, first wording kept.
+ * A class word whose E-range is enumerated elsewhere on the same label (e.g.
+ * "flavour enhancer" alongside E621) is transparent wording, not vagueness,
+ * so it is not penalized. Shared by the grade rubric and the drivers
+ * breakdown so both stay in sync. */
+function unspecifiedClassHits(
+  analysis: FoodAnalysis,
+): Map<FoodUnspecifiedClass, string> {
+  // E-number ranges whose named presence demonstrates the class was declared
+  // transparently (E100-199 colours, E200-299 preservatives, E300-321
+  // antioxidants, E400-499 stabilisers, E620-637 flavour enhancers, E95x
+  // sweeteners, acids E260-330).
+  const ranges: Record<FoodUnspecifiedClass, ReadonlyArray<readonly [number, number]>> = {
+    colour: [[100, 199]],
+    preservative: [[200, 299]],
+    antioxidant: [[300, 321]],
+    'food-acid': [[260, 300], [330, 350]],
+    stabiliser: [[400, 422], [440, 499]],
+    sweetener: [[420, 421], [950, 969]],
+    'flavour-enhancer': [[620, 637]],
+    'protein-source': [],
+  };
+  const declaredNumbers = new Set<number>();
+  for (const additive of analysis.additives ?? []) {
+    const match = /^E(\d+)/i.exec(additive.code);
+    if (match) declaredNumbers.add(Number(match[1]));
+  }
+  const hits = new Map<FoodUnspecifiedClass, string>();
+  for (const ingredient of analysis.ingredients ?? []) {
+    const klass = ingredient.unspecifiedClass;
+    if (!klass || hits.has(klass)) continue;
+    const enumerated = ranges[klass].some(([min, max]) => {
+      for (const n of declaredNumbers) if (n >= min && n <= max) return true;
+      return false;
+    });
+    if (!enumerated) hits.set(klass, ingredient.raw);
+  }
+  return hits;
 }
 
 /**
@@ -87,6 +132,15 @@ export function foodGradeDrivers(
       raw: concern.raw,
       level: concern.level === 'high' ? 'high' : 'watch',
       deduction: concern.level === 'high' ? FOOD_GRADE_CONCERN_HIGH_PENALTY : FOOD_GRADE_CONCERN_WATCH_PENALTY,
+    });
+  }
+  for (const [key, raw] of unspecifiedClassHits(analysis)) {
+    drivers.push({
+      kind: 'unspecified',
+      key,
+      raw,
+      level: 'watch',
+      deduction: FOOD_GRADE_UNSPECIFIED_PENALTY,
     });
   }
   return drivers
@@ -120,6 +174,9 @@ export function foodLabelGrade(analysis: FoodAnalysis | null | undefined): FoodG
       ? FOOD_GRADE_CONCERN_HIGH_PENALTY
       : FOOD_GRADE_CONCERN_WATCH_PENALTY;
   }
+  // Vague class wording is penalized like a watch signal: omitting the
+  // E-number must never produce a better score than declaring it.
+  deduction += unspecifiedClassHits(analysis).size * FOOD_GRADE_UNSPECIFIED_PENALTY;
 
   let score = Math.max(0, Math.min(100, 100 - deduction));
   if (hasAvoid) score = Math.min(score, FOOD_GRADE_AVOID_CAP);

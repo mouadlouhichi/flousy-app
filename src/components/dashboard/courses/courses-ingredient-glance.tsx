@@ -264,14 +264,17 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         <div
           className={`rounded-2xl p-3.5 md:p-4 ${BANNER_STYLE[scored.band].bg}`}
           role="img"
-          aria-label={`${g.evidenceIndex}: ${scored.score}/100`}
+          aria-label={`${g.evidenceIndex}: ${100 - scored.score}/100`}
         >
           <div className="flex items-center gap-3.5">
             <div className="shrink-0">
               <p className="font-label-sm text-label-sm font-semibold opacity-80">{g.evidenceIndex}</p>
               <p className="flex items-baseline font-headline-lg text-headline-lg font-bold leading-none tabular-nums" dir="ltr">
-                {scored.score}
+                {100 - scored.score}
                 <span className="ms-0.5 font-label-md text-label-md font-semibold opacity-70">/100</span>
+              </p>
+              <p className="mt-0.5 font-label-sm text-label-sm font-semibold opacity-70" dir="ltr">
+                {g.riskScale}
               </p>
               {tierTotal > 0 && (
                 <div className="mt-2 flex h-1 w-16 overflow-hidden rounded-full bg-white/25" aria-hidden="true">

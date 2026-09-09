@@ -494,7 +494,7 @@ export function lookupUnspecifiedFoodClass(folded: string): FoodUnspecifiedClass
 }
 
 export const FOOD_ROW_COUNT = ROWS.length;
-export const FOOD_DATASET_VERSION = '2026-09-food-v4';
+export const FOOD_DATASET_VERSION = '2026-09-food-v5';
 
 // --- Mineral-water composition parameters -----------------------------------
 // Natural/spring/table waters print a mineral composition (mg/L) instead of an

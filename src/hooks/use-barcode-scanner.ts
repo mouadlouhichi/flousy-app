@@ -128,6 +128,9 @@ export function useBarcodeScanner({
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [roiActive, setRoiActive] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  /** A camera stream is attached and its tracks are live — drives the panel's
+   * live-preview treatment independently of the decoder state. */
+  const [streamLive, setStreamLive] = useState(false);
 
   const tearDown = useCallback(() => {
     invalidateScannerGeneration(acceptanceRef.current);
@@ -166,19 +169,55 @@ export function useBarcodeScanner({
     setState('idle');
   }, [tearDown]);
 
-  /** Synchronously locks acceptance, then stops every decoder/track before the
-   * consumer callback or feedback runs. */
+  /** Stops every decoder loop but KEEPS the camera stream, the video element,
+   * the torch and the zoom alive — the original main-branch behaviour where
+   * the preview stays live after a scan instead of turning the camera off. */
+  const pauseDecoders = useCallback(() => {
+    invalidateScannerGeneration(acceptanceRef.current);
+    acceptanceRef.current.armed = false;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    try {
+      zxingControlsRef.current?.stop();
+    } catch {
+      // Decoder may already be stopped.
+    }
+    zxingControlsRef.current = null;
+    activeRef.current = false;
+    setRoiActive(false);
+    setMethod('none');
+  }, []);
+
+  /** Soft pause for consumer gates (resolving/pending): decoders off, camera
+   * stays on. A no-op when the camera is not running. */
+  const pause = useCallback(() => {
+    if (!streamRef.current) return;
+    pauseDecoders();
+    setState((prev) => (prev === 'idle' ? prev : 'paused'));
+  }, [pauseDecoders]);
+
+  /** True while a live camera stream is still attached to the video element. */
+  const isStreamLive = useCallback(() => {
+    const stream = streamRef.current;
+    return Boolean(stream && stream.getVideoTracks().some((track) => track.readyState === 'live'));
+  }, []);
+
+  /** Synchronously locks acceptance, then stops every decoder before the
+   * consumer callback or feedback runs. The camera itself keeps streaming —
+   * re-arming restarts decoding on the same live feed with no camera restart. */
   const accept = useCallback((candidate: BarcodeCandidate, generation: number) => {
     if (!claimScannerCandidate(acceptanceRef.current, generation, enabledRef.current)) return false;
     pauseReasonRef.current = 'accepted';
     if (candidate.source === 'camera-native' || candidate.source === 'camera-zxing') {
       lastCameraCodeRef.current = candidate.rawValue;
     }
-    tearDown();
+    pauseDecoders();
     setState('accepted');
     onCodeRef.current(candidate);
     return true;
-  }, [tearDown]);
+  }, [pauseDecoders]);
 
   const getVideoTrack = useCallback(() => streamRef.current?.getVideoTracks()[0] ?? null, []);
 
@@ -352,6 +391,19 @@ export function useBarcodeScanner({
 
   const start = useCallback(async (requestedDeviceId?: string) => {
     if (!enabledRef.current || activeRef.current) return;
+    // Fast path: the camera stream from the previous scan is still live —
+    // re-arm decoding on it instead of turning the camera off and on again.
+    if (isStreamLive() && videoRef.current?.srcObject) {
+      pauseDecoders();
+      const generation = armScannerGeneration(acceptanceRef.current);
+      activeRef.current = true;
+      pauseReasonRef.current = null;
+      setError(null);
+      setState('ready');
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
+      else void startZxing(generation);
+      return;
+    }
     tearDown();
     const generation = armScannerGeneration(acceptanceRef.current);
     activeRef.current = true;
@@ -394,6 +446,7 @@ export function useBarcodeScanner({
       return;
     }
     streamRef.current = stream;
+    setStreamLive(true);
     const track = stream.getVideoTracks()[0];
     if (track) {
       track.onended = () => {
@@ -430,7 +483,7 @@ export function useBarcodeScanner({
     }
     if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
     else void startZxing(generation);
-  }, [deviceId, refreshCapabilities, startNative, startZxing, tearDown]);
+  }, [deviceId, isStreamLive, pauseDecoders, refreshCapabilities, startNative, startZxing, tearDown]);
 
   const rearm = useCallback((options?: { allowSameCameraCode?: boolean }) => {
     if (options?.allowSameCameraCode) lastCameraCodeRef.current = null;
@@ -443,14 +496,16 @@ export function useBarcodeScanner({
   useEffect(() => {
     if (!enabled) {
       startedForEnableRef.current = false;
-      stop();
+      // Consumer gate (resolving/pending/sheet): pause decoding but keep the
+      // camera preview live, exactly like the original scanner behaviour.
+      pause();
       return;
     }
     if (autoStart && !startedForEnableRef.current) {
       startedForEnableRef.current = true;
       void start();
     }
-  }, [enabled, autoStart, start, stop]);
+  }, [enabled, autoStart, pause, start]);
 
   // A keyboard wedge represents an explicit hardware trigger. It shares the
   // same synchronous acceptance mutex and supports every GTIN length.
@@ -502,7 +557,11 @@ export function useBarcodeScanner({
     stop,
     rearm,
     state,
-    running: state === 'acquiring' || state === 'ready',
+    // The preview counts as running while the camera stream is attached —
+    // this includes the post-scan 'accepted' pause and consumer-gated pauses,
+    // so the panel keeps showing the feed, the scan frame and the zoom control
+    // (original UX) instead of an idle camera placeholder.
+    running: streamLive || state === 'acquiring',
     error,
     method,
     zoom,

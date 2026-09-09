@@ -326,7 +326,9 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                 <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
                   {driver.kind === 'additive'
                     ? driver.key
-                    : g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]}
+                    : driver.kind === 'concern'
+                      ? g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]
+                      : g[UNSPECIFIED_CLASS_KEY[driver.key as FoodUnspecifiedClass] as keyof typeof g]}
                 </span>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${
@@ -337,7 +339,9 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                 >
                   {driver.kind === 'additive'
                     ? driver.level === 'avoid' ? g.additiveBandAvoid : g.additiveBandWatch
-                    : driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch}
+                    : driver.kind === 'concern'
+                      ? driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch
+                      : g.unspecifiedShort}
                 </span>
                 <span
                   className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"

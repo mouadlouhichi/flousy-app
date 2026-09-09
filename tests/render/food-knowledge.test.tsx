@@ -95,7 +95,7 @@ describe('FoodKnowledgeBody render smoke', () => {
       assert.ok(html.includes(messages.gradeDriversTitle), `${locale}: grade drivers title missing`);
       assert.ok(html.includes('E171'), `${locale}: avoid additive must lead the drivers`);
       assert.ok(html.includes(messages.concernPartiallyHydrogenatedOil), `${locale}: high concern driver missing`);
-      assert.ok(html.includes('-60'), `${locale}: avoid penalty missing`);
+      assert.ok(html.includes('+60'), `${locale}: avoid penalty missing`);
     }
   });
 

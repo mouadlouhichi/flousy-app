@@ -100,6 +100,23 @@ describe('shared scanner camera UX contract', () => {
     assert.doesNotMatch(scanner, /cameraSelect/);
   });
 
+  it('keeps the camera preview live after a scan (main-branch UX)', () => {
+    // accept() pauses the decoders but must NOT tear down the camera stream.
+    const acceptBody = hook.slice(
+      hook.indexOf('const accept ='),
+      hook.indexOf('const getVideoTrack'),
+    );
+    assert.ok(acceptBody.length > 0, 'accept() block not found');
+    assert.doesNotMatch(acceptBody, /tearDown\(\)/);
+    assert.match(hook, /const pauseDecoders/);
+    // A disabled panel softly pauses (stream stays attached) instead of a full
+    // camera teardown, and start() reuses the live stream without re-acquiring.
+    assert.match(hook, /startedForEnableRef\.current = false;\s*(?:\/\/[^\n]*\n\s*)*pause\(\);/);
+    assert.match(hook, /isStreamLive\(\) && videoRef\.current\?\.srcObject/);
+    // The panel no longer force-stops the camera when its enabled gate flips.
+    assert.doesNotMatch(scanner, /if \(!enabled\) stop\(\);/);
+  });
+
   it('keeps the Add-Expense scan-product entry and its shared scanner', () => {
     const modal = readFileSync(
       new URL('../src/components/modals/ExpenseModal.tsx', import.meta.url),

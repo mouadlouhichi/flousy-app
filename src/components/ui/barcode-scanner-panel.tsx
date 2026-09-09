@@ -146,11 +146,13 @@ export function BarcodeScannerPanel({
   });
 
   useEffect(() => {
-    if (!enabled) stop();
+    // Deliberately no stop() on enabled=false: the hook soft-pauses decoding
+    // while keeping the camera preview live (original scanner behaviour).
+    // Full camera teardown happens on unmount or the explicit stop button.
     return () => {
       if (flashTimer.current) clearTimeout(flashTimer.current);
     };
-  }, [enabled, stop]);
+  }, [enabled]);
 
   const submitManual = (event: React.FormEvent) => {
     event.preventDefault();

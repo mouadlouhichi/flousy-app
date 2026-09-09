@@ -71,10 +71,30 @@ that separate question.
 ### Grade drivers (2026-09-food-v4)
 
 `foodGradeDrivers` mirrors the rubric exactly and ranks up to three label
-signals that moved the grade, strongest first (additive code / concern label,
-localized band, point cost). The expanded food panel renders the ranking under
-a "what moved the label score" heading whenever a grade exists; a withheld
-grade (nothing recognized, mineral water) never gets a breakdown.
+signals that raised the risk, strongest first (additive code / concern label /
+vague class wording, localized band, risk points). The expanded food panel
+renders the ranking under a "what raises the risk" heading whenever a grade
+exists; a withheld grade (nothing recognized, mineral water) never gets a
+breakdown.
+
+### Vague-label rubric + risk presentation (2026-09-food-v5)
+
+Product-owner direction after a same-product comparison showed the vaguer
+label scoring **better** (94 vs 85) purely because it omitted E-numbers:
+
+- every **distinct unspecified class declaration** ("flavour enhancers",
+  "food acid", "protein", "colour", "preservative", "antioxidant",
+  "stabiliser", "sweetener") now deducts 15 points — the same as a watch
+  additive — so omitting specificity can never read as safer than declaring;
+- a class word whose **E-range is enumerated elsewhere on the same label**
+  (e.g. "colour" alongside colorant E160b, or "flavour enhancer" alongside
+  E621) is transparent wording and is NOT penalized — "color" + "colorant
+  (annatto E160b)" is one declaration the parser splits, not hidden vagueness;
+- a truncated label that leaves a stray closing bracket (the reported
+  `chili extract)` fragment) no longer leaks the bracket into the ingredient
+  identity; the cosmetic parse stays conservatively invalid;
+- presentation follows the cosmetic side: the ring and chips show the risk
+  direction (`100 − index`, higher = riskier) with risk-worded band labels.
 
 Corpus `2026-09-food-v4` (2026-09-09) extends market coverage for
 Moroccan/North-African labels: Arabic ingredient wording is now foldable and

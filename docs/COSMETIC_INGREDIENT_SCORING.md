@@ -72,7 +72,11 @@ Important states include `identified-no-assessment`, `externally-identified`, an
 
 ## Score transparency (ranked drivers)
 
-Every assessed row records `deduction` — the exact points its strongest supported signal removed from the 100-point index (regulatory signals carry full weight; curated signals are position-weighted, so wording earlier in the list weighs more). The scan UI uses it to rank up to three "main risk drivers" under the index banner: ingredient name, localized tier label, and the point cost. The ranking is rendered only when the numeric index itself is available; a withheld score never gets a driver breakdown.
+Every assessed row records `deduction` — the exact points its strongest supported signal removed from the 100-point index (regulatory signals carry full weight; curated signals are position-weighted, so wording earlier in the list weighs more). The scan UI uses it to rank up to three "main risk drivers" under the score banner: ingredient name, localized tier label, and the point cost. The ranking is rendered only when the numeric index itself is available; a withheld score never gets a driver breakdown.
+
+## Risk-score presentation (product-owner direction, 2026-09-09)
+
+The engine keeps the internal 0–100 index (100 = strongest clean evidence). **Every user-facing surface presents the inverse as a risk score** (`100 − index`): 0 = lowest listed risk, 100 = highest. A banner caption states the scale, and the band labels read as risk levels (Low risk → High risk). Stored assessments keep their engine semantics; the chips, ring, bill summary and glance all invert at display time so old and new records read consistently. The informational caveat ("not a product-safety or compliance verdict") remains on every panel.
 
 ## Numeric output
 

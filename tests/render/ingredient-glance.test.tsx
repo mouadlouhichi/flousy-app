@@ -143,7 +143,7 @@ describe('CoursesIngredientGlance render smoke', () => {
       React.createElement(CoursesIngredientGlanceBody, { analysis }),
     );
     const hasBannerRole = html.includes('role="img"');
-    const hasBannerLabel = html.includes(`aria-label="${en.ingredientGlance.evidenceIndex}: 20/100"`);
+    const hasBannerLabel = html.includes(`aria-label="${en.ingredientGlance.evidenceIndex}: 80/100"`);
     const hasScoreSuffix = html.includes('/100');
     assert.ok(hasBannerRole, 'banner missing its role');
     assert.ok(hasBannerLabel, 'banner aria-label missing');
@@ -170,7 +170,7 @@ describe('CoursesIngredientGlance render smoke', () => {
       assert.ok(first >= 0, `${locale}: top driver name missing`);
       const perfumeIndex = html.indexOf('PARFUM', first);
       assert.ok(perfumeIndex > first, `${locale}: drivers must be ordered strongest first`);
-      assert.ok(html.includes('-100'), `${locale}: driver point cost missing`);
+      assert.ok(html.includes('+100'), `${locale}: driver risk cost missing`);
       const g = catalogs[locale].ingredientGlance as unknown as Record<string, string>;
       const driverPoints = g.driverPoints.replace('{points}', '100');
       assert.ok(html.includes(driverPoints), `${locale}: localized point label missing`);

@@ -7,8 +7,8 @@ import {
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain, suggestsCosmeticRecord } from '../src/lib/food-knowledge/domain';
-import { additiveGrade, foodLabelGrade } from '../src/lib/food-knowledge/grade';
-import { sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
+import { additiveGrade, foodGradeDrivers, foodLabelGrade } from '../src/lib/food-knowledge/grade';
+import { parseInciList, sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
 
 describe('food-knowledge lists', () => {
   it('folds French labels for stable matching', () => {
@@ -343,7 +343,24 @@ describe('English Pringles Paprika label regression', () => {
     assert.deepEqual(result.ingredients.find((item) => item.raw === 'RICE FLOUR')?.allergens, []);
     assert.deepEqual(result.ingredients.find((item) => item.raw === 'CORN FLOUR')?.allergens, []);
     assert.deepEqual(result.additives.map((additive) => additive.code), ['E471', 'E160b']);
-    assert.deepEqual(foodLabelGrade(result), { score: 94, band: 'good' });
+    // 2026-09-food-v5 rubric: bare class declarations ("flavor enhancers",
+    // "protein", "food acid") now carry the same penalty as watch additives.
+    // This label is the vaguer twin of the same Pringles product that names
+    // E621/E627/E631 — vagueness must never read as safer than transparency
+    // (old rubric: 94/good). The bare "COLOR" wording is NOT penalized: the
+    // same label declares E160b (a colour-range code), so that class was
+    // enumerated transparently — "color" + "colorant (annatto E160b)" is one
+    // declaration the parser split, not hidden vagueness.
+    assert.deepEqual(foodLabelGrade(result), { score: 55, band: 'caution' });
+    // The breakdown must rank the vague declarations as the risk drivers.
+    assert.deepEqual(
+      foodGradeDrivers(result).map((driver) => [driver.kind, driver.deduction]),
+      [
+        ['unspecified', 15],
+        ['unspecified', 15],
+        ['unspecified', 15],
+      ],
+    );
   });
 });
 
@@ -538,5 +555,17 @@ describe('moroccan market coverage — 2026-09-food-v4', () => {
     assert.equal(foldForMatch('Huile d’olive'), 'huile d olive');
     assert.equal(lookupFoodRow(foldForMatch('farine de blé'))?.row.family, 'cereal');
     assert.equal(lookupFoodRow(foldForMatch('maquereau'))?.row.family, 'meat-fish');
+  });
+});
+
+describe('truncated-label parsing (stray closing bracket)', () => {
+  it('keeps an unmatched closing bracket invalid for scoring but identifiable per row', () => {
+    // A truncated label left "chili extract)" as the final fragment: the stray
+    // bracket must not leak into the ingredient identity, while the cosmetic
+    // parse stays conservatively invalid.
+    const p = parseInciList('vegetable oils (sunflower, palm), flavor enhancers, color, chili extract)');
+    assert.equal(p.valid, false);
+    assert.ok(p.diagnostics.some((d) => d.code === 'unmatched-closing-delimiter'));
+    assert.deepEqual(p.tokens, ['vegetable oils', 'sunflower', 'palm', 'flavor enhancers', 'color', 'chili extract']);
   });
 });

@@ -336,9 +336,9 @@ export function CoursesLabelAccordion({
             ) : foodGrade ? (
               <>
                 <ScoreRing
-                  score={foodGrade.score}
+                  score={100 - foodGrade.score}
                   band={foodGrade.band}
-                  label={`${foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
+                  label={`${100 - foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
                   toneClass={BAND_STYLE[foodGrade.band].text}
                 />
                 <span

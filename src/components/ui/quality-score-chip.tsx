@@ -56,7 +56,10 @@ export function QualityScoreChip({
 
   if (quality.score === null || quality.band === null) return null;
   const style = BAND_STYLE[quality.band];
-  const chipLabel = `${g.evidenceIndex} — ${quality.score}/100`;
+  // Displayed as a risk score: 100 − engine index, so higher always reads as
+  // riskier (the stored `score` keeps its engine semantics for history).
+  const riskScore = 100 - quality.score;
+  const chipLabel = `${g.evidenceIndex} — ${riskScore}/100`;
 
   return (
     <span ref={rootRef} className={`relative inline-flex shrink-0 ${className ?? ''}`}>
@@ -74,7 +77,7 @@ export function QualityScoreChip({
           style={{ backgroundColor: CHIP_DOT_COLOR[quality.band] }}
           aria-hidden="true"
         />
-        {quality.score}/100
+        {riskScore}/100
       </button>
 
       {open && <QualityScorePopover quality={quality} chipLabel={chipLabel} />}
@@ -119,7 +122,7 @@ export function QualityScorePopover({
     >
       <span className={`block font-label-md text-label-md font-bold ${style.text}`}>{g.evidenceIndex}</span>
       <span className="mt-0.5 block font-label-sm text-label-sm text-on-surface-variant" dir="ltr">
-        {quality.score}/100
+        {100 - quality.score}/100
       </span>
       <span className="mt-2 flex flex-col gap-1">
         {tierRows.map(([tierLabel, count, color], i) => (

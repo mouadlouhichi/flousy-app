@@ -153,3 +153,30 @@ describe('food grade drivers (score transparency)', () => {
     assert.deepEqual(foodGradeDrivers(plain), []);
   });
 });
+
+describe('label vagueness rubric (2026-09-food-v5)', () => {
+  const TRANSPARENT =
+    'Gedehydrateerde aardappelen, zonnebloemolie, TARWEMEEL, rijstbloem, paprikakruiderij (suiker, paprikapoeder, smaakversterkers {mononatriumglutamaat, natriumguanylaat, dinatriuminosinaat}, dextrose, gistpoeder, zout), emulgator (E471), kleurstof (annatto E160b)';
+  const VAGUE =
+    'Gedehydrateerde aardappelen, zonnebloemolie, TARWEMEEL, rijstbloem, paprikakruiderij (suiker, paprikapoeder, smaakversterkers, dextrose, gistpoeder, zout), emulgator (E471), kleurstof (annatto), voedingszuur, eiwit';
+
+  it('never scores a vaguer label of the same product as safer than the transparent one', () => {
+    const transparent = foodLabelGrade(analyzeFoodText(TRANSPARENT));
+    const vague = foodLabelGrade(analyzeFoodText(VAGUE));
+    assert.ok(transparent, 'transparent grade computed');
+    assert.ok(vague, 'vague grade computed');
+    assert.ok(
+      (vague?.score ?? 100) <= (transparent?.score ?? 0),
+      `vague ${vague?.score} must not read safer than transparent ${transparent?.score}`,
+    );
+  });
+
+  it('suppresses a class penalty only when its E-range is enumerated on the label', () => {
+    // "colour" bare + E160b named = one transparent declaration, no penalty.
+    const withColour = analyzeFoodText('Salt, sugar, colour, colorant (annatto E160b)');
+    assert.ok(!foodGradeDrivers(withColour).some((driver) => driver.kind === 'unspecified'));
+    // Same bare "colour" without any declared colour additive stays penalized.
+    const bareColour = analyzeFoodText('Salt, sugar, colour');
+    assert.ok(foodGradeDrivers(bareColour).some((driver) => driver.kind === 'unspecified' && driver.key === 'colour'));
+  });
+});
