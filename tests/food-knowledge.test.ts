@@ -569,3 +569,26 @@ describe('truncated-label parsing (stray closing bracket)', () => {
     assert.deepEqual(p.tokens, ['vegetable oils', 'sunflower', 'palm', 'flavor enhancers', 'color', 'chili extract']);
   });
 });
+
+describe('orange juice regression — declared vitamins are recognized (2026-09-food-v6)', () => {
+  const label = 'orange juice, water, sugar, acidifier: citric acid, vitamin c, natural flavour';
+
+  it('recognizes every row including "vitamin c" — no bogus partial-coverage cap', () => {
+    const r = analyzeFoodText(label);
+    assert.equal(r.total, 6);
+    assert.equal(r.recognized, 6, `unknown: ${r.unknownNames.join(', ')}`);
+    assert.deepEqual(r.unknownNames, []);
+    // Only E330 (neutral) is listed → full recognition, no risk drivers.
+    assert.deepEqual(r.additives.map((a) => a.code), ['E330']);
+    const grade = foodLabelGrade(r);
+    assert.deepEqual(grade, { score: 100, band: 'excellent' });
+    assert.deepEqual(foodGradeDrivers(r), []);
+  });
+
+  it('recognizes French and Arabic vitamin wording too', () => {
+    const fr = analyzeFoodText('eau, sucre, vitamine c, vitamine d');
+    assert.deepEqual(fr.unknownNames, []);
+    const ar = analyzeFoodText('ماء, سكر, فيتامين س');
+    assert.deepEqual(ar.unknownNames, []);
+  });
+});

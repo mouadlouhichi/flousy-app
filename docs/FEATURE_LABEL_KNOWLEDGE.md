@@ -96,6 +96,19 @@ label scoring **better** (94 vs 85) purely because it omitted E-numbers:
 - presentation follows the cosmetic side: the ring and chips show the risk
   direction (`100 − index`, higher = riskier) with risk-worded band labels.
 
+### Yuka-style risk ring + vitamins (2026-09-food-v6)
+
+Product-owner direction: the expanded food panel must lead with the same
+Yuka-style coloured **risk ring** as the INCI side. `FoodKnowledgeBody` now
+renders the ring (100 − grade, band-coloured arc, scale caption, band label)
+above the ranked drivers. The reported orange-juice label
+("orange juice, water, sugar, acidifier: citric acid, vitamin c, natural
+flavour") previously read risk 6 because bare "vitamin c" was unrecognized and
+the partial-coverage cap fired (100 → 94); corpus `2026-09-food-v6` recognizes
+declared vitamins (A/B6/B12/C/D/E/K in EN/FR/Arabic incl. `فيتامين س`,
+tocopherol, folate) and Arabic water (`ماء`), so that label now reads fully
+recognized with risk 0 and no drivers.
+
 Corpus `2026-09-food-v4` (2026-09-09) extends market coverage for
 Moroccan/North-African labels: Arabic ingredient wording is now foldable and
 matched (`foldForMatch` keeps every Unicode letter/digit and strips combining

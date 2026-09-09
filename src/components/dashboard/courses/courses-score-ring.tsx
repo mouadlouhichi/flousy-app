@@ -46,6 +46,8 @@ interface ScoreRingProps {
   label: string;
   /** Tailwind text class for the centred number (dark-mode aware). */
   toneClass: string;
+  /** Override the centred number size (e.g. larger panel rings). */
+  valueClass?: string;
   /** Px diameter (default 40). */
   size?: number;
   /** Score could not be computed (no recognized ingredients) — grey full ring. */
@@ -57,6 +59,7 @@ export function ScoreRing({
   band,
   label,
   toneClass,
+  valueClass,
   size = RING_SIZE,
   unknown = false,
 }: ScoreRingProps) {
@@ -107,7 +110,7 @@ export function ScoreRing({
         />
       </svg>
       <span
-        className={`absolute text-[12px] font-bold tabular-nums leading-none ${toneClass}`}
+        className={`absolute font-bold tabular-nums leading-none ${valueClass ?? 'text-[12px]'} ${toneClass}`}
         dir="ltr"
       >
         {unknown ? '–' : score}

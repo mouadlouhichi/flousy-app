@@ -2798,7 +2798,9 @@
     "waterUnit": "ملغ/ل",
     "waterUnparsed": "أسطر أخرى من الملصق تعذّر قراءتها كمعيار معدني:",
     "waterValuesNote": "القيم بالملغ/ل كما هي مطبوعة على الملصق. لأغراض إعلامية فقط — وليست تقييمًا أو نصيحة صحية.",
-    "unspecifiedShort": "غير محدد"
+    "unspecifiedShort": "غير محدد",
+    "riskTitle": "درجة خطر الملصق",
+    "riskScale": "0 = منخفض · 100 = مرتفع"
   },
   "labelKnowledge": {
     "codePlaceholder": "الباركود EAN (8 أو 13 رقمًا)",

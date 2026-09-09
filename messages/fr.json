@@ -2798,7 +2798,9 @@
     "waterUnit": "mg/L",
     "waterUnparsed": "Autres lignes de l’étiquette que nous n’avons pas pu lire comme paramètre minéral :",
     "waterValuesNote": "Valeurs en mg/L telles qu’imprimées sur l’étiquette. Informations uniquement — jamais une note ou un conseil de santé.",
-    "unspecifiedShort": "Non précisé"
+    "unspecifiedShort": "Non précisé",
+    "riskTitle": "Score de risque de l'étiquette",
+    "riskScale": "0 = faible · 100 = élevé"
   },
   "labelKnowledge": {
     "codePlaceholder": "Code-barres EAN (8 ou 13 chiffres)",

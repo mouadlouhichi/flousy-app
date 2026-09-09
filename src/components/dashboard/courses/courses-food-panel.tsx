@@ -16,6 +16,8 @@ import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analys
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
 import { foodGradeDrivers, foodLabelGrade } from '@/lib/food-knowledge/grade';
+import { ScoreRing } from './courses-score-ring';
+import { BAND_LABEL_KEY, BAND_STYLE } from './courses-ingredient-glance';
 import { LabelOcrButton } from './label-ocr-button';
 import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 
@@ -272,6 +274,7 @@ const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
 export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   const { messages: m, t } = useLanguage();
   const g = m.foodKnowledge;
+  const ig = m.ingredientGlance;
 
   // Water labels print a mineral composition, not an ingredient list — give
   // them an adapted view instead of pretending each line is an ingredient.
@@ -313,45 +316,68 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
 
       {/* Ranked grade drivers — the label signals that actually moved the
           bounded label-signal index, strongest first. Hidden when the grade
-          itself is withheld (nothing recognized / water). */}
-      {grade && gradeDrivers.length > 0 && (
+          itself is withheld (nothing recognized / water). Yuka-style risk ring
+          leading the panel — same ring/band/number contract as the INCI side. */}
+      {grade && (
         <section className="rounded-xl border border-outline-variant bg-surface/50 p-3">
-          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
-            <AppIcon name="analytics" className="size-4 text-primary" />
-            {g.gradeDriversTitle}
-          </h4>
-          <ul className="mt-1.5 space-y-1">
-            {gradeDrivers.map((driver) => (
-              <li key={`${driver.kind}:${driver.key}:${driver.raw}`} className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
-                  {driver.kind === 'additive'
-                    ? driver.key
-                    : driver.kind === 'concern'
-                      ? g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]
-                      : g[UNSPECIFIED_CLASS_KEY[driver.key as FoodUnspecifiedClass] as keyof typeof g]}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${
-                    driver.level === 'avoid' || driver.level === 'high'
-                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
-                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                  }`}
-                >
-                  {driver.kind === 'additive'
-                    ? driver.level === 'avoid' ? g.additiveBandAvoid : g.additiveBandWatch
-                    : driver.kind === 'concern'
-                      ? driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch
-                      : g.unspecifiedShort}
-                </span>
-                <span
-                  className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"
-                  dir="ltr"
-                >
-                  {t(g.gradeDriverPoints, { points: driver.deduction })}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-center gap-3">
+            <ScoreRing
+              size={64}
+              score={100 - grade.score}
+              band={grade.band}
+              label={`${100 - grade.score}/100 — ${t(ig[BAND_LABEL_KEY[grade.band]])}. ${g.gradeTooltip}`}
+              toneClass={BAND_STYLE[grade.band].text}
+              valueClass="text-[20px]"
+            />
+            <div className="min-w-0 flex-1">
+              <h4 className="font-label-md text-label-md font-semibold text-on-surface">{g.riskTitle}</h4>
+              <p className={`mt-0.5 font-label-sm text-label-sm font-semibold ${BAND_STYLE[grade.band].text}`}>
+                {t(ig[BAND_LABEL_KEY[grade.band]])}
+              </p>
+              <p className="font-label-sm text-label-sm text-on-surface-variant" dir="ltr">
+                {g.riskScale}
+              </p>
+            </div>
+          </div>
+          {gradeDrivers.length > 0 && (
+            <div className="mt-2.5 border-t border-outline-variant/70 pt-2">
+              <p className="font-label-sm text-label-sm font-semibold text-on-surface-variant">
+                {g.gradeDriversTitle}
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {gradeDrivers.map((driver) => (
+                  <li key={`${driver.kind}:${driver.key}:${driver.raw}`} className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
+                      {driver.kind === 'additive'
+                        ? driver.key
+                        : driver.kind === 'concern'
+                          ? g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]
+                          : g[UNSPECIFIED_CLASS_KEY[driver.key as FoodUnspecifiedClass] as keyof typeof g]}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${
+                        driver.level === 'avoid' || driver.level === 'high'
+                          ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      }`}
+                    >
+                      {driver.kind === 'additive'
+                        ? driver.level === 'avoid' ? g.additiveBandAvoid : g.additiveBandWatch
+                        : driver.kind === 'concern'
+                          ? driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch
+                          : g.unspecifiedShort}
+                    </span>
+                    <span
+                      className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"
+                      dir="ltr"
+                    >
+                      {t(g.gradeDriverPoints, { points: driver.deduction })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.gradeTooltip}</p>
         </section>
       )}

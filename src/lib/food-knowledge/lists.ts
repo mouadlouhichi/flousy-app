@@ -354,7 +354,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['sucre de canne', 'cane sugar'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['glucose', 'glucose syrup', 'sirop de glucose', 'dextrose', 'fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['miel', 'honey'], family: 'sugar', roles: ['sweetener', 'natural'] },
-  { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
+  { keys: ['eau', 'water', 'ماء', 'الماء'], family: 'water', roles: ['base'] },
   { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
   { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'huiles végétales', 'vegetable oil', 'vegetable oils', 'plant oil', 'plant oils', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée', 'زيت النخيل', 'زيت دوار الشمس'], family: 'fat-oil', roles: ['fat'] },
@@ -416,6 +416,15 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['amidon modifié', 'modified starch'], family: 'cereal', roles: ['texture'] },
   // Pantry staples frequent on Moroccan market labels (FR/EN/Arabic).
   { keys: ['vinaigre', 'vinegar', 'خل', 'alcool de vin', 'wine vinegar', 'vinaigre d alcool'], family: 'other', roles: ['acidulant'], note: 'Vinegar; acetic acid in water, used for acidity.' },
+  // Declared micronutrients (fortified juices, cereals, dairy drinks). Identity
+  // only: the declared form/amount lives on the nutrition panel, and a vitamin
+  // wording must never read as an unrecognized mystery ingredient.
+  { keys: ['vitamin c', 'vitamine c', 'فيتامين س'], family: 'other', roles: ['vitamin'], note: 'Vitamin C (ascorbic acid); antioxidant that protects colour and flavour.' },
+  { keys: ['vitamin e', 'vitamine e', 'tocopherol', 'alpha tocopherol'], family: 'other', roles: ['vitamin'], note: 'Vitamin E (tocopherol); antioxidant.' },
+  { keys: ['vitamin a', 'vitamine a'], family: 'other', roles: ['vitamin'] },
+  { keys: ['vitamin d', 'vitamine d'], family: 'other', roles: ['vitamin'] },
+  { keys: ['vitamin k', 'vitamine k'], family: 'other', roles: ['vitamin'] },
+  { keys: ['vitamin b6', 'vitamin b12', 'vitamine b6', 'vitamine b12', 'riboflavine', 'thiamine', 'niacine', 'folic acid', 'acide folique'], family: 'other', roles: ['vitamin'] },
   { keys: ['café', 'coffee', 'قهوة', 'extrait de café', 'coffee extract'], family: 'other', roles: ['flavour'], note: 'Coffee; source of caffeine.' },
   { keys: ['chicorée', 'chicory', 'chicoree'], family: 'fruit-veg', roles: ['flavour'], note: 'Chicory root; common coffee extender.' },
   { keys: ['extrait de malt', 'malt extract', 'orge maltée', 'malted barley'], family: 'cereal', roles: ['flavour'], note: 'Malt extract from germinated barley.' },

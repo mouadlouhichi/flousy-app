@@ -73,6 +73,7 @@ A further product-owner review of the remediated build directed two restorations
 - The post-closure follow-up passed lint, normal and strict TypeScript checks, the full **802 unit/integration + 60 render test** suite, and a production build of all 55 static pages locally on 2026-09-09.
 - The scan-camera restoration and risk-rank enhancement revision passed `npm run check` (lint, both TypeScript checks, **819 unit/integration + 62 render tests**) and a production build of all 55 static pages locally on 2026-09-09.
 - The risk-direction and camera-liveness revision passed `npm run check` (lint, both TypeScript checks, **823 unit/integration + 62 render tests**) and a production build of all 55 static pages locally on 2026-09-09.
+- The food risk-ring/vitamin-recognition revision passed `npm run check` (lint, both TypeScript checks, **825 unit/integration + 63 render tests**) and a production build of all 55 static pages locally on 2026-09-09.
 
 ### Assurance boundaries that remain
 

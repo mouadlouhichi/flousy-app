@@ -2798,7 +2798,9 @@
     "waterUnit": "mg/L",
     "waterUnparsed": "Other lines from the label that we could not read as a mineral parameter:",
     "waterValuesNote": "Values in mg/L as printed on the label. Informational only — never a rating or health advice.",
-    "unspecifiedShort": "Not specified"
+    "unspecifiedShort": "Not specified",
+    "riskTitle": "Label risk score",
+    "riskScale": "0 = low · 100 = high"
   },
   "labelKnowledge": {
     "codePlaceholder": "EAN barcode (8 or 13 digits)",

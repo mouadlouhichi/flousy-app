@@ -99,6 +99,34 @@ describe('FoodKnowledgeBody render smoke', () => {
     }
   });
 
+  it('leads with a Yuka-style risk ring like the INCI side', async () => {
+    const { FoodKnowledgeBody } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+    // The reported orange-juice label: fully recognized, only neutral E330.
+    const juice = analyzeFoodText(
+      'orange juice, water, sugar, acidifier: citric acid, vitamin c, natural flavour',
+    );
+    const grade = foodLabelGrade(juice);
+    assert.deepEqual(grade, { score: 100, band: 'excellent' });
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const messages = catalogs[locale].foodKnowledge;
+      const glance = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(FoodKnowledgeBody, { analysis: juice }),
+      ).replace(/&#x27;/g, "'");
+      // Risk ring: 100 − 100 = 0, aria-labelled with the localized band.
+      assert.ok(html.includes('role="img"'), `${locale}: ring missing`);
+      assert.ok(
+        html.includes(`aria-label="0/100 — ${glance.bandExcellent}`),
+        `${locale}: ring risk label missing`,
+      );
+      assert.ok(html.includes(messages.riskTitle), `${locale}: risk title missing`);
+      assert.ok(html.includes(messages.riskScale), `${locale}: risk scale caption missing`);
+    }
+  });
+
   it('renders generic class wording as unresolved identity rather than a known additive', async () => {
     const { FoodKnowledgeBody } = await import(
       '../../src/components/dashboard/courses/courses-food-panel'
