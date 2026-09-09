@@ -115,6 +115,11 @@ describe('shared scanner camera UX contract', () => {
     assert.match(hook, /isStreamLive\(\) && videoRef\.current\?\.srcObject/);
     // The panel no longer force-stops the camera when its enabled gate flips.
     assert.doesNotMatch(scanner, /if \(!enabled\) stop\(\);/);
+    // The zxing fallback must decode from the video element, never from the
+    // stream: decodeFromStream's controls.stop() disposes the MediaStream
+    // tracks, which is what turned the camera off after a scan on iOS.
+    assert.match(hook, /decodeFromVideoElement\(video,/);
+    assert.doesNotMatch(hook, /decodeFromStream\(/);
   });
 
   it('keeps the Add-Expense scan-product entry and its shared scanner', () => {

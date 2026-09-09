@@ -302,7 +302,13 @@ export function useBarcodeScanner({
         BarcodeFormat.UPC_A,
         BarcodeFormat.UPC_E,
       ];
-      const controls = await reader.decodeFromStream(stream, video, (result) => {
+      // Decode from the already-playing video element, NOT from the stream:
+      // `decodeFromStream`'s controls.stop() disposes the MediaStream tracks,
+      // which turned the camera off on every pause (iOS shows a frozen frame
+      // with no way back). With `decodeFromVideoElement` our hook stays the
+      // sole owner of the stream — pause keeps the preview live, re-arm just
+      // restarts the decode loop, and teardown stops the tracks itself.
+      const controls = await reader.decodeFromVideoElement(video, (result) => {
         if (!result || generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
         const rawValue = result.getText();
         if (!rawValue) return;
