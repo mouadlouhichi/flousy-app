@@ -75,7 +75,7 @@ The source font files are included with their SIL Open Font License files:
 
 ## Icon language
 
-Use the custom rounded line icons in the generated kit: wallet, target, location pin, shield, calendar, coins, language, and chat. They use a consistent soft stroke, circular color field, and a mint accent.
+Use **Lucide** as the only functional-icon family. The generated kit renders the official Lucide SVG geometry for wallet, target, location pin, shield, calendar, coins, language, and chat. See [`ICON_SOURCES.md`](ICON_SOURCES.md) for the exact source icon names. Keep icons as rounded outlines with a single, high-contrast stroke; use the circle or card behind them for the warm color moment.
 
 - Put an icon in a generous circle or card—not in a cramped corner.
 - Keep icon strokes at a consistent visual weight.
@@ -85,13 +85,14 @@ Use the custom rounded line icons in the generated kit: wallet, target, location
 
 ## Illustration and layout
 
-1. Prefer rounded cards, small sparkles, circles, and calm progress graphics.
+1. Combine rounded cards and calm progress graphics with occasional tactile, original lifestyle photography. Photo is a supporting visual—not a background for essential text or a substitute for a real customer testimonial.
 2. Use real-but-generic amounts such as `10 000 MAD`; never show user financial data.
 3. Let one message dominate each post. A viewer should understand the topic before reading the caption.
 4. Keep the top 110 px quiet enough for Instagram interface overlays in Stories/Reels.
 5. Keep critical Story/Reel information within approximately `y=220–1650` on a 1080 × 1920 canvas.
 6. Highlights must keep the icon in the central circle-safe area; titles outside that zone are only a production aid.
-7. Use original abstract motifs, not copied layouts, wording, or artwork from other Instagram accounts.
+7. Use original abstract motifs, photography, and layouts—not copied layouts, wording, or artwork from other Instagram accounts.
+8. When recreating Arabic/Darija assets, use the generator's built-in Arabic shaping and bidi pass; do not rasterize disconnected or reversed glyphs.
 
 ## Dimensions and export
 

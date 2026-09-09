@@ -25,7 +25,10 @@
   <text x="122" y="1021" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">Capture, photo ou</text>
   <text x="122" y="1089" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">mini explication.</text>
   <circle cx="824" cy="1058" r="110" fill="#9CE9DB"/>
-  <path d="M 790 1012 L 790 1104 L 874 1058 Z" fill="#006B62"/>
+  <!-- Lucide: Play -->
+  <svg x="714" y="948" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">
+    <polygon points="6 3 20 12 6 21 6 3"/>
+  </svg>
   <rect x="82" y="1442" width="916" height="122" rx="44" fill="#FFFFFF" stroke="#9CE9DB" stroke-width="3" stroke-dasharray="13 13"/>
   <text x="540" y="1517" text-anchor="middle" fill="#006B62" class="latin label">ZONE POUR STICKER INSTAGRAM NATIF</text>
   <text x="82" y="1823" fill="#5E716B" class="latin label">smartjib.app</text>

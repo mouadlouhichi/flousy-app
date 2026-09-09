@@ -27,8 +27,9 @@ Install those files in your design tool before editing. If that is not possible,
 5. Use Instrument Sans for French/English and Cairo for Arabic/Darija.
 6. Keep Latin display leading compact (`0.91–0.96`) but give Arabic display lines more air (`1.24–1.28`).
 7. Preserve the supplied margins and safe areas.
-8. Export as **PNG** at the native pixel dimensions. Do not export a 1080 px design at a smaller size then upscale it.
-9. Add a matching descriptive caption and alt text when posting.
+8. Use an icon directly from [Lucide](https://lucide.dev/icons/) if the layout needs one; do not redraw or mix icon families. The exact kit icon mapping lives in [`../ICON_SOURCES.md`](../ICON_SOURCES.md).
+9. Export as **PNG** at the native pixel dimensions. Do not export a 1080 px design at a smaller size then upscale it.
+10. Add a matching descriptive caption and alt text when posting.
 
 ## Localization rules
 

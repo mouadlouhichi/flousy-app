@@ -24,7 +24,10 @@
   <text x="122" y="1068" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">Explique le bénéfice</text>
   <text x="122" y="1136" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">sans le sur-vendre.</text>
   <circle cx="818" cy="1090" r="108" fill="#9CE9DB"/>
-  <path d="M 786 1033 L 786 1147 L 888 1090 Z" fill="#006B62"/>
+  <!-- Lucide: Play -->
+  <svg x="708" y="980" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">
+    <polygon points="6 3 20 12 6 21 6 3"/>
+  </svg>
   <text x="82" y="1823" fill="#5E716B" class="latin label">smartjib.app</text>
   <!-- Keep title inside the central 4:5 crop-safe area. Use Cairo for Arabic and add native captions to the Reel. -->
 </svg>

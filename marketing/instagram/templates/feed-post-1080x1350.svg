@@ -27,7 +27,12 @@
   <rect x="122" y="875" width="490" height="26" rx="13" fill="#9CE9DB"/>
   <rect x="122" y="920" width="650" height="26" rx="13" fill="#DDF6EF"/>
   <circle cx="850" cy="932" r="96" fill="#DDF6EF"/>
-  <text x="850" y="943" text-anchor="middle" fill="#006B62" class="latin label">LOGO</text>
+  <!-- Lucide: WalletCards. Keep this single icon family for all functional icons. -->
+  <svg x="794" y="876" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Wallet icon" role="img">
+    <rect width="18" height="18" x="3" y="3" rx="2"/>
+    <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2"/>
+    <path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1.9c1.6 1.6 4.1 1.6 5.7 0l1.1-.9c.5-.5 1.3-.9 2.1-.9H21"/>
+  </svg>
   <text x="82" y="1272" fill="#5E716B" class="latin label">smartjib.app</text>
-  <!-- Use Instrument Sans for French/Latin and Cairo for Arabic. Replace LOGO with ../brand/smartjib-logo-mark-transparent.png. -->
+  <!-- Use Instrument Sans for French/Latin and Cairo for Arabic. Use a Lucide icon or ../brand/smartjib-logo-mark-transparent.png when a visual anchor helps. -->
 </svg>

@@ -11,11 +11,14 @@
   <circle cx="540" cy="960" r="380" fill="#E98362"/>
   <circle cx="540" cy="960" r="320" fill="#FFFFFF"/>
   <circle cx="540" cy="960" r="276" fill="#E98362"/>
-  <path d="M 540 770 L 572 838 L 640 870 L 572 902 L 540 970 L 508 902 L 440 870 L 508 838 Z" fill="#FFFFFF"/>
-  <circle cx="540" cy="870" r="45" fill="#9CE9DB"/>
+  <!-- Lucide: Sparkles. Change this one nested SVG to another Lucide icon for a new Highlight topic. -->
+  <svg x="405" y="825" width="270" height="270" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-label="Sparkles icon" role="img">
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+    <path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>
+  </svg>
   <path d="M 252 624 L 261 642 L 279 651 L 261 660 L 252 678 L 243 660 L 225 651 L 243 642 Z" fill="#E9B35C"/>
   <path d="M 826 1240 L 834 1257 L 851 1265 L 834 1273 L 826 1290 L 818 1273 L 801 1265 L 818 1257 Z" fill="#E98362"/>
   <text x="540" y="198" text-anchor="middle" fill="#006B62" class="latin eyebrow">SMARTJIB / 00</text>
   <text x="540" y="1690" text-anchor="middle" fill="#006B62" class="latin label">TITRE</text>
-  <!-- Replace only the central icon. Keep it inside the coral circle so it survives Highlight crop. -->
+  <!-- Replace only the central Lucide icon. Keep it inside the coral circle so it survives Highlight crop. -->
 </svg>
