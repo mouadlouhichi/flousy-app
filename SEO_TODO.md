@@ -22,8 +22,12 @@ SEO, email-domain and public-presence follow-up.
 - [ ] Submit `/sitemap.xml` only after DNS is stable and inspect indexing/coverage
       reports for real errors.
 - [ ] Run Lighthouse/PageSpeed and real-device Core Web Vitals checks against the
-      deployed production build. Framework defaults are not evidence of a passing
-      result.
+      deployed production build, targeting the public homepage (`/`) — not
+      `/dashboard`, `/login` or `/onboarding`. Those routes are intentionally
+      `noindex, nofollow` plus `robots.txt`-disallowed (private app screens), so
+      Lighthouse's "page is blocked from indexing" audit caps them at ~66 SEO
+      by design. Raising that score would mean exposing private screens to
+      crawlers and must not be done.
 - [ ] Define a factual content/partnership strategy. Do not buy links or publish
       misleading directory listings.
 
