@@ -3,7 +3,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { Suspense, useEffect, useState } from 'react';
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useHousehold } from '../../lib/household-context';
@@ -448,13 +447,14 @@ function OnboardingFlow() {
           </button>
 
           <span className="flex items-center gap-2">
-            <Image
-              src="/logo.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-128.png"
               alt={m.common.appName}
               width={30}
               height={30}
               className="object-contain"
-              priority
+              fetchPriority="high"
             />
             <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">SmartJib</span>
           </span>
@@ -1219,7 +1219,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 })()}
 
                 <div className="absolute flex flex-col items-center text-center px-2">
-                  <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">
+                  {/* Full variant color — 10px text at 60% alpha fails the
+                      4.5:1 WCAG AA contrast minimum. */}
+                  <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">
                     {m.onboarding.monthly}
                   </span>
                   <span className="text-[16px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">

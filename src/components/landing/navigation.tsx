@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Moon, Sun, Globe } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
@@ -87,13 +86,14 @@ export function Navigation() {
         >
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <Image
-              src="/logo.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-128.png"
               alt={m.common.appName}
               width={34}
               height={34}
               className="object-contain"
-              priority
+              fetchPriority="high"
             />
             <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>SmartJib</span>
           </a>
@@ -198,9 +198,15 @@ export function Navigation() {
       <div
         id="mobile-menu"
         aria-hidden={!isMobileMenuOpen}
+        // `inert` (not just aria-hidden): the closed menu is only
+        // opacity-0/pointer-events-none, so its links and buttons stayed in the
+        // tab order — an `[aria-hidden]` ancestor with focusable descendants
+        // (WCAG 4.1.2 / axe aria-hidden-focus). inert removes them from both
+        // the sequential focus order and the accessibility tree while closed.
+        inert={!isMobileMenuOpen}
         className={`md:hidden fixed inset-0 bg-background z-40 transition-all duration-500 ${
-          isMobileMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
+          isMobileMenuOpen
+            ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         }`}
         style={{ top: 0 }}

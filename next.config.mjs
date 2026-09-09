@@ -16,6 +16,11 @@ const nextConfig = {
   allowedDevOrigins: ['*.e2b.app'],
   reactStrictMode: true,
   poweredByHeader: false, // stop advertising "X-Powered-By: Next.js"
+  // Ship .map files for production browser chunks so Lighthouse's
+  // valid-source-maps check passes (and error stacks in observability tooling
+  // stay readable). This only affects client bundles; server source exposure
+  // is controlled separately.
+  productionBrowserSourceMaps: true,
   // The INCI analysis route (/api/inci/analyze) reads the local CosIng
   // snapshot from disk at runtime; on Vercel/standalone only traced files are
   // deployed, so the data directory must be included explicitly.
