@@ -24,9 +24,25 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // `PLAYWRIGHT_CHANNEL` is set by CI only when cdn.playwright.dev is down
+    // and the pinned chromium build could not be downloaded: the run then
+    // drives the runner image's preinstalled Google Chrome instead of
+    // skipping the whole suite.
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
+      },
+    },
     // Budgeting on the phone is the primary use case.
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'mobile',
+      use: {
+        ...devices['Pixel 7'],
+        ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
+      },
+    },
   ],
   webServer: {
     command: 'npm run build && npx next start -p 3100',

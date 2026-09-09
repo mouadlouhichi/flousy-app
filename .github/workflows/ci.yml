@@ -182,7 +182,20 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browser
-        run: npx playwright install chromium --with-deps
+        # cdn.playwright.dev has outage windows (observed 2026-09-09: every
+        # download from GitHub's runners failed for ~an hour while the suite
+        # itself was fine). The runner image ships a preinstalled Google
+        # Chrome that Playwright drives via channel:'chrome' — so try the
+        # pinned chromium first, and degrade to Chrome rather than skipping
+        # the suite. playwright.config.ts reads PLAYWRIGHT_CHANNEL.
+        run: |
+          if npx playwright install chromium --with-deps; then
+            echo "pinned chromium installed"
+          else
+            echo "::warning title=Playwright CDN unavailable::falling back to the runner's preinstalled Chrome"
+            google-chrome --version
+            echo "PLAYWRIGHT_CHANNEL=chrome" >> "$GITHUB_ENV"
+          fi
 
       # Deliberately NO NEXT_PUBLIC_FIREBASE_* here: the specs exercise demo
       # mode and the truthful contact-form fallback, both of which require an
