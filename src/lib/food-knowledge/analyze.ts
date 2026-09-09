@@ -4,24 +4,28 @@
  * Pipeline per label:
  *   1. strip the "Ingredients:"-style heading, split the list;
  *   2. per token: family lookup (curated table), EU allergen-group detection
- *      (Annex II alias lists), additive lookup (E-number registry);
- *   3. aggregate: allergen banner set, additive set, coverage, flags.
+ *      (Annex II alias lists), additive lookup (E-number registry), and narrow
+ *      explicit ingredient-concern matching;
+ *   3. aggregate: allergen banner set, additive/concern sets, coverage, flags.
  *
- * There is deliberately NO numeric score and NO "safe/dangerous" verdict:
- * allergen or additive presence is factual, structured information with EU
- * references. A local-unknown name may later be sent to the optional
+ * There is deliberately NO numeric score and NO general "safe/dangerous"
+ * verdict in this payload: allergen/additive presence and explicit concern
+ * wording are structured signals with regulatory references. A local-unknown
+ * name may later be sent to the optional
  * key-gated deep-search slot — which can only ADD attributed informational
  * answers, never change this local result (see src/lib/server/knowledge-search.ts
  * and the analyze route).
  */
 
 import type { AdditiveBand, AdditiveRole } from './types';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '../ingredient-safety/types';
 import type {
   AllergenGroup,
   AllergenHit,
   AdditiveHit,
   FoodAnalysis,
   FoodAnalyzeOptions,
+  FoodConcernHit,
   FoodFlag,
   FoodIngredientAssessment,
 } from './types';
@@ -34,8 +38,10 @@ import {
   FOOD_ROW_COUNT,
   lookupAdditives,
   lookupFoodRow,
+  lookupUnspecifiedFoodClass,
 } from './lists';
 import { detectFoodKind } from './domain';
+import { detectFoodConcerns } from './concerns';
 import type { WaterParameter } from './types';
 import { splitInciList } from '@/lib/ingredient-safety/normalize';
 
@@ -68,6 +74,9 @@ export function splitFoodList(text: string): string[] {
 }
 
 export function analyzeFoodText(text: string, opts?: FoodAnalyzeOptions): FoodAnalysis {
+  if (text.trim().length > MAX_INGREDIENT_TEXT_LENGTH) {
+    throw new RangeError('food label text is too long');
+  }
   return analyzeFoodIngredientList(splitFoodList(text), opts);
 }
 
@@ -75,9 +84,20 @@ export function analyzeFoodIngredientList(
   ingredients: string[],
   opts?: FoodAnalyzeOptions,
 ): FoodAnalysis {
-  const cleaned = ingredients
-    .map((t) => String(t).trim())
-    .filter((t) => t.length > 0);
+  if (
+    ingredients.length > 300
+    || ingredients.some((item) => typeof item !== 'string' || item.trim().length > 500)
+    || ingredients.reduce((length, item) => length + item.trim().length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) throw new RangeError('food ingredient list is too long');
+  const tags = opts?.offAllergenTags ?? [];
+  if (
+    (opts?.label?.trim().length ?? 0) > 200
+    || (opts?.category?.trim().length ?? 0) > 200
+    || tags.length > 50
+    || tags.some((tag) => typeof tag !== 'string' || tag.trim().length > 100)
+  ) throw new RangeError('food analysis context is too long');
+  const cleaned = ingredients.map((item) => item.trim()).filter(Boolean);
   const label = opts?.label?.trim() || undefined;
   const category = opts?.category?.trim() || undefined;
 
@@ -93,9 +113,9 @@ export function analyzeFoodIngredientList(
   const assessments: FoodIngredientAssessment[] = [];
   const allergenHits: AllergenHit[] = [];
   const additiveHits: AdditiveHit[] = [];
+  const concernHits: FoodConcernHit[] = [];
   const seenAdditiveCodes = new Set<string>();
-
-  const wholeFolded = cleaned.map(foldForMatch).join(' ');
+  const seenConcernCodes = new Set<string>();
 
   cleaned.forEach((raw, index) => {
     const folded = foldForMatch(raw);
@@ -114,10 +134,17 @@ export function analyzeFoodIngredientList(
 
     const rowHit = lookupFoodRow(folded);
     // A token can name several additives (nested seasoning sub-lists): keep
-    // them ALL so the summary and the additive grade are complete. The row
+    // them ALL so the summary and the label grade are complete. The row
     // chip shows the first one; the label-level list below is deduped per code.
     const tokenAdditives = lookupAdditives(folded);
     const additive = tokenAdditives[0] ?? null;
+    // A translated/provider label may expose only a class such as “colour” or
+    // “flavour enhancers”. Preserve that useful wording, but do not count it
+    // as a known substance or infer an E number, authorization, or safety.
+    const unspecifiedClass = !rowHit && tokenAdditives.length === 0
+      ? lookupUnspecifiedFoodClass(folded)
+      : null;
+    const tokenConcerns = detectFoodConcerns(folded, raw);
     const tokenAllergens: AllergenGroup[] = [];
     if (rowHit?.row.allergens) {
       for (const group of rowHit.row.allergens) if (!tokenAllergens.includes(group)) tokenAllergens.push(group);
@@ -139,11 +166,20 @@ export function analyzeFoodIngredientList(
         additiveHits.push(hit);
       }
     }
+    for (const hit of tokenConcerns) {
+      // A concern code is a label-level signal, not a dose estimate. Keep one
+      // summary hit while every matching ingredient row retains its own chip.
+      if (!seenConcernCodes.has(hit.code)) {
+        seenConcernCodes.add(hit.code);
+        concernHits.push(hit);
+      }
+    }
 
     const recognized = Boolean(
       rowHit ||
         tokenAdditives.length > 0 ||
         tokenAllergens.length > 0 ||
+        tokenConcerns.length > 0 ||
         waterParameters.some((p) => p.raw === raw),
     );
     const assessment: FoodIngredientAssessment = {
@@ -151,7 +187,9 @@ export function analyzeFoodIngredientList(
       raw,
       normalized: folded,
       recognized,
+      ...(unspecifiedClass ? { unspecifiedClass } : {}),
       allergens: tokenAllergens,
+      concerns: tokenConcerns,
       ...(rowHit
         ? { family: rowHit.row.family, roles: rowHit.row.roles, ...(rowHit.row.note ? { note: rowHit.row.note } : {}), ...(rowHit.row.evidence ? { evidence: rowHit.row.evidence } : {}) }
         : {}),
@@ -189,6 +227,11 @@ export function analyzeFoodIngredientList(
   if (additiveHits.some((h) => h.band === 'watch')) flags.push({ level: 'warn', code: 'additive-watch' });
   if (hasChildrenWarning) flags.push({ level: 'warn', code: 'additive-children-warning' });
   if (hasPhenylalanine) flags.push({ level: 'info', code: 'additive-phenylalanine' });
+  if (concernHits.some((hit) => hit.level === 'high')) {
+    flags.push({ level: 'warn', code: 'ingredient-concern-high' });
+  } else if (concernHits.length > 0) {
+    flags.push({ level: 'warn', code: 'ingredient-concern-watch' });
+  }
   if (unknownNames.length > 0) flags.push({ level: 'warn', code: 'unknown-ingredients' });
   if (total > 0 && unknownNames.length === 0) {
     if (total <= 8 && additiveHits.length === 0) flags.push({ level: 'info', code: 'short-label' });
@@ -207,6 +250,7 @@ export function analyzeFoodIngredientList(
     allergens: allergenHits,
     allergenGroups,
     additives: additiveHits,
+    concerns: concernHits,
     flags,
     external: [],
     kind,

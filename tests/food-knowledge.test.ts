@@ -7,8 +7,8 @@ import {
 } from '../src/lib/food-knowledge/analyze';
 import { foldForMatch, lookupAdditive, lookupAdditives, lookupFoodRow } from '../src/lib/food-knowledge/lists';
 import { detectFoodKind, detectLabelDomain, suggestsCosmeticRecord } from '../src/lib/food-knowledge/domain';
-import { additiveGrade } from '../src/lib/food-knowledge/grade';
-import { sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
+import { additiveGrade, foodGradeDrivers, foodLabelGrade } from '../src/lib/food-knowledge/grade';
+import { parseInciList, sanitizeLabelText, splitInciList } from '../src/lib/ingredient-safety/normalize';
 
 describe('food-knowledge lists', () => {
   it('folds French labels for stable matching', () => {
@@ -73,8 +73,17 @@ describe('food knowledge engine', () => {
   it('detects EU allergen groups from plain labels and ignores lookalikes', () => {
     const r = analyzeFoodText('Farine de blé, œuf, lait, noix de coco râpée');
     assert.deepEqual(r.allergenGroups, ['gluten', 'eggs', 'milk']);
-    const nuts = analyzeFoodText('Cocktail de fruits exotiques (ananas, noix de coco)');
-    assert.ok(!nuts.allergenGroups.includes('nuts'));
+    const coconut = analyzeFoodText('Cocktail de fruits exotiques (ananas, noix de coco)');
+    assert.ok(!coconut.allergenGroups.includes('nuts'));
+
+    const almonds = analyzeFoodText('ALMONDS, dried unsweetened coconut');
+    assert.ok(almonds.allergenGroups.includes('nuts'), 'plural ALMONDS is an Annex II nut');
+    const compound = analyzeFoodText('almonds and coconut');
+    assert.ok(compound.allergenGroups.includes('nuts'), 'a coconut guard must not hide almonds in the same token');
+
+    assert.deepEqual(analyzeFoodText('coconut milk').allergenGroups, []);
+    assert.deepEqual(analyzeFoodText('almond milk').allergenGroups, ['nuts']);
+    assert.deepEqual(analyzeFoodText('noix de muscade').allergenGroups, []);
   });
 
   it('flags watch/avoid additives with their EU notices', () => {
@@ -124,9 +133,9 @@ describe('detectLabelDomain', () => {
     );
   });
 
-  it('defaults unknown labels to food, but spots INCI-like text', () => {
-    assert.equal(detectLabelDomain({}), 'food');
-    assert.equal(detectLabelDomain({ name: 'Produit frais' }), 'food');
+  it('keeps unknown labels explicit, but spots INCI-like text', () => {
+    assert.equal(detectLabelDomain({}), 'unknown');
+    assert.equal(detectLabelDomain({ name: 'Produit frais' }), 'unknown');
     assert.equal(
       detectLabelDomain({ ingredientsText: 'Aqua, Glycerin, Cetearyl Alcohol, Parfum' }),
       'cosmetic',
@@ -245,7 +254,7 @@ describe('water composition analysis (products like Sidi Ali)', () => {
 });
 
 describe('recognising more ingredients (Dutch / imported labels)', () => {
-  it('recognises the Dutch crisps label end-to-end (10/10)', () => {
+  it('expands and recognises compound rows in a Dutch crisps label', () => {
     const r = analyzeFoodText(
       [
         'Gedehydrateerde aardappelen',
@@ -260,10 +269,10 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
         'kleurstof (annatto norbixine)',
       ].join(', '),
     );
-    assert.equal(r.total, 10);
-    assert.equal(r.recognized, 10);
-    assert.equal(r.coverage, 1);
-    assert.deepEqual(r.unknownNames, []);
+    assert.ok(r.total > 10, 'nested compound ingredients should be assessed as separate rows');
+    assert.ok(r.recognized >= 20);
+    assert.ok(r.coverage >= 0.85);
+    assert.ok(r.unknownNames.length <= 3);
     assert.ok(r.allergenGroups.includes('gluten'), 'wheat flour is gluten');
     assert.ok(r.allergenGroups.includes('milk'), 'sweet whey powder / MELK is milk');
     const codes = r.additives.map((a) => a.code);
@@ -272,10 +281,85 @@ describe('recognising more ingredients (Dutch / imported labels)', () => {
     assert.ok(codes.includes('E631'), 'MSG companion disodium inosinate is not dropped');
     assert.ok(codes.includes('E471'));
     assert.ok(codes.includes('E160b'));
-    const families = r.ingredients.map((i) => i.family);
     assert.deepEqual(
-      [families[0], families[1], families[2], families[3], families[4], families[8]],
-      ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal', 'salt'],
+      r.ingredients.slice(0, 5).map((ingredient) => ingredient.family),
+      ['fruit-veg', 'fat-oil', 'cereal', 'cereal', 'cereal'],
+    );
+    assert.ok(r.ingredients.some((ingredient) => ingredient.raw === 'zout' && ingredient.family === 'salt'));
+  });
+});
+
+describe('English Pringles Paprika label regression', () => {
+  const label = [
+    'DEHYDRATED POTATOES',
+    'VEGETABLE OILS (SUNFLOWER, CORN)',
+    'RICE FLOUR',
+    'WHEAT STARCH',
+    'CORN FLOUR',
+    'PAPRIKA SEASONING (SUGAR, PAPRIKA POWDER, FLAVOR ENHANCERS, YEAST POWDER, DEXTROSE, ONION POWDER, GRANULATED BOUILLON SALT (VEGETABLE SALT, PROTEIN, GARLIC POWDER), COLOR, FOOD ACID, CHILI EXTRACT)',
+    'EMULSIFIER (E471)',
+    'MALTODEXTRIN',
+    'SALT',
+    'COLORANT (ANNATTO NORBIXIN E160B)',
+  ].join(', ');
+
+  it('recognizes the specific translated ingredients without guessing generic class identities', () => {
+    const result = analyzeFoodText(label);
+    const byName = new Map(result.ingredients.map((ingredient) => [ingredient.raw, ingredient]));
+
+    assert.equal(result.total, 25);
+    assert.equal(result.recognized, 21);
+    assert.ok(result.coverage >= 0.84);
+    assert.deepEqual(result.unknownNames, [
+      'FLAVOR ENHANCERS',
+      'PROTEIN',
+      'COLOR',
+      'FOOD ACID',
+    ]);
+    assert.deepEqual(
+      result.ingredients
+        .filter((ingredient) => ingredient.unspecifiedClass)
+        .map((ingredient) => [ingredient.raw, ingredient.unspecifiedClass]),
+      [
+        ['FLAVOR ENHANCERS', 'flavour-enhancer'],
+        ['PROTEIN', 'protein-source'],
+        ['COLOR', 'colour'],
+        ['FOOD ACID', 'food-acid'],
+      ],
+    );
+
+    assert.equal(byName.get('DEHYDRATED POTATOES')?.family, 'fruit-veg');
+    assert.equal(byName.get('VEGETABLE OILS')?.family, 'fat-oil');
+    assert.equal(byName.get('SUNFLOWER')?.family, 'nut-seed');
+    assert.equal(byName.get('PAPRIKA SEASONING')?.family, 'herb-spice');
+    assert.equal(byName.get('PAPRIKA POWDER')?.family, 'herb-spice');
+    assert.equal(byName.get('CHILI EXTRACT')?.family, 'herb-spice');
+  });
+
+  it('reports only the declared wheat allergen and explicit additives', () => {
+    const result = analyzeFoodText(label);
+    assert.deepEqual(result.allergenGroups, ['gluten']);
+    assert.deepEqual(result.allergens.map((hit) => hit.raw), ['WHEAT STARCH']);
+    assert.deepEqual(result.ingredients.find((item) => item.raw === 'RICE FLOUR')?.allergens, []);
+    assert.deepEqual(result.ingredients.find((item) => item.raw === 'CORN FLOUR')?.allergens, []);
+    assert.deepEqual(result.additives.map((additive) => additive.code), ['E471', 'E160b']);
+    // 2026-09-food-v5 rubric: bare class declarations ("flavor enhancers",
+    // "protein", "food acid") now carry the same penalty as watch additives.
+    // This label is the vaguer twin of the same Pringles product that names
+    // E621/E627/E631 — vagueness must never read as safer than transparency
+    // (old rubric: 94/good). The bare "COLOR" wording is NOT penalized: the
+    // same label declares E160b (a colour-range code), so that class was
+    // enumerated transparently — "color" + "colorant (annatto E160b)" is one
+    // declaration the parser split, not hidden vagueness.
+    assert.deepEqual(foodLabelGrade(result), { score: 55, band: 'caution' });
+    // The breakdown must rank the vague declarations as the risk drivers.
+    assert.deepEqual(
+      foodGradeDrivers(result).map((driver) => [driver.kind, driver.deduction]),
+      [
+        ['unspecified', 15],
+        ['unspecified', 15],
+        ['unspecified', 15],
+      ],
     );
   });
 });
@@ -320,10 +404,9 @@ describe('audit regression — apricots and sesame products', () => {
     }
   });
 
-  it('keeps the additive grade at 100 for allergen-only and permitted-additive lists', () => {
-    // The audit's two examples: no 'watch'/'avoid' additive ⇒ 100, even when
-    // an EU allergen (sesame) is present — allergens are disclosure, not part
-    // of the additive grade.
+  it('keeps the label grade at 100 for allergen-only and permitted-additive lists', () => {
+    // The audit's two examples: no penalized label signal ⇒ 100, even when an
+    // EU allergen (sesame) is present — allergens are a separate disclosure.
     const apricot = analyzeFoodText('Abricots, sucre, acidifiant : acide citrique');
     assert.equal(apricot.ingredients.find((i) => i.family === 'fruit-veg')?.raw, 'Abricots');
     assert.equal(additiveGrade(apricot)?.score, 100);
@@ -333,6 +416,64 @@ describe('audit regression — apricots and sesame products', () => {
     assert.equal(sesame.additives.length, 1);
     assert.equal(sesame.additives[0].code, 'E330');
     assert.equal(additiveGrade(sesame)?.score, 100);
+  });
+});
+
+describe('audit regression — almonds and partially hydrogenated oil', () => {
+  const granolaLabel = [
+    'WHOLE GRAIN ROLLED OATS',
+    'BROWN SUGAR',
+    'WHOLE GRAIN ROLLED WHEAT',
+    'RAISINS',
+    'VEGETABLE OIL (PARTIALLY HYDROGENATED COTTONSEED AND/OR SOYBEAN OIL)',
+    'ALMONDS',
+    'DRIED UNSWEETENED COCONUT',
+    'NONFAT MILK',
+    'HONEY',
+    'GLYCERIN',
+    'NATURAL FLAVOR',
+  ].join(', ');
+
+  it('reports almonds as an EU nut allergen and recognizes the ordinary rows', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.allergenGroups, ['gluten', 'soybeans', 'milk', 'nuts']);
+    assert.equal(r.ingredients.find((item) => item.raw === 'ALMONDS')?.family, 'nut-seed');
+    assert.deepEqual(
+      r.ingredients.find((item) => item.raw === 'ALMONDS')?.allergens,
+      ['nuts'],
+    );
+    assert.equal(r.ingredients.find((item) => item.raw === 'RAISINS')?.family, 'fruit-veg');
+    assert.equal(r.ingredients.find((item) => item.raw === 'GLYCERIN')?.family, 'other');
+    assert.equal(r.recognized, r.total);
+    assert.deepEqual(r.unknownNames, []);
+  });
+
+  it('maps glycerin to permitted E422 and keeps it neutral', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.additives.map((additive) => additive.code), ['E422']);
+    assert.equal(r.additives[0]?.band, 'neutral');
+  });
+
+  it('surfaces the explicit trans-fat source and prevents a false 100', () => {
+    const r = analyzeFoodText(granolaLabel);
+    assert.deepEqual(r.concerns.map((concern) => concern.code), ['partially-hydrogenated-oil']);
+    assert.equal(r.concerns[0]?.level, 'high');
+    assert.ok(r.flags.some((flag) => flag.code === 'ingredient-concern-high'));
+    assert.deepEqual(foodLabelGrade(r), { score: 55, band: 'caution' });
+  });
+});
+
+describe('food analysis boundaries', () => {
+  it('rejects oversized raw, pre-split, and context input at the core boundary', () => {
+    assert.throws(() => analyzeFoodText('A'.repeat(12_001)), /food label text is too long/);
+    assert.throws(
+      () => analyzeFoodIngredientList(new Array(301).fill('Salt')),
+      /food ingredient list is too long/,
+    );
+    assert.throws(
+      () => analyzeFoodText('Milk', { offAllergenTags: new Array(51).fill('en:milk') }),
+      /food analysis context is too long/,
+    );
   });
 });
 
@@ -376,5 +517,78 @@ describe('water scan regression — Sidi Ali under a generic beverages category'
     assert.equal(r.kind, 'water');
     assert.equal(r.water?.parameters.length, 3);
     assert.ok(r.water.parameters.some((p) => p.key === 'dry-residue'));
+  });
+});
+
+describe('moroccan market coverage — 2026-09-food-v4', () => {
+  it('recognizes Arabic ingredient wording from market labels', () => {
+    const r = analyzeFoodText('طماطم, ملح, سكر, زيت النخيل, فلفل أحمر حلو, تمر');
+    assert.equal(r.total, 6);
+    assert.ok(r.recognized >= 6, `expected Arabic staples recognized, got ${r.recognized}`);
+    const families = new Set(r.ingredients.filter((i) => i.recognized && i.family).map((i) => i.family as string));
+    for (const family of ['fruit-veg', 'salt', 'sugar', 'fat-oil', 'herb-spice']) {
+      assert.ok(families.has(family), `missing family ${family}`);
+    }
+  });
+
+  it('recognizes common Moroccan pantry and spice wording in French', () => {
+    const r = analyzeFoodText(
+      'Farine de blé, huile d’arachide, cacahuètes grillées, maquereau, coriandre, cumin, curcuma, gingembre, vinaigre, dattes, figues, extrait de malt',
+    );
+    assert.ok(r.recognized >= 12, `expected the pantry staples recognized, got ${r.recognized}`);
+    const peanutRow = r.ingredients.find((i) => i.normalized.includes('cacahuete'));
+    assert.deepEqual(peanutRow?.allergens, ['peanuts'], 'peanut wording must keep its allergen group');
+  });
+
+  it('keeps new generic class declarations unresolved (not recognized, chip-labelled)', () => {
+    const r = analyzeFoodText('conservateur, antioxydant, stabilisant, édulcorant');
+    assert.equal(r.recognized, 0, 'class words must not become recognized identities');
+    const classes = new Set(r.ingredients.map((i) => i.unspecifiedClass));
+    assert.deepEqual(
+      [...classes].sort(),
+      ['antioxidant', 'preservative', 'stabiliser', 'sweetener'],
+    );
+  });
+
+  it('keeps the unicode fold compatible with the existing latin tables', () => {
+    assert.equal(foldForMatch('Crème fraîche'), 'creme fraiche');
+    assert.equal(foldForMatch('Huile d’olive'), 'huile d olive');
+    assert.equal(lookupFoodRow(foldForMatch('farine de blé'))?.row.family, 'cereal');
+    assert.equal(lookupFoodRow(foldForMatch('maquereau'))?.row.family, 'meat-fish');
+  });
+});
+
+describe('truncated-label parsing (stray closing bracket)', () => {
+  it('keeps an unmatched closing bracket invalid for scoring but identifiable per row', () => {
+    // A truncated label left "chili extract)" as the final fragment: the stray
+    // bracket must not leak into the ingredient identity, while the cosmetic
+    // parse stays conservatively invalid.
+    const p = parseInciList('vegetable oils (sunflower, palm), flavor enhancers, color, chili extract)');
+    assert.equal(p.valid, false);
+    assert.ok(p.diagnostics.some((d) => d.code === 'unmatched-closing-delimiter'));
+    assert.deepEqual(p.tokens, ['vegetable oils', 'sunflower', 'palm', 'flavor enhancers', 'color', 'chili extract']);
+  });
+});
+
+describe('orange juice regression — declared vitamins are recognized (2026-09-food-v6)', () => {
+  const label = 'orange juice, water, sugar, acidifier: citric acid, vitamin c, natural flavour';
+
+  it('recognizes every row including "vitamin c" — no bogus partial-coverage cap', () => {
+    const r = analyzeFoodText(label);
+    assert.equal(r.total, 6);
+    assert.equal(r.recognized, 6, `unknown: ${r.unknownNames.join(', ')}`);
+    assert.deepEqual(r.unknownNames, []);
+    // Only E330 (neutral) is listed → full recognition, no risk drivers.
+    assert.deepEqual(r.additives.map((a) => a.code), ['E330']);
+    const grade = foodLabelGrade(r);
+    assert.deepEqual(grade, { score: 100, band: 'excellent' });
+    assert.deepEqual(foodGradeDrivers(r), []);
+  });
+
+  it('recognizes French and Arabic vitamin wording too', () => {
+    const fr = analyzeFoodText('eau, sucre, vitamine c, vitamine d');
+    assert.deepEqual(fr.unknownNames, []);
+    const ar = analyzeFoodText('ماء, سكر, فيتامين س');
+    assert.deepEqual(ar.unknownNames, []);
   });
 });

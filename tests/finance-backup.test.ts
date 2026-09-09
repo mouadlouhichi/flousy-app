@@ -12,6 +12,7 @@ import {
   serializeFinanceBackup,
 } from '../src/lib/finance-backup';
 import { normalizeMonth } from '../src/lib/store';
+import { gtinIdentity } from '../src/lib/gtin';
 import type { FinanceBackup } from '../src/lib/finance-backup';
 import type { MonthBudget } from '../src/lib/store';
 
@@ -108,7 +109,7 @@ function validBackup(): Record<string, unknown> {
     ],
     products: [
       {
-        barcode: '6111234567890', name: 'Milk', source: 'manual',
+        barcode: '6111234567895', name: 'Milk', source: 'manual',
         createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z',
       },
     ],
@@ -117,7 +118,7 @@ function validBackup(): Record<string, unknown> {
         id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z',
         endedAt: '2026-07-02T18:30:00.000Z', date: '2026-07-02', currency: 'MAD', place: 'wallet',
         items: [
-          { key: '6111234567890', barcode: '6111234567890', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 },
+          { key: '6111234567895', barcode: '6111234567895', name: 'Milk', qty: 2, unitPrice: 8.5, lineTotal: 17 },
         ],
         total: 17,
       },
@@ -231,7 +232,7 @@ describe('Finance backup deep validation (M1)', () => {
     expectRejected(duplicateLines, 'duplicate key: k1');
 
     const product = {
-      barcode: '6111234567890', name: 'Milk', source: 'manual',
+      barcode: '6111234567895', name: 'Milk', source: 'manual',
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     };
     expectRejected({ ...validBackup(), products: [product, { ...product }] }, 'duplicate barcode');
@@ -384,12 +385,21 @@ describe('Finance backup deep validation (M1)', () => {
       barcode: '1234', name: 'Milk', source: 'manual',
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     }];
-    expectRejected(backup, '8 or 13 digits');
+    expectRejected(backup, '8, 12, 13, or 14 digits');
+
+    const badChecksum = validBackup();
+    badChecksum.products = [{
+      barcode: '6111234567896', name: 'Milk', source: 'manual',
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    expectRejected(badChecksum, 'invalid GTIN check digit');
 
     const unbarcoded = validBackup();
     unbarcoded.products = [{ name: 'Milk' }];
     const read = readFinanceBackup(serializeFinanceBackup(unbarcoded as unknown as FinanceBackup));
-    assert.match(read.backup.products?.[0].barcode ?? '', /^\d{13}$/);
+    const generated = read.backup.products?.[0].barcode ?? '';
+    assert.match(generated, /^\d{13}$/);
+    assert.ok(gtinIdentity(generated), 'generated legacy placeholder remains checksum-valid');
     assert.ok(read.notices.some((notice) => notice.code === 'generatedIds'));
   });
 
@@ -406,10 +416,61 @@ describe('Finance backup deep validation (M1)', () => {
     const oversized = validBackup();
     oversized.products = [{
       barcode: '3760044183738', name: 'Crème', source: 'manual',
-      ingredientsText: 'A'.repeat(8001),
+      ingredientsText: 'A'.repeat(12_001),
       createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
     }];
-    expectRejected(oversized, 'ingredientsText must be a string of up to 8000 characters');
+    expectRejected(oversized, 'ingredientsText must be a string of up to 12000 characters');
+  });
+
+  it('validates nested product attachments instead of trusting arbitrary backup objects', () => {
+    const backup = validBackup();
+    const month = (backup.months as Record<string, unknown>)['2026-07'] as Record<string, unknown>;
+    month.variableExpenses = [{
+      id: 'v1',
+      name: 'Scanned item',
+      amount: 10,
+      type: 'Groceries',
+      date: '2026-07-02',
+      place: 'wallet',
+      productAttachment: {
+        barcode: '6111234567895',
+        gtin14: '06111234567895',
+        name: 'Milk',
+        domain: 'food',
+        source: 'off',
+        retrievedAt: '2026-07-02T00:00:00.000Z',
+        hiddenPayload: 'must not survive',
+      },
+    }];
+    const sanitized = readFinanceBackup(serializeFinanceBackup(backup as unknown as FinanceBackup));
+    const sanitizedMonth = sanitized.backup.months['2026-07'] as unknown as Record<string, unknown>;
+    const attachment = (sanitizedMonth.variableExpenses as Array<Record<string, unknown>>)[0]
+      .productAttachment as Record<string, unknown>;
+    assert.equal(attachment.hiddenPayload, undefined);
+    assert.ok(sanitized.notices.some((notice) =>
+      notice.code === 'unrecognizedFields'
+      && notice.fields?.some((field) => field.includes('hiddenPayload')),
+    ));
+
+    const mismatch = validBackup();
+    const mismatchMonth = (mismatch.months as Record<string, unknown>)['2026-07'] as Record<string, unknown>;
+    mismatchMonth.variableExpenses = [{
+      id: 'v1',
+      name: 'Scanned item',
+      amount: 10,
+      type: 'Groceries',
+      date: '2026-07-02',
+      place: 'wallet',
+      productAttachment: {
+        barcode: '6111234567895',
+        gtin14: '00000000000000',
+        name: 'Milk',
+        domain: 'food',
+        source: 'off',
+        retrievedAt: '2026-07-02T00:00:00.000Z',
+      },
+    }];
+    expectRejected(mismatch, 'canonical identity');
   });
 
   it('rejects collections above their safety cardinality', () => {
@@ -493,6 +554,25 @@ describe('an exported backup re-imports (M-)', () => {
           note: 'receipt kept', tags: ['work', 'solo'], receiptUrl: 'https://example.test/r.png',
           payerMemberId: 'user-1', sourceType: 'invoice', sourceId: 'inv-1',
           importFingerprint: 'abc1234', createdByUserId: 'user-1', updatedByUserId: 'user-1',
+          productAttachment: {
+            barcode: '6111234567895',
+            gtin14: '06111234567895',
+            name: 'Attached product',
+            brand: 'Center',
+            category: 'Food',
+            quantity: '1 L',
+            domain: 'food',
+            ranking: { grade: 'b', calculationPoints: 2, algorithmVersion: '2023' },
+            ingredientsText: 'Water',
+            allergenTags: ['en:milk'],
+            source: 'off',
+            sourceUrl: 'https://world.openfoodfacts.org/product/6111234567895',
+            sourceDatabase: 'off',
+            retrievedAt: '2026-07-02T17:59:00.000Z',
+            provenance: {
+              name: { source: 'off', retrievedAt: '2026-07-02T17:59:00.000Z' },
+            },
+          },
         },
       ],
       fixedExpenses: [
@@ -540,11 +620,83 @@ describe('an exported backup re-imports (M-)', () => {
       } as FinanceBackup['configuration'],
       months: { '2026-07': normalized as MonthBudget },
       goals: [{ id: 'g1', name: 'Bike', target: 1000, current: 100, source: 'bank', active: true, category: 'fun', deposited: 40 }],
-      products: [{ barcode: '6111234567890', name: 'Milk', brand: 'Center', category: 'Dairy', source: 'manual', lastPrice: 12, ingredientsText: 'Aqua, Glycerin, Niacinamide', createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-02T00:00:00.000Z', priceUpdatedAt: '2026-07-02T00:00:00.000Z', origin: 'off', imageUrl: 'https://example.test/milk.png' }],
+      products: [{
+        barcode: '6111234567895',
+        gtin14: '06111234567895',
+        name: 'Milk',
+        brand: 'Center',
+        category: 'Dairy',
+        source: 'ocr',
+        sourceUrl: 'https://world.openfoodfacts.org/product/6111234567895',
+        sourceDatabase: 'off',
+        domain: 'cosmetic',
+        domainSource: 'user',
+        lastPrice: 12,
+        ingredientsText: 'Aqua, Glycerin, Niacinamide',
+        allergenTags: ['en:milk'],
+        ranking: { grade: 'b', calculationPoints: 2, algorithmVersion: '2023' },
+        beauty: true,
+        cosmeticForm: 'leave-on',
+        provenance: {
+          name: { source: 'off', retrievedAt: '2026-07-01T00:00:00.000Z' },
+          ingredientsText: { source: 'ocr', retrievedAt: '2026-07-02T00:00:00.000Z' },
+          cosmeticForm: { source: 'manual', retrievedAt: '2026-07-02T00:01:00.000Z' },
+        },
+        retrievedAt: '2026-07-01T00:00:00.000Z',
+        staleAfter: '2026-07-08T00:00:00.000Z',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-02T00:00:00.000Z',
+        priceUpdatedAt: '2026-07-02T00:00:00.000Z',
+        origin: 'Open Food Facts',
+        gs1PrefixAllocation: 'GS1 Morocco allocation',
+        imageUrl: 'https://example.test/milk.png',
+      }],
       sessions: [{
         id: 'sess-1', status: 'completed', startedAt: '2026-07-02T18:00:00.000Z', endedAt: '2026-07-02T18:30:00.000Z',
         date: '2026-07-02', currency: 'MAD', place: 'wallet', total: 17,
-        items: [{ key: '6111234567890', barcode: '6111234567890', name: 'Milk', category: 'Dairy', qty: 2, unitPrice: 8.5, lineTotal: 17 }],
+        revision: 4, updatedAt: '2026-07-02T18:31:00.000Z', lastMutationId: 'course-mutation-4',
+        items: [{
+          key: 'line-1',
+          barcode: '6111234567895',
+          gtin14: '06111234567895',
+          name: 'Milk',
+          category: 'Dairy',
+          domain: 'cosmetic',
+          beauty: true,
+          cosmeticForm: 'leave-on',
+          source: 'ocr',
+          sourceUrl: 'https://world.openfoodfacts.org/product/6111234567895',
+          sourceDatabase: 'off',
+          provenance: {
+            ingredientsText: { source: 'ocr', retrievedAt: '2026-07-02T18:00:00.000Z' },
+          },
+          retrievedAt: '2026-07-02T18:00:00.000Z',
+          staleAfter: '2026-07-09T18:00:00.000Z',
+          ingredientsText: 'Aqua, Glycerin, Niacinamide',
+          allergenTags: ['en:milk'],
+          assessmentRequestId: 'assessment-1',
+          assessmentOrigin: {
+            sessionId: 'sess-1',
+            lineItemId: 'line-1',
+            requestId: 'assessment-1',
+            gtin14: '06111234567895',
+            requestedAt: '2026-07-02T18:00:00.000Z',
+          },
+          assessment: null,
+          quality: {
+            schemaVersion: 2,
+            assessmentId: 'assessment-1',
+            score: null,
+            scoreStatus: 'withheld-insufficient-evidence',
+            band: null,
+            assessedAt: '2026-07-02T18:00:01.000Z',
+            form: 'leave-on',
+            unknownCount: 1,
+          },
+          qty: 2,
+          unitPrice: 8.5,
+          lineTotal: 17,
+        }],
         loggedWorkspace: 'personal', loggedWorkspaceId: 'user-1', loggedMonthKey: '2026-07',
         loggedMutationId: 'mutation-1', loggedExpenseId: 'v1', loggedAt: '2026-07-02T18:31:00.000Z',
       }],
@@ -558,17 +710,36 @@ describe('an exported backup re-imports (M-)', () => {
     assert.equal(expenses[0].receiptUrl, 'https://example.test/r.png');
     assert.deepEqual(expenses[0].tags, ['work', 'solo']);
     assert.equal(expenses[0].payerMemberId, 'user-1');
+    assert.deepEqual(
+      (expenses[0].productAttachment as Record<string, unknown>).ranking,
+      { grade: 'b', calculationPoints: 2, algorithmVersion: '2023' },
+    );
+    assert.equal(
+      ((expenses[0].productAttachment as Record<string, unknown>).provenance as Record<string, { source: string }>).name.source,
+      'off',
+    );
     assert.equal((month.fixedExpenses as Record<string, unknown>[])[0].paidAt, '2026-07-01');
     assert.equal(month.customRatios ? Object.keys(month.customRatios as object).length : 0, 3);
     assert.deepEqual(month.categoryBudgets, { Rent: 900 });
     assert.deepEqual(restored.goals.map((goal) => goal.name), ['Bike']);
-    assert.equal(restored.products?.[0].barcode, '6111234567890');
+    assert.equal(restored.products?.[0].barcode, '6111234567895');
+    assert.equal(restored.products?.[0].gtin14, '06111234567895');
+    assert.equal(restored.products?.[0].source, 'ocr');
+    assert.equal(restored.products?.[0].domainSource, 'user');
+    assert.equal(restored.products?.[0].provenance?.ingredientsText?.source, 'ocr');
+    assert.deepEqual(restored.products?.[0].ranking, {
+      grade: 'b', calculationPoints: 2, algorithmVersion: '2023',
+    });
     assert.equal(
       restored.products?.[0].ingredientsText,
       'Aqua, Glycerin, Niacinamide',
       'the cosmetic INCI field round-trips through the backup (informational only)',
     );
     assert.equal(restored.sessions?.[0].total, 17);
+    assert.equal(restored.sessions?.[0].revision, 4);
+    assert.equal(restored.sessions?.[0].items[0]?.assessmentOrigin?.requestId, 'assessment-1');
+    assert.equal(restored.sessions?.[0].items[0]?.quality?.scoreStatus, 'withheld-insufficient-evidence');
+    assert.equal(restored.sessions?.[0].items[0]?.provenance?.ingredientsText?.source, 'ocr');
     // Identity and entitlement data never come back through a restore.
     assert.equal((restored.configuration as Record<string, unknown>).plan, undefined);
     assert.equal((restored.configuration as Record<string, unknown>).displayName, undefined);
@@ -578,11 +749,8 @@ describe('an exported backup re-imports (M-)', () => {
     const reparsed = parseFinanceBackup(serializeFinanceBackup(restored));
     assert.deepEqual(reparsed.months, restored.months);
     assert.deepEqual(reparsed.goals, restored.goals);
-    assert.equal(
-      reparsed.products?.[0].ingredientsText,
-      restored.products?.[0].ingredientsText,
-      'a re-export of the restore keeps the INCI field',
-    );
+    assert.deepEqual(reparsed.products, restored.products, 'all product metadata and provenance are a fixed point');
+    assert.deepEqual(reparsed.sessions, restored.sessions, 'session evidence snapshots and origins are a fixed point');
     // Nothing had to be forgiven: an export of this build imports into this build
     // without a single notice, so every report the tolerant parser can make means a
     // real difference between the file and the account reading it.

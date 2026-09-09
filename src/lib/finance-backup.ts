@@ -1,9 +1,22 @@
-import type { CourseSession, MonthBudget, Product, SavingGoal, UserProfile } from './store';
+import type {
+  AssessmentOrigin,
+  CourseSession,
+  ExpenseProductAttachment,
+  MonthBudget,
+  Product,
+  ProductFieldProvenance,
+  ProductRanking,
+  SavingGoal,
+  SessionItemQuality,
+  UserProfile,
+} from './store';
 import type { Household } from './household';
 import { isSmartJibCsvExport } from './csv-import';
+import { calculateGtinCheckDigit, gtinIdentity } from './gtin';
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
 export const FINANCE_BACKUP_FORMAT = 'smartjib-finance-backup' as const;
-export const FINANCE_BACKUP_VERSION = 1 as const;
+export const FINANCE_BACKUP_VERSION = 2 as const;
 export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 
 /**
@@ -58,9 +71,10 @@ const MONTH_ALLOWED_KEYS = [
 const STRATEGIES = ['50-30-20', '70-20-10', '80-20', 'zero-based', 'envelope', 'pay-first', 'custom'] as const;
 const LIFECYCLE = ['planned', 'partial', 'paid', 'skipped'] as const;
 const ADJUSTMENT_REASONS = ['reconciliation', 'opening-balance', 'income'] as const;
-const PRODUCT_SOURCES = ['manual', 'off', 'session'] as const;
+const PRODUCT_SOURCES = ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session'] as const;
+const PRODUCT_DOMAINS = ['food', 'cosmetic', 'household', 'pet', 'unknown'] as const;
 const SESSION_STATUS = ['active', 'completed'] as const;
-const EXPENSE_SOURCE_TYPES = ['invoice', 'course', 'csv', 'manual'] as const;
+const EXPENSE_SOURCE_TYPES = ['invoice', 'course', 'barcode', 'csv', 'manual'] as const;
 const FIXED_SOURCE_TYPES = ['invoice', 'csv', 'manual'] as const;
 
 /**
@@ -151,6 +165,36 @@ export class InvalidFinanceBackupError extends Error {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeStructured(value: unknown, field: string, depth = 0): unknown {
+  if (depth > 14) throw new InvalidFinanceBackupError(`${field} is nested too deeply.`);
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new InvalidFinanceBackupError(`${field} contains a non-finite number.`);
+    return value;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 5_000) throw new InvalidFinanceBackupError(`${field} contains too many entries.`);
+    return value.map((item, index) => safeStructured(item, `${field}[${index}]`, depth + 1));
+  }
+  if (isObject(value)) {
+    const entries = Object.entries(value);
+    if (entries.length > 500) throw new InvalidFinanceBackupError(`${field} contains too many fields.`);
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of entries) {
+      if (key === '__proto__' || key === 'prototype' || key === 'constructor' || key.length > 100) {
+        throw new InvalidFinanceBackupError(`${field} contains an invalid field name.`);
+      }
+      result[key] = safeStructured(item, `${field}.${key}`, depth + 1);
+    }
+    return result;
+  }
+  throw new InvalidFinanceBackupError(`${field} contains an unsupported value.`);
+}
+
+function optionalStructured<T>(value: unknown, field: string): T | undefined {
+  return value === undefined ? undefined : safeStructured(value, field) as T;
 }
 
 function safeBackupId(value: unknown): string {
@@ -409,12 +453,202 @@ function parseIncomeSource(raw: unknown, field: string) {
   };
 }
 
+const PRODUCT_PROVENANCE_FIELDS = [
+  'name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText',
+  'ranking', 'allergenTags', 'cosmeticForm', 'domain',
+] as const;
+
+function parseProductRanking(raw: unknown, field: string): ProductRanking {
+  if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
+  assertKnownKeys(raw, ['grade', 'calculationPoints', 'score', 'algorithmVersion'], field);
+  const boundedPoint = (value: unknown, pointField: string): number => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 1_000) {
+      throw new InvalidFinanceBackupError(`${pointField} must be a finite number between -1000 and 1000.`);
+    }
+    return value;
+  };
+  return {
+    grade: text(raw.grade, `${field}.grade`, 8),
+    ...(raw.calculationPoints !== undefined
+      ? { calculationPoints: boundedPoint(raw.calculationPoints, `${field}.calculationPoints`) }
+      : {}),
+    ...(raw.score !== undefined ? { score: boundedPoint(raw.score, `${field}.score`) } : {}),
+    ...(optionalString(raw.algorithmVersion, `${field}.algorithmVersion`, 80)
+      ? { algorithmVersion: raw.algorithmVersion as string }
+      : {}),
+  };
+}
+
+function parseProductProvenance(raw: unknown, field: string): Record<string, ProductFieldProvenance> {
+  if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
+  assertKnownKeys(raw, [...PRODUCT_PROVENANCE_FIELDS], field);
+  const result: Record<string, ProductFieldProvenance> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!isObject(value)) throw new InvalidFinanceBackupError(`${field}.${key} must be an object.`);
+    assertKnownKeys(value, ['source', 'retrievedAt', 'sourceUrl', 'language'], `${field}.${key}`);
+    result[key] = {
+      source: enumValue(value.source, `${field}.${key}.source`, PRODUCT_SOURCES),
+      retrievedAt: isoTimestamp(value.retrievedAt, `${field}.${key}.retrievedAt`),
+      ...(optionalString(value.sourceUrl, `${field}.${key}.sourceUrl`, 1000)
+        ? { sourceUrl: value.sourceUrl as string }
+        : {}),
+      ...(optionalString(value.language, `${field}.${key}.language`, 24)
+        ? { language: value.language as string }
+        : {}),
+    };
+  }
+  return result;
+}
+
+function parseProductAttachment(raw: unknown, field: string): ExpenseProductAttachment {
+  if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
+  assertKnownKeys(raw, [
+    'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
+    'domain', 'ranking', 'ingredientsText', 'allergenTags', 'source', 'sourceUrl',
+    'sourceDatabase', 'retrievedAt', 'provenance',
+  ], field);
+  const barcode = text(raw.barcode, `${field}.barcode`, 14);
+  const canonical = gtinIdentity(barcode);
+  if (!canonical) throw new InvalidFinanceBackupError(`${field}.barcode must be a valid GTIN.`);
+  const gtin14 = text(raw.gtin14, `${field}.gtin14`, 14);
+  if (gtin14 !== canonical) {
+    throw new InvalidFinanceBackupError(`${field}.gtin14 must match the barcode's canonical identity.`);
+  }
+  return {
+    barcode,
+    gtin14,
+    name: text(raw.name, `${field}.name`, 200),
+    ...(optionalString(raw.brand, `${field}.brand`, 200) ? { brand: raw.brand as string } : {}),
+    ...(optionalString(raw.category, `${field}.category`, 300) ? { category: raw.category as string } : {}),
+    ...(optionalString(raw.imageUrl, `${field}.imageUrl`, 1000) ? { imageUrl: raw.imageUrl as string } : {}),
+    ...(optionalString(raw.quantity, `${field}.quantity`, 100) ? { quantity: raw.quantity as string } : {}),
+    domain: enumValue(raw.domain, `${field}.domain`, PRODUCT_DOMAINS),
+    ...(raw.ranking !== undefined ? { ranking: parseProductRanking(raw.ranking, `${field}.ranking`) } : {}),
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH)
+      ? { ingredientsText: raw.ingredientsText as string }
+      : {}),
+    ...(raw.allergenTags !== undefined
+      ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) }
+      : {}),
+    source: enumValue(raw.source, `${field}.source`, PRODUCT_SOURCES),
+    ...(optionalString(raw.sourceUrl, `${field}.sourceUrl`, 1000) ? { sourceUrl: raw.sourceUrl as string } : {}),
+    ...(optionalString(raw.sourceDatabase, `${field}.sourceDatabase`, 50)
+      ? { sourceDatabase: raw.sourceDatabase as string }
+      : {}),
+    retrievedAt: isoTimestamp(raw.retrievedAt, `${field}.retrievedAt`),
+    ...(raw.provenance !== undefined
+      ? { provenance: parseProductProvenance(raw.provenance, `${field}.provenance`) }
+      : {}),
+  };
+}
+
+function parseAssessmentOrigin(raw: unknown, field: string): AssessmentOrigin {
+  if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
+  assertKnownKeys(raw, ['sessionId', 'lineItemId', 'requestId', 'gtin14', 'requestedAt'], field);
+  const gtin14 = optionalString(raw.gtin14, `${field}.gtin14`, 14);
+  if (gtin14 && (!/^\d{14}$/.test(gtin14) || !gtinIdentity(gtin14))) {
+    throw new InvalidFinanceBackupError(`${field}.gtin14 must be a valid GTIN-14.`);
+  }
+  return {
+    sessionId: text(raw.sessionId, `${field}.sessionId`, 160),
+    lineItemId: text(raw.lineItemId, `${field}.lineItemId`, 160),
+    requestId: text(raw.requestId, `${field}.requestId`, 160),
+    ...(gtin14 ? { gtin14 } : {}),
+    requestedAt: isoTimestamp(raw.requestedAt, `${field}.requestedAt`),
+  };
+}
+
+function parseSessionQuality(raw: unknown, field: string): SessionItemQuality {
+  if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
+  assertKnownKeys(raw, [
+    'schemaVersion', 'assessmentId', 'score', 'scoreStatus', 'band', 'assessedAt',
+    'form', 'dataset', 'recognitionCoverage', 'assessmentCoverage', 'worstTier',
+    'unknownCount', 'tiers', 'assessment', 'good', 'caution', 'concern',
+  ], field);
+  if (raw.schemaVersion !== undefined && raw.schemaVersion !== 2) {
+    throw new InvalidFinanceBackupError(`${field}.schemaVersion must be 2.`);
+  }
+  const score = raw.score === null ? null : (() => {
+    if (typeof raw.score !== 'number' || !Number.isFinite(raw.score) || raw.score < 0 || raw.score > 100) {
+      throw new InvalidFinanceBackupError(`${field}.score must be null or a number from 0 to 100.`);
+    }
+    return raw.score;
+  })();
+  const ratio = (value: unknown, ratioField: string): number => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
+      throw new InvalidFinanceBackupError(`${ratioField} must be a number from 0 to 1.`);
+    }
+    return value;
+  };
+  const count = (value: unknown, countField: string): number => {
+    if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 500) {
+      throw new InvalidFinanceBackupError(`${countField} must be an integer from 0 to 500.`);
+    }
+    return value as number;
+  };
+  const tiers = raw.tiers === undefined ? undefined : (() => {
+    if (!isObject(raw.tiers)) throw new InvalidFinanceBackupError(`${field}.tiers must be an object.`);
+    assertKnownKeys(raw.tiers, ['clean', 'watch', 'caution', 'restricted', 'prohibited', 'unassessed'], `${field}.tiers`);
+    return {
+      clean: count(raw.tiers.clean, `${field}.tiers.clean`),
+      watch: count(raw.tiers.watch, `${field}.tiers.watch`),
+      caution: count(raw.tiers.caution, `${field}.tiers.caution`),
+      restricted: count(raw.tiers.restricted, `${field}.tiers.restricted`),
+      prohibited: count(raw.tiers.prohibited, `${field}.tiers.prohibited`),
+      unassessed: count(raw.tiers.unassessed, `${field}.tiers.unassessed`),
+    };
+  })();
+  return {
+    ...(raw.schemaVersion === 2 ? { schemaVersion: 2 as const } : {}),
+    ...(optionalString(raw.assessmentId, `${field}.assessmentId`, 160)
+      ? { assessmentId: raw.assessmentId as string }
+      : {}),
+    score,
+    ...(raw.scoreStatus !== undefined ? {
+      scoreStatus: enumValue(raw.scoreStatus, `${field}.scoreStatus`, [
+        'available', 'withheld-invalid-parse', 'withheld-review-required',
+        'withheld-form-unknown', 'withheld-conditions-unknown',
+        'withheld-insufficient-evidence', 'withheld-no-ingredients',
+      ] as const),
+    } : {}),
+    band: raw.band === null
+      ? null
+      : enumValue(raw.band, `${field}.band`, ['excellent', 'good', 'moderate', 'caution', 'avoid'] as const),
+    ...(optionalString(raw.assessedAt, `${field}.assessedAt`, 40) ? { assessedAt: raw.assessedAt as string } : {}),
+    ...(raw.form !== undefined
+      ? { form: enumValue(raw.form, `${field}.form`, ['leave-on', 'rinse-off', 'unknown'] as const) }
+      : {}),
+    ...(raw.dataset !== undefined
+      ? { dataset: safeStructured(raw.dataset, `${field}.dataset`) as NonNullable<SessionItemQuality['dataset']> }
+      : {}),
+    ...(raw.recognitionCoverage !== undefined
+      ? { recognitionCoverage: ratio(raw.recognitionCoverage, `${field}.recognitionCoverage`) }
+      : {}),
+    ...(raw.assessmentCoverage !== undefined
+      ? { assessmentCoverage: ratio(raw.assessmentCoverage, `${field}.assessmentCoverage`) }
+      : {}),
+    ...(raw.worstTier !== undefined ? {
+      worstTier: raw.worstTier === null
+        ? null
+        : enumValue(raw.worstTier, `${field}.worstTier`, ['prohibited', 'restricted', 'caution', 'watch', 'clean'] as const),
+    } : {}),
+    ...(raw.unknownCount !== undefined ? { unknownCount: count(raw.unknownCount, `${field}.unknownCount`) } : {}),
+    ...(tiers ? { tiers } : {}),
+    ...(raw.assessment !== undefined
+      ? { assessment: safeStructured(raw.assessment, `${field}.assessment`) as NonNullable<SessionItemQuality['assessment']> }
+      : {}),
+    ...(raw.good !== undefined ? { good: count(raw.good, `${field}.good`) } : {}),
+    ...(raw.caution !== undefined ? { caution: count(raw.caution, `${field}.caution`) } : {}),
+    ...(raw.concern !== undefined ? { concern: count(raw.concern, `${field}.concern`) } : {}),
+  };
+}
+
 function parseVariableExpense(raw: unknown, field: string) {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
     'id', 'name', 'amount', 'type', 'date', 'place', 'note', 'person',
     'payerMemberId', 'createdByUserId', 'updatedByUserId', 'tags', 'receiptUrl',
-    'sourceType', 'sourceId', 'importFingerprint',
+    'productAttachment', 'sourceType', 'sourceId', 'importFingerprint',
   ], field);
   return {
     id: identifier(raw.id, `${field}.id`, 'entry'),
@@ -430,6 +664,9 @@ function parseVariableExpense(raw: unknown, field: string) {
     ...(optionalString(raw.updatedByUserId, `${field}.updatedByUserId`, 160) ? { updatedByUserId: raw.updatedByUserId as string } : {}),
     ...(raw.tags !== undefined ? { tags: stringArray(raw.tags, `${field}.tags`, 20) } : {}),
     ...(optionalString(raw.receiptUrl, `${field}.receiptUrl`, 150_000) ? { receiptUrl: raw.receiptUrl as string } : {}),
+    ...(raw.productAttachment !== undefined
+      ? { productAttachment: parseProductAttachment(raw.productAttachment, `${field}.productAttachment`) }
+      : {}),
     ...(raw.sourceType !== undefined ? { sourceType: enumValue(raw.sourceType, `${field}.sourceType`, EXPENSE_SOURCE_TYPES) } : {}),
     ...(optionalString(raw.sourceId, `${field}.sourceId`, 160) ? { sourceId: raw.sourceId as string } : {}),
     ...(optionalString(raw.importFingerprint, `${field}.importFingerprint`, 160) ? { importFingerprint: raw.importFingerprint as string } : {}),
@@ -677,43 +914,82 @@ function parseGoal(raw: unknown, field: string): SavingGoal {
  * price history to a shelf it never belonged on.
  */
 function productBarcode(value: unknown, field: string): string {
-  if (typeof value === 'string' && /^\d{8}$|^\d{13}$/.test(value)) return value;
+  if (typeof value === 'string' && /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(value)) {
+    if (!gtinIdentity(value)) throw new InvalidFinanceBackupError(`${field} has an invalid GTIN check digit.`);
+    return value;
+  }
   if (value !== undefined && value !== null && value !== '') {
-    throw new InvalidFinanceBackupError(`${field} must be 8 or 13 digits.`);
+    throw new InvalidFinanceBackupError(`${field} must be a GTIN with 8, 12, 13, or 14 digits.`);
   }
   note('generatedIds', field);
-  // 13 digits, the EAN-13 length the app also accepts, so a placeholder can never
-  // collide with a scanned barcode.
-  return `000000${String(entryIndex(field) % 10000000).padStart(7, '0')}`;
+  const payload = String(entryIndex(field) % 1_000_000_000_000).padStart(12, '0');
+  return `${payload}${calculateGtinCheckDigit(payload) ?? '0'}`;
 }
 function parseProduct(raw: unknown, field: string): Product {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
-    'barcode', 'name', 'brand', 'category', 'imageUrl', 'lastPrice',
-    'priceUpdatedAt', 'source', 'origin', 'ingredientsText',
-    'createdAt', 'updatedAt',
+    'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
+    'lastPrice', 'priceUpdatedAt', 'source', 'sourceUrl', 'sourceDatabase',
+    'domain', 'domainSource', 'gs1PrefixAllocation', 'origin', 'ranking',
+    'beauty', 'cosmeticForm', 'ingredientsText', 'allergenTags', 'provenance', 'retrievedAt',
+    'staleAfter', 'createdAt', 'updatedAt',
   ], field);
   const barcode = productBarcode(raw.barcode, `${field}.barcode`);
+  const canonical = gtinIdentity(barcode)!;
+  const gtin14 = optionalString(raw.gtin14, `${field}.gtin14`, 14);
+  if (gtin14 && gtin14 !== canonical) {
+    throw new InvalidFinanceBackupError(`${field}.gtin14 must match the barcode's canonical identity.`);
+  }
+  const ranking = raw.ranking === undefined ? undefined : parseProductRanking(raw.ranking, `${field}.ranking`);
+  const provenance = raw.provenance === undefined
+    ? undefined
+    : parseProductProvenance(raw.provenance, `${field}.provenance`);
   return {
     barcode,
-    name: text(raw.name, `${field}.name`, 100),
-    ...(optionalString(raw.brand, `${field}.brand`, 100) ? { brand: raw.brand as string } : {}),
-    ...(optionalString(raw.category, `${field}.category`, 100) ? { category: raw.category as string } : {}),
-    ...(optionalString(raw.imageUrl, `${field}.imageUrl`, 500) ? { imageUrl: raw.imageUrl as string } : {}),
+    ...(gtin14 ? { gtin14 } : {}),
+    name: text(raw.name, `${field}.name`, 200),
+    ...(optionalString(raw.brand, `${field}.brand`, 200) ? { brand: raw.brand as string } : {}),
+    ...(optionalString(raw.category, `${field}.category`, 300) ? { category: raw.category as string } : {}),
+    ...(optionalString(raw.imageUrl, `${field}.imageUrl`, 1000) ? { imageUrl: raw.imageUrl as string } : {}),
+    ...(optionalString(raw.quantity, `${field}.quantity`, 100) ? { quantity: raw.quantity as string } : {}),
     ...(raw.lastPrice !== undefined ? { lastPrice: money(raw.lastPrice, `${field}.lastPrice`) } : {}),
     ...(optionalString(raw.priceUpdatedAt, `${field}.priceUpdatedAt`, 40) ? { priceUpdatedAt: raw.priceUpdatedAt as string } : {}),
     source: enumValueOr(raw.source, `${field}.source`, PRODUCT_SOURCES, 'manual'),
-    ...(optionalString(raw.origin, `${field}.origin`, 8) ? { origin: raw.origin as string } : {}),
-    // Cosmetic INCI list (≤ 8,000 chars) — informational only, never money.
-    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, 8000) ? { ingredientsText: raw.ingredientsText as string } : {}),
+    ...(optionalString(raw.sourceUrl, `${field}.sourceUrl`, 1000) ? { sourceUrl: raw.sourceUrl as string } : {}),
+    ...(optionalString(raw.sourceDatabase, `${field}.sourceDatabase`, 50) ? { sourceDatabase: raw.sourceDatabase as string } : {}),
+    ...(raw.domain !== undefined ? { domain: enumValue(raw.domain, `${field}.domain`, PRODUCT_DOMAINS) } : {}),
+    ...(raw.domainSource !== undefined ? { domainSource: enumValue(raw.domainSource, `${field}.domainSource`, ['source', 'inferred', 'user'] as const) } : {}),
+    ...(optionalString(raw.gs1PrefixAllocation, `${field}.gs1PrefixAllocation`, 100) ? { gs1PrefixAllocation: raw.gs1PrefixAllocation as string } : {}),
+    ...(optionalString(raw.origin, `${field}.origin`, 160) ? { origin: raw.origin as string } : {}),
+    ...(ranking ? { ranking } : {}),
+    ...(raw.beauty !== undefined
+      ? (() => {
+          if (typeof raw.beauty !== 'boolean') {
+            throw new InvalidFinanceBackupError(`${field}.beauty must be a boolean.`);
+          }
+          return { beauty: raw.beauty };
+        })()
+      : {}),
+    ...(raw.cosmeticForm !== undefined ? { cosmeticForm: enumValue(raw.cosmeticForm, `${field}.cosmeticForm`, ['leave-on', 'rinse-off', 'unknown'] as const) } : {}),
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
+    ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
+    ...(provenance ? { provenance } : {}),
+    ...(optionalString(raw.retrievedAt, `${field}.retrievedAt`, 40) ? { retrievedAt: raw.retrievedAt as string } : {}),
+    ...(optionalString(raw.staleAfter, `${field}.staleAfter`, 40) ? { staleAfter: raw.staleAfter as string } : {}),
     createdAt: isoTimestamp(raw.createdAt ?? fileTimestamp, `${field}.createdAt`),
     updatedAt: isoTimestamp(raw.updatedAt ?? fileTimestamp, `${field}.updatedAt`),
-  } as Product;
+  };
 }
 
 function parseSessionItem(raw: unknown, field: string) {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
-  assertKnownKeys(raw, ['key', 'barcode', 'name', 'category', 'qty', 'unitPrice', 'lineTotal'], field);
+  assertKnownKeys(raw, [
+    'key', 'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl',
+    'quantity', 'domain', 'beauty', 'cosmeticForm', 'source', 'sourceUrl', 'sourceDatabase',
+    'provenance', 'retrievedAt', 'staleAfter', 'ingredientsText', 'allergenTags',
+    'assessmentRequestId', 'assessmentOrigin', 'assessment', 'qty', 'unitPrice',
+    'lineTotal', 'ranking', 'quality',
+  ], field);
   const rawQty: unknown = raw.qty;
   const qty = typeof rawQty === 'number' ? Math.round(rawQty) : NaN;
   if (typeof rawQty !== 'number' || !Number.isFinite(rawQty) || rawQty < 1 || rawQty > 10_000 || qty !== rawQty) {
@@ -721,19 +997,64 @@ function parseSessionItem(raw: unknown, field: string) {
   }
   const unitPrice = money(raw.unitPrice, `${field}.unitPrice`);
   const lineTotal = money(raw.lineTotal, `${field}.lineTotal`);
-  // A line whose total disagrees with qty × unitPrice is rewritten to agree: the
-  // session bill is derived from these lines, so an unreconciled entry would
-  // either abort the restore or restore a bill the app then contradicts.
   const expected = round2(qty * unitPrice);
   if (lineTotal !== expected) note('recalculatedTotals', field);
+  const barcode = optionalString(raw.barcode, `${field}.barcode`, 14);
+  const canonical = barcode ? gtinIdentity(barcode) : null;
+  if (barcode && !canonical) {
+    throw new InvalidFinanceBackupError(`${field}.barcode must be a valid GTIN.`);
+  }
+  const gtin14 = optionalString(raw.gtin14, `${field}.gtin14`, 14);
+  if (gtin14 && (!/^\d{14}$/.test(gtin14) || !gtinIdentity(gtin14))) {
+    throw new InvalidFinanceBackupError(`${field}.gtin14 must be a valid GTIN-14.`);
+  }
+  if (canonical && gtin14 && canonical !== gtin14) {
+    throw new InvalidFinanceBackupError(`${field}.gtin14 must match the barcode's canonical identity.`);
+  }
+  const provenance = raw.provenance === undefined
+    ? undefined
+    : parseProductProvenance(raw.provenance, `${field}.provenance`);
+  const ranking = raw.ranking === undefined ? undefined : parseProductRanking(raw.ranking, `${field}.ranking`);
+  const quality = raw.quality === undefined ? undefined : parseSessionQuality(raw.quality, `${field}.quality`);
+  const assessment = optionalStructured<CourseSession['items'][number]['assessment']>(raw.assessment, `${field}.assessment`);
+  const assessmentOrigin = raw.assessmentOrigin === undefined
+    ? undefined
+    : parseAssessmentOrigin(raw.assessmentOrigin, `${field}.assessmentOrigin`);
   return {
     key: identifier(raw.key, `${field}.key`, 'item'),
-    ...(optionalString(raw.barcode, `${field}.barcode`, 13) ? { barcode: raw.barcode as string } : {}),
-    name: text(raw.name, `${field}.name`, 100),
-    ...(optionalString(raw.category, `${field}.category`, 100) ? { category: raw.category as string } : {}),
+    ...(barcode ? { barcode } : {}),
+    ...(gtin14 ? { gtin14 } : {}),
+    name: text(raw.name, `${field}.name`, 200),
+    ...(optionalString(raw.brand, `${field}.brand`, 200) ? { brand: raw.brand as string } : {}),
+    ...(optionalString(raw.category, `${field}.category`, 300) ? { category: raw.category as string } : {}),
+    ...(optionalString(raw.imageUrl, `${field}.imageUrl`, 1000) ? { imageUrl: raw.imageUrl as string } : {}),
+    ...(optionalString(raw.quantity, `${field}.quantity`, 100) ? { quantity: raw.quantity as string } : {}),
+    ...(raw.domain !== undefined ? { domain: enumValue(raw.domain, `${field}.domain`, PRODUCT_DOMAINS) } : {}),
+    ...(raw.beauty !== undefined
+      ? (() => {
+          if (typeof raw.beauty !== 'boolean') {
+            throw new InvalidFinanceBackupError(`${field}.beauty must be a boolean.`);
+          }
+          return { beauty: raw.beauty };
+        })()
+      : {}),
+    ...(raw.cosmeticForm !== undefined ? { cosmeticForm: enumValue(raw.cosmeticForm, `${field}.cosmeticForm`, ['leave-on', 'rinse-off', 'unknown'] as const) } : {}),
+    ...(raw.source !== undefined ? { source: enumValue(raw.source, `${field}.source`, PRODUCT_SOURCES) } : {}),
+    ...(optionalString(raw.sourceUrl, `${field}.sourceUrl`, 1000) ? { sourceUrl: raw.sourceUrl as string } : {}),
+    ...(optionalString(raw.sourceDatabase, `${field}.sourceDatabase`, 50) ? { sourceDatabase: raw.sourceDatabase as string } : {}),
+    ...(provenance ? { provenance } : {}),
+    ...(optionalString(raw.retrievedAt, `${field}.retrievedAt`, 40) ? { retrievedAt: raw.retrievedAt as string } : {}),
+    ...(optionalString(raw.staleAfter, `${field}.staleAfter`, 40) ? { staleAfter: raw.staleAfter as string } : {}),
+    ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
+    ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
+    ...(optionalString(raw.assessmentRequestId, `${field}.assessmentRequestId`, 160) ? { assessmentRequestId: raw.assessmentRequestId as string } : {}),
+    ...(assessmentOrigin ? { assessmentOrigin } : {}),
+    ...(assessment !== undefined ? { assessment } : {}),
     qty,
     unitPrice,
     lineTotal: expected,
+    ...(ranking ? { ranking } : {}),
+    ...(quality ? { quality } : {}),
   };
 }
 
@@ -741,8 +1062,9 @@ function parseSession(raw: unknown, field: string): CourseSession {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
     'id', 'status', 'startedAt', 'endedAt', 'date', 'currency', 'place',
-    'items', 'total', 'loggedExpenseId', 'loggedMonthKey', 'loggedWorkspace',
-    'loggedWorkspaceId', 'loggedMutationId', 'loggedAt',
+    'items', 'total', 'revision', 'updatedAt', 'lastMutationId', 'loggedExpenseId',
+    'loggedMonthKey', 'loggedWorkspace', 'loggedWorkspaceId', 'loggedMutationId',
+    'loggedAt',
   ], field);
   // Session lines are keyed by `key`, not `id`.
   const items = raw.items === undefined ? [] : entities(raw.items, `${field}.items`, LIMITS.sessionItems, parseSessionItem, 'key');
@@ -763,6 +1085,16 @@ function parseSession(raw: unknown, field: string): CourseSession {
     place: text(raw.place, `${field}.place`, 80, { min: 0 }),
     items,
     total: expectedTotal,
+    ...(raw.revision !== undefined ? {
+      revision: (() => {
+        if (!Number.isInteger(raw.revision) || (raw.revision as number) < 0 || (raw.revision as number) > 1_000_000_000) {
+          throw new InvalidFinanceBackupError(`${field}.revision must be a non-negative integer.`);
+        }
+        return raw.revision as number;
+      })(),
+    } : {}),
+    ...(optionalString(raw.updatedAt, `${field}.updatedAt`, 40) ? { updatedAt: raw.updatedAt as string } : {}),
+    ...(optionalString(raw.lastMutationId, `${field}.lastMutationId`, 160) ? { lastMutationId: raw.lastMutationId as string } : {}),
     ...(optionalString(raw.loggedExpenseId, `${field}.loggedExpenseId`, 160) ? { loggedExpenseId: raw.loggedExpenseId as string } : {}),
     ...(optionalString(raw.loggedMonthKey, `${field}.loggedMonthKey`, 10) ? { loggedMonthKey: raw.loggedMonthKey as string } : {}),
     ...(raw.loggedWorkspace !== undefined ? { loggedWorkspace: enumValue(raw.loggedWorkspace, `${field}.loggedWorkspace`, ['personal', 'household'] as const) } : {}),

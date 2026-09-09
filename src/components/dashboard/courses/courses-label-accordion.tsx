@@ -5,12 +5,13 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import { detectLabelDomain, isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
-import { additiveGrade } from '@/lib/food-knowledge/grade';
+import { foodLabelGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
-import type { Band, ProductAssessment } from '@/lib/ingredient-safety/types';
+import type { Band, ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
+import type { ProductFieldProvenance } from '@/lib/store';
 import {
   BAND_LABEL_KEY,
   BAND_STYLE,
@@ -18,6 +19,7 @@ import {
 import { CoursesIngredientPanel } from './courses-ingredient-panel';
 import { CoursesFoodPanel } from './courses-food-panel';
 import { ScoreRing } from './courses-score-ring';
+import { useDashboard } from '../dashboard-provider';
 
 /**
  * Collapsible "Label & ingredients" section of the pending-product card.
@@ -25,9 +27,9 @@ import { ScoreRing } from './courses-score-ring';
  * The trigger carries a live preview so the card explains WHY it is worth
  * opening without sacrificing the price step:
  *  - cosmetics: the same band-colored score ring as the glance + band label;
- *  - food: an additive-grade ring (EU additive data — informational, never a
- *    health score), or a droplet when the product is a water (no ingredient
- *    list — mineral composition instead).
+ *  - food: a bounded label-signal ring (EU additive data, explicit ingredient
+ *    concerns and recognition confidence — never a health score), or a
+ *    droplet when the product is a water (no ingredient list).
  * The matching panel (INCI glance / food-knowledge) mounts only when opened.
  * Collapsed by default and reset per scanned product.
  */
@@ -37,13 +39,21 @@ interface CoursesLabelAccordionProps {
   name?: string;
   category?: string;
   ingredientsText?: string;
+  ingredientsProvenance?: ProductFieldProvenance;
+  domain?: import('@/lib/store').ProductDomain;
+  allergenTags?: string[];
+  form?: ProductForm;
+  onFormChange?: (form: ProductForm) => void;
   /** Source hint that the record is cosmetic/beauty even when name/category
    *  are too generic to say so (e.g. a code-like shower-gel name). */
   beauty?: boolean;
   /** Manual-entry products have no name to classify yet. */
   needsName?: boolean;
   /** Panel adopted a new ingredient list (external fallback / paste / OCR). */
-  onIngredientsText?: (text: string) => void;
+  onIngredientsText?: (
+    text: string | undefined,
+    metadata?: { source: 'manual' | 'ocr' | 'remote'; reviewed: boolean },
+  ) => void;
 }
 
 export function CoursesLabelAccordion({
@@ -51,11 +61,18 @@ export function CoursesLabelAccordion({
   name,
   category,
   ingredientsText,
+  ingredientsProvenance,
+  domain: explicitDomain,
+  allergenTags,
+  form,
+  onFormChange,
   beauty,
   needsName,
   onIngredientsText,
 }: CoursesLabelAccordionProps) {
   const { messages, t } = useLanguage();
+  const { user } = useDashboard();
+  const accountId = user?.uid ?? null;
   const c = messages.courses;
   const ig = messages.ingredientGlance;
   const im = messages.ingredientManual;
@@ -81,6 +98,7 @@ export function CoursesLabelAccordion({
   const detectedDomain = beauty
     ? 'cosmetic'
     : detectLabelDomain({
+        domain: explicitDomain,
         category,
         name: labelName,
         ingredientsText,
@@ -92,6 +110,7 @@ export function CoursesLabelAccordion({
   // the paste/OCR path) is offered instead of a misleading food panel.
   const likelyCosmetic = isCosmeticRecord({
     beauty,
+    domain: explicitDomain,
     category,
     name: labelName,
     ingredientsText,
@@ -99,9 +118,27 @@ export function CoursesLabelAccordion({
   const domain = likelyCosmetic ? 'cosmetic' : detectedDomain;
 
   // The cosmetic engine may read a per-barcode INCI saved on this device.
-  const overlayText = barcode ? readInciOverlayEntry(barcode) ?? '' : '';
+  const overlayEntry = barcode ? readInciOverlayEntry(barcode, accountId) : undefined;
+  const overlayText = overlayEntry?.text ?? '';
   const hasInci = Boolean(ingredientsText?.trim() || overlayText.trim() || fallbackText.trim());
-  const cosmeticText = (ingredientsText?.trim() || overlayText.trim() || fallbackText.trim()).trim();
+  const cosmeticText = (overlayText.trim() || ingredientsText?.trim() || fallbackText.trim()).trim();
+  const catalogSource: ParserSummary['source'] = ingredientsProvenance?.source === 'ocr'
+    ? 'ocr'
+    : ingredientsProvenance?.source === 'manual'
+      ? 'paste'
+      : 'provider';
+  const cosmeticSource: ParserSummary['source'] = overlayText.trim()
+    ? overlayEntry?.source === 'ocr' ? 'ocr' : 'paste'
+    : ingredientsText?.trim()
+      ? catalogSource
+      : fallbackText.trim()
+        ? 'provider'
+        : 'unknown';
+  // Persisted OCR text can only enter the catalog after the review dialog's
+  // explicit confirmation; overlay rows also retain their review bit.
+  const cosmeticReviewed = overlayText.trim()
+    ? overlayEntry?.reviewed === true
+    : Boolean(cosmeticText);
 
   // ---- Missing-INCI risk fallback (collapsed-preview friendly) ------------
   // Run as soon as a cosmetic candidate barcode resolves with no provider
@@ -121,7 +158,7 @@ export function CoursesLabelAccordion({
         if (result.kind === 'found') {
           setFallbackText(result.ingredientsText);
           setFallbackLookup('done');
-          onIngredientsRef.current?.(result.ingredientsText);
+          onIngredientsRef.current?.(result.ingredientsText, { source: 'remote', reviewed: true });
         } else {
           setFallbackLookup(result.kind === 'not-found' ? 'done' : 'failed');
         }
@@ -141,34 +178,39 @@ export function CoursesLabelAccordion({
     failed?: boolean;
   }>({ key: '' });
 
-  // Track the text currently requested separately from `cosmetic.key`.
-  // Using `cosmetic.key` in the effect deps makes the first `setCosmetic`
-  // (which sets key to the text) trigger the effect's own cleanup and cancel
-  // the in-flight request before it resolves.
-  const requestedCosmeticRef = useRef('');
+  const cosmeticRequestKey = JSON.stringify({
+    barcode,
+    text: cosmeticText,
+    label: labelName ?? '',
+    category: category ?? '',
+    form: form ?? 'unknown',
+    source: cosmeticSource,
+    reviewed: cosmeticReviewed,
+  });
   useEffect(() => {
-    if (domain !== 'cosmetic' || !cosmeticText) return;
-    if (requestedCosmeticRef.current === cosmeticText) return;
-    requestedCosmeticRef.current = cosmeticText;
-    let cancelled = false;
-    setCosmetic({ key: cosmeticText });
+    if (domain !== 'cosmetic' || !cosmeticText) {
+      setCosmetic({ key: cosmeticRequestKey });
+      return;
+    }
+    const controller = new AbortController();
+    setCosmetic({ key: cosmeticRequestKey });
     analyzeIngredientsText(cosmeticText, {
       ...(labelName ? { label: labelName } : {}),
       ...(category ? { category } : {}),
+      ...(form ? { form } : {}),
+      source: cosmeticSource,
+      reviewed: cosmeticReviewed,
+      signal: controller.signal,
     })
-      .then((analysis) => {
-        if (!cancelled) setCosmetic({ key: cosmeticText, analysis });
-      })
+      .then((analysis) => setCosmetic({ key: cosmeticRequestKey, analysis }))
       .catch(() => {
-        if (!cancelled) setCosmetic({ key: cosmeticText, failed: true });
+        if (!controller.signal.aborted) setCosmetic({ key: cosmeticRequestKey, failed: true });
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [domain, cosmeticText, labelName, category]);
+    return () => controller.abort();
+  }, [domain, cosmeticText, cosmeticRequestKey, labelName, category, form, cosmeticSource, cosmeticReviewed]);
 
   const cosmeticAnalysis =
-    cosmetic.key === cosmeticText ? cosmetic.analysis : undefined;
+    cosmetic.key === cosmeticRequestKey ? cosmetic.analysis : undefined;
 
   // ---- Food hook preview (deterministic local analysis, no network) ---------
   const foodPreview = useMemo<FoodAnalysis | null>(() => {
@@ -177,19 +219,25 @@ export function CoursesLabelAccordion({
     const opts = {
       ...(labelName ? { label: labelName } : {}),
       ...(category ? { category } : {}),
+      ...(allergenTags?.length ? { offAllergenTags: allergenTags } : {}),
     };
-    if (foodText) return analyzeFoodText(foodText, opts);
-    // A barcode water has no ingredient text; classify kind from metadata.
-    if (labelName || category) return analyzeFoodIngredientList([], opts);
-    return null;
-  }, [domain, ingredientsText, labelName, category]);
+    try {
+      if (foodText) return analyzeFoodText(foodText, opts);
+      // A barcode water has no ingredient text; classify kind from metadata.
+      if (labelName || category) return analyzeFoodIngredientList([], opts);
+      return null;
+    } catch {
+      // Corrupt legacy/provider state must not crash the pending-product card.
+      return null;
+    }
+  }, [domain, ingredientsText, labelName, category, allergenTags]);
 
   const showKnowledge = Boolean(barcode || ingredientsText?.trim());
   if (!showKnowledge) return null;
 
-  // Food: additive-grade ring (deterministic, local, informational). Waters
+  // Food: label-signal ring (deterministic, local, informational). Waters
   // keep their droplet — they have no ingredient list to grade.
-  const foodGrade = domain !== 'cosmetic' ? additiveGrade(foodPreview) : null;
+  const foodGrade = domain !== 'cosmetic' ? foodLabelGrade(foodPreview) : null;
 
   // Narrowed view of the analysis: only defined when a score + band exist.
   const readyCosmetic =
@@ -275,7 +323,7 @@ export function CoursesLabelAccordion({
             </span>
           )}
 
-          {/* Food: additive-grade ring / water droplet */}
+          {/* Food: label-signal ring / water droplet */}
           {domain !== 'cosmetic' && foodPreview && (
             foodPreview.kind === 'water' ? (
               <span
@@ -285,23 +333,27 @@ export function CoursesLabelAccordion({
                 <AppIcon name="water_drop" className="size-3.5" />
                 <span className="hidden sm:inline">{fg.waterTitle}</span>
               </span>
-            ) : (
-              foodGrade && (
-                <>
-                  <ScoreRing
-                    score={foodGrade.score}
-                    band={foodGrade.band}
-                    label={`${foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
-                    toneClass={BAND_STYLE[foodGrade.band].text}
-                  />
-                  <span
-                    className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[foodGrade.band].text}`}
-                  >
-                    {t(ig[BAND_LABEL_KEY[foodGrade.band]])}
-                  </span>
-                </>
-              )
-            )
+            ) : foodGrade ? (
+              <>
+                <ScoreRing
+                  score={100 - foodGrade.score}
+                  band={foodGrade.band}
+                  label={`${100 - foodGrade.score}/100 — ${t(ig[BAND_LABEL_KEY[foodGrade.band]])}. ${fg.gradeTooltip}`}
+                  toneClass={BAND_STYLE[foodGrade.band].text}
+                />
+                <span
+                  className={`hidden font-label-sm text-label-sm font-semibold sm:inline ${BAND_STYLE[foodGrade.band].text}`}
+                >
+                  {t(ig[BAND_LABEL_KEY[foodGrade.band]])}
+                </span>
+              </>
+            ) : foodPreview.total > 0 ? (
+              <ScoreRing
+                unknown
+                label={fg.gradeUnknown}
+                toneClass="text-on-surface-variant"
+              />
+            ) : null
           )}
 
           <AppIcon
@@ -320,8 +372,12 @@ export function CoursesLabelAccordion({
             <CoursesIngredientPanel
               barcode={barcode}
               initialText={ingredientsText || fallbackText}
+              initialSource={cosmeticSource}
+              initialReviewed={cosmeticReviewed}
               name={labelName}
               category={category}
+              form={form}
+              onFormChange={onFormChange}
               onIngredientsText={onIngredientsText}
             />
           ) : (
@@ -330,6 +386,7 @@ export function CoursesLabelAccordion({
               initialText={ingredientsText}
               name={labelName}
               category={category}
+              offAllergenTags={allergenTags}
             />
           )}
         </div>

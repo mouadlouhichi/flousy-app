@@ -2,13 +2,12 @@
 
 /**
  * Yuka-style score ring: a circular gauge whose coloured arc shows the
- * product rank (score / 100) with the number in the middle.
+ * product RISK (score / 100, higher = riskier) with the number in the middle.
  *
- * The arc fraction is derived from the SAME 0–100 score the analysis engine
- * returns (see src/lib/ingredient-safety/analyze.ts), and the stroke colour
- * from the band the engine derives from that score — so the ring always
- * matches the glance rendered inside the panel and can never disagree with
- * the number it draws.
+ * Callers pass the risk direction (100 − engine index); the stroke colour
+ * comes from the band the engine derives from that index — so the ring always
+ * matches the panel rendered beside it and can never disagree with the number
+ * it draws.
  */
 
 import type { Band } from '@/lib/ingredient-safety/types';
@@ -43,10 +42,12 @@ interface ScoreRingProps {
   score?: number;
   /** Engine band — drives the arc colour. Required unless `unknown`. */
   band?: Band;
-  /** Accessible name (localized), e.g. "87 / 100 — good". */
+  /** Accessible name (localized), e.g. "13 / 100 — low risk". */
   label: string;
   /** Tailwind text class for the centred number (dark-mode aware). */
   toneClass: string;
+  /** Override the centred number size (e.g. larger panel rings). */
+  valueClass?: string;
   /** Px diameter (default 40). */
   size?: number;
   /** Score could not be computed (no recognized ingredients) — grey full ring. */
@@ -58,6 +59,7 @@ export function ScoreRing({
   band,
   label,
   toneClass,
+  valueClass,
   size = RING_SIZE,
   unknown = false,
 }: ScoreRingProps) {
@@ -108,7 +110,7 @@ export function ScoreRing({
         />
       </svg>
       <span
-        className={`absolute text-[12px] font-bold tabular-nums leading-none ${toneClass}`}
+        className={`absolute font-bold tabular-nums leading-none ${valueClass ?? 'text-[12px]'} ${toneClass}`}
         dir="ltr"
       >
         {unknown ? '–' : score}

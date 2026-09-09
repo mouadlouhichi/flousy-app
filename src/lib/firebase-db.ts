@@ -1,4 +1,10 @@
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore';
 import { app } from './firebase';
 
 /**
@@ -16,7 +22,20 @@ let firestore: Firestore | null = null;
 
 if (app) {
   try {
-    firestore = getFirestore(app);
+    // Durable IndexedDB persistence keeps shopping mutations across weak-signal
+    // reloads; multi-tab coordination prevents two tabs owning isolated caches.
+    if (typeof window !== 'undefined') {
+      try {
+        firestore = initializeFirestore(app, {
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+        });
+      } catch {
+        // Hot reload or another bundle may already have initialized Firestore.
+        firestore = getFirestore(app);
+      }
+    } else {
+      firestore = getFirestore(app);
+    }
   } catch (err) {
     console.warn('Firestore initialization error:', err);
   }

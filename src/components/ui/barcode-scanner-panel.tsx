@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
+import type { BarcodeCandidate } from '@/lib/gtin';
 
 let scanAudioCtx: AudioContext | null = null;
 
@@ -64,6 +65,11 @@ export interface ScannerPanelLabels {
   torchOn: string;
   torchOff: string;
   cameraUnavailable: string;
+  /** Optional, more specific camera error copy; falls back to cameraUnavailable. */
+  cameraDenied?: string;
+  cameraNotFound?: string;
+  cameraBusy?: string;
+  insecureContext?: string;
   manualPlaceholder: string;
   lookup: string;
 }
@@ -71,7 +77,7 @@ export interface ScannerPanelLabels {
 interface BarcodeScannerPanelProps {
   /** Session is active — attach the hardware-wedge listener + camera. */
   enabled: boolean;
-  onCode: (rawCode: string) => void;
+  onCode: (candidate: BarcodeCandidate) => void;
   labels: ScannerPanelLabels;
   /** Optional header control (e.g. a close button for sheet usage). */
   headerAction?: React.ReactNode;
@@ -105,6 +111,20 @@ export function BarcodeScannerPanel({
   const [flash, setFlash] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const handleAccepted = (candidate: BarcodeCandidate) => {
+    setManualCode('');
+    playScanBeep();
+    setFlash(true);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlash(false), 700);
+    try {
+      navigator.vibrate?.(30);
+    } catch {
+      // Haptics are optional.
+    }
+    onCode(candidate);
+  };
+
   const {
     videoRef,
     start,
@@ -116,42 +136,42 @@ export function BarcodeScannerPanel({
     zoomOut,
     canZoomIn,
     canZoomOut,
+    hardwareZoomAvailable,
     torchOn,
     torchAvailable,
     toggleTorch,
   } = useBarcodeScanner({
     enabled,
-    onCode: (code) => {
-      setManualCode('');
-      // Captured feedback: beep + frame flash + "Scanned" chip + haptic, even
-      // when the barcode is unknown and the lookup later fails.
-      playScanBeep();
-      setFlash(true);
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlash(false), 700);
-      try {
-        navigator.vibrate?.(30);
-      } catch {
-        /* haptics unsupported */
-      }
-      onCode(code);
-    },
+    onCode: handleAccepted,
   });
 
   useEffect(() => {
-    if (!enabled) stop();
+    // Deliberately no stop() on enabled=false: the hook soft-pauses decoding
+    // while keeping the camera preview live (original scanner behaviour).
+    // Full camera teardown happens on unmount or the explicit stop button.
     return () => {
       if (flashTimer.current) clearTimeout(flashTimer.current);
     };
-  }, [enabled, stop]);
+  }, [enabled]);
 
   const submitManual = (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = manualCode.trim();
     if (!trimmed) return;
-    onCode(trimmed);
-    setManualCode('');
+    // Deliberately no camera teardown: the viewfinder stays on (main-branch
+    // behavior) — the manual lookup resolves while decoding continues.
+    handleAccepted({ rawValue: trimmed, format: 'UNKNOWN', source: 'manual' });
   };
+
+  const cameraErrorText = error === 'camera-denied'
+    ? labels.cameraDenied ?? labels.cameraUnavailable
+    : error === 'camera-not-found'
+      ? labels.cameraNotFound ?? labels.cameraUnavailable
+      : error === 'camera-busy'
+        ? labels.cameraBusy ?? labels.cameraUnavailable
+        : error === 'insecure-context'
+          ? labels.insecureContext ?? labels.cameraUnavailable
+          : labels.cameraUnavailable;
 
   return (
     <div className={className ?? 'rounded-3xl border border-outline-variant bg-surface-container-low p-4 md:p-5'}>
@@ -183,7 +203,7 @@ export function BarcodeScannerPanel({
           playsInline
           muted
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 ease-out"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+          style={hardwareZoomAvailable ? undefined : { transform: `scale(${zoom})`, transformOrigin: 'center center' }}
         />
         {!running ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-4">
@@ -192,7 +212,9 @@ export function BarcodeScannerPanel({
           </div>
         ) : (
           <>
-            {/* Scan frame: corner brackets + sweeping line */}
+            {/* Scan frame: corner brackets + sweeping line, always visible
+                while the camera runs. Native decoding still crops this region;
+                fallback decoders inspect the full image behind the frame. */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="relative h-20 w-[78%] max-w-md md:h-24">
                 <span className="absolute left-0 top-0 h-7 w-7 rounded-tl-xl border-l-[3px] border-t-[3px] border-primary" />
@@ -219,7 +241,8 @@ export function BarcodeScannerPanel({
               </button>
             )}
 
-            {/* Zoom */}
+            {/* Zoom — hardware zoom when the track supports it, otherwise a
+                digital zoom applied to the feed. Always available. */}
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/20 bg-black/50 px-1.5 py-1 backdrop-blur">
               <button
                 type="button"
@@ -263,7 +286,7 @@ export function BarcodeScannerPanel({
       {error && (
         <p className="mt-2 flex items-center gap-1.5 font-body-md text-body-md text-tertiary">
           <AppIcon name="info" className="size-4" />
-          {labels.cameraUnavailable}
+          {cameraErrorText}
         </p>
       )}
 
@@ -273,7 +296,7 @@ export function BarcodeScannerPanel({
         <form onSubmit={submitManual} className="mt-3 flex gap-2">
           <Input
             value={manualCode}
-            onChange={(e) => setManualCode(e.target.value.replace(/[^\d\s-]/g, ''))}
+            onChange={(e) => setManualCode(e.target.value.replace(/[^\p{Nd}\s-]/gu, ''))}
             placeholder={labels.manualPlaceholder}
             inputMode="numeric"
             autoComplete="off"

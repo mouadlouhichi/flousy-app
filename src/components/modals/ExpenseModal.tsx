@@ -12,7 +12,7 @@ import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge, bucketOf, type ExpenseProductAttachment } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
@@ -120,6 +120,7 @@ export function ExpenseModal({
   const [ocrResult, setOcrResult] = useState<ReceiptParse | null>(null);
   const [ocrError, setOcrError] = useState<string>('');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [productAttachment, setProductAttachment] = useState<ExpenseProductAttachment | undefined>();
   const [typeTouched, setTypeTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -142,6 +143,7 @@ export function ExpenseModal({
       setReceiptUrl(initialExpense.receiptUrl);
       setReceiptError('');
       setTagsInput((initialExpense.tags || []).join(', '));
+      setProductAttachment(initialExpense.productAttachment);
       setTypeTouched(true);
     } else {
       setName(prefill?.name || '');
@@ -155,6 +157,7 @@ export function ExpenseModal({
       setReceiptUrl(undefined);
       setReceiptError('');
       setTagsInput('');
+      setProductAttachment(undefined);
       setTypeTouched(false);
     }
     setOcrProgress(null);
@@ -338,6 +341,11 @@ export function ExpenseModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
+      ...(productAttachment ? {
+        productAttachment,
+        sourceType: 'barcode' as const,
+        sourceId: productAttachment.gtin14,
+      } : {}),
       ...(isPro && parseTags(tagsInput).length ? { tags: parseTags(tagsInput) } : {}),
     };
 
@@ -429,6 +437,24 @@ export function ExpenseModal({
               onClose={() => setScannerOpen(false)}
               onProduct={(product) => {
                 setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+                setProductAttachment({
+                  barcode: product.barcode,
+                  gtin14: product.gtin14,
+                  name: product.name,
+                  brand: product.brand,
+                  category: product.category,
+                  imageUrl: product.imageUrl,
+                  quantity: product.quantity,
+                  domain: product.domain,
+                  ranking: product.ranking,
+                  ingredientsText: product.ingredientsText,
+                  allergenTags: product.allergenTags,
+                  source: product.source,
+                  sourceUrl: product.sourceUrl,
+                  sourceDatabase: product.sourceDatabase,
+                  retrievedAt: product.retrievedAt,
+                  provenance: product.provenance,
+                });
                 setScannerOpen(false);
               }}
             />
@@ -446,6 +472,22 @@ export function ExpenseModal({
               {m.barcode.scanProduct}
             </button>
           )
+        )}
+        {productAttachment && !scannerOpen && (
+          <div className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
+            <AppIcon name="inventory_2" className="size-4 text-primary" />
+            <span className="min-w-0 flex-1 truncate" dir="ltr">
+              {productAttachment.barcode} · {productAttachment.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setProductAttachment(undefined)}
+              className="rounded-full p-1 hover:bg-surface-container-high"
+              aria-label={m.common.remove}
+            >
+              <AppIcon name="close" className="size-4" />
+            </button>
+          </div>
         )}
 
         {/* ── Category — add a new one inline, like fixed charges ── */}

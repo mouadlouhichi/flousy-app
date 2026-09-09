@@ -48,13 +48,22 @@ describe('knowledge-search parsing', () => {
     ]);
   });
 
-  it('caps summaries and rejects hostile payloads', () => {
-    const long = 'x'.repeat(900);
-    const parsed = parseKnowledgeBody({ ingredients: [{ name: 'A', summary: long }] }, ['A']);
-    assert.equal(parsed[0].summary.length, 400);
+  it('rejects overlong fields whole and rejects hostile payloads', () => {
+    assert.deepEqual(
+      parseKnowledgeBody({ ingredients: [{ name: 'A', summary: 'x'.repeat(401) }] }, ['A']),
+      [],
+    );
+    assert.deepEqual(
+      parseKnowledgeBody({ ingredients: new Array(41).fill({ name: 'A', summary: 'Fact.' }) }, ['A']),
+      [],
+    );
     assert.deepEqual(parseKnowledgeBody('nope', ['A']), []);
     assert.deepEqual(parseKnowledgeBody({ ingredients: 'oops' }, ['A']), []);
     assert.deepEqual(parseKnowledgeBody({ choices: [{ message: { content: '{not json' } }] }, ['A']), []);
+    assert.deepEqual(
+      parseKnowledgeBody({ choices: [{ message: { content: ' '.repeat(32_001) } }] }, ['A']),
+      [],
+    );
   });
 });
 
@@ -72,6 +81,19 @@ describe('knowledge-search fetch', () => {
       throw new Error('must not be reached');
     };
     assert.deepEqual(await fetchKnowledgeSummaries(['A'], KEYLESS, 'fr', boom), []);
+    assert.equal(calls, 0);
+  });
+
+  it('rejects an oversized provider request before network work', async () => {
+    let calls = 0;
+    const spy: KnowledgeFetch = async () => {
+      calls += 1;
+      return { ok: true, json: async () => ({}) };
+    };
+    assert.deepEqual(
+      await fetchKnowledgeSummaries(['A'.repeat(501)], KEYED, 'fr', spy),
+      [],
+    );
     assert.equal(calls, 0);
   });
 

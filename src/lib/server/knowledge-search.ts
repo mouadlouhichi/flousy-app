@@ -19,11 +19,15 @@
  * label, never user data), matching the app's privacy stance.
  */
 
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
+
 type EnvVarMap = Record<string, string | undefined>;
 
 const KNOWLEDGE_TIMEOUT_MS = 4_000;
 const MAX_NAMES = 40;
+const MAX_NAME_LENGTH = 500;
 const MAX_SUMMARY = 400;
+const MAX_WRAPPED_JSON_LENGTH = 32_000;
 
 export function knowledgeConfig(env: EnvVarMap = process.env): {
   url: string;
@@ -63,7 +67,11 @@ export function parseKnowledgeBody(body: unknown, requested: readonly string[]):
     // Some OpenAI-compatible endpoints wrap JSON in choices[0].message.content.
     const choices = Array.isArray(root.choices) ? root.choices : [];
     const content = choices[0] as { message?: { content?: unknown } } | undefined;
-    if (content?.message && typeof content.message.content === 'string') {
+    if (
+      content?.message
+      && typeof content.message.content === 'string'
+      && content.message.content.length <= MAX_WRAPPED_JSON_LENGTH
+    ) {
       try {
         const inner = JSON.parse(content.message.content) as { ingredients?: unknown };
         if (Array.isArray(inner.ingredients)) {
@@ -76,16 +84,21 @@ export function parseKnowledgeBody(body: unknown, requested: readonly string[]):
     return [];
   }
 
-  const requestedSet = new Set(requested.map((n) => n.trim().toLowerCase()));
+  if (raw.length > MAX_NAMES) return [];
+  const requestedSet = new Set(
+    requested
+      .filter((name) => name.trim().length <= MAX_NAME_LENGTH)
+      .map((name) => name.trim().toLowerCase()),
+  );
   const out: KnowledgeAnswer[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const entry = item as { name?: unknown; summary?: unknown };
     const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-    if (!name || !requestedSet.has(name.toLowerCase())) continue;
+    if (!name || name.length > MAX_NAME_LENGTH || !requestedSet.has(name.toLowerCase())) continue;
     const summary = typeof entry.summary === 'string' ? entry.summary.trim() : '';
-    if (!summary) continue;
-    out.push({ name, summary: summary.slice(0, MAX_SUMMARY) });
+    if (!summary || summary.length > MAX_SUMMARY) continue;
+    out.push({ name, summary });
   }
   return out;
 }
@@ -103,7 +116,12 @@ export async function fetchKnowledgeSummaries(
 ): Promise<KnowledgeAnswer[]> {
   const config = knowledgeConfig(env);
   if (!config || names.length === 0) return [];
-  const requested = names.slice(0, MAX_NAMES);
+  const requested = names.slice(0, MAX_NAMES).map((name) => name.trim());
+  if (
+    requested.some((name) => !name || name.length > MAX_NAME_LENGTH)
+    || requested.reduce((length, name) => length + name.length, 0)
+      + Math.max(0, requested.length - 1) > MAX_INGREDIENT_TEXT_LENGTH
+  ) return [];
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), KNOWLEDGE_TIMEOUT_MS);
   const system =
