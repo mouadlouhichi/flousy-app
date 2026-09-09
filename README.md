@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💰 SmartJib
+# 💰 SmartJib APP
 
 **A private, mobile-first budget tracker that separates what money is for from where it is held.**
 
