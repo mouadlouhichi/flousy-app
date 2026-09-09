@@ -66,6 +66,58 @@ describe('knowledge scan UX contract', () => {
   });
 });
 
+describe('shared scanner camera UX contract', () => {
+  const scanner = readFileSync(
+    new URL('../src/components/ui/barcode-scanner-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  const hook = readFileSync(
+    new URL('../src/hooks/use-barcode-scanner.ts', import.meta.url),
+    'utf8',
+  );
+
+  it('keeps the original camera look: scan frame, sweeping line, zoom and hint always visible', () => {
+    // The scan frame (corner brackets + animated line) is rendered whenever
+    // the camera runs — never gated behind a decoder/ROI condition.
+    assert.doesNotMatch(scanner, /roiActive/);
+    assert.match(scanner, /animate-scan-line/);
+    assert.match(scanner, /labels\.alignHint/);
+    // The zoom control is part of the original panel: always rendered, with
+    // a digital fallback when the camera track has no hardware zoom.
+    assert.doesNotMatch(scanner, /hardwareZoomAvailable && \(\s*<div className="absolute bottom-3/);
+    assert.match(scanner, /labels\.zoomIn/);
+    assert.match(scanner, /labels\.zoomOut/);
+    // Digital zoom fallback: the video feed is scaled in CSS exactly when
+    // hardware zoom is unavailable, with the pre-audit 2× default.
+    assert.match(scanner, /transform: `scale\(\$\{zoom\}\)`/);
+    assert.match(hook, /initialZoom = 2/);
+    assert.match(hook, /MAX_DIGITAL_ZOOM = 8/);
+  });
+
+  it('restores the panel without a camera-picker dropdown', () => {
+    assert.doesNotMatch(scanner, /<select/);
+    assert.doesNotMatch(scanner, /selectedDeviceId/);
+    assert.doesNotMatch(scanner, /cameraSelect/);
+  });
+
+  it('keeps the Add-Expense scan-product entry and its shared scanner', () => {
+    const modal = readFileSync(
+      new URL('../src/components/modals/ExpenseModal.tsx', import.meta.url),
+      'utf8',
+    );
+    const expenseScanner = readFileSync(
+      new URL('../src/components/modals/expense-barcode-scanner.tsx', import.meta.url),
+      'utf8',
+    );
+
+    assert.match(modal, /isPro && !initialExpense && \(/);
+    assert.match(modal, /m\.barcode\.scanProduct/);
+    assert.match(modal, /<ExpenseBarcodeScanner/);
+    assert.match(expenseScanner, /<BarcodeScannerPanel/);
+    assert.match(expenseScanner, /onProduct\(found\.product\)/);
+  });
+});
+
 describe('keyboard-wedge collection', () => {
   it('collects every strict GTIN length and leaves checksum validation to the shared parser', () => {
     for (const code of ['96385074', '012345678905', '4006381333931', '10012345678902']) {

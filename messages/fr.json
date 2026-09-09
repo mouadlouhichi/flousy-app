@@ -2678,7 +2678,9 @@
     "flagParserReview": "La structure analysée doit être vérifiée ; le résultat numérique est bloqué.",
     "flagOcrReview": "Le texte OCR doit être vérifié avant l’analyse.",
     "flagScoreWithheld": "Le résultat numérique est volontairement retenu faute de preuves ou de contexte résolus.",
-    "assessmentMeta": "Source UE au : {date} · Forme du produit : {form}"
+    "assessmentMeta": "Source UE au : {date} · Forme du produit : {form}",
+    "riskDriversTitle": "Principaux facteurs de risque",
+    "driverPoints": "-{points} pts"
   },
   "ingredientManual": {
     "missingHint": "La liste complète des ingrédients n'est pas disponible pour ce produit.",
@@ -2751,11 +2753,17 @@
     "concernsTitle": "Préoccupations liées aux ingrédients",
     "gradeTooltip": "Score fondé sur les additifs détectés, les préoccupations explicites et le niveau de reconnaissance — information uniquement, pas un score nutritionnel ou de santé.",
     "gradeUnknown": "Trop peu d’ingrédients ont été reconnus pour calculer un score d’étiquette.",
+    "gradeDriversTitle": "Ce qui a influencé la note de l'étiquette",
+    "gradeDriverPoints": "-{points} pts",
     "ingredientUnknown": "Non reconnu",
     "unspecifiedColour": "Colorant (substance exacte non précisée)",
     "unspecifiedFlavourEnhancer": "Exhausteur de goût (substance exacte non précisée)",
     "unspecifiedFoodAcid": "Acidifiant (substance exacte non précisée)",
     "unspecifiedProteinSource": "Source de protéines non précisée",
+    "unspecifiedPreservative": "Conservateur (substance exacte non précisée)",
+    "unspecifiedAntioxidant": "Antioxydant (substance exacte non précisée)",
+    "unspecifiedStabiliser": "Stabilisant (substance exacte non précisée)",
+    "unspecifiedSweetener": "Édulcorant (substance exacte non précisée)",
     "pasteHelp": "Collez la liste d’ingrédients de l’étiquette, séparée par des virgules.",
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",
     "pastePlaceholder": "Exemple : lait entier, crème, ferments lactiques, présure, sel",

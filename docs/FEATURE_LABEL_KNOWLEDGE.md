@@ -68,6 +68,25 @@ nor an allergen. It still does not infer sugar, salt, saturated-fat or nutrient
 quantities from ingredient order; use declared nutrition data/Nutri-Score for
 that separate question.
 
+### Grade drivers (2026-09-food-v4)
+
+`foodGradeDrivers` mirrors the rubric exactly and ranks up to three label
+signals that moved the grade, strongest first (additive code / concern label,
+localized band, point cost). The expanded food panel renders the ranking under
+a "what moved the label score" heading whenever a grade exists; a withheld
+grade (nothing recognized, mineral water) never gets a breakdown.
+
+Corpus `2026-09-food-v4` (2026-09-09) extends market coverage for
+Moroccan/North-African labels: Arabic ingredient wording is now foldable and
+matched (`foldForMatch` keeps every Unicode letter/digit and strips combining
+marks, so `أ` folds to `ا`), with new family rows (spices such as cumin,
+coriander, curcuma, ginger, fenugrek; dates, figs, mackerel; vinegar, coffee,
+chicory, malt extract; Arabic staples such as `ملح`, `سكر`, `زيت النخيل`,
+`طماطم`), and four new explicitly-unresolved class declarations
+(`conservateur`, `antioxydant`, `stabilisant`, `édulcorant`) which are
+chip-labelled "exact substance not specified" and never count as recognized
+identities.
+
 ## Deep-search knowledge fallback (optional, key-gated)
 
 The analysis always runs against the **local** knowledge tables first

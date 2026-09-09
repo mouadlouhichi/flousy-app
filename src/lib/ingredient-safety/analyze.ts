@@ -275,6 +275,7 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
     const weight = legal ? 1 : exposureWeight(assessment.index, total);
     const deduction = Math.round(penalty * weight);
     assessment.subScore = Math.max(0, 100 - deduction);
+    assessment.deduction = deduction;
     deductionTotal += deduction;
   }
 

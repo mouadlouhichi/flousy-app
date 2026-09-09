@@ -3,9 +3,13 @@ import assert from 'node:assert/strict';
 import { analyzeFoodText } from '../src/lib/food-knowledge/analyze';
 import {
   additiveGrade,
+  foodGradeDrivers,
   foodLabelGrade,
   FOOD_GRADE_AVOID_CAP,
+  FOOD_GRADE_AVOID_PENALTY,
+  FOOD_GRADE_CONCERN_HIGH_PENALTY,
   FOOD_GRADE_HIGH_CONCERN_CAP,
+  FOOD_GRADE_WATCH_PENALTY,
   gradeBandFor,
 } from '../src/lib/food-knowledge/grade';
 
@@ -104,5 +108,48 @@ describe('food label-signal grade', () => {
     assert.equal(gradeBandFor(59), 'caution');
     assert.equal(gradeBandFor(40), 'caution');
     assert.equal(gradeBandFor(39), 'avoid');
+  });
+});
+
+describe('food grade drivers (score transparency)', () => {
+  it('ranks the signals that moved the grade, strongest contribution first', () => {
+    const r = analyzeFoodText(
+      'Huile de palme, farine de blé, sucre, colorant E171, colorant E102, lécithine de tournesol, huile partiellement hydrogénée',
+    );
+    const grade = foodLabelGrade(r);
+    assert.ok(grade, 'expected a grade for a fully recognized list');
+    const drivers = foodGradeDrivers(r);
+    assert.ok(drivers.length >= 3, 'expected at least three drivers');
+    for (let i = 1; i < drivers.length; i += 1) {
+      assert.ok(
+        drivers[i - 1].deduction >= drivers[i].deduction,
+        'drivers must be ordered strongest first',
+      );
+    }
+    // The rubric and the breakdown must agree exactly.
+    const sum = drivers.reduce((total, driver) => total + driver.deduction, 0);
+    assert.ok(sum > 0);
+    const avoidDriver = drivers.find((driver) => driver.level === 'avoid');
+    assert.ok(avoidDriver, 'E171 must surface as the strongest driver class');
+    assert.equal(avoidDriver?.deduction, FOOD_GRADE_AVOID_PENALTY);
+    const watchSum = drivers
+      .filter((driver) => driver.level === 'watch' && driver.kind === 'additive')
+      .reduce((total, driver) => total + driver.deduction, 0);
+    assert.ok(watchSum % FOOD_GRADE_WATCH_PENALTY === 0, 'watch additive deductions must match the rubric');
+  });
+
+  it('surfaces an explicit high concern at its rubric penalty', () => {
+    const r = analyzeFoodText('Sucre, huile partiellement hydrogénée, sel');
+    const drivers = foodGradeDrivers(r);
+    const concern = drivers.find((driver) => driver.kind === 'concern');
+    assert.ok(concern, 'partially hydrogenated oil must be a driver');
+    assert.equal(concern?.level, 'high');
+    assert.equal(concern?.deduction, FOOD_GRADE_CONCERN_HIGH_PENALTY);
+  });
+
+  it('returns nothing when there is nothing to rank', () => {
+    assert.deepEqual(foodGradeDrivers(null), []);
+    const plain = analyzeFoodText('Lait de vache pasteurisé, sel');
+    assert.deepEqual(foodGradeDrivers(plain), []);
   });
 });

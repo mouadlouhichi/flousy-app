@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeIngredientList } from '../src/lib/ingredient-safety/analyze';
-import { ingredientFlagText } from '../src/components/dashboard/courses/courses-ingredient-glance';
+import { ingredientFlagText, riskDrivers } from '../src/components/dashboard/courses/courses-ingredient-glance';
 import en from '../messages/en.json';
 import fr from '../messages/fr.json';
 import ar from '../messages/ar.json';
@@ -91,5 +91,40 @@ describe('ingredientGlance messages', () => {
     const g = glanceOf(en);
     assert.ok(g.bandExcellent.length > 0);
     assert.ok(g.bandAvoid.length > 0);
+  });
+});
+
+describe('risk drivers ranking', () => {
+  it('ranks assessed ingredients strongest-first and caps the list', () => {
+    const analysis = analyzeIngredientList(
+      // Linalool is deliberately excluded: its Annex III conditions cannot be
+      // resolved from a label, which withholds the whole numeric index.
+      ['Quaternium-15', 'Parfum', 'Bronopol', 'Sodium Laureth Sulfate', 'Cocoamidopropyl Betaine'],
+      { form: 'leave-on' },
+    );
+    assert.equal(analysis.scoreStatus, 'available');
+    const drivers = riskDrivers(analysis);
+    assert.equal(drivers.length, 3, 'the drivers list is capped at three rows');
+    assert.equal(drivers[0].name, 'QUATERNIUM-15');
+    assert.equal(drivers[0].deduction, 100);
+    for (let i = 1; i < drivers.length; i += 1) {
+      assert.ok(drivers[i - 1].deduction >= drivers[i].deduction);
+    }
+    // Identified-but-unassessed rows never appear.
+    assert.ok(!drivers.some((driver) => driver.name === 'Cocoamidopropyl Betaine'));
+  });
+
+  it('returns nothing when the numeric index is withheld', () => {
+    const analysis = analyzeIngredientList(['Quaternium-15', 'Parfum'], { form: 'unknown' });
+    assert.equal(analysis.score, null);
+    assert.deepEqual(riskDrivers(analysis), []);
+  });
+
+  it('keeps the drivers title and points keys localized in en/fr/ar', () => {
+    for (const catalog of [en, fr, ar]) {
+      const g = catalog.ingredientGlance as Record<string, string>;
+      assert.ok(g.riskDriversTitle?.length > 3);
+      assert.match(g.driverPoints ?? '', /\{points\}/);
+    }
   });
 });

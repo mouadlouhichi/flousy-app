@@ -1,8 +1,10 @@
 # Cosmetic label evidence analysis
 
-**Implementation version:** `ingredient-evidence-v2`
+**Implementation version:** `ingredient-evidence-v3`
 **EU source date represented by the structured corpus:** 18 May 2026
 **Purpose:** ingredient identity and source-attributed evidence, **not** a product-safety, medical, authorization, or legal-compliance verdict.
+
+`ingredient-evidence-v3` (2026-09-09) adds per-ingredient deduction transparency, a ranked "main risk drivers" UI, and a wider identity-alias table (common trade names plus French/Arabic label wording, every target verified against the dated glossary). Aliases establish identity only; regulatory status still comes exclusively from the structured annex corpus.
 
 ## Request path and privacy
 
@@ -67,6 +69,10 @@ Each row has independent fields for:
 6. an optional tier only when evidence supports one.
 
 Important states include `identified-no-assessment`, `externally-identified`, and `unidentified`. None becomes `clean`, increases evidence coverage, or improves a numeric result merely because the name exists in an inventory or a provider recognized it.
+
+## Score transparency (ranked drivers)
+
+Every assessed row records `deduction` — the exact points its strongest supported signal removed from the 100-point index (regulatory signals carry full weight; curated signals are position-weighted, so wording earlier in the list weighs more). The scan UI uses it to rank up to three "main risk drivers" under the index banner: ingredient name, localized tier label, and the point cost. The ranking is rendered only when the numeric index itself is available; a withheld score never gets a driver breakdown.
 
 ## Numeric output
 

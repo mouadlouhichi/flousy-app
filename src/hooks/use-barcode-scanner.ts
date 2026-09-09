@@ -27,6 +27,8 @@ interface UseBarcodeScannerOptions {
   enabled: boolean;
   onCode: (candidate: BarcodeCandidate) => void;
   autoStart?: boolean;
+  /** Initial zoom, 1 = none (default 2×). Hardware zoom when the track
+   * supports it; otherwise digital zoom applied to the feed. */
   initialZoom?: number;
   deviceId?: string;
 }
@@ -58,6 +60,16 @@ interface VideoSettings extends MediaTrackSettings {
 const DECODE_INTERVAL_MS = 70;
 const ROI_WIDTH_RATIO = 0.82;
 const ROI_HEIGHT_RATIO = 0.38;
+/** Digital zoom bounds/step for devices whose camera track has no zoom
+ * capability — the feed is then scaled in CSS, exactly like the original
+ * scanner behaviour (default 2× so barcodes fill the frame). */
+const MIN_ZOOM = 1;
+const MAX_DIGITAL_ZOOM = 8;
+const ZOOM_STEP = 0.5;
+
+function clampDigitalZoom(value: number): number {
+  return Math.min(MAX_DIGITAL_ZOOM, Math.max(MIN_ZOOM, value));
+}
 
 function nativeFormat(value: string | undefined): BarcodeSymbology {
   const normalized = (value ?? '').toLowerCase();
@@ -88,7 +100,7 @@ export function useBarcodeScanner({
   enabled,
   onCode,
   autoStart = true,
-  initialZoom = 1,
+  initialZoom = 2,
   deviceId,
 }: UseBarcodeScannerOptions) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -110,7 +122,7 @@ export function useBarcodeScanner({
   const [state, setState] = useState<ScannerState>('idle');
   const [error, setError] = useState<ScanError>(null);
   const [method, setMethod] = useState<ScanMethod>('none');
-  const [zoom, setZoomState] = useState(1);
+  const [zoom, setZoomState] = useState(() => clampDigitalZoom(initialZoom));
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
@@ -141,7 +153,8 @@ export function useBarcodeScanner({
     setTorchOn(false);
     setTorchAvailable(false);
     setZoomRange(null);
-    setZoomState(1);
+    // Fall back to digital zoom, keeping the user's chosen level (bounded).
+    setZoomState((current) => clampDigitalZoom(current));
     setRoiActive(false);
     setMethod('none');
   }, []);
@@ -192,24 +205,29 @@ export function useBarcodeScanner({
     }
   }, [getVideoTrack, initialZoom]);
 
+  /** Hardware zoom when the track exposes a range; digital (CSS) zoom on the
+   * feed otherwise, matching the original scanner behaviour on every device. */
   const setZoom = useCallback(async (next: number) => {
     const track = getVideoTrack();
-    if (!track || !zoomRange) return false;
-    const clamped = Math.min(zoomRange.max, Math.max(zoomRange.min, next));
-    try {
-      await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] });
-      setZoomState(Number((track.getSettings() as VideoSettings).zoom ?? clamped));
-      return true;
-    } catch {
-      return false;
+    if (track && zoomRange) {
+      const clamped = Math.min(zoomRange.max, Math.max(zoomRange.min, next));
+      try {
+        await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] });
+        setZoomState(Number((track.getSettings() as VideoSettings).zoom ?? clamped));
+        return true;
+      } catch {
+        return false;
+      }
     }
+    setZoomState(clampDigitalZoom(next));
+    return true;
   }, [getVideoTrack, zoomRange]);
 
   const zoomIn = useCallback(() => {
-    if (zoomRange) void setZoom(zoom + zoomRange.step);
+    void setZoom(zoom + (zoomRange?.step ?? ZOOM_STEP));
   }, [setZoom, zoom, zoomRange]);
   const zoomOut = useCallback(() => {
-    if (zoomRange) void setZoom(zoom - zoomRange.step);
+    void setZoom(zoom - (zoomRange?.step ?? ZOOM_STEP));
   }, [setZoom, zoom, zoomRange]);
 
   const setTorch = useCallback(async (on: boolean) => {
@@ -491,8 +509,8 @@ export function useBarcodeScanner({
     setZoom,
     zoomIn,
     zoomOut,
-    canZoomIn: Boolean(zoomRange && zoom < zoomRange.max),
-    canZoomOut: Boolean(zoomRange && zoom > zoomRange.min),
+    canZoomIn: zoom < (zoomRange?.max ?? MAX_DIGITAL_ZOOM),
+    canZoomOut: zoom > (zoomRange?.min ?? MIN_ZOOM),
     hardwareZoomAvailable: Boolean(zoomRange),
     torchOn,
     torchAvailable,

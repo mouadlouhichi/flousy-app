@@ -136,6 +136,9 @@ export interface IngredientAssessment {
   tier: RiskTier | null;
   tierSource?: TierSource;
   subScore?: number;
+  /** Points this row removed from the 100-point index (informational; the
+   * per-ingredient rank weight). 0/absent = no contribution. */
+  deduction?: number;
   /** Legacy informational text; never itself establishes legal status. */
   restrictionText?: string;
   externalEvidence?: ExternalIngredientEvidence[];

@@ -49,6 +49,51 @@ export interface FoodGrade {
   band: GradeBand;
 }
 
+/** One ranked row of the "what moved the score" food breakdown. */
+export interface FoodGradeDriver {
+  kind: 'additive' | 'concern';
+  /** Additive E-code (e.g. "E171") or FoodConcernCode. */
+  key: string;
+  /** Raw label text the signal was read from. */
+  raw: string;
+  level: 'avoid' | 'high' | 'watch';
+  /** Points the signal removed from the 100-point grade. */
+  deduction: number;
+}
+
+/**
+ * Rank the label signals that actually moved the food grade, strongest
+ * contribution first. Pure; mirrors the deduction rubric of
+ * `foodLabelGrade` exactly (same penalties, same inputs) so the breakdown
+ * can never disagree with the number on the ring.
+ */
+export function foodGradeDrivers(
+  analysis: FoodAnalysis | null | undefined,
+  max = 3,
+): FoodGradeDriver[] {
+  if (!analysis || analysis.total <= 0) return [];
+  const drivers: FoodGradeDriver[] = [];
+  for (const additive of analysis.additives ?? []) {
+    if (additive.band === 'avoid') {
+      drivers.push({ kind: 'additive', key: additive.code, raw: additive.raw, level: 'avoid', deduction: FOOD_GRADE_AVOID_PENALTY });
+    } else if (additive.band === 'watch') {
+      drivers.push({ kind: 'additive', key: additive.code, raw: additive.raw, level: 'watch', deduction: FOOD_GRADE_WATCH_PENALTY });
+    }
+  }
+  for (const concern of analysis.concerns ?? []) {
+    drivers.push({
+      kind: 'concern',
+      key: concern.code,
+      raw: concern.raw,
+      level: concern.level === 'high' ? 'high' : 'watch',
+      deduction: concern.level === 'high' ? FOOD_GRADE_CONCERN_HIGH_PENALTY : FOOD_GRADE_CONCERN_WATCH_PENALTY,
+    });
+  }
+  return drivers
+    .sort((a, b) => b.deduction - a.deduction || a.key.localeCompare(b.key))
+    .slice(0, max);
+}
+
 /**
  * Compute the label-signal grade for a food analysis.
  *

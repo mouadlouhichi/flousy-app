@@ -502,3 +502,41 @@ describe('water scan regression — Sidi Ali under a generic beverages category'
     assert.ok(r.water.parameters.some((p) => p.key === 'dry-residue'));
   });
 });
+
+describe('moroccan market coverage — 2026-09-food-v4', () => {
+  it('recognizes Arabic ingredient wording from market labels', () => {
+    const r = analyzeFoodText('طماطم, ملح, سكر, زيت النخيل, فلفل أحمر حلو, تمر');
+    assert.equal(r.total, 6);
+    assert.ok(r.recognized >= 6, `expected Arabic staples recognized, got ${r.recognized}`);
+    const families = new Set(r.ingredients.filter((i) => i.recognized && i.family).map((i) => i.family as string));
+    for (const family of ['fruit-veg', 'salt', 'sugar', 'fat-oil', 'herb-spice']) {
+      assert.ok(families.has(family), `missing family ${family}`);
+    }
+  });
+
+  it('recognizes common Moroccan pantry and spice wording in French', () => {
+    const r = analyzeFoodText(
+      'Farine de blé, huile d’arachide, cacahuètes grillées, maquereau, coriandre, cumin, curcuma, gingembre, vinaigre, dattes, figues, extrait de malt',
+    );
+    assert.ok(r.recognized >= 12, `expected the pantry staples recognized, got ${r.recognized}`);
+    const peanutRow = r.ingredients.find((i) => i.normalized.includes('cacahuete'));
+    assert.deepEqual(peanutRow?.allergens, ['peanuts'], 'peanut wording must keep its allergen group');
+  });
+
+  it('keeps new generic class declarations unresolved (not recognized, chip-labelled)', () => {
+    const r = analyzeFoodText('conservateur, antioxydant, stabilisant, édulcorant');
+    assert.equal(r.recognized, 0, 'class words must not become recognized identities');
+    const classes = new Set(r.ingredients.map((i) => i.unspecifiedClass));
+    assert.deepEqual(
+      [...classes].sort(),
+      ['antioxidant', 'preservative', 'stabiliser', 'sweetener'],
+    );
+  });
+
+  it('keeps the unicode fold compatible with the existing latin tables', () => {
+    assert.equal(foldForMatch('Crème fraîche'), 'creme fraiche');
+    assert.equal(foldForMatch('Huile d’olive'), 'huile d olive');
+    assert.equal(lookupFoodRow(foldForMatch('farine de blé'))?.row.family, 'cereal');
+    assert.equal(lookupFoodRow(foldForMatch('maquereau'))?.row.family, 'meat-fish');
+  });
+});

@@ -66,6 +66,7 @@ const analysis: ProductAssessment = {
       identity: { status: 'official-glossary', canonicalName: 'HYDROQUINONE' },
       signals: [{ code: 'cosing-annex-II', kind: 'regulatory', label: '', detail: '', tier: 'prohibited', evidence: [] }],
       tier: 'prohibited',
+      deduction: 100,
       assessmentState: 'assessed-signal',
     },
     {
@@ -77,6 +78,7 @@ const analysis: ProductAssessment = {
       identity: { status: 'official-glossary', canonicalName: 'PARFUM' },
       signals: [{ code: 'fragrance-generic', kind: 'comfort', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      deduction: 17,
       assessmentState: 'assessed-signal',
     },
     {
@@ -88,6 +90,7 @@ const analysis: ProductAssessment = {
       identity: { status: 'official-glossary', canonicalName: 'LINALOOL' },
       signals: [{ code: 'eu-fragrance-allergen', kind: 'regulatory', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      deduction: 14,
       assessmentState: 'assessed-signal',
     },
   ],
@@ -150,6 +153,28 @@ describe('CoursesIngredientGlance render smoke', () => {
     // identity-only ingredient is converted into a positive green verdict.
     assert.ok(html.includes('width:100%'), 'explicit concern segment missing');
     assert.equal(html.includes('width:25%'), false, 'unsupported positive segment must not appear');
+  });
+
+  it('renders the ranked risk drivers with localized title and point costs', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientGlanceBody, { analysis }),
+      );
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.riskDriversTitle), `${locale}: drivers title missing`);
+      // Strongest driver first, with its localized point cost.
+      const first = html.indexOf('HYDROQUINONE');
+      assert.ok(first >= 0, `${locale}: top driver name missing`);
+      const perfumeIndex = html.indexOf('PARFUM', first);
+      assert.ok(perfumeIndex > first, `${locale}: drivers must be ordered strongest first`);
+      assert.ok(html.includes('-100'), `${locale}: driver point cost missing`);
+      const g = catalogs[locale].ingredientGlance as unknown as Record<string, string>;
+      const driverPoints = g.driverPoints.replace('{points}', '100');
+      assert.ok(html.includes(driverPoints), `${locale}: localized point label missing`);
+    }
   });
 
   it('renders nothing (not even an error) when no ingredient text is present', async () => {

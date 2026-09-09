@@ -389,3 +389,61 @@ describe('inferProductForm', () => {
     assert.equal(inferProductForm('Cosmetics'), 'unknown');
   });
 });
+
+describe('ranked risk drivers — deduction transparency (ingredient-evidence-v3)', () => {
+  it('records each row’s index contribution next to its tier', () => {
+    const r = analyzeIngredientList(
+      ['Quaternium-15', 'Parfum', 'Linalool', 'Aqua', 'Glycerin'],
+      { form: 'leave-on' },
+    );
+    const quaternium = r.ingredients.find((i) => i.raw === 'Quaternium-15');
+    assert.equal(quaternium?.tier, 'prohibited');
+    // Regulatory signals carry full weight — the full penalty is recorded.
+    assert.equal(quaternium?.deduction, 100);
+    // Identified rows without a signal never contribute.
+    assert.equal(r.ingredients.find((i) => i.raw === 'Aqua')?.deduction, undefined);
+    // Curated signals are position-weighted and still recorded.
+    const parfum = r.ingredients.find((i) => i.raw === 'Parfum');
+    assert.ok((parfum?.deduction ?? 0) > 0);
+    assert.ok((parfum?.deduction ?? 0) < 22, 'position weighting must reduce the curated penalty');
+  });
+
+  it('keeps row deductions informational while the score itself is withheld', () => {
+    const r = analyzeIngredientList(['Quaternium-15'], { form: 'unknown' });
+    // Withholding applies to the numeric index only: rows keep their tier and
+    // their recorded contribution, and the UI never ranks them without a score.
+    assert.equal(r.score, null);
+    const quaternium = r.ingredients.find((i) => i.raw === 'Quaternium-15');
+    assert.equal(quaternium?.tier, 'prohibited');
+    assert.equal(quaternium?.deduction, 100);
+  });
+});
+
+describe('cosmetic alias expansion (ingredient-evidence-v3)', () => {
+  it('resolves common trade names and French label wording to glossary identity', () => {
+    const r = analyzeIngredientList(
+      ['Witch Hazel', 'Rose Water', 'Honey', 'Colloidal Oatmeal', 'Green Tea', 'Lavender Oil', 'Tea Tree Oil', 'Vitamin A Palmitate', 'Vitamin E Acetate'],
+      { form: 'leave-on' },
+    );
+    const canonical = new Map(r.ingredients.map((i) => [i.raw, i.matchedInci]));
+    assert.equal(canonical.get('Witch Hazel'), 'HAMAMELIS VIRGINIANA WATER');
+    assert.equal(canonical.get('Rose Water'), 'ROSA DAMASCENA FLOWER WATER');
+    assert.equal(canonical.get('Honey'), 'MEL');
+    assert.equal(canonical.get('Colloidal Oatmeal'), 'AVENA SATIVA KERNEL EXTRACT');
+    assert.equal(canonical.get('Green Tea'), 'CAMELLIA SINENSIS LEAF EXTRACT');
+    assert.equal(canonical.get('Lavender Oil'), 'LAVANDULA ANGUSTIFOLIA OIL');
+    assert.equal(canonical.get('Tea Tree Oil'), 'MELALEUCA ALTERNIFOLIA LEAF OIL');
+    assert.equal(canonical.get('Vitamin A Palmitate'), 'RETINYL PALMITATE');
+    assert.equal(canonical.get('Vitamin E Acetate'), 'TOCOPHERYL ACETATE');
+    // Aliases expand identity only — a neutral alias set must not invent tiers.
+    assert.ok(!r.ingredients.some((i) => i.tier === 'prohibited'), 'neutral aliases must stay verdict-free');
+  });
+
+  it('resolves French and Arabic cosmetic label wording', () => {
+    const r = analyzeIngredientList(
+      ['Glycérine Végétale', 'Huile d’olive', 'Beurre de cacao', 'Acide hyaluronique', 'زيت الزيتون', 'زيت جوز الهند'],
+      { form: 'leave-on' },
+    );
+    assert.equal(r.recognized, r.total, `expected full alias recognition, unknown: ${r.ingredients.filter((i) => !i.matched).map((i) => i.raw).join(', ')}`);
+  });
+});

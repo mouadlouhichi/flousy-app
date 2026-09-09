@@ -15,6 +15,7 @@ import type {
 import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
+import { foodGradeDrivers, foodLabelGrade } from '@/lib/food-knowledge/grade';
 import { LabelOcrButton } from './label-ocr-button';
 import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
 
@@ -69,6 +70,10 @@ const UNSPECIFIED_CLASS_KEY: Record<FoodUnspecifiedClass, string> = {
   colour: 'unspecifiedColour',
   'food-acid': 'unspecifiedFoodAcid',
   'protein-source': 'unspecifiedProteinSource',
+  preservative: 'unspecifiedPreservative',
+  antioxidant: 'unspecifiedAntioxidant',
+  stabiliser: 'unspecifiedStabiliser',
+  sweetener: 'unspecifiedSweetener',
 };
 
 const CONCERN_LABEL_KEY: Record<FoodConcernCode, string> = {
@@ -265,7 +270,7 @@ const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
 
 /** Exported pure body — shared by the course panel and the standalone screen. */
 export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
-  const { messages: m } = useLanguage();
+  const { messages: m, t } = useLanguage();
   const g = m.foodKnowledge;
 
   // Water labels print a mineral composition, not an ingredient list — give
@@ -276,6 +281,9 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
 
   const { additives, ingredients } = analysis;
   const concerns = analysis.concerns ?? [];
+  // Ranked "what moved the score" rows — mirrors foodLabelGrade exactly.
+  const grade = foodLabelGrade(analysis);
+  const gradeDrivers = foodGradeDrivers(analysis);
   // Deep-search answers keyed by folded raw name, so they attach to the row.
   const externalByFolded = new Map(
     analysis.external.map((e) => [foldForMatch(e.name), e]),
@@ -301,6 +309,47 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
           <AppIcon name="search_off" className="mt-0.5 size-4 shrink-0 text-on-surface-variant" />
           {g.unrecognizedAll}
         </p>
+      )}
+
+      {/* Ranked grade drivers — the label signals that actually moved the
+          bounded label-signal index, strongest first. Hidden when the grade
+          itself is withheld (nothing recognized / water). */}
+      {grade && gradeDrivers.length > 0 && (
+        <section className="rounded-xl border border-outline-variant bg-surface/50 p-3">
+          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="analytics" className="size-4 text-primary" />
+            {g.gradeDriversTitle}
+          </h4>
+          <ul className="mt-1.5 space-y-1">
+            {gradeDrivers.map((driver) => (
+              <li key={`${driver.kind}:${driver.key}:${driver.raw}`} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
+                  {driver.kind === 'additive'
+                    ? driver.key
+                    : g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${
+                    driver.level === 'avoid' || driver.level === 'high'
+                      ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+                      : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                  }`}
+                >
+                  {driver.kind === 'additive'
+                    ? driver.level === 'avoid' ? g.additiveBandAvoid : g.additiveBandWatch
+                    : driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch}
+                </span>
+                <span
+                  className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"
+                  dir="ltr"
+                >
+                  {t(g.gradeDriverPoints, { points: driver.deduction })}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.gradeTooltip}</p>
+        </section>
       )}
 
       {/* Allergens — informative, never a judgement */}

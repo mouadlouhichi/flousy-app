@@ -2678,7 +2678,9 @@
     "flagParserReview": "تحتاج بنية النص المحلل إلى المراجعة؛ تم حجب الناتج الرقمي.",
     "flagOcrReview": "يجب مراجعة نص OCR قبل التحليل.",
     "flagScoreWithheld": "تم حجب الناتج الرقمي عمدًا بسبب أدلة أو سياق غير محسوم.",
-    "assessmentMeta": "مرجع مصدر الاتحاد الأوروبي: {date} · شكل المنتج: {form}"
+    "assessmentMeta": "مرجع مصدر الاتحاد الأوروبي: {date} · شكل المنتج: {form}",
+    "riskDriversTitle": "أهم عوامل الخطر",
+    "driverPoints": "-{points} نقطة"
   },
   "ingredientManual": {
     "missingHint": "قائمة المكوّنات الكاملة غير متاحة لهذا المنتج.",
@@ -2751,11 +2753,17 @@
     "concernsTitle": "ملاحظات مهمة على المكونات",
     "gradeTooltip": "تقييم يستند إلى المضافات المرصودة وملاحظات المكونات الصريحة ومدى التعرّف عليها — للمعلومة فقط، وليس تقييمًا غذائيًا أو صحيًا.",
     "gradeUnknown": "لم يُتعرّف على ما يكفي من قائمة المكونات لحساب تقييم الملصق.",
+    "gradeDriversTitle": "ما أثّر في تقييم الملصق",
+    "gradeDriverPoints": "-{points} نقطة",
     "ingredientUnknown": "غير معروف",
     "unspecifiedColour": "ملوّن (المادة الدقيقة غير محددة)",
     "unspecifiedFlavourEnhancer": "محسّن نكهة (المادة الدقيقة غير محددة)",
     "unspecifiedFoodAcid": "حمض غذائي (المادة الدقيقة غير محددة)",
     "unspecifiedProteinSource": "مصدر البروتين غير محدد",
+    "unspecifiedPreservative": "مواد حافظة (المادة الدقيقة غير محددة)",
+    "unspecifiedAntioxidant": "مضاد أكسدة (المادة الدقيقة غير محددة)",
+    "unspecifiedStabiliser": "مادة مثبتة (المادة الدقيقة غير محددة)",
+    "unspecifiedSweetener": "محلٍ (المادة الدقيقة غير محددة)",
     "pasteHelp": "الصق قائمة المكونات من الملصق، مفصولة بفواصل.",
     "pasteInvalid": "أدخل مكوّنًا واحدًا على الأقل للتحليل.",
     "pastePlaceholder": "مثال: حليب كامل، كريمة، مخمرات لبنية، منفحة، ملح",

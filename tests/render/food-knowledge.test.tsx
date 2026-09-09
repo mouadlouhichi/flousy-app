@@ -11,6 +11,7 @@ import en from '../../messages/en.json';
 import fr from '../../messages/fr.json';
 import ar from '../../messages/ar.json';
 import { formatMessage, getIntlLocale, type Language, type Messages } from '../../src/lib/i18n-core';
+import { foodLabelGrade } from '../../src/lib/food-knowledge/grade';
 import { analyzeFoodText } from '../../src/lib/food-knowledge/analyze';
 
 const catalogs: Record<Language, Messages> = {
@@ -74,6 +75,27 @@ describe('FoodKnowledgeBody render smoke', () => {
       );
       assert.ok(html.includes('E422'), `${locale}: glycerin additive code missing`);
       assert.doesNotMatch(html, /undefined|concernPartiallyHydrogenatedOil/);
+    }
+  });
+
+  it('renders the ranked grade drivers with localized titles and point costs', async () => {
+    const { FoodKnowledgeBody } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+    const penalized = analyzeFoodText(
+      'Sugar, vegetable oil (partially hydrogenated), colorant E171, colorant E102, salt',
+    );
+    assert.ok(foodLabelGrade(penalized), 'fixture must produce a grade');
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const messages = catalogs[locale].foodKnowledge;
+      const html = renderToStaticMarkup(
+        React.createElement(FoodKnowledgeBody, { analysis: penalized }),
+      ).replace(/&#x27;/g, "'");
+      assert.ok(html.includes(messages.gradeDriversTitle), `${locale}: grade drivers title missing`);
+      assert.ok(html.includes('E171'), `${locale}: avoid additive must lead the drivers`);
+      assert.ok(html.includes(messages.concernPartiallyHydrogenatedOil), `${locale}: high concern driver missing`);
+      assert.ok(html.includes('-60'), `${locale}: avoid penalty missing`);
     }
   });
 

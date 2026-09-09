@@ -2678,7 +2678,9 @@
     "flagParserReview": "The parsed structure needs review; numeric output is blocked.",
     "flagOcrReview": "OCR must be reviewed before analysis.",
     "flagScoreWithheld": "Numeric output is deliberately withheld due to unresolved evidence or context.",
-    "assessmentMeta": "EU source snapshot: {date} · Product form: {form}"
+    "assessmentMeta": "EU source snapshot: {date} · Product form: {form}",
+    "riskDriversTitle": "Main risk drivers",
+    "driverPoints": "-{points} pts"
   },
   "ingredientManual": {
     "missingHint": "Full ingredient list isn't available for this product.",
@@ -2751,11 +2753,17 @@
     "concernsTitle": "Ingredient-level concerns",
     "gradeTooltip": "Label score from detected additives, explicit ingredient concerns and recognition confidence — informational only, not a nutrition or health score.",
     "gradeUnknown": "Not enough of this ingredient list was recognized to calculate a label score.",
+    "gradeDriversTitle": "What moved the label score",
+    "gradeDriverPoints": "-{points} pts",
     "ingredientUnknown": "Not recognized",
     "unspecifiedColour": "Colouring (exact substance not specified)",
     "unspecifiedFlavourEnhancer": "Flavour enhancer (exact substance not specified)",
     "unspecifiedFoodAcid": "Food acid (exact substance not specified)",
     "unspecifiedProteinSource": "Protein source not specified",
+    "unspecifiedPreservative": "Preservative (exact substance not specified)",
+    "unspecifiedAntioxidant": "Antioxidant (exact substance not specified)",
+    "unspecifiedStabiliser": "Stabiliser (exact substance not specified)",
+    "unspecifiedSweetener": "Sweetener (exact substance not specified)",
     "pasteHelp": "Paste the ingredient list from the label, separated by commas.",
     "pasteInvalid": "Enter at least one ingredient to analyze.",
     "pastePlaceholder": "Example: Whole milk, cream, lactic ferments, rennet, salt",

@@ -74,7 +74,11 @@ export type FoodUnspecifiedClass =
   | 'flavour-enhancer'
   | 'colour'
   | 'food-acid'
-  | 'protein-source';
+  | 'protein-source'
+  | 'preservative'
+  | 'antioxidant'
+  | 'stabiliser'
+  | 'sweetener';
 
 export interface AllergenHit {
   /** EU group code (localized client-side). */

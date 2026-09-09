@@ -110,6 +110,38 @@ const TIER_STYLE: Record<RiskTier, string> = {
   clean: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
 };
 
+/** One ranked row of the "main risk drivers" breakdown: the ingredient label
+ * name plus the points its assessment removed from the 100-point index. */
+export interface RiskDriver {
+  index: number;
+  name: string;
+  tier: RiskTier;
+  deduction: number;
+}
+
+/**
+ * Rank the ingredients that actually moved the evidence index, strongest
+ * contribution first. Pure and exported so the ranking contract is testable
+ * without a DOM. Only assessed rows with a positive deduction qualify; label
+ * order breaks ties so the output is deterministic.
+ */
+export function riskDrivers(
+  analysis: Pick<ProductAssessment, 'ingredients' | 'score'>,
+  max = 3,
+): RiskDriver[] {
+  if (analysis.score === null) return [];
+  return analysis.ingredients
+    .filter((i) => i.tier !== null && (i.deduction ?? 0) > 0)
+    .sort((a, b) => (b.deduction ?? 0) - (a.deduction ?? 0) || a.index - b.index)
+    .slice(0, max)
+    .map((i) => ({
+      index: i.index,
+      name: i.matchedInci ?? i.raw,
+      tier: i.tier as RiskTier,
+      deduction: i.deduction ?? 0,
+    }));
+}
+
 /** Small round dot mirroring the row tier (kept visible at a glance). */
 const TIER_DOT: Record<RiskTier, string> = {
   prohibited: 'bg-rose-600',
@@ -208,6 +240,7 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
   );
   const unknownCount = a.total - a.recognized;
   const unassessedCount = a.ingredients.filter((item) => item.assessmentState === 'identified-no-assessment' || item.assessmentState === 'externally-identified').length;
+  const drivers = riskDrivers(a);
   const recognizedLabel =
     a.recognized === a.total && a.total > 0
       ? t(g.recognizedAll, { total: a.total })
@@ -261,6 +294,35 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         <div className="rounded-xl border border-outline-variant bg-surface-container-high/60 px-3 py-2">
           <p className="font-body-sm text-body-sm font-medium text-on-surface">{g.scoreUnknown}</p>
           <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">{g.indexNotSafetyVerdict}</p>
+        </div>
+      )}
+
+      {/* Ranked risk drivers — the ingredients that actually moved the index,
+          strongest contribution first. Only meaningful when a score exists. */}
+      {scored && drivers.length > 0 && (
+        <div className={`rounded-xl border px-3 py-2.5 ${BAND_STYLE[scored.band].ring}`}>
+          <p className="font-label-sm text-label-sm font-semibold text-on-surface-variant">
+            {g.riskDriversTitle}
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {drivers.map((driver) => (
+              <li key={driver.index} className="flex items-center gap-2">
+                <span className={`size-2 shrink-0 rounded-full ${TIER_DOT[driver.tier]}`} aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
+                  {driver.name}
+                </span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${TIER_STYLE[driver.tier]}`}>
+                  {t(g[TIER_LABEL_KEY[driver.tier]])}
+                </span>
+                <span
+                  className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"
+                  dir="ltr"
+                >
+                  {t(g.driverPoints, { points: driver.deduction })}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

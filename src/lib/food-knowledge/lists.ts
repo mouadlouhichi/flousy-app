@@ -26,9 +26,13 @@ export function foldForMatch(text: string): string {
     .toLowerCase()
     .replace(/œ/g, 'oe')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    // Strip every combining mark (Latin accents AND Arabic hamza/diacritics)
+    // so 'é' → 'e' and 'أ' → 'ا' fold to one canonical spelling.
+    .replace(/\p{M}+/gu, '')
     .replace(/[’']/g, ' ')
-    .replace(/[^a-z0-9\s]+/g, ' ')
+    // Keep every letter/digit of any script (Arabic market labels print
+    // ingredient names in Arabic); only punctuation becomes a separator.
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -345,15 +349,15 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['caséine', 'casein', 'lactose', 'protéines de lait'], family: 'dairy', allergens: ['milk'], roles: ['protein'] },
   { keys: ['ferments lactiques', 'lactic ferments', 'bactéries lactiques', 'ferments', 'cultures lactiques', 'lactic cultures'], family: 'culture', roles: ['ferment'], note: 'Live lactic bacteria used to acidify and flavour fermented dairy.' },
   { keys: ['présure', 'rennet', 'enzyme coagulante', 'coagulating enzyme'], family: 'other', roles: ['enzyme'], note: 'Coagulating enzyme (traditionally calf rennet, now often microbial).' },
-  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride', 'zout', 'keukenzout', 'zeezout'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
-  { keys: ['sucre', 'sucre blanc', 'sugar', 'saccharose', 'suiker', 'witte suiker'], family: 'sugar', roles: ['sweetener'], note: 'Sucrose.' },
+  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'sel iodé', 'iodised salt', 'iodized salt', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride', 'zout', 'keukenzout', 'zeezout', 'ملح'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
+  { keys: ['sucre', 'sucre blanc', 'sugar', 'saccharose', 'suiker', 'witte suiker', 'سكر'], family: 'sugar', roles: ['sweetener'], note: 'Sucrose.' },
   { keys: ['sucre de canne', 'cane sugar'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['glucose', 'glucose syrup', 'sirop de glucose', 'dextrose', 'fructose'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['miel', 'honey'], family: 'sugar', roles: ['sweetener', 'natural'] },
   { keys: ['eau', 'water'], family: 'water', roles: ['base'] },
   { keys: ['eau de source', 'spring water', 'eau minérale naturelle', 'eau minerale naturelle', 'natural mineral water', 'mineral water', 'eau gazeuse', 'eau minérale gazeuse', 'sparkling water', 'carbonated water', 'eau de table', 'table water'], family: 'water', roles: ['base'], note: 'Water itself — a base ingredient, not an additive.' },
   { keys: ['sirop de glucose-fructose', 'glucose-fructose syrup', 'sirop de fructose'], family: 'sugar', roles: ['sweetener'] },
-  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'huiles végétales', 'vegetable oil', 'vegetable oils', 'plant oil', 'plant oils', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée'], family: 'fat-oil', roles: ['fat'] },
+  { keys: ['huile de tournesol', 'sunflower oil', 'zonnebloemolie', 'huile de colza', 'rapeseed oil', 'huile de palme', 'palm oil', 'huile d’olive', 'olive oil', 'huile végétale', 'huiles végétales', 'vegetable oil', 'vegetable oils', 'plant oil', 'plant oils', 'huile de soja', 'soybean oil', 'soya oil', 'cottonseed oil', 'partially hydrogenated oil', 'partly hydrogenated oil', 'huile partiellement hydrogénée', 'زيت النخيل', 'زيت دوار الشمس'], family: 'fat-oil', roles: ['fat'] },
   { keys: ['farine de blé', 'wheat flour', 'farine', 'flour', 'farine de froment', 'tarwebloem', 'tarwemeel', 'tarwezetmeel', 'volkorenmeel', 'tarwe', 'wheat'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['blé complet', 'whole wheat', 'whole grain wheat', 'whole grain rolled wheat', 'rolled wheat', 'seigle', 'rye flour', 'orge', 'barley', 'avoine', 'oats', 'rolled oats', 'whole grain rolled oats', 'épeautre'], family: 'cereal', allergens: ['gluten'], roles: ['base'] },
   { keys: ['céréales', 'cereals', 'céréales complètes', 'wholegrain cereals'], family: 'cereal', roles: ['base'] },
@@ -363,13 +367,16 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['maïs', 'corn', 'farine de maïs', 'corn flour', 'maize flour', 'mais', 'maismeel', 'maiszetmeel', 'maisbloem', 'maisvlokken'], family: 'cereal', roles: ['base'] },
   { keys: ['amidon', 'starch', 'amidon de maïs', 'fécule de pomme de terre', 'potato starch'], family: 'cereal', roles: ['texture'] },
   { keys: ['œuf', 'oeuf', 'egg', 'œufs', 'oeufs', 'jaune d’œuf', 'blanc d’œuf'], family: 'egg', allergens: ['eggs'], roles: ['protein', 'texture'] },
-  { keys: ['arachide', 'peanut', 'cacahuète'], family: 'legume', allergens: ['peanuts'], roles: ['protein'] },
+  { keys: ['arachide', 'arachides', 'arachides grillées', 'peanut', 'peanuts', 'cacahuète', 'cacahuètes', 'cacahuètes grillées'], family: 'legume', allergens: ['peanuts'], roles: ['protein'] },
   { keys: ['soja', 'soya', 'soy', 'lécithine de soja'], family: 'legume', allergens: ['soybeans'], roles: ['protein'] },
   { keys: ['noix de coco', 'coconut'], family: 'fruit-veg', roles: ['fat', 'natural'] },
   { keys: ['noix', 'walnut', 'walnuts', 'noisette', 'noisettes', 'hazelnut', 'hazelnuts', 'amande', 'amandes', 'almond', 'almonds', 'pistache', 'pistaches', 'pistachio', 'pistachios', 'noix de cajou', 'cashew', 'cashews', 'pecan', 'pecans', 'brazil nut', 'brazil nuts', 'macadamia', 'macadamias'], family: 'nut-seed', allergens: ['nuts'], roles: ['fat'] },
   { keys: ['sésame', 'sesame'], family: 'nut-seed', allergens: ['sesame'], roles: ['seed'] },
   { keys: ['graines de tournesol', 'sunflower seeds', 'sunflower', 'tournesol', 'graines de lin', 'flaxseed'], family: 'nut-seed', roles: ['seed'] },
-  { keys: ['tomate', 'tomato', 'concentré de tomate', 'purée de tomate'], family: 'fruit-veg', roles: ['vegetable'] },
+  { keys: ['tomate', 'tomato', 'concentré de tomate', 'purée de tomate', 'طماطم'], family: 'fruit-veg', roles: ['vegetable'] },
+  // Common North-African / Moroccan market fruit.
+  { keys: ['dattes', 'date sèche', 'dattes séchées', 'dates', 'dried dates', 'تمر'], family: 'fruit-veg', roles: ['fruit'] },
+  { keys: ['figues', 'figue', 'figs', 'fig', 'تين'], family: 'fruit-veg', roles: ['fruit'] },
   { keys: ['oignon', 'onion', 'ui', 'uien', 'uienpoeder', 'ui poeder'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['ail', 'garlic', 'knoflook', 'knoflookpoeder'], family: 'fruit-veg', roles: ['vegetable'] },
   { keys: ['pomme', 'apple', 'jus de pomme', 'purée de pomme'], family: 'fruit-veg', roles: ['fruit'] },
@@ -386,20 +393,32 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['viande de bœuf', 'beef', 'viande bovine', 'bœuf'], family: 'meat-fish', roles: ['protein'] },
   { keys: ['viande de porc', 'pork'], family: 'meat-fish', roles: ['protein'] },
   { keys: ['poulet', 'chicken', 'volaille'], family: 'meat-fish', roles: ['protein'] },
-  { keys: ['saumon', 'salmon', 'thon', 'tuna', 'cabillaud', 'cod', 'poisson', 'fish'], family: 'meat-fish', roles: ['protein'] },
+  { keys: ['saumon', 'salmon', 'thon', 'tuna', 'cabillaud', 'cod', 'poisson', 'fish', 'ماكريل', 'maquereau', 'mackerel'], family: 'meat-fish', roles: ['protein'] },
   { keys: ['gélatine', 'gelatin'], family: 'other', roles: ['texture'], note: 'Usually of animal (bovine/porcine) origin.' },
   { keys: ['plantaardig eiwit', 'gehydrolyseerd plantaardig eiwit', 'planteiwit', 'gehydrolyseerd eiwit', 'vegetable protein', 'hydrolyzed vegetable protein', 'hydrolysed vegetable protein'], family: 'other', roles: ['protein'], note: 'Protein of plant origin (EU phrase on savoury labels).' },
   { keys: ['vanille', 'vanilla', 'extrait de vanille', 'arôme naturel de vanille'], family: 'herb-spice', roles: ['flavour', 'natural'] },
   { keys: ['noix de muscade', 'nutmeg'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['cacao', 'cocoa', 'cacao en poudre', 'chocolat', 'chocolate'], family: 'herb-spice', roles: ['flavour'] },
-  { keys: ['poivre', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley'], family: 'herb-spice', roles: ['seasoning'] },
-  { keys: ['paprika', 'paprika powder', 'paprika seasoning', 'paprika spice mix', 'chili', 'chilli', 'chili extract', 'chilli extract', 'paprikapoeder', 'paprikakruiderij', 'paprikamix'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['poivre', 'poivre noir', 'black pepper', 'pepper', 'épices', 'spices', 'herbes', 'herbs', 'ail des ours', 'persil', 'parsley', 'فلفل اسود'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['paprika', 'paprika powder', 'paprika seasoning', 'paprika spice mix', 'chili', 'chilli', 'chili extract', 'chilli extract', 'paprikapoeder', 'paprikakruiderij', 'paprikamix', 'فلفل احمر حلو', 'فلفل احمر'], family: 'herb-spice', roles: ['seasoning'] },
+  // Common North-African / Moroccan market spices (FR + Arabic label wording).
+  { keys: ['coriandre', 'coriander', 'كزبرة'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['cumin', 'كمون'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['curcuma', 'turmeric', 'كركم'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['gingembre', 'ginger', 'زنجبيل'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['fenugrec', 'fenugreek', 'حلبة'], family: 'herb-spice', roles: ['seasoning'] },
+  { keys: ['anis', 'anise', 'يانسون'], family: 'herb-spice', roles: ['seasoning'] },
   { keys: ['glycérol', 'glycerol', 'glycérine', 'glycerin', 'glycerine'], family: 'other', roles: ['humectant'], note: 'Glycerol (E422), used to retain moisture.' },
   { keys: ['arôme', 'arômes', 'arome', 'arômes naturels', 'aromes naturels', 'arôme naturel', 'arome naturel', 'natural flavour', 'natural flavourings', 'natural flavouring', 'flavour', 'flavouring', 'flavourings', 'natural flavor', 'natural flavors', 'natural flavorings', 'aromatisants', 'aroma s', 'aromen', 'natuurlijke aroma s', 'natuurlijke aroma'], family: 'other', roles: ['flavouring'], note: 'Flavourings (EU Reg. 1334/2008). “Natural” refers to their origin, not to the absence of processing.' },
   { keys: ['maltodextrine', 'maltodextrin'], family: 'cereal', roles: ['texture'] },
   { keys: ['levure', 'yeast', 'levure de boulanger', 'gist', 'gistpoeder', 'bakkersgist', 'brouwersgist'], family: 'culture', roles: ['ferment'] },
   { keys: ['son', 'bran', 'fibres', 'fibre'], family: 'cereal', roles: ['fibre'] },
   { keys: ['amidon modifié', 'modified starch'], family: 'cereal', roles: ['texture'] },
+  // Pantry staples frequent on Moroccan market labels (FR/EN/Arabic).
+  { keys: ['vinaigre', 'vinegar', 'خل', 'alcool de vin', 'wine vinegar', 'vinaigre d alcool'], family: 'other', roles: ['acidulant'], note: 'Vinegar; acetic acid in water, used for acidity.' },
+  { keys: ['café', 'coffee', 'قهوة', 'extrait de café', 'coffee extract'], family: 'other', roles: ['flavour'], note: 'Coffee; source of caffeine.' },
+  { keys: ['chicorée', 'chicory', 'chicoree'], family: 'fruit-veg', roles: ['flavour'], note: 'Chicory root; common coffee extender.' },
+  { keys: ['extrait de malt', 'malt extract', 'orge maltée', 'malted barley'], family: 'cereal', roles: ['flavour'], note: 'Malt extract from germinated barley.' },
 ];
 
 /** Boundary-safe matching keys → row (longest key wins). */
@@ -448,6 +467,21 @@ const UNSPECIFIED_CLASS_TERMS: Record<FoodUnspecifiedClass, readonly string[]> =
     'protein', 'proteins', 'protein source', 'source of protein', 'proteine',
     'proteines', 'source de proteines', 'eiwit', 'eiwitten',
   ],
+  preservative: [
+    'preservative', 'preservatives', 'conservateur', 'conservateurs',
+    'conservateur alimentaire', 'conservateurs alimentaires', 'preservatief',
+  ],
+  antioxidant: [
+    'antioxidant', 'antioxidants', 'antioxydant', 'antioxydants',
+  ],
+  stabiliser: [
+    'stabiliser', 'stabilisers', 'stabilizer', 'stabilizers',
+    'stabilisant', 'stabilisants', 'stabilisator',
+  ],
+  sweetener: [
+    'sweetener', 'sweeteners', 'edulcorant', 'edulcorants',
+    'edulcorant de table', 'zoetstof', 'zoetstoffen',
+  ],
 };
 
 const UNSPECIFIED_CLASS_KEYS = Object.entries(UNSPECIFIED_CLASS_TERMS).flatMap(
@@ -460,7 +494,7 @@ export function lookupUnspecifiedFoodClass(folded: string): FoodUnspecifiedClass
 }
 
 export const FOOD_ROW_COUNT = ROWS.length;
-export const FOOD_DATASET_VERSION = '2026-09-food-v3';
+export const FOOD_DATASET_VERSION = '2026-09-food-v4';
 
 // --- Mineral-water composition parameters -----------------------------------
 // Natural/spring/table waters print a mineral composition (mg/L) instead of an
