@@ -1,6 +1,6 @@
 # SEO and External Presence Checklist
 
-> Last reconciled: 2026-09-02
+> Last reconciled: 2026-09-02 check
 >
 > Repository SEO work is implemented and regression-tested. The unchecked items
 > below require control of DNS, hosting, search or social accounts. They must not
