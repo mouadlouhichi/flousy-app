@@ -4,10 +4,10 @@
   <style>
     .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
     .arabic { font-family: Cairo, "Noto Sans Arabic", sans-serif; }
-    .eyebrow { font-size: 24px; font-weight: 720; letter-spacing: 1.2px; }
-    .headline { font-size: 104px; font-weight: 800; letter-spacing: -2px; }
+    .eyebrow { font-size: 24px; font-weight: 700; letter-spacing: 1.2px; }
+    .headline { font-size: 104px; font-weight: 700; letter-spacing: -2px; }
     .body { font-size: 31px; font-weight: 520; }
-    .label { font-size: 20px; font-weight: 720; letter-spacing: 1px; }
+    .label { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   </style>
   <rect width="1080" height="1350" fill="#FFF9F1"/>
   <circle cx="924" cy="188" r="252" fill="#F8DAD2"/>
@@ -22,7 +22,7 @@
   <rect x="82" y="608" width="916" height="456" rx="58" fill="#006B62" transform="translate(12 14)" opacity=".18"/>
   <rect x="72" y="594" width="936" height="456" rx="58" fill="#FFFFFF" stroke="#D6E4DE" stroke-width="2"/>
   <text x="122" y="664" fill="#006B62" class="latin label">UNE INFORMATION UTILE</text>
-  <text x="122" y="762" fill="#172622" class="latin body" style="font-size:46px;font-weight:780">Garde la carte claire.</text>
+  <text x="122" y="762" fill="#172622" class="latin body" style="font-size:46px;font-weight:700">Garde la carte claire.</text>
   <text x="122" y="821" fill="#5E716B" class="latin body">Une explication courte vaut mieux qu’un mur de texte.</text>
   <rect x="122" y="875" width="490" height="26" rx="13" fill="#9CE9DB"/>
   <rect x="122" y="920" width="650" height="26" rx="13" fill="#DDF6EF"/>

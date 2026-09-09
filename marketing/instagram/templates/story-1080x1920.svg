@@ -4,10 +4,10 @@
   <style>
     .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
     .arabic { font-family: Cairo, "Noto Sans Arabic", sans-serif; }
-    .eyebrow { font-size: 27px; font-weight: 720; letter-spacing: 1.2px; }
-    .headline { font-size: 112px; font-weight: 800; letter-spacing: -2px; }
+    .eyebrow { font-size: 27px; font-weight: 700; letter-spacing: 1.2px; }
+    .headline { font-size: 112px; font-weight: 700; letter-spacing: -2px; }
     .body { font-size: 33px; font-weight: 520; }
-    .label { font-size: 21px; font-weight: 720; letter-spacing: 1px; }
+    .label { font-size: 21px; font-weight: 700; letter-spacing: 1px; }
   </style>
   <rect width="1080" height="1920" fill="#DDF6EF"/>
   <circle cx="910" cy="326" r="292" fill="#F7FAF8"/>
@@ -22,8 +22,8 @@
   <rect x="82" y="828" width="916" height="472" rx="62" fill="#006B62" transform="translate(13 14)" opacity=".18"/>
   <rect x="72" y="814" width="936" height="472" rx="62" fill="#006B62"/>
   <text x="122" y="892" fill="#9CE9DB" class="latin label">AJOUTE TON VISUEL</text>
-  <text x="122" y="1021" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">Capture, photo ou</text>
-  <text x="122" y="1089" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:780">mini explication.</text>
+  <text x="122" y="1021" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:700">Capture, photo ou</text>
+  <text x="122" y="1089" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:700">mini explication.</text>
   <circle cx="824" cy="1058" r="110" fill="#9CE9DB"/>
   <!-- Lucide: Play -->
   <svg x="714" y="948" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">

@@ -54,7 +54,7 @@ Use this when Arabic or Darija is the main publishing language:
 
 ```text
 فلوسك، بلا صداع. ✦
-ميزانية بسيطة بالدرهم
+ميزانية سهلة بالدرهم المغربي
 العربية • Français • English
 ↓ جرّب SmartJib
 ```
@@ -68,7 +68,7 @@ Keep the exact brand name first. Test one descriptive suffix at a time.
 1. `SmartJib | Budget Maroc` **(recommended)**
 2. `SmartJib | Budget MAD`
 3. `SmartJib | Budget & Épargne`
-4. `SmartJib | تطبيق ميزانية`
+4. `SmartJib | تطبيق ديال الميزانية`
 
 ## Three link-label options
 
@@ -101,7 +101,7 @@ Merci d’avoir écrit à SmartJib ! On partage des façons simples de planifier
 ### Welcome — Darija / Arabic
 
 ```text
-شكراً على رسالتك! SmartJib كيساعدك تخطّط لفلوسك بالدرهم، بشوية وبلا ضغط. شنو بغيتي تعرف؟
+شكراً على رسالتك! SmartJib كيساعدك تخطّط لفلوسك بالدرهم المغربي، بشوية وبلا ضغط. شنو بغيتي تعرف؟
 ```
 
 ### What is SmartJib?

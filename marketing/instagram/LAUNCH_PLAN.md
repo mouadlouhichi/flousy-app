@@ -49,18 +49,18 @@ A sustainable launch rhythm is more valuable than a large one-time content dump:
 
 Use the same brand system for these next twelve posts:
 
-1. `شنو كيدخل فالاحتياجات فميزانيتك؟`
+1. `شنو كيدخل فالضروريات فميزانيتك؟`
 2. `Trois choses à faire le jour de paie.`
 3. `كيفاش ترجع لميزانيتك من بعد مصروف مفاجئ؟`
 4. `Une catégorie n’est pas la même chose qu’un endroit où l’argent est gardé.`
-5. `هدف صغير فالادخار راه هدف.`
+5. `هدف صغير فالتوفير راه هدف.`
 6. `Un check-in argent de 15 minutes en fin de semaine.`
 7. `شنو تتابع يدوياً وشنو تقدر تخليه؟`
 8. `La différence entre une charge fixe et une dépense ponctuelle.`
 9. `كيفاش تخلي بداية شهر الميزانية مناسبة مع وقت الخلاص؟`
 10. `Un reset sans culpabilité après une dépense imprévue.`
 11. `شنو كيعني تتبع يدوي وخاص فالواقع؟`
-12. `Ask SmartJib / سول SmartJib: le budget question le plus fréquent.`
+12. `سول SmartJib: شنو أكثر سؤال كيتعاود على الميزانية؟`
 
 ## Community response rules
 

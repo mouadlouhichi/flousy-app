@@ -3,8 +3,8 @@
   <desc id="desc">A centered, friendly Highlight cover designed for Instagram's circular crop.</desc>
   <style>
     .latin { font-family: "Instrument Sans", "Instrument Sans Variable", Manrope, Arial, sans-serif; }
-    .label { font-size: 32px; font-weight: 780; letter-spacing: 1.2px; }
-    .eyebrow { font-size: 23px; font-weight: 720; letter-spacing: 1px; }
+    .label { font-size: 32px; font-weight: 700; letter-spacing: 1.2px; }
+    .eyebrow { font-size: 23px; font-weight: 700; letter-spacing: 1px; }
   </style>
   <rect width="1080" height="1920" fill="#FFF9F1"/>
   <circle cx="540" cy="960" r="468" fill="#F9F4EA"/>
