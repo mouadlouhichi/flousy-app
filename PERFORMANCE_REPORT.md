@@ -198,3 +198,63 @@ required; the static routes, CSP and cache headers run as a Worker as-is.
   the message content). Public pages are cacheable for every visitor.
 - **Modal exit animations**: modals now mount on open, so their exit animation
   is skipped in exchange for not shipping them to users who never open them.
+
+---
+
+## 6. Lighthouse `/dashboard` triage (2026-09-09)
+
+Source: Lighthouse 13.4.1 JSON, desktop, logged-in `/dashboard`
+(perf 0.74 · a11y 1.0 · best-practices 0.77 · SEO 0.66).
+The run itself was contaminated (browser extensions, logged-in session,
+non-incognito), so only findings reproduced in the repo were acted on.
+
+### Fixed
+
+- **Recharts (~372 KB) no longer prefetched from the overview.**
+  `/dashboard/trends` and `/dashboard/debts` imported recharts statically,
+  and both routes are prefetched from the overview nav — every overview
+  visit downloaded and parsed the chart library for charts the user never
+  saw (the report's 99%-unused ~495 KB chunk). `MonthTrendChart` and
+  `DebtPayoffChart` are now `next/dynamic({ ssr: false })` with skeleton
+  fallbacks. Both charts are aria-hidden doubles of accessible
+  tables/steps, so the skeletons are a11y-neutral. Measured from the
+  route manifests (marginal prefetch cost from `/dashboard`):
+  trends 503 KB → 94 KB, debts 472 KB → 83 KB.
+- **Favicon 179,889 B → ~800 B.** `public/favicon.svg` was an SVG shell
+  around an embedded base64 512×512 PNG, fetched on every first visit
+  (135 KB transfer, 2nd-largest network resource in the report).
+  Replaced with a hand-drawn vector wallet in the brand teals; the
+  byte-identical, unreferenced `public/icon.svg` twin was deleted.
+  SW asset-cache bumped `smartjib-v7` → `smartjib-v8` (HTML cache
+  untouched) so clients drop the cached 180 KB copy.
+- **WCAG 2.5.3 Label in Name (4 buttons).** The money-place history
+  buttons (`aria-label="View {name} history"`) and the strategy pill
+  (`aria-label="Change budget strategy"`) dropped their visible
+  amount/strategy name from the accessible name, so voice control could
+  not target what sighted users see. Both now take their accessible name
+  from contents plus an `sr-only` action note (no locale changes; screen
+  readers additionally gain the previously-hidden balance). Covered by
+  `tests/render/overview-labels.test.tsx`, which asserts every overview
+  button's accessible name contains its visible text.
+- **`productionBrowserSourceMaps: false`.** The maps were enabled for the
+  `valid-source-maps` audit, but the edge answers `.map` URLs with 403,
+  so the (weight-0) check fails anyway — while the files bloat deploys
+  and would expose client source if they ever served. Nothing in the repo
+  consumes them. Re-enable only with a private map-upload pipeline.
+
+### Deliberately not "fixed"
+
+- **SEO 0.66 (`is-crawlable`).** `/dashboard` is private and must stay
+  `noindex` + robots-disallowed. Meaningful SEO scores come from `/`.
+- **bf-cache failure.** Correct privacy trade-off: authed responses are
+  `Cache-Control: no-store`, which opts out of back-forward cache.
+- **Simulated LCP/TTI 10.1 s vs observed LCP 2.5 s.** The lanetlab
+  simulation multiplies every prefetched byte; observed load was 2.1 s
+  with 4 ms TBT and 0.003 CLS. The prefetch cuts above narrow the gap.
+- **`unminified-javascript` (MetaMask), third-party cookies, gapi
+  double-load (~364 KB `apis.google.com`).** Extension noise and Firebase
+  Auth SDK internals (auth popup/iframe infrastructure) — no loader in
+  our code (`drive-backup.ts` uses REST, tesseract is already
+  `await import()`-lazy). Required for Google sign-in.
+- **Remaining prefetch (~180 KB for trends+debts).** Genuine route code
+  for instant tab switches — the documented navigation trade-off.
