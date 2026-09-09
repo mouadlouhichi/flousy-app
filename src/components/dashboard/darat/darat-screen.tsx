@@ -81,6 +81,21 @@ export function DaratScreen() {
   const [joinInitialCode, setJoinInitialCode] = useState<string | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Merge circles into the local list, newest first, deduped by id. Used
+  // by the create/join flows, which seed the circle into the list before
+  // switching to the detail view so the view never races the
+  // subscriptions ("Circle not found" until the pointer query delivers).
+  const upsertCircles = useCallback((incoming: DaratCircle | DaratCircle[]) => {
+    const list = Array.isArray(incoming) ? incoming : [incoming];
+    setCircles((prev) => {
+      const merged = new Map(prev.map((c) => [c.id, c]));
+      for (const c of list) merged.set(c.id, c);
+      const next = Array.from(merged.values());
+      next.sort((a, b) => b.createdAt - a.createdAt);
+      return next;
+    });
+  }, []);
+
   // Share-link landing: when the URL carries `?join=<code>` the user
   // clicked a same-origin link shared by an organizer. Open the join
   // modal pre-filled with the code so the recipient just confirms.
@@ -163,10 +178,15 @@ export function DaratScreen() {
       const out: DaratCircle[] = [];
       for (const s of docs) {
         if (s.exists()) {
+          // The snapshot id is passed AFTER the stored fields on purpose:
+          // circles created before the `id` field was filled in store
+          // `id: ''`, and a spread after `id: s.id` would resurrect that
+          // empty value — every card click then addressed `circles/`
+          // (an invalid document reference).
           out.push(
             normalizeDaratCircle({
-              id: s.id,
               ...((s.data?.() as Record<string, unknown>) ?? {}),
+              id: s.id,
             }),
           );
         }
@@ -261,6 +281,10 @@ export function DaratScreen() {
     members: { displayName: string; phone: string }[];
   }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user) return { ok: false, error: 'noUser' };
+    // The circle ref is created first so the builder can store the real
+    // document id in the `id` field (the rules require it, and the readers
+    // trust the snapshot id over the stored one).
+    const circleRef = doc(collection(db, 'circles'));
     // Sensible defaults; the user edits them on the next screen.
     const defaultsInput: DaratCreateDefaultsInput = {
       name: input.name,
@@ -270,6 +294,7 @@ export function DaratScreen() {
       organizerEmail: user.email ?? '',
       organizerDisplayName: user.displayName ?? user.email ?? 'Organizer',
       currency: userCurrency,
+      circleId: circleRef.id,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
       rotation: 'random',
@@ -283,7 +308,6 @@ export function DaratScreen() {
       randomSeed: null,
     };
     const defaults = buildDaratCreateDefaults(defaultsInput);
-    const circleRef = doc(collection(db, 'circles'));
     const now = Date.now();
     const ledgerCol = collection(db, 'circles', circleRef.id, 'ledger');
     const expiresAt = new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -384,10 +408,16 @@ export function DaratScreen() {
       }
       return { ok: false, error: 'genericError' };
     }
+    // Seed the freshly created circle into the local list so the detail
+    // view renders immediately — without this, the view raced the
+    // subscriptions and showed "Circle not found" until the organizer
+    // query round-tripped. The subscriptions overwrite the seed with
+    // server truth under the same id.
+    upsertCircles({ ...defaults.circle, createdAt: now, updatedAt: now });
     setCreateOpen(false);
     setView({ kind: 'detail', circleId: circleRef.id });
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
-  }, [db, user, userCurrency]);
+  }, [db, user, userCurrency, upsertCircles]);
 
   // Edit a circle's settings from the detail screen. The organizer-only
   // mutation writes the changed fields and rebuilds the rounds. The
@@ -406,7 +436,9 @@ export function DaratScreen() {
       const ref = doc(db, 'circles', input.circleId);
       const snap = await getDoc(ref);
       if (!snap.exists()) return { ok: false, error: 'notFound' };
-      const current = normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) });
+      // Snapshot id after the spread: legacy circles store `id: ''` and
+      // must not clobber the real id (see mergeDoc).
+      const current = normalizeDaratCircle({ ...(snap.data() as Record<string, unknown>), id: snap.id });
       if (current.organizerId !== user.uid) return { ok: false, error: 'forbidden' };
 
       const next = {
@@ -622,8 +654,25 @@ export function DaratScreen() {
       {joinOpen && (
         <DaratJoinModal
           onClose={() => setJoinOpen(false)}
-          onJoined={(circleId) => {
+          onJoined={async (circleId) => {
             setJoinOpen(false);
+            // Seed the joined circle into the local list before switching
+            // to the detail view, exactly like the create flow — the
+            // pointer subscription has not delivered it yet, and the
+            // detail view would show "Circle not found" until it does.
+            try {
+              const snap = await getDoc(doc(db, 'circles', circleId));
+              if (snap.exists()) {
+                upsertCircles(
+                  normalizeDaratCircle({ ...(snap.data() as Record<string, unknown>), id: snap.id }),
+                );
+              }
+            } catch (err) {
+              // The subscriptions will deliver the circle anyway; the
+              // detail view only falls back to "Circle not found" if
+              // they never do.
+              console.warn('[darat] joined circle fetch failed', err);
+            }
             setView({ kind: 'detail', circleId });
           }}
           initialCode={joinInitialCode}

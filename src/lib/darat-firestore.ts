@@ -36,6 +36,15 @@ export interface DaratCreateDefaultsInput extends DaratCreateInput {
   organizerEmail: string;
   organizerDisplayName: string;
   currency: string;
+  /**
+   * The Firestore document id the circle will be written under. The ref is
+   * created (and its id known) before the transaction runs, so the stored
+   * `id` field can carry the real value. The create flow used to store an
+   * empty string here — and every reader spreads the stored fields over the
+   * snapshot id, so the empty value clobbered the real one and the detail
+   * screen addressed `circles/` (an invalid reference).
+   */
+  circleId: string;
 }
 
 export interface DaratCreateDefaults {
@@ -58,6 +67,13 @@ export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
   rounds: DaratRound[];
 } {
   // Validation
+  if (typeof input.circleId !== 'string' || input.circleId.length === 0) {
+    // The stored `id` field is what older documents carried as '' — the
+    // bug that made every reader normalize the circle to an empty id
+    // ("Circle not found", invalid `circles/` document references).
+    // Refuse loudly instead of ever writing it again.
+    throw new Error('darat create requires the Firestore document id (circleId)');
+  }
   const v = validateDaratCreate({
     name: input.name,
     contribution: input.contribution,
@@ -107,7 +123,10 @@ export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
   });
 
   const circle: Omit<DaratCircle, 'createdAt' | 'updatedAt'> = {
-    id: '', // assigned by Firestore on create
+    // The real document id, passed in by the caller: the rules require the
+    // stored `id` to be a string, and storing '' here used to clobber the
+    // snapshot id on every read (see DaratCreateDefaultsInput.circleId).
+    id: input.circleId,
     name: input.name.trim(),
     organizerId: input.organizerId,
     currency: input.currency,

@@ -69,7 +69,10 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   useEffect(() => {
     const unsubCircle = onSnapshot(doc(db, 'circles', circle.id), (snap) => {
       if (snap.exists()) {
-        setCircle(normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) }));
+        // Snapshot id after the spread: legacy circles store `id: ''` and
+        // must not clobber the real id (an empty id here is what produced
+        // "Document references must have an even number of segments").
+        setCircle(normalizeDaratCircle({ ...(snap.data() as Record<string, unknown>), id: snap.id }));
       }
     });
     const unsubMembers = onSnapshot(collection(db, 'circles', circle.id, 'members'), (snap) => {

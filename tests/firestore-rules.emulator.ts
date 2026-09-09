@@ -1569,7 +1569,7 @@ describe('darat circle create transaction', () => {
       { phone: SECOND_PHONE, name: 'Invitee Two' },
     ];
     await assertSucceeds(runTransaction(db, async (tx) => {
-      tx.set(circleRef, circleDoc('org', ['org', ...invites.map((i) => i.phone)], ''));
+      tx.set(circleRef, circleDoc('org', ['org', ...invites.map((i) => i.phone)], circleRef.id));
       tx.set(doc(db, 'circles', circleRef.id, 'members/org'), memberDoc('org', true));
       tx.set(doc(db, 'users/org/circles', circleRef.id), {
         uid: 'org',
@@ -1608,7 +1608,7 @@ describe('darat circle create transaction', () => {
     const circleRef = doc(collection(db, 'circles'));
     const now = Date.now();
     await assertFails(runTransaction(db, async (tx) => {
-      tx.set(circleRef, circleDoc('org', ['org', INVITEE_PHONE], ''));
+      tx.set(circleRef, circleDoc('org', ['org', INVITEE_PHONE], circleRef.id));
       tx.set(doc(db, 'circles', circleRef.id, 'members/org'), memberDoc('org', true));
       tx.set(doc(db, 'users/org/circles', circleRef.id), {
         uid: 'org',

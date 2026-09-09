@@ -61,7 +61,9 @@ export function DaratWidget() {
       const out: DaratCircle[] = [];
       for (const s of fetched) {
         if (s.exists()) {
-          out.push(normalizeDaratCircle({ id: s.id, ...(s.data() as Record<string, unknown>) }));
+          // Snapshot id after the spread: legacy circles store `id: ''` and
+          // must not clobber the real id (see the Darat screen's mergeDoc).
+          out.push(normalizeDaratCircle({ ...(s.data() as Record<string, unknown>), id: s.id }));
         }
       }
       out.sort((a, b) => b.createdAt - a.createdAt);

@@ -24,6 +24,7 @@ import {
   validateDaratCreate,
   type DaratCircle,
 } from '../src/lib/darat';
+import { buildDaratCreateDefaults } from '../src/lib/darat-firestore';
 
 describe('darat: amounts & math', () => {
   it('round amounts to 2 decimals', () => {
@@ -514,5 +515,36 @@ describe('darat: next round lookup', () => {
   it('returns null when no round is upcoming', () => {
     const r = daratNextRound(circle, 'u1', '2030-01-01');
     assert.equal(r, null);
+  });
+});
+
+describe('darat: create defaults (client builder)', () => {
+  const baseInput = {
+    name: 'Family',
+    contribution: 500,
+    members: [{ displayName: 'Auntie', phone: '+212 6 12 34 56 78' }],
+    organizerId: 'u1',
+    organizerEmail: 'u1@example.com',
+    organizerDisplayName: 'Me',
+    currency: 'MAD',
+    frequency: 'monthly' as const,
+    rotation: 'random' as const,
+    startDate: '2030-01-01',
+    sourcePlaceId: 'bank',
+    fixedOrder: null,
+    randomSeed: null,
+  };
+
+  it('stores the real Firestore document id in the circle document', () => {
+    const { circle } = buildDaratCreateDefaults({ ...baseInput, circleId: 'abc123' });
+    // The stored `id` field must be the document id. Circles created before
+    // this stored '' — every reader normalized them to an empty id, which
+    // showed as "Circle not found" after create and as an invalid
+    // `circles/` document reference on card click.
+    assert.equal(circle.id, 'abc123');
+  });
+
+  it('refuses to build a circle without a document id', () => {
+    assert.throws(() => buildDaratCreateDefaults({ ...baseInput, circleId: '' }));
   });
 });
