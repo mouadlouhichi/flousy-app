@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useAuth } from './auth-context';
 import { useLanguage } from './i18n-context';
-import { useOptionalHousehold } from './household-context';
+import { useOptionalHousehold } from './household-context-lite';
 import { localizePlaceName } from './localized-labels';
 import {
   MoneyPlaceConfig,
