@@ -1,6 +1,6 @@
 # MVP Todo & Implementation Audit
 
-> Last updated: 2026-09-02
+> Last updated: 2026-09-02 check
 >
 > Legend: ✅ Done · ⏭️ Deliberately deferred · 🔧 Partial / needs polish
 
