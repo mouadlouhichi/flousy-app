@@ -1,4 +1,4 @@
-# Label knowledge — food ingredient analysis (feature guide)
+# Label knowledge — food ingredient analysis (feature guide) 2
 
 Extends the scanned-label feature (see
 [COSMETIC_INGREDIENT_SCORING.md](./COSMETIC_INGREDIENT_SCORING.md) for the
