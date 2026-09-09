@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920" role="img" aria-labelledby="title desc">
+  <title id="title">SmartJib editable Reel cover template</title>
+  <desc id="desc">A vertical Reel cover with a bold headline that remains readable in a feed crop.</desc>
+  <rect width="1080" height="1920" fill="#F4F8F6"/>
+  <circle cx="910" cy="292" r="280" fill="#DDF7F1"/>
+  <text x="86" y="108" fill="#00685F" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="25" font-weight="700" letter-spacing="1">SMARTJIB / REEL</text>
+  <text x="86" y="150" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="20" letter-spacing="1">TOPIC / 00</text>
+  <text x="86" y="432" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="104" font-weight="800">Your Reel</text>
+  <text x="86" y="550" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="104" font-weight="800">hook here.</text>
+  <rect x="86" y="860" width="908" height="420" rx="54" fill="#00685F"/>
+  <text x="136" y="950" fill="#89F5E7" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22" font-weight="700" letter-spacing="1">SHORT SUPPORTING LINE</text>
+  <text x="136" y="1061" fill="#FFFFFF" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="54" font-weight="800">One practical idea.</text>
+  <text x="136" y="1127" fill="#DDF7F1" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="30">Make it easy to understand without sound.</text>
+  <circle cx="807" cy="1095" r="108" fill="#DDF7F1"/>
+  <path d="M 778 1038 L 778 1152 L 876 1095 Z" fill="#00685F"/>
+  <text x="86" y="1818" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22">smartjib.app</text>
+  <!-- Keep the headline within the central 4:5 region for Feed preview cropping. -->
+</svg>

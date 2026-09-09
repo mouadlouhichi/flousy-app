@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
+  <title id="title">SmartJib editable portrait feed post template</title>
+  <desc id="desc">A 4 by 5 social post template with a large headline, supporting card, and logo placeholder.</desc>
+  <rect width="1080" height="1350" fill="#F4F8F6"/>
+  <circle cx="935" cy="180" r="245" fill="#DDF7F1"/>
+  <text x="82" y="92" fill="#00685F" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="24" font-weight="700" letter-spacing="1">SMARTJIB / 00</text>
+  <text x="82" y="130" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="19" letter-spacing="1">CONTENT PILLAR</text>
+  <text x="82" y="310" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="96" font-weight="800">Your headline</text>
+  <text x="82" y="422" fill="#12211E" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="96" font-weight="800">goes here.</text>
+  <rect x="82" y="575" width="916" height="455" rx="46" fill="#00685F"/>
+  <text x="132" y="657" fill="#89F5E7" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22" font-weight="700" letter-spacing="1">SUPPORTING IDEA</text>
+  <text x="132" y="760" fill="#FFFFFF" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="50" font-weight="800">Keep the graphic simple.</text>
+  <text x="132" y="823" fill="#DDF7F1" font-family="Instrument Sans, Manrope, Arial, sans-serif" font-size="31">Use the caption for the fuller explanation.</text>
+  <rect x="132" y="895" width="570" height="26" rx="13" fill="#89F5E7"/>
+  <rect x="132" y="936" width="750" height="26" rx="13" fill="#3E9D92"/>
+  <circle cx="844" cy="1114" r="112" fill="#DDF7F1"/>
+  <text x="844" y="1129" fill="#00685F" text-anchor="middle" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="25" font-weight="700">LOGO</text>
+  <text x="82" y="1268" fill="#58706A" font-family="JetBrains Mono, IBM Plex Mono, monospace" font-size="22">smartjib.app</text>
+  <!-- Replace the LOGO circle with brand/smartjib-logo-mark-transparent.png when editing. -->
+</svg>
