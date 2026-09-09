@@ -18,6 +18,20 @@ The primary audience is people in **Morocco** planning everyday money in **MAD**
 
 Do not put three full language versions in one graphic. Let individual posts lead in one language, use a short supporting translation only when it improves comprehension, and rotate languages across the feed.
 
+### Darija copy standard
+
+Arabic social copy in this kit is **Moroccan Darija**. Keep the same everyday terms in visual art, captions, Stories, and replies:
+
+| Meaning | Use in SmartJib social copy | Avoid when writing Darija-first copy |
+| --- | --- | --- |
+| each dirham has a role | `كل درهم عندو دور` | literal or overly formal “mission” wording |
+| essentials / wants / savings | `ضروريات` · `رغبات` · `توفير` | switching between MSA category labels and Darija within one post |
+| where money is | `فين كاينة فلوسك؟` | a literal French sentence structure |
+| a low-pressure start | `ما خاصكش تكون كامل، غير بدا` | shaming or absolute instructions |
+| manual tracking | `كتزيد غير اللي بغيتي تتابع، وصافي` | dialect from another region such as `وبس` |
+
+Use a fluent Morocco-based Darija reviewer for paid campaigns, legal language, or major new claims before publishing. Keep naturally non-joining Arabic letters (`ا د ذ ر ز و`) separate; never add a kashida/tatweel or faux dash to make a word look artificially connected.
+
 ## Voice
 
 | Do | Avoid |
@@ -53,29 +67,36 @@ The generator now uses the actual licensed font files in [`fonts/`](fonts/), not
 
 | Role | Font | Weight | Rule |
 | --- | --- | --- | --- |
-| Latin / French display | **Instrument Sans** | 750–800 | Short, confident headlines; sentence case. |
-| Latin / French body & labels | **Instrument Sans** | 520–740 | Clear and friendly; avoid technical all-caps blocks longer than 3 words. |
-| Arabic / Darija display | **Cairo** | 750–790 | Always use Cairo in visual assets; right-align the headline. |
-| Arabic / Darija body | **Cairo** | 550–650 | Leave generous vertical rhythm and a clear right edge. |
+| Latin / French display | **Plus Jakarta Sans ExtraBold** | **800** | Short, confident headlines; sentence case. |
+| Latin / French body & labels | **Inter** | 400–600 | Keep data, amounts, and supporting text exceptionally readable on mobile. |
+| Arabic / Darija display | **Cairo ExtraBold** | **850** | Always use Cairo for short RTL hooks; right-align the headline. |
+| Arabic / Darija body | **IBM Plex Sans Arabic** | 400–600 | Use for RTL support text and cards; leave a clear right edge. |
 
-### Correct line-height
+### Bold display and line-height
 
-The previous designs were too loose for Latin display and too tight for Arabic display. Preserve this corrected rhythm:
+The campaign must remain readable as a 3 × 3 grid before someone opens a post. Use the selected ExtraBold display fonts for display text, then let generous rhythm—not a lighter weight—create refinement.
 
-- **Latin display, multi-line:** `0.91–0.96` of the font size in the generator’s explicit placement system.
-- **Arabic display, multi-line:** `1.24–1.28` of the font size. Arabic glyphs need more vertical breathing room.
-- **Body copy:** use approximately `1.35–1.5` line-height; do not stack text closer than 24 px at final 1080 px width.
+- **Latin display, multi-line:** **800** weight and `0.91–0.96` leading in the generator’s explicit placement system.
+- **Arabic / Darija display:** **850** weight and `1.24–1.28` leading. Arabic glyphs need more vertical breathing room even when they are bold.
+- **Body copy:** use 400–600 weight and approximately `1.35–1.5` line-height; do not stack body lines closer than 24 px at final 1080 px width.
 - Keep a visible gap of at least one small-text line between a headline and its support line.
 - Never place display text over a dark decorative shape unless the contrast remains clear.
 
-The source font files are included with their SIL Open Font License files:
+### Whitespace is part of the message
 
-- `fonts/InstrumentSans-Variable.ttf` + `fonts/InstrumentSans-OFL.txt`
-- `fonts/Cairo-Variable.ttf` + `fonts/Cairo-OFL.txt`
+Treat empty space as a deliberate reading path, not an area that needs more decorations.
+
+- Keep a **72–82 px outer margin** on feed art and Stories; cards align to the same left/right edges.
+- Leave **48–64 px** from the final headline line to supporting copy, then **56–80 px** from copy to the main card or image.
+- Keep a single primary panel per feed post. Let the footer sit in its own calm lower band rather than squeezing another claim beneath the panel.
+- On Stories and Reels, keep critical content in the central `y=220–1650` region; use the lower band for only a lightweight CTA or the site label.
+- If a headline needs a fourth line, remove secondary copy or shorten the message—never shrink the type or collapse the spacing.
+
+The selected font files and their SIL Open Font License files are included in [`fonts/`](fonts/). See [`fonts/README.md`](fonts/README.md) for the exact display/body assignments and editable source families.
 
 ## Icon language
 
-Use the custom rounded line icons in the generated kit: wallet, target, location pin, shield, calendar, coins, language, and chat. They use a consistent soft stroke, circular color field, and a mint accent.
+Use **Lucide** as the only functional-icon family. The generated kit renders the official Lucide SVG geometry for wallet, target, location pin, shield, calendar, coins, language, and chat. See [`ICON_SOURCES.md`](ICON_SOURCES.md) for the exact source icon names. Keep icons as rounded outlines with a single, high-contrast stroke; use the circle or card behind them for the warm color moment.
 
 - Put an icon in a generous circle or card—not in a cramped corner.
 - Keep icon strokes at a consistent visual weight.
@@ -85,13 +106,14 @@ Use the custom rounded line icons in the generated kit: wallet, target, location
 
 ## Illustration and layout
 
-1. Prefer rounded cards, small sparkles, circles, and calm progress graphics.
+1. Combine rounded cards and calm progress graphics with occasional tactile, original lifestyle photography. Photo is a supporting visual—not a background for essential text or a substitute for a real customer testimonial.
 2. Use real-but-generic amounts such as `10 000 MAD`; never show user financial data.
 3. Let one message dominate each post. A viewer should understand the topic before reading the caption.
 4. Keep the top 110 px quiet enough for Instagram interface overlays in Stories/Reels.
 5. Keep critical Story/Reel information within approximately `y=220–1650` on a 1080 × 1920 canvas.
 6. Highlights must keep the icon in the central circle-safe area; titles outside that zone are only a production aid.
-7. Use original abstract motifs, not copied layouts, wording, or artwork from other Instagram accounts.
+7. Use original abstract motifs, photography, and layouts—not copied layouts, wording, or artwork from other Instagram accounts.
+8. When recreating Arabic/Darija assets, use the generator's built-in Arabic shaping and bidi pass; do not rasterize disconnected or reversed glyphs.
 
 ## Dimensions and export
 

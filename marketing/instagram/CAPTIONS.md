@@ -55,32 +55,32 @@ Enregistre ce post pour ton prochain reset du mois.
 #SmartJib #BudgetMAD #BudgetMaroc #GestionBudget #BudgetDuMois #FinancesPerso
 ```
 
-**Darija hook:** `عطي لكل درهم مهمة، وعدّل مع واقع الشهر.`<br>
+**Darija hook:** `عطي لكل درهم دور، وعدّل على حساب واقع الشهر.`<br>
 **Alt text:** `Post SmartJib clair avec un exemple de budget de 10 000 MAD réparti en besoins 50 %, envies 30 % et épargne 20 %.`
 
 ---
 
-## 03 — كل درهم عندو مهمة.
+## 03 — كل درهم عندو دور.
 
 **Asset:** `03-three-buckets-one-clear-view.png`<br>
 **Objective:** Make the three-bucket idea feel supportive rather than restrictive.
 
 ```text
-كل درهم عندو مهمة.
+كل درهم عندو دور.
 
-الاحتياجات كاتخلي الحياة تمشي.
+الضروريات كاتخلّي الحياة تمشي.
 الرغبات كاتخلي بلاصة للفرحة والاختيار.
-والادخار كيدعم اللي بغيتي تبني لقدّام.
+والتوفير كيساعدك تبني للي قدّام.
 
 هاد الخانات ماشي حكم على مصاريفك. غير طريقة باش تشوف فلوسك بوضوح أكثر.
 
 شنو هي الخانة اللي بغيتي تنظّمها هاد الشهر؟
 
-#SmartJib #BudgetMaroc #BudgetMAD #تدبير_الميزانية #ادخار #فلوسي
+#SmartJib #BudgetMaroc #BudgetMAD #تدبير_الميزانية #توفير #فلوسي
 ```
 
 **French hook:** `Besoins, envies, épargne : trois repères, zéro jugement.`<br>
-**Alt text:** `Post arabe SmartJib sur fond vert avec le titre “Chaque dirham a une mission” et trois cartes pour les besoins, les envies et l’épargne.`
+**Alt text:** `Post arabe SmartJib sur fond vert avec le titre “Chaque dirham a un rôle” et trois cartes pour les besoins, les envies et l’épargne.`
 
 ---
 
@@ -102,7 +102,7 @@ SmartJib garde les deux visibles pour que ton plan soit plus clair.
 #SmartJib #BudgetMaroc #GestionBudget #BudgetMAD #OrganisationFinanciere #FinancesPerso
 ```
 
-**Darija hook:** `فلوسك لفاش مخصصة؟ وفين كاينة؟`<br>
+**Darija hook:** `فلوسك علاش مخصصين وفين كاينين؟`<br>
 **Alt text:** `Post SmartJib avec deux cartes : “Pour quoi ? Le rôle de ton argent” et “Où ? L’endroit où il est”.`
 
 ---
@@ -115,9 +115,9 @@ SmartJib garde les deux visibles pour que ton plan soit plus clair.
 ```text
 فلوسك ممكن تكون فالبنك، فالدار، ولا فالمحفظة.
 
-ملي كتكون الأماكن واضحة، كتقدر تشوف فين كاين المبلغ بلا ما تضيع الخطة ديالك.
+ملي كتكون البلايص ديال فلوسك واضحة، كتقدر تعرف فين كاين كل مبلغ بلا ما تضيع الخطة ديالك.
 
-المكان ماشي هو الهدف. ولكن بجوجهم كيعطيوك الصورة كاملة.
+فين كاينين فلوسك ماشي هو علاش كتستعملهم، ولكن بجوجهم كيعطيوك الصورة كاملة.
 
 فين كتخلي غالباً الفلوس اللي كتستعمل أكثر؟
 
@@ -146,7 +146,7 @@ Un revenu, une dépense, une décision : c’est déjà un début.
 #SmartJib #BudgetMaroc #BudgetPrive #SansConnexionBancaire #GestionBudget #FinancesPerso
 ```
 
-**Darija hook:** `كتضيف غير اللي بغيتي تتابع، وبس.`<br>
+**Darija hook:** `كتزيد غير اللي بغيتي تتابع، وصافي.`<br>
 **Alt text:** `Post vert foncé SmartJib avec un bouclier et le texte “Sans connexion bancaire. Tes choix. Tes données.”`
 
 ---
@@ -180,7 +180,7 @@ Le but n’est pas de prévoir chaque dépense. C’est de faire le prochain cho
 **Objective:** Make saving personal, visible, and shame-free.
 
 ```text
-الادخار ما خاصوش يبدا بمبلغ كبير.
+التوفير ما خاصوش يبدا بمبلغ كبير.
 
 بدا بهدف عندو اسم. اختار مبلغ صغير تقدر عليه. وخلي التقدم باين قدّامك.
 
@@ -188,7 +188,7 @@ Le but n’est pas de prévoir chaque dépense. C’est de faire le prochain cho
 
 شنو هو الهدف اللي بغيتي توصل ليه خطوة بخطوة؟ ✦
 
-#SmartJib #ادخار #BudgetMaroc #BudgetMAD #أهداف_مالية #تدبير_الميزانية
+#SmartJib #توفير #BudgetMaroc #BudgetMAD #أهداف_مالية #تدبير_الميزانية
 ```
 
 **French hook:** `Même petit, chaque pas compte.`<br>
@@ -226,8 +226,8 @@ Use **4–7 relevant hashtags**, not every tag in every caption. Keep #SmartJib 
 | --- | --- |
 | Morocco / MAD | `#BudgetMaroc #BudgetMAD #Dirham #DirhamMarocain #MarocDigital` |
 | Budget habits | `#GestionBudget #BudgetDuMois #BudgetSimple #ArgentAuQuotidien #FinancesPerso` |
-| Arabic / Darija | `#تدبير_الميزانية #تدبير_الفلوس #ادخار #فلوسي #الدرهم_المغربي` |
-| Savings | `#Epargne #ObjectifsFinanciers #SavingsGoals #ادخار` |
+| Arabic / Darija | `#تدبير_الميزانية #تدبير_الفلوس #توفير #فلوسي #الدرهم_المغربي` |
+| Savings | `#Epargne #ObjectifsFinanciers #SavingsGoals #توفير` |
 | Privacy / product | `#BudgetPrive #SansConnexionBancaire #BudgetTracker #SmartJib` |
 
 ## First-comment prompts

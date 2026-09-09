@@ -13,7 +13,7 @@ Use the supplied static cover/frame files as production artwork. Add video, live
 ## Recording rules
 
 - Record vertical at **1080 × 1920**; leave the key title/action within the central safe area.
-- Burn in accurate subtitles. Use **Cairo** for Arabic/Darija captions and **Instrument Sans** for French/English captions.
+- Burn in accurate subtitles. Use **IBM Plex Sans Arabic** for Arabic/Darija captions and **Inter** for French/English captions. Reserve **Cairo ExtraBold** and **Plus Jakarta Sans ExtraBold** for short cover hooks.
 - Keep Latin multi-line display text compact. Give Arabic display lines visibly more vertical space; do not copy Latin line-height settings into Arabic.
 - Use only realistic, consented, or demo SmartJib data. Blur names, balances, email addresses, account numbers, and notifications.
 - Make the first two seconds understandable without sound.
@@ -57,25 +57,25 @@ Essaie SmartJib en MAD via le lien dans la bio.
 الميزانية ماشي باش تحاسب راسك.
 هي غير طريقة باش تشوف فلوسك بوضوح.
 
-بدا بشنو داخل.
-قسمه بين الاحتياجات، الرغبات، والادخار.
+بدا بشحال كيدخل ليك.
+قسمو بين الضروريات، الرغبات، والتوفير.
 ومن بعد عدّل على حساب واقعك.
 
-ما خاصكش تكون كامل. خصك غير تعرف الخطوة الجاية.
+ما خاصكش تكون كامل. غير عرف شنو هي الخطوة الجاية.
 ```
 
 ### Shot list
 
 1. **0–2 sec:** Arabic Cairo hook on the supplied cover.
 2. **2–8 sec:** A friendly “before” moment: too many notes, then simplify to one income amount.
-3. **8–15 sec:** Three cards appear: احتياجات, رغبات, ادخار.
+3. **8–15 sec:** Three cards appear: ضروريات، رغبات، توفير.
 4. **15–22 sec:** Show one adjustment—not a “failed” budget.
 5. **End:** `فلوسك بوضوح، بلا ضغط. / smartjib.app`
 
 **Caption:**
 
 ```text
-الميزانية ماشي حكم عليك. هي طريقة باش القرار الجاي يكون أسهل.
+الميزانية ماشي حكم عليك. هي غير طريقة باش القرار الجاي يكون أسهل.
 
 بدا صغير، وعدّل مع واقع الشهر.
 
@@ -127,6 +127,6 @@ Use Instagram-native stickers rather than baking fake interactive controls into 
 
 - **Poll (French):** `Tu fais ton budget quand ?` — `Début du mois` / `Quand je peux`
 - **Poll (Darija):** `كتخطّط لفلوسك؟` — `آه` / `باغي نبدا`
-- **Question:** `شنو هو أكثر حاجة كتقلقك فالميزانية؟` *(review wording before paid promotion)*
+- **Question:** `شنو أكثر حاجة كتقلقك فميزانيتك؟` *(review wording before paid promotion)*
 - **Slider:** `À quel point ton budget est clair aujourd’hui ?`
 - **Link sticker:** `Commencer avec SmartJib` → `https://smartjib.app/?utm_source=instagram&utm_medium=story&utm_campaign=launch_ma`
