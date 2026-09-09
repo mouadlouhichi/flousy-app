@@ -28,6 +28,17 @@ function isPrivatePath(pathname: string): boolean {
   return PRIVATE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+// Routes that require a session. Keep in sync with PRIVATE_PREFIXES minus
+// /login itself. The presence-cookie name mirrors AUTH_COOKIE in
+// src/lib/auth-status.ts (inlined: that module is a client bundle, this one
+// is the edge proxy — keeping the import would pull React onto the edge).
+const AUTH_GATED_PREFIXES = ['/dashboard', '/onboarding'];
+const SESSION_COOKIE = 'smartjib_authed';
+
+function isAuthGatedPath(pathname: string): boolean {
+  return AUTH_GATED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 const IMMUTABLE_ASSET_RE =
   /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?|ttf|otf|css|js|map|json|webmanifest)$/i;
 const SHORT_LIVED_PUBLIC = new Set([
@@ -149,6 +160,27 @@ export function proxy(request: NextRequest) {
   const privateRoute = isPrivatePath(pathname);
   const apiRoute = pathname === '/api' || pathname.startsWith('/api/');
   const csp = buildCsp(isDev, authDomain);
+
+  // Anonymous fast-path for session routes. The prerendered app shell cannot
+  // know auth state (it is intentionally server-agnostic), so a cookie-less
+  // hit on /dashboard used to download the shell + the entire dashboard JS
+  // bundle + the Firebase SDK, boot auth client-side, and only THEN bounce
+  // to /login — two full page loads and an LCP measured on the login page
+  // ~5s later. (This is exactly what PageSpeed, and every signed-out
+  // visitor, used to pay.) The cookie is a UX gate, NOT a security boundary
+  // — Firestore Rules guard the data; it is set by AuthProvider on real
+  // sessions, by the demo login, and by /login's own redirect. A
+  // legitimately signed-in user with a cleared cookie pays one extra /login
+  // hop, which re-asserts the cookie and continues — no loop.
+  if (isAuthGatedPath(pathname) && request.cookies.get(SESSION_COOKIE)?.value !== '1') {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.search = '';
+    const redirect = NextResponse.redirect(loginUrl, { status: 307 });
+    redirect.headers.set('Content-Security-Policy', csp);
+    redirect.headers.set('Cache-Control', 'private, no-store, max-age=0');
+    return redirect;
+  }
 
   const response = NextResponse.next();
   // Applied to every route including /api — API handlers used to be excluded

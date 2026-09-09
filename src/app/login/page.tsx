@@ -11,6 +11,7 @@ import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { enableDemoMode, exitDemoMode, isDemoMode, isOnboardingDoneLocally } from '@/lib/demo-mode';
+import { setAuthCookie } from '@/lib/auth-status';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +25,14 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Demo state is a client-only localStorage read: resolving it during render
+  // made the first client render disagree with the prerendered HTML (a
+  // hydration mismatch) whenever a demo session existed. Applied after mount.
+  const [demoActive, setDemoActive] = useState(false);
+
+  React.useEffect(() => {
+    setDemoActive(isDemoMode());
+  }, []);
 
   React.useEffect(() => {
     if (loading) return;
@@ -47,6 +56,10 @@ export default function LoginPage() {
     }
 
     if (destination) {
+      // Re-assert the middleware gate cookie before any bounce to a private
+      // route: without it src/proxy.ts would send the browser straight back
+      // here (cookie-less private hits redirect to /login) → redirect loop.
+      setAuthCookie(true);
       try {
         router.replace(destination);
       } catch {
@@ -55,15 +68,13 @@ export default function LoginPage() {
     }
   }, [user, profile, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const demoActive = isDemoMode();
+  // NOTE: no `if (loading) return <spinner/>` here, on purpose. The form is
+  // the LCP element; gating it on Firebase Auth boot meant the prerendered
+  // HTML contained only a spinner and the real page (and LCP) waited for JS
+  // download + SDK init + the onAuthStateChanged network round-trip — ~3.5s
+  // of dead time for the overwhelming majority of visitors, who sign OUT.
+  // Signed-in users briefly see the form and are redirected by the effect
+  // above, exactly like after a successful submit.
 
   const navigateTo = (path: string) => {
     window.location.assign(path);
@@ -79,6 +90,7 @@ export default function LoginPage() {
   /** Leave the demo session so the real sign-in form is usable again. */
   const handleExitDemo = () => {
     exitDemoMode();
+    setDemoActive(false);
     setError('');
     setMessage('');
   };
@@ -348,7 +360,10 @@ export default function LoginPage() {
             {/* OR Divider */}
             <div className="flex items-center gap-3 my-1">
               <div className="flex-1 h-px bg-surface-variant" />
-              <span className="text-[12px] font-bold text-on-surface-variant/60 uppercase tracking-wider">
+              {/* Full variant color, not /60: at 12px this needs ≥4.5:1 and
+                  60%-alpha over the surface lands closer to 3.3:1 (WCAG AA /
+                  Lighthouse color-contrast). */}
+              <span className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">
                 {m.common.or}
               </span>
               <div className="flex-1 h-px bg-surface-variant" />

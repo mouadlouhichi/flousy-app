@@ -117,7 +117,7 @@ export function DebtsTab({
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">{label}</span>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="text-[44px] font-extrabold leading-none text-on-surface">{totalParts.amount}</span>
-            <span className="text-[20px] font-extrabold leading-none text-on-surface-variant/60">{totalParts.currency}</span>
+            <span className="text-[20px] font-extrabold leading-none text-on-surface-variant">{totalParts.currency}</span>
           </div>
           <span className="mt-1.5 block text-[13px] text-on-surface-variant">
             {t(m.tabs.debts.openSettled, { open: new Intl.NumberFormat(intlLocale).format(openCount), settled: new Intl.NumberFormat(intlLocale).format(settledCount) })}
@@ -142,7 +142,7 @@ export function DebtsTab({
               <article key={debt.id} className="rounded-2xl border border-outline-variant/80 bg-surface-container p-4 shadow-2xs">
                 <div className="flex items-center justify-between gap-3">
                   <button type="button" onClick={() => openPayment(debt)} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-start">
-                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant/60' : 'bg-primary/10 text-primary'}`}>
+                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant' : 'bg-primary/10 text-primary'}`}>
                       <AppIcon name={debt.status === 'settled' ? 'check_circle' : 'account_balance'} className="text-[20px]" />
                     </span>
                     <span className="flex min-w-0 flex-col">
@@ -152,7 +152,7 @@ export function DebtsTab({
                   </button>
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`font-mono text-[16px] font-extrabold ${debt.status === 'settled' ? 'text-on-surface-variant/60 line-through' : 'text-on-surface'}`}>{format(outstanding)}</span>
+                      <span className={`font-mono text-[16px] font-extrabold ${debt.status === 'settled' ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>{format(outstanding)}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant' : 'bg-amber-50 text-amber-700'}`}>{localizeDebtStatus(debt.status, m)}</span>
                     </div>
                     {canEdit && <button type="button" onClick={() => onEditDebt(debt)} aria-label={m.common.edit} className="rounded-full p-2 text-on-surface-variant hover:bg-surface-variant"><AppIcon name="edit" className="text-[18px]" /></button>}

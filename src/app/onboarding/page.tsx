@@ -1219,7 +1219,9 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 })()}
 
                 <div className="absolute flex flex-col items-center text-center px-2">
-                  <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant/60 uppercase">
+                  {/* Full variant color — 10px text at 60% alpha fails the
+                      4.5:1 WCAG AA contrast minimum. */}
+                  <span className="text-[10px] font-extrabold tracking-wider text-on-surface-variant uppercase">
                     {m.onboarding.monthly}
                   </span>
                   <span className="text-[16px] font-extrabold text-on-surface font-mono leading-tight max-w-full truncate">
