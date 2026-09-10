@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useHousehold } from '../../lib/household-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
-import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
+import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth, payerKey } from '@/lib/localized-labels';
 import { parseDueDay } from '@/components/ui/day-picker';
 
 interface FixedTabProps {
@@ -152,7 +152,7 @@ export function FixedTab({
                     <h4 className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-bold" title={bill.name}>
                       {bill.name}
                     </h4>
-                    {bill.person && bill.person !== 'Self' && (
+                    {payerKey(bill.person, bill.payerMemberId) !== 'self' && (
                       <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(bill.person, m)}
                       </span>

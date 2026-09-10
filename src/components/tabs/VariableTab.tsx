@@ -11,7 +11,7 @@ import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
+import { localizeCategoryName, localizePersonName, localizePlaceName, payerKey } from '@/lib/localized-labels';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { IconSelect } from '@/components/ui/icon-select';
 import { ExpenseSort, sortVariableExpenses } from '@/lib/expense-sort';
@@ -68,7 +68,9 @@ export function VariableTab({
   const filteredExpenses = sortVariableExpenses(
     (month.variableExpenses || []).filter((exp) => {
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
-      const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
+      const matchesPerson =
+        selectedPerson === 'All' ||
+        payerKey(exp.person, exp.payerMemberId) === payerKey(selectedPerson === 'Self' ? undefined : selectedPerson);
       const matchesSearch =
         exp.name.toLowerCase().includes(search.toLowerCase()) ||
         exp.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -423,7 +425,7 @@ export function VariableTab({
                     <span className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-semibold">
                       {exp.name}
                     </span>
-                    {exp.person && exp.person !== 'Self' && (
+                    {payerKey(exp.person, exp.payerMemberId) !== 'self' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(exp.person, m)}
                       </span>

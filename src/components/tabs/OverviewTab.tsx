@@ -26,6 +26,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
 import { SafeToSpendCard } from '../dashboard/safe-to-spend-card';
+import { calculateSafeToSpend } from '@/lib/insights';
 import { NetWorthCard } from '../dashboard/net-worth-card';
 import { BalanceHeroCard } from '../dashboard/balance-hero-card';
 import { BudgetRing } from '../dashboard/budget-ring';
@@ -188,8 +189,14 @@ export function OverviewTab({
   const fixedTotal = (month.fixedExpenses || []).reduce((sum, bill) => sum + (bill.amount || 0), 0);
   const fixedPaid = (month.fixedExpenses || []).reduce((sum, bill) => sum + fixedPaidAmount(bill), 0);
   const totalIncome = calculateTotalIncome(month);
-  const leftToSpend = Math.max(0, (month.totalBudget || 0) - totalSpent);
-  const spentPctOfBudget = month.totalBudget > 0 ? Math.round((totalSpent / month.totalBudget) * 100) : 0;
+  // "Left to spend" is the analytics figure, not `totalBudget − spent`: the
+  // savings envelope is committed money, so only the needs + wants budget
+  // counts as spendable — the same math as the Safe-to-Spend insight and the
+  // Budget Remaining view on the analytics ring.
+  const safeToSpend = calculateSafeToSpend(month);
+  const leftToSpend = safeToSpend.remainingBudget;
+  const spendingBudget = safeToSpend.budget;
+  const spentPctOfBudget = spendingBudget > 0 ? Math.round((totalSpent / spendingBudget) * 100) : 0;
 
   useEffect(() => {
     setDraftBudget(String(month.totalBudget || 0));

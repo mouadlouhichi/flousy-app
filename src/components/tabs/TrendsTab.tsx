@@ -12,11 +12,12 @@ import { AMOUNT_AREA } from '@/lib/household-rbac';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy, payerKey } from '@/lib/localized-labels';
 import { cn } from '@/lib/utils';
 import { CustomReportCard } from '../dashboard/custom-report-card';
 import { BalanceOverviewRing, type RingView } from '../dashboard/balance-overview-ring';
 import { normalizeSeries } from '../charts/sparkline-path';
+import { calculateSafeToSpend } from '@/lib/insights';
 import { MoneyFigure } from '@/components/ui/money-figure';
 import dynamic from 'next/dynamic';
 
@@ -77,7 +78,7 @@ const CARD = 'rounded-[1.75rem] border border-outline-variant bg-surface-contain
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal, trendsMonthCount = 6, onSetTrendsMonthCount }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace, household, canViewArea } = useHousehold();
+  const { workspace, household, members, canViewArea } = useHousehold();
   // Analytics is a roll-up of the other areas: each card is filtered by the
   // area that owns its numbers, so an analytics grant on its own does not
   // expose balances or income sources to a member who lacks those.
@@ -116,17 +117,29 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   const sortedCategories = Object.entries(categoryBreakdown).sort((a, b) => b[1] - a[1]);
 
   // ── Person breakdown ──
-  const personBreakdown: Record<string, { variable: number; fixed: number }> = {};
-  (month.variableExpenses || []).forEach((exp) => {
-    const person = exp.person || 'Self';
-    if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
-    personBreakdown[person].variable += exp.amount;
-  });
-  (month.fixedExpenses || []).forEach((exp) => {
-    const person = exp.person || 'Self';
-    if (!personBreakdown[person]) personBreakdown[person] = { variable: 0, fixed: 0 };
-    personBreakdown[person].fixed += fixedPaidAmount(exp);
-  });
+  // Grouped by the canonical payer key, not the raw `person` snapshot: the
+  // expense modal stores the *localized* payer label ("Me" / "Moi" / "أنا"),
+  // older rows say "Self", and imports may carry the member id — all of which
+  // are one person. Member ids resolve to the roster's display names.
+  const memberNames = new Map(members.map((member) => [member.id, member.displayName]));
+  const personBreakdown: Record<string, { label: string; variable: number; fixed: number }> = {};
+  const addToPerson = (person: string | undefined, payerMemberId: string | undefined, kind: 'variable' | 'fixed', amount: number) => {
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const key = payerKey(person, payerMemberId);
+    if (!personBreakdown[key]) {
+      const label =
+        key === 'self'
+          ? m.modals.expense.self
+          : key === 'household'
+            ? m.household.funds
+            : memberNames.get(key) || localizePersonName(person || key, m);
+      personBreakdown[key] = { label, variable: 0, fixed: 0 };
+    }
+    personBreakdown[key][kind] += amount;
+  };
+  (month.variableExpenses || []).forEach((exp) => addToPerson(exp.person, exp.payerMemberId, 'variable', exp.amount));
+  (month.fixedExpenses || []).forEach((exp) => addToPerson(exp.person, exp.payerMemberId, 'fixed', fixedPaidAmount(exp)));
+  const personRows = Object.entries(personBreakdown).sort((a, b) => b[1].variable + b[1].fixed - (a[1].variable + a[1].fixed));
 
   // ── Multi-month trend calculations ──
   const monthOverMonth = trendsMonths.map(({ monthKey, month: m }) => {
@@ -150,7 +163,9 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       needsCap: env.needs,
       wantsCap: env.wants,
       savings: env.savings,
-      remaining: Math.max(0, m.totalBudget - s.totalSpent),
+      // Spendable = needs + wants envelope (savings is committed), matching
+      // the overview ring and the Safe-to-Spend insight.
+      remaining: Math.max(0, env.needs + env.wants - s.totalSpent),
       totalCash: totalCashOnHand(m),
       income: calculateTotalIncome(m),
     };
@@ -181,6 +196,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
     return { label, positive: goodWhenUp ? pct >= 0 : pct <= 0, note: t(m.tabs.trends.percentVsLastMonth, { percent: label }) };
   };
   const netSavedNow = calculateSavingsRate(month)?.net ?? 0;
+  const safeToSpend = calculateSafeToSpend(month);
   const ringViews: RingView[] = ([
     canSeeExpenses && {
       id: 'spent',
@@ -194,10 +210,10 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       id: 'remaining',
       icon: 'pie_chart',
       label: m.tabs.trends.budgetRemaining,
-      amount: Math.max(0, month.totalBudget - spent.totalSpent),
-      note: `${m.tabs.trends.ofLabel} ${format(month.totalBudget)}`,
+      amount: safeToSpend.remainingBudget,
+      note: `${m.tabs.trends.ofLabel} ${format(safeToSpend.budget)}`,
       spark: series((row) => row.remaining),
-      delta: deltaChip(Math.max(0, month.totalBudget - spent.totalSpent), prevMonth?.remaining),
+      delta: deltaChip(safeToSpend.remainingBudget, prevMonth?.remaining),
     },
     {
       id: 'cash',
@@ -563,19 +579,19 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       )}
 
       {/* ── Household Spending Breakdown ── */}
-      {proUnlocked && canSeeExpenses && canSeeFixedBills && Object.keys(personBreakdown).length > 0 && (
+      {proUnlocked && canSeeExpenses && canSeeFixedBills && personRows.length > 0 && (
         <div className={CARD}>
           <SectionHeader icon="family_restroom" title={m.tabs.trends.householdSpending} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {Object.entries(personBreakdown).map(([person, data], idx) => {
+            {personRows.map(([person, data], idx) => {
               const total = data.variable + data.fixed;
               const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
               const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
               return (
                 <div key={person} className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-2xl bg-surface-container-low p-4">
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <span className="min-w-0 truncate text-[13px] font-semibold text-on-surface">{localizePersonName(person, m)}</span>
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-on-surface">{data.label}</span>
                     <span className="rounded-full bg-lime px-2 py-0.5 text-[11px] font-semibold text-forest-deep">
                       {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
                     </span>
