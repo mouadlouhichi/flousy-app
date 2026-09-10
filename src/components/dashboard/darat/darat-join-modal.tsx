@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, getDoc, getFirestore, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, getDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
@@ -30,7 +31,7 @@ const CODE_PLACEHOLDER_FALLBACK = 'ABC123';
 export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
   const { user } = useAuth();
   const { messages: m } = useLanguage();
-  const db = getFirestore();
+  const db = firestoreDb;
   const [code, setCode] = useState(initialCode ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
     e.preventDefault();
     setError(null);
     setCodeError(null);
-    if (!user) {
+    if (!user || !db) {
       setError('genericError');
       return;
     }

@@ -58,8 +58,8 @@ export function StatCard({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-2">
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 items-start gap-2">
           <span
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-full',
@@ -68,7 +68,7 @@ export function StatCard({
           >
             <AppIcon name={icon} strokeWidth={2.2} className="text-[14px]" />
           </span>
-          <span className={cn('truncate text-[13px] font-semibold', isDark ? 'text-white' : 'text-on-surface')}>
+          <span className={cn('line-clamp-2 text-[13px] font-semibold leading-snug', isDark ? 'text-white' : 'text-on-surface')}>
             {title}
           </span>
         </span>

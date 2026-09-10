@@ -7,6 +7,8 @@ import { CustomInput } from '../ui/CustomInput';
 import { entityId, type SavingGoal, type MoneyPlace } from '../../lib/store';
 import { savingGoalSchema, fundGoalSchema, withdrawGoalSchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
+import { DatePicker } from '../ui/date-picker';
+import { useAuth } from '../../lib/auth-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
@@ -53,8 +55,12 @@ export function SavingsModal({
   const { messages: m, t, intlLocale } = useLanguage();
   const s = m.modals.savings;
   const { options: moneyPlaceOptions, label: placeLabel, defaultPlace } = useMoneyPlaces();
+  // Optional target date lives on the user profile (not on the goal) so the
+  // projection can be personal even for shared household goals.
+  const { profile, updateProfileData } = useAuth();
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [amount, setAmount] = useState('');
   const [place, setPlace] = useState<MoneyPlace>('bank');
   // Opening balance: how much is ALREADY saved for this goal.
@@ -70,11 +76,13 @@ export function SavingsModal({
       setTarget(String(goal.target));
       setPlace(goal.source || defaultPlace);
       setCurrent(goal.current ? String(goal.current) : '');
+      setTargetDate(profile?.goalTargetDates?.[goal.id] || '');
     } else {
       setName('');
       setTarget('');
       setPlace(defaultPlace);
       setCurrent('');
+      setTargetDate('');
     }
     setDeductFromPlace(false);
     setAmount('');
@@ -139,6 +147,16 @@ export function SavingsModal({
       };
 
       if (onSaveGoal) onSaveGoal(newGoal, deductFromPlace ? place : null);
+
+      // Persist the (optional) target date alongside the goal. Best effort:
+      // a failed profile write must never block saving the goal itself.
+      const storedDate = profile?.goalTargetDates?.[newGoal.id] || '';
+      if (profile && storedDate !== targetDate) {
+        const nextDates = { ...(profile.goalTargetDates || {}) };
+        if (targetDate) nextDates[newGoal.id] = targetDate;
+        else delete nextDates[newGoal.id];
+        void updateProfileData({ goalTargetDates: nextDates }).catch(() => {});
+      }
       onClose();
     } else if (mode === 'fund' && goal) {
       const parsedAmount = parseFloat(amount);
@@ -238,15 +256,49 @@ export function SavingsModal({
                   key={amt}
                   type="button"
                   onClick={() => { setTarget(String(amt)); setErrors((p) => ({ ...p, target: '' })); }}
-                  className="px-2.5 py-1 bg-surface border border-outline-variant text-[12px] font-bold text-on-surface-variant hover:bg-primary/10 hover:border-primary/30 hover:text-primary rounded-lg transition-all"
+                  className="rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1 text-[12px] font-semibold text-on-surface-variant transition-all hover:border-forest/30 hover:bg-lime/40 hover:text-forest"
                 >
                   {format(amt)}
                 </button>
               ))}
             </div>
 
+            {/* Target date (optional) — the only place it can be set; goal
+                cards just display the resulting projection. */}
+            <div className="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+              <div className="flex items-start justify-between gap-2">
+                <DatePicker
+                  label={`${m.planner.goalTargetDate} · ${m.common.optional}`}
+                  value={targetDate}
+                  onChange={setTargetDate}
+                />
+                {targetDate && (
+                  <button
+                    type="button"
+                    onClick={() => setTargetDate('')}
+                    className="mt-7 shrink-0 rounded-full border border-outline-variant px-3 py-1.5 text-[12px] font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+                  >
+                    {m.common.clear}
+                  </button>
+                )}
+              </div>
+              {targetDate && parsedTargetPreview > parsedCurrentPreview && (() => {
+                const [y, mo] = targetDate.split('-').map(Number);
+                const now = new Date();
+                const months = Math.max(1, (y - now.getFullYear()) * 12 + (mo - 1 - now.getMonth()));
+                const required = (parsedTargetPreview - parsedCurrentPreview) / months;
+                const label = new Date(y, mo - 1, 1).toLocaleDateString(intlLocale, { month: 'short', year: 'numeric' });
+                return (
+                  <p className="flex items-center gap-1.5 text-[12px] font-semibold text-forest dark:text-lime">
+                    <AppIcon name="schedule" className="shrink-0 text-[14px]" />
+                    {t(m.planner.goalRequired, { amount: format(required), date: label })}
+                  </p>
+                );
+              })()}
+            </div>
+
             {/* Already Saved (opening balance) */}
-            <div className="flex flex-col gap-2.5 rounded-2xl border border-outline-variant bg-surface-container p-4">
+            <div className="flex flex-col gap-2.5 rounded-2xl border border-outline-variant bg-surface-container-low p-4">
               <CustomInput
                 label={t(s.alreadySaved, { currency: symbol })}
                 type="number"

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   doc,
-  getFirestore,
   onSnapshot,
   setDoc,
   updateDoc,
@@ -12,11 +11,13 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatCurrency } from '@/lib/currency';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
-import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatMessage } from '@/lib/i18n-core';
 import { normalizeDaratCircle, normalizeDaratMember, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
+import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
 interface Props {
   circle: DaratCircle;
@@ -55,7 +56,7 @@ function formatMemberId(uid: string, locale: string): string {
 export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   const { user } = useAuth();
   const { messages: m, intlLocale, language } = useLanguage();
-  const db = getFirestore();
+  const db = firestoreDb;
 
   const [circle, setCircle] = useState<DaratCircle>(initial);
   const [members, setMembers] = useState<Record<string, DaratMember>>({});
@@ -66,6 +67,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
 
   // Live updates: the shared circle document, plus the member roster.
   useEffect(() => {
+    if (!db) return;
     const unsubCircle = onSnapshot(doc(db, 'circles', circle.id), (snap) => {
       if (snap.exists()) {
         setCircle(normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) }));
@@ -85,11 +87,9 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   const isOrganizer = user?.uid === circle.organizerId;
   const myMember = user ? members[user.uid] : null;
   const today = todayYmd();
-  const currentRoundIdx = circle.rounds.findIndex((r) => r.date >= today);
-  const myPayoutIdx = circle.rounds.findIndex((r) => r.recipientId === user?.uid);
 
   const recordPayment = useCallback(async (roundNumber: number, paid: boolean) => {
-    if (!user) return;
+    if (!user || !db) return;
     setActionInProgress(`payment-${roundNumber}`);
     setActionError(null);
     try {
@@ -125,7 +125,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   }, [db, circle, user]);
 
   const leaveCircle = useCallback(async () => {
-    if (!user) return;
+    if (!user || !db) return;
     if (!confirm(m.darat.detail.leaveConfirm)) return;
     setActionInProgress('leave');
     try {
@@ -161,7 +161,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   }, [circle.id, circle.memberOrder, db, m.darat.detail.leaveConfirm, onBack, user]);
 
   const closeCircle = useCallback(async () => {
-    if (!user) return;
+    if (!user || !db) return;
     if (!confirm(m.darat.detail.closeConfirm)) return;
     setActionInProgress('close');
     try {
@@ -219,32 +219,120 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
     : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <button
-            type="button"
-            onClick={onBack}
-            className="mb-2 inline-flex items-center gap-1 text-sm font-semibold text-primary transition-colors hover:underline"
-          >
-            <AppIcon name="arrow_back" className="text-[16px]" />
-            {m.common.back}
-          </button>
-          <h1 className="text-2xl font-extrabold text-on-surface sm:text-3xl">{circle.name}</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
+    <>
+      <DaratDetailView
+        circle={circle}
+        members={members}
+        currentUid={user?.uid}
+        isOrganizer={isOrganizer}
+        isMember={Boolean(myMember)}
+        today={today}
+        editStatus={editStatus}
+        errorMessage={errorMessage}
+        actionInProgress={actionInProgress}
+        onBack={onBack}
+        onEdit={() => setEditOpen(true)}
+        onTogglePayment={recordPayment}
+        onLeave={leaveCircle}
+        onClose={closeCircle}
+      />
+      {editOpen && (
+        <DaratEditModal
+          circle={circle}
+          onClose={() => setEditOpen(false)}
+          onSubmit={handleEdit}
+        />
+      )}
+    </>
+  );
+}
+
+export interface DaratDetailViewProps {
+  circle: DaratCircle;
+  members: Record<string, DaratMember>;
+  currentUid?: string;
+  isOrganizer: boolean;
+  /** Whether the current user has a member row (can mark payments / leave). */
+  isMember: boolean;
+  today: string;
+  editStatus: { kind: 'saved' | 'error' } | null;
+  errorMessage: string | null;
+  actionInProgress: string | null;
+  onBack: () => void;
+  onEdit: () => void;
+  onTogglePayment: (roundNumber: number, paid: boolean) => void;
+  onLeave: () => void;
+  onClose: () => void;
+}
+
+/**
+ * Pure presentation of a circle: forest summary panel, member roster with
+ * avatars, the round timeline and the footer actions. No data fetching, so
+ * it can be rendered anywhere (including previews and tests).
+ */
+export function DaratDetailView({
+  circle,
+  members,
+  currentUid,
+  isOrganizer,
+  isMember,
+  today,
+  editStatus,
+  errorMessage,
+  actionInProgress,
+  onBack,
+  onEdit,
+  onTogglePayment,
+  onLeave,
+  onClose,
+}: DaratDetailViewProps) {
+  const { messages: m, intlLocale, language } = useLanguage();
+  const myPayoutIdx = circle.rounds.findIndex((r) => r.recipientId === currentUid);
+  const progress = circleProgress(circle, today);
+  const closed = circle.status === 'closed';
+  const pot = circle.contribution * circle.memberOrder.length;
+  const memberName = (uid: string) => members[uid]?.displayName || formatMemberId(uid, language);
+  const frequencyLabel =
+    circle.frequency === 'weekly'
+      ? m.darat.create.frequencyWeekly
+      : circle.frequency === 'biweekly'
+        ? m.darat.create.frequencyBiweekly
+        : m.darat.create.frequencyMonthly;
+  const rotationLabel =
+    circle.rotation === 'random'
+      ? m.darat.create.rotationRandom
+      : circle.rotation === 'fixed'
+        ? m.darat.create.rotationFixed
+        : m.darat.create.rotationBidding;
+
+  return (
+    <div className="flex flex-col gap-5 pb-24">
+      {/* ── Header ── */}
+      <header className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface-variant shadow-ambient transition-colors hover:bg-surface-container-high hover:text-on-surface"
+          aria-label={m.common.back}
+        >
+          <AppIcon name="arrow_back" className="text-[18px] rtl:rotate-180" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[20px] font-semibold tracking-[-0.01em] text-on-surface sm:text-[24px]">{circle.name}</h1>
+          <p className="mt-0.5 text-[13px] font-medium text-on-surface-variant">
             {isOrganizer ? m.darat.detail.youAreOrganizer : m.darat.detail.youAreMember}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          {circle.status === 'closed' ? (
-            <span className="rounded-full bg-surface-variant px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+        <div className="flex shrink-0 items-center gap-2">
+          {closed ? (
+            <span className="rounded-full bg-surface-container-high px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
               {m.darat.detail.status.closed}
             </span>
           ) : isOrganizer ? (
             <button
               type="button"
-              onClick={() => setEditOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant"
+              onClick={onEdit}
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest px-4 text-[13px] font-semibold text-on-surface shadow-ambient transition-colors hover:bg-surface-container-high"
             >
               <AppIcon name="edit" className="text-[16px]" />
               {m.darat.detail.edit}
@@ -261,30 +349,84 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         </Alert>
       )}
 
-      <Card className="gap-3 p-4">
-        <h2 className="text-sm font-bold text-on-surface">
-          {m.darat.list.membersCount.replace('{count}', String(circle.memberOrder.length))}
-        </h2>
-        <ul className="flex flex-col gap-2">
-          {circle.memberOrder.map((uid) => {
+      {/* ── Forest summary panel (pot, contribution, cadence) ── */}
+      <section className="surface-forest relative overflow-hidden rounded-[1.75rem] p-5 shadow-forest sm:p-6">
+        <div aria-hidden className="dot-matrix-forest pointer-events-none absolute inset-y-0 end-0 w-2/5 opacity-40 [mask-image:linear-gradient(to_left,black,transparent)]" />
+        <div className="relative flex flex-col gap-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
+                  <AppIcon name="dollar" strokeWidth={2.4} className="text-[15px]" />
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/70">{m.darat.detail.payout}</span>
+              </div>
+              <p className="mt-3 text-[34px] font-semibold leading-none tabular tracking-[-0.02em] text-white sm:text-[40px]">
+                {formatCurrency(pot, circle.currency, intlLocale)}
+              </p>
+              <p className="mt-2 text-[13px] font-medium text-white/60">
+                {m.darat.detail.yourContribution.replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))}
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-3 py-2.5 text-center backdrop-blur">
+              <span className="text-[22px] font-semibold leading-none tabular text-lime">{progress.done}<span className="text-[13px] text-white/60">/{progress.total}</span></span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">{m.darat.detail.rounds}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{frequencyLabel}</span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{rotationLabel}</span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">
+              {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}
+            </span>
+          </div>
+
+          {myPayoutIdx >= 0 && isMember && (
+            <p className="flex items-center gap-2 rounded-2xl bg-lime px-3.5 py-2.5 text-[13px] font-semibold text-forest-deep">
+              <AppIcon name="celebration" className="shrink-0 text-[16px]" />
+              {m.darat.detail.yourPayoutMonth
+                .replace('{n}', String(myPayoutIdx + 1))
+                .replace('{date}', formatYmd(circle.rounds[myPayoutIdx].date, intlLocale))}
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ── Members ── */}
+      <section className="flex flex-col gap-4 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
+              <AppIcon name="groups" strokeWidth={2.2} className="text-[15px]" />
+            </span>
+            <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">
+              {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}
+            </h2>
+          </div>
+          <AvatarStack names={circle.memberOrder.map(memberName)} />
+        </div>
+        <ul className="flex flex-col divide-y divide-outline-variant/60">
+          {circle.memberOrder.map((uid, idx) => {
             const member = members[uid];
-            const isMe = uid === user?.uid;
+            const isMe = uid === currentUid;
+            const name = memberName(uid);
             return (
-              <li key={uid} className="flex items-center gap-2 text-sm">
-                <AppIcon
-                  name={isMe ? 'person' : 'person_outline'}
-                  className="text-[18px] text-on-surface-variant"
-                />
-                <span className="truncate font-semibold text-on-surface">
-                  {member?.displayName || formatMemberId(uid, language)}
+              <li key={uid} className="flex items-center gap-3 py-2.5">
+                <span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${avatarTone(idx)} ${isMe ? 'ring-2 ring-lime-deep ring-offset-2 ring-offset-surface-container-lowest' : ''}`} aria-hidden="true">
+                  {monogram(name)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
+                  {name}
+                  {isMe && <AppIcon name="person" className="ms-1.5 inline text-[14px] text-forest dark:text-lime" title={m.darat.detail.youAreMember} />}
                 </span>
                 {member?.isOrganizer && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  <span className="shrink-0 rounded-full bg-lime px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-forest-deep">
                     {m.darat.detail.organizerShort}
                   </span>
                 )}
                 {member?.status === 'left' && (
-                  <span className="rounded-full bg-surface-variant px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+                  <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
                     {m.darat.detail.status.closed}
                   </span>
                 )}
@@ -292,80 +434,112 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
             );
           })}
         </ul>
-      </Card>
+      </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="px-1 text-sm font-bold text-on-surface">{m.darat.detail.rounds}</h2>
-        <ol className="flex flex-col gap-2">
-          {circle.rounds.map((round) => {
-            const myPayment = round.payments[user?.uid ?? ''] ?? 'pending';
-            const isUpcoming = round.number >= (currentRoundIdx >= 0 ? currentRoundIdx + 1 : circle.rounds.length + 1);
-            const recipientName = round.recipientId
-              ? (members[round.recipientId]?.displayName || formatMemberId(round.recipientId, language))
-              : m.darat.detail.noRecipient;
+      {/* ── Rounds timeline ── */}
+      <section className="flex flex-col gap-4 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
+              <AppIcon name="calendar_clock" strokeWidth={2.2} className="text-[15px]" />
+            </span>
+            <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">{m.darat.detail.rounds}</h2>
+          </div>
+          <ProgressRing pct={progress.pct} label={`${progress.pct}%`} className="size-11" />
+        </div>
+
+        <ol className="relative flex flex-col gap-2">
+          {circle.rounds.map((round, idx) => {
+            const myPayment = round.payments[currentUid ?? ''] ?? 'pending';
+            const isPast = round.date < today;
+            const isCurrent = !closed && progress.next?.number === round.number;
+            const isMine = round.recipientId != null && round.recipientId === currentUid;
+            const recipientName = round.recipientId ? memberName(round.recipientId) : m.darat.detail.noRecipient;
+            const canToggle = Boolean(currentUid && isMember && round.payments[currentUid] !== undefined);
             return (
               <li
                 key={round.number}
-                className={`flex flex-col gap-2 rounded-2xl border p-3 ${
-                  isUpcoming
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-outline-variant bg-surface-container'
+                className={`relative flex gap-3 rounded-2xl p-3 transition-colors ${
+                  isCurrent
+                    ? 'bg-lime/40 ring-1 ring-lime-deep/40 dark:bg-lime/10 dark:ring-lime/30'
+                    : isPast
+                      ? 'bg-surface-container-low'
+                      : 'bg-surface-container-lowest border border-outline-variant/70'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                    {m.darat.detail.roundOn
-                      .replace('{n}', String(round.number))
-                      .replace('{date}', round.date)}
+                {/* timeline marker */}
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${
+                      isPast
+                        ? 'bg-forest text-lime'
+                        : isCurrent
+                          ? 'bg-forest text-lime ring-4 ring-lime/60'
+                          : 'bg-surface-container-high text-on-surface-variant'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {isPast ? <AppIcon name="check" strokeWidth={2.6} className="text-[14px]" /> : round.number}
                   </span>
-                  <span className="ml-auto text-sm font-bold text-on-surface">
-                    {m.darat.detail.pot.replace(
-                      '{amount}',
-                      formatCurrency(round.pot, circle.currency, intlLocale),
-                    )}
-                  </span>
+                  {idx < circle.rounds.length - 1 && (
+                    <span aria-hidden="true" className={`mt-1 w-px flex-1 ${isPast ? 'bg-forest/40' : 'border-s border-dashed border-outline-variant'}`} />
+                  )}
                 </div>
-                <p className="text-sm text-on-surface">
-                  {round.recipientId
-                    ? m.darat.detail.recipient.replace('{name}', recipientName)
-                    : m.darat.detail.noRecipient}
-                </p>
-                {user && myMember && round.payments[user.uid] !== undefined && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-on-surface-variant">
-                      {m.darat.detail.yourContribution.replace(
-                        '{amount}',
-                        formatCurrency(circle.contribution, circle.currency, intlLocale),
-                      )}
+
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[13px] font-semibold text-on-surface">
+                      {m.darat.detail.roundOn
+                        .replace('{n}', String(round.number))
+                        .replace('{date}', formatYmd(round.date, intlLocale, { day: 'numeric', month: 'short' }))}
                     </span>
-                    {myPayment === 'paid' ? (
-                      <button
-                        type="button"
-                        onClick={() => recordPayment(round.number, false)}
-                        disabled={actionInProgress === `payment-${round.number}` || circle.status === 'closed'}
-                        className="ml-auto rounded-full border border-outline-variant px-3 py-1 text-xs font-bold text-on-surface transition-colors hover:bg-surface-variant disabled:opacity-50"
-                      >
-                        {m.darat.detail.markUnpaid}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => recordPayment(round.number, true)}
-                        disabled={actionInProgress === `payment-${round.number}` || circle.status === 'closed'}
-                        className="ml-auto rounded-full bg-primary px-3 py-1 text-xs font-bold text-on-primary transition-colors hover:opacity-90 disabled:opacity-50"
-                      >
-                        {m.darat.detail.markPaid}
-                      </button>
-                    )}
+                    <span className="shrink-0 text-[13px] font-semibold tabular text-on-surface">
+                      {formatCurrency(round.pot, circle.currency, intlLocale)}
+                    </span>
                   </div>
-                )}
-                {round.discount > 0 && (
-                  <p className="text-xs text-on-surface-variant">
-                    {m.darat.detail.winningBid
-                      .replace('{name}', recipientName)
-                      .replace('{amount}', formatCurrency(round.discount, circle.currency, intlLocale))}
+                  <p className={`flex items-center gap-1.5 text-[12px] font-medium ${isMine ? 'text-forest dark:text-lime' : 'text-on-surface-variant'}`}>
+                    <AppIcon name={isMine ? 'celebration' : 'person'} className="shrink-0 text-[14px]" />
+                    <span className="truncate">
+                      {round.recipientId
+                        ? m.darat.detail.recipient.replace('{name}', recipientName)
+                        : m.darat.detail.noRecipient}
+                    </span>
                   </p>
-                )}
+                  {round.discount > 0 && (
+                    <p className="text-[12px] text-on-surface-variant">
+                      {m.darat.detail.winningBid
+                        .replace('{name}', recipientName)
+                        .replace('{amount}', formatCurrency(round.discount, circle.currency, intlLocale))}
+                    </p>
+                  )}
+                  {canToggle && (
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                      <span className={`flex items-center gap-1.5 text-[12px] font-semibold ${myPayment === 'paid' ? 'text-forest dark:text-lime' : 'text-on-surface-variant'}`}>
+                        <AppIcon name={myPayment === 'paid' ? 'check_circle' : 'radio_button_unchecked'} className="text-[15px]" />
+                        {myPayment === 'paid' ? m.darat.detail.status.collected : m.darat.detail.status.pending}
+                      </span>
+                      {myPayment === 'paid' ? (
+                        <button
+                          type="button"
+                          onClick={() => onTogglePayment(round.number, false)}
+                          disabled={actionInProgress === `payment-${round.number}` || closed}
+                          className="ms-auto whitespace-nowrap rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-[12px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
+                        >
+                          {m.darat.detail.markUnpaid}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onTogglePayment(round.number, true)}
+                          disabled={actionInProgress === `payment-${round.number}` || closed}
+                          className="ms-auto whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-on-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
+                        >
+                          {m.darat.detail.markPaid}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </li>
             );
           })}
@@ -378,45 +552,31 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         </Alert>
       )}
 
-      <footer className="flex flex-col gap-3">
-        {myPayoutIdx >= 0 && myMember && (
-          <p className="text-sm font-semibold text-primary">
-            {m.darat.detail.yourPayoutMonth
-              .replace('{n}', String(myPayoutIdx + 1))
-              .replace('{date}', circle.rounds[myPayoutIdx].date)}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {myMember && !isOrganizer && circle.status !== 'closed' && (
+      {(isMember && !isOrganizer && !closed) || (isOrganizer && !closed) ? (
+        <footer className="flex flex-wrap gap-2">
+          {isMember && !isOrganizer && !closed && (
             <button
               type="button"
-              onClick={leaveCircle}
+              onClick={onLeave}
               disabled={actionInProgress === 'leave'}
-              className="rounded-full border border-error/40 px-4 py-2 text-sm font-semibold text-error transition-colors hover:bg-error-container/10 disabled:opacity-50"
+              className="rounded-full border border-error/40 bg-surface-container-lowest px-4 py-2.5 text-[13px] font-semibold text-error transition-colors hover:bg-error-container/20 disabled:opacity-50"
             >
               {m.darat.detail.leave}
             </button>
           )}
-          {isOrganizer && circle.status !== 'closed' && (
+          {isOrganizer && !closed && (
             <button
               type="button"
-              onClick={closeCircle}
+              onClick={onClose}
               disabled={actionInProgress === 'close'}
-              className="rounded-full border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant disabled:opacity-50"
+              className="rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2.5 text-[13px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
             >
               {m.darat.detail.close}
             </button>
           )}
-        </div>
-      </footer>
+        </footer>
+      ) : null}
 
-      {editOpen && (
-        <DaratEditModal
-          circle={circle}
-          onClose={() => setEditOpen(false)}
-          onSubmit={handleEdit}
-        />
-      )}
     </div>
   );
 }

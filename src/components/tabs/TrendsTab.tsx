@@ -14,6 +14,8 @@ import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
 import { CustomReportCard } from '../dashboard/custom-report-card';
+import { StatCard } from '../dashboard/stat-card';
+import { MoneyFigure } from '@/components/ui/money-figure';
 import dynamic from 'next/dynamic';
 
 /**
@@ -44,12 +46,31 @@ interface TrendsTabProps {
   onSetTrendsMonthCount?: (count: 6 | 12) => void;
 }
 
+// Forest & Lime series palette: token-driven first (so dark mode follows),
+// then a few tonal fallbacks for long category lists.
 const CHART_COLORS = [
-  '#0f3b36', '#3b82f6', '#8b5cf6', '#f97316',
-  '#ec4899', '#ef4444', '#eab308', '#06b6d4',
-  '#6366f1', '#10b981', '#b05e3d', '#84cc16',
-  '#d946ef', '#a855f7', '#14b8a6', '#f43f5e',
+  'var(--chart-1)', 'var(--chart-2)', 'var(--chart-5)', 'var(--chart-4)',
+  'var(--tertiary)', 'var(--chart-3)', 'var(--secondary)', 'var(--sage)',
+  '#5c8f6a', '#b9925a', '#7fb069', '#2f6b5f',
+  '#d4b483', '#93b58a', '#1a4f48', '#a9d383',
 ];
+
+/** Section header shared by every analytics card (icon puck + title). */
+function SectionHeader({ icon, title, children }: { icon: string; title: string; children?: React.ReactNode }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
+          <AppIcon name={icon} strokeWidth={2.2} className="text-[15px]" />
+        </span>
+        <h3 className="text-[16px] font-semibold leading-tight tracking-[-0.01em] text-on-surface">{title}</h3>
+      </div>
+      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+    </div>
+  );
+}
+
+const CARD = 'rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient sm:p-6';
 
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal, trendsMonthCount = 6, onSetTrendsMonthCount }: TrendsTabProps) {
   const { format } = useCurrency();
@@ -151,125 +172,114 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           href="/dashboard/profile"
           prefetch={true}
           aria-label={m.profile.subpages.backToProfile}
-          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+          className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface-variant shadow-ambient transition-colors hover:bg-surface-container-high hover:text-on-surface"
         >
           <AppIcon name="arrow_back" className={`text-[18px] ${isRTL ? 'rotate-180' : ''}`} />
         </Link>
         <div className="min-w-0">
-          <h2 className="text-lg font-extrabold text-on-surface">{m.tabs.trends.title}</h2>
-          <p className="mt-0.5 text-sm text-on-surface-variant">{m.tabs.trends.description}</p>
+          <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-on-surface">{m.tabs.trends.title}</h2>
+          <p className="mt-0.5 text-[13px] font-medium text-on-surface-variant">{m.tabs.trends.description}</p>
         </div>
       </div>
 
-      {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* ── Summary tiles (same StatCard family as the overview) ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {canSeeExpenses && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.spentThisMonth}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(spent.totalSpent)}</p>
-          {prevMonth && (
-            <span className={`text-[12px] font-bold ${spendChange > 0 ? 'text-error' : 'text-primary'}`}>
-              {spendChange > 0 ? '↑' : '↓'} {t(m.tabs.trends.percentVsLastMonth, { percent: formatLocalizedPercent(Math.abs(spendChange), intlLocale, 1) })}
-            </span>
-          )}
-        </div>
+          <StatCard
+            icon="dollar"
+            title={m.tabs.trends.spentThisMonth}
+            value={spent.totalSpent}
+            caption={m.dashboard.thisMonth}
+            delta={
+              prevMonth
+                ? {
+                    label: `${spendChange > 0 ? '↑' : '↓'} ${formatLocalizedPercent(Math.abs(spendChange), intlLocale, 1)}`,
+                    positive: spendChange <= 0,
+                  }
+                : null
+            }
+          />
         )}
 
         {canSeeExpenses && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.budgetRemaining}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-primary sm:text-[22px]">
-            {format(Math.max(0, month.totalBudget - spent.totalSpent))}
-          </p>
-          <span className="block truncate text-[12px] font-bold text-on-surface-variant">
-            {m.tabs.trends.ofLabel} {format(month.totalBudget)}
-          </span>
-        </div>
+          <StatCard
+            icon="account_balance_wallet"
+            title={m.tabs.trends.budgetRemaining}
+            value={Math.max(0, month.totalBudget - spent.totalSpent)}
+            caption={`${m.tabs.trends.ofLabel} ${format(month.totalBudget)}`}
+            variant="lime"
+          />
         )}
 
         {/* Total cash on hand is a `balances` figure: redacted, never hidden
             outright, so the card grid keeps its shape. */}
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
-            {canSeeBalances ? format(totalCash) : redacted}
-          </p>
-          {canSeeBalances ? (
-            <div className="mt-1 flex flex-col gap-0.5 text-[11px] font-bold leading-snug">
-              <span className="truncate text-primary">
-                {m.places.bank} {format(month.bankPart || 0)}
-              </span>
-              <span className="truncate text-secondary">
-                {m.places.wallet} {format(month.walletPart || 0)}
-              </span>
-              <span className="truncate text-warning">
-                {m.places.home} {format(month.homePart || 0)}
-              </span>
+        <StatCard
+          icon="payments"
+          title={m.tabs.trends.totalCash}
+          value={totalCash}
+          redacted={!canSeeBalances}
+          caption={canSeeBalances ? undefined : m.household.areaRedacted}
+          variant="forest"
+        >
+          {canSeeBalances && (
+            <div className="mt-3 flex flex-col gap-0.5 text-[11px] font-semibold leading-snug text-white/70">
+              <span className="truncate">{m.places.bank} · {format(month.bankPart || 0)}</span>
+              <span className="truncate">{m.places.wallet} · {format(month.walletPart || 0)}</span>
+              <span className="truncate">{m.places.home} · {format(month.homePart || 0)}</span>
             </div>
-          ) : (
-            <p className="mt-1 text-[11px] font-bold text-on-surface-variant">{m.household.areaRedacted}</p>
           )}
-        </div>
+        </StatCard>
 
         {canSeeSavings && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
-          <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.activeGoals}</span>
-          <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
-            {format(month.monthlySavingsTarget || 0)}
-          </p>
-          <span className="block break-words text-[12px] font-bold leading-snug text-on-surface-variant">
-            {t(m.tabs.trends.strategySavings, {
+          <StatCard
+            icon="savings"
+            title={m.tabs.trends.activeGoals}
+            value={month.monthlySavingsTarget || 0}
+            caption={t(m.tabs.trends.strategySavings, {
               strategy: strategyCopy.name,
               percent: formatLocalizedPercent(Math.round(strategy.savingsRatio * 100), intlLocale),
             })}
-          </span>
-        </div>
+          />
         )}
       </div>
 
       {/* ── Multi-Month Trends (Pro feature) ──
           Budget / spent / remaining per month are `expenses` figures. */}
       {canSeeExpenses && (
-      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center justify-between mb-4 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <AppIcon name="bar_chart" className=" text-primary text-[24px]" />
-            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.monthOverMonth}</h3>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {onSetTrendsMonthCount && (
-              <div className="flex rounded-full border border-outline-variant overflow-hidden" role="group" aria-label={m.tabs.trends.rangeLabel}>
-                {([6, 12] as const).map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    onClick={() => onSetTrendsMonthCount(count)}
-                    aria-pressed={trendsMonthCount === count}
-                    className={`px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
-                      trendsMonthCount === count
-                        ? 'bg-primary text-on-primary'
-                        : 'bg-surface text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    {count === 6 ? m.tabs.trends.last6Months : m.tabs.trends.last12Months}
-                  </button>
-                ))}
-              </div>
-            )}
-            {showUpgrade && (
-              <button
-                onClick={onOpenProModal}
-                className="text-[12px] font-extrabold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
-              >
-                {m.tabs.trends.proLabel}
-              </button>
-            )}
-          </div>
-        </div>
+      <div className={CARD}>
+        <SectionHeader icon="bar_chart" title={m.tabs.trends.monthOverMonth}>
+          {onSetTrendsMonthCount && (
+            <div className="flex rounded-full bg-surface-container-high p-0.5" role="group" aria-label={m.tabs.trends.rangeLabel}>
+              {([6, 12] as const).map((count) => (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => onSetTrendsMonthCount(count)}
+                  aria-pressed={trendsMonthCount === count}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    trendsMonthCount === count
+                      ? 'bg-forest text-lime shadow-sm dark:bg-lime dark:text-forest-deep'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {count === 6 ? m.tabs.trends.last6Months : m.tabs.trends.last12Months}
+                </button>
+              ))}
+            </div>
+          )}
+          {showUpgrade && (
+            <button
+              onClick={onOpenProModal}
+              className="rounded-full bg-lime px-3 py-1.5 text-[12px] font-semibold text-forest-deep transition-colors hover:bg-lime-bright"
+            >
+              {m.tabs.trends.proLabel}
+            </button>
+          )}
+        </SectionHeader>
 
         {trendsLoading ? (
-          <div className="h-48 bg-surface-variant/30 rounded-2xl animate-pulse flex items-center justify-center">
-            <span className="text-on-surface-variant font-medium">{m.tabs.trends.loadingTrends}</span>
+          <div className="flex h-48 animate-pulse items-center justify-center rounded-2xl bg-surface-container-low">
+            <span className="text-[13px] font-medium text-on-surface-variant">{m.tabs.trends.loadingTrends}</span>
           </div>
         ) : monthOverMonth.length > 1 && proUnlocked ? (
           /* Bar chart with month-over-month comparison. The bars are a purely
@@ -289,7 +299,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr className="text-on-surface-variant font-extrabold uppercase tracking-wider border-b border-outline-variant">
+                  <tr className="border-b border-outline-variant text-[10.5px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
                     <th className="text-start py-2 pe-3">{m.tabs.trends.month}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.budget}</th>
                     <th className="text-end py-2 px-3">{m.tabs.trends.spent}</th>
@@ -300,17 +310,17 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                 </thead>
                 <tbody>
                   {monthOverMonth.map((m) => (
-                    <tr key={m.monthKey} className="border-b border-outline-variant/30">
-                      <td className="py-2 pe-3 font-bold text-on-surface">{m.label}</td>
-                      <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalBudget)}</td>
-                      <td className="py-2 px-3 text-end font-mono text-on-surface">{format(m.totalSpent)}</td>
-                      <td className="py-2 px-3 text-end font-mono text-primary">{format(m.remaining)}</td>
-                      <td className="py-2 px-3 text-end font-mono text-on-surface">
+                    <tr key={m.monthKey} className="border-b border-outline-variant/40 last:border-0">
+                      <td className="py-2.5 pe-3 font-semibold text-on-surface">{m.label}</td>
+                      <td className="py-2.5 px-3 text-end tabular text-on-surface">{format(m.totalBudget)}</td>
+                      <td className="py-2.5 px-3 text-end tabular text-on-surface">{format(m.totalSpent)}</td>
+                      <td className="py-2.5 px-3 text-end tabular font-semibold text-forest dark:text-lime">{format(m.remaining)}</td>
+                      <td className="py-2.5 px-3 text-end tabular text-on-surface">
                         {m.netSavedRate !== null
                           ? `${format(m.netSaved)} (${new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.netSavedRate)})`
                           : '—'}
                       </td>
-                      <td className="py-2 ps-3 text-end font-mono text-on-surface">
+                      <td className="py-2.5 ps-3 text-end tabular text-on-surface">
                         {m.totalBudget > 0
                           ? new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(m.savings / m.totalBudget)
                           : '—'}
@@ -322,10 +332,12 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             </div>
           </div>
         ) : (
-          <div className="p-8 bg-surface-container rounded-2xl border border-dashed border-outline-variant flex flex-col items-center text-center gap-2">
-            <AppIcon name="bar_chart" className=" text-outline text-[36px]" />
-            <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.trends.notEnoughData}</p>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">{m.tabs.trends.addExpensesForTrends}</p>
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-8 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
+              <AppIcon name="bar_chart" className="text-[22px]" />
+            </span>
+            <p className="text-[14px] font-medium text-on-surface-variant">{m.tabs.trends.notEnoughData}</p>
+            <p className="text-[12px] text-on-surface-variant">{m.tabs.trends.addExpensesForTrends}</p>
           </div>
         )}
       </div>
@@ -337,11 +349,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           dropped — not blurred, not zeroed — because even the source *names*
           and the combined total are household financial data. */}
       {canSeeIncome && (
-      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center gap-2 mb-4">
-          <AppIcon name="payments" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.incomeSources}</h3>
-        </div>
+      <div className={CARD}>
+        <SectionHeader icon="payments" title={m.tabs.trends.incomeSources} />
 
         {proUnlocked && incomeSources.length > 0 ? (
           <div className="space-y-3">
@@ -356,16 +365,16 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
+                      <span className="text-[13px] font-semibold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-bold text-on-surface-variant">
+                      <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
                         {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
                       </span>
-                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(src.amount || 0)}</span>
+                      <span className="tabular text-[13px] font-semibold text-on-surface">{format(src.amount || 0)}</span>
                     </div>
                   </div>
-                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="h-2 w-full overflow-hidden rounded-full bg-mint">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -378,14 +387,14 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               );
             })}
 
-            <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
-              <span className="font-bold text-on-surface text-[15px]">{m.tabs.trends.totalCombinedIncome}</span>
-              <span className="font-extrabold text-primary font-mono text-[18px]">{format(totalIncome)}</span>
+            <div className="flex items-center justify-between border-t border-outline-variant pt-3">
+              <span className="text-[14px] font-semibold text-on-surface">{m.tabs.trends.totalCombinedIncome}</span>
+              <MoneyFigure value={totalIncome} size="md" weight="semibold" className="text-forest dark:text-lime" />
             </div>
           </div>
         ) : (
-          <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
+          <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-6 text-center">
+            <p className="text-[13px] font-medium text-on-surface-variant">
               {proUnlocked ? m.tabs.trends.noIncomeSources : m.tabs.trends.incomeSourcesPro}
             </p>
           </div>
@@ -395,11 +404,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
       {/* ── Category Trend Breakdown ── */}
       {canSeeExpenses && (
-      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center gap-2 mb-4">
-          <AppIcon name="category" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.categoryBreakdown}</h3>
-        </div>
+      <div className={CARD}>
+        <SectionHeader icon="category" title={m.tabs.trends.categoryBreakdown} />
 
         {sortedCategories.length > 0 ? (
           <div className="flex flex-col gap-3">
@@ -414,16 +420,16 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                       />
-                      <span className="font-label-lg text-label-lg font-bold text-on-surface">{localizeCategoryName(cat, m)}</span>
+                      <span className="text-[13px] font-semibold text-on-surface">{localizeCategoryName(cat, m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-bold text-on-surface-variant">
+                      <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
                         {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
                       </span>
-                      <span className="font-label-lg text-label-lg font-extrabold text-on-surface font-mono">{format(amount)}</span>
+                      <span className="tabular text-[13px] font-semibold text-on-surface">{format(amount)}</span>
                     </div>
                   </div>
-                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <div aria-hidden="true" className="h-2 w-full overflow-hidden rounded-full bg-mint">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
@@ -436,14 +442,14 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               );
             })}
 
-            <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
-              <span className="font-bold text-on-surface text-[15px]">{m.tabs.trends.totalSpent}</span>
-              <span className="font-extrabold text-on-surface font-mono text-[18px]">{format(spent.totalSpent)}</span>
+            <div className="flex items-center justify-between border-t border-outline-variant pt-3">
+              <span className="text-[14px] font-semibold text-on-surface">{m.tabs.trends.totalSpent}</span>
+              <MoneyFigure value={spent.totalSpent} size="md" weight="semibold" className="text-on-surface" />
             </div>
           </div>
         ) : (
-          <div className="p-6 bg-surface-container rounded-2xl border border-dashed border-outline-variant text-center">
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
+          <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-6 text-center">
+            <p className="text-[13px] font-medium text-on-surface-variant">
               {m.tabs.trends.noExpenses}
             </p>
           </div>
@@ -466,11 +472,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
       {/* ── Household Spending Breakdown ── */}
       {proUnlocked && canSeeExpenses && canSeeFixedBills && Object.keys(personBreakdown).length > 0 && (
-        <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-          <div className="flex items-center gap-2 mb-4">
-            <AppIcon name="family_restroom" className=" text-primary text-[24px]" />
-            <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.householdSpending}</h3>
-          </div>
+        <div className={CARD}>
+          <SectionHeader icon="family_restroom" title={m.tabs.trends.householdSpending} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {Object.entries(personBreakdown).map(([person, data], idx) => {
@@ -478,21 +481,21 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
               const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
               return (
-                <div key={person} className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
-                  <div className="flex justify-between items-center gap-2 min-w-0">
-                    <span className="min-w-0 truncate font-label-lg text-label-lg font-bold text-on-surface">{localizePersonName(person, m)}</span>
-                    <span className="text-[12px] font-bold text-primary">
+                <div key={person} className="flex min-w-0 flex-col gap-2 overflow-hidden rounded-2xl bg-surface-container-low p-4">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-on-surface">{localizePersonName(person, m)}</span>
+                    <span className="rounded-full bg-lime px-2 py-0.5 text-[11px] font-semibold text-forest-deep">
                       {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
                     </span>
                   </div>
-                  <span className="truncate text-[20px] font-extrabold font-mono text-on-surface">{format(total)}</span>
-                  <div aria-hidden="true" className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
+                  <MoneyFigure value={total} size="md" weight="semibold" className="text-on-surface" />
+                  <div aria-hidden="true" className="h-2 w-full overflow-hidden rounded-full bg-mint">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] font-bold text-on-surface-variant">
+                  <div className="flex justify-between text-[11px] font-semibold text-on-surface-variant">
                     <span>{t(m.tabs.trends.variableAmount, { amount: format(data.variable) })}</span>
                     <span>{t(m.tabs.trends.fixedAmount, { amount: format(data.fixed) })}</span>
                   </div>
@@ -504,38 +507,44 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       )}
 
       {showUpgrade && (
-        <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-          <p className="font-body-sm text-body-sm text-on-surface-variant">
+        <button
+          type="button"
+          onClick={onOpenProModal}
+          className="surface-forest relative flex w-full items-center gap-3 overflow-hidden rounded-[1.75rem] p-5 text-start shadow-forest transition-transform hover:-translate-y-0.5 sm:p-6"
+        >
+          <div aria-hidden className="dot-matrix-forest pointer-events-none absolute inset-y-0 end-0 w-1/3 opacity-40 [mask-image:linear-gradient(to_left,black,transparent)]" />
+          <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
+            <AppIcon name="workspace_premium" strokeWidth={2.2} className="text-[18px]" />
+          </span>
+          <span className="relative min-w-0 flex-1 text-[13px] font-medium leading-snug text-white/85">
             {m.tabs.trends.advancedAnalytics}
-          </p>
-        </div>
+          </span>
+          <AppIcon name="arrow_outward" className="relative shrink-0 text-[18px] text-lime rtl:-scale-x-100" />
+        </button>
       )}
 
       {/* ── Budget Health Summary ── */}
       {canSeeExpenses && (
-      <div className="p-5 sm:p-6 bg-surface-container rounded-3xl border border-outline-variant">
-        <div className="flex items-center gap-2 mb-4">
-          <AppIcon name="health_and_safety" className=" text-primary text-[24px]" />
-          <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{m.tabs.trends.budgetHealth}</h3>
-        </div>
+      <div className={CARD}>
+        <SectionHeader icon="health_and_safety" title={m.tabs.trends.budgetHealth} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Needs */}
-          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
-            <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-2 rounded-2xl bg-surface-container-low p-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                <span className="font-bold text-on-surface">{t(m.tabs.trends.needsLabel, { percent: formatLocalizedPercent(Math.round(strategy.needsRatio * 100), intlLocale) })}</span>
+                <span className="size-2.5 rounded-full bg-forest dark:bg-lime" />
+                <span className="text-[13px] font-semibold text-on-surface">{t(m.tabs.trends.needsLabel, { percent: formatLocalizedPercent(Math.round(strategy.needsRatio * 100), intlLocale) })}</span>
               </div>
-              <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.needs)} / {format(spent.needs + spent.wants + spent.savings > 0 ? (spent.needs / (spent.needs + spent.wants + spent.savings)) * 100 : 0).replace(/[0-9.,]/g, '').trim() || format(month.totalBudget)}</span>
+              <span className="tabular text-[13px] font-semibold text-on-surface">{format(spent.needs)}</span>
             </div>
             {(() => {
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
               const pct = env.needs > 0 ? Math.min(100, Math.round((spent.needs / env.needs) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-mint">
                   <div
-                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-primary'}`}
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-warning' : 'bg-forest dark:bg-lime'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -544,21 +553,21 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
 
           {/* Wants */}
-          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
-            <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-2 rounded-2xl bg-surface-container-low p-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
-                <span className="font-bold text-on-surface">{t(m.tabs.trends.wantsLabel, { percent: formatLocalizedPercent(Math.round(strategy.wantsRatio * 100), intlLocale) })}</span>
+                <span className="size-2.5 rounded-full bg-lime-deep" />
+                <span className="text-[13px] font-semibold text-on-surface">{t(m.tabs.trends.wantsLabel, { percent: formatLocalizedPercent(Math.round(strategy.wantsRatio * 100), intlLocale) })}</span>
               </div>
-              <span className="font-bold text-[14px] font-mono text-on-surface">{format(spent.wants)}</span>
+              <span className="tabular text-[13px] font-semibold text-on-surface">{format(spent.wants)}</span>
             </div>
             {(() => {
               const env = calculateEnvelopeAmounts(month.totalBudget, month.strategyId, month.customRatios);
               const pct = env.wants > 0 ? Math.min(100, Math.round((spent.wants / env.wants) * 100)) : 0;
               return (
-                <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-mint">
                   <div
-                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-warning' : 'bg-secondary'}`}
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-warning' : 'bg-lime-deep'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
