@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, getDoc, getFirestore, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, getDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
@@ -30,7 +31,7 @@ const CODE_PLACEHOLDER_FALLBACK = 'ABC123';
 export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
   const { user } = useAuth();
   const { messages: m } = useLanguage();
-  const db = getFirestore();
+  const db = firestoreDb;
   const [code, setCode] = useState(initialCode ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
     e.preventDefault();
     setError(null);
     setCodeError(null);
-    if (!user) {
+    if (!user || !db) {
       setError('genericError');
       return;
     }
@@ -175,7 +176,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
           <button
             type="submit"
             disabled={submitting || !code.trim()}
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <AppIcon name="login" className="text-[18px]" />
             <span>{submitting ? m.darat.join.joining : m.darat.join.join}</span>

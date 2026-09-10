@@ -65,7 +65,7 @@ export function InstallBanner() {
             type="button"
             onClick={handleInstall}
             disabled={isPrompting}
-            className="shrink-0 rounded-xl bg-primary px-4 py-2 font-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="shrink-0 rounded-full bg-primary px-4 py-2 font-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:opacity-60"
           >
             {m.pwa.install}
           </button>

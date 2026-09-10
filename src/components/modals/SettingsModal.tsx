@@ -118,7 +118,7 @@ export function SettingsModal({ isOpen, onClose, onOpenProModal }: SettingsModal
                       <button
                         type="button"
                         onClick={handleSaveName}
-                        className="flex-1 py-1.5 bg-primary text-on-primary rounded-lg font-label-sm text-label-sm font-bold hover:bg-primary/90 transition-all"
+                        className="flex-1 py-1.5 bg-primary text-on-primary rounded-full font-label-sm text-label-sm font-bold hover:bg-primary/90 transition-all"
                       >{m.common.save}</button>
                       <button
                         type="button"
@@ -169,7 +169,7 @@ export function SettingsModal({ isOpen, onClose, onOpenProModal }: SettingsModal
             <button
               type="button"
               onClick={onOpenProModal}
-              className="w-full bg-primary hover:bg-primary/90 text-on-primary py-3.5 rounded-xl font-label-lg text-label-lg font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-primary hover:bg-primary/90 text-on-primary py-3.5 rounded-full font-label-lg text-label-lg font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <AppIcon name="workspace_premium" className="text-[20px]" />
               <span>{m.profile.upgradeToPro}</span>
@@ -321,7 +321,7 @@ export function SettingsModal({ isOpen, onClose, onOpenProModal }: SettingsModal
             ) : (
               <a
                 href="/login"
-                className="w-full text-center py-3.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary/90 transition-all shadow-sm block"
+                className="w-full text-center py-3.5 rounded-full bg-primary text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary/90 transition-all shadow-sm block"
               >{m.auth.signIn}</a>
             )}
           </div>

@@ -76,7 +76,7 @@ export function DebtPayoffPlanner({ month, unlocked, onUpgrade }: DebtPayoffPlan
   if (openDebts.length === 0) return null;
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-5 shadow-2xs">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
       <h3 className="flex items-center gap-2 font-bold text-on-surface">
         <AppIcon name="flag" className="text-[20px] text-primary" />
         {p.title}

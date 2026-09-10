@@ -18,9 +18,13 @@ export function ContributorInvoiceForm() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
-  const [payerMemberId, setPayer] = useState('household');
+  const [payer, setPayer] = useState('household');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
+  // Pooled funds are offered only when the roster lists someone besides the
+  // signed-in member; fall back to "Me" so the select never holds a value
+  // that has no chip.
+  const payerMemberId = payers.some((option) => option.id === payer) ? payer : 'self';
 
   // The submission flow exists for restricted members only (contributor, or a
   // custom role capped at `editOwn` on invoices): they cannot write the shared
@@ -106,7 +110,7 @@ export function ContributorInvoiceForm() {
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary disabled:opacity-50 sm:col-span-2"
+          className="flex items-center justify-center gap-2 rounded-full bg-primary py-3 font-bold text-on-primary disabled:opacity-50 sm:col-span-2"
         >
           <AppIcon name="receipt_long" className="text-[18px]" />
           {saving ? copy.submitting : copy.submit}

@@ -143,8 +143,8 @@ export function renderReportHtml(
   body { font: 13px/1.5 -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", Arial, sans-serif; color: #10201d; margin: 0; padding: 32px; background: #fff; }
   h1 { font-size: 22px; margin: 0; }
   h2 { font-size: 14px; margin: 28px 0 8px; text-transform: uppercase; letter-spacing: .08em; color: #4a625d; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #00685f; padding-bottom: 12px; }
-  .brand { color: #00685f; font-weight: 800; font-size: 16px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f3b36; padding-bottom: 12px; }
+  .brand { color: #0f3b36; font-weight: 800; font-size: 16px; }
   .muted { color: #4a625d; font-size: 12px; }
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 18px; }
   .kpi { border: 1px solid #c4cbc8; border-radius: 12px; padding: 10px 12px; }
@@ -155,7 +155,7 @@ export function renderReportHtml(
   th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #4a625d; }
   .num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
   .bar { height: 6px; background: #e3e8e6; border-radius: 99px; overflow: hidden; min-width: 90px; }
-  .bar i { display: block; height: 100%; background: #00685f; }
+  .bar i { display: block; height: 100%; background: #0f3b36; }
   .bar i.over { background: #ba1a1a; }
   .neg { color: #ba1a1a; }
   footer { margin-top: 32px; font-size: 11px; color: #4a625d; border-top: 1px solid #e3e8e6; padding-top: 10px; }

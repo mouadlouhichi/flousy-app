@@ -287,7 +287,19 @@
     "savingsActivity": "Épargne",
     "upcomingBills": "Factures à venir",
     "dueToday": "Dû aujourd’hui",
-    "dueInDays": "Dû dans {days} jours"
+    "dueInDays": "Dû dans {days} jours",
+    "greeting": "Bonjour {name},",
+    "welcomeBack": "Bon retour !",
+    "overviewSubtitle": "Voici l'aperçu de vos comptes",
+    "thisMonth": "Ce mois-ci",
+    "vsLastMonth": "vs mois dernier",
+    "balanceOverview": "Aperçu de votre solde",
+    "spentSoFar": "Dépensé à ce jour",
+    "incomeThisMonth": "Revenus",
+    "expensesTitle": "Dépenses",
+    "netThisMonth": "Reste à dépenser",
+    "places": "Emplacements",
+    "viewStatement": "Voir le relevé {name}"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",
@@ -429,7 +441,15 @@
       "walletLabel": "Portefeuille ({balance})",
       "betweenAccounts": "Transfert entre comptes",
       "previewAfter": "Aperçu après le transfert",
-      "samePlaces": "Choisissez deux emplacements d’argent différents"
+      "samePlaces": "Choisissez deux emplacements d’argent différents",
+      "swap": "Inverser",
+      "currentBalance": "Solde actuel : {amount}",
+      "afterTransfer": "Après le transfert",
+      "youMove": "Vous déplacez",
+      "theyGet": "Vers",
+      "swipeHint": "Saisissez un montant pour activer le glissement.",
+      "swipeToConfirm": "Glissez le bouton jusqu’au bout pour déplacer l’argent.",
+      "moved": "Transféré"
     },
     "debt": {
       "addTitle": "Ajouter Dette",
@@ -530,7 +550,13 @@
       "cashAdjustmentError": "Cette modification réduirait le revenu reçu en dessous de l’argent déjà dépensé. Ajoutez des fonds ou rapprochez d’abord le solde bancaire.",
       "carriedOver": "Solde reporté",
       "multiSourceProTitle": "Plusieurs sources de revenus est une fonction Pro",
-      "multiSourceProBody": "Démarrez votre essai gratuit de 90 jours pour suivre plusieurs revenus."
+      "multiSourceProBody": "Démarrez votre essai gratuit de 90 jours pour suivre plusieurs revenus.",
+      "incomeKind": "Type de revenu",
+      "kindMonthly": "Mensuel",
+      "kindOneTime": "Ponctuel",
+      "monthlyHint": "Un revenu mensuel (salaire, loyer perçu) — reporté dans chaque nouvelle période de paie.",
+      "oneTimeHint": "Un montant fixe pour cette période seulement (prime, cadeau, remboursement, vente) — il ne se répétera pas le mois prochain.",
+      "oneTimeNamePlaceholder": "De quoi s’agit-il ? (ex. Prime, Cadeau, Remboursement)"
     },
     "pro": {
       "title": "Passer à SmartJib Pro",
@@ -715,7 +741,14 @@
       "rangeLabel": "Période affichée",
       "last6Months": "6 mois",
       "last12Months": "12 mois",
-      "netSaved": "Épargne nette"
+      "netSaved": "Épargne nette",
+      "balanceOverview": "Aperçu du solde",
+      "viewsLabel": "Vues de l’aperçu du solde",
+      "vsLastMonth": "vs le mois dernier",
+      "noHistoryYet": "Pas encore d’historique — la courbe est indicative jusqu’à la clôture d’un deuxième mois.",
+      "householdFundsNote": "« Fonds du foyer » désigne l’argent payé depuis la cagnotte commune plutôt que par une personne. Il figure ici pour information et reste hors de la part de chaque membre dans le règlement.",
+      "householdFundsNoteEmpty": "Marquez une dépense « Fonds du foyer » quand elle est payée depuis la cagnotte commune plutôt que par une personne. Le règlement de la page Foyer la garde alors hors de la part de chacun.",
+      "householdFundsLink": "Ouvrir le règlement"
     }
   },
   "courses": {

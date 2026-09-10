@@ -53,8 +53,8 @@ export function GuidesSection() {
     <section id="guides" className="relative py-24 lg:py-32 border-t border-foreground/10">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         <div className="mb-16 lg:mb-20 max-w-3xl">
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-            <span className="w-8 h-px bg-foreground/30" />{eyebrow}
+          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+            <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep"><span className="size-1.5 rounded-full bg-forest-deep" /></span>{eyebrow}
           </span>
           <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-6">
             {titleLine1}

@@ -112,7 +112,7 @@ export function DebtsTab({
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-3xl border border-outline-variant/80 bg-surface-container p-5 shadow-2xs sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="flex flex-col gap-4 rounded-3xl border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">{label}</span>
           <div className="mt-1 flex items-baseline gap-1.5">
@@ -124,7 +124,7 @@ export function DebtsTab({
           </span>
         </div>
         {canEdit && (
-          <button type="button" onClick={openAddModal} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm sm:w-auto sm:self-start">
+          <button type="button" onClick={openAddModal} className="flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-sm sm:w-auto sm:self-start">
             <AppIcon name="add" className="text-[18px]" />{m.common.add}
           </button>
         )}
@@ -139,7 +139,7 @@ export function DebtsTab({
             const paid = Math.max(0, debt.amount - outstanding);
             const expanded = expandedId === debt.id;
             return (
-              <article key={debt.id} className="rounded-2xl border border-outline-variant/80 bg-surface-container p-4 shadow-2xs">
+              <article key={debt.id} className="rounded-2xl border border-outline-variant/80 bg-surface-container p-4 shadow-ambient">
                 <div className="flex items-center justify-between gap-3">
                   <button type="button" onClick={() => openPayment(debt)} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                     <span className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant' : 'bg-primary/10 text-primary'}`}>
@@ -153,7 +153,7 @@ export function DebtsTab({
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="flex flex-col items-end gap-1">
                       <span className={`font-mono text-[16px] font-extrabold ${debt.status === 'settled' ? 'text-on-surface-variant line-through' : 'text-on-surface'}`}>{format(outstanding)}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant' : 'bg-amber-50 text-amber-700'}`}>{localizeDebtStatus(debt.status, m)}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${debt.status === 'settled' ? 'bg-surface-container text-on-surface-variant' : 'bg-warning/10 text-warning'}`}>{localizeDebtStatus(debt.status, m)}</span>
                     </div>
                     {canEdit && <button type="button" onClick={() => onEditDebt(debt)} aria-label={m.common.edit} className="rounded-full p-2 text-on-surface-variant hover:bg-surface-variant"><AppIcon name="edit" className="text-[18px]" /></button>}
                   </div>
@@ -188,7 +188,7 @@ export function DebtsTab({
                           <input value={note} onChange={(event) => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-outline-variant bg-surface-container p-2.5 text-on-surface" />
                         </label>
                         {error && <p role="alert" className="text-xs font-bold text-error sm:col-span-2">{error}</p>}
-                        <button type="button" onClick={() => submitPayment(debt)} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary sm:col-span-2">
+                        <button type="button" onClick={() => submitPayment(debt)} className="rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-on-primary sm:col-span-2">
                           {debt.type === 'debt' ? m.tabs.debts.recordPayment : m.tabs.debts.recordReceipt}
                         </button>
                       </div>
@@ -204,7 +204,7 @@ export function DebtsTab({
           <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10"><AppIcon name="account_balance" className="text-[40px] text-primary" /></div>
           <h3 className="text-[22px] font-extrabold text-on-surface">{emptyTitle}</h3>
           <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-on-surface-variant">{emptyDesc}</p>
-          {canEdit && <button type="button" onClick={openAddModal} className="mt-6 flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm"><AppIcon name="add" className="text-[18px]" />{activeTab === 'debts' ? m.modals.debt.addTitle : m.modals.debt.addCredit}</button>}
+          {canEdit && <button type="button" onClick={openAddModal} className="mt-6 flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-sm"><AppIcon name="add" className="text-[18px]" />{activeTab === 'debts' ? m.modals.debt.addTitle : m.modals.debt.addCredit}</button>}
         </div>
       )}
 

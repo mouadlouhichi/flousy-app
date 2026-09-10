@@ -151,7 +151,7 @@ export function KnowledgeScreen() {
       {lookup.status === 'loading' && (
         <p className="flex items-center gap-2 rounded-3xl border border-outline-variant bg-surface-container-low p-5 font-body-md text-body-md text-on-surface-variant">
           <AppIcon name="search" className="size-5 animate-pulse text-primary" />
-          {m.common.loading} <span dir="ltr" className="font-mono">{lookup.code}</span>
+          {m.common.loading} <span dir="ltr" className="font-code">{lookup.code}</span>
         </p>
       )}
 
@@ -185,7 +185,7 @@ export function KnowledgeScreen() {
               <div>
                 <h2 className="font-headline-sm text-headline-sm text-on-surface">{g.notFoundTitle}</h2>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">{g.notFoundHint}</p>
-                <p dir="ltr" className="font-mono text-sm text-on-surface-variant">{unresolvedBarcode}</p>
+                <p dir="ltr" className="font-code text-sm text-on-surface-variant">{unresolvedBarcode}</p>
               </div>
             </div>
           )}

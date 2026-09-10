@@ -13,17 +13,17 @@ export const CustomTextarea = forwardRef<HTMLTextAreaElement, CustomTextareaProp
     return (
       <div className="flex flex-col gap-sm">
         {label && (
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+          <label className="text-[12px] font-medium text-on-surface-variant">
             {label}
           </label>
         )}
         <textarea
           ref={ref}
           className={cn(
-            'w-full min-h-[120px] px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl',
+            'w-full min-h-[120px] px-4 py-3 bg-surface-container-lowest border border-outline-variant rounded-2xl',
             'font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50',
-            'hover:border-outline hover:bg-surface-container-low',
-            'focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+            'hover:border-outline/60',
+            'focus:border-primary focus:ring-[3px] focus:ring-primary/15 focus:outline-none',
             'transition-all duration-200 resize-y',
             error && 'border-error focus:border-error focus:ring-error/20',
             'disabled:opacity-50 disabled:cursor-not-allowed',

@@ -3,12 +3,20 @@
 import { useRef } from "react";
 import { useAnimatedCanvas } from "./use-animated-canvas";
 
+// Forest ink in light mode, lime in dark mode — read once per frame so the
+// canvases follow the theme toggle without a remount.
+function ink(): string {
+  if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) return "197, 230, 166";
+  return "15, 59, 54";
+}
+
 const chars = "░▒▓█▀▄▌▐│─┤├┴┬╭╮╰╯";
 
 function drawSphere(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) {
   const rect = canvas.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return;
   ctx.clearRect(0, 0, rect.width, rect.height);
+  const INK = ink();
 
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
@@ -54,7 +62,7 @@ function drawSphere(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ti
 
   points.forEach((point) => {
     const alpha = 0.2 + (point.z + 1) * 0.4;
-    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fillStyle = `rgba(${INK}, ${alpha})`;
     ctx.fillText(point.char, point.x, point.y);
   });
 }

@@ -157,7 +157,7 @@ export function HouseholdPanel({
         <button
           type="button"
           onClick={onOpenPro}
-          className="mt-1 w-full max-w-xs rounded-xl bg-primary py-3 font-bold text-on-primary"
+          className="mt-1 w-full max-w-xs rounded-full bg-primary py-3 font-bold text-on-primary"
         >
           {h.unlockWithPro}
         </button>
@@ -174,7 +174,7 @@ export function HouseholdPanel({
               <button
                 type="button"
                 onClick={onOpenPro}
-                className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary"
+                className="w-full rounded-full bg-primary py-3 font-bold text-on-primary"
               >
                 {h.unlockWithPro}
               </button>
@@ -196,7 +196,7 @@ export function HouseholdPanel({
                       setNotice(h.householdCreated);
                     })
                   }
-                  className="w-full rounded-xl bg-primary py-3 font-bold text-on-primary disabled:opacity-50"
+                  className="w-full rounded-full bg-primary py-3 font-bold text-on-primary disabled:opacity-50"
                 >
                   {h.createHousehold}
                 </button>
@@ -223,7 +223,7 @@ export function HouseholdPanel({
                       setNotice(h.joined);
                     })
                   }
-                  className="rounded-xl bg-primary px-4 font-bold text-on-primary disabled:opacity-50"
+                  className="rounded-full bg-primary px-4 font-bold text-on-primary disabled:opacity-50"
                 >
                   {h.join}
                 </button>
@@ -261,7 +261,7 @@ export function HouseholdPanel({
                   <button
                     type="submit"
                     disabled={busy}
-                    className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
+                    className="rounded-full bg-primary px-3 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
                   >
                     {m.common.save}
                   </button>
@@ -493,7 +493,7 @@ export function HouseholdPanel({
                         setMemberName('');
                       })
                     }
-                    className="rounded-xl bg-primary px-3 py-3 font-bold text-on-primary disabled:opacity-50"
+                    className="rounded-full bg-primary px-3 py-3 font-bold text-on-primary disabled:opacity-50"
                   >
                     {h.send}
                   </button>
@@ -526,7 +526,7 @@ export function HouseholdPanel({
                             setCopied(false);
                           }
                         }}
-                        className="rounded-xl bg-primary px-3 py-2 text-sm font-bold text-on-primary"
+                        className="rounded-full bg-primary px-3 py-2 text-sm font-bold text-on-primary"
                       >
                         {copied ? h.copied : h.copyCode}
                       </button>
@@ -669,7 +669,7 @@ function MemberEditor({
               permissions: role === 'custom' ? permissions : undefined,
             })
           }
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+          className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary"
         >
           {m.common.save}
         </button>

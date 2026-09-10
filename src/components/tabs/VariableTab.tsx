@@ -11,7 +11,7 @@ import { useHousehold } from '../../lib/household-context';
 import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
-import { localizeCategoryName, localizePersonName, localizePlaceName } from '@/lib/localized-labels';
+import { localizeCategoryName, localizePersonName, localizePlaceName, payerKey } from '@/lib/localized-labels';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { IconSelect } from '@/components/ui/icon-select';
 import { ExpenseSort, sortVariableExpenses } from '@/lib/expense-sort';
@@ -51,9 +51,8 @@ export function VariableTab({
   const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
-  const { workspace, household } = useHousehold();
+  const { workspace, household, myMemberId } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -63,12 +62,9 @@ export function VariableTab({
   const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const categories = ['All', ...(month.activeCategories || [])];
-  const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
-
   const filteredExpenses = sortVariableExpenses(
     (month.variableExpenses || []).filter((exp) => {
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
-      const matchesPerson = selectedPerson === 'All' || (exp.person || 'Self') === selectedPerson;
       const matchesSearch =
         exp.name.toLowerCase().includes(search.toLowerCase()) ||
         exp.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -77,7 +73,7 @@ export function VariableTab({
       const rangeEnd = dateTo || dateFrom;
       const matchesFrom = !dateFrom || day >= dateFrom;
       const matchesTo = !rangeEnd || day <= rangeEnd;
-      return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
+      return matchesCategory && matchesSearch && matchesFrom && matchesTo;
     }),
     sortBy,
     intlLocale,
@@ -128,7 +124,7 @@ export function VariableTab({
         {canEdit && (
           <button
             onClick={onOpenAddModal}
-            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-full font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
           >
             <AppIcon name="add" className=" text-[20px]" />
             <span>{m.tabs.variable.addExpense}</span>
@@ -139,7 +135,7 @@ export function VariableTab({
       <button
         type="button"
         onClick={() => router.push('/dashboard/courses')}
-        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
+        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-lowest px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <AppIcon name="scan_barcode" className="text-[22px]" />
@@ -156,7 +152,7 @@ export function VariableTab({
       </button>
 
       {/* Category Budgets (Pro Feature) */}
-      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-2xs">
+      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-ambient">
         <button
           type="button"
           onClick={() => setBudgetsOpen((open) => !open)}
@@ -310,7 +306,7 @@ export function VariableTab({
                     <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-500 rounded-full ${
-                          isOverBudget ? 'bg-error' : progress >= 80 ? 'bg-amber-500' : 'bg-primary'
+                          isOverBudget ? 'bg-error' : progress >= 80 ? 'bg-warning' : 'bg-forest dark:bg-lime'
                         }`}
                         style={{ width: `${progress}%` }}
                       />
@@ -345,7 +341,7 @@ export function VariableTab({
               onChange={(e) => setSearch(e.target.value)}
               placeholder={m.tabs.variable.searchPlaceholder}
               aria-label={m.tabs.variable.searchPlaceholder}
-              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-ambient"
             />
           </div>
           <DateRangePicker
@@ -410,7 +406,7 @@ export function VariableTab({
                   onEditExpense(exp);
                 }
               } : undefined}
-              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
+              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-ambient ${
                 canEdit ? 'hover:border-primary cursor-pointer' : ''
               }`}
             >
@@ -423,7 +419,7 @@ export function VariableTab({
                     <span className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-semibold">
                       {exp.name}
                     </span>
-                    {exp.person && exp.person !== 'Self' && (
+                    {payerKey(exp.person, exp.payerMemberId, myMemberId) !== 'self' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(exp.person, m)}
                       </span>

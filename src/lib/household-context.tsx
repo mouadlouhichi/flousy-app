@@ -38,6 +38,7 @@ import {
   type HouseholdInvite,
   type HouseholdMember,
   type HouseholdPayer,
+  householdPayerOptions,
   type HouseholdRole,
   type WorkspaceKind,
 } from './household';
@@ -98,6 +99,8 @@ export type HouseholdContextValue = {
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
   payers: HouseholdPayer[];
+  /** The signed-in user's own roster row id (undefined outside a household). */
+  myMemberId?: string;
   pendingInvites: HouseholdInvite[];
   create: (name: string, kind?: WorkspaceKind) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
@@ -340,20 +343,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) {
-      return [
-        { id: 'self', label: m.household.me },
-        { id: 'household', label: m.household.funds },
-        ...members
-          .filter((member) => member.status === 'active')
-          .map((member) => ({ id: member.id, label: member.displayName, color: member.avatarColor })),
-      ];
+      return householdPayerOptions(members, user?.uid, { me: m.household.me, funds: m.household.funds });
     }
     const legacy = profile?.householdMembers || [];
     return [
       { id: 'self', label: m.household.me },
       ...legacy.map((label, index) => ({ id: `legacy-${index}`, label, color: COLORS[index % COLORS.length] })),
     ];
-  }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
+  }, [household, members, user?.uid, profile?.householdMembers, m.household.funds, m.household.me]);
 
   const create = useCallback(async (name: string, kind: WorkspaceKind = 'household') => {
     if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
@@ -722,6 +719,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     exportSections,
     householdAccess: access,
     payers,
+    myMemberId: myMember?.id,
     pendingInvites,
     create,
     addProfile,

@@ -61,7 +61,7 @@ export default function ErrorPage({ error, reset }: { error?: Error; reset?: () 
       {reset && (
         <button
           onClick={reset}
-          className="mt-sm px-6 py-3 bg-primary text-on-primary font-headline-md text-headline-md rounded-xl shadow-sm hover:bg-primary-container"
+          className="mt-sm px-6 py-3 bg-primary text-on-primary font-headline-md text-headline-md rounded-full shadow-sm hover:bg-primary-container"
         >
           {m.errors.tryAgain}
         </button>

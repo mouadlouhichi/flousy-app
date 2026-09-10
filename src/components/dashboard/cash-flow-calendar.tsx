@@ -66,10 +66,10 @@ export function CashFlowCalendar({ month, forecastUnlocked, onUpgrade, showIncom
   const showsTwoMonths = days.length > 0 && days[0]!.date.slice(0, 7) !== days[days.length - 1]!.date.slice(0, 7);
 
   const balanceTone = (balance: number) =>
-    balance < 0 ? 'text-error' : balance < forecast.startingCash * 0.15 ? 'text-amber-600 dark:text-amber-400' : 'text-primary';
+    balance < 0 ? 'text-error' : balance < forecast.startingCash * 0.15 ? 'text-warning' : 'text-primary';
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-4 sm:p-5">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-bold text-on-surface">
           <AppIcon name="calendar_month" className="text-[20px] text-primary" />

@@ -34,8 +34,8 @@
       "purpose": "any"
     }
   ],
-  "theme_color": "#00685f",
-  "background_color": "#f5faf8",
+  "theme_color": "#0f3b36",
+  "background_color": "#f3f7f3",
   "display": "standalone",
   "start_url": "/dashboard",
   "scope": "/"

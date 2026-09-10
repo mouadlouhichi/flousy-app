@@ -166,7 +166,7 @@ export function BlogArticle({ slug }: { slug: string }) {
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-white hover:bg-accent-foreground"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-on-primary hover:bg-primary-hover"
               >
                 {s.startBudgeting}
                 <ArrowRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} />

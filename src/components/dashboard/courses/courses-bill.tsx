@@ -158,7 +158,7 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
       <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-5 md:p-6">
         <pre
           dir={isRTL ? 'rtl' : 'ltr'}
-          className="font-mono text-[12px] md:text-[13px] leading-relaxed text-on-surface whitespace-pre text-start"
+          className="font-code text-[12px] md:text-[13px] leading-relaxed text-on-surface whitespace-pre text-start"
         >
           {billText}
         </pre>

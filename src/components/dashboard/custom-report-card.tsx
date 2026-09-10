@@ -93,7 +93,7 @@ export function CustomReportCard({ months, unlocked, onUpgrade, canSeeFixedBills
   const pct = (v: number) => new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(v);
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-5 sm:p-6">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5 sm:p-6">
       <div className="mb-4 flex items-center gap-2">
         <AppIcon name="dataset" className="text-[24px] text-primary" />
         <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{r.title}</h3>

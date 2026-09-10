@@ -13,27 +13,24 @@ import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import '@fontsource-variable/cairo/wght.css';
 
-const instrumentSans = localFont({
-  // Single latin file: its unicode-range covers ASCII + Latin-1 (é è ç à « »)
-  // + œ, i.e. everything the en/fr UI renders — Arabic is served by Cairo.
-  // The latin-ext file used to be declared too, and next/font preloads every
-  // src entry, so every first visit high-priority-downloaded ~11 KiB of
-  // glyphs (ă, ș, ą… U+0100-024F) no supported language uses, competing with
-  // the hero font during LCP. Extended glyphs now fall back to the system
-  // sans for those rare cases.
+const jakartaSans = localFont({
+  // Plus Jakarta Sans — the geometric grotesque behind the rebrand (large
+  // tabular balance figures, soft headline curves). Single latin file: its
+  // unicode-range covers ASCII + Latin-1 (é è ç à « ») + œ, i.e. everything
+  // the en/fr UI renders — Arabic is served by Cairo. next/font preloads
+  // every src entry, so the latin-ext subset is intentionally left out to
+  // keep the LCP font request small.
   src: [
     {
-      path: './fonts/instrument-sans-latin-wght-normal.woff2',
-      weight: '400 700',
+      path: './fonts/plus-jakarta-sans-latin-wght-normal.woff2',
+      weight: '200 800',
       style: 'normal',
     },
   ],
-  variable: '--font-instrument',
+  variable: '--font-jakarta',
   // `swap` + preload: first paint happens in next/font's size-adjusted
   // system-ui fallback (so the font never blocks LCP text), then swaps to
-  // Instrument Sans with near-zero CLS. (Measured against `optional`, which
-  // made no simulated-LCP difference and only risked never showing the brand
-  // font on slow connections.)
+  // the brand font with near-zero CLS.
   display: 'swap',
   preload: true,
 });
@@ -114,7 +111,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#00685f',
+  themeColor: '#0f3b36',
   colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
@@ -140,7 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       dir="ltr"
       suppressHydrationWarning
-      className={instrumentSans.variable}
+      className={jakartaSans.variable}
     >
       <head>
         {/*

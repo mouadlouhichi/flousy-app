@@ -27,12 +27,12 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
             gap: '12px',
             padding: '24px',
             textAlign: 'center',
-            background: '#faf9f7',
-            color: '#1c1b1a',
+            background: '#f3f7f3',
+            color: '#0e1a17',
           }}
         >
           <h1 style={{ fontSize: '22px', margin: 0 }}>Something went wrong</h1>
-          <p style={{ maxWidth: '420px', margin: 0, color: '#5f5e5a' }}>
+          <p style={{ maxWidth: '420px', margin: 0, color: '#5b6b63' }}>
             The app hit an unexpected error. Your data is safe — reloading usually fixes it.
           </p>
           <button
@@ -40,9 +40,9 @@ export default function GlobalError({ error, reset }: { error: Error; reset: () 
             style={{
               marginTop: '8px',
               padding: '12px 24px',
-              borderRadius: '12px',
+              borderRadius: '9999px',
               border: 'none',
-              background: '#00685f',
+              background: '#0f3b36',
               color: '#ffffff',
               fontSize: '15px',
               fontWeight: 700,

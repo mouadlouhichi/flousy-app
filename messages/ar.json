@@ -287,7 +287,19 @@
     "savingsActivity": "الادخار",
     "upcomingBills": "فواتير قادمة",
     "dueToday": "يُستحق اليوم",
-    "dueInDays": "يُستحق خلال {days} أيام"
+    "dueInDays": "يُستحق خلال {days} أيام",
+    "greeting": "مرحباً {name}،",
+    "welcomeBack": "أهلاً بعودتك!",
+    "overviewSubtitle": "إليك آخر نظرة عامة على حساباتك",
+    "thisMonth": "هذا الشهر",
+    "vsLastMonth": "مقارنة بالشهر الماضي",
+    "balanceOverview": "نظرة عامة على رصيدك",
+    "spentSoFar": "المصروف حتى الآن",
+    "incomeThisMonth": "الدخل",
+    "expensesTitle": "المصاريف",
+    "netThisMonth": "المتبقي للإنفاق",
+    "places": "أماكن المال",
+    "viewStatement": "عرض كشف {name}"
   },
   "budgetPlan": {
     "totalIncome": "إجمالي الدخل",
@@ -429,7 +441,15 @@
       "walletLabel": "المحفظة ({balance})",
       "betweenAccounts": "تحويل بين الحسابات",
       "previewAfter": "معاينة بعد التحويل",
-      "samePlaces": "اختر موقعين ماليين مختلفين"
+      "samePlaces": "اختر موقعين ماليين مختلفين",
+      "swap": "تبديل",
+      "currentBalance": "الرصيد الحالي: {amount}",
+      "afterTransfer": "بعد التحويل",
+      "youMove": "تنقل",
+      "theyGet": "إلى",
+      "swipeHint": "أدخل مبلغًا لتفعيل السحب.",
+      "swipeToConfirm": "اسحب الزر حتى النهاية لنقل المال.",
+      "moved": "تم النقل"
     },
     "debt": {
       "addTitle": "إضافة دين",
@@ -530,7 +550,13 @@
       "cashAdjustmentError": "سيؤدي هذا التغيير إلى خفض الدخل المستلم إلى أقل من الأموال التي تم إنفاقها. أضف أموالًا أو طابق رصيد البنك أولًا.",
       "carriedOver": "رصيد مرحّل",
       "multiSourceProTitle": "تعدد مصادر الدخل ميزة Pro",
-      "multiSourceProBody": "ابدأ تجربة Pro المجانية لمدة 90 يومًا لتتبع عدة مصادر دخل."
+      "multiSourceProBody": "ابدأ تجربة Pro المجانية لمدة 90 يومًا لتتبع عدة مصادر دخل.",
+      "incomeKind": "نوع الدخل",
+      "kindMonthly": "شهري",
+      "kindOneTime": "لمرة واحدة",
+      "monthlyHint": "دخل شهري (راتب، إيجار تتلقاه) — يُرحَّل إلى كل فترة راتب جديدة.",
+      "oneTimeHint": "مبلغ ثابت لهذه الفترة فقط (مكافأة، هدية، استرداد، بيع) — لن يتكرر الشهر المقبل.",
+      "oneTimeNamePlaceholder": "ما هو؟ (مثال: مكافأة، هدية، استرداد)"
     },
     "pro": {
       "title": "الترقية إلى سمارت جيب برو",
@@ -715,7 +741,14 @@
       "rangeLabel": "النطاق الزمني",
       "last6Months": "6 أشهر",
       "last12Months": "12 شهرًا",
-      "netSaved": "صافي التوفير"
+      "netSaved": "صافي التوفير",
+      "balanceOverview": "ملخص الرصيد",
+      "viewsLabel": "طرق عرض ملخص الرصيد",
+      "vsLastMonth": "مقارنة بالشهر الماضي",
+      "noHistoryYet": "لا يوجد سجل بعد — المنحنى توضيحي حتى يُغلق شهر ثانٍ.",
+      "householdFundsNote": "«أموال الأسرة» هي مبالغ مدفوعة من الصندوق المشترك وليس من شخص واحد. تظهر هنا للاكتمال وتبقى خارج حصة كل فرد في التسوية.",
+      "householdFundsNoteEmpty": "ضع وسم «أموال الأسرة» على المصروف عندما يُدفع من الصندوق المشترك وليس من شخص واحد. عندها تُبقيه التسوية في صفحة الأسرة خارج حصة الجميع.",
+      "householdFundsLink": "فتح التسوية"
     }
   },
   "courses": {

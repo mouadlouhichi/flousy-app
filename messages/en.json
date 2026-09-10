@@ -287,7 +287,19 @@
     "savingsActivity": "Savings",
     "upcomingBills": "Upcoming bills",
     "dueToday": "Due today",
-    "dueInDays": "Due in {days} days"
+    "dueInDays": "Due in {days} days",
+    "greeting": "Hi {name},",
+    "welcomeBack": "Welcome back!",
+    "overviewSubtitle": "Here's your latest account overview",
+    "thisMonth": "This month",
+    "vsLastMonth": "vs last month",
+    "balanceOverview": "Your balance overview",
+    "spentSoFar": "Spent so far",
+    "incomeThisMonth": "Income",
+    "expensesTitle": "Expenses",
+    "netThisMonth": "Left to spend",
+    "places": "Money places",
+    "viewStatement": "View {name} statement"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",
@@ -429,7 +441,15 @@
       "walletLabel": "Wallet ({balance})",
       "betweenAccounts": "Transfer between accounts",
       "previewAfter": "Preview after transfer",
-      "samePlaces": "Choose two different money places"
+      "samePlaces": "Choose two different money places",
+      "swap": "Swap",
+      "currentBalance": "Current balance: {amount}",
+      "afterTransfer": "After transfer",
+      "youMove": "You move",
+      "theyGet": "Goes to",
+      "swipeHint": "Enter an amount to enable the swipe.",
+      "swipeToConfirm": "Swipe the knob to the end to move the money.",
+      "moved": "Moved"
     },
     "debt": {
       "addTitle": "Add Debt",
@@ -530,7 +550,13 @@
       "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
       "carriedOver": "Carried over",
       "multiSourceProTitle": "Multiple income sources are a Pro feature",
-      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams."
+      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams.",
+      "incomeKind": "Type of income",
+      "kindMonthly": "Monthly",
+      "kindOneTime": "One-time",
+      "monthlyHint": "A monthly stream (salary, rent you receive) — carried into every new salary period.",
+      "oneTimeHint": "A fixed amount for this period only (bonus, gift, refund, sale) — it will not repeat next month.",
+      "oneTimeNamePlaceholder": "What is it? (e.g., Bonus, Gift, Refund)"
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -715,7 +741,14 @@
       "rangeLabel": "History range",
       "last6Months": "6 months",
       "last12Months": "12 months",
-      "netSaved": "Net saved"
+      "netSaved": "Net saved",
+      "balanceOverview": "Balance overview",
+      "viewsLabel": "Balance overview views",
+      "vsLastMonth": "vs last month",
+      "noHistoryYet": "No history yet — the curve is illustrative until a second month closes.",
+      "householdFundsNote": "\"Household funds\" is money paid from the shared pot rather than by one person. It is listed here for completeness and stays out of each member’s share in the settle-up.",
+      "householdFundsNoteEmpty": "Tag an expense as \"Household funds\" when it is paid from the shared pot rather than by one person. The settle-up on the household page then keeps it out of everyone’s share.",
+      "householdFundsLink": "Open settle-up"
     }
   },
   "courses": {

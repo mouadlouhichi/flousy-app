@@ -97,7 +97,7 @@ export function HouseholdInvoiceReview() {
                   type="button"
                   disabled={busyId === invoice.id}
                   onClick={() => { void decide(invoice, 'approved'); }}
-                  className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
+                  className="rounded-full bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
                 >
                   {copy.approve}
                 </button>

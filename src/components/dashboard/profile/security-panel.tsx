@@ -94,7 +94,7 @@ export function SecurityPanel() {
 
   if (!unlocked) {
     return (
-      <section className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+      <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <AppIcon name="lock" className="text-[22px]" />
@@ -118,7 +118,7 @@ export function SecurityPanel() {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+      <div className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <AppIcon name={settings.enabled ? 'lock' : 'lock_open'} className="text-[22px]" />
@@ -146,7 +146,7 @@ export function SecurityPanel() {
                 maxLength={8}
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
+                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-code text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm font-semibold text-on-surface">
@@ -158,7 +158,7 @@ export function SecurityPanel() {
                 maxLength={8}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ''))}
-                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-mono text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
+                className="keep-font-18 rounded-2xl border border-outline-variant bg-surface px-4 py-3 font-code text-lg tracking-[0.4em] text-on-surface outline-none focus:border-primary"
               />
             </label>
             {error && <p className="text-sm font-semibold text-error">{error}</p>}
