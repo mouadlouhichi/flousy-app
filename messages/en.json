@@ -447,7 +447,9 @@
       "afterTransfer": "After transfer",
       "youMove": "You move",
       "theyGet": "Goes to",
-      "swipeHint": "Confirm to move the money now."
+      "swipeHint": "Enter an amount to enable the swipe.",
+      "swipeToConfirm": "Swipe the knob to the end to move the money.",
+      "moved": "Moved"
     },
     "debt": {
       "addTitle": "Add Debt",

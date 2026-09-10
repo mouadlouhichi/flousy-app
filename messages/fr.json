@@ -447,7 +447,9 @@
       "afterTransfer": "Après le transfert",
       "youMove": "Vous déplacez",
       "theyGet": "Vers",
-      "swipeHint": "Confirmez pour déplacer l’argent maintenant."
+      "swipeHint": "Saisissez un montant pour activer le glissement.",
+      "swipeToConfirm": "Glissez le bouton jusqu’au bout pour déplacer l’argent.",
+      "moved": "Transféré"
     },
     "debt": {
       "addTitle": "Ajouter Dette",

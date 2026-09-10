@@ -6,6 +6,7 @@ import { useMoneyPlaces } from '../../lib/use-money-places';
 import { moveMoneySchema } from '../../lib/validation';
 import { AmountSymbol } from '../ui/amount-symbol';
 import { MoneyFigure } from '../ui/money-figure';
+import { SwipeToConfirm } from '../ui/swipe-to-confirm';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,7 @@ interface MoveMoneyModalProps {
  */
 export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModalProps) {
   const { symbol, format, formatParts } = useCurrency();
-  const { messages: m, t } = useLanguage();
+  const { messages: m, t, isRTL } = useLanguage();
   const mm = m.modals.moveMoney;
   const { places, icon, label, defaultPlace } = useMoneyPlaces(month);
   const altPlace = places.find((p) => p.id !== defaultPlace)?.id || defaultPlace;
@@ -60,9 +61,8 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
     setErrors({});
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  /** Runs the schema + balance checks; surfaces errors and reports validity. */
+  const validate = (): boolean => {
     const validationResult = moveMoneySchema.safeParse({
       from,
       to,
@@ -78,17 +78,38 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
         else if (field === 'from' || field === 'to') fieldErrors[field] = mm.samePlaces;
       });
       setErrors(fieldErrors);
-      return;
+      return false;
     }
 
     if (overdrawn) {
       setErrors({ amount: t(mm.insufficientFunds, { place: label(from), amount: format(currentFromBalance) }) });
-      return;
+      return false;
     }
+    return true;
+  };
 
+  /**
+   * Swipe completion: the control has already played its success animation
+   * when this runs. Returning `false` makes the knob spring back and the
+   * track shake so an invalid amount is felt, not just read.
+   */
+  const handleConfirm = (): boolean => {
+    if (!validate()) return false;
+    onMove(from, to, parsedAmount);
+    onClose();
+    return true;
+  };
+
+  // Enter inside the amount field still submits (keyboard users shouldn't
+  // have to reach the swipe); it goes through the same validation.
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
     onMove(from, to, parsedAmount);
     onClose();
   };
+
+  const canSwipe = parsedAmount > 0 && !overdrawn && from !== to;
 
   /** "1,000" — the chip row already sits under a currency-labelled figure. */
   const compact = (value: number) => formatParts(value).amount.replace(/[.,]00$/, '');
@@ -224,22 +245,19 @@ export function MoveMoneyModal({ isOpen, onClose, onMove, month }: MoveMoneyModa
           </div>
         </dl>
 
-        {/* ── Swipe-style CTA ── */}
-        <button
-          type="submit"
-          className="group relative flex h-14 w-full items-center overflow-hidden rounded-full bg-forest px-1.5 text-[15px] font-semibold text-white shadow-forest transition-all hover:bg-forest-soft active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:bg-lime dark:text-forest-deep dark:hover:bg-lime-bright"
-        >
-          <span
-            aria-hidden
-            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-forest shadow-sm transition-transform duration-300 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 dark:bg-forest dark:text-lime"
-          >
-            <AppIcon name="chevrons_right" strokeWidth={2.4} className="text-[20px] rtl:-scale-x-100" />
-          </span>
-          <span className="flex-1 text-center">{mm.confirmTransfer}</span>
-          <span aria-hidden className="flex w-11 shrink-0 items-center justify-center text-white/35 dark:text-forest-deep/40">
-            <AppIcon name="chevrons_right" strokeWidth={2.4} className="text-[20px] rtl:-scale-x-100" />
-          </span>
-        </button>
+        {/* ── Swipe to confirm ── */}
+        <div className="flex flex-col gap-2">
+          <SwipeToConfirm
+            label={mm.confirmTransfer}
+            successLabel={mm.moved}
+            onConfirm={handleConfirm}
+            disabled={!canSwipe}
+            rtl={isRTL}
+          />
+          <p className="text-center text-[11px] font-medium text-on-surface-variant">
+            {canSwipe ? mm.swipeToConfirm : mm.swipeHint}
+          </p>
+        </div>
       </form>
     </Modal>
   );

@@ -447,7 +447,9 @@
       "afterTransfer": "بعد التحويل",
       "youMove": "تنقل",
       "theyGet": "إلى",
-      "swipeHint": "أكّد لنقل المال الآن."
+      "swipeHint": "أدخل مبلغًا لتفعيل السحب.",
+      "swipeToConfirm": "اسحب الزر حتى النهاية لنقل المال.",
+      "moved": "تم النقل"
     },
     "debt": {
       "addTitle": "إضافة دين",

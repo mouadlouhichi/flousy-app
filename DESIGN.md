@@ -150,8 +150,14 @@ hairline border, or forest when active).
   figure, and circular action buttons along the bottom arc (`aria-pressed`, active one is the forest
   pill). Each action swaps the figure/series; RTL mirrors the arc.
 - **MoveMoneyModal** (`modals/MoveMoneyModal.tsx`) — converter layout: lime "You move" card over a
-  forest "Goes to" card, white **Swap** pill on the seam, after-transfer rows, and a forest
-  swipe-style confirm button with a white chevron knob.
+  forest "Goes to" card, white **Swap** pill on the seam, after-transfer rows, and the
+  swipe-to-confirm control.
+- **SwipeToConfirm** (`ui/swipe-to-confirm.tsx`) — the reference's "Swipe" pill as a real gesture:
+  the white chevron knob drags horizontally, lime fills in behind it, the label fades out; past 85 %
+  it snaps to the end, the knob turns into a check and the track flashes "Moved" before
+  `onConfirm` fires. Released early it springs back; a rejected confirm (`onConfirm` → `false`)
+  shakes the track. Disabled until the form is valid. Enter/Space on the focused control confirms
+  for keyboard users; reduced motion skips the travel. Mirrors in RTL.
 - **StatCard** (`dashboard/stat-card.tsx`) — KPI tile in `default`, `forest` or `lime` tone with
   a diagonal arrow affordance and an optional lime delta chip.
 - **MoneyFigure** (`ui/money-figure.tsx`) — sizes `xs`–`hero`, `redacted`, `tone`
