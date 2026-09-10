@@ -78,7 +78,7 @@ const CARD = 'rounded-[1.75rem] border border-outline-variant bg-surface-contain
 export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenProModal, trendsMonthCount = 6, onSetTrendsMonthCount }: TrendsTabProps) {
   const { format } = useCurrency();
   const { messages: m, t, intlLocale, isRTL } = useLanguage();
-  const { workspace, household, members, canViewArea } = useHousehold();
+  const { workspace, household, members, myMemberId, canViewArea } = useHousehold();
   // Analytics is a roll-up of the other areas: each card is filtered by the
   // area that owns its numbers, so an analytics grant on its own does not
   // expose balances or income sources to a member who lacks those.
@@ -122,10 +122,13 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
   // older rows say "Self", and imports may carry the member id — all of which
   // are one person. Member ids resolve to the roster's display names.
   const memberNames = new Map(members.map((member) => [member.id, member.displayName]));
+  // The signed-in member's own roster row IS "Me": an expense tagged with
+  // that member id and one tagged 'self' were paid by the same person, so
+  // both land in the single "Me" row.
   const personBreakdown: Record<string, { label: string; variable: number; fixed: number }> = {};
   const addToPerson = (person: string | undefined, payerMemberId: string | undefined, kind: 'variable' | 'fixed', amount: number) => {
     if (!Number.isFinite(amount) || amount <= 0) return;
-    const key = payerKey(person, payerMemberId);
+    const key = payerKey(person, payerMemberId, myMemberId);
     if (!personBreakdown[key]) {
       const label =
         key === 'self'
@@ -611,6 +614,23 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               );
             })}
           </div>
+          {/* "Household funds" is a pooled payer, not a person. Say so here,
+              where the row appears, and point at the settle-up view that
+              breaks the pooled amount out of each member's share. */}
+          {workspace === 'household' && (
+            <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-mint/60 p-3.5 text-[12px] leading-snug text-on-surface-variant dark:bg-surface-container-high sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <p className="min-w-0">
+                {personBreakdown.household ? m.tabs.trends.householdFundsNote : m.tabs.trends.householdFundsNoteEmpty}
+              </p>
+              <Link
+                href="/dashboard/profile/household"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface-container-lowest px-3 py-1.5 font-semibold text-forest shadow-ambient transition-colors hover:bg-lime dark:text-lime dark:hover:text-forest-deep"
+              >
+                {m.tabs.trends.householdFundsLink}
+                <AppIcon name="arrow_outward" className="text-[14px] rtl:-scale-x-100" />
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

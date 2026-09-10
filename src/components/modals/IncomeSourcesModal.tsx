@@ -47,6 +47,50 @@ function formatPeriodDate(iso: string, locale: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Monthly stream vs fixed one-time amount. Rendered as a two-way segmented
+ * pill so the choice is visible at a glance (a checkbox hid what "recurring"
+ * meant for income).
+ */
+function IncomeKindToggle({
+  value,
+  onChange,
+  labels,
+  compact = false,
+}: {
+  value: boolean;
+  onChange: (recurring: boolean) => void;
+  labels: { group: string; monthly: string; oneTime: string };
+  compact?: boolean;
+}) {
+  const options: Array<{ recurring: boolean; label: string; icon: string }> = [
+    { recurring: true, label: labels.monthly, icon: 'event_repeat' },
+    { recurring: false, label: labels.oneTime, icon: 'event_upcoming' },
+  ];
+  return (
+    <div role="radiogroup" aria-label={labels.group} className="flex rounded-full border border-outline-variant bg-surface-container-lowest p-0.5">
+      {options.map((option) => {
+        const active = option.recurring === value;
+        return (
+          <button
+            key={option.label}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.recurring)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full font-bold transition-colors ${
+              compact ? 'px-2.5 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]'
+            } ${active ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
+          >
+            <AppIcon name={option.icon} className={compact ? 'text-[14px]' : 'text-[16px]'} />
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function IncomeSourcesModal({
   isOpen,
   onClose,
@@ -82,6 +126,7 @@ export function IncomeSourcesModal({
   const [editAmount, setEditAmount] = useState('');
   const [editStatus, setEditStatus] = useState<LifecycleStatus>('paid');
   const [editReceivedAmount, setEditReceivedAmount] = useState('');
+  const [editRecurring, setEditRecurring] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // New source form
@@ -91,6 +136,9 @@ export function IncomeSourcesModal({
   const [newPayDay, setNewPayDay] = useState<number | ''>('');
   const [newStatus, setNewStatus] = useState<LifecycleStatus>('planned');
   const [newReceivedAmount, setNewReceivedAmount] = useState('');
+  // Monthly stream (carried into every new salary period) vs a fixed,
+  // one-time amount (bonus, gift, refund…) that belongs to this period only.
+  const [newRecurring, setNewRecurring] = useState(true);
 
   // Edit form
   const [editPayDay, setEditPayDay] = useState<number | ''>('');
@@ -117,6 +165,7 @@ export function IncomeSourcesModal({
       setNewPayDay(defaultPayDay ?? '');
       setNewStatus('planned');
       setNewReceivedAmount('');
+      setNewRecurring(true);
       setFieldErrors({});
     }
     // `copy.primaryIncome` only seeds a newly opened form; depending on the
@@ -136,6 +185,7 @@ export function IncomeSourcesModal({
     setEditStatus('paid');
     setEditReceivedAmount('');
     setEditPayDay('');
+    setEditRecurring(true);
     setFieldErrors({});
   }, []);
 
@@ -147,6 +197,7 @@ export function IncomeSourcesModal({
     setEditStatus(src.status || 'paid');
     setEditReceivedAmount(String(incomeReceivedAmount(src)));
     setEditPayDay(src.payDay ?? '');
+    setEditRecurring(src.recurring !== false);
     setFieldErrors({});
   };
 
@@ -178,9 +229,10 @@ export function IncomeSourcesModal({
               status: editStatus,
               receivedAmount: parsedReceived,
               receivedAt: parsedReceived > 0 ? s.receivedAt || new Date().toISOString() : undefined,
-              recurring: s.recurring ?? true,
+              recurring: editRecurring,
               templateId: s.templateId || s.id,
-              payDay: editPayDay === '' ? undefined : Number(editPayDay),
+              // A one-time amount has no monthly arrival day to track.
+              payDay: !editRecurring || editPayDay === '' ? undefined : Number(editPayDay),
             }
           : s
       )
@@ -203,7 +255,7 @@ export function IncomeSourcesModal({
     if (newStatus === 'partial' && (!Number.isFinite(parsedReceived) || parsedReceived <= 0 || parsedReceived >= parsedAmount)) {
       errors.newReceivedAmount = copy.partialAmountError;
     }
-    if (newPayDay !== '' && (Number(newPayDay) < 1 || Number(newPayDay) > 31)) {
+    if (newRecurring && newPayDay !== '' && (Number(newPayDay) < 1 || Number(newPayDay) > 31)) {
       errors.newPayDay = copy.dayRange;
     }
     if (Object.keys(errors).length > 0) {
@@ -219,8 +271,10 @@ export function IncomeSourcesModal({
       status: newStatus,
       receivedAmount: parsedReceived,
       receivedAt: parsedReceived > 0 ? new Date().toISOString() : undefined,
-      recurring: true,
-      payDay: newPayDay === '' ? undefined : Number(newPayDay),
+      // `recurring: false` keeps the amount out of carryOverIncomeSources(), so
+      // a bonus logged this month never re-appears as next month's income.
+      recurring: newRecurring,
+      payDay: !newRecurring || newPayDay === '' ? undefined : Number(newPayDay),
     };
 
     setSources((prev) => [...prev, item]);
@@ -230,6 +284,7 @@ export function IncomeSourcesModal({
     setNewPayDay('');
     setNewStatus('planned');
     setNewReceivedAmount('');
+    setNewRecurring(true);
     setFieldErrors({});
   };
 
@@ -275,9 +330,9 @@ export function IncomeSourcesModal({
               status: editStatus,
               receivedAmount: parsedReceived,
               receivedAt: parsedReceived > 0 ? source.receivedAt || new Date().toISOString() : undefined,
-              recurring: source.recurring ?? true,
+              recurring: editRecurring,
               templateId: source.templateId || source.id,
-              payDay: editPayDay === '' ? undefined : Number(editPayDay),
+              payDay: !editRecurring || editPayDay === '' ? undefined : Number(editPayDay),
             }
           : source,
       );
@@ -317,7 +372,7 @@ export function IncomeSourcesModal({
               </span>
             </div>
             <p className="mt-1 text-xs font-bold text-primary">
-              {t(copy.receivedSummary, { amount: format(receivedCalculated) })}
+              {t(copy.receivedSummary, { received: format(receivedCalculated), expected: format(totalCalculated) })}
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -391,6 +446,12 @@ export function IncomeSourcesModal({
                           )}
                         </div>
                       </div>
+                      <IncomeKindToggle
+                        value={editRecurring}
+                        onChange={setEditRecurring}
+                        labels={{ group: copy.incomeKind, monthly: copy.kindMonthly, oneTime: copy.kindOneTime }}
+                        compact
+                      />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <CustomSelect
                           label={copy.lifecycleStatus}
@@ -413,12 +474,16 @@ export function IncomeSourcesModal({
                           </label>
                         )}
                       </div>
-                      <MonthDayPicker
-                        value={editPayDay === '' ? undefined : Number(editPayDay)}
-                        onChange={(d) => setEditPayDay(d === undefined ? '' : d)}
-                        label={copy.monthlyStartDate}
-                        allowClear
-                      />
+                      {editRecurring ? (
+                        <MonthDayPicker
+                          value={editPayDay === '' ? undefined : Number(editPayDay)}
+                          onChange={(d) => setEditPayDay(d === undefined ? '' : d)}
+                          label={copy.monthlyStartDate}
+                          allowClear
+                        />
+                      ) : (
+                        <p className="text-[11px] font-medium text-on-surface-variant">{copy.oneTimeHint}</p>
+                      )}
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
@@ -449,25 +514,33 @@ export function IncomeSourcesModal({
 
                       {/* Source info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-[15px] text-on-surface truncate">{localizeIncomeSourceName(src.name, m)}</span>
+                        {/* Pills wrap under the name on narrow sheets instead of
+                            squeezing it down to one letter. */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="max-w-full truncate font-bold text-[15px] text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
                           {src.category && (
-                            <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded-full truncate max-w-[80px]">
+                            <span className="max-w-[80px] truncate rounded-full bg-surface-container px-1.5 py-0.5 text-[10px] font-bold text-on-surface-variant">
                               {src.category}
                             </span>
                           )}
-                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                          <span className="whitespace-nowrap rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
                             {statusOptions.find((option) => option.value === (src.status || 'paid'))?.label}
                           </span>
+                          {src.recurring === false && (
+                            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-lime px-1.5 py-0.5 text-[10px] font-bold text-forest-deep">
+                              <AppIcon name="event_upcoming" className="text-[11px]" />
+                              {copy.kindOneTime}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                           <span className="font-mono font-extrabold text-[15px] text-on-surface">
                             {format(src.amount || 0)}
                           </span>
-                          <span className="text-[11px] font-bold text-on-surface-variant">{t(copy.shareOfTotal, { pct: formatLocalizedPercent(pct, intlLocale) })}</span>
+                          <span className="whitespace-nowrap text-[11px] font-bold text-on-surface-variant">{t(copy.shareOfTotal, { pct: formatLocalizedPercent(pct, intlLocale) })}</span>
                           {incomeReceivedAmount(src) !== src.amount && (
-                            <span className="text-[11px] font-bold text-primary">
-                              {t(copy.receivedShort, { amount: format(incomeReceivedAmount(src)) })}
+                            <span className="whitespace-nowrap text-[11px] font-bold text-primary">
+                              {copy.receivedShort} {format(incomeReceivedAmount(src))}
                             </span>
                           )}
                         </div>
@@ -562,6 +635,18 @@ export function IncomeSourcesModal({
               {copy.addIncomeStreamLabel}
             </span>
 
+            <IncomeKindToggle
+              value={newRecurring}
+              onChange={(recurring) => {
+                setNewRecurring(recurring);
+                if (fieldErrors.newPayDay) setFieldErrors((p) => ({ ...p, newPayDay: '' }));
+              }}
+              labels={{ group: copy.incomeKind, monthly: copy.kindMonthly, oneTime: copy.kindOneTime }}
+            />
+            <p className="-mt-1 text-[11px] font-medium text-on-surface-variant">
+              {newRecurring ? copy.monthlyHint : copy.oneTimeHint}
+            </p>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div className="flex flex-col gap-0.5">
                 <input
@@ -572,7 +657,7 @@ export function IncomeSourcesModal({
                     if (fieldErrors.newName) setFieldErrors((p) => ({ ...p, newName: '' }));
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddSource(); }}
-                  placeholder={copy.sourceNamePlaceholder}
+                  placeholder={newRecurring ? copy.sourceNamePlaceholder : copy.oneTimeNamePlaceholder}
                   aria-label={copy.sourceName}
                   className="px-3.5 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-[14px] text-on-surface placeholder:text-outline-variant focus:border-primary outline-none transition-colors"
                 />
@@ -657,7 +742,8 @@ export function IncomeSourcesModal({
               )}
             </div>
 
-            {/* Monthly start date (payday) */}
+            {/* Monthly start date (payday) — a one-time amount has none */}
+            {newRecurring && (
             <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/40">
               <MonthDayPicker
                 value={newPayDay === '' ? undefined : Number(newPayDay)}
@@ -675,6 +761,7 @@ export function IncomeSourcesModal({
                 }
               />
             </div>
+            )}
           </div>
         </div>
         )}

@@ -35,7 +35,7 @@ export function FixedTab({
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const { format } = useCurrency();
   const { profile } = useAuth();
-  const { workspace, household } = useHousehold();
+  const { workspace, household, myMemberId } = useHousehold();
   const customCategories = workspace === 'household'
     ? (household?.fixedCategories || [])
     : (profile?.fixedCategories || []);
@@ -152,7 +152,7 @@ export function FixedTab({
                     <h4 className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-bold" title={bill.name}>
                       {bill.name}
                     </h4>
-                    {payerKey(bill.person, bill.payerMemberId) !== 'self' && (
+                    {payerKey(bill.person, bill.payerMemberId, myMemberId) !== 'self' && (
                       <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(bill.person, m)}
                       </span>

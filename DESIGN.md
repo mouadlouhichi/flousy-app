@@ -152,6 +152,16 @@ hairline border, or forest when active).
 - **MoveMoneyModal** (`modals/MoveMoneyModal.tsx`) — converter layout: lime "You move" card over a
   forest "Goes to" card, white **Swap** pill on the seam, after-transfer rows, and the
   swipe-to-confirm control.
+- **IncomeSourcesModal** (`modals/IncomeSourcesModal.tsx`) — each income is either **Monthly**
+  (a stream carried into every new salary period, with an optional payday) or **One-time** (a
+  fixed amount for this period only — bonus, gift, refund; `recurring: false`, no payday, lime
+  "One-time" pill on the row). The segmented pill sits at the top of the add form and inline edit.
+- **Payer chips** (`ui/member-badges.tsx`, `householdPayerOptions()` in `lib/household.ts`) — "Me"
+  stands for the signed-in member, so their own roster row is never listed a second time, and
+  "Household funds" only appears once another active member shares the budget. With a single
+  payer the chips are hidden entirely. Analytics folds the member's own row into "Me"
+  (`payerKey(person, id, myMemberId)`) and explains pooled funds under the member spending card,
+  linking to the settle-up on the household page.
 - **SwipeToConfirm** (`ui/swipe-to-confirm.tsx`) — the reference's "Swipe" pill as a real gesture:
   the white chevron knob drags horizontally, lime fills in behind it, the label fades out; past 85 %
   it snaps to the end, the knob turns into a check and the track flashes "Moved" before

@@ -550,7 +550,13 @@
       "cashAdjustmentError": "This change would reduce received income below money already spent. Add funds or reconcile the bank balance first.",
       "carriedOver": "Carried over",
       "multiSourceProTitle": "Multiple income sources are a Pro feature",
-      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams."
+      "multiSourceProBody": "Start your free 90-day Pro trial to track several income streams.",
+      "incomeKind": "Type of income",
+      "kindMonthly": "Monthly",
+      "kindOneTime": "One-time",
+      "monthlyHint": "A monthly stream (salary, rent you receive) — carried into every new salary period.",
+      "oneTimeHint": "A fixed amount for this period only (bonus, gift, refund, sale) — it will not repeat next month.",
+      "oneTimeNamePlaceholder": "What is it? (e.g., Bonus, Gift, Refund)"
     },
     "pro": {
       "title": "Upgrade to SmartJib Pro",
@@ -739,7 +745,10 @@
       "balanceOverview": "Balance overview",
       "viewsLabel": "Balance overview views",
       "vsLastMonth": "vs last month",
-      "noHistoryYet": "No history yet — the curve is illustrative until a second month closes."
+      "noHistoryYet": "No history yet — the curve is illustrative until a second month closes.",
+      "householdFundsNote": "\"Household funds\" is money paid from the shared pot rather than by one person. It is listed here for completeness and stays out of each member’s share in the settle-up.",
+      "householdFundsNoteEmpty": "Tag an expense as \"Household funds\" when it is paid from the shared pot rather than by one person. The settle-up on the household page then keeps it out of everyone’s share.",
+      "householdFundsLink": "Open settle-up"
     }
   },
   "courses": {

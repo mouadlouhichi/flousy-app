@@ -51,7 +51,7 @@ export function VariableTab({
   const router = useRouter();
   const { profile } = useAuth();
   const isPro = isProUser(profile);
-  const { workspace, household } = useHousehold();
+  const { workspace, household, myMemberId } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -70,7 +70,7 @@ export function VariableTab({
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
       const matchesPerson =
         selectedPerson === 'All' ||
-        payerKey(exp.person, exp.payerMemberId) === payerKey(selectedPerson === 'Self' ? undefined : selectedPerson);
+        payerKey(exp.person, exp.payerMemberId, myMemberId) === payerKey(selectedPerson === 'Self' ? undefined : selectedPerson);
       const matchesSearch =
         exp.name.toLowerCase().includes(search.toLowerCase()) ||
         exp.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -425,7 +425,7 @@ export function VariableTab({
                     <span className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-semibold">
                       {exp.name}
                     </span>
-                    {payerKey(exp.person, exp.payerMemberId) !== 'self' && (
+                    {payerKey(exp.person, exp.payerMemberId, myMemberId) !== 'self' && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(exp.person, m)}
                       </span>

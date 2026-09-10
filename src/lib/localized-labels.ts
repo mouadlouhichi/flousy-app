@@ -69,12 +69,18 @@ const HOUSEHOLD_LABELS = new Set(['household', 'household funds', 'fonds du foye
  * (`payerMemberId`), falls back to the display-name snapshot, and collapses
  * every self/household spelling to `self` / `household` so one person never
  * appears as two rows in a breakdown.
+ *
+ * `selfMemberId` is the signed-in user's own roster row: an expense tagged
+ * with that id was paid by the same person as one tagged `self`, so it maps
+ * to `self` too (a one-person household otherwise saw "Me" and "Mouad" as
+ * two payers).
  */
-export function payerKey(person: string | undefined, payerMemberId?: string): string {
+export function payerKey(person: string | undefined, payerMemberId?: string, selfMemberId?: string): string {
   const id = (payerMemberId || '').trim();
   const idLower = id.toLowerCase();
   if (idLower && SELF_LABELS.has(idLower)) return 'self';
   if (idLower && HOUSEHOLD_LABELS.has(idLower)) return 'household';
+  if (id && selfMemberId && id === selfMemberId) return 'self';
   if (id) return id;
   const label = (person || '').trim();
   const lower = label.toLowerCase();

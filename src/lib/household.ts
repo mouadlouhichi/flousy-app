@@ -127,6 +127,30 @@ export interface HouseholdPayer {
   color?: string;
 }
 
+/**
+ * Payer chips for a shared workspace ("who paid?").
+ *
+ * "Me" already stands for the signed-in member, so their own roster row is
+ * left out — listing it again showed a one-person household as
+ * "Me · Mouad · Household funds" with "Me" and "Mouad" being the same payer.
+ * Pooled "Household funds" only means something once someone else shares
+ * the budget, so that chip appears only alongside another active member.
+ */
+export function householdPayerOptions(
+  members: HouseholdMember[],
+  currentUserId: string | undefined,
+  labels: { me: string; funds: string },
+): HouseholdPayer[] {
+  const others = members.filter(
+    (member) => member.status === 'active' && !(currentUserId && (member.userId === currentUserId || member.id === currentUserId)),
+  );
+  return [
+    { id: 'self', label: labels.me },
+    ...(others.length > 0 ? [{ id: 'household', label: labels.funds }] : []),
+    ...others.map((member) => ({ id: member.id, label: member.displayName, color: member.avatarColor })),
+  ];
+}
+
 export function householdStorageKey(householdId: string | undefined, monthKey: string) {
   return householdId ? `smartjib_household_${householdId}_month_${monthKey}` : `smartjib_month_${monthKey}`;
 }

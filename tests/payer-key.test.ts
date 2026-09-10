@@ -40,3 +40,20 @@ describe('payerKey', () => {
     assert.equal(localizePersonName('Sara', en as unknown as Messages), 'Sara');
   });
 });
+
+/**
+ * Regression: a one-person household listed "Me", "Mouad" and "Household
+ * funds" as three payers, although "Me" and "Mouad" are the same signed-in
+ * member and pooled funds have no meaning without a second person.
+ */
+describe('payerKey with the signed-in member id', () => {
+  it('maps the user’s own roster row to self', () => {
+    assert.equal(payerKey('Mouad', 'member-me', 'member-me'), 'self');
+    assert.equal(payerKey(undefined, 'member-me', 'member-me'), 'self');
+  });
+
+  it('leaves other members and pooled funds untouched', () => {
+    assert.equal(payerKey('Sara', 'member-sara', 'member-me'), 'member-sara');
+    assert.equal(payerKey('Household funds', 'household', 'member-me'), 'household');
+  });
+});
