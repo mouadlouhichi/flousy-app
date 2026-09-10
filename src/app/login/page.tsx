@@ -49,9 +49,16 @@ export default function LoginPage() {
     const needsOnboarding =
       !!profile && profile.onboardingComplete === false && !onboardingDoneLocally;
 
+    // Where the visitor was headed before the auth gate bounced them (the
+    // proxy passes it as ?redirect=…). Same-origin relative paths only —
+    // never send a signed-in user to an absolute URL from a query param.
+    const redirectParam = new URLSearchParams(window.location.search).get('redirect') ?? '';
+    const safeRedirect =
+      redirectParam.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '';
+
     let destination: string | null = null;
     if (user) {
-      destination = needsOnboarding ? '/onboarding' : '/dashboard';
+      destination = needsOnboarding ? '/onboarding' : (safeRedirect || '/dashboard');
     }
 
     if (destination) {

@@ -3,6 +3,7 @@ import {
   Baby,
   BedDouble,
   BookOpen,
+  BookmarkPlus,
   BusFront,
   ArrowDown,
   ArrowDownUp,
@@ -14,6 +15,7 @@ import {
   Banknote,
   BarChart3,
   Bell,
+  BellOff,
   Bike,
   BriefcaseBusiness,
   CalendarCheck,
@@ -35,6 +37,7 @@ import {
   CirclePlus,
   CircleParking,
   CircleX,
+  Globe,
   Clapperboard,
   ClipboardCheck,
   Archive as ArchiveIcon,
@@ -64,6 +67,7 @@ import {
   GripVertical,
   Dices,
   Gavel,
+  List,
   ListOrdered,
   LogIn,
   HandCoins,
@@ -93,7 +97,10 @@ import {
   Pill,
   Plane,
   Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
   Receipt,
+  RefreshCw,
   RefreshCwOff,
   Repeat2,
   Save,
@@ -116,11 +123,14 @@ import {
   Ticket,
   TrainFront,
   Trash2,
+  TrendingDown,
   TrendingUp,
   Upload,
   Undo,
   Package,
+  Package2,
   User,
+  UserRound,
   UserPlus,
   Users,
   Utensils,
@@ -350,7 +360,24 @@ const icons: Record<string, LucideIcon> = {
   package: Package,
   zoom_in: ZoomIn,
   zoom_out: ZoomOut,
+  // Names that were referenced before their mapping existed — each of these
+  // silently rendered the generic fallback glyph (see tests/app-icon-coverage).
+  person_outline: UserRound,
+  'list-ordered': ListOrdered,
+  public: Globe,
+  refresh: RefreshCw,
+  call_received: PhoneIncoming,
+  call_made: PhoneOutgoing,
+  notifications_off: BellOff,
+  trending_down: TrendingDown,
+  package_2: Package2,
+  bookmark_add: BookmarkPlus,
+  view_list: List,
 };
+
+/** Every icon name the map can render. The coverage test scans the app for
+ *  icon usages and fails when one is missing here. */
+export const APP_ICON_NAMES: ReadonlySet<string> = new Set(Object.keys(icons));
 
 
 export function AppIcon({ name, title, ...props }: LucideProps & { name: string; title?: string }) {

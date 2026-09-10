@@ -32,6 +32,7 @@ import {
   normalizeDaratCircle,
   type DaratCircle,
 } from '@/lib/darat';
+import { clearDaratJoin, readDaratJoin } from '@/lib/darat-pending-invite';
 import { AppIcon } from '@/components/ui/app-icon';
 
 export function DaratWidget() {
@@ -40,6 +41,16 @@ export function DaratWidget() {
   const { messages: m, t, intlLocale } = useLanguage();
   const db = getFirestore();
   const [circles, setCircles] = useState<DaratCircle[] | null>(null);
+  // An invite remembered from a share link opened before sign-in — read
+  // after mount (sessionStorage is client-only, and hydration must not
+  // depend on it).
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
+
+  // A remembered invite surfaces as a banner the moment the user is signed
+  // in — this is the screen they land on after login.
+  useEffect(() => {
+    if (user) setPendingInvite(readDaratJoin());
+  }, [user]);
 
   // Pointer-based subscription. Same source the screen uses, so a user that
   // creates a circle on the Darat page will see it here immediately.
@@ -98,6 +109,48 @@ export function DaratWidget() {
     }
     return best;
   }, [myCircles, today, user]);
+
+  // A remembered invite outranks everything else on this widget — including
+  // the Pro gate: an invitee who is not Pro still needs to see that a spot
+  // was saved for them (joining and reading their circle is part of the
+  // invitation, not something to upsell mid-handoff).
+  if (pendingInvite && user) {
+    return (
+      <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <AppIcon name="group_add" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-on-surface">{m.darat.inviteBanner.title}</h3>
+            <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">
+              {m.darat.inviteBanner.body}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => router.push(`/dashboard/darat?join=${encodeURIComponent(pendingInvite)}`)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-colors hover:opacity-90"
+          >
+            <AppIcon name="group_add" className="text-[14px]" />
+            {m.darat.inviteBanner.cta}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              clearDaratJoin();
+              setPendingInvite(null);
+            }}
+            className="inline-flex items-center rounded-full border border-outline-variant px-3 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-variant"
+          >
+            {m.darat.inviteBanner.dismiss}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Pro gate: show a "learn more" CTA instead of the widget body.
   if (!isPro) {

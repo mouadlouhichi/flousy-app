@@ -2613,6 +2613,12 @@
       "contributeNext": "Prochaine contribution : {amount} le {date}",
       "payoutNext": "Votre versement : {amount} le {date}",
       "activeIn": "{count, plural, one {# tontine active} other {# tontines actives}}"
+    },
+    "inviteBanner": {
+      "title": "Vous êtes invité à une tontine",
+      "body": "Votre groupe vous a gardé une place. Rejoignez-la avec votre code d'invitation — un seul geste.",
+      "cta": "Rejoindre la tontine",
+      "dismiss": "Plus tard"
     }
   },
   "ingredientGlance": {

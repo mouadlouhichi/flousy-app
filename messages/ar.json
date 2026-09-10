@@ -2613,6 +2613,12 @@
       "contributeNext": "المساهمة القادمة: {amount} في {date}",
       "payoutNext": "دفعتك: {amount} في {date}",
       "activeIn": "{count, plural, =0 {لا جمعيات نشطة} one {جمعية نشطة واحدة} two {جمعيتان نشطتان} few {# جمعيات نشطة} many {# جمعية نشطة} other {# جمعية نشطة}}"
+    },
+    "inviteBanner": {
+      "title": "تمت دعوتك إلى جمعية",
+      "body": "مجموعتك حجزت لك مقعدًا. انضم برمز الدعوة — بنقرة واحدة فقط.",
+      "cta": "انضم إلى الجمعية",
+      "dismiss": "ليس الآن"
     }
   },
   "ingredientGlance": {

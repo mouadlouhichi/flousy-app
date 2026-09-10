@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { ChoiceChips, type ChoiceChipOption } from '@/components/ui/choice-chips';
@@ -10,9 +10,16 @@ import { useCurrency } from '@/lib/currency-context';
 import { DARAT_MAX_MEMBERS } from '@/lib/darat-firestore';
 import type { DaratCircle, DaratRotation, DaratFrequency } from '@/lib/darat';
 import { parseAmountInput } from '@/lib/parse-amount';
+import { DaratDice } from './darat-dice';
 
 interface Props {
   circle: DaratCircle;
+  /**
+   * Resolves a seat id (uid or phone placeholder) to the name the roster
+   * shows, so the drag list speaks the same names as the rest of the
+   * circle (joined member name, else the invited name).
+   */
+  memberName: (seatId: string) => string;
   onClose: () => void;
   /**
    * Apply edits. Returns the new state the parent should adopt, or an
@@ -53,7 +60,7 @@ function todayPlusDays(days: number): string {
  * for single-select frequency/rotation groups, primary submit that
  * fills the action bar.
  */
-export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
+export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props) {
   const { messages: m } = useLanguage();
   const { symbol, currency } = useCurrency();
   const [name, setName] = useState(circle.name);
@@ -61,6 +68,13 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
   const [frequency, setFrequency] = useState<DaratFrequency>(circle.frequency);
   const [rotation, setRotation] = useState<DaratRotation>(circle.rotation);
   const [startDate, setStartDate] = useState(circle.startDate);
+  // The agreed order, editable by drag when rotation === 'fixed'. Seeded
+  // from the stored fixedOrder, else the current memberOrder (the list
+  // the circle was created with).
+  const [order, setOrder] = useState<string[]>(circle.fixedOrder ?? circle.memberOrder);
+  // Drag-and-drop feedback (same pattern as the create modal).
+  const [dragSeat, setDragSeat] = useState<string | null>(null);
+  const [dragOverSeat, setDragOverSeat] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
@@ -78,6 +92,19 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
     { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list-ordered' },
     { value: 'bidding', label: m.darat.create.rotationBidding, icon: 'gavel' },
   ];
+
+  const moveSeat = useCallback((fromSeat: string, toSeat: string) => {
+    if (fromSeat === toSeat) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromSeat);
+      const toIdx = prev.indexOf(toSeat);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +126,7 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
         frequency,
         rotation,
         startDate,
-        fixedOrder: isFixedRotation ? circle.memberOrder : null,
+        fixedOrder: isFixedRotation ? order : null,
       });
       if (!res.ok) setError(res.error ?? 'genericError');
     } catch (err) {
@@ -208,6 +235,68 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
             ariaLabel={m.darat.create.rotation}
             wrap
           />
+          {rotation === 'random' && (
+            <div className="mt-1 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-primary">
+              <DaratDice size={18} className="shrink-0" />
+              <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+                {m.darat.create.rotationRandomHint}
+              </p>
+            </div>
+          )}
+          {isFixedRotation && (
+            <div className="mt-1 flex flex-col gap-2">
+              <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+                {m.darat.create.rotationFixedHint}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {order.map((seatId, index) => {
+                  const isDragOver = dragOverSeat === seatId && dragSeat !== seatId;
+                  return (
+                    <li key={seatId} className="list-none">
+                      <div
+                        draggable
+                        onDragStart={() => {
+                          setDragSeat(seatId);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          if (seatId !== dragOverSeat) setDragOverSeat(seatId);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromSeat = e.dataTransfer.getData('text/plain') || dragSeat;
+                          if (fromSeat) moveSeat(fromSeat, seatId);
+                          setDragSeat(null);
+                          setDragOverSeat(null);
+                        }}
+                        onDragEnd={() => {
+                          setDragSeat(null);
+                          setDragOverSeat(null);
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest p-3 transition-colors ${
+                          isDragOver ? 'border-primary bg-primary/5' : 'border-outline-variant'
+                        } ${dragSeat === seatId ? 'opacity-60' : ''}`}
+                      >
+                        <span
+                          aria-label={m.darat.create.dragHandle}
+                          className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-variant active:cursor-grabbing"
+                        >
+                          <AppIcon name="drag_indicator" className="text-[20px]" />
+                        </span>
+                        <span className="w-6 shrink-0 text-center text-xs font-bold text-on-surface-variant">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface">
+                          {memberName(seatId)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* ── Start date ── */}

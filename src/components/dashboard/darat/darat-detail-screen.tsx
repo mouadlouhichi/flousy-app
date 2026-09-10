@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { normalizeDaratCircle, normalizeDaratInvite, normalizeDaratMember, type DaratCircle, type DaratInvite, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
+import { DaratDice } from './darat-dice';
 
 interface Props {
   circle: DaratCircle;
@@ -332,9 +333,29 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
             {m.common.back}
           </button>
           <h1 className="text-2xl font-extrabold text-on-surface sm:text-3xl">{circle.name}</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            {isOrganizer ? m.darat.detail.youAreOrganizer : m.darat.detail.youAreMember}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-on-surface-variant">
+              {isOrganizer ? m.darat.detail.youAreOrganizer : m.darat.detail.youAreMember}
+            </p>
+            {circle.rotation === 'random' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
+                <DaratDice size={11} />
+                {m.darat.create.rotationRandom}
+              </span>
+            )}
+            {circle.rotation === 'fixed' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-variant px-2.5 py-0.5 text-[11px] font-bold text-on-surface-variant">
+                <AppIcon name="list_ordered" className="text-[13px]" />
+                {m.darat.create.rotationFixed}
+              </span>
+            )}
+            {circle.rotation === 'bidding' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-variant px-2.5 py-0.5 text-[11px] font-bold text-on-surface-variant">
+                <AppIcon name="gavel" className="text-[13px]" />
+                {m.darat.create.rotationBidding}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           {circle.status === 'closed' ? (
@@ -570,6 +591,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
       {editOpen && (
         <DaratEditModal
           circle={circle}
+          memberName={displayNameFor}
           onClose={() => setEditOpen(false)}
           onSubmit={handleEdit}
         />

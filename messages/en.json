@@ -2613,6 +2613,12 @@
       "contributeNext": "Next contribution: {amount} on {date}",
       "payoutNext": "Your payout: {amount} on {date}",
       "activeIn": "{count, plural, one {# active circle} other {# active circles}}"
+    },
+    "inviteBanner": {
+      "title": "You're invited to a Darat circle",
+      "body": "Your group saved a spot for you. Join with your invite code — it only takes a tap.",
+      "cta": "Join the circle",
+      "dismiss": "Not now"
     }
   },
   "ingredientGlance": {

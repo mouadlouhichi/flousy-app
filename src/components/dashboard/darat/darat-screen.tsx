@@ -34,6 +34,7 @@ import { useCurrency } from '@/lib/currency-context';
 import { isProUser } from '@/lib/pro-features';
 import { formatCurrency } from '@/lib/currency';
 import { buildDaratCreateDefaults, type DaratCreateDefaultsInput } from '@/lib/darat-firestore';
+import { clearDaratJoin, readDaratJoin, rememberDaratJoin } from '@/lib/darat-pending-invite';
 import {
   normalizeDaratCircle,
   type DaratCircle,
@@ -82,6 +83,10 @@ export function DaratScreen() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinInitialCode, setJoinInitialCode] = useState<string | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // An invite code that arrived before the visitor could use it (share link
+  // opened while signed out). Read after mount — sessionStorage is not
+  // available during render, and the first paint must match the server.
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
 
   // Merge circles into the local list, newest first, deduped by id. Used
   // by the create/join flows, which seed the circle into the list before
@@ -108,6 +113,11 @@ export function DaratScreen() {
     if (!join) return;
     if (joinInitialCode === join) return;
     setJoinInitialCode(join);
+    // Remember the code for the whole session: if the modal gets closed, or
+    // the link was opened before sign-in completed, the invite banner can
+    // still bring the user back to it.
+    rememberDaratJoin(join);
+    setPendingInvite(join);
     setJoinOpen(true);
     // Replace history so the modal does not re-open on refresh.
     const next = new URL(window.location.href);
@@ -115,6 +125,12 @@ export function DaratScreen() {
     const cleaned = next.pathname + (next.search ? next.search : '');
     window.history.replaceState({}, '', cleaned);
   }, [searchParams, joinInitialCode]);
+
+  // A remembered invite (share link opened while signed out) resurfaces
+  // as a banner once the user is signed in.
+  useEffect(() => {
+    if (user) setPendingInvite(readDaratJoin());
+  }, [user]);
 
   // Opening a circle is a forward navigation: land at the top, exactly
   // like the dashboard shell does on a pathname change.
@@ -621,6 +637,70 @@ export function DaratScreen() {
         </Alert>
       )}
 
+      {/* An invite remembered from a share link (usually one opened before
+          sign-in completed). Join reopens the modal with the code; dismiss
+          drops it for this session. */}
+      {pendingInvite && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <AppIcon name="group_add" className="text-[20px]" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-on-surface">{m.darat.inviteBanner.title}</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">
+                {m.darat.inviteBanner.body}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setJoinInitialCode(pendingInvite);
+                setJoinOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary transition-colors hover:opacity-90"
+            >
+              <AppIcon name="group_add" className="text-[14px]" />
+              {m.darat.inviteBanner.cta}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearDaratJoin();
+                setPendingInvite(null);
+              }}
+              className="inline-flex items-center rounded-full border border-outline-variant px-3 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-variant"
+            >
+              {m.darat.inviteBanner.dismiss}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Circles arrive on live subscriptions; until the first snapshot
+          lands, hold the layout with quiet placeholders instead of an
+          empty flash. */}
+      {!circlesReady && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy="true" aria-label={m.darat.list.title}>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex h-36 animate-pulse flex-col gap-3 rounded-2xl border border-outline-variant bg-surface-container p-4"
+            >
+              <span className="flex items-center gap-2">
+                <span className="size-6 rounded-lg bg-surface-variant" />
+                <span className="h-4 w-28 rounded bg-surface-variant" />
+              </span>
+              <span className="h-3 w-40 rounded bg-surface-variant" />
+              <span className="h-3 w-24 rounded bg-surface-variant" />
+              <span className="mt-auto h-3.5 w-20 rounded bg-surface-variant" />
+            </div>
+          ))}
+        </div>
+      )}
+
       {circles.length === 0 && circlesReady && (
         <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-outline-variant p-8 text-center">
           <AppIcon name="groups" className="text-5xl text-on-surface-variant" />
@@ -688,6 +768,9 @@ export function DaratScreen() {
           onClose={() => setJoinOpen(false)}
           onJoined={async (circleId) => {
             setJoinOpen(false);
+            // The invite was used — stop offering it.
+            clearDaratJoin();
+            setPendingInvite(null);
             // Seed the joined circle into the local list before switching
             // to the detail view, exactly like the create flow — the
             // pointer subscription has not delivered it yet, and the
