@@ -64,7 +64,7 @@ export function FixedTab({
         {canEdit && (
           <button
             onClick={onOpenAddModal}
-            className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+            className="px-4 py-3 bg-primary text-on-primary rounded-full font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
           >
             <AppIcon name="add" className=" text-[20px]" />
             <span>{m.tabs.fixed.addCharge}</span>
@@ -110,7 +110,7 @@ export function FixedTab({
           {canEdit && (
             <button
               onClick={onOpenAddModal}
-              className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
+              className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-full font-bold"
             >
               {m.tabs.fixed.addRentBills}
             </button>
@@ -137,7 +137,7 @@ export function FixedTab({
               key={bill.id}
               onClick={canEdit ? () => onEditBill(bill) : undefined}
               disabled={!canEdit}
-              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start transition-all shadow-2xs ${
+              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start transition-all shadow-ambient ${
                 canEdit ? 'hover:border-primary cursor-pointer' : 'cursor-default'
               }`}
             >

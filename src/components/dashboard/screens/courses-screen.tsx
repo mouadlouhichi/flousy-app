@@ -818,7 +818,7 @@ function CoursesScreenInner() {
                   </label>
                   <button
                     type="submit"
-                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
                   >
                     <AppIcon name="add" className="size-4" />
                     {c.manualAdd}
@@ -1210,7 +1210,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
           type="button"
           onClick={onConfirm}
           disabled={resolving}
-          className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
+          className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
           <AppIcon name="add" className="size-4" />
           {c.add}

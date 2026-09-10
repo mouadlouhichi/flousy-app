@@ -8,9 +8,9 @@ export const size = {
 export const contentType = 'image/png';
 
 const envelopeRows = [
-  { label: 'Needs', value: '50%', width: '78%', color: '#00685f' },
-  { label: 'Wants', value: '30%', width: '52%', color: '#4a938a' },
-  { label: 'Savings', value: '20%', width: '34%', color: '#83c9bf' },
+  { label: 'Needs', value: '50%', width: '78%', color: '#0f3b36' },
+  { label: 'Wants', value: '30%', width: '52%', color: '#7fb069' },
+  { label: 'Savings', value: '20%', width: '34%', color: '#c5e6a6' },
 ];
 
 const moneyPlaces = [
@@ -29,8 +29,8 @@ export default function OpenGraphImage() {
           display: 'flex',
           position: 'relative',
           overflow: 'hidden',
-          background: '#f4f8f6',
-          color: '#121a18',
+          background: '#f3f7f3',
+          color: '#0e1a17',
           fontFamily: 'Arial, sans-serif',
           padding: '64px 68px',
         }}
@@ -44,7 +44,7 @@ export default function OpenGraphImage() {
             borderRadius: 999,
             right: -130,
             top: -170,
-            background: '#89f5e7',
+            background: '#c5e6a6',
             opacity: 0.55,
           }}
         />
@@ -57,7 +57,7 @@ export default function OpenGraphImage() {
             borderRadius: 999,
             left: 390,
             bottom: -210,
-            background: '#00685f',
+            background: '#0f3b36',
             opacity: 0.12,
           }}
         />
@@ -80,7 +80,7 @@ export default function OpenGraphImage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 14,
-                background: '#00685f',
+                background: '#0f3b36',
                 color: '#ffffff',
                 fontSize: 32,
                 fontWeight: 800,
@@ -95,7 +95,7 @@ export default function OpenGraphImage() {
             <div
               style={{
                 display: 'flex',
-                color: '#00685f',
+                color: '#0f3b36',
                 fontSize: 20,
                 fontWeight: 700,
                 letterSpacing: 1.5,
@@ -117,11 +117,11 @@ export default function OpenGraphImage() {
             >
               <span>Budget needs,</span>
               <span>wants &amp; savings.</span>
-              <span style={{ color: '#58706a' }}>Track every place.</span>
+              <span style={{ color: '#5b6b63' }}>Track every place.</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, color: '#53645f', fontSize: 18 }}>
+          <div style={{ display: 'flex', gap: 12, color: '#5b6b63', fontSize: 18 }}>
             <span>12 currencies</span>
             <span>•</span>
             <span>4 strategies</span>
@@ -145,7 +145,7 @@ export default function OpenGraphImage() {
               display: 'flex',
               flexDirection: 'column',
               background: '#ffffff',
-              border: '2px solid #cedbd7',
+              border: '2px solid #dbe5dc',
               borderRadius: 30,
               padding: '30px 32px',
               boxShadow: '0 24px 60px rgba(18, 52, 47, 0.14)',
@@ -161,7 +161,7 @@ export default function OpenGraphImage() {
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ color: '#687a75', fontSize: 15 }}>July budget</span>
+                <span style={{ color: '#5b6b63', fontSize: 15 }}>July budget</span>
                 <span style={{ fontSize: 32, fontWeight: 750 }}>10,000 MAD</span>
               </div>
               <div
@@ -169,8 +169,8 @@ export default function OpenGraphImage() {
                   display: 'flex',
                   padding: '9px 14px',
                   borderRadius: 999,
-                  background: '#e6f5f2',
-                  color: '#00685f',
+                  background: '#e3f0e6',
+                  color: '#0f3b36',
                   fontSize: 15,
                   fontWeight: 700,
                 }}
@@ -199,7 +199,7 @@ export default function OpenGraphImage() {
                       height: 10,
                       width: '100%',
                       borderRadius: 999,
-                      background: '#e9efed',
+                      background: '#edf3ee',
                       overflow: 'hidden',
                     }}
                   >
@@ -222,12 +222,12 @@ export default function OpenGraphImage() {
                 display: 'flex',
                 marginTop: 27,
                 paddingTop: 22,
-                borderTop: '1px solid #dce5e2',
+                borderTop: '1px solid #dbe5dc',
                 flexDirection: 'column',
                 gap: 12,
               }}
             >
-              <span style={{ color: '#687a75', fontSize: 15 }}>Money places</span>
+              <span style={{ color: '#5b6b63', fontSize: 15 }}>Money places</span>
               <div style={{ display: 'flex', gap: 10 }}>
                 {moneyPlaces.map((place) => (
                   <div
@@ -237,11 +237,11 @@ export default function OpenGraphImage() {
                       display: 'flex',
                       flexDirection: 'column',
                       borderRadius: 13,
-                      background: '#f4f8f6',
+                      background: '#f3f7f3',
                       padding: '12px 13px',
                     }}
                   >
-                    <span style={{ color: '#687a75', fontSize: 13 }}>{place.label}</span>
+                    <span style={{ color: '#5b6b63', fontSize: 13 }}>{place.label}</span>
                     <span style={{ fontSize: 17, fontWeight: 750 }}>{place.amount}</span>
                   </div>
                 ))}

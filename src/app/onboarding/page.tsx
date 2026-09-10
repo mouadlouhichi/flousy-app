@@ -147,7 +147,7 @@ function OnboardingFlow() {
     '#f97316', '#3b82f6', '#8b5cf6', '#ec4899',
     '#14b8a6', '#f59e0b', '#6366f1', '#ef4444',
     '#06b6d4', '#10b981', '#eab308', '#84cc16',
-    '#d946ef', '#a855f7', '#f43f5e', '#00685f',
+    '#d946ef', '#a855f7', '#f43f5e', '#0f3b36',
   ];
 
   const [bills, setBills] = useState<{ name: string; amount: number; category: string }[]>([]);
@@ -433,14 +433,14 @@ function OnboardingFlow() {
   };
 
   return (
-    <main id="main-content" className="min-h-screen bg-background text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
+    <main id="main-content" className="min-h-screen text-on-surface flex flex-col font-sans px-4 py-6 max-w-lg mx-auto justify-between">
       {/* Sticky Header Bar */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <button
             type="button"
             onClick={handleBack}
-            className="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-all active:scale-95 cursor-pointer"
+            className="w-10 h-10 rounded-full bg-surface-container-lowest border border-outline-variant shadow-ambient hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-all active:scale-95 cursor-pointer"
             aria-label={m.common.back}
           >
             <AppIcon name={isRTL ? 'arrow_forward' : 'arrow_back'} className=" text-[22px]" />
@@ -456,7 +456,7 @@ function OnboardingFlow() {
               className="object-contain"
               fetchPriority="high"
             />
-            <span className="font-display text-[22px] font-extrabold text-primary tracking-tight">SmartJib</span>
+            <span className="font-display text-[22px] font-semibold text-on-surface tracking-[-0.03em]">smartjib<span className="text-lime-deep dark:text-lime">.</span></span>
           </span>
 
           <span className="text-[13px] font-bold text-on-surface-variant min-w-[60px] text-end">
@@ -467,11 +467,11 @@ function OnboardingFlow() {
         {/* Step Progress Bar */}
         {!isImporting && (
         <div className="flex flex-col gap-1 mb-6">
-          <div className="flex justify-between items-center text-[12px] font-extrabold text-on-surface-variant uppercase tracking-wider">
+          <div className="flex justify-between items-center text-[11px] font-semibold text-on-surface-variant uppercase tracking-[0.08em]">
             <span>{t(m.common.step, { current: new Intl.NumberFormat(intlLocale).format(step), total: new Intl.NumberFormat(intlLocale).format(5) })}</span>
             <span>{formatPercent(step * 20)}</span>
           </div>
-          <div className="w-full h-2 bg-surface-variant/80 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
             <div
               className="h-full bg-primary transition-all duration-300 rounded-full"
               style={{ width: `${step * 20}%` }}
@@ -486,7 +486,7 @@ function OnboardingFlow() {
             <button
               type="button"
               onClick={handleImportPersonal}
-              className="mt-3 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary"
+              className="mt-3 rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-on-primary"
             >
               {m.common.retry}
             </button>
@@ -538,7 +538,7 @@ function OnboardingFlow() {
               </p>
             </div>
 
-            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
+            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-ambient">
               <label className="text-[13px] font-bold text-on-surface-variant">{m.onboarding.averageMonthlyIncome}</label>
 
               <div className="flex items-center justify-between p-3.5 bg-surface border border-outline-variant/90 rounded-2xl gap-3">
@@ -569,7 +569,7 @@ function OnboardingFlow() {
               </div>
 
               {incomeError && (
-                <div className="text-[13px] font-bold text-red-500 text-center">
+                <div className="text-[13px] font-bold text-error text-center">
                   {incomeError}
                 </div>
               )}
@@ -584,7 +584,7 @@ function OnboardingFlow() {
                       setIncome(amt);
                       if (incomeError) setIncomeError('');
                     }}
-                    className={`px-4 py-2 bg-surface border rounded-full text-[14px] font-bold transition-all shadow-2xs cursor-pointer ${
+                    className={`px-4 py-2 bg-surface border rounded-full text-[14px] font-bold transition-all shadow-ambient cursor-pointer ${
                       income === amt
                         ? 'border-primary bg-primary-container text-primary'
                         : 'border-outline-variant text-on-surface-variant hover:border-slate-300'
@@ -597,7 +597,7 @@ function OnboardingFlow() {
             </div>
 
             {/* Monthly start date (salary payday) */}
-            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-2xs">
+            <div className="bg-background p-5 rounded-[24px] border border-outline-variant flex flex-col gap-4 shadow-ambient">
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-bold text-on-surface-variant">
                   {m.onboarding.monthlyStartDate} <span className="font-medium">({m.common.optional})</span>
@@ -621,7 +621,7 @@ function OnboardingFlow() {
             <button
               type="submit"
               disabled={isImporting}
-              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold rounded-full text-[16px] flex items-center justify-center gap-2 transition-all shadow-xs mt-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>{m.common.continue}</span>
               <AppIcon name={isRTL ? 'arrow_back' : 'arrow_forward'} className=" text-[20px]" />
@@ -654,7 +654,7 @@ function OnboardingFlow() {
                     onClick={() => toggleCategory(cat.name)}
                     className={`p-3.5 text-start rounded-2xl flex items-center justify-between cursor-pointer transition-all border ${
                       selected
-                        ? 'bg-primary-container border-2 border-primary shadow-2xs'
+                        ? 'bg-primary-container border-2 border-primary shadow-ambient'
                         : 'bg-surface border-outline-variant hover:bg-surface-container-low'
                     }`}
                   >
@@ -697,7 +697,7 @@ function OnboardingFlow() {
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-primary text-white font-bold rounded-xl text-[13px] hover:bg-primary cursor-pointer shrink-0"
+                    className="px-4 py-2 bg-primary text-on-primary font-bold rounded-full text-[13px] hover:bg-primary cursor-pointer shrink-0"
                   >
                     {m.common.add}
                   </button>
@@ -714,7 +714,7 @@ function OnboardingFlow() {
                         title={translate(`iconPicker.choices.${ic}`)}
                         className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${
                           customCatIcon === ic
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-on-primary'
                             : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
                         }`}
                       >
@@ -739,7 +739,7 @@ function OnboardingFlow() {
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
+                className="w-full py-4 bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold rounded-full text-[16px] transition-all shadow-xs cursor-pointer"
               >
                 {m.common.continue}
               </button>
@@ -906,7 +906,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                           type="button"
                           onClick={() => handleRemoveBill(idx)}
                           aria-label={t(m.onboarding.removeBill, { name: localizeDefaultBillName(b.name, m) })}
-                          className="text-on-surface-variant/60 hover:text-red-500 p-1 cursor-pointer"
+                          className="text-on-surface-variant/60 hover:text-error p-1 cursor-pointer"
                         >
                           <AppIcon name="close" className=" text-[18px]" />
                         </button>
@@ -936,7 +936,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
               <button
                 type="button"
                 onClick={handleStep3Continue}
-                className="flex-1 py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs cursor-pointer"
+                className="flex-1 py-4 bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold rounded-full text-[16px] transition-all shadow-xs cursor-pointer"
               >
                 {m.common.continue}
               </button>
@@ -970,7 +970,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                     onClick={() => setSelectedStrategy(strat.id)}
                     className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-primary/60 ${
                       selected
-                        ? 'border-2 border-primary bg-primary-container/30 shadow-2xs'
+                        ? 'border-2 border-primary bg-primary-container/30 shadow-ambient'
                         : 'border-outline-variant bg-surface hover:bg-surface-container-low'
                     }`}
                   >
@@ -1037,7 +1037,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                         <div className="flex-1 py-1 bg-primary-container rounded-lg border border-primary/20 text-center text-[11px] font-bold text-primary">
                           {m.onboarding.needs}
                         </div>
-                        <div className="flex-1 py-1 bg-amber-50 rounded-lg border border-amber-200 text-center text-[11px] font-bold text-amber-800">
+                        <div className="flex-1 py-1 bg-warning/10 rounded-lg border border-warning/30 text-center text-[11px] font-bold text-warning">
                           {m.onboarding.wants}
                         </div>
                         <div className="flex-1 py-1 bg-surface-container rounded-lg border border-outline-variant text-center text-[11px] font-bold text-on-surface-variant">
@@ -1140,7 +1140,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
               type="button"
               onClick={() => setStep(5)}
               disabled={selectedStrategy === 'custom' && !isCustomSplitValid}
-              className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] transition-all shadow-xs mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold rounded-full text-[16px] transition-all shadow-xs mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {m.common.continue}
             </button>
@@ -1160,7 +1160,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
             </div>
 
             {/* Donut Chart Card */}
-            <div className="bg-surface p-6 rounded-[28px] border border-outline-variant/90 shadow-2xs flex flex-col items-center gap-5">
+            <div className="bg-surface p-6 rounded-[28px] border border-outline-variant/90 shadow-ambient flex flex-col items-center gap-5">
               <div className="relative w-52 h-52 flex items-center justify-center">
                 {(() => {
                   const circumference = 2 * Math.PI * 38; // ~238.76
@@ -1284,7 +1284,7 @@ const billIconMap: Record<string, { icon: string; bg: string; text: string }> = 
                 type="button"
                 onClick={handleCompleteOnboarding}
                 disabled={isCompleting}
-                className="w-full py-4 bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold rounded-2xl text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                className="w-full py-4 bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold rounded-full text-[16px] flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span>{isCompleting ? m.onboarding.finishingSetup : m.onboarding.confirmAndFinish}</span>
                 {!isCompleting && (

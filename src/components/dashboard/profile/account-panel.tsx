@@ -81,7 +81,7 @@ export function AccountPanel() {
       ) : (
         <a
           href="/login"
-          className="block w-full rounded-2xl bg-primary py-3.5 text-center text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
+          className="block w-full rounded-full bg-primary py-3.5 text-center text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
         >
           {m.auth.signIn}
         </a>

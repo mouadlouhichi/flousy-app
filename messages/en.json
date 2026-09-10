@@ -287,7 +287,19 @@
     "savingsActivity": "Savings",
     "upcomingBills": "Upcoming bills",
     "dueToday": "Due today",
-    "dueInDays": "Due in {days} days"
+    "dueInDays": "Due in {days} days",
+    "greeting": "Hi {name},",
+    "welcomeBack": "Welcome back!",
+    "overviewSubtitle": "Here's your latest account overview",
+    "thisMonth": "This month",
+    "vsLastMonth": "vs last month",
+    "balanceOverview": "Your balance overview",
+    "spentSoFar": "Spent so far",
+    "incomeThisMonth": "Income",
+    "expensesTitle": "Expenses",
+    "netThisMonth": "Left to spend",
+    "places": "Money places",
+    "viewStatement": "View {name} statement"
   },
   "budgetPlan": {
     "totalIncome": "Total Income",

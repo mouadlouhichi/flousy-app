@@ -106,7 +106,7 @@ export function ContributorInvoiceForm() {
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary disabled:opacity-50 sm:col-span-2"
+          className="flex items-center justify-center gap-2 rounded-full bg-primary py-3 font-bold text-on-primary disabled:opacity-50 sm:col-span-2"
         >
           <AppIcon name="receipt_long" className="text-[18px]" />
           {saving ? copy.submitting : copy.submit}

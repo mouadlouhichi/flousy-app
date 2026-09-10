@@ -70,7 +70,7 @@ export function SearchScreen() {
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      <label className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container px-4 py-3 focus-within:border-primary">
+      <label className="flex items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-lowest px-4 py-3 focus-within:border-primary">
         <AppIcon name="search" className="text-[22px] text-on-surface-variant" />
         <input
           autoFocus

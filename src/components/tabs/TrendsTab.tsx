@@ -45,7 +45,7 @@ interface TrendsTabProps {
 }
 
 const CHART_COLORS = [
-  '#00685f', '#3b82f6', '#8b5cf6', '#f97316',
+  '#0f3b36', '#3b82f6', '#8b5cf6', '#f97316',
   '#ec4899', '#ef4444', '#eab308', '#06b6d4',
   '#6366f1', '#10b981', '#b05e3d', '#84cc16',
   '#d946ef', '#a855f7', '#14b8a6', '#f43f5e',
@@ -164,7 +164,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {canSeeExpenses && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.spentThisMonth}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">{format(spent.totalSpent)}</p>
           {prevMonth && (
@@ -176,7 +176,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         )}
 
         {canSeeExpenses && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.budgetRemaining}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-primary sm:text-[22px]">
             {format(Math.max(0, month.totalBudget - spent.totalSpent))}
@@ -189,7 +189,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
         {/* Total cash on hand is a `balances` figure: redacted, never hidden
             outright, so the card grid keeps its shape. */}
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.totalCash}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
             {canSeeBalances ? format(totalCash) : redacted}
@@ -199,10 +199,10 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               <span className="truncate text-primary">
                 {m.places.bank} {format(month.bankPart || 0)}
               </span>
-              <span className="truncate text-blue-500">
+              <span className="truncate text-secondary">
                 {m.places.wallet} {format(month.walletPart || 0)}
               </span>
-              <span className="truncate text-amber-600">
+              <span className="truncate text-warning">
                 {m.places.home} {format(month.homePart || 0)}
               </span>
             </div>
@@ -212,7 +212,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         </div>
 
         {canSeeSavings && (
-        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-2xs">
+        <div className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant shadow-ambient">
           <span className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">{m.tabs.trends.activeGoals}</span>
           <p className="mt-1 truncate text-lg font-extrabold font-mono text-on-surface sm:text-[22px]">
             {format(month.monthlySavingsTarget || 0)}
@@ -478,7 +478,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               const totalAll = Object.values(personBreakdown).reduce((a, b) => a + b.variable + b.fixed, 0);
               const pct = totalAll > 0 ? Math.round((total / totalAll) * 100) : 0;
               return (
-                <div key={person} className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
+                <div key={person} className="min-w-0 overflow-hidden p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
                   <div className="flex justify-between items-center gap-2 min-w-0">
                     <span className="min-w-0 truncate font-label-lg text-label-lg font-bold text-on-surface">{localizePersonName(person, m)}</span>
                     <span className="text-[12px] font-bold text-primary">
@@ -521,7 +521,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Needs */}
-          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
+          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -544,7 +544,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
           </div>
 
           {/* Wants */}
-          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-2xs">
+          <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant flex flex-col gap-2 shadow-ambient">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-tertiary" />
@@ -558,7 +558,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
               return (
                 <div className="w-full h-2.5 bg-primary/10 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-tertiary' : 'bg-amber-500'}`}
+                    className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-error' : pct >= 80 ? 'bg-warning' : 'bg-secondary'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

@@ -130,7 +130,7 @@ export function ContactForm() {
         type="submit"
         size="lg"
         disabled={state === "sending"}
-        className="bg-primary hover:bg-accent-foreground text-primary-foreground px-8 h-14 text-base rounded-full group"
+        className="bg-primary hover:bg-primary-hover text-primary-foreground px-8 h-14 text-base rounded-full group"
       >
         {state === "sending" ? s.sending : s.send}
         <ArrowRight className="w-4 h-4 ms-2 transition-transform group-hover:translate-x-1 rtl:rotate-180" />

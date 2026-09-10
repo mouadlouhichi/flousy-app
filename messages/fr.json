@@ -287,7 +287,19 @@
     "savingsActivity": "Épargne",
     "upcomingBills": "Factures à venir",
     "dueToday": "Dû aujourd’hui",
-    "dueInDays": "Dû dans {days} jours"
+    "dueInDays": "Dû dans {days} jours",
+    "greeting": "Bonjour {name},",
+    "welcomeBack": "Bon retour !",
+    "overviewSubtitle": "Voici l'aperçu de vos comptes",
+    "thisMonth": "Ce mois-ci",
+    "vsLastMonth": "vs mois dernier",
+    "balanceOverview": "Aperçu de votre solde",
+    "spentSoFar": "Dépensé à ce jour",
+    "incomeThisMonth": "Revenus",
+    "expensesTitle": "Dépenses",
+    "netThisMonth": "Reste à dépenser",
+    "places": "Emplacements",
+    "viewStatement": "Voir le relevé {name}"
   },
   "budgetPlan": {
     "totalIncome": "Revenu Total",

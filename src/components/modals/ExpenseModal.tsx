@@ -56,7 +56,7 @@ interface ExpenseModalProps {
 
 const ADD_CATEGORY_VALUE = '__add_variable_category__';
 const VARIABLE_CATEGORY_COLORS = [
-  '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
+  '#0f3b36', '#7fb069', '#3b82f6', '#8b5cf6',
   '#ec4899', '#f97316', '#10b981', '#eab308',
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
@@ -466,7 +466,7 @@ export function ExpenseModal({
                 unlockScanAudio();
                 setScannerOpen(true);
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-label-lg text-label-lg font-bold text-on-primary shadow-xs transition-colors hover:bg-accent-foreground"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 font-label-lg text-label-lg font-bold text-on-primary shadow-xs transition-colors hover:bg-primary-hover"
             >
               <AppIcon name="scan_barcode" className="size-5" />
               {m.barcode.scanProduct}
@@ -564,7 +564,7 @@ export function ExpenseModal({
                         <button
                           type="button"
                           onClick={handleAddCategory}
-                          className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                          className="flex-1 rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
                         >
                           {m.common.add}
                         </button>
@@ -773,7 +773,7 @@ export function ExpenseModal({
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialExpense ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialExpense ? e.saveChanges : e.addTitle}</span>

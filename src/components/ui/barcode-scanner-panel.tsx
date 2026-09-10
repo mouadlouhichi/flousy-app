@@ -306,7 +306,7 @@ export function BarcodeScannerPanel({
           <button
             type="submit"
             disabled={!manualCode.trim()}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-4 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
+            className="flex items-center gap-1.5 rounded-full bg-primary px-4 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
             <AppIcon name="search" className="size-4" />
             {labels.lookup}

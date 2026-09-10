@@ -301,7 +301,7 @@ export function PreferencesPanel() {
           type="button"
           onClick={() => { void handleSave(); }}
           disabled={!hasChanges || saveState === 'saving'}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <AppIcon name={saveState === 'saved' && !hasChanges ? 'check' : 'save'} className="text-[18px]" />
           {saveState === 'saving' ? p.saving : saveState === 'saved' && !hasChanges ? p.saved : p.saveChanges}

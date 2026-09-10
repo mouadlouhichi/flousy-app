@@ -159,7 +159,7 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
                   onProduct(found.product);
                   onClose();
                 }}
-                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:bg-accent-foreground shadow-xs transition-colors"
+                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:bg-primary-hover shadow-xs transition-colors"
               >
                 <AppIcon name="check" className="size-4" />
                 {m.barcode.useProduct}

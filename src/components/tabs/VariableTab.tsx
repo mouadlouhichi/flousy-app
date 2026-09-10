@@ -128,7 +128,7 @@ export function VariableTab({
         {canEdit && (
           <button
             onClick={onOpenAddModal}
-            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+            className="shrink-0 px-4 py-3 bg-primary text-on-primary rounded-full font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
           >
             <AppIcon name="add" className=" text-[20px]" />
             <span>{m.tabs.variable.addExpense}</span>
@@ -139,7 +139,7 @@ export function VariableTab({
       <button
         type="button"
         onClick={() => router.push('/dashboard/courses')}
-        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
+        className="flex w-full items-center gap-3 rounded-3xl border border-outline-variant bg-surface-container-lowest px-4 py-3.5 text-start hover:border-primary hover:bg-surface-container-high transition-all"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <AppIcon name="scan_barcode" className="text-[22px]" />
@@ -156,7 +156,7 @@ export function VariableTab({
       </button>
 
       {/* Category Budgets (Pro Feature) */}
-      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-2xs">
+      <div className="bg-surface-container rounded-3xl border border-outline-variant shadow-ambient">
         <button
           type="button"
           onClick={() => setBudgetsOpen((open) => !open)}
@@ -310,7 +310,7 @@ export function VariableTab({
                     <div className="w-full h-2 bg-outline-variant rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-500 rounded-full ${
-                          isOverBudget ? 'bg-error' : progress >= 80 ? 'bg-amber-500' : 'bg-primary'
+                          isOverBudget ? 'bg-error' : progress >= 80 ? 'bg-warning' : 'bg-forest dark:bg-lime'
                         }`}
                         style={{ width: `${progress}%` }}
                       />
@@ -345,7 +345,7 @@ export function VariableTab({
               onChange={(e) => setSearch(e.target.value)}
               placeholder={m.tabs.variable.searchPlaceholder}
               aria-label={m.tabs.variable.searchPlaceholder}
-              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-2xs"
+              className="h-12 w-full ps-10 pe-md bg-surface-container border border-outline-variant rounded-xl font-body-md text-base md:text-body-md text-on-surface focus:border-primary transition-all outline-none shadow-ambient"
             />
           </div>
           <DateRangePicker
@@ -410,7 +410,7 @@ export function VariableTab({
                   onEditExpense(exp);
                 }
               } : undefined}
-              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-2xs ${
+              className={`flex min-w-0 items-center justify-between gap-3 p-md bg-surface-container rounded-2xl border border-outline-variant transition-all shadow-ambient ${
                 canEdit ? 'hover:border-primary cursor-pointer' : ''
               }`}
             >

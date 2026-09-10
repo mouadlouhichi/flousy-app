@@ -287,7 +287,19 @@
     "savingsActivity": "الادخار",
     "upcomingBills": "فواتير قادمة",
     "dueToday": "يُستحق اليوم",
-    "dueInDays": "يُستحق خلال {days} أيام"
+    "dueInDays": "يُستحق خلال {days} أيام",
+    "greeting": "مرحباً {name}،",
+    "welcomeBack": "أهلاً بعودتك!",
+    "overviewSubtitle": "إليك آخر نظرة عامة على حساباتك",
+    "thisMonth": "هذا الشهر",
+    "vsLastMonth": "مقارنة بالشهر الماضي",
+    "balanceOverview": "نظرة عامة على رصيدك",
+    "spentSoFar": "المصروف حتى الآن",
+    "incomeThisMonth": "الدخل",
+    "expensesTitle": "المصاريف",
+    "netThisMonth": "المتبقي للإنفاق",
+    "places": "أماكن المال",
+    "viewStatement": "عرض كشف {name}"
   },
   "budgetPlan": {
     "totalIncome": "إجمالي الدخل",

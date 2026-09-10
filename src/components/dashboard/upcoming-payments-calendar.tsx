@@ -20,7 +20,7 @@ export function UpcomingPaymentsCalendar({ month }: { month: MonthBudget }) {
   };
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-bold text-on-surface">
           <AppIcon name="calendar_month" className="text-[20px] text-primary" />
@@ -38,7 +38,7 @@ export function UpcomingPaymentsCalendar({ month }: { month: MonthBudget }) {
             const paid = bill.status === 'paid' || bill.status === 'skipped' || bill.remaining <= 0;
             const overdue = !paid && bill.daysUntil < 0;
             const visual = fixedCategoryVisual(bill.type);
-            const dot = paid ? 'bg-primary' : overdue ? 'bg-error' : bill.daysUntil <= 3 ? 'bg-amber-500' : 'bg-outline';
+            const dot = paid ? 'bg-primary' : overdue ? 'bg-error' : bill.daysUntil <= 3 ? 'bg-warning' : 'bg-outline';
             return (
               <li key={bill.id} className="mb-4 ms-5 last:mb-0">
                 <span className={`absolute -start-[5px] mt-1.5 size-2.5 rounded-full ring-4 ring-surface-container ${dot}`} />

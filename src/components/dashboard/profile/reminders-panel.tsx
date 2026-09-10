@@ -139,7 +139,7 @@ export function RemindersPanel() {
   if (!unlocked) {
     return (
       <section className="flex flex-col gap-4">
-        <div className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+        <div className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
           <div className="flex items-start gap-3">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <AppIcon name="notifications_active" className="text-[22px]" />
@@ -175,7 +175,7 @@ export function RemindersPanel() {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+      <div className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <AppIcon name="notifications_active" className="text-[22px]" />
@@ -228,7 +228,7 @@ export function RemindersPanel() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+      <div className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
         <h3 className="flex items-center gap-2 font-bold text-on-surface">
           <AppIcon name="phone_iphone" className="text-[20px] text-primary" />
           {r.pushTitle}

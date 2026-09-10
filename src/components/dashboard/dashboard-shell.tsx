@@ -305,7 +305,7 @@ function AnalyticsConsentPrompt() {
         <button
           type="button"
           onClick={() => choose(false)}
-          className="rounded-full border border-outline-variant px-3 py-1.5 text-xs font-bold hover:bg-surface-variant"
+          className="rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-xs font-semibold hover:bg-surface-container-high"
         >
           {m.consent.decline}
         </button>
@@ -395,7 +395,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [targetIndex]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface flex font-sans">
+    <div className="min-h-screen backdrop-mint text-on-surface flex font-sans">
       <Sidebar />
 
       {/* Main Workspace Area */}

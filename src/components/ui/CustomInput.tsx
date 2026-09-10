@@ -14,7 +14,7 @@ export const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(
     return (
       <div className="flex min-w-0 max-w-full flex-col gap-sm">
         {label && (
-          <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+          <label className="text-[12px] font-medium text-on-surface-variant">
             {label}
           </label>
         )}
@@ -27,11 +27,11 @@ export const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(
           <input
             ref={ref}
             className={cn(
-              'w-full min-w-0 max-w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl',
+              'w-full min-w-0 max-w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-2xl',
               // 16px on mobile so iOS Safari does not zoom on focus; 14px from md up.
               'font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50',
-              'hover:border-outline hover:bg-surface-container-low',
-              'focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none',
+              'hover:border-outline/60',
+              'focus:border-primary focus:ring-[3px] focus:ring-primary/15 focus:outline-none',
               'transition-all duration-200',
               icon && 'pl-12',
               // Chromium gives date fields a large intrinsic minimum width.

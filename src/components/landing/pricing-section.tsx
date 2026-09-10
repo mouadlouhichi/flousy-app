@@ -103,7 +103,7 @@ export function PricingSection() {
                 href={isLoggedIn ? "/dashboard" : "/login"}
                 className={`w-full py-4 flex items-center justify-center gap-2 text-sm font-medium transition-all group ${
                   priceInfo.popular
-                    ? "bg-primary text-white hover:bg-primary/90"
+                    ? "bg-primary text-on-primary hover:bg-primary/90"
                     : "border border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground/5"
                 }`}
               >

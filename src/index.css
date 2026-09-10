@@ -3,138 +3,216 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ──────────────────────────────────────────────────────────────────────────
+   SmartJib · "Forest & Lime" design system
+   Palette extracted from the reference design (deep forest green hero
+   cards, lime accent, pale mint surfaces, soft ambient depth). Every
+   component reads these variables — never raw hex — so light and dark
+   stay in lock-step.
+   ────────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
-    /* Self-hosted variable fonts (see src/app/layout.tsx). --font-instrument
+    /* Self-hosted variable fonts (see src/app/layout.tsx). --font-jakarta
        is provided by next/font/local; the other two come from @fontsource. */
     --font-jetbrains: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
     --font-arabic: 'Cairo Variable', 'Cairo', system-ui, sans-serif;
 
-    --background: #f5faf8;
-    --on-background: #171d1c;
-    --foreground: #171d1c;
-    --surface: #f5faf8;
-    --on-surface: #171d1c;
-    --surface-variant: #e8eeeb;
-    --on-surface-variant: #3d4947;
-    --surface-dim: #d6dbd9;
-    --surface-bright: #f5faf8;
-    --surface-container-lowest: #ffffff;
-    --surface-container-low: #ffffff;
-    --surface-container: #ffffff;
-    --surface-container-high: #f0f5f2;
-    --surface-container-highest: #e8eeeb;
-    --outline: #6d7a77;
-    --outline-variant: #bcc9c6;
-    --inverse-surface: #2c3130;
-    --inverse-on-surface: #edf2f0;
-    --primary: #00685f;
-    --on-primary: #ffffff;
-    --primary-container: #e0eeeb;
-    --on-primary-container: #010202;
-    --inverse-primary: #6bd8cb;
-    --primary-fixed: #89f5e7;
-    --primary-fixed-dim: #6bd8cb;
-    --on-primary-fixed: #00201d;
-    --on-primary-fixed-variant: #005049;
-    --secondary: #575e70;
-    --on-secondary: #ffffff;
-    --secondary-container: #d9dff5;
-    --on-secondary-container: #5c6274;
-    --tertiary: #924628;
-    --on-tertiary: #ffffff;
-    --tertiary-container: #b05e3d;
-    --on-tertiary-container: #fffbff;
-    --error: #ba1a1a;
-    --on-error: #ffffff;
-    --error-container: #ffdad6;
-    --on-error-container: #93000a;
+    /* ── Brand anchors ──────────────────────────────────────────── */
+    --forest: #0f3b36;          /* deep forest green — hero cards, nav, CTAs */
+    --forest-deep: #0a2c28;     /* pressed / gradient end */
+    --forest-soft: #1a4f48;     /* raised element on forest */
+    --lime: #c5e6a6;            /* accent — highlighted cards, chips */
+    --lime-bright: #d6f0bd;     /* hover / lighter strip */
+    --lime-deep: #a9d383;       /* borders on lime, chart strokes */
+    --mint: #e3f0e6;            /* pale mint tint */
+    --sage: #c9dccb;            /* sage rings, dotted textures */
 
-    /* Landing / Component UI variables */
+    /* ── Surfaces ───────────────────────────────────────────────── */
+    --background: #f3f7f3;
+    --on-background: #0e1a17;
+    --foreground: #0e1a17;
+    --surface: #f3f7f3;
+    --on-surface: #0e1a17;
+    --surface-variant: #e4ede5;
+    --on-surface-variant: #5b6b63;
+    --surface-dim: #d7e1d8;
+    --surface-bright: #ffffff;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #fbfdfb;
+    --surface-container: #ffffff;
+    --surface-container-high: #edf3ee;
+    --surface-container-highest: #e4ede5;
+    --outline: #8a9a91;
+    --outline-variant: #dbe5dc;
+    --inverse-surface: #0f3b36;
+    --inverse-on-surface: #eef6ef;
+
+    /* ── Roles ──────────────────────────────────────────────────── */
+    --primary: #0f3b36;
+    --on-primary: #ffffff;
+    --primary-hover: #1a4f48;
+    --primary-foreground: #ffffff;
+    --primary-container: #c5e6a6;
+    --on-primary-container: #0f3b36;
+    --inverse-primary: #c5e6a6;
+    --primary-fixed: #c5e6a6;
+    --primary-fixed-dim: #a9d383;
+    --on-primary-fixed: #0a2c28;
+    --on-primary-fixed-variant: #1a4f48;
+
+    --secondary: #4f7f5b;
+    --on-secondary: #ffffff;
+    --secondary-container: #e3f0e6;
+    --on-secondary-container: #1e3a2a;
+    --secondary-foreground: #0e1a17;
+
+    --tertiary: #8b5a2b;
+    --on-tertiary: #ffffff;
+    --tertiary-container: #fbe9d2;
+    --on-tertiary-container: #4a2a0a;
+
+    --success: #2f7d4f;
+    --on-success: #ffffff;
+    --success-container: #d9f2df;
+    --warning: #b3781a;
+    --on-warning: #ffffff;
+    --warning-container: #fbeccd;
+
+    --error: #c2382f;
+    --on-error: #ffffff;
+    --error-container: #fde2df;
+    --on-error-container: #7a1a12;
+
+    /* Landing / shadcn component aliases */
     --card: #ffffff;
-    --card-foreground: #171d1c;
+    --card-foreground: #0e1a17;
     --popover: #ffffff;
-    --popover-foreground: #171d1c;
-    --secondary-foreground: #171d1c;
-    --muted: #eaefed;
-    --muted-foreground: #3d4947;
-    --accent: #dee4e1;
-    --accent-foreground: #171d1c;
-    --destructive: #ba1a1a;
+    --popover-foreground: #0e1a17;
+    --muted: #edf3ee;
+    --muted-foreground: #5b6b63;
+    --accent: #e3f0e6;
+    --accent-foreground: #0f3b36;
+    --destructive: #c2382f;
     --destructive-foreground: #ffffff;
-    --border: #dee4e1;
-    --input: #dee4e1;
-    --ring: #00685f;
-    --radius: 0.5rem;
-    --chart-1: #00685f;
-    --chart-2: #575e70;
-    --chart-3: #924628;
-    --chart-4: #6bd8cb;
-    --chart-5: #b05e3d;
-    --sidebar: #f5faf8;
-    --sidebar-foreground: #171d1c;
-    --sidebar-primary: #00685f;
+    --border: #dbe5dc;
+    --input: #dbe5dc;
+    --ring: #0f3b36;
+    --radius: 1rem;
+    --chart-1: #0f3b36;
+    --chart-2: #7fb069;
+    --chart-3: #c5e6a6;
+    --chart-4: #4f7f5b;
+    --chart-5: #a9d383;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0e1a17;
+    --sidebar-primary: #0f3b36;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #eaefed;
-    --sidebar-accent-foreground: #171d1c;
-    --sidebar-border: #dee4e1;
-    --sidebar-ring: #00685f;
+    --sidebar-accent: #edf3ee;
+    --sidebar-accent-foreground: #0f3b36;
+    --sidebar-border: #dbe5dc;
+    --sidebar-ring: #0f3b36;
+
+    /* Soft depth used by cards / floating chrome */
+    --shadow-ambient: 0 4px 24px -6px rgba(15, 59, 54, 0.10), 0 1px 2px rgba(15, 59, 54, 0.04);
+    --shadow-floating: 0 18px 48px -12px rgba(15, 59, 54, 0.28), 0 2px 6px rgba(15, 59, 54, 0.08);
+    --shadow-forest: 0 20px 40px -14px rgba(15, 59, 54, 0.45);
   }
 
   html.dark {
-    --background: #171d1c;
-    --on-background: #edf2f0;
-    --foreground: #edf2f0;
-    --surface: #171d1c;
-    --on-surface: #edf2f0;
-    --surface-variant: #3d4947;
-    --on-surface-variant: #bcc9c6;
-    --surface-dim: #171d1c;
-    --surface-bright: #3d4947;
-    --surface-container-lowest: #0f1413;
-    --surface-container-low: #1f2524;
-    --surface-container: #232928;
-    --surface-container-high: #2e3332;
-    --surface-container-highest: #393e3d;
-    --outline: #879491;
-    --outline-variant: #3d4947;
-    --inverse-surface: #edf2f0;
-    --inverse-on-surface: #2c3130;
-    --primary: #6bd8cb;
-    --on-primary: #003732;
-    --primary-container: #005049;
-    --on-primary-container: #89f5e7;
-    --secondary: #c0c6db;
-    --on-secondary: #292f40;
-    --secondary-container: #404758;
-    --on-secondary-container: #dce2f7;
-    --tertiary: #ffb59a;
-    --on-tertiary: #561f00;
-    --tertiary-container: #773215;
-    --on-tertiary-container: #ffdbce;
+    --forest: #0f3b36;
+    --forest-deep: #071d1a;
+    --forest-soft: #1a4f48;
+    --lime: #c5e6a6;
+    --lime-bright: #d6f0bd;
+    --lime-deep: #a9d383;
+    --mint: #17332e;
+    --sage: #2a4a44;
 
-    --card: #1f2524;
-    --card-foreground: #edf2f0;
-    --popover: #1f2524;
-    --popover-foreground: #edf2f0;
-    --secondary-foreground: #edf2f0;
-    --muted: #2e3332;
-    --muted-foreground: #bcc9c6;
-    --accent: #3d4947;
-    --accent-foreground: #edf2f0;
-    --destructive: #ffb4ab;
-    --destructive-foreground: #690005;
-    --border: #3d4947;
-    --input: #3d4947;
-    --ring: #6bd8cb;
-    --sidebar: #1f2524;
-    --sidebar-foreground: #edf2f0;
-    --sidebar-primary: #6bd8cb;
-    --sidebar-primary-foreground: #003732;
-    --sidebar-accent: #2e3332;
-    --sidebar-accent-foreground: #edf2f0;
-    --sidebar-border: #3d4947;
-    --sidebar-ring: #6bd8cb;
+    --background: #081513;
+    --on-background: #e8f1ea;
+    --foreground: #e8f1ea;
+    --surface: #081513;
+    --on-surface: #e8f1ea;
+    --surface-variant: #1d3531;
+    --on-surface-variant: #a6bbb1;
+    --surface-dim: #081513;
+    --surface-bright: #22403a;
+    --surface-container-lowest: #050f0d;
+    --surface-container-low: #0d1f1c;
+    --surface-container: #112825;
+    --surface-container-high: #17332e;
+    --surface-container-highest: #1d3d38;
+    --outline: #6f877e;
+    --outline-variant: #22403a;
+    --inverse-surface: #e8f1ea;
+    --inverse-on-surface: #0f3b36;
+
+    --primary: #c5e6a6;
+    --on-primary: #0a2c28;
+    --primary-hover: #d6f0bd;
+    --primary-foreground: #0a2c28;
+    --primary-container: #1a4f48;
+    --on-primary-container: #d6f0bd;
+    --inverse-primary: #0f3b36;
+    --primary-fixed: #c5e6a6;
+    --primary-fixed-dim: #a9d383;
+    --on-primary-fixed: #0a2c28;
+    --on-primary-fixed-variant: #1a4f48;
+
+    --secondary: #9fcfa9;
+    --on-secondary: #0d2a17;
+    --secondary-container: #234a30;
+    --on-secondary-container: #d9f2df;
+    --secondary-foreground: #e8f1ea;
+
+    --tertiary: #f0c08a;
+    --on-tertiary: #3d2100;
+    --tertiary-container: #5a3a15;
+    --on-tertiary-container: #fbe9d2;
+
+    --success: #7fd19a;
+    --on-success: #062f18;
+    --success-container: #1f4a30;
+    --warning: #f2c46b;
+    --on-warning: #3a2600;
+    --warning-container: #5a3f0f;
+
+    --error: #ff9c92;
+    --on-error: #5a0d07;
+    --error-container: #7a1a12;
+    --on-error-container: #fde2df;
+
+    --card: #112825;
+    --card-foreground: #e8f1ea;
+    --popover: #112825;
+    --popover-foreground: #e8f1ea;
+    --muted: #17332e;
+    --muted-foreground: #a6bbb1;
+    --accent: #1d3d38;
+    --accent-foreground: #c5e6a6;
+    --destructive: #ff9c92;
+    --destructive-foreground: #5a0d07;
+    --border: #22403a;
+    --input: #22403a;
+    --ring: #c5e6a6;
+    --chart-1: #c5e6a6;
+    --chart-2: #7fb069;
+    --chart-3: #4f7f5b;
+    --chart-4: #9fcfa9;
+    --chart-5: #a9d383;
+    --sidebar: #0d1f1c;
+    --sidebar-foreground: #e8f1ea;
+    --sidebar-primary: #c5e6a6;
+    --sidebar-primary-foreground: #0a2c28;
+    --sidebar-accent: #17332e;
+    --sidebar-accent-foreground: #c5e6a6;
+    --sidebar-border: #22403a;
+    --sidebar-ring: #c5e6a6;
+
+    --shadow-ambient: 0 4px 24px -6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-floating: 0 18px 48px -12px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-forest: 0 20px 40px -14px rgba(0, 0, 0, 0.7);
   }
 
   * {
@@ -142,6 +220,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Soft mint glow top-left / faint lime top-right — the phone mock's canvas.
+       Every page inherits it; `.backdrop-mint` re-applies it on nested roots. */
+    background-image:
+      radial-gradient(60% 45% at 0% 0%, color-mix(in srgb, var(--mint) 85%, transparent) 0%, transparent 70%),
+      radial-gradient(45% 35% at 100% 15%, color-mix(in srgb, var(--lime) 30%, transparent) 0%, transparent 70%);
+    background-attachment: fixed;
   }
   html {
     scroll-behavior: smooth;
@@ -215,9 +299,24 @@
 }
 
 @theme {
-  --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
-  --font-display: var(--font-instrument), 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* The design speaks one voice: figures are set in Jakarta with tabular
+     numerals, not in a monospace face. `font-mono` (used across amounts,
+     eyebrows and meta rows) therefore resolves to Jakarta + tnum; genuine
+     code/PIN contexts use `.font-code` below. */
+  --font-mono: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono--font-variant-numeric: tabular-nums lining-nums;
+  --font-mono--font-feature-settings: 'tnum' 1, 'lnum' 1;
+  --font-display: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-forest-soft: var(--forest-soft);
+  --color-lime: var(--lime);
+  --color-lime-bright: var(--lime-bright);
+  --color-lime-deep: var(--lime-deep);
+  --color-mint: var(--mint);
+  --color-sage: var(--sage);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -235,6 +334,8 @@
   --color-surface-container-highest: var(--surface-container-highest);
   --color-primary: var(--primary);
   --color-on-primary: var(--on-primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
   --color-primary-container: var(--primary-container);
   --color-on-primary-container: var(--on-primary-container);
   --color-inverse-primary: var(--inverse-primary);
@@ -250,6 +351,12 @@
   --color-on-tertiary: var(--on-tertiary);
   --color-tertiary-container: var(--tertiary-container);
   --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-success: var(--success);
+  --color-on-success: var(--on-success);
+  --color-success-container: var(--success-container);
+  --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-warning-container: var(--warning-container);
   --color-error: var(--error);
   --color-on-error: var(--on-error);
   --color-error-container: var(--error-container);
@@ -278,10 +385,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Softer-than-default corner scale (cards ≈ 28px, controls ≈ 16–18px). */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
+  --radius-4xl: 2rem;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -290,9 +401,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-ambient: var(--shadow-ambient);
+  --shadow-floating: var(--shadow-floating);
+  --shadow-forest: var(--shadow-forest);
 }
 
-/* Material Typography & Spacing Utility Classes */
+/* Typography & Spacing Utility Classes */
 @layer utilities {
   .font-display {
     font-family: var(--font-display);
@@ -389,37 +504,38 @@
     background-size: 100% 100%, 8px 8px;
   }
 
+  /* ── Type scale (geometric sans, generous tracking on the big figures) ── */
   .font-display-lg, .text-display-lg {
     font-size: 2.75rem;
-    line-height: 1.15;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.03em;
   }
   .font-headline-lg, .text-headline-lg {
     font-family: var(--font-display);
-    font-size: 1.5rem; /* 24px mobile */
-    line-height: 2rem; /* 32px */
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: 1.75rem; /* 28px mobile */
+    line-height: 2.125rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
   @media (min-width: 768px) {
     .font-headline-lg, .text-headline-lg {
-      font-size: 2rem; /* 32px desktop */
-      line-height: 2.5rem; /* 40px */
-      letter-spacing: -0.02em;
+      font-size: 2.125rem; /* 34px desktop */
+      line-height: 2.5rem;
+      letter-spacing: -0.025em;
     }
-   
   }
   .font-headline-md, .text-headline-md {
     font-size: 1.25rem; /* 20px */
     line-height: 1.75rem; /* 28px */
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
   }
   .font-headline-sm, .text-headline-sm {
     font-size: 1rem;
     line-height: 1.4;
     font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .font-body-lg, .text-body-lg {
     font-size: 1rem; /* 16px */
@@ -452,7 +568,26 @@
     font-size: 0.6875rem; /* 11px */
     line-height: 0.875rem; /* 14px */
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
+  }
+
+  /* Big money figures: tabular digits + tight tracking, like the design's
+     "$4,309,573.02" hero numbers. */
+  .text-figure {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    letter-spacing: -0.03em;
+    font-weight: 500;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+  }
+
+  /* Real monospace for code samples, PINs and hashes. */
+  .font-code {
+    font-family: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   }
 
   .px-margin-mobile {
@@ -505,6 +640,57 @@
   .mt-md { margin-top: 1rem; }
   .mt-lg { margin-top: 1.5rem; }
   .mt-xl { margin-top: 2rem; }
+
+  /* ── Signature surfaces ─────────────────────────────────────── */
+
+  /* Deep forest hero surface with the subtle radial sheen from the design. */
+  .surface-forest {
+    background-color: var(--forest);
+    background-image:
+      radial-gradient(120% 80% at 100% 0%, rgba(197, 230, 166, 0.14) 0%, rgba(197, 230, 166, 0) 55%),
+      linear-gradient(160deg, var(--forest) 0%, var(--forest-deep) 100%);
+    color: #eef6ef;
+  }
+  .surface-lime {
+    background-color: var(--lime);
+    background-image: linear-gradient(160deg, var(--lime-bright) 0%, var(--lime) 100%);
+    color: var(--forest-deep);
+  }
+
+  /* Dotted matrix texture (the chart / footer motif in the reference). */
+  .dot-matrix {
+    background-image: radial-gradient(circle, var(--sage) 1.4px, transparent 1.6px);
+    background-size: 12px 12px;
+  }
+  .dot-matrix-forest {
+    background-image: radial-gradient(circle, rgba(197, 230, 166, 0.35) 1.3px, transparent 1.5px);
+    background-size: 12px 12px;
+  }
+
+  /* Page backdrop: soft mint glow top-left, like the phone mock's canvas. */
+  .backdrop-mint {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(60% 45% at 0% 0%, color-mix(in srgb, var(--mint) 85%, transparent) 0%, transparent 70%),
+      radial-gradient(45% 35% at 100% 15%, color-mix(in srgb, var(--lime) 30%, transparent) 0%, transparent 70%);
+    background-attachment: fixed;
+  }
+
+  .shadow-ambient {
+    box-shadow: var(--shadow-ambient);
+  }
+  .shadow-floating {
+    box-shadow: var(--shadow-floating);
+  }
+  .shadow-forest {
+    box-shadow: var(--shadow-forest);
+  }
+
+  /* Concentric hairline rings behind the balance donut. */
+  .rings-sage {
+    background-image:
+      repeating-radial-gradient(circle at center, transparent 0 26px, color-mix(in srgb, var(--sage) 55%, transparent) 26px 27px);
+  }
 }
 
 /* Custom scrollbars */
@@ -529,10 +715,10 @@
 }
 
 .ambient-shadow {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-ambient);
 }
 .floating-shadow {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-floating);
 }
 
 @keyframes shimmer {
@@ -567,6 +753,17 @@
 
 .animate-scan-line {
   animation: scan-line 2.4s ease-in-out infinite;
+}
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .skeleton-loader {

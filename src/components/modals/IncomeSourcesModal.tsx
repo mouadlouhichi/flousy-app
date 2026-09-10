@@ -36,7 +36,7 @@ interface IncomeSourcesModalProps {
 }
 
 const CHART_COLORS = [
-  '#00685f', '#3b82f6', '#8b5cf6', '#f97316',
+  '#0f3b36', '#3b82f6', '#8b5cf6', '#f97316',
   '#ec4899', '#ef4444', '#eab308', '#06b6d4',
   '#6366f1', '#10b981', '#b05e3d', '#84cc16',
 ];
@@ -430,7 +430,7 @@ export function IncomeSourcesModal({
                         <button
                           type="button"
                           onClick={saveEdit}
-                          className="px-4 py-1.5 bg-primary text-on-primary text-[13px] font-bold rounded-xl hover:bg-accent-foreground transition-colors"
+                          className="px-4 py-1.5 bg-primary text-on-primary text-[13px] font-bold rounded-full hover:bg-primary-hover transition-colors"
                         >
                           {m.common.save}
                         </button>
@@ -609,7 +609,7 @@ export function IncomeSourcesModal({
                 type="button"
                 onClick={handleAddSource}
                 disabled={!newName.trim() || !newAmount}
-                className="py-2.5 px-3 bg-primary text-on-primary rounded-xl font-bold text-[14px] hover:bg-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                className="py-2.5 px-3 bg-primary text-on-primary rounded-full font-bold text-[14px] hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
               >
                 <AppIcon name="add" className=" text-[18px]" />
                 <span>{m.common.add}</span>
@@ -698,7 +698,7 @@ export function IncomeSourcesModal({
           <button
             type="button"
             onClick={handleSave}
-            className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 sm:py-3.5 bg-primary text-on-primary rounded-full font-bold text-[15px] shadow-md hover:bg-primary-hover active:scale-[0.99] transition-all flex items-center justify-center gap-2"
           >
             <AppIcon name="check" className=" text-[20px]" />
             <span>{t(copy.saveIncomeSources, { total: format(totalCalculated) })}</span>

@@ -208,7 +208,7 @@ export function LabelOcrButton({ onText, disabled, productKey = '', mode = 'inci
           </span>
         </span>
       )}
-      {error && <p role="alert" className="font-label-sm text-label-sm text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p role="alert" className="font-label-sm text-label-sm text-error">{error}</p>}
     </span>
   );
 }

@@ -62,7 +62,7 @@ const formatEntryDate = (value: string, intlLocale: string): string => {
 
 import { GoalProjection } from '../dashboard/goal-projection';
 
-const CONTRIB_COLORS = ['#00685f', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
+const CONTRIB_COLORS = ['#0f3b36', '#8b5cf6', '#e05d44', '#2563eb', '#d97706', '#db2777'];
 
 function goalNetDeposits(month: MonthBudget, goalId: string): number {
   let net = 0;
@@ -108,7 +108,7 @@ export function SavingsTab({
         </div>
         <button
           onClick={onOpenCreateGoal}
-          className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+          className="px-4 py-3 bg-primary text-on-primary rounded-full font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
         >
           <AppIcon name="add" className=" text-[20px]" />
           <span>{m.tabs.savings.newGoal}</span>
@@ -122,7 +122,7 @@ export function SavingsTab({
           <p className="font-body-md text-body-md text-on-surface-variant">{m.tabs.savings.noActiveGoals}</p>
           <button
             onClick={onOpenCreateGoal}
-            className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
+            className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-full font-bold"
           >
             {m.tabs.savings.createEmergencyFund}
           </button>
@@ -135,7 +135,7 @@ export function SavingsTab({
             return (
               <div
                 key={goal.id}
-                className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col justify-between gap-md hover:border-primary transition-all shadow-2xs"
+                className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col justify-between gap-md hover:border-primary transition-all shadow-ambient"
               >
                 {/* Header */}
                 <div className="flex justify-between items-start">
@@ -242,7 +242,7 @@ export function SavingsTab({
 
       {/* This month's deposits — every entry is editable / deletable so the
           savings plan always matches the money that actually moved. */}
-      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md shadow-2xs">
+      <div className="p-lg bg-surface-container rounded-3xl border border-outline-variant flex flex-col gap-md shadow-ambient">
         <div className="flex items-center justify-between gap-sm">
           <div className="flex flex-col">
             <span className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">

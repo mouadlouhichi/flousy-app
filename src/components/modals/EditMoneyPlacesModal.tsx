@@ -162,7 +162,7 @@ export function EditMoneyPlacesModal({ isOpen, onClose, onSave, initialValues, t
           </button>
           <button
             type="submit"
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-on-primary transition-colors hover:bg-accent-foreground"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover"
           >
             <AppIcon name="check" className="text-[18px]" />
             <span>{copy.saveBalances}</span>
