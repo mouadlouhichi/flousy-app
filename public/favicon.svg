@@ -5,11 +5,14 @@
       <stop offset="1" stop-color="#0A2C28"/>
     </linearGradient>
   </defs>
-  <rect x="150" y="58" width="212" height="148" rx="24" fill="#C5E6A6"/>
-  <rect x="150" y="116" width="212" height="26" fill="#A9D383"/>
-  <rect x="48" y="152" width="416" height="296" rx="70" fill="url(#body)"/>
-  <rect x="78" y="172" width="170" height="14" rx="7" fill="#ffffff" opacity="0.16"/>
-  <path d="M58 240 C172 300 308 296 456 228" stroke="#C5E6A6" stroke-width="12" fill="none" opacity="0.35" stroke-linecap="round"/>
-  <rect x="392" y="294" width="104" height="96" rx="32" fill="#C5E6A6"/>
-  <circle cx="444" cy="342" r="21" fill="#0A2C28"/>
+  <!-- cards fanned out of the wallet: pale lime behind, lime in front -->
+  <rect x="96" y="42" width="330" height="170" rx="28" fill="#D6EAC6" transform="rotate(-9 261 127)"/>
+  <rect x="88" y="78" width="330" height="150" rx="28" fill="#C5E6A6" transform="rotate(-6 253 153)"/>
+  <!-- wallet body -->
+  <rect x="48" y="152" width="416" height="296" rx="72" fill="url(#body)"/>
+  <!-- white stitched seam, as on the 3D artwork -->
+  <path d="M64 200 C160 200 196 262 250 262 C304 262 340 200 448 200" stroke="#FFFFFF" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <!-- clasp with white dot -->
+  <rect x="332" y="284" width="164" height="104" rx="48" fill="#0A2C28"/>
+  <circle cx="390" cy="336" r="24" fill="#FFFFFF"/>
 </svg>

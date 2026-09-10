@@ -441,7 +441,13 @@
       "walletLabel": "Wallet ({balance})",
       "betweenAccounts": "Transfer between accounts",
       "previewAfter": "Preview after transfer",
-      "samePlaces": "Choose two different money places"
+      "samePlaces": "Choose two different money places",
+      "swap": "Swap",
+      "currentBalance": "Current balance: {amount}",
+      "afterTransfer": "After transfer",
+      "youMove": "You move",
+      "theyGet": "Goes to",
+      "swipeHint": "Confirm to move the money now."
     },
     "debt": {
       "addTitle": "Add Debt",
@@ -727,7 +733,11 @@
       "rangeLabel": "History range",
       "last6Months": "6 months",
       "last12Months": "12 months",
-      "netSaved": "Net saved"
+      "netSaved": "Net saved",
+      "balanceOverview": "Balance overview",
+      "viewsLabel": "Balance overview views",
+      "vsLastMonth": "vs last month",
+      "noHistoryYet": "No history yet — the curve is illustrative until a second month closes."
     }
   },
   "courses": {

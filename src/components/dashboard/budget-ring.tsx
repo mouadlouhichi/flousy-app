@@ -4,6 +4,7 @@ import { useId } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { MoneyFigure } from '@/components/ui/money-figure';
 import { cn } from '@/lib/utils';
+import { buildSparkPath, sparkPoint } from '@/components/charts/sparkline-path';
 
 export interface BudgetRingSegment {
   id: string;
@@ -170,29 +171,4 @@ export function BudgetRing({
       </div>
     </div>
   );
-}
-
-function sparkPoint(values: number[], i: number, w: number, h: number) {
-  const x = (i / (values.length - 1)) * w;
-  const y = h - Math.min(1, Math.max(0, values[i])) * (h - 8) - 4;
-  return { x, y };
-}
-
-/** Smooth Catmull-Rom → Bézier path through normalised points. */
-function buildSparkPath(values: number[], w: number, h: number): string {
-  const pts = values.map((_, i) => sparkPoint(values, i, w, h));
-  if (pts.length < 2) return '';
-  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] ?? p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
-  }
-  return d;
 }

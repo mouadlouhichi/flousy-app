@@ -441,7 +441,13 @@
       "walletLabel": "المحفظة ({balance})",
       "betweenAccounts": "تحويل بين الحسابات",
       "previewAfter": "معاينة بعد التحويل",
-      "samePlaces": "اختر موقعين ماليين مختلفين"
+      "samePlaces": "اختر موقعين ماليين مختلفين",
+      "swap": "تبديل",
+      "currentBalance": "الرصيد الحالي: {amount}",
+      "afterTransfer": "بعد التحويل",
+      "youMove": "تنقل",
+      "theyGet": "إلى",
+      "swipeHint": "أكّد لنقل المال الآن."
     },
     "debt": {
       "addTitle": "إضافة دين",
@@ -727,7 +733,11 @@
       "rangeLabel": "النطاق الزمني",
       "last6Months": "6 أشهر",
       "last12Months": "12 شهرًا",
-      "netSaved": "صافي التوفير"
+      "netSaved": "صافي التوفير",
+      "balanceOverview": "ملخص الرصيد",
+      "viewsLabel": "طرق عرض ملخص الرصيد",
+      "vsLastMonth": "مقارنة بالشهر الماضي",
+      "noHistoryYet": "لا يوجد سجل بعد — المنحنى توضيحي حتى يُغلق شهر ثانٍ."
     }
   },
   "courses": {

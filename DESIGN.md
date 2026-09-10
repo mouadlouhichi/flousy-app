@@ -83,6 +83,11 @@ becoming loud. Money is the protagonist; colour is used to *group and point*, no
 The product name stays **SmartJib**. The wordmark is set lowercase in Jakarta with a lime full
 stop: `smartjib` + `<span class="text-lime-deep dark:text-lime">.</span>`.
 
+**App icon.** The original 3D wallet artwork is kept, recoloured into the palette: forest body
+(`#0f3b36` → `#0a2c28`), white stitched seam and clasp dot, lime (`#c5e6a6`) and pale-lime card
+layers. Every raster in `public/` (logo, PWA icons, apple-touch, favicons) is derived from that
+one master; `favicon.svg` is a flat vector reading of the same silhouette.
+
 ## Colors
 
 - **Forest (`#0f3b36`)** is the primary ink: filled buttons, the balance hero panel, the bottom
@@ -140,6 +145,13 @@ hairline border, or forest when active).
   money-place tabs → notched forest panel with the total figure → primary/secondary pill actions.
 - **BudgetRing** (`dashboard/budget-ring.tsx`) — circular Needs / Wants / Savings ring with sage
   hairlines, a sparkline and the "left to spend" figure.
+- **BalanceOverviewRing** (`dashboard/balance-overview-ring.tsx`) — the analytics disc: white
+  circle with a soft shadow, forest `$` puck on the top edge, sparkline + lime delta chip, the big
+  figure, and circular action buttons along the bottom arc (`aria-pressed`, active one is the forest
+  pill). Each action swaps the figure/series; RTL mirrors the arc.
+- **MoveMoneyModal** (`modals/MoveMoneyModal.tsx`) — converter layout: lime "You move" card over a
+  forest "Goes to" card, white **Swap** pill on the seam, after-transfer rows, and a forest
+  swipe-style confirm button with a white chevron knob.
 - **StatCard** (`dashboard/stat-card.tsx`) — KPI tile in `default`, `forest` or `lime` tone with
   a diagonal arrow affordance and an optional lime delta chip.
 - **MoneyFigure** (`ui/money-figure.tsx`) — sizes `xs`–`hero`, `redacted`, `tone`

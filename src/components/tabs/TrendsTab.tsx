@@ -2,7 +2,7 @@
 
 import { AppIcon } from '@/components/ui/app-icon';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { MonthBudget, UserProfile, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateSavingsRate, calculateTotalIncome, fixedPaidAmount, resolveMonthStrategy, totalCashOnHand } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
@@ -13,8 +13,10 @@ import { canShowProUpgrade, isProFeatureUnlocked } from '../../lib/household';
 import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizeIncomeSourceName, localizePersonName, localizeStrategy } from '@/lib/localized-labels';
+import { cn } from '@/lib/utils';
 import { CustomReportCard } from '../dashboard/custom-report-card';
-import { StatCard } from '../dashboard/stat-card';
+import { BalanceOverviewRing, type RingView } from '../dashboard/balance-overview-ring';
+import { normalizeSeries } from '../charts/sparkline-path';
 import { MoneyFigure } from '@/components/ui/money-figure';
 import dynamic from 'next/dynamic';
 
@@ -149,7 +151,8 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
       wantsCap: env.wants,
       savings: env.savings,
       remaining: Math.max(0, m.totalBudget - s.totalSpent),
-      totalCash: (m.bankPart || 0) + (m.homePart || 0) + (m.walletPart || 0),
+      totalCash: totalCashOnHand(m),
+      income: calculateTotalIncome(m),
     };
   }).reverse();
 
@@ -163,6 +166,83 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
 
   const compactAxis = (value: number) =>
     new Intl.NumberFormat(intlLocale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+
+  // ── Balance overview ring ──
+  // Each action around the disc swaps the figure and the sparkline series;
+  // the series are the per-month values above (oldest → newest) and the chip
+  // is the change against the previous month.
+  const hasHistory = monthOverMonth.length > 1;
+  const series = (pick: (row: (typeof monthOverMonth)[number]) => number) =>
+    hasHistory ? normalizeSeries(monthOverMonth.map(pick)) : null;
+  const deltaChip = (current: number, previous: number | undefined, goodWhenUp = true) => {
+    if (previous === undefined || previous <= 0) return null;
+    const pct = ((current - previous) / previous) * 100;
+    const label = `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${formatLocalizedPercent(Math.abs(pct), intlLocale, Math.abs(pct) < 10 ? 1 : 0)}`;
+    return { label, positive: goodWhenUp ? pct >= 0 : pct <= 0, note: t(m.tabs.trends.percentVsLastMonth, { percent: label }) };
+  };
+  const netSavedNow = calculateSavingsRate(month)?.net ?? 0;
+  const ringViews: RingView[] = ([
+    canSeeExpenses && {
+      id: 'spent',
+      icon: 'candlestick_chart',
+      label: m.tabs.trends.spentThisMonth,
+      amount: spent.totalSpent,
+      spark: series((row) => row.totalSpent),
+      delta: deltaChip(spent.totalSpent, prevMonth?.totalSpent, false),
+    },
+    canSeeExpenses && {
+      id: 'remaining',
+      icon: 'pie_chart',
+      label: m.tabs.trends.budgetRemaining,
+      amount: Math.max(0, month.totalBudget - spent.totalSpent),
+      note: `${m.tabs.trends.ofLabel} ${format(month.totalBudget)}`,
+      spark: series((row) => row.remaining),
+      delta: deltaChip(Math.max(0, month.totalBudget - spent.totalSpent), prevMonth?.remaining),
+    },
+    {
+      id: 'cash',
+      icon: 'show_chart',
+      label: m.tabs.trends.totalCash,
+      amount: totalCash,
+      note: canSeeBalances ? undefined : m.household.areaRedacted,
+      spark: canSeeBalances ? series((row) => row.totalCash) : null,
+      delta: canSeeBalances ? deltaChip(totalCash, prevMonth?.totalCash) : null,
+      redacted: !canSeeBalances,
+    },
+    canSeeSavings && {
+      id: 'savings',
+      icon: 'percent',
+      label: m.tabs.trends.netSaved,
+      amount: netSavedNow,
+      note: t(m.tabs.trends.strategySavings, {
+        strategy: strategyCopy.name,
+        percent: formatLocalizedPercent(Math.round(strategy.savingsRatio * 100), intlLocale),
+      }),
+      spark: series((row) => row.netSaved),
+      delta: deltaChip(netSavedNow, prevMonth?.netSaved),
+    },
+    canSeeIncome && {
+      id: 'income',
+      icon: 'wallet',
+      label: m.dashboard.incomeThisMonth,
+      amount: totalIncome,
+      spark: series((row) => row.income),
+      delta: deltaChip(totalIncome, prevMonth?.income),
+    },
+  ] as (RingView | false)[]).filter((view): view is RingView => Boolean(view));
+  const [ringViewId, setRingViewId] = useState('cash');
+
+  const incomeDelta = deltaChip(totalIncome, prevMonth?.income);
+  const monthLabel = (() => {
+    const [y, num] = (month.periodKey || '').split('-').map(Number);
+    const date = y && num ? new Date(y, num - 1, 1) : new Date();
+    return date.toLocaleDateString(intlLocale, { month: 'long' });
+  })();
+  const topIncomeSources = [...incomeSources]
+    .filter((src) => (src.amount || 0) > 0)
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    .slice(0, 5);
+  const maxIncomeSource = topIncomeSources[0]?.amount || 1;
 
   return (
     <div className="space-y-6 pb-24">
@@ -182,64 +262,134 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         </div>
       </div>
 
-      {/* ── Summary tiles (same StatCard family as the overview) ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {canSeeExpenses && (
-          <StatCard
-            icon="dollar"
-            title={m.tabs.trends.spentThisMonth}
-            value={spent.totalSpent}
-            caption={m.dashboard.thisMonth}
-            delta={
-              prevMonth
-                ? {
-                    label: `${spendChange > 0 ? '↑' : '↓'} ${formatLocalizedPercent(Math.abs(spendChange), intlLocale, 1)}`,
-                    positive: spendChange <= 0,
-                  }
-                : null
-            }
-          />
-        )}
-
-        {canSeeExpenses && (
-          <StatCard
-            icon="account_balance_wallet"
-            title={m.tabs.trends.budgetRemaining}
-            value={Math.max(0, month.totalBudget - spent.totalSpent)}
-            caption={`${m.tabs.trends.ofLabel} ${format(month.totalBudget)}`}
-            variant="lime"
-          />
-        )}
-
-        {/* Total cash on hand is a `balances` figure: redacted, never hidden
-            outright, so the card grid keeps its shape. */}
-        <StatCard
-          icon="payments"
-          title={m.tabs.trends.totalCash}
-          value={totalCash}
-          redacted={!canSeeBalances}
-          caption={canSeeBalances ? undefined : m.household.areaRedacted}
-          variant="forest"
-        >
-          {canSeeBalances && (
-            <div className="mt-3 flex flex-col gap-0.5 text-[11px] font-semibold leading-snug text-white/70">
-              <span className="truncate">{m.places.bank} · {format(month.bankPart || 0)}</span>
-              <span className="truncate">{m.places.wallet} · {format(month.walletPart || 0)}</span>
-              <span className="truncate">{m.places.home} · {format(month.homePart || 0)}</span>
-            </div>
+      {/* ── Balance overview ring + income ──
+          The disc replaces the KPI tiles: every former tile is one of the
+          actions on the arc, so nothing a member was allowed to see is lost
+          (RBAC filters the views the same way it filtered the tiles). */}
+      <div className="grid gap-4 lg:grid-cols-12 lg:items-stretch">
+        <section
+          className={cn(
+            'relative overflow-hidden rounded-[2rem] border border-outline-variant bg-surface-container-lowest px-4 pb-5 pt-5 shadow-ambient sm:px-6',
+            canSeeIncome ? 'lg:col-span-5' : 'lg:col-span-6 lg:col-start-4',
           )}
-        </StatCard>
-
-        {canSeeSavings && (
-          <StatCard
-            icon="savings"
-            title={m.tabs.trends.activeGoals}
-            value={month.monthlySavingsTarget || 0}
-            caption={t(m.tabs.trends.strategySavings, {
-              strategy: strategyCopy.name,
-              percent: formatLocalizedPercent(Math.round(strategy.savingsRatio * 100), intlLocale),
-            })}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-3/4 [background:radial-gradient(60%_55%_at_50%_0%,color-mix(in_srgb,var(--mint)_85%,transparent),transparent)] dark:[background:radial-gradient(60%_55%_at_50%_0%,color-mix(in_srgb,var(--lime)_12%,transparent),transparent)]"
           />
+          <div className="relative flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">
+              <span aria-hidden className="size-1.5 rounded-full bg-lime-deep" />
+              {m.tabs.trends.balanceOverview}
+            </span>
+            <span className="rounded-full bg-surface-container-high px-2.5 py-1 text-[11px] font-semibold text-on-surface-variant">{monthLabel}</span>
+          </div>
+          <BalanceOverviewRing
+            views={ringViews}
+            activeId={ringViewId}
+            onChange={setRingViewId}
+            actionsLabel={m.tabs.trends.viewsLabel}
+            rtl={isRTL}
+            className="relative"
+          />
+          {!hasHistory && !trendsLoading && (
+            <p className="relative mx-auto max-w-[30ch] text-center text-[11px] font-medium leading-snug text-on-surface-variant">
+              {m.tabs.trends.noHistoryYet}
+            </p>
+          )}
+        </section>
+
+        {/* Income — its own RBAC area. Without the grant the whole card is
+            dropped, because even the source *names* are household data. */}
+        {canSeeIncome && (
+          <div className={cn(CARD, 'flex flex-col lg:col-span-7')}>
+            <div className="surface-forest relative overflow-hidden rounded-[1.5rem] p-5 text-white shadow-forest">
+              <div aria-hidden className="dot-matrix-forest pointer-events-none absolute inset-y-0 end-0 w-2/5 opacity-40 [mask-image:linear-gradient(to_left,black,transparent)] rtl:[mask-image:linear-gradient(to_right,black,transparent)]" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-lime text-forest-deep shadow-[0_6px_16px_-6px_rgba(0,0,0,0.5)]">
+                    <AppIcon name="dollar" strokeWidth={2.4} className="text-[16px]" />
+                  </span>
+                  <h3 className="text-[16px] font-semibold tracking-[-0.01em]">{m.dashboard.incomeThisMonth}</h3>
+                </div>
+                <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">{monthLabel}</span>
+              </div>
+              {incomeDelta && (
+                <div className="relative mt-4 flex items-center gap-2">
+                  <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold tabular', incomeDelta.positive ? 'bg-lime text-forest-deep' : 'bg-error-container text-error')}>
+                    {incomeDelta.label}
+                  </span>
+                  <span className="text-[11px] font-medium text-white/60">{m.tabs.trends.vsLastMonth}</span>
+                </div>
+              )}
+              <MoneyFigure value={totalIncome} size="xl" weight="semibold" tone="accent" className={cn('relative text-white', incomeDelta ? 'mt-2' : 'mt-4')} />
+              <span className="relative mt-1 block text-[12px] font-medium text-white/55">{m.tabs.trends.totalCombinedIncome}</span>
+            </div>
+
+            {proUnlocked && incomeSources.length > 0 ? (
+              <div className="mt-4 flex flex-1 flex-col gap-4">
+                {/* Dot-matrix columns — a visual double of the list below. */}
+                {topIncomeSources.length > 0 && (
+                  <div aria-hidden className="grid gap-3 px-1" style={{ gridTemplateColumns: `repeat(${topIncomeSources.length}, minmax(0, 1fr))` }}>
+                    {topIncomeSources.map((src, idx) => {
+                      const rows = 10;
+                      const filled = Math.max(1, Math.round(((src.amount || 0) / maxIncomeSource) * rows));
+                      return (
+                        <div key={src.id} className="flex min-w-0 flex-col items-center gap-2">
+                          <div className="grid grid-cols-3 gap-[5px]">
+                            {Array.from({ length: rows * 3 }).map((_, i) => {
+                              const row = rows - 1 - Math.floor(i / 3);
+                              const on = row < filled;
+                              return (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    'size-1.5 rounded-full transition-colors',
+                                    on ? (idx === 0 ? 'bg-lime-deep' : 'bg-forest dark:bg-lime') : 'bg-sage/50',
+                                  )}
+                                />
+                              );
+                            })}
+                          </div>
+                          <span className="max-w-full truncate text-[11px] font-semibold text-on-surface-variant">{localizeIncomeSourceName(src.name, m)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <ul className="flex flex-col divide-y divide-outline-variant/60">
+                  {incomeSources.map((src, idx) => {
+                    const pct = totalIncome > 0 ? Math.round(((src.amount || 0) / totalIncome) * 100) : 0;
+                    return (
+                      <li key={src.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            aria-hidden="true"
+                            className="size-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                          />
+                          <span className="truncate text-[13px] font-semibold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
+                            {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
+                          </span>
+                          <span className="tabular text-[13px] font-semibold text-on-surface">{format(src.amount || 0)}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-6 text-center">
+                <p className="text-[13px] font-medium text-on-surface-variant">
+                  {proUnlocked ? m.tabs.trends.noIncomeSources : m.tabs.trends.incomeSourcesPro}
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -342,64 +492,6 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
         )}
       </div>
 
-      )}
-
-      {/* ── Income Sources Breakdown ──
-          Income is its own RBAC area. Without the grant the whole section is
-          dropped — not blurred, not zeroed — because even the source *names*
-          and the combined total are household financial data. */}
-      {canSeeIncome && (
-      <div className={CARD}>
-        <SectionHeader icon="payments" title={m.tabs.trends.incomeSources} />
-
-        {proUnlocked && incomeSources.length > 0 ? (
-          <div className="space-y-3">
-            {incomeSources.map((src, idx) => {
-              const pct = totalIncome > 0 ? Math.round(((src.amount || 0) / totalIncome) * 100) : 0;
-              return (
-                <div key={src.id} className="flex flex-col gap-1">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-                      />
-                      <span className="text-[13px] font-semibold text-on-surface">{localizeIncomeSourceName(src.name, m)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[11px] font-semibold text-on-surface-variant">
-                        {new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(pct / 100)}
-                      </span>
-                      <span className="tabular text-[13px] font-semibold text-on-surface">{format(src.amount || 0)}</span>
-                    </div>
-                  </div>
-                  <div aria-hidden="true" className="h-2 w-full overflow-hidden rounded-full bg-mint">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${pct}%`,
-                        backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            <div className="flex items-center justify-between border-t border-outline-variant pt-3">
-              <span className="text-[14px] font-semibold text-on-surface">{m.tabs.trends.totalCombinedIncome}</span>
-              <MoneyFigure value={totalIncome} size="md" weight="semibold" className="text-forest dark:text-lime" />
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-outline-variant bg-surface-container-low p-6 text-center">
-            <p className="text-[13px] font-medium text-on-surface-variant">
-              {proUnlocked ? m.tabs.trends.noIncomeSources : m.tabs.trends.incomeSourcesPro}
-            </p>
-          </div>
-        )}
-      </div>
       )}
 
       {/* ── Category Trend Breakdown ── */}

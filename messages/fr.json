@@ -441,7 +441,13 @@
       "walletLabel": "Portefeuille ({balance})",
       "betweenAccounts": "Transfert entre comptes",
       "previewAfter": "Aperçu après le transfert",
-      "samePlaces": "Choisissez deux emplacements d’argent différents"
+      "samePlaces": "Choisissez deux emplacements d’argent différents",
+      "swap": "Inverser",
+      "currentBalance": "Solde actuel : {amount}",
+      "afterTransfer": "Après le transfert",
+      "youMove": "Vous déplacez",
+      "theyGet": "Vers",
+      "swipeHint": "Confirmez pour déplacer l’argent maintenant."
     },
     "debt": {
       "addTitle": "Ajouter Dette",
@@ -727,7 +733,11 @@
       "rangeLabel": "Période affichée",
       "last6Months": "6 mois",
       "last12Months": "12 mois",
-      "netSaved": "Épargne nette"
+      "netSaved": "Épargne nette",
+      "balanceOverview": "Aperçu du solde",
+      "viewsLabel": "Vues de l’aperçu du solde",
+      "vsLastMonth": "vs le mois dernier",
+      "noHistoryYet": "Pas encore d’historique — la courbe est indicative jusqu’à la clôture d’un deuxième mois."
     }
   },
   "courses": {
