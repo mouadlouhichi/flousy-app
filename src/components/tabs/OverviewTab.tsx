@@ -55,6 +55,13 @@ interface OverviewTabProps {
   /** Pro gate for the safe-to-spend forecast card. */
   insightsUnlocked?: boolean;
   onUpgrade?: () => void;
+  /**
+   * Opens the Income Sources sheet from the income card. On phones this is
+   * the only income entry point on the dashboard itself (the sidebar tool row
+   * is desktop-only), so adding a one-time bonus does not require a trip
+   * through Profile.
+   */
+  onOpenIncome?: () => void;
 }
 
 export function OverviewTab({
@@ -70,6 +77,7 @@ export function OverviewTab({
   onOpenEditSavings,
   insightsUnlocked = false,
   onUpgrade,
+  onOpenIncome,
 }: OverviewTabProps) {
   const { format, formatParts } = useCurrency();
   const { messages: m, t, intlLocale } = useLanguage();
@@ -324,6 +332,8 @@ export function OverviewTab({
             value={totalIncome}
             caption={m.dashboard.thisMonth}
             variant="forest"
+            onClick={onOpenIncome}
+            actionLabel={onOpenIncome ? m.navigation.incomeSources : undefined}
           />
         )}
         {canSeeSavings && (

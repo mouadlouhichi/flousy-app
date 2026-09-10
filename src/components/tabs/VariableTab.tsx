@@ -53,7 +53,6 @@ export function VariableTab({
   const isPro = isProUser(profile);
   const { workspace, household, myMemberId } = useHousehold();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedPerson, setSelectedPerson] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -63,14 +62,9 @@ export function VariableTab({
   const [budgetsOpen, setBudgetsOpen] = useState(false);
 
   const categories = ['All', ...(month.activeCategories || [])];
-  const persons = ['All', 'Self', 'Partner', 'Family', 'Queen', 'King'];
-
   const filteredExpenses = sortVariableExpenses(
     (month.variableExpenses || []).filter((exp) => {
       const matchesCategory = selectedCategory === 'All' || exp.type === selectedCategory;
-      const matchesPerson =
-        selectedPerson === 'All' ||
-        payerKey(exp.person, exp.payerMemberId, myMemberId) === payerKey(selectedPerson === 'Self' ? undefined : selectedPerson);
       const matchesSearch =
         exp.name.toLowerCase().includes(search.toLowerCase()) ||
         exp.type.toLowerCase().includes(search.toLowerCase()) ||
@@ -79,7 +73,7 @@ export function VariableTab({
       const rangeEnd = dateTo || dateFrom;
       const matchesFrom = !dateFrom || day >= dateFrom;
       const matchesTo = !rangeEnd || day <= rangeEnd;
-      return matchesCategory && matchesPerson && matchesSearch && matchesFrom && matchesTo;
+      return matchesCategory && matchesSearch && matchesFrom && matchesTo;
     }),
     sortBy,
     intlLocale,
