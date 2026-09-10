@@ -23,8 +23,9 @@ interface SwipeToConfirmProps {
   className?: string;
 }
 
+const TRACK = 56; // px — matches the h-14 track
 const KNOB = 44; // px — matches the h-11 knob
-const INSET = 6; // px — track padding around the knob
+const INSET = (TRACK - KNOB) / 2; // px — track padding around the knob
 const THRESHOLD = 0.85; // share of the travel that counts as "swiped"
 
 /**
@@ -60,7 +61,11 @@ export function SwipeToConfirm({ label, successLabel, onConfirm, disabled = fals
 
   // Progress 0–1 along the travel, direction-agnostic.
   const progress = useTransform(x, (value) => (travel > 0 ? Math.min(1, Math.max(0, (value * dir) / travel)) : 0));
-  const fillWidth = useTransform(progress, (p) => `${INSET + KNOB / 2 + p * travel + KNOB / 2}px`);
+  // The fill ends under the knob's centre so its rounded tip stays hidden
+  // behind the knob, and it only appears once the knob actually moves — at
+  // rest the knob sits on the plain track with no halo around it.
+  const fillWidth = useTransform(progress, (p) => `${TRACK / 2 + p * travel}px`);
+  const fillOpacity = useTransform(progress, [0, 0.05], [0, 1]);
   const labelOpacity = useTransform(progress, [0, 0.75], [1, 0]);
   const labelShift = useTransform(progress, (p) => p * 12 * dir);
   const hintOpacity = useTransform(progress, [0, 0.35], [1, 0]);
@@ -134,18 +139,26 @@ export function SwipeToConfirm({ label, successLabel, onConfirm, disabled = fals
           'relative h-14 w-full select-none overflow-hidden rounded-full bg-forest text-[15px] font-semibold text-white shadow-forest outline-none transition-colors',
           'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
           'dark:bg-lime dark:text-forest-deep',
-          disabled && 'cursor-not-allowed opacity-60',
+          // Disabled: the track goes muted but the knob stays crisp white so the
+          // control still reads as the swipe pill from the reference.
+          disabled && 'cursor-not-allowed bg-forest/45 text-white/90 shadow-none dark:bg-lime/40 dark:text-forest-deep/80',
         )}
         style={{ touchAction: 'pan-y' }}
       >
         {/* Lime fill trailing the knob */}
         <motion.div
           aria-hidden
-          className={cn(
-            'absolute inset-y-0 rounded-full bg-lime/90 dark:bg-forest/90',
-            rtl ? 'right-0' : 'left-0',
-          )}
-          style={{ width: fillWidth }}
+          className={cn('absolute inset-y-0 rounded-full bg-lime dark:bg-forest', rtl ? 'right-0' : 'left-0')}
+          style={{ width: fillWidth, opacity: fillOpacity }}
+        />
+
+        {/* Full fill once the swipe completes */}
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 bg-lime dark:bg-forest"
+          initial={false}
+          animate={{ opacity: isSuccess ? 1 : 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.25 }}
         />
 
         {/* Label */}
@@ -201,8 +214,8 @@ export function SwipeToConfirm({ label, successLabel, onConfirm, disabled = fals
           whileDrag={{ scale: 1.04 }}
           style={{ x, top: INSET, [rtl ? 'right' : 'left']: INSET, width: KNOB, height: KNOB }}
           className={cn(
-            'absolute flex cursor-grab items-center justify-center rounded-full bg-white text-forest shadow-[0_6px_16px_-6px_rgba(0,0,0,0.5)] active:cursor-grabbing',
-            'dark:bg-forest dark:text-lime',
+            'absolute flex cursor-grab items-center justify-center rounded-full bg-white text-forest shadow-[0_6px_16px_-6px_rgba(0,0,0,0.5)] ring-1 ring-black/5 transition-colors duration-300 active:cursor-grabbing',
+            disabled && 'cursor-not-allowed text-forest/60 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.35)]',
             isSuccess && 'bg-forest-deep text-lime dark:bg-lime dark:text-forest-deep',
           )}
         >
