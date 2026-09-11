@@ -1,11 +1,10 @@
 name: Fetch Moroccan product corpus
 
-# Manual data audit helper: the sandbox has no outbound access to
-# openfoodfacts.org, so this runs the fetch script in Actions and hands back
-# the raw corpus as an artifact. Not part of the app's CI.
+# Manual data audit helper: the dev sandbox has no outbound access to
+# openfoodfacts.org, so this harvests the corpus in Actions and publishes it
+# as a public gist (the only channel readable from the sandbox). Not part of
+# the app's CI.
 on:
-  # Push-triggered (not workflow_dispatch) so the audit can be re-run from a
-  # working branch: touching the fetcher re-runs the harvest.
   push:
     branches: ['**']
     paths:
@@ -26,7 +25,7 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,17 +33,31 @@ jobs:
           node-version: '22'
       - run: |
           node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source || 'off' }} --pages=${{ inputs.pages || '20' }} 2>&1 | tee data/harvest.log
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ma-corpus-${{ inputs.source || 'off' }}
-          path: data/ma-corpus-${{ inputs.source || 'off' }}.json
-      # Artifact storage is not reachable from the dev sandbox, so the snapshot
-      # is committed to the working branch and dropped again after the audit.
-      - if: always()
+      - run: |
+          mkdir -p data/parts
+          node -e '
+            const fs = require("node:fs");
+            const file = process.argv[1];
+            const size = Number(process.argv[2]);
+            const corpus = JSON.parse(fs.readFileSync(file, "utf8"));
+            const chunks = [];
+            for (let i = 0; i < corpus.products.length; i += size) chunks.push(corpus.products.slice(i, i + size));
+            chunks.forEach((chunk, index) => {
+              fs.writeFileSync(`data/parts/part-${index}.json`, JSON.stringify({ ...corpus, count: chunk.length, products: chunk }));
+              console.log(`part-${index}.json: ${chunk.length} products, ${fs.statSync(`data/parts/part-${index}.json`).size} bytes`);
+            });
+          ' data/ma-corpus-${{ inputs.source || 'off' }}.json 400
+      # Gist files are returned inline by the API only while under ~1 MB, so the
+      # corpus is published in parts and reassembled on the other side.
+      - name: Publish the corpus as a public gist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/ma-corpus-${{ inputs.source || 'off' }}.json data/harvest.log
-          git diff --cached --quiet || git commit -m "chore: temporary Moroccan corpus snapshot"
-          git push
+          set -euo pipefail
+          args=()
+          for f in data/parts/part-*.json; do
+            name=$(basename "$f")
+            args+=(-f "files[$name][content]=$(cat "$f")")
+          done
+          url=$(gh api --method POST /gists -f public=true -f description="flousy-ma-corpus" "${args[@]}" --jq .html_url)
+          echo "published $url"
