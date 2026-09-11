@@ -1,0 +1,11 @@
+campaign_id,planned_day,segment,language,email_id,subject_variant,utm_campaign,utm_content,frequency_cap_days,status,owner,approval_date,notes
+M-001,D1,newsletter_opt_in,fr,E01,A,clarity_ma_launch,calm_email_fr_v1,7,draft,,,
+M-002,D1,newsletter_opt_in,ar,E01,A,clarity_ma_launch,calm_email_ar_v1,7,draft,,,
+M-003,D8,newsletter_opt_in,fr,E02,A,clarity_ma_education,purpose_place_email_fr_v1,7,draft,,,
+M-004,D8,newsletter_opt_in,ar,E02,A,clarity_ma_education,purpose_place_email_ar_v1,7,draft,,,
+M-005,trigger+1h,new_user_opt_in,fr,E03,A,clarity_ma_welcome,calm_email_fr_v1,7,draft,,,
+M-006,trigger+1h,new_user_opt_in,ar,E03,A,clarity_ma_welcome,calm_email_ar_v1,7,draft,,,
+M-007,month_start,newsletter_opt_in,fr,E05,A,clarity_ma_habit,calm_email_fr_v1,7,draft,,,
+M-008,month_start,newsletter_opt_in,ar,E05,A,clarity_ma_habit,calm_email_ar_v1,7,draft,,,
+M-009,trigger+14d,inactive_opt_in,fr,E08,A,clarity_ma_return,calm_email_fr_v1,30,draft,,,
+M-010,trigger+14d,inactive_opt_in,ar,E08,A,clarity_ma_return,calm_email_ar_v1,30,draft,,,

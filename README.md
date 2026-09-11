@@ -268,10 +268,10 @@ browser deployment should use the documented `NEXT_PUBLIC_*` names.
 
 | Variable | Scope | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Build/public | Absolute canonical origin, e.g. `https://smartjib.app` |
+| `NEXT_PUBLIC_SITE_URL` | Build/public | Absolute canonical origin, e.g. `https://smartjib.space` |
 | `APP_URL` | Server | Trusted base for invitation accept links; falls back to the canonical/platform URL |
 | `RESEND_API_KEY` | Server secret | Enables invitation and contact delivery |
-| `RESEND_FROM_EMAIL` | Server | SPF/DKIM-verified sender, e.g. `SmartJib <hello@smartjib.app>` |
+| `RESEND_FROM_EMAIL` | Server | SPF/DKIM-verified sender, e.g. `SmartJib <hello@smartjib.space>` |
 | `CONTACT_TO_EMAIL` | Server | Fixed recipient for public contact messages |
 
 Production refuses Resend's `@resend.dev` sandbox sender. Vercel variables are

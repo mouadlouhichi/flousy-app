@@ -1,17 +1,14 @@
 /**
  * The canonical origin of this deployment.
  *
- * It used to be hard-coded to the production host, which meant every preview and
- * staging build told crawlers that `https://smartjib.app/…` was the canonical
- * version of its own pages — handing the real site the ranking credit, and
- * pointing `rel="canonical"`, robots and the sitemap at a deployment the
- * visitor is not on. It now follows `NEXT_PUBLIC_SITE_URL` (set per environment
- * in hosting or CI) and falls back to production only when nothing is
- * configured. A value that is not a valid absolute http(s) origin is ignored
- * instead of being emitted into `rel="canonical"` verbatim.
+ * Preview and staging builds should not claim the production URL as their own.
+ * This follows `NEXT_PUBLIC_SITE_URL` (set per environment in hosting or CI)
+ * and falls back to production only when nothing is configured. A value that is
+ * not a valid absolute http(s) origin is ignored instead of being emitted into
+ * `rel="canonical"` verbatim.
  */
 function resolveSiteUrl(): string {
-  const fallback = 'https://smartjib.app';
+  const fallback = 'https://smartjib.space';
   const configured = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
   if (!configured) return fallback;
   try {

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get('dryRun') === '1';
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
   const from = process.env.RESEND_FROM_EMAIL || '';
-  const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://smartjib.app').replace(/\/$/, '');
+  const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://smartjib.space').replace(/\/$/, '');
 
   const snapshot = await db.collection('users').where('reminderPrefs.billsEnabled', '==', true).limit(2000).get();
   const stats = { users: 0, planned: 0, pushSent: 0, pushDropped: 0, emails: 0, skipped: 0 };

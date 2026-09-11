@@ -78,7 +78,7 @@ test('a real account never trusts demo leftovers (global flag or cached months)'
 test('clearDemoResidue wipes demo state but preserves uid-scoped flags and unrelated keys', () => {
   const store = installFakeWindow();
 
-  enableDemoMode('demo@smartjib.app');
+  enableDemoMode('demo@smartjib.space');
   assert.equal(isDemoMode(), true);
   store.set('smartjib_onboarding_done', 'true');
   store.set('smartjib_month_2026-08', '{}');
