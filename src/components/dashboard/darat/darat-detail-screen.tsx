@@ -393,6 +393,11 @@ export function DaratDetailView({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {isOrganizer && !circle.memberOrder.includes(currentUid ?? '') && (
+              <span className="rounded-full bg-lime px-3 py-1 text-[12px] font-semibold text-forest-deep">
+                {m.darat.detail.organizerOnly}
+              </span>
+            )}
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{frequencyLabel}</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{rotationLabel}</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">

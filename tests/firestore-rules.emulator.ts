@@ -1941,6 +1941,9 @@ describe('darat circle create transaction', () => {
 });
 
 describe('darat circle reads (getAfter-free read rules)', () => {
+  const INVITEE_PHONE = '+212 6 12 34 56 78';
+  const SECOND_PHONE = '+1-555-123-4567';
+
   // The read rules must check the COMMITTED state with `get`/`exists`. The
   // first cut reused the write-side helpers (`getAfter`/`existsAfter`),
   // which only see the post-batch state of a PENDING WRITE — evaluated in a
@@ -2028,6 +2031,42 @@ describe('darat circle reads (getAfter-free read rules)', () => {
     const db = asUser('mallory', { email: 'mallory@example.com' });
     await assertFails(getDoc(doc(db, 'circles/circle-1')));
     await assertFails(getDocs(collection(db, 'circles/circle-1/members')));
+  });
+
+  it('lets an owner create a circle they do NOT participate in, and read it back', async () => {
+    // The participation toggle: the organizer runs the circle without a
+    // seat in the rotation. memberOrder carries the invitees only, no
+    // organizer member row exists, but the owner pointer is still written
+    // (that is what lists the circle under "my circles") and the owner
+    // reads the circle through the organizerId branch of the get rule.
+    const db = asUser('org', { email: 'org@example.com' });
+    const circleRef = doc(collection(db, 'circles'));
+    const now = Date.now();
+    const order = [INVITEE_PHONE, SECOND_PHONE];
+    await assertSucceeds(runTransaction(db, async (tx) => {
+      tx.set(circleRef, {
+        ...circleDoc('org', order),
+        id: circleRef.id,
+      });
+      // No members/org row: the owner does not participate.
+      tx.set(doc(db, 'users/org/circles', circleRef.id), {
+        uid: 'org',
+        circleId: circleRef.id,
+        joinedAt: new Date(now).toISOString(),
+      });
+      const ledgerRef = doc(collection(db, 'circles', circleRef.id, 'ledger'));
+      tx.set(ledgerRef, {
+        id: ledgerRef.id,
+        circleId: circleRef.id,
+        uid: 'org',
+        kind: 'created',
+        at: now,
+      });
+    }));
+    await assertSucceeds(getDoc(doc(db, 'circles', circleRef.id)));
+    // The pointer create passed inside the transaction above; a follow-up
+    // read through the pointer stream is the app's list source.
+    await assertSucceeds(getDocs(collection(db, 'users/org/circles')));
   });
 
   it('denies listing the shared circles collection, organizer filter or not', async () => {

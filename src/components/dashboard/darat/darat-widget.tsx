@@ -81,6 +81,9 @@ export function DaratWidget() {
     let best: { circle: DaratCircle; date: string; pot: number; isRecipient: boolean } | null = null;
     for (const c of myCircles) {
       if (c.status === 'closed') continue;
+      // An owner who opted out of the rotation has no seat — no payment
+      // of theirs is ever scheduled in that circle.
+      if (user?.uid && !c.memberOrder.includes(user.uid)) continue;
       for (const r of c.rounds) {
         if (r.date < today) continue;
         if (r.status === 'closed') continue;

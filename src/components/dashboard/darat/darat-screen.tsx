@@ -80,6 +80,10 @@ export function DaratScreen() {
   // either one means "we know the load failed", which the detail view
   // turns into an error card instead of an endless spinner.
   const [docsLoadFailed, setDocsLoadFailed] = useState(false);
+  // Pointer rows whose circle doc could not be fetched. The owner still
+  // sees them listed (as unavailable rows) — the pointer stream is the
+  // source of truth for WHAT is mine, even when a doc read is refused.
+  const [failedCircleIds, setFailedCircleIds] = useState<string[]>([]);
   // Set when a rules denial was probed: 'stale-rules' means the account IS
   // a member and only an outdated deployed ruleset explains the refusal;
   // 'not-member' means the account has no active seat in that circle.
@@ -206,37 +210,46 @@ export function DaratScreen() {
           // An empty pointer collection is a perfectly valid "no circles
           // yet" outcome, not an error.
           setCircles([]);
+          setFailedCircleIds([]);
           setCirclesReady(true);
           setDocsLoadFailed(false);
           return;
         }
-        try {
-          const docs = await Promise.all(
-            ids.map((id) => getDoc(doc(db, 'circles', id))),
-          );
+        // allSettled so one refused circle never hides the rest of the
+        // list: fulfilled docs render as cards, rejected ids stay visible
+        // as unavailable rows below.
+        const settled = await Promise.allSettled(
+          ids.map((id) => getDoc(doc(db, 'circles', id))),
+        );
+        if (cancelled) return;
+        const docs = settled.filter(
+          (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof getDoc>>> => r.status === 'fulfilled',
+        );
+        const failedIds = settled
+          .map((r, i) => (r.status === 'rejected' ? ids[i] : null))
+          .filter((id): id is string => id !== null);
+        mergeDoc(docs.map((r) => r.value));
+        setFailedCircleIds(failedIds);
+        setDocsLoadFailed(failedIds.length > 0);
+        setCirclesReady(true);
+        if (failedIds.length === 0) {
+          setLoadError(null);
+          setDenialVerdict(null);
+          return;
+        }
+        const firstRejection = settled.find(
+          (r): r is PromiseRejectedResult => r.status === 'rejected',
+        );
+        const code = (firstRejection?.reason as { code?: string } | null)?.code;
+        console.warn(`[darat] ${failedIds.length} circle doc(s) could not be read`, failedIds, firstRejection?.reason);
+        if (code === 'permission-denied') {
+          const verdict = await diagnoseCircleDenial(failedIds[0]);
           if (cancelled) return;
-          mergeDoc(docs);
-          setCirclesReady(true);
-          setDocsLoadFailed(false);
-        } catch (err) {
-          if (cancelled) return;
-          console.warn('[darat] circle docs load failed', err);
-          // The pointer snapshot succeeded but the per-circle docs were
-          // refused (rules) or the network dropped. Name the two apart —
-          // "check your connection" is bad advice for a rules denial — and
-          // when it IS a denial, probe once to pin down which kind.
-          const code = (err as { code?: string } | null)?.code;
-          if (code === 'permission-denied') {
-            const verdict = await diagnoseCircleDenial(ids[0]);
-            if (cancelled) return;
-            setDenialVerdict(verdict);
-            setLoadError(verdict === 'not-member' ? 'circleOtherAccount' : 'rulesDenied');
-          } else {
-            setDenialVerdict(null);
-            setLoadError('networkError');
-          }
-          setDocsLoadFailed(true);
-          setCirclesReady(true);
+          setDenialVerdict(verdict);
+          setLoadError(verdict === 'not-member' ? 'circleOtherAccount' : 'rulesDenied');
+        } else {
+          setDenialVerdict(null);
+          setLoadError('networkError');
         }
       },
       (err) => {
@@ -267,6 +280,7 @@ export function DaratScreen() {
     name: string;
     contribution: number;
     members: { displayName: string; phone: string }[];
+    organizerParticipates: boolean;
   }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
@@ -278,6 +292,7 @@ export function DaratScreen() {
       organizerEmail: user.email ?? '',
       organizerDisplayName: (user.displayName?.trim()) || user.email || 'Organizer',
       currency: userCurrency,
+      organizerParticipates: input.organizerParticipates,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
       rotation: 'random',
@@ -325,25 +340,30 @@ export function DaratScreen() {
           createdAt: now,
           updatedAt: now,
         });
-        // Organizer's own member row — must exist before the pointer
-        // (the pointer's create rule checks `isCircleMember`).
-        tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
-          uid: user.uid,
-          // The rules require a non-empty displayName — an account whose
-          // displayName is '' would be rejected, so fall back to the email.
-          displayName: (user.displayName?.trim()) || user.email || 'Organizer',
-          // The organizer's email identifies their SmartJib account;
-          // it is not used as an invite gate. We keep it on the row
-          // for the household path.
-          email: (user.email ?? '').toLowerCase(),
-          phone: '',
-          status: 'active',
-          isOrganizer: true,
-          joinedAt: new Date(now).toISOString(),
-          sourcePlaceId: 'bank',
-        });
+        // Organizer's own member row — only when they participate in the
+        // rotation. An owner who opted out keeps owner rights through
+        // `organizerId` (edit/close/read) without a seat in the rounds.
+        if (input.organizerParticipates) {
+          tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
+            uid: user.uid,
+            // The rules require a non-empty displayName — an account whose
+            // displayName is '' would be rejected, so fall back to the email.
+            displayName: (user.displayName?.trim()) || user.email || 'Organizer',
+            // The organizer's email identifies their SmartJib account;
+            // it is not used as an invite gate. We keep it on the row
+            // for the household path.
+            email: (user.email ?? '').toLowerCase(),
+            phone: '',
+            status: 'active',
+            isOrganizer: true,
+            joinedAt: new Date(now).toISOString(),
+            sourcePlaceId: 'bank',
+          });
+        }
         // Per-user pointer so the dashboard widget can list "your
-        // circles" without scanning the shared collection.
+        // circles" without scanning the shared collection. Written for
+        // participating AND non-participating owners alike: the pointer
+        // stream is what makes "my circles" complete.
         tx.set(doc(db, 'users', user.uid, 'circles', circleRef.id), {
           uid: user.uid,
           circleId: circleRef.id,
@@ -401,7 +421,8 @@ export function DaratScreen() {
 
   // Edit a circle's settings from the detail screen. The organizer-only
   // mutation writes the changed fields and rebuilds the rounds. The
-  // memberOrder is also rewritten if the rotation was changed to "fixed".
+  // memberOrder is also rewritten if the rotation was changed to "fixed"
+  // or the participation toggle flipped (join/leave the rotation as owner).
   const handleEdit = useCallback(async (input: {
     circleId: string;
     name?: string;
@@ -410,6 +431,7 @@ export function DaratScreen() {
     rotation?: DaratRotation;
     startDate?: string;
     fixedOrder?: string[] | null;
+    organizerParticipates?: boolean;
   }): Promise<{ ok: boolean; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     try {
@@ -435,6 +457,64 @@ export function DaratScreen() {
 
       // Rebuild the rounds from the same pure library used at creation.
       const { daratBuildRounds } = await import('@/lib/darat');
+
+      // Participation toggle: flipping it rewrites memberOrder and needs a
+      // matching member-row create/delete, so it runs as one transaction.
+      const participatesNow = current.memberOrder.includes(user.uid);
+      if (input.organizerParticipates !== undefined && input.organizerParticipates !== participatesNow) {
+        if (!input.organizerParticipates && current.memberOrder.length - 1 < 2) {
+          // Without the organizer the invitees alone must carry the rotation.
+          return { ok: false, error: 'membersTooFew' };
+        }
+        const nextOrder = input.organizerParticipates
+          ? [...current.memberOrder, user.uid]
+          : current.memberOrder.filter((id) => id !== user.uid);
+        const toggleRounds = daratBuildRounds({
+          memberOrder: nextOrder,
+          contribution: next.contribution,
+          frequency: next.frequency,
+          rotation: next.rotation,
+          startDate: next.startDate,
+          randomSeed: next.randomSeed,
+          fixedOrder: next.fixedOrder,
+        });
+        const memberRef = doc(db, 'circles', input.circleId, 'members', user.uid);
+        const ledgerCol = collection(db, 'circles', input.circleId, 'ledger');
+        const ledgerRef = doc(ledgerCol);
+        await runTransaction(db, async (tx) => {
+          tx.update(ref, {
+            ...next,
+            id: current.id,
+            memberOrder: nextOrder,
+            rounds: toggleRounds,
+            updatedAt: Date.now(),
+          });
+          if (input.organizerParticipates) {
+            tx.set(memberRef, {
+              uid: user.uid,
+              displayName: (user.displayName?.trim()) || user.email || 'Organizer',
+              email: (user.email ?? '').toLowerCase(),
+              phone: '',
+              status: 'active',
+              isOrganizer: true,
+              joinedAt: new Date().toISOString(),
+              sourcePlaceId: 'bank',
+            });
+          } else {
+            tx.delete(memberRef);
+          }
+          tx.set(ledgerRef, {
+            id: ledgerRef.id,
+            circleId: input.circleId,
+            uid: user.uid,
+            kind: 'edited',
+            at: Date.now(),
+            changed: ['organizerParticipates'],
+          });
+        });
+        return { ok: true };
+      }
+
       const updatedRounds = daratBuildRounds({
         memberOrder: current.memberOrder,
         contribution: next.contribution,
@@ -672,6 +752,22 @@ export function DaratScreen() {
                   currentUid={user?.uid}
                   onOpen={() => setView({ kind: 'detail', circleId: circle.id })}
                 />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {failedCircleIds.length > 0 && circlesReady && (
+        <section className="flex flex-col gap-2 rounded-[1.75rem] border border-dashed border-error/40 bg-error-container/20 p-4">
+          <h2 className="text-[13px] font-semibold text-on-surface">
+            {m.darat.list.unavailableTitle} ({failedCircleIds.length})
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {failedCircleIds.map((id) => (
+              <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
+                <AppIcon name="error" className="shrink-0 text-[16px] text-error" />
+                <span className="truncate font-mono" dir="ltr">{id}</span>
               </li>
             ))}
           </ul>

@@ -583,6 +583,27 @@ describe('darat: circle doc id integrity (create → read)', () => {
     assert.throws(() => buildDaratCreateDefaults(createInput, ''));
   });
 
+  it('organizer opt-out: memberOrder and rounds carry the invitees only', () => {
+    // The owner can run a circle without a seat in the rotation: no
+    // organizer entry in memberOrder, rounds over the invitees only.
+    const { circle, rounds } = buildDaratCreateDefaults(
+      { ...createInput, members: [
+        { displayName: 'M1', phone: '+212612345678' },
+        { displayName: 'M2', phone: '+212612345679' },
+      ], organizerParticipates: false },
+      'circle_optout',
+    );
+    assert.equal(circle.id, 'circle_optout');
+    assert.ok(!circle.memberOrder.includes('uid-org'));
+    assert.equal(circle.memberOrder.length, 2);
+    assert.equal(rounds.length, 2);
+  });
+
+  it('organizer opt-out with fewer than 2 invitees is refused', () => {
+    assert.throws(() =>
+      buildDaratCreateDefaults({ ...createInput, organizerParticipates: false }, 'circle_bad'));
+  });
+
   it('the snapshot id wins over a stored (possibly empty) id field', () => {
     // Circles created before the create-path fix still carry `id: ''`
     // inside the document. Reads must merge snapshot data first and stamp

@@ -26,6 +26,8 @@ interface Props {
     rotation: DaratRotation;
     startDate: string;
     fixedOrder?: string[] | null;
+    /** Owner joins (true) / leaves (false) the rotation. Omitted = unchanged. */
+    organizerParticipates?: boolean;
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -61,6 +63,11 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
   const [frequency, setFrequency] = useState<DaratFrequency>(circle.frequency);
   const [rotation, setRotation] = useState<DaratRotation>(circle.rotation);
   const [startDate, setStartDate] = useState(circle.startDate);
+  // Owner participation, derived from the roster (the owner has a seat iff
+  // their uid is in memberOrder) and editable in place.
+  const [organizerParticipates, setOrganizerParticipates] = useState(
+    circle.memberOrder.includes(circle.organizerId),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
@@ -85,7 +92,14 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
     const next: typeof fieldErrors = {};
     if (!name.trim()) next.name = (m.darat.create.errors as Record<string, string>).nameRequired ?? m.errors.generic;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) next.amount = (m.darat.create.errors as Record<string, string>).amountInvalid ?? m.errors.generic;
-    if (circle.memberOrder.length < 2) next.members = (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    const orderIfSaved = organizerParticipates
+      ? circle.memberOrder.length
+      : circle.memberOrder.length - (circle.memberOrder.includes(circle.organizerId) ? 1 : 0);
+    if (orderIfSaved < 2) {
+      next.members = !organizerParticipates && circle.memberOrder.includes(circle.organizerId)
+        ? (m.darat.create.errors as Record<string, string>).minInviteesNoOrganizer ?? m.errors.generic
+        : (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    }
     if (circle.memberOrder.length > DARAT_MAX_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooMany ?? m.errors.generic;
     if (Object.keys(next).length > 0) {
       setFieldErrors(next);
@@ -100,6 +114,7 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
         rotation,
         startDate,
         fixedOrder: isFixedRotation ? circle.memberOrder : null,
+        organizerParticipates,
       });
       if (!res.ok) setError(res.error ?? 'genericError');
     } catch (err) {
@@ -208,6 +223,24 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
             ariaLabel={m.darat.create.rotation}
             wrap
           />
+        </div>
+
+        {/* ── Owner participation ── */}
+        <div className="flex flex-col gap-1 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={organizerParticipates}
+              onChange={(e) => setOrganizerParticipates(e.target.checked)}
+              className="size-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span className="text-[14px] font-semibold text-on-surface">
+              {m.darat.create.participate}
+            </span>
+          </label>
+          <p className="ps-7 text-[12px] font-medium text-on-surface-variant">
+            {m.darat.create.participateHint}
+          </p>
         </div>
 
         {/* ── Start date ── */}

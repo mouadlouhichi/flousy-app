@@ -927,7 +927,7 @@
   "errors": {
     "generic": "Un problème est survenu. Veuillez réessayer.",
     "networkError": "Erreur réseau. Vérifiez votre connexion.",
-    "rulesDenied": "Le serveur a refusé la lecture de vos tontines. Si vous venez de modifier les règles de sécurité, redéployez-les puis rechargez la page.",
+    "rulesDenied": "Le serveur a refusé la lecture de vos tontines. Dans la console Firebase (Firestore → Règles), les règles PUBLIÉES doivent contenir « darat read-rules v3 » — déployez firestore.rules depuis cette branche, puis rechargez.",
     "circleOtherAccount": "Cette tontine ne liste pas votre compte comme membre. Êtes-vous connecté avec le compte qui l'a créée ou rejointe ?",
     "loadFailedTitle": "Impossible de charger vos tontines",
     "notFound": "Page introuvable",
@@ -2561,7 +2561,8 @@
       "pot": "Cagnotte par tour : {amount}",
       "nextRound": "Prochain tour : {date}",
       "yourTurn": "C'est votre tour de recevoir la cagnotte",
-      "notYourTurn": "Prochain bénéficiaire : {name}"
+      "notYourTurn": "Prochain bénéficiaire : {name}",
+      "unavailableTitle": "Tontines que vous possédez ou avez rejointes, impossibles à ouvrir"
     },
     "create": {
       "title": "Créer une tontine Darat",
@@ -2576,6 +2577,8 @@
       "frequencyMonthly": "Chaque mois",
       "members": "Inviter des membres",
       "membersHint": "Chaque personne reçoit un code unique partageable par lien. Faites glisser la poignée pour définir l'ordre.",
+      "participate": "Je participe aux tours",
+      "participateHint": "Décochez pour organiser sans participer — vous gardez le contrôle total et la tontine reste dans votre liste.",
       "membersEmptyHint": "Ajoutez au moins une personne avec son nom et son numéro de téléphone.",
       "membersNeedName": "Chaque membre a besoin d'un nom et d'un numéro de téléphone.",
       "memberPhoneLabel": "Numéro de téléphone",
@@ -2616,7 +2619,8 @@
         "noOrganizer": "Vous devez être connecté pour organiser une Darat.",
         "duplicatePhones": "Deux membres ont le même numéro — chacun doit avoir un numéro unique.",
         "phoneFormat": "Saisissez un numéro de téléphone valide (au moins 8 chiffres).",
-        "forbidden": "SmartJib a refusé cette écriture — actualisez et réessayez. Si cela persiste, déconnectez-vous et reconnectez-vous."
+        "forbidden": "SmartJib a refusé cette écriture — actualisez et réessayez. Si cela persiste, déconnectez-vous et reconnectez-vous.",
+        "minInviteesNoOrganizer": "Organiser sans participer nécessite au moins 2 membres invités."
       }
     },
     "detail": {
@@ -2662,7 +2666,8 @@
       "closeConfirm": "Clôturer cette tontine ? Une fois clôturée, plus aucun tour ne se déroule.",
       "inviteCode": "Code d'invitation",
       "inviteCodeHint": "Partagez ce code ou le lien avec une personne de confiance — elle peut rejoindre depuis la page Darat.",
-      "invitedPhone": "Invité · {phone}"
+      "invitedPhone": "Invité · {phone}",
+      "organizerOnly": "Propriétaire — ne participe pas"
     },
     "join": {
       "title": "Rejoindre une tontine Darat",

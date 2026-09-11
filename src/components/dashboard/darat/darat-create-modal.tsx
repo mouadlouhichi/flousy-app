@@ -37,6 +37,8 @@ interface Props {
     name: string;
     contribution: number;
     members: MemberDraft[];
+    /** Owner participates in the rotation (default true). */
+    organizerParticipates: boolean;
   }) => Promise<{
     ok: boolean;
     circleId?: string;
@@ -87,6 +89,10 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [agreedToInvite, setAgreedToInvite] = useState(false);
+  // Owner participation: when unchecked the organizer runs the circle
+  // without a seat in the rotation (no member row, no rounds for them).
+  // They keep owner rights and the circle stays in "my circles".
+  const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
   // The post-create summary, shown after the transaction commits.
   // When this is non-null the form is replaced by the share-links panel.
@@ -199,7 +205,7 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     seenPhones.set(normalized, m.key);
   }
   const hasRowErrors = rowErrors.size > 0;
-  const totalMembers = members.length + 1; // +1 for the organizer
+  const totalMembers = (organizerParticipates ? 1 : 0) + members.length;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +213,13 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     const next: typeof fieldErrors = {};
     if (!name.trim()) next.name = (m.darat.create.errors as Record<string, string>).nameRequired ?? m.errors.generic;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) next.amount = (m.darat.create.errors as Record<string, string>).amountInvalid ?? m.errors.generic;
-    if (totalMembers < DARAT_MIN_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    if (totalMembers < DARAT_MIN_MEMBERS) {
+      // An owner who does not participate needs the invitees alone to
+      // carry the rotation — one invitee is not a rotation.
+      next.members = !organizerParticipates
+        ? (m.darat.create.errors as Record<string, string>).minInviteesNoOrganizer ?? m.errors.generic
+        : (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    }
     if (totalMembers > DARAT_MAX_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooMany ?? m.errors.generic;
     if (hasRowErrors) next.members = (m.darat.create.errors as Record<string, string>).duplicatePhones ?? m.errors.generic;
     if (Object.keys(next).length > 0) {
@@ -225,6 +237,7 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
         name: name.trim(),
         contribution: numericAmount,
         members: invitees,
+        organizerParticipates,
       });
       if (!res.ok) {
         setError(res.error ?? 'genericError');
@@ -436,6 +449,24 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
           ) : (
             <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.amountHint}</p>
           )}
+        </div>
+
+        {/* ── Owner participation ── */}
+        <div className="flex flex-col gap-1 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={organizerParticipates}
+              onChange={(e) => setOrganizerParticipates(e.target.checked)}
+              className="size-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span className="text-[14px] font-semibold text-on-surface">
+              {m.darat.create.participate}
+            </span>
+          </label>
+          <p className="ps-7 text-[12px] font-medium text-on-surface-variant">
+            {m.darat.create.participateHint}
+          </p>
         </div>
 
         {/* ── Members list with drag-to-reorder ── */}

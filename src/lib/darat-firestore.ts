@@ -36,6 +36,14 @@ export interface DaratCreateDefaultsInput extends DaratCreateInput {
   organizerEmail: string;
   organizerDisplayName: string;
   currency: string;
+  /**
+   * When false the organizer runs the circle without a seat in the
+   * rotation: no organizer member row, no entry in memberOrder, rounds
+   * built over the invitees only. The organizer keeps full owner rights
+   * (edit, close, read) and the pointer row is still written so the
+   * circle shows up in "my circles". Defaults to true (participating).
+   */
+  organizerParticipates?: boolean;
 }
 
 export interface DaratCreateDefaults {
@@ -88,10 +96,18 @@ export function buildDaratCreateDefaults(
     throw new Error(`darat create validation failed: ${v.error}`);
   }
 
+  // Participation toggle: an organizer who opts out has NO seat in the
+  // rotation — memberOrder carries the invitees only, and the caller skips
+  // the organizer member row. The pointer row is written either way so the
+  // circle still shows up in the owner's "my circles" list.
+  const organizerParticipates = input.organizerParticipates ?? true;
   const memberOrder = [
-    input.organizerId,
+    ...(organizerParticipates ? [input.organizerId] : []),
     ...input.members.map((m) => m.phone.trim()),
   ];
+  if (!organizerParticipates && input.members.length < DARAT_MIN_MEMBERS) {
+    throw new Error('darat create: an organizer who does not participate needs at least 2 invited members');
+  }
 
   // Until each invitee accepts their invite we do not have a uid for them.
   // We use the phone (the only identity we have at create time) as the

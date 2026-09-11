@@ -1697,8 +1697,13 @@ service cloud.firestore {
       allow create: if signedIn()
         && incoming().organizerId == request.auth.uid
         && incoming().status == 'active'
-        && validDaratCircleShape(incoming())
-        && incoming().memberOrder.hasAll([request.auth.uid]);
+        && validDaratCircleShape(incoming());
+        // No memberOrder.hasAll([auth.uid]) clause: the owner may run the
+        // circle WITHOUT a seat in the rotation (the participation toggle),
+        // in which case memberOrder carries the invitees only. Ownership
+        // is enforced by organizerId == request.auth.uid above; the shape
+        // check still pins memberOrder to 2..20 entries with matching
+        // rounds, so an empty or single-seat rotation is impossible.
 
       // Organizer can update the circle; members can also flip their own
       // member-order spot to inactive (handled at the members subcollection).
@@ -1872,7 +1877,10 @@ service cloud.firestore {
         && incoming().uid == uid
         && incoming().circleId == circleId
         && incoming().joinedAt is string
-        && isCircleMember(circleId, uid);
+        // The owner gets a pointer even when they opted out of the
+        // rotation (no member row) — the pointer is what lists the
+        // circle under "my circles".
+        && (isCircleMember(circleId, uid) || isCircleOrganizer(circleId));
       allow delete: if owner(uid) || isCircleOrganizer(circleId);
       allow update: if false;
     }
