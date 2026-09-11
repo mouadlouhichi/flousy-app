@@ -33,20 +33,7 @@ jobs:
           node-version: '22'
       - run: |
           node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source || 'off' }} --pages=${{ inputs.pages || '20' }} 2>&1 | tee data/harvest.log
-      - run: |
-          mkdir -p data/parts
-          node -e '
-            const fs = require("node:fs");
-            const file = process.argv[1];
-            const size = Number(process.argv[2]);
-            const corpus = JSON.parse(fs.readFileSync(file, "utf8"));
-            const chunks = [];
-            for (let i = 0; i < corpus.products.length; i += size) chunks.push(corpus.products.slice(i, i + size));
-            chunks.forEach((chunk, index) => {
-              fs.writeFileSync(`data/parts/part-${index}.json`, JSON.stringify({ ...corpus, count: chunk.length, products: chunk }));
-              console.log(`part-${index}.json: ${chunk.length} products, ${fs.statSync(`data/parts/part-${index}.json`).size} bytes`);
-            });
-          ' data/ma-corpus-${{ inputs.source || 'off' }}.json 400
+      - run: node scripts/split-corpus.mjs data/ma-corpus-${{ inputs.source || 'off' }}.json --per=400
       # Gist files are returned inline by the API only while under ~1 MB, so the
       # corpus is published in parts and reassembled on the other side.
       - name: Publish the corpus as a public gist
