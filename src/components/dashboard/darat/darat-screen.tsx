@@ -50,6 +50,15 @@ type View =
   | { kind: 'detail'; circleId: string };
 
 /**
+ * The deployment marker this client build expects to find in the PUBLISHED
+ * Firestore rules (Firebase console → Firestore → Rules, first lines).
+ * Older published rulesets deny every darat read with a bare
+ * "Missing or insufficient permissions" — every diagnostic log below names
+ * this marker so a mismatch is identifiable from the console alone.
+ */
+const DARAT_RULES_MARKER = 'darat read-rules v3';
+
+/**
  * A generated invite that the create modal can present to the organizer
  * so they can share a same-origin link with each invitee. The `id` is the
  * UUID that both `/circles/{cid}/invites/{id}` and
@@ -185,10 +194,10 @@ export function DaratScreen() {
           if (status === 'active') {
             console.error(
               `[darat] READ DENIED on circles/${circleId} but ${user.uid} IS an active member.\n` +
-              'The LIVE Firestore rules are older than this repo\'s firestore.rules.\n' +
+              `The LIVE Firestore rules are older than this build (expected marker: "${DARAT_RULES_MARKER}").\n` +
               'Fix — from the repo root run:\n' +
               '  firebase use <your-project-id> && firebase deploy --only firestore:rules\n' +
-              'Verify — Firebase console → Firestore → Rules: the published text must contain "activeCircleMemberRead".',
+              'Verify — Firebase console → Firestore → Rules: the published text must contain the marker above.',
             );
             return 'stale-rules';
           }
@@ -260,6 +269,11 @@ export function DaratScreen() {
         if (failedIds.length === 0) {
           setLoadError(null);
           setDenialVerdict(null);
+          // Healthy-sync receipt: reads succeeded, so the published rules
+          // include this build's marker. If a later report shows this line,
+          // the rules were fine at that moment — great for correlating
+          // "it worked yesterday" reports with deploy history.
+          console.info(`[darat] ${docs.length} circle(s) synced — reads OK (rules marker "${DARAT_RULES_MARKER}" confirmed)`);
           return;
         }
         const code = (firstRejection?.reason as { code?: string } | null)?.code;
@@ -454,6 +468,9 @@ export function DaratScreen() {
     setCreateOpen(false);
     setPendingDetailId(circleRef.id);
     setView({ kind: 'detail', circleId: circleRef.id });
+    console.info(
+      `[darat] circle created ${circleRef.id} (owner participating: ${input.organizerParticipates}, invitees: ${normalisedInvites.length})`,
+    );
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
   }, [db, user, userCurrency]);
 

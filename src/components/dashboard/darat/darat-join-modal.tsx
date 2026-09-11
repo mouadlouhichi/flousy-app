@@ -129,6 +129,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
           at: Date.now(),
         });
       });
+      console.info(`[darat] joined circle ${invite.circleId} via invite ${invite.id}`);
       onJoined(invite.circleId);
     } catch (err) {
       console.error('[darat] join failed', err);
