@@ -4,6 +4,13 @@ name: Fetch Moroccan product corpus
 # openfoodfacts.org, so this runs the fetch script in Actions and hands back
 # the raw corpus as an artifact. Not part of the app's CI.
 on:
+  # Push-triggered (not workflow_dispatch) so the audit can be re-run from a
+  # working branch: touching the fetcher re-runs the harvest.
+  push:
+    branches: ['**']
+    paths:
+      - 'scripts/fetch-ma-corpus.mjs'
+      - '.github/workflows/fetch-ma-corpus.yml'
   workflow_dispatch:
     inputs:
       source:
