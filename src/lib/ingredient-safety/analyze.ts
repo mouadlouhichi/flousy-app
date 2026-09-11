@@ -52,6 +52,17 @@ const DEDUCTION: Record<RiskTier, number> = {
  * recognised-but-signal-free ingredients is a legitimate "no listed signal"
  * result, while a label we cannot read is not. */
 const MIN_IDENTITY_COVERAGE = 0.6;
+/**
+ * Identity coverage required to publish a list that carries no finding at all.
+ *
+ * "No listed restriction matched" is only meaningful evidence of cleanliness
+ * when essentially the whole label was read; a partially read list could be
+ * hiding its finding in the rows we could not identify. At or above this
+ * coverage the absence of a match is published — with a caveat, because the
+ * dated corpus is not a certificate of harmlessness — and below it the index
+ * stays withheld.
+ */
+const CLEAN_PUBLISH_COVERAGE = 0.9;
 const PROHIBITED_CAP = 35;
 /** A product carrying an Annex-III-style restriction entry may not read as a
  * clean result even when the other rows are unremarkable. */
@@ -236,10 +247,18 @@ function bandFor(score: number): Band {
 
 /** Confidence tracks IDENTITY coverage (can we read the list?) and is capped at
  * `partial` while any EU condition is unresolved, because an unresolved
- * condition limits what the index can mean even on a fully read label. */
-function confidenceFor(coverage: number, hasUnresolvedConditions: boolean): ProductAssessment['confidence'] {
+ * condition limits what the index can mean even on a fully read label.
+ *
+ * A clean result is capped for the same reason in the opposite direction: the
+ * corpus found nothing to report, which is a statement about the dated lists,
+ * not a guarantee about the product. */
+function confidenceFor(
+  coverage: number,
+  hasUnresolvedConditions: boolean,
+  cleanResult = false,
+): ProductAssessment['confidence'] {
   const base = coverage >= 0.9 ? 'full' : coverage >= 0.7 ? 'partial' : 'limited';
-  if (hasUnresolvedConditions && base === 'full') return 'partial';
+  if ((hasUnresolvedConditions || cleanResult) && base === 'full') return 'partial';
   return base;
 }
 
@@ -255,6 +274,8 @@ function scoreStatusFor(input: {
   form: ProductForm;
   /** Share of rows the dated corpus could identify. */
   identityCoverage: number;
+  /** Share of rows identified by the dated corpus itself (no outside help). */
+  localIdentityCoverage: number;
   /** Rows carrying at least one assessed signal. */
   assessed: number;
   /** An Annex II (prohibited-list) match whose exception cannot be resolved. */
@@ -267,9 +288,17 @@ function scoreStatusFor(input: {
   if (input.parser.source === 'ocr' && !input.parser.reviewed) return 'withheld-review-required';
   if (input.form === 'unknown') return 'withheld-form-unknown';
   if (input.hasUnresolvedProhibition) return 'withheld-conditions-unknown';
-  // Nothing the corpus can say about this list: publishing "no listed signal"
-  // would read as a positive finding, so the index is withheld instead.
-  if (input.assessed === 0) return 'withheld-insufficient-evidence';
+  // No row carries a listed finding. When the dated corpus itself read the whole
+  // label that is a real result — every ingredient was checked against Annex
+  // II–VI and the dated hazard overlays — so it is published with a caveat flag
+  // (see `no-listed-signal`). On a partially read label the missing rows could
+  // hold the finding, so the index stays withheld. Rows identified only by an
+  // outside provider do not count: a name is not a hazard assessment, and an
+  // unlisted name supplied externally must not be what turns "nothing matched"
+  // into a published clean index.
+  if (input.assessed === 0 && input.localIdentityCoverage < CLEAN_PUBLISH_COVERAGE) {
+    return 'withheld-insufficient-evidence';
+  }
   if (input.identityCoverage < MIN_IDENTITY_COVERAGE) return 'withheld-insufficient-evidence';
   if (input.hasUnresolvedConditions) return 'available-with-unresolved-conditions';
   return 'available';
@@ -323,6 +352,7 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
     parser,
     form,
     identityCoverage: coverage,
+    localIdentityCoverage: total === 0 ? 0 : localRecognized.length / total,
     assessed: assessed.length,
     hasUnresolvedProhibition,
     hasUnresolvedConditions: hasUnknownConditions,
@@ -448,6 +478,14 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
       code: scoreStatus,
       text: 'The numeric score is withheld because the available identity/context evidence is not sufficient for a supported formula-level assessment.',
     });
+  } else if (assessed.length === 0) {
+    // Published from the absence of a match: the caveat is mandatory, because
+    // "not on any dated list" is not the same claim as "harmless".
+    flags.push({
+      level: 'info',
+      code: 'no-listed-signal',
+      text: `Every ingredient was identified and none appears on an EU annex or a dated hazard list in the corpus. That is a statement about the dated lists, not a safety certificate: absence from a list is not evidence of harmlessness.`,
+    });
   } else if (scoreStatus === 'available-with-unresolved-conditions') {
     flags.push({
       level: 'info',
@@ -471,7 +509,7 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
     assessmentCoverage: Math.round(assessmentCoverage * 1000) / 1000,
     score,
     scoreStatus,
-    confidence: confidenceFor(coverage, hasUnknownConditions),
+    confidence: confidenceFor(coverage, hasUnknownConditions, assessed.length === 0),
     band: score === null ? null : bandFor(score),
     worstTier,
     unknownIngredients: unknown,

@@ -75,8 +75,11 @@ describe('ingredientGlance messages', () => {
       ['Aqua', 'Glycerin', 'Quaternium-15', 'Parfum', 'Linalool', 'Limonene', 'Methylisothiazolinone'],
       { form: 'leave-on' },
     );
-    const codes = analysis.flags.map((f) => f.code);
+    // A clean list carries its own caveat flag, which needs copy too.
+    const cleanAnalysis = analyzeIngredientList(['Aqua', 'Glycerin'], { form: 'leave-on' });
+    const codes = [...analysis.flags, ...cleanAnalysis.flags].map((f) => f.code);
     assert.ok(codes.includes('eu-annex-ii-name-match'));
+    assert.ok(codes.includes('no-listed-signal'));
     for (const messages of [fr, ar]) {
       const g = glanceOf(messages);
       for (const code of codes) {
@@ -89,13 +92,35 @@ describe('ingredientGlance messages', () => {
     }
   });
 
-  it('exposes band labels while identity-only lists remain unscored', () => {
+  it('scores a fully read identity-only list and withholds a partly read one', () => {
     const analysis = analyzeIngredientList(['Aqua', 'Glycerin'], { form: 'leave-on' });
-    assert.equal(analysis.band, null);
-    assert.equal(analysis.score, null);
+    assert.equal(analysis.score, 100);
+    assert.equal(analysis.band, 'excellent');
+    assert.ok(analysis.flags.some((flag) => flag.code === 'no-listed-signal'));
+
+    // The same list with rows the corpus cannot read is not publishable: the
+    // missing rows could carry the finding.
+    const partial = analyzeIngredientList(
+      ['Aqua', 'Glycerin', 'Zzz Mystery Polymer', 'Qqq Unknown Resin'],
+      { form: 'leave-on' },
+    );
+    assert.equal(partial.band, null);
+    assert.equal(partial.score, null);
+    assert.equal(partial.scoreStatus, 'withheld-insufficient-evidence');
+
     const g = glanceOf(en);
     assert.ok(g.bandExcellent.length > 0);
     assert.ok(g.bandAvoid.length > 0);
+    assert.ok(g.flagNoListedSignal.length > 0);
+  });
+
+  it('renders the clean-result caveat as a caveat rather than a clean bill of health', () => {
+    const analysis = analyzeIngredientList(['Aqua', 'Glycerin'], { form: 'leave-on' });
+    for (const messages of [en, fr, ar]) {
+      const line = ingredientFlagText('no-listed-signal', analysis, glanceOf(messages), t);
+      assert.ok(line.length > 0, 'clean-result caveat needs copy in every locale');
+      assert.doesNotMatch(line, /\b(safe|harmless|certified|approved)\b/i);
+    }
   });
 });
 

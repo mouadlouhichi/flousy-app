@@ -143,15 +143,34 @@ describe('product analysis', () => {
     assert.equal(JSON.stringify(analyzeInciText(text, options)), JSON.stringify(analyzeInciText(text, options)));
   });
 
-  it('does not convert glossary identity into clean evidence or a positive score', () => {
+  it('publishes a fully read clean list as a no-listed-finding result, never as a safety certificate', () => {
     const result = analyzeInciText('Aqua, Glycerin, Niacinamide, Dimethicone', { form: 'leave-on' });
     assert.equal(result.coverage, 1);
     assert.equal(result.assessmentCoverage, 0);
     assert.ok(result.ingredients.every((item) => item.assessmentState === 'identified-no-assessment'));
     assert.ok(result.ingredients.every((item) => item.tier === null));
-    assert.equal(result.score, null);
-    assert.equal(result.band, null);
+    // The whole label was read and nothing matched, so the index is published…
+    assert.equal(result.score, 100);
+    assert.equal(result.band, 'excellent');
+    assert.equal(result.scoreStatus, 'available');
+    // …but the absence of a match is stated as what it is, and it never reads
+    // as strong as a label whose rows were actively assessed.
+    assert.ok(result.flags.some((flag) => flag.code === 'no-listed-signal'));
+    assert.equal(result.confidence, 'partial');
+  });
+
+  it('withholds a clean verdict on a label the corpus only partly read', () => {
+    // Coverage clears the 0.6 publication gate, but a third of the list is
+    // unidentified and no row carries a finding: the missing rows could hold
+    // it, so "nothing matched" is not publishable.
+    const result = analyzeInciText(
+      'Aqua, Glycerin, Niacinamide, Dimethicone, Zzz Mystery Polymer, Qqq Unknown Resin',
+      { form: 'leave-on' },
+    );
+    assert.ok(result.coverage >= 0.6 && result.coverage < 0.9);
+    assert.equal(result.assessmentCoverage, 0);
     assert.equal(result.scoreStatus, 'withheld-insufficient-evidence');
+    assert.equal(result.score, null);
   });
 
   it('publishes the worst-band index for an exact Annex II match and keeps the verify flag', () => {
@@ -270,8 +289,12 @@ describe('product analysis', () => {
     assert.equal(ingredient?.tier, null);
     assert.equal(ingredient?.assessmentState, 'identified-no-assessment');
     assert.equal(ingredient?.signals.some((signal) => signal.regulatory?.legalRole === 'prohibited-list'), false);
-    assert.equal(result.score, null);
-    assert.equal(result.scoreStatus, 'withheld-insufficient-evidence');
+    // The outcome is "no listed finding on the dated corpus", not "DINP is
+    // safe": no tier, an explicit caveat flag, and capped confidence.
+    assert.equal(result.ingredients[0]?.tier, null);
+    assert.equal(result.scoreStatus, 'available');
+    assert.ok(result.flags.some((flag) => flag.code === 'no-listed-signal'));
+    assert.equal(result.confidence, 'partial');
   });
 
   it('preserves Hydroquinone exception/use conditions instead of issuing a blanket compliance verdict', () => {
@@ -642,10 +665,10 @@ describe('production scoring readiness (ingredient-evidence-v4)', () => {
   });
 
   it('still withholds the index when the list cannot be read or a ban is unresolved', () => {
-    // Nothing the corpus can say about this list.
+    // A fully read list with no finding is published — see the clean-label rule.
     assert.equal(
       analyzeInciText('Aqua, Glycerin', { form: 'leave-on' }).scoreStatus,
-      'withheld-insufficient-evidence',
+      'available',
     );
     // Mostly unreadable.
     assert.equal(

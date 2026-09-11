@@ -2737,6 +2737,7 @@
     "flagParserReview": "La structure analysée doit être vérifiée ; le résultat numérique est bloqué.",
     "flagOcrReview": "Le texte OCR doit être vérifié avant l’analyse.",
     "flagScoreWithheld": "Le résultat numérique est volontairement retenu faute de preuves ou de contexte résolus.",
+    "flagNoListedSignal": "Aucune annexe de l’UE ni liste de danger datée ne mentionne d’ingrédient ici — ce n’est pas un certificat d’innocuité.",
     "assessmentMeta": "Source UE au : {date} · Forme du produit : {form}",
     "riskDriversTitle": "Principaux facteurs de risque",
     "driverPoints": "+{points} pts de risque",

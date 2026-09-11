@@ -252,6 +252,42 @@ describe('CoursesIngredientGlance render smoke', () => {
     }
   });
 
+  it('renders a clean result as a published index plus the no-listed-signal caveat', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    // A fully read label where the dated corpus matched nothing: the index is
+    // published, and the card must still say what that number is and is not.
+    const clean: ProductAssessment = {
+      ...analysis,
+      total: 2,
+      recognized: 2,
+      localRecognized: 2,
+      assessed: 0,
+      assessmentCoverage: 0,
+      score: 100,
+      scoreStatus: 'available',
+      confidence: 'partial',
+      band: 'excellent',
+      worstTier: null,
+      cappedReason: undefined,
+      ingredients: [],
+      flags: [
+        { level: 'info', code: 'no-listed-signal', text: '' },
+      ],
+    };
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientGlanceBody, { analysis: clean }),
+      );
+      assert.ok(html.includes('100'), `${locale}: clean index missing`);
+      assert.ok(html.includes(g.flagNoListedSignal), `${locale}: clean-result caveat missing`);
+      assert.ok(html.includes(g.indexNotSafetyVerdict), `${locale}: safety caveat missing`);
+    }
+  });
+
   it('renders nothing (not even an error) when no ingredient text is present', async () => {
     const { CoursesIngredientGlance } = await import(
       '../../src/components/dashboard/courses/courses-ingredient-glance'

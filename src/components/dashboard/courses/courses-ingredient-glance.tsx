@@ -560,6 +560,8 @@ export function ingredientFlagText(
     }
     case 'available-with-unresolved-conditions':
       return g.conditionsCaveat;
+    case 'no-listed-signal':
+      return g.flagNoListedSignal;
     case 'parser-review-required':
       return g.flagParserReview;
     case 'ocr-review-required':

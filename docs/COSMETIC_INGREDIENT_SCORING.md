@@ -88,7 +88,7 @@ A numeric **bounded evidence index** is published when all of these hold:
 - OCR text, if applicable, was reviewed;
 - product form is known (explicit choice, or inferred from the product name/category);
 - no matched EU **prohibited-list** (Annex II) record has an exception that cannot be resolved from the label;
-- at least one row carries a listed signal;
+- at least one row carries a listed signal **or** the dated corpus itself identified at least 90% of the rows (see “Clean labels” below);
 - at least 60% of the rows are identified by the dated corpus (identity coverage, not signal coverage).
 
 `scoreStatus` then reads either `available` or `available-with-unresolved-conditions`. The second is the ordinary case for a real cosmetic: Annexes III–VI carry concentration, product-type and warning conditions that an ingredient list cannot express. Those conditions stay unresolved — they are published as a mandatory caveat with `confidence` capped at `partial`, never silently treated as compliant.
@@ -102,7 +102,30 @@ Otherwise `score` and `band` are `null` with a machine-readable `scoreStatus`:
 | `withheld-review-required` | OCR draft not yet confirmed by the user |
 | `withheld-form-unknown` | exposure context (leave-on/rinse-off) not chosen yet |
 | `withheld-conditions-unknown` | an Annex II exception cannot be resolved from the label |
-| `withheld-insufficient-evidence` | too few rows identified, or no row carries any listed signal |
+| `withheld-insufficient-evidence` | too few rows identified, or a list with no listed signal that the corpus only partly read |
+
+### Clean labels
+
+A fully read list on which nothing matched is a result, not a blank: every row
+was checked against Annexes II–VI and the dated hazard overlays. When the
+corpus **itself** (glossary or inventory, not an external provider) identifies
+at least 90% of the rows and no row carries a signal, the index is published —
+100 with band `excellent` — together with a mandatory `no-listed-signal` flag
+and `confidence` capped at `partial`:
+
+> No EU annex or dated hazard list mentions any ingredient here — that is not a
+> certificate of harmlessness.
+
+The 90% threshold is what makes absence publishable. On a partly read label the
+rows we could not identify could hold the finding, so a zero-signal list below
+that threshold stays withheld instead of displaying a clean number. Rows
+identified only by an outside provider name lookup do not count towards the
+threshold: a name is not a hazard assessment, and recognition must not be what
+turns “nothing matched” into a published clean index.
+
+This is the same discipline as the unresolved-conditions caveat, applied in the
+other direction: the corpus says what it found, says what it did not find, and
+never converts either into a claim about the product.
 
 ## How the index is computed
 

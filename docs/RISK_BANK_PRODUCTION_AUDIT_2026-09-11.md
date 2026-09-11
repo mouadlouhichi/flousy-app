@@ -129,6 +129,37 @@ Probes were run against the committed corpora (33,116 identity rows; 2,385 annex
 
 **Fix:** a deliberately small, attributed curated table (`kind: 'hazard-assessment'`, tier `caution`, never `prohibited`) in `eu-lists.ts`, covering those four substances, with the EU body and the annex entry cited. It never duplicates what the annex corpus already states, and it never becomes a compliance verdict.
 
+### F-12 — High — The best products still could not be scored (clean labels)
+
+**Evidence:** after F-02, a real argan cream (`Aqua, Argania Spinosa Kernel Oil,
+Butyrospermum Parkii Butter, Glycerin, Tocopherol`) at 100% identity coverage
+returned `score: null` / `withheld-insufficient-evidence`, while the *same list
+plus one flagged ingredient* scored 84. Removing a flagged ingredient made the
+score disappear instead of improving it. Yuka and INCI Beauty both publish an
+excellent score for a clean product, so the feature still looked broken on
+exactly the products a shopper is happiest to scan.
+
+**Cause:** `assessed === 0` (no row carries a listed signal) was an
+unconditional withhold, on the reasoning that publishing "no listed signal"
+would read as a positive finding.
+
+**Fix — decided with the product owner:** absence of a match is published when
+it is meaningful, and withheld when it is not.
+
+- The dated corpus itself must have read **≥90%** of the rows (`localRecognized
+  / total`, external provider identifications excluded). Below that, the rows we
+  could not identify could hold the finding, so a zero-signal list stays
+  withheld.
+- The published result carries a mandatory `no-listed-signal` flag ("No EU annex
+  or dated hazard list mentions any ingredient here — that is not a certificate
+  of harmlessness", en/fr/ar) and `confidence` is capped at `partial`, so a
+  clean index never outranks an actively assessed one.
+- External provider name lookups explicitly do **not** count towards the 90%
+  threshold: a name is not a hazard assessment.
+
+Unresolved bans, unreviewed OCR, unreadable lists and unknown product form
+still withhold exactly as before.
+
 ### F-11 — Accepted — Cold start is ~0.5 s per serverless instance
 
 **Measurement:** identity corpora load in ≈470 ms (33,116 rows, ~40 MB heap), the annex index in ≈15 ms, first analysis ≈4 ms, steady state 1–4 ms.
@@ -141,14 +172,14 @@ Probes were run against the committed corpora (33,116 identity rows; 2,385 annex
 
 | Area | File |
 |---|---|
-| Scoring model, withholding rules, caps, saturating aggregation, form-conflict flag | `src/lib/ingredient-safety/analyze.ts` |
+| Scoring model, withholding rules, caps, saturating aggregation, form-conflict flag, clean-label rule | `src/lib/ingredient-safety/analyze.ts` |
 | Positive-list tier + resolved form conflicts | `src/lib/ingredient-safety/regulatory.ts` |
 | New score status and hazard-assessment evidence kind | `src/lib/ingredient-safety/types.ts` |
 | Published hazard assessments | `src/lib/ingredient-safety/eu-lists.ts` |
 | Engine/data version bump (invalidates client caches) | `src/lib/ingredient-safety/version.ts` |
 | Product-form inference | `src/lib/ingredient-safety/form.ts` |
 | Typed failures, offline fast-fail, in-flight cleanup | `src/lib/ingredient-analysis-client.ts` |
-| Caveat block, retry, withheld reasons, per-ingredient detail | `src/components/dashboard/courses/courses-ingredient-glance.tsx` |
+| Caveat block, retry, withheld reasons, per-ingredient detail, clean-result caveat | `src/components/dashboard/courses/courses-ingredient-glance.tsx` |
 | Accordion failure copy | `src/components/dashboard/courses/courses-label-accordion.tsx` |
 | Restore validation for the new status | `src/lib/finance-backup.ts` |
 | Rate limits | `src/app/api/{inci/analyze,inci/lookup,food/analyze,barcode/lookup}/route.ts` |
@@ -165,7 +196,7 @@ Probes were run against the committed corpora (33,116 identity rows; 2,385 annex
 - `npm run lint` — clean.
 - `npm run typecheck` and `npm run typecheck:strict` — clean.
 - `npm run verify:data` — datasets load at expected size and every runtime path is traced.
-- `npm test` — 886 unit/integration + 65 render tests pass, including six new production-readiness tests and the tracing source contract.
+- `npm test` — 891 unit/integration + 67 render tests pass, including the production-readiness suites, the tracing source contract, and the clean-label rule.
 - `npm run build` — all static pages generated.
 
 Test coverage added for the findings above:
@@ -174,6 +205,7 @@ Test coverage added for the findings above:
 - positive-list vs restriction vs prohibited tiers and their ordering (F-03);
 - coverage caps and monotonicity (F-09);
 - unresolved conditions publish with a caveat, unresolved Annex II exceptions still withhold (F-02, F-07);
+- clean labels publish with the `no-listed-signal` caveat, partly read clean labels and externally identified rows do not (F-12);
 - methylisothiazolinone form conflict and hazard assessment (F-03, F-10);
 - failure kinds mapped from HTTP 429/5xx, network and offline states, plus retry (F-05);
 - form inference for wash-off vs leave-on and local-language wording (F-06);

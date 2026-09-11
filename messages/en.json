@@ -2737,6 +2737,7 @@
     "flagParserReview": "The parsed structure needs review; numeric output is blocked.",
     "flagOcrReview": "OCR must be reviewed before analysis.",
     "flagScoreWithheld": "Numeric output is deliberately withheld due to unresolved evidence or context.",
+    "flagNoListedSignal": "No EU annex or dated hazard list mentions any ingredient here — that is not a certificate of harmlessness.",
     "assessmentMeta": "EU source snapshot: {date} · Product form: {form}",
     "riskDriversTitle": "Main risk drivers",
     "driverPoints": "+{points} risk pts",
