@@ -19,7 +19,7 @@ A launch-ready, Morocco-first marketing system built on SmartJib’s published *
 
 ## Strategic headline
 
-> **Ton budget. Ton rythme.**  
+> **Ton budget. Ton rythme.**\
 > SmartJib helps people in Morocco plan everyday money in MAD without connecting a bank account. It keeps two questions separate: what money is for, and where it is held.
 
 Arabic/Darija companion line:
