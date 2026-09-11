@@ -458,7 +458,7 @@ describe('planning the missing membership row', () => {
   });
 
   it('writes the row the published rules will accept', () => {
-    const plan = planHouseholdMembershipRepair({ uid, household: household(), member: null, email: 'owner@smartjib.app' });
+    const plan = planHouseholdMembershipRepair({ uid, household: household(), member: null, email: 'owner@smartjib.space' });
     assert.equal(plan.action, 'write');
     if (plan.action !== 'write') return;
     assert.equal(plan.replace, false, 'a row that does not exist is created, not replaced');
@@ -466,7 +466,7 @@ describe('planning the missing membership row', () => {
       id: uid,
       userId: uid,
       displayName: 'owner',
-      email: 'owner@smartjib.app',
+      email: 'owner@smartjib.space',
       role: 'owner',
       status: 'active',
       joinedAt: household().createdAt,

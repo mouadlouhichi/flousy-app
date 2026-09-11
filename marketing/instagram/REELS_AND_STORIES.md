@@ -13,8 +13,8 @@ Use the supplied static cover/frame files as production artwork. Add video, live
 ## Recording rules
 
 - Record vertical at **1080 × 1920**; leave the key title/action within the central safe area.
-- Burn in accurate subtitles. Use **IBM Plex Sans Arabic** for Arabic/Darija captions and **Plus Jakarta Sans** for French/English captions. Reserve **Cairo ExtraBold** and **Plus Jakarta Sans ExtraBold** for short cover hooks.
-- Keep Latin multi-line display text compact. Give Arabic display lines visibly more vertical space; do not copy Latin line-height settings into Arabic.
+- Burn in accurate subtitles. Use **Cairo** for every Arabic/Darija word and **Inter** for French/English. Reserve **Cairo ExtraBold** and **Inter Semibold** for short cover hooks.
+- Set Latin multi-line display leading around `1.02–1.08`. Give Arabic display lines more vertical space (`1.32–1.40`); do not copy Latin line-height settings into Arabic.
 - Use only realistic, consented, or demo SmartJib data. Blur names, balances, email addresses, account numbers, and notifications.
 - Make the first two seconds understandable without sound.
 - Lead in French or Darija/Arabic, not both at full length in the same spoken Reel. A brief translated end-card is enough when useful.
@@ -70,7 +70,7 @@ Essaie SmartJib en MAD via le lien dans la bio.
 2. **2–8 sec:** A friendly “before” moment: too many notes, then simplify to one income amount.
 3. **8–15 sec:** Three cards appear: ضروريات، رغبات، توفير.
 4. **15–22 sec:** Show one adjustment—not a “failed” budget.
-5. **End:** `فلوسك بوضوح، بلا ضغط. / smartjib.app`
+5. **End:** `فلوسك بوضوح، بلا ضغط. / smartjib.space`
 
 **Caption:**
 
@@ -129,4 +129,4 @@ Use Instagram-native stickers rather than baking fake interactive controls into 
 - **Poll (Darija):** `كتخطّط لفلوسك؟` — `آه` / `باغي نبدا`
 - **Question:** `شنو أكثر حاجة كتقلقك فميزانيتك؟` *(review wording before paid promotion)*
 - **Slider:** `À quel point ton budget est clair aujourd’hui ?`
-- **Link sticker:** `Commencer avec SmartJib` → `https://smartjib.app/?utm_source=instagram&utm_medium=story&utm_campaign=launch_ma`
+- **Link sticker:** `Commencer avec SmartJib` → `https://smartjib.space/?utm_source=instagram&utm_medium=story&utm_campaign=launch_ma`

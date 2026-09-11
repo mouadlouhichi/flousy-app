@@ -93,11 +93,11 @@ const organizationSchema = {
   name: SITE_NAME,
   url: SITE_URL,
   logo: `${SITE_URL}/web-app-manifest-512x512.png`,
-  email: 'hello@smartjib.app',
+  email: 'hello@smartjib.space',
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    email: 'hello@smartjib.app',
+    email: 'hello@smartjib.space',
     availableLanguage: ['English', 'French', 'Arabic'],
   },
 };

@@ -8,7 +8,7 @@ All Arabic/Darija copy requires a Morocco-based final review before send. URLs u
 
 **Audience:** confirmed marketing subscribers\
 **Goal:** understand the promise and visit the product\
-**Landing:** `https://smartjib.app/?utm_source=lifecycle&utm_medium=email&utm_campaign=clarity_ma_launch&utm_content=calm_email_fr_v1`
+**Landing:** `https://smartjib.space/?utm_source=lifecycle&utm_medium=email&utm_campaign=clarity_ma_launch&utm_content=calm_email_fr_v1`
 
 ### French
 

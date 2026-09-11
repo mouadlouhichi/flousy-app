@@ -1,6 +1,6 @@
 # SmartJib marketing operating folder
 
-A launch-ready, Morocco-first marketing system built on SmartJib’s published **Forest & Lime** identity: deep forest surfaces, one confident lime accent, pale mint/sage depth, the new wallet mark, Plus Jakarta Sans / Cairo typography, and a clear, non-judgmental voice. [`../DESIGN.md`](../DESIGN.md) is the visual source of truth.
+A launch-ready, Morocco-first marketing system built on SmartJib’s published **Forest & Lime** identity: deep forest surfaces, one confident lime accent, pale mint/sage depth, the current wallet mark, screen-readable Inter social typography, Cairo-only Arabic artwork, and a clear, non-judgmental voice. [`../DESIGN.md`](../DESIGN.md) remains the product visual source of truth.
 
 ## Start here
 
@@ -43,7 +43,7 @@ Do not start paid acquisition or marketing email sends until all applicable boxe
 - [ ] Production URL and `/login` flow pass a mobile smoke test.
 - [ ] Analytics remains opt-in and the conversion events in `strategy/MEASUREMENT_PLAN.md` are implemented and tested.
 - [ ] Marketing email has its own explicit consent record, lawful sender identity, unsubscribe flow and suppression list. Product or household email permission is **not** marketing permission.
-- [ ] `hello@smartjib.app` is monitored with a named response owner.
+- [ ] `hello@smartjib.space` is monitored with a named response owner.
 - [ ] A Morocco-based Darija/Arabic reviewer approves paid copy and email subject lines.
 - [ ] Every promoted product claim is present in `BRAND_GOVERNANCE.md` and still matches the live build.
 - [ ] Ad platform pixels/cookies are not installed without an updated consent and privacy review.
@@ -74,8 +74,7 @@ One person can cover several roles, but each approval must still be explicit.
 ## Regenerate visual assets
 
 ```bash
-node scripts/generate-instagram-kit.mjs
-node scripts/generate-marketing-ad-kit.mjs
+npm run marketing:build
 ```
 
-Both scripts use the locally licensed fonts in `marketing/instagram/fonts/` and ImageMagick. The ad generator writes only inside `marketing/advertising/assets/` and `marketing/mailing/assets/`.
+The build regenerates Instagram, paid-social, and email-header artwork, then runs `npm run marketing:check`. Validation confirms native asset dimensions, the `smartjib.space` domain, Cairo-only Arabic sources, non-compressed display leading, and all approved text/surface pairs at WCAG AA contrast. The generators use the licensed fonts in `marketing/instagram/fonts/` and ImageMagick.

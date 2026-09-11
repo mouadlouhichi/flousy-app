@@ -54,12 +54,12 @@ function contrastOn(hex) {
 }
 
 const font = {
-  display: join(fonts, 'PlusJakartaSans-ExtraBold.ttf'),
-  body: join(fonts, 'PlusJakartaSans-Variable.ttf'),
-  bodyStrong: join(fonts, 'PlusJakartaSans-Variable.ttf'),
+  display: join(fonts, 'Inter-SemiBold.ttf'),
+  body: join(fonts, 'Inter-Regular.ttf'),
+  bodyStrong: join(fonts, 'Inter-SemiBold.ttf'),
   arabicDisplay: join(fonts, 'Cairo-ExtraBold.ttf'),
-  arabicBody: join(fonts, 'IBMPlexSansArabic-Regular.ttf'),
-  arabicStrong: join(fonts, 'IBMPlexSansArabic-SemiBold.ttf'),
+  arabicBody: join(fonts, 'Cairo-Variable.woff2'),
+  arabicStrong: join(fonts, 'Cairo-ExtraBold.ttf'),
 };
 
 const bidi = bidiFactory();
@@ -155,12 +155,12 @@ function text(args, value, x, y, options = {}) {
 }
 
 function heading(args, lines, x, y, options = {}) {
-  const { size = 92, fill = color.ink, leading = 0.93 } = options;
+  const { size = 92, fill = color.ink, leading = 1.04 } = options;
   lines.forEach((value, index) => text(args, value, x, Math.round(y + index * size * leading), {
     size,
     fill,
     family: font.display,
-    weight: 800,
+    weight: 600,
   }));
 }
 
@@ -174,7 +174,7 @@ function arabicText(args, value, right, y, width, options = {}) {
 }
 
 function arabicHeading(args, lines, right, y, width, options = {}) {
-  const { size = 90, fill = color.white, leading = 1.22 } = options;
+  const { size = 90, fill = color.white, leading = 1.36 } = options;
   lines.forEach((value, index) => arabicText(args, value, right, Math.round(y + index * size * leading), width, {
     size,
     fill,
@@ -203,7 +203,7 @@ function brand(args, width, inverted = false, y = 64) {
 }
 
 function footer(args, inverted = false, width = 1080, y = 1280) {
-  text(args, 'smartjib.app', 72, y, {
+  text(args, 'smartjib.space', 72, y, {
     size: 22,
     fill: inverted ? color.lime : color.muted,
     family: font.body,
@@ -423,11 +423,11 @@ function makePrivateLandscape() {
   circle(a, 1110, 0, 245, '#1A4F48');
   text(a, 'SMARTJIB', 55, 45, { size: 21, fill: color.lime, weight: 750, kerning: 1.3 });
   sparkle(a, 1125, 62, 35, color.limeDeep);
-  heading(a, ['Sans connexion', 'bancaire.'], 55, 128, { size: 70, fill: color.white, leading: 0.92 });
+  heading(a, ['Sans connexion', 'bancaire.'], 55, 128, { size: 70, fill: color.white, leading: 1.04 });
   text(a, 'Tu choisis ce que tu veux suivre.', 58, 285, { size: 25, fill: color.lime });
   text(a, 'Pas d’identifiants bancaires à partager avec SmartJib.', 58, 345, { size: 20, fill: color.white });
   button(a, 'Découvrir SmartJib', 55, 425, 365, 494, color.lime, color.ink);
-  text(a, 'smartjib.app', 58, 556, { size: 19, fill: color.lime, weight: 700 });
+  text(a, 'smartjib.space', 58, 556, { size: 19, fill: color.lime, weight: 700 });
   circle(a, 900, 310, 155, color.forestSoft);
   shield(a, 900, 295, 0.68);
   render(path, a);

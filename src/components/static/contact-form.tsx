@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 
-const SUPPORT_EMAIL = "hello@smartjib.app";
+const SUPPORT_EMAIL = "hello@smartjib.space";
 
 type SendState = "idle" | "sending" | "sent" | "failed" | "rate_limited" | "not_configured";
 

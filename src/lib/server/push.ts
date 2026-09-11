@@ -25,7 +25,7 @@ export async function sendPush(subscription: StoredPushSubscription, payload: Pu
   if (!isPushConfigured()) return 'not_configured';
   const webpush = (await import('web-push')).default;
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || `mailto:${process.env.CONTACT_TO_EMAIL || 'hello@smartjib.app'}`,
+    process.env.VAPID_SUBJECT || `mailto:${process.env.CONTACT_TO_EMAIL || 'hello@smartjib.space'}`,
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || process.env.VAPID_PUBLIC_KEY!,
     process.env.VAPID_PRIVATE_KEY!,
   );

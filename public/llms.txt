@@ -19,23 +19,23 @@ SmartJib’s core budget is free with no time limit. Eligible accounts can start
 
 ## Pages
 
-- [SmartJib home](https://smartjib.app): Private budget tracker for needs, wants, savings, bank, home, and wallet.
-- [Features](https://smartjib.app/features): Overview of SmartJib budgeting features.
-- [Budget tracker with MAD and dirham support](https://smartjib.app/features/multi-currency-mad): Multi-currency budgeting in MAD, dirham, and 10 more currencies.
-- [Track bank, home, and wallet money](https://smartjib.app/features/track-bank-home-wallet): See where money is held separately from what it is for.
-- [Expense tracking](https://smartjib.app/features/expense-tracking): Manual expense tracking without bank connections.
-- [No bank connection privacy](https://smartjib.app/features/no-bank-connection): Why SmartJib never connects to your bank.
-- [Budgeting methods](https://smartjib.app/budgeting-methods): Compare the 4 budgeting strategies SmartJib supports.
-- [50/30/20 rule](https://smartjib.app/budgeting-methods/50-30-20-rule): Budgeting guide for the 50/30/20 rule.
-- [Zero-based budgeting](https://smartjib.app/budgeting-methods/zero-based-budgeting): Budgeting guide for zero-based budgeting.
-- [Envelope budgeting](https://smartjib.app/budgeting-methods/envelope-budgeting): Budgeting guide for envelope budgeting.
-- [Pay yourself first](https://smartjib.app/budgeting-methods/pay-yourself-first): Budgeting guide for pay-yourself-first.
-- [Privacy Policy](https://smartjib.app/privacy): How SmartJib handles personal and budgeting data.
-- [Terms of Service](https://smartjib.app/terms): Terms of using SmartJib.
+- [SmartJib home](https://smartjib.space): Private budget tracker for needs, wants, savings, bank, home, and wallet.
+- [Features](https://smartjib.space/features): Overview of SmartJib budgeting features.
+- [Budget tracker with MAD and dirham support](https://smartjib.space/features/multi-currency-mad): Multi-currency budgeting in MAD, dirham, and 10 more currencies.
+- [Track bank, home, and wallet money](https://smartjib.space/features/track-bank-home-wallet): See where money is held separately from what it is for.
+- [Expense tracking](https://smartjib.space/features/expense-tracking): Manual expense tracking without bank connections.
+- [No bank connection privacy](https://smartjib.space/features/no-bank-connection): Why SmartJib never connects to your bank.
+- [Budgeting methods](https://smartjib.space/budgeting-methods): Compare the 4 budgeting strategies SmartJib supports.
+- [50/30/20 rule](https://smartjib.space/budgeting-methods/50-30-20-rule): Budgeting guide for the 50/30/20 rule.
+- [Zero-based budgeting](https://smartjib.space/budgeting-methods/zero-based-budgeting): Budgeting guide for zero-based budgeting.
+- [Envelope budgeting](https://smartjib.space/budgeting-methods/envelope-budgeting): Budgeting guide for envelope budgeting.
+- [Pay yourself first](https://smartjib.space/budgeting-methods/pay-yourself-first): Budgeting guide for pay-yourself-first.
+- [Privacy Policy](https://smartjib.space/privacy): How SmartJib handles personal and budgeting data.
+- [Terms of Service](https://smartjib.space/terms): Terms of using SmartJib.
 
 ## Budgeting Guides
 
-- [What money is for vs. where it is](https://smartjib.app/blog/what-its-for-vs-where-it-is): Purpose vs. money location, explained.
-- [Pick a budgeting style](https://smartjib.app/blog/pick-a-budgeting-style): Choosing a budgeting strategy.
-- [Track cash and wallet spending](https://smartjib.app/blog/track-cash-wallet-spending): Tracking cash and wallet spending.
-- [All budgeting guides](https://smartjib.app/blog): Every SmartJib budgeting guide.
+- [What money is for vs. where it is](https://smartjib.space/blog/what-its-for-vs-where-it-is): Purpose vs. money location, explained.
+- [Pick a budgeting style](https://smartjib.space/blog/pick-a-budgeting-style): Choosing a budgeting strategy.
+- [Track cash and wallet spending](https://smartjib.space/blog/track-cash-wallet-spending): Tracking cash and wallet spending.
+- [All budgeting guides](https://smartjib.space/blog): Every SmartJib budgeting guide.

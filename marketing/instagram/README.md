@@ -1,6 +1,6 @@
 # SmartJib Instagram launch kit
 
-A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**, refreshed for a friendly **Morocco-first** audience and synchronized with the product’s **Forest & Lime** system. It uses the current wallet mark, forest/lime/mint/sage tokens from [`../../DESIGN.md`](../../DESIGN.md), Plus Jakarta Sans with Cairo / IBM Plex Sans Arabic support, and French plus Arabic/Darija content. The launch grid combines supporting editorial imagery with crisp product-style information cards and renders Arabic/Darija with an explicit shaping and bidi pass. It does **not** copy artwork or copy from the supplied reference profile.
+A ready-to-upload, original Instagram identity and first-launch content system for **SmartJib**, refreshed for a friendly **Morocco-first** audience and synchronized with the product’s **Forest & Lime** system. It uses the current wallet mark, forest/lime/mint/sage tokens from [`../../DESIGN.md`](../../DESIGN.md), screen-readable Inter for Latin social copy, and Cairo exclusively for Arabic/Darija. The launch grid combines supporting editorial imagery with crisp product-style information cards and renders Arabic/Darija with an explicit shaping and bidi pass. It does **not** copy artwork or copy from the supplied reference profile.
 
 > **Start with:** [`previews/smartjib-instagram-profile-preview.png`](previews/smartjib-instagram-profile-preview.png) for the profile and first-grid preview.
 
@@ -12,7 +12,7 @@ A ready-to-upload, original Instagram identity and first-launch content system f
 | Official transparent logo mark | [`brand/`](brand/) | `smartjib-logo-mark-transparent.png` |
 | Horizontal wordmark | [`brand/`](brand/) | `smartjib-horizontal-wordmark.png` — transparent 1800 × 600 PNG |
 | Palette reference | [`brand/`](brand/) | `smartjib-social-palette.png` — Forest & Lime token reference |
-| Production fonts + licenses | [`fonts/`](fonts/) | Plus Jakarta Sans for Latin/French, and Cairo + IBM Plex Sans Arabic for Arabic/Darija |
+| Production fonts + licenses | [`fonts/`](fonts/) | Inter for Latin/French and Cairo only for Arabic/Darija |
 | Highlight covers | [`highlights/`](highlights/) | 8 × 1080 × 1920 PNG Story covers with Forest & Lime icon treatments |
 | First feed grid | [`posts/`](posts/) | 9 × 1080 × 1350 PNG posts, designed as a coherent French + Arabic/Darija 3 × 3 launch grid |
 | Starter stories | [`stories/`](stories/) | 8 × 1080 × 1920 PNG frames, one starter item for each Highlight |
@@ -29,14 +29,14 @@ A ready-to-upload, original Instagram identity and first-launch content system f
 
 Use the exact setup card in [`PROFILE_COPY.md`](PROFILE_COPY.md). The recommended starting configuration is:
 
-- **Username:** `@smartjib.app` *(confirm availability first; backup options are included)*
+- **Username:** `@smartjib.space` *(confirm availability first; backup options are included)*
 - **Name field:** `SmartJib | Budget Maroc`
 - **Account type:** Professional **Business** account
 - **Category:** `Product/service` (hide the category label if it makes the profile feel crowded)
-- **Website:** `https://smartjib.app/?utm_source=instagram&utm_medium=social&utm_campaign=launch_ma`
+- **Website:** `https://smartjib.space/?utm_source=instagram&utm_medium=social&utm_campaign=launch_ma`
 - **Profile image:** `brand/smartjib-instagram-avatar-1080.png`
 - **Primary bio:** the local bilingual version in `PROFILE_COPY.md`
-- **Contact button:** add Email only when `hello@smartjib.app` is monitored and replies have an owner.
+- **Contact button:** add Email only when `hello@smartjib.space` is monitored and replies have an owner.
 
 ## Upload order for the 3 × 3 launch grid
 
@@ -76,7 +76,7 @@ A sustainable launch cadence is one post each day for nine days. If the account 
 
 ## Publish safely
 
-- Replace `smartjib.app` if the final production URL differs before posting.
+- Confirm `https://smartjib.space` resolves and the intended landing flow passes a mobile smoke test before posting.
 - Use the captions in [`CAPTIONS.md`](CAPTIONS.md) only for features currently live in the app.
 - Do not quote user balances, names, screenshots, or financial data without explicit consent and a second privacy check.
 - Keep every caption educational and non-judgmental. SmartJib is a budgeting tool, not individualized financial, tax, legal, or investment advice.
@@ -87,7 +87,7 @@ A sustainable launch cadence is one post each day for nine days. If the account 
 The checked-in PNGs are the delivery files. Their reproducible source is:
 
 ```bash
-node scripts/generate-instagram-kit.mjs
+npm run marketing:build
 ```
 
-The command needs ImageMagick’s `convert` and `montage` commands plus the repository’s installed Node dependencies. It refreshes only generated image folders under `marketing/instagram/` and keeps the copy documents, source imagery, and editable SVG templates intact.
+The command needs ImageMagick’s `convert` and `montage` commands plus the repository’s installed Node dependencies. It refreshes the generated Instagram, paid-social, and email-header folders, then runs the domain, typography, contrast, RTL, and native-dimension checks in `npm run marketing:check`.

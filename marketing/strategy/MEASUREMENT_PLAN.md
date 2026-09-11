@@ -58,7 +58,7 @@ utm_term={keyword_only_for_search}
 Example:
 
 ```text
-https://smartjib.app/features/no-bank-connection?utm_source=instagram&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=private_feed_fr_v1
+https://smartjib.space/features/no-bank-connection?utm_source=instagram&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=private_feed_fr_v1
 ```
 
 ### Naming vocabulary

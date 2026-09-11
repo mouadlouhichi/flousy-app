@@ -214,7 +214,7 @@ SmartJib متوفر بالعربية، بالفرنسية، وبالإنجليز
 ```
 
 **French hook:** `Ton budget devrait parler une langue qui te ressemble.`<br>
-**Alt text:** `Post SmartJib corail, en arabe Cairo, avec le texte “Ton budget dans ta langue” et trois choix de langue : arabe, français, anglais.`
+**Alt text:** `Post SmartJib vert lime, en arabe Cairo, avec le texte “Ton budget dans ta langue” et trois choix de langue : arabe, français, anglais.`
 
 ---
 

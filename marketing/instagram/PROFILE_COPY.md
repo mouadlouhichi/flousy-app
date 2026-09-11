@@ -4,12 +4,12 @@
 
 | Instagram field | Recommended value | Notes |
 | --- | --- | --- |
-| Username | `smartjib.app` | Check availability first. Instagram usernames are case-insensitive. |
+| Username | `smartjib.space` | Check availability first. Instagram usernames are case-insensitive. |
 | Backup usernames | `smartjib`, `smartjib_app`, `smartjib.budget` | Choose the closest available option; do not add numbers unless necessary. |
 | Name | `SmartJib | Budget Maroc` | Puts the brand first and adds a useful local search term. |
 | Category | `Product/service` | Set the account to Professional → Business. Hide the visible label if it is visually noisy. |
-| Website link | `https://smartjib.app/?utm_source=instagram&utm_medium=social&utm_campaign=launch_ma` | Use the country-specific launch tag so Morocco performance can be separated from other campaigns. |
-| Email button | `hello@smartjib.app` | Add only if someone is responsible for timely replies. |
+| Website link | `https://smartjib.space/?utm_source=instagram&utm_medium=social&utm_campaign=launch_ma` | Use the country-specific launch tag so Morocco performance can be separated from other campaigns. |
+| Email button | `hello@smartjib.space` | Add only if someone is responsible for timely replies. |
 | Avatar | `brand/smartjib-instagram-avatar-1080.png` | It is centered for Instagram’s circular crop. |
 
 ## Audience and language priority

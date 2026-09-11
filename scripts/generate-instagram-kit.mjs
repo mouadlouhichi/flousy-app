@@ -4,8 +4,7 @@
  *
  * The checked-in PNGs under marketing/instagram are the upload-ready files.
  * This script recreates them using only ImageMagick plus the licensed local
- * Plus Jakarta Sans, Cairo, and IBM Plex Sans Arabic files stored with
- * the launch kit.
+ * Inter and Cairo files stored with the launch kit.
  *
  * Run: node scripts/generate-instagram-kit.mjs
  */
@@ -80,14 +79,14 @@ function contrastOn(hex) {
 }
 
 const font = {
-  // Forest & Lime uses Plus Jakarta Sans across Latin display and body.
-  // Arabic keeps Cairo / IBM Plex Sans Arabic for reliable exported shaping.
-  display: join(fontRoot, 'PlusJakartaSans-ExtraBold.ttf'),
-  body: join(fontRoot, 'PlusJakartaSans-Variable.ttf'),
-  bodyStrong: join(fontRoot, 'PlusJakartaSans-Variable.ttf'),
+  // Social exports use Inter for cleaner small-screen Latin typography.
+  // Every Arabic word uses Cairo, including support copy and numeric labels.
+  display: join(fontRoot, 'Inter-SemiBold.ttf'),
+  body: join(fontRoot, 'Inter-Regular.ttf'),
+  bodyStrong: join(fontRoot, 'Inter-SemiBold.ttf'),
   arabicDisplay: join(fontRoot, 'Cairo-ExtraBold.ttf'),
-  arabicBody: join(fontRoot, 'IBMPlexSansArabic-Regular.ttf'),
-  arabicBodyStrong: join(fontRoot, 'IBMPlexSansArabic-SemiBold.ttf'),
+  arabicBody: join(fontRoot, 'Cairo-Variable.woff2'),
+  arabicBodyStrong: join(fontRoot, 'Cairo-ExtraBold.ttf'),
 };
 
 const bidi = bidiFactory();
@@ -216,20 +215,20 @@ function label(args, text, x, y, options = {}) {
 }
 
 /**
- * The previous kit used a generous 1.18 leading. Explicit 0.91–1.03 leading
- * creates a more compact editorial display while preserving clear counters.
+ * Social display text uses real line spacing rather than compressed stacking.
+ * A 1.04 Latin rhythm keeps counters open at feed and thumbnail sizes.
  */
 function headline(args, lines, x, y, options = {}) {
   const {
     size = 102,
     color = colors.ink,
     family = font.display,
-    weight = 800,
-    leading = 0.94,
+    weight = 600,
+    leading = 1.04,
   } = options;
   // Campaign headlines must carry at a small grid size. Do not let an older
   // caller silently fall back to a book weight.
-  const displayWeight = Math.max(weight, 700);
+  const displayWeight = Math.max(weight, 600);
   lines.forEach((text, index) => label(args, text, x, Math.round(y + index * size * leading), {
     size,
     color,
@@ -243,10 +242,10 @@ function arabicHeadline(args, lines, right, y, options = {}) {
     size = 100,
     color = colors.ink,
     weight = 850,
-    leading = 1.25,
+    leading = 1.36,
   } = options;
-  // Cairo needs a little more leading but the same visual confidence as the
-  // Latin display face. Keep it markedly bold without closing counters.
+  // Cairo needs more vertical room than Latin so marks and counters stay open.
+  // The display face remains bold while support copy uses Cairo Variable.
   const displayWeight = Math.max(weight, 850);
   lines.forEach((text, index) => arabicLabel(args, text, right, Math.round(y + index * size * leading), {
     size,
@@ -296,7 +295,7 @@ function footer(args, background = colors.background) {
   const darkSurface = [colors.forest, colors.forestDeep, colors.forestSoft, colors.secondary].includes(background);
   const limeSurface = [colors.lime, colors.limeBright, colors.limeDeep].includes(background);
   const color = darkSurface ? colors.mint : limeSurface ? colors.forestSoft : colors.muted;
-  label(args, 'smartjib.app', 82, 70, {
+  label(args, 'smartjib.space', 82, 70, {
     size: 22,
     color,
     weight: 720,
@@ -656,9 +655,9 @@ function createPosts() {
     headline(args, ['Ton budget.', 'Ton rythme.'], 78, 214, {
       size: 112,
       color: colors.ink,
-      leading: 0.91,
+      leading: 1.04,
     });
-    label(args, 'Une façon plus douce de planifier en MAD.', 82, 452, {
+    label(args, 'Une façon plus douce de planifier en MAD.', 82, 474, {
       size: 31,
       color: colors.muted,
       weight: 520,
@@ -690,7 +689,7 @@ function createPosts() {
     headline(args, ['Donne un rôle', 'à chaque dirham.'], 78, 212, {
       size: 96,
       color: colors.ink,
-      leading: 0.94,
+      leading: 1.04,
     });
     elevatedCard(args, 72, 512, 1008, 1064, 54, colors.white, {
       shadow: '#DBE5DC', stroke: colors.line, width: 2, offset: 11,
@@ -734,7 +733,7 @@ function createPosts() {
     arabicHeadline(args, ['كل درهم', 'عندو دور.'], 998, 190, {
       size: 88,
       color: colors.white,
-      leading: 1.25,
+      leading: 1.36,
       weight: 780,
     });
     arabicLabel(args, 'خطّط بشوية وعلى قدّك.', 998, 480, {
@@ -776,7 +775,7 @@ function createPosts() {
     headline(args, ['Pour quoi ?', 'Et où ?'], 78, 214, {
       size: 111,
       color: colors.ink,
-      leading: 0.93,
+      leading: 1.04,
     });
     label(args, 'Deux questions. Un budget plus clair.', 82, 452, {
       size: 31,
@@ -809,7 +808,7 @@ function createPosts() {
     arabicHeadline(args, ['فين كاينة', 'فلوسك؟'], 998, 190, {
       size: 88,
       color: colors.ink,
-      leading: 1.25,
+      leading: 1.36,
       weight: 780,
     });
     arabicLabel(args, 'فالبنك، فالدار، ولا فالمحفظة.', 998, 480, {
@@ -844,7 +843,7 @@ function createPosts() {
     headline(args, ['Sans connexion', 'bancaire.'], 78, 218, {
       size: 103,
       color: colors.white,
-      leading: 0.94,
+      leading: 1.04,
     });
     label(args, 'Tu choisis ce que tu veux suivre.', 82, 450, {
       size: 31,
@@ -872,7 +871,7 @@ function createPosts() {
     headline(args, ['Planifier.', 'Ajuster.', 'Respirer.'], 78, 205, {
       size: 103,
       color: colors.ink,
-      leading: 0.88,
+      leading: 1.04,
     });
     elevatedCard(args, 72, 570, 1008, 1053, 56, colors.white, { shadow: '#DBE5DC', stroke: '#DBE5DC', width: 2, offset: 10 });
     label(args, 'TON PLAN CE MOIS-CI', 122, 628, { size: 18, color: colors.forest, weight: 740, kerning: 1 });
@@ -903,7 +902,7 @@ function createPosts() {
     arabicHeadline(args, ['وفّر للي', 'كيهمّك.'], 998, 190, {
       size: 88,
       color: colors.ink,
-      leading: 1.25,
+      leading: 1.36,
       weight: 780,
     });
     arabicLabel(args, 'هدف صغير اليوم، راحة كبيرة غدا.', 998, 480, {
@@ -936,7 +935,7 @@ function createPosts() {
     arabicHeadline(args, ['ميزانيتك', 'بلغتك.'], 998, 190, {
       size: 92,
       color: colors.ink,
-      leading: 1.24,
+      leading: 1.36,
       weight: 790,
     });
     arabicLabel(args, 'باش تنظيم فلوسك يكون أسهل وأقرب ليك.', 998, 480, {
@@ -974,8 +973,8 @@ function createStories() {
     circle(args, 925, 326, 292, colors.mint);
     sparkle(args, 826, 319, 66, colors.limeDeep);
     storySignature(args, 1, colors.background, 'BIENVENUE · SMARTJIB');
-    headline(args, ['Ton budget', 'peut être', 'plus doux.'], 80, 292, { size: 116, color: colors.ink, leading: 0.91 });
-    label(args, 'Planifie en MAD, à ton rythme.', 84, 650, { size: 34, color: colors.muted, weight: 530 });
+    headline(args, ['Ton budget', 'peut être', 'plus doux.'], 80, 292, { size: 116, color: colors.ink, leading: 1.04 });
+    label(args, 'Planifie en MAD, à ton rythme.', 84, 684, { size: 34, color: colors.muted, weight: 530 });
     elevatedCard(args, 72, 835, 1008, 1438, 62, colors.forest, { shadow: '#C9DCCB', offset: 14 });
     photoCard(args, generatedFlatlay, 116, 881, 848, 360, 46);
     roundedRect(args, 116, 881, 964, 1241, 46, 'none', colors.lime, 4);
@@ -993,7 +992,7 @@ function createStories() {
     arch(args, 900, 310, 420, 370, colors.mint);
     sparkle(args, 823, 338, 62, colors.limeDeep);
     storySignature(args, 2, colors.surfaceSoft, 'PLAN DU MOIS · MAD');
-    headline(args, ['Commence avec', 'ton vrai', 'montant.'], 80, 298, { size: 108, color: colors.ink, leading: 0.91 });
+    headline(args, ['Commence avec', 'ton vrai', 'montant.'], 80, 298, { size: 108, color: colors.ink, leading: 1.04 });
     elevatedCard(args, 72, 822, 1008, 1434, 62, colors.white, { shadow: '#DBE5DC', stroke: colors.line, width: 2, offset: 12 });
     label(args, 'EXEMPLE', 125, 888, { size: 19, color: colors.forest, weight: 740, kerning: 1 });
     label(args, '10 000 MAD', 125, 960, { size: 50, color: colors.ink, weight: 790 });
@@ -1016,7 +1015,7 @@ function createStories() {
     circle(args, 924, 310, 294, colors.forestSoft);
     sparkle(args, 827, 334, 58, colors.limeDeep);
     storySignature(args, 3, colors.forest, 'MONEY PLACES · MAROC');
-    arabicHeadline(args, ['فلوسك', 'فين كاينة؟'], 1000, 290, { size: 96, color: colors.white, leading: 1.24, weight: 780 });
+    arabicHeadline(args, ['فلوسك', 'فين كاينة؟'], 1000, 290, { size: 96, color: colors.white, leading: 1.36, weight: 780 });
     arabicLabel(args, 'شوف فين كاينين فلوسك، وبقا حافظ على الخطة.', 998, 596, { size: 28, color: colors.mint, weight: 570 });
     const places = [['البنك', colors.lime, 'location'], ['فالدار', colors.mint, 'wallet'], ['المحفظة', colors.sage, 'coins']];
     places.forEach(([name, fill, icon], index) => {
@@ -1037,13 +1036,15 @@ function createStories() {
     circle(args, 900, 324, 292, '#1A4F48');
     sparkle(args, 826, 341, 60, colors.limeDeep);
     storySignature(args, 4, colors.forestDeep, 'PRIVÉ · À TON RYTHME');
-    headline(args, ['Tu gardes', 'le contrôle.'], 80, 304, { size: 116, color: colors.white, leading: 0.93 });
+    headline(args, ['Tu gardes', 'le contrôle.'], 80, 304, { size: 116, color: colors.white, leading: 1.04 });
     label(args, 'Pas de connexion bancaire.', 84, 560, { size: 35, color: colors.mint, weight: 550 });
     elevatedCard(args, 72, 822, 1008, 1392, 62, '#112825', { shadow: '#071D1A', stroke: '#4F7F5B', width: 2, offset: 12 });
     circle(args, 540, 1058, 160, colors.forestSoft);
     shieldIcon(args, 540, 1058, 185, { stroke: colors.white, accent: colors.lime });
     label(args, 'Tu ajoutes ce qui compte pour toi.', 0, 1278, { size: 34, color: colors.white, weight: 700, gravity: 'North' });
     label(args, 'Un suivi simple, choisi par toi.', 0, 1333, { size: 28, color: colors.mint, weight: 530, gravity: 'North' });
+    roundedRect(args, 290, 1500, 790, 1588, 44, colors.lime);
+    centeredLabel(args, 'DÉCOUVRIR COMMENT →', 540, 1544, { size: 22, color: colors.forestDeep, weight: 760, kerning: 0.6, height: 1920 });
     footer(args, colors.forestDeep);
     im(pngPath('stories', '04-private-by-design.png'), args);
   }
@@ -1054,13 +1055,13 @@ function createStories() {
     circle(args, 900, 328, 290, colors.limeBright);
     sparkle(args, 823, 352, 60, colors.forestDeep);
     storySignature(args, 5, colors.lime, 'ON ÉCOUTE · MAROC');
-    headline(args, ['Qu’est-ce qui', 'rendrait ton', 'budget plus', 'simple ?'], 80, 292, { size: 100, color: colors.ink, leading: 0.9 });
-    elevatedCard(args, 72, 960, 1008, 1326, 56, colors.background, { shadow: colors.limeDeep, offset: 12 });
-    label(args, 'TA QUESTION', 124, 1031, { size: 20, color: colors.forest, weight: 740, kerning: 1 });
-    label(args, 'Ajoute ton idée ici ↓', 124, 1131, { size: 48, color: colors.ink, weight: 780 });
-    label(args, 'On prépare des réponses utiles, sans jugement.', 124, 1198, { size: 27, color: colors.muted, weight: 530 });
-    roundedRect(args, 112, 1435, 968, 1556, 40, '#FFFFFF', colors.background, 3);
-    label(args, 'AJOUTE LE STICKER QUESTION INSTAGRAM', 0, 1474, { size: 21, color: colors.forest, weight: 750, gravity: 'North' });
+    headline(args, ['Qu’est-ce qui', 'rendrait ton', 'budget plus', 'simple ?'], 80, 292, { size: 100, color: colors.ink, leading: 1.04 });
+    elevatedCard(args, 72, 850, 1008, 1216, 56, colors.background, { shadow: colors.limeDeep, offset: 12 });
+    label(args, 'TA QUESTION', 124, 921, { size: 20, color: colors.forest, weight: 740, kerning: 1 });
+    label(args, 'Ajoute ton idée ici ↓', 124, 1021, { size: 48, color: colors.ink, weight: 780 });
+    label(args, 'On prépare des réponses utiles, sans jugement.', 124, 1088, { size: 27, color: colors.muted, weight: 530 });
+    roundedRect(args, 112, 1350, 968, 1471, 40, '#FFFFFF', colors.background, 3);
+    label(args, 'AJOUTE LE STICKER QUESTION INSTAGRAM', 0, 1389, { size: 21, color: colors.forest, weight: 750, gravity: 'North' });
     footer(args, colors.lime);
     im(pngPath('stories', '05-ask-a-budget-question.png'), args);
   }
@@ -1071,7 +1072,7 @@ function createStories() {
     circle(args, 912, 320, 290, colors.surfaceSoft);
     sparkle(args, 825, 339, 62, colors.limeDeep);
     storySignature(args, 6, colors.mint, 'ÉPARGNE · OBJECTIF');
-    arabicHeadline(args, ['وفّر للي', 'كيهمّك.'], 1000, 290, { size: 96, color: colors.ink, leading: 1.24, weight: 780 });
+    arabicHeadline(args, ['وفّر للي', 'كيهمّك.'], 1000, 290, { size: 96, color: colors.ink, leading: 1.36, weight: 780 });
     arabicLabel(args, 'حتى خطوة صغيرة كتحسب.', 998, 596, { size: 28, color: colors.muted, weight: 560 });
     elevatedCard(args, 72, 827, 1008, 1375, 62, colors.forest, { shadow: '#C9DCCB', offset: 13 });
     arabicLabel(args, 'الهدف الجاي', 600, 908, { size: 32, color: colors.white, weight: 760 });
@@ -1092,17 +1093,17 @@ function createStories() {
     arch(args, 898, 314, 420, 360, colors.sage);
     sparkle(args, 823, 336, 58, colors.secondary);
     storySignature(args, 7, colors.surfaceSoft, 'TOUR · EN 3 ÉTAPES');
-    headline(args, ['Un plan plus', 'clair, en', 'quelques taps.'], 80, 298, { size: 106, color: colors.ink, leading: 0.9 });
-    elevatedCard(args, 227, 872, 853, 1434, 76, colors.forest, { shadow: '#C9DCCB', offset: 13 });
-    roundedRect(args, 270, 945, 810, 1309, 42, colors.background);
-    label(args, 'TON PLAN · SEPTEMBRE', 321, 1005, { size: 19, color: colors.forest, weight: 730, kerning: 0.8 });
-    label(args, '10 000 MAD', 321, 1076, { size: 48, color: colors.ink, weight: 790 });
+    headline(args, ['Un plan plus', 'clair, en', 'quelques taps.'], 80, 298, { size: 106, color: colors.ink, leading: 1.04 });
+    elevatedCard(args, 227, 770, 853, 1332, 76, colors.forest, { shadow: '#C9DCCB', offset: 13 });
+    roundedRect(args, 270, 843, 810, 1207, 42, colors.background);
+    label(args, 'TON PLAN · SEPTEMBRE', 321, 903, { size: 19, color: colors.forest, weight: 730, kerning: 0.8 });
+    label(args, '10 000 MAD', 321, 974, { size: 48, color: colors.ink, weight: 790 });
     [['Besoins', colors.forest], ['Envies', colors.secondary], ['Épargne', colors.limeDeep]].forEach(([name, color], index) => {
-      const y = 1180 + index * 42;
+      const y = 1078 + index * 42;
       circle(args, 340, y, 9, color);
       label(args, name, 365, y - 13, { size: 23, color: colors.ink, weight: 630 });
     });
-    roundedRect(args, 455, 1353, 625, 1382, 15, colors.lime);
+    roundedRect(args, 455, 1251, 625, 1280, 15, colors.lime);
     label(args, 'Retrouve le tour complet dans le Highlight.', 0, 1536, { size: 30, color: colors.muted, weight: 540, gravity: 'North' });
     footer(args, colors.surfaceSoft);
     im(pngPath('stories', '07-app-tour.png'), args);
@@ -1114,11 +1115,11 @@ function createStories() {
     circle(args, 899, 318, 292, colors.lime);
     moonIcon(args, 825, 330, 56, { fill: colors.forest, cutout: colors.lime });
     storySignature(args, 8, colors.limeDeep, 'PETIT CONSEIL · BUDGET');
-    headline(args, ['Fais le', 'prochain pas.', 'Pas tout', 'd’un coup.'], 80, 292, { size: 103, color: colors.ink, leading: 0.89 });
-    elevatedCard(args, 72, 1010, 1008, 1368, 58, colors.background, { shadow: '#7FB069', offset: 13 });
-    label(args, 'UN RESET PLUS DOUX', 124, 1085, { size: 20, color: colors.forest, weight: 740, kerning: 1 });
-    label(args, 'Regarde les chiffres.', 124, 1171, { size: 43, color: colors.ink, weight: 770 });
-    label(args, 'Fais un ajustement utile.', 124, 1232, { size: 29, color: colors.muted, weight: 540 });
+    headline(args, ['Fais le', 'prochain pas.', 'Pas tout', 'd’un coup.'], 80, 292, { size: 103, color: colors.ink, leading: 1.04 });
+    elevatedCard(args, 72, 860, 1008, 1218, 58, colors.background, { shadow: '#7FB069', offset: 13 });
+    label(args, 'UN RESET PLUS DOUX', 124, 935, { size: 20, color: colors.forest, weight: 740, kerning: 1 });
+    label(args, 'Regarde les chiffres.', 124, 1021, { size: 43, color: colors.ink, weight: 770 });
+    label(args, 'Fais un ajustement utile.', 124, 1082, { size: 29, color: colors.muted, weight: 540 });
     label(args, 'Garde cette Story pour le prochain mois chargé. ✦', 0, 1518, { size: 30, color: colors.ink, weight: 660, gravity: 'North' });
     footer(args, colors.limeDeep);
     im(pngPath('stories', '08-budget-tip.png'), args);
@@ -1131,15 +1132,17 @@ function createReelCovers() {
     circle(args, 910, 310, 290, colors.mint);
     sparkle(args, 819, 344, 60, colors.limeDeep);
     storySignature(args, 1, colors.background, 'REEL · 30 SECONDES');
-    headline(args, ['Donne un rôle', 'à chaque', 'dirham.'], 80, 300, { size: 113, color: colors.ink, leading: 0.9 });
-    photoCard(args, modernBudgetIllustration, 518, 638, 446, 252, 42, 'South');
-    roundedRect(args, 518, 638, 964, 890, 42, 'none', colors.white, 4);
-    elevatedCard(args, 72, 960, 1008, 1380, 62, colors.forest, { shadow: '#C9DCCB', offset: 13 });
-    label(args, 'UN RESET DU MOIS, SIMPLE', 124, 1032, { size: 21, color: colors.lime, weight: 730, kerning: 1 });
-    label(args, 'La méthode en', 124, 1136, { size: 51, color: colors.white, weight: 780 });
-    label(args, '3 petites étapes.', 124, 1200, { size: 51, color: colors.white, weight: 780 });
-    circle(args, 798, 1160, 114, colors.lime);
-    draw(args, 'polygon 764,1096 764,1224 878,1160', { fill: colors.forest });
+    headline(args, ['Donne un rôle', 'à chaque', 'dirham.'], 80, 300, { size: 113, color: colors.ink, leading: 1.04 });
+    photoCard(args, modernBudgetIllustration, 518, 700, 446, 252, 42, 'South');
+    roundedRect(args, 518, 700, 964, 952, 42, 'none', colors.white, 4);
+    elevatedCard(args, 72, 1010, 1008, 1430, 62, colors.forest, { shadow: '#C9DCCB', offset: 13 });
+    label(args, 'UN RESET DU MOIS, SIMPLE', 124, 1082, { size: 21, color: colors.lime, weight: 730, kerning: 1 });
+    label(args, 'La méthode en', 124, 1186, { size: 51, color: colors.white, weight: 780 });
+    label(args, '3 petites étapes.', 124, 1250, { size: 51, color: colors.white, weight: 780 });
+    circle(args, 798, 1210, 114, colors.lime);
+    draw(args, 'polygon 764,1146 764,1274 878,1210', { fill: colors.forest });
+    roundedRect(args, 315, 1520, 765, 1606, 43, colors.lime);
+    centeredLabel(args, 'VOIR LA MÉTHODE →', 540, 1563, { size: 22, color: colors.forestDeep, weight: 760, kerning: 0.6, height: 1920 });
     footer(args, colors.background);
     im(pngPath('reels', '01-give-every-dirham-a-job-cover.png'), args);
   }
@@ -1149,13 +1152,15 @@ function createReelCovers() {
     circle(args, 910, 314, 290, colors.forest);
     sparkle(args, 825, 337, 60, colors.limeDeep);
     storySignature(args, 2, colors.forestSoft, 'REEL · MINDSET BUDGET');
-    arabicHeadline(args, ['الميزانية', 'ماشي عقاب.'], 1000, 292, { size: 94, color: colors.white, leading: 1.24, weight: 780 });
+    arabicHeadline(args, ['الميزانية', 'ماشي عقاب.'], 1000, 292, { size: 94, color: colors.white, leading: 1.36, weight: 780 });
     arabicLabel(args, 'هي طريقة باش ترتاح مع قراراتك.', 998, 594, { size: 28, color: colors.mint, weight: 560 });
-    elevatedCard(args, 72, 969, 1008, 1377, 62, colors.background, { shadow: '#1A4F48', offset: 13 });
-    heartIcon(args, 236, 1160, 100, { fill: colors.secondary });
-    label(args, 'Un budget, c’est un outil de choix.', 364, 1098, { size: 37, color: colors.ink, weight: 760 });
-    label(args, 'Pas un score sur ta vie.', 364, 1158, { size: 30, color: colors.muted, weight: 540 });
-    circle(args, 829, 1220, 49, colors.limeDeep);
+    elevatedCard(args, 72, 820, 1008, 1228, 62, colors.background, { shadow: '#1A4F48', offset: 13 });
+    heartIcon(args, 236, 1011, 100, { fill: colors.secondary });
+    label(args, 'Un budget, c’est un outil de choix.', 364, 949, { size: 37, color: colors.ink, weight: 760 });
+    label(args, 'Pas un score sur ta vie.', 364, 1009, { size: 30, color: colors.muted, weight: 540 });
+    circle(args, 829, 1071, 49, colors.limeDeep);
+    roundedRect(args, 315, 1400, 765, 1486, 43, colors.lime);
+    centeredLabel(args, prepareArabic('شوف الطريقة ←'), 540, 1443, { size: 29, color: colors.forestDeep, family: font.arabicBodyStrong, weight: 760, height: 1920 });
     footer(args, colors.forestSoft);
     im(pngPath('reels', '02-budgeting-is-not-a-punishment-cover.png'), args);
   }
@@ -1165,12 +1170,14 @@ function createReelCovers() {
     circle(args, 910, 314, 290, '#1A4F48');
     sparkle(args, 825, 341, 60, colors.limeDeep);
     storySignature(args, 3, colors.forestDeep, 'REEL · PRIVÉ PAR CHOIX');
-    headline(args, ['Pourquoi pas', 'de connexion', 'bancaire ?'], 80, 300, { size: 108, color: colors.white, leading: 0.9 });
-    elevatedCard(args, 72, 994, 1008, 1384, 62, '#112825', { shadow: '#071D1A', stroke: '#4F7F5B', width: 2, offset: 12 });
-    circle(args, 250, 1190, 111, colors.forestSoft);
-    shieldIcon(args, 250, 1190, 130, { stroke: colors.white, accent: colors.lime });
-    label(args, 'Un suivi manuel,', 410, 1123, { size: 42, color: colors.white, weight: 780 });
-    label(args, 'clair et choisi par toi.', 410, 1185, { size: 30, color: colors.mint, weight: 540 });
+    headline(args, ['Pourquoi pas', 'de connexion', 'bancaire ?'], 80, 300, { size: 108, color: colors.white, leading: 1.04 });
+    elevatedCard(args, 72, 850, 1008, 1240, 62, '#112825', { shadow: '#071D1A', stroke: '#4F7F5B', width: 2, offset: 12 });
+    circle(args, 250, 1046, 111, colors.forestSoft);
+    shieldIcon(args, 250, 1046, 130, { stroke: colors.white, accent: colors.lime });
+    label(args, 'Un suivi manuel,', 410, 979, { size: 42, color: colors.white, weight: 780 });
+    label(args, 'clair et choisi par toi.', 410, 1041, { size: 30, color: colors.mint, weight: 540 });
+    roundedRect(args, 315, 1400, 765, 1486, 43, colors.lime);
+    centeredLabel(args, 'COMPRENDRE POURQUOI →', 540, 1443, { size: 20, color: colors.forestDeep, weight: 760, kerning: 0.5, height: 1920 });
     footer(args, colors.forestDeep);
     im(pngPath('reels', '03-why-no-bank-connection-cover.png'), args);
   }
@@ -1220,11 +1227,11 @@ function createPreviews() {
     const avatar = join(kitRoot, 'brand', 'smartjib-instagram-avatar-1080.png');
     const args = canvas(1080, 2120, colors.white);
     args.push('(', avatar, '-resize', '182x182', ')', '-gravity', 'NorthWest', '-geometry', '+76+72', '-composite');
-    label(args, 'smartjib.app', 294, 112, { size: 42, color: colors.ink, weight: 800 });
+    label(args, 'smartjib.space', 294, 112, { size: 42, color: colors.ink, weight: 800 });
     label(args, 'Budget simple · Maroc', 294, 168, { size: 24, color: colors.muted, weight: 540 });
     arabicLabel(args, 'فلوسك بوضوح، بلا ضغط. ✦', 1000, 286, { size: 28, color: colors.ink, weight: 650 });
     label(args, 'Budget simple en MAD · العربية · Français', 76, 337, { size: 25, color: colors.ink, weight: 540 });
-    label(args, 'smartjib.app', 76, 383, { size: 24, color: colors.forest, weight: 760 });
+    label(args, 'smartjib.space', 76, 383, { size: 24, color: colors.forest, weight: 760 });
     drawProfileHighlight(args, 132, 543, 'spark', colors.secondary, 'START');
     drawProfileHighlight(args, 336, 543, 'wallet', colors.limeDeep, 'BUDGET');
     drawProfileHighlight(args, 540, 543, 'location', colors.forestSoft, 'PLACES');

@@ -46,7 +46,7 @@ Replace safely in the ESP; escape all values.
 
 - `{{preference_url}}` — required.
 - `{{unsubscribe_url}}` — required, one click where applicable.
-- `{{privacy_url}}` — usually `https://smartjib.app/privacy`.
+- `{{privacy_url}}` — usually `https://smartjib.space/privacy`.
 - `{{company_name}}`, `{{company_address}}` — verified operator identity.
 - `{{first_name}}` — optional. If missing, remove the greeting token rather than showing a blank.
 
@@ -55,7 +55,7 @@ Do not use financial amounts, budget progress, category names or goal names as m
 ## Send defaults
 
 - From name: `SmartJib`.
-- Reply-to: `hello@smartjib.app` only when monitored.
+- Reply-to: `hello@smartjib.space` only when monitored.
 - Frequency cap: 1 marketing email per 7 days per person during launch; service messages are governed separately.
 - Primary CTA: `Commencer mon budget` / `نبدا ميزانيتي`.
 - Prefer one primary language based on explicit preference; never infer language from sensitive behavior.

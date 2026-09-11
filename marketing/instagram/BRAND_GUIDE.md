@@ -69,30 +69,31 @@ The generator now uses the actual licensed font files in [`fonts/`](fonts/), not
 
 | Role | Font | Weight | Rule |
 | --- | --- | --- | --- |
-| Latin / French display | **Plus Jakarta Sans ExtraBold** | **800** | Short, confident headlines; sentence case. |
-| Latin / French body & labels | **Plus Jakarta Sans** | 400–700 | Match the product while keeping amounts and support copy readable on mobile. |
+| Latin / French display | **Inter Semibold** | **600** | Clean, mobile-readable social headlines in sentence case. |
+| Latin / French body & labels | **Inter Regular / Semibold** | 400–600 | Keep amounts, labels, and support copy crisp at feed size. |
 | Arabic / Darija display | **Cairo ExtraBold** | **850** | Use Cairo for short RTL hooks; right-align the headline. |
-| Arabic / Darija body | **IBM Plex Sans Arabic** | 400–600 | Use for RTL support text and cards; leave a clear right edge. |
+| Arabic / Darija body | **Cairo Variable** | 400–600 | Keep every Arabic element in Cairo and preserve a clear right edge. |
 
-### Bold display and line-height
+### Display weight and line-height
 
-The campaign must remain readable as a 3 × 3 grid before someone opens a post. Use the selected ExtraBold display fonts for display text, then let generous rhythm—not a lighter weight—create refinement.
+The campaign must remain readable as a 3 × 3 grid before someone opens a post. Use semibold Latin display and bold Cairo display, then let clear line spacing—not compressed stacking—create confidence.
 
-- **Latin display, multi-line:** **800** weight and `0.91–0.96` leading in the generator’s explicit placement system.
-- **Arabic / Darija display:** **850** weight and `1.24–1.28` leading. Arabic glyphs need more vertical breathing room even when they are bold.
-- **Body copy:** use 400–600 weight and approximately `1.35–1.5` line-height; do not stack body lines closer than 24 px at final 1080 px width.
+- **Latin display, multi-line:** **600** weight and `1.02–1.08` leading in the generator’s explicit placement system.
+- **Arabic / Darija display:** **850** weight and `1.32–1.40` leading. Arabic glyphs need more vertical breathing room even when they are bold.
+- **Body copy:** use 400–600 weight and approximately `1.4–1.6` line-height; do not stack body lines closer than 24 px at final 1080 px width.
 - Keep a visible gap of at least one small-text line between a headline and its support line.
 - Never place display text over a dark decorative shape unless the contrast remains clear.
 
 ### Whitespace is part of the message
 
-Treat empty space as a deliberate reading path, not an area that needs more decorations.
+Use space to establish hierarchy, but do not leave the central canvas looking unfinished.
 
 - Keep a **72–82 px outer margin** on feed art and Stories; cards align to the same left/right edges.
-- Leave **48–64 px** from the final headline line to supporting copy, then **56–80 px** from copy to the main card or image.
-- Keep a single primary panel per feed post. Let the footer sit in its own calm lower band rather than squeezing another claim beneath the panel.
-- On Stories and Reels, keep critical content in the central `y=220–1650` region; use the lower band for only a lightweight CTA or the site label.
-- If a headline needs a fourth line, remove secondary copy or shorten the message—never shrink the type or collapse the spacing.
+- Leave roughly **32–48 px** from the final headline line to supporting copy, then **72–140 px** from copy to the main card or image depending on the placement.
+- Keep a single primary panel per feed post. Scale or position it to balance the canvas instead of adding decorative filler.
+- On Stories and Reels, keep critical content in the central `y=220–1650` region. Use a lightweight CTA near the lower edge of that zone when the composition would otherwise leave a large empty band.
+- Avoid uninterrupted central gaps greater than about **240 px**. Rebalance the headline, panel, or CTA before adding another claim.
+- If a headline needs a fourth line, shorten the message or move the panel—never shrink the type or collapse line spacing.
 
 The selected font files and their SIL Open Font License files are included in [`fonts/`](fonts/). See [`fonts/README.md`](fonts/README.md) for the exact display/body assignments and editable source families.
 

@@ -21,7 +21,8 @@
     "prebuild": "node scripts/copy-tesseract.mjs",
     "marketing:instagram": "node scripts/generate-instagram-kit.mjs",
     "marketing:ads": "node scripts/generate-marketing-ad-kit.mjs",
-    "marketing:build": "npm run marketing:instagram && npm run marketing:ads"
+    "marketing:check": "node scripts/validate-marketing-kit.mjs",
+    "marketing:build": "npm run marketing:instagram && npm run marketing:ads && npm run marketing:check"
   },
   "dependencies": {
     "@arcjet/next": "^1.11.0",

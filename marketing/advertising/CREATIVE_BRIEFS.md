@@ -8,7 +8,7 @@
 - Use fictional demo data only; label examples.
 - Preserve feed crop safety and inspect every placement preview.
 - Add subtitles to motion and platform-native alt text to static assets.
-- Arabic display uses Cairo; supporting Arabic uses IBM Plex Sans Arabic; right-align and review actual exports.
+- Every Arabic word uses Cairo; use ExtraBold for display and the variable face for support copy, right-align, and review actual exports.
 
 ## C01 — Calm plan
 

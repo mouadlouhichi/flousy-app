@@ -2,12 +2,12 @@
   <title id="title">SmartJib editable Reel cover template</title>
   <desc id="desc">A friendly Reel cover with readable central content and room for a play motif.</desc>
   <style>
-    .latin { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Variable", Arial, sans-serif; }
-    .arabic { font-family: "IBM Plex Sans Arabic", Cairo, "Noto Sans Arabic", sans-serif; }
+    .latin { font-family: Inter, "Inter Variable", Arial, sans-serif; }
+    .arabic { font-family: Cairo, "Noto Sans Arabic", sans-serif; }
     .eyebrow { font-size: 27px; font-weight: 700; letter-spacing: 1.2px; }
-    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", "Plus Jakarta Sans", Arial, sans-serif; }
+    .latin-display { font-family: "Inter SemiBold", Inter, Arial, sans-serif; }
     .arabic-display { font-family: "Cairo ExtraBold", Cairo, "Noto Sans Arabic", sans-serif; }
-    .headline { font-size: 112px; font-weight: 800; letter-spacing: -2px; }
+    .headline { font-size: 112px; font-weight: 600; letter-spacing: -2px; }
     .body { font-size: 33px; font-weight: 520; }
     .label { font-size: 21px; font-weight: 700; letter-spacing: 1px; }
   </style>
@@ -19,7 +19,7 @@
   <text x="315" y="119" fill="#0F3B36" class="latin label">REEL</text>
   <text x="82" y="159" fill="#5B6B63" class="latin label">SUJET · MAD</text>
   <text x="82" y="406" fill="#0E1A17" class="latin-display headline">Ton hook</text>
-  <text x="82" y="510" fill="#0E1A17" class="latin-display headline">ici.</text>
+  <text x="82" y="522" fill="#0E1A17" class="latin-display headline">ici.</text>
   <rect x="82" y="896" width="916" height="420" rx="62" fill="#0F3B36" transform="translate(13 14)" opacity=".18"/>
   <rect x="72" y="882" width="936" height="420" rx="62" fill="#0F3B36"/>
   <text x="122" y="958" fill="#C5E6A6" class="latin label">UNE PROMESSE SIMPLE</text>
@@ -30,6 +30,6 @@
   <svg x="708" y="980" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#0F3B36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">
     <polygon points="6 3 20 12 6 21 6 3"/>
   </svg>
-  <text x="82" y="1823" fill="#5B6B63" class="latin label">smartjib.app</text>
-  <!-- Keep title inside the central 4:5 crop-safe area. Use Cairo ExtraBold for Arabic/Darija hooks, IBM Plex Sans Arabic for captions, and add native captions to the Reel. -->
+  <text x="82" y="1823" fill="#5B6B63" class="latin label">smartjib.space</text>
+  <!-- Keep title inside the central 4:5 crop-safe area. Use Cairo for every Arabic/Darija line, and add native captions to the Reel. -->
 </svg>

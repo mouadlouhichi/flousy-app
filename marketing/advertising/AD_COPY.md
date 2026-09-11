@@ -10,7 +10,7 @@ Final Darija/Arabic paid copy requires Morocco-based review. Keep each ad in one
 - **Headline:** Ton budget. Ton rythme.
 - **Description:** Budget simple en MAD.
 - **CTA:** En savoir plus / S’inscrire
-- **Destination:** `https://smartjib.app/?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=calm_feed_fr_v1`
+- **Destination:** `https://smartjib.space/?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=calm_feed_fr_v1`
 
 ### French A2
 
@@ -25,7 +25,7 @@ Final Darija/Arabic paid copy requires Morocco-based review. Keep each ad in one
 - **Headline:** فلوسك بوضوح، بلا ضغط.
 - **Description:** ميزانية بسيطة بالدرهم.
 - **CTA:** معرفة المزيد
-- **Destination:** `https://smartjib.app/?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=calm_feed_ar_v1`
+- **Destination:** `https://smartjib.space/?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=calm_feed_ar_v1`
 
 ## Message B — Purpose versus place
 
@@ -35,7 +35,7 @@ Final Darija/Arabic paid copy requires Morocco-based review. Keep each ad in one
 - **Headline:** Pour quoi ? Et où ?
 - **Description:** Deux questions. Une vue plus claire.
 - **CTA:** En savoir plus
-- **Destination:** `https://smartjib.app/features/track-bank-home-wallet?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=purpose_place_feed_fr_v1`
+- **Destination:** `https://smartjib.space/features/track-bank-home-wallet?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=purpose_place_feed_fr_v1`
 
 ### French B2
 
@@ -59,7 +59,7 @@ Final Darija/Arabic paid copy requires Morocco-based review. Keep each ad in one
 - **Headline:** Sans connexion bancaire.
 - **Description:** Manuel. Simple. À ton rythme.
 - **CTA:** En savoir plus
-- **Destination:** `https://smartjib.app/features/no-bank-connection?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=private_feed_fr_v1`
+- **Destination:** `https://smartjib.space/features/no-bank-connection?utm_source=meta&utm_medium=paid_social&utm_campaign=clarity_ma_pilot&utm_content=private_feed_fr_v1`
 
 ### French C2
 
