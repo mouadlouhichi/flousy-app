@@ -222,13 +222,24 @@ export function DaratScreen() {
           ids.map((id) => getDoc(doc(db, 'circles', id))),
         );
         if (cancelled) return;
-        const docs = settled.filter(
-          (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof getDoc>>> => r.status === 'fulfilled',
-        );
-        const failedIds = settled
-          .map((r, i) => (r.status === 'rejected' ? ids[i] : null))
-          .filter((id): id is string => id !== null);
-        mergeDoc(docs.map((r) => r.value));
+        // Plain discriminated-union narrowing (no custom type predicates):
+        // the generic snapshot types shift between environments, and a
+        // hand-written predicate across PromiseSettledResult broke CI's
+        // typecheck. `r.status` narrowing needs no annotations at all.
+        type CircleSnapshot = { id: string; data?: () => unknown; exists: () => boolean };
+        const docs: CircleSnapshot[] = [];
+        const failedIds: string[] = [];
+        let firstRejection: { reason?: unknown } | null = null;
+        for (let i = 0; i < settled.length; i++) {
+          const r = settled[i];
+          if (r.status === 'fulfilled') {
+            docs.push(r.value);
+          } else {
+            failedIds.push(ids[i]);
+            if (!firstRejection) firstRejection = r;
+          }
+        }
+        mergeDoc(docs);
         setFailedCircleIds(failedIds);
         setDocsLoadFailed(failedIds.length > 0);
         setCirclesReady(true);
@@ -237,9 +248,6 @@ export function DaratScreen() {
           setDenialVerdict(null);
           return;
         }
-        const firstRejection = settled.find(
-          (r): r is PromiseRejectedResult => r.status === 'rejected',
-        );
         const code = (firstRejection?.reason as { code?: string } | null)?.code;
         console.warn(`[darat] ${failedIds.length} circle doc(s) could not be read`, failedIds, firstRejection?.reason);
         if (code === 'permission-denied') {
