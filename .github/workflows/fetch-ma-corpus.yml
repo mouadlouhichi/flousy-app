@@ -36,6 +36,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ma-corpus-${{ inputs.source || 'off' }}
-          path: |
-            data/ma-corpus-${{ inputs.source || 'off' }}.json
-            data/harvest.log
+          path: data/ma-corpus-${{ inputs.source || 'off' }}.json
+      # Artifact storage is not reachable from the dev sandbox, so the snapshot
+      # is committed to the working branch and dropped again after the audit.
+      - if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ma-corpus-${{ inputs.source || 'off' }}.json data/harvest.log
+          git diff --cached --quiet || git commit -m "chore: temporary Moroccan corpus snapshot"
+          git push
