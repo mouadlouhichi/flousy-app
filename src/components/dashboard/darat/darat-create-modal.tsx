@@ -1,14 +1,15 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { ChoiceChips, type ChoiceChipOption } from '@/components/ui/choice-chips';
 import { AmountSymbol } from '@/components/ui/amount-symbol';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
+import { useAuth } from '@/lib/auth-context';
 import { DARAT_MAX_MEMBERS, DARAT_MIN_MEMBERS } from '@/lib/darat-firestore';
-import { isLooseDaratPhone } from '@/lib/darat';
+import { isLooseDaratPhone, type DaratRotation } from '@/lib/darat';
 import { parseAmountInput } from '@/lib/parse-amount';
 import type { InviteSummary } from './darat-screen';
 
@@ -41,6 +42,10 @@ interface Props {
     organizerParticipates: boolean;
     /** First round date (YYYY-MM-DD). */
     startDate: string;
+    /** Rotation chosen at create time: random or agreed (fixed) order. */
+    rotation: DaratRotation;
+    /** For agreed order: memberOrder ids in payout position order. */
+    fixedOrder: string[] | null;
   }) => Promise<{
     ok: boolean;
     circleId?: string;
@@ -85,6 +90,7 @@ const newMemberKey = (): string => `m_${Date.now()}_${++nextMemberKey}`;
 export function DaratCreateModal({ onClose, onSubmit }: Props) {
   const { messages: m } = useLanguage();
   const { symbol, currency } = useCurrency();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [members, setMembers] = useState<MemberDraft[]>([]);
@@ -102,6 +108,16 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     d.setUTCDate(d.getUTCDate() + 7);
     return d.toISOString().slice(0, 10);
   });
+  // Rotation picked at create time. Bidding is intentionally not offered
+  // here — a draw or an agreed order is decided on day one; an auction can
+  // be switched to later from the edit screen.
+  const [rotation, setRotation] = useState<DaratRotation>('random');
+  // Agreed-order payout sequence (memberOrder ids: the organizer uid first
+  // when participating, then the invitee phones), kept in sync with the
+  // members list below and draggable when the rotation is 'fixed'.
+  const [order, setOrder] = useState<string[]>([]);
+  const [orderDragKey, setOrderDragKey] = useState<string | null>(null);
+  const [orderDragOverKey, setOrderDragOverKey] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string; startDate?: string }>({});
   // The post-create summary, shown after the transaction commits.
   // When this is non-null the form is replaced by the share-links panel.
@@ -171,6 +187,66 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
   };
   // Inputs do not initiate a drag on the card.
   const stopDrag: React.DragEventHandler = (e) => e.preventDefault();
+
+  // Keep the agreed-order list aligned with the members list: dropping the
+  // participation checkbox or removing/adding invitees updates the order
+  // (existing positions preserved, new seats appended at the end).
+  useEffect(() => {
+    const validIds = [
+      ...(organizerParticipates && user?.uid ? [user.uid] : []),
+      ...members.map((mem) => mem.phone.trim()),
+    ].filter((id) => id.length > 0);
+    setOrder((prev) => {
+      const kept = prev.filter((id) => validIds.includes(id));
+      for (const id of validIds) {
+        if (!kept.includes(id)) kept.push(id);
+      }
+      return kept;
+    });
+  }, [members, organizerParticipates, user?.uid]);
+
+  const moveOrderEntry = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromId);
+      const toIdx = prev.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+  const onOrderDragStart = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    setOrderDragKey(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const onOrderDragOver = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== orderDragOverKey) setOrderDragOverKey(id);
+  };
+  const onOrderDrop = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('text/plain') || orderDragKey;
+    if (fromId) moveOrderEntry(fromId, id);
+    setOrderDragKey(null);
+    setOrderDragOverKey(null);
+  };
+  const onOrderDragEnd = () => {
+    setOrderDragKey(null);
+    setOrderDragOverKey(null);
+  };
+  // Label per agreed-order id: the organizer's account name, or the name
+  // typed on the invitee row (phone as fallback).
+  const orderLabel = (id: string): string => {
+    if (user?.uid && id === user.uid) {
+      return user.displayName?.trim() || user.email || 'Organizer';
+    }
+    const row = members.find((mem) => mem.phone.trim() === id);
+    return row?.displayName.trim() || id;
+  };
 
   // Per-row validation: classify each member row so the form can show the
   // exact issue next to the field that caused it. The "duplicate" check
@@ -258,6 +334,8 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
         members: invitees,
         organizerParticipates,
         startDate,
+        rotation,
+        fixedOrder: rotation === 'fixed' ? order : null,
       });
       if (!res.ok) {
         setError(res.error ?? 'genericError');
@@ -501,6 +579,53 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{fieldErrors.startDate}</p>
           ) : (
             <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.startDateHint}</p>
+          )}
+        </div>
+
+        {/* ── Rotation order ── */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="darat-create-rotation"
+            className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            {m.darat.create.rotation}
+          </label>
+          <ChoiceChips
+            options={[
+              { value: 'random', label: m.darat.create.rotationRandom, icon: 'dices' },
+              { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list_ordered' },
+            ]}
+            value={rotation}
+            onChange={(v) => setRotation(v as DaratRotation)}
+          />
+          {rotation === 'fixed' && (
+            <ol className="mt-1 flex flex-col gap-1.5">
+              {order.map((id, idx) => (
+                <li
+                  key={id}
+                  draggable
+                  onDragStart={onOrderDragStart(id)}
+                  onDragOver={onOrderDragOver(id)}
+                  onDrop={onOrderDrop(id)}
+                  onDragEnd={onOrderDragEnd}
+                  className={`flex items-center gap-3 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-all ${
+                    orderDragOverKey === id
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-outline-variant'
+                  } ${orderDragKey === id ? 'opacity-50' : ''}`}
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-forest text-[11px] font-semibold text-lime">
+                    {idx + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
+                    {orderLabel(id)}
+                  </span>
+                  <span aria-hidden="true" className="shrink-0 cursor-grab text-on-surface-variant active:cursor-grabbing">
+                    <AppIcon name="drag_indicator" className="text-[20px]" />
+                  </span>
+                </li>
+              ))}
+            </ol>
           )}
         </div>
 

@@ -355,6 +355,10 @@ export function DaratScreen() {
     members: { displayName: string; phone: string }[];
     organizerParticipates: boolean;
     startDate?: string;
+    /** Rotation chosen at create time (random | fixed). */
+    rotation?: DaratRotation;
+    /** Agreed-order payout sequence (memberOrder ids) when rotation=fixed. */
+    fixedOrder?: string[] | null;
   }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
@@ -369,7 +373,10 @@ export function DaratScreen() {
       organizerParticipates: input.organizerParticipates,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
-      rotation: 'random',
+      // Rotation (and, for agreed order, the payout sequence) is picked on
+      // the create form now; bidding stays an edit-time switch.
+      rotation: input.rotation ?? 'random',
+      fixedOrder: input.rotation === 'fixed' ? (input.fixedOrder ?? null) : null,
       // The create form picks the first round date; fall back to a week
       // out for programmatic callers.
       startDate: input.startDate?.trim() || (() => {
@@ -378,7 +385,6 @@ export function DaratScreen() {
         return d.toISOString().slice(0, 10);
       })(),
       sourcePlaceId: 'bank',
-      fixedOrder: null,
       randomSeed: null,
     };
     // Allocate the document ref before building the body so the body can
