@@ -23,11 +23,21 @@ const nextConfig = {
   // observability tooling in this repo consumes them; re-enable only with a
   // private map-upload pipeline (e.g. Sentry) that keeps them off the CDN.
   productionBrowserSourceMaps: false,
-  // The INCI analysis route (/api/inci/analyze) reads the local CosIng
-  // snapshot from disk at runtime; on Vercel/standalone only traced files are
-  // deployed, so the data directory must be included explicitly.
+  // The INCI analysis route (/api/inci/analyze) reads the local ingredient
+  // corpora from disk at runtime; on Vercel/standalone only traced files are
+  // deployed, so every file the loader opens must be listed explicitly.
+  // `eu-inci-glossary-2025.tsv` is the primary identity authority — without it
+  // the route answers 503 for every request in production. The bundled annex
+  // JSON is imported statically (traced automatically) and is listed anyway so
+  // a future switch to a filesystem read cannot silently break the deploy.
+  // `scripts/verify-ingredient-data.mjs` (wired into `npm run check`) fails the
+  // build if a dataset path drifts away from this list.
   outputFileTracingIncludes: {
-    '/api/inci/analyze': ['./data/cosing/cosing-ingredients.tsv'],
+    '/api/inci/analyze': [
+      './data/cosing/cosing-ingredients.tsv',
+      './data/cosing/eu-inci-glossary-2025.tsv',
+      './data/cosing/eu-cosmetics-annexes-2026-05-26.json',
+    ],
   },
   async headers() {
     return [

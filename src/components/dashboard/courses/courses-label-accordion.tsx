@@ -7,7 +7,11 @@ import { detectLabelDomain, isCosmeticRecord } from '@/lib/food-knowledge/domain
 import { analyzeFoodIngredientList, analyzeFoodText } from '@/lib/food-knowledge/analyze';
 import { foodLabelGrade } from '@/lib/food-knowledge/grade';
 import type { FoodAnalysis } from '@/lib/food-knowledge/types';
-import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
+import {
+  analyzeIngredientsText,
+  IngredientAnalysisError,
+  type IngredientAnalysisFailureKind,
+} from '@/lib/ingredient-analysis-client';
 import { readInciOverlayEntry } from '@/lib/ingredient-device-store';
 import { lookupInciForBarcode } from '@/lib/ingredient-lookup-client';
 import type { Band, ParserSummary, ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
@@ -15,6 +19,8 @@ import type { ProductFieldProvenance } from '@/lib/store';
 import {
   BAND_LABEL_KEY,
   BAND_STYLE,
+  failureText,
+  withheldReasonText,
 } from './courses-ingredient-glance';
 import { CoursesIngredientPanel } from './courses-ingredient-panel';
 import { CoursesFoodPanel } from './courses-food-panel';
@@ -175,7 +181,7 @@ export function CoursesLabelAccordion({
   const [cosmetic, setCosmetic] = useState<{
     key: string;
     analysis?: ProductAssessment;
-    failed?: boolean;
+    failure?: IngredientAnalysisFailureKind;
   }>({ key: '' });
 
   const cosmeticRequestKey = JSON.stringify({
@@ -203,8 +209,13 @@ export function CoursesLabelAccordion({
       signal: controller.signal,
     })
       .then((analysis) => setCosmetic({ key: cosmeticRequestKey, analysis }))
-      .catch(() => {
-        if (!controller.signal.aborted) setCosmetic({ key: cosmeticRequestKey, failed: true });
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setCosmetic({
+          key: cosmeticRequestKey,
+          failure: error instanceof IngredientAnalysisError ? error.kind : 'network',
+        });
       });
     return () => controller.abort();
   }, [domain, cosmeticText, cosmeticRequestKey, labelName, category, form, cosmeticSource, cosmeticReviewed]);
@@ -292,7 +303,16 @@ export function CoursesLabelAccordion({
             ) : (
               <ScoreRing
                 unknown
-                label={cosmetic.failed ? ig.unavailable : scoreUnknown ? ig.scoreUnknown : ig.analyzing}
+                label={
+                  cosmetic.failure
+                    ? failureText(cosmetic.failure, ig)
+                    : scoreUnknown
+                      ? withheldReasonText(cosmeticAnalysis?.scoreStatus ?? 'withheld-insufficient-evidence', ig, t, {
+                        recognized: cosmeticAnalysis?.recognized ?? 0,
+                        total: cosmeticAnalysis?.total ?? 0,
+                      })
+                      : ig.analyzing
+                }
                 toneClass="text-on-surface-variant"
               />
             ))}

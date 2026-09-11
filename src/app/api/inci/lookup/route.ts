@@ -30,7 +30,9 @@ import { parseGtin } from '@/lib/gtin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOOKUPS_PER_MINUTE = 60;
+/** Same carrier-NAT rationale as `/api/inci/analyze`: the ceiling is set well
+ * above any single shopper's rate so shared mobile IPs are not throttled. */
+const LOOKUPS_PER_MINUTE = 120;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 100;
 const cache = new Map<string, { at: number; body: unknown }>();

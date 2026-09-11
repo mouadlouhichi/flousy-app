@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   analyzeIngredientsText,
   clearIngredientAnalysisCache,
+  IngredientAnalysisError,
   ingredientAnalysisCacheKey,
+  isOffline,
 } from '../src/lib/ingredient-analysis-client';
 import { analyzeInciText } from '../src/lib/ingredient-safety/analyze';
 import { INGREDIENT_ANALYSIS_CACHE_VERSION } from '../src/lib/ingredient-safety/version';
@@ -170,5 +172,68 @@ describe('ingredient analysis client request identity', () => {
     assert.equal(fetches, 81);
     await analyzeIngredientsText('Aqua, unique-0', { reviewed: true });
     assert.equal(fetches, 82, 'oldest key should have been evicted rather than retained without a bound');
+  });
+
+  it('classifies a failed request so the UI can explain it and offer a retry', async () => {
+    clearIngredientAnalysisCache();
+    const cases: Array<[number, string]> = [
+      [429, 'rate-limited'],
+      [503, 'service'],
+      [500, 'service'],
+      [400, 'invalid'],
+    ];
+    for (const [status, kind] of cases) {
+      globalThis.fetch = (async () => new Response('nope', { status })) as typeof fetch;
+      const error = await analyzeIngredientsText(`Aqua, case-${status}`, { reviewed: true })
+        .then(() => null, (cause: unknown) => cause);
+      assert.ok(error instanceof IngredientAnalysisError, `HTTP ${status}`);
+      assert.equal(error.kind, kind, `HTTP ${status}`);
+      assert.equal(error.retryable, kind !== 'invalid');
+    }
+  });
+
+  it('reports a network failure instead of a generic error and never caches it', async () => {
+    clearIngredientAnalysisCache();
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      throw new TypeError('Failed to fetch');
+    }) as typeof fetch;
+    const error = await analyzeIngredientsText('Aqua, offline-case', { reviewed: true })
+      .then(() => null, (cause: unknown) => cause);
+    assert.ok(error instanceof IngredientAnalysisError);
+    assert.equal(error.kind, 'network');
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return response();
+    }) as typeof fetch;
+    await analyzeIngredientsText('Aqua, offline-case', { reviewed: true });
+    assert.equal(fetches, 2, 'a failed analysis must not be cached as a result');
+  });
+
+  it('fails fast without a request when the browser reports no connection', async () => {
+    clearIngredientAnalysisCache();
+    let fetches = 0;
+    globalThis.fetch = (async () => {
+      fetches += 1;
+      return response();
+    }) as typeof fetch;
+    const online = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(navigator),
+      'onLine',
+    );
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      assert.equal(isOffline(), true);
+      const error = await analyzeIngredientsText('Aqua, no-network', { reviewed: true })
+        .then(() => null, (cause: unknown) => cause);
+      assert.ok(error instanceof IngredientAnalysisError);
+      assert.equal(error.kind, 'offline');
+      assert.equal(fetches, 0, 'an offline device should not spend a request');
+    } finally {
+      delete (navigator as { onLine?: boolean }).onLine;
+      if (online) Object.defineProperty(navigator, 'onLine', online);
+    }
+    assert.equal(isOffline(), false);
   });
 });

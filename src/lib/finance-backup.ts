@@ -606,7 +606,8 @@ function parseSessionQuality(raw: unknown, field: string): SessionItemQuality {
     score,
     ...(raw.scoreStatus !== undefined ? {
       scoreStatus: enumValue(raw.scoreStatus, `${field}.scoreStatus`, [
-        'available', 'withheld-invalid-parse', 'withheld-review-required',
+        'available', 'available-with-unresolved-conditions',
+        'withheld-invalid-parse', 'withheld-review-required',
         'withheld-form-unknown', 'withheld-conditions-unknown',
         'withheld-insufficient-evidence', 'withheld-no-ingredients',
       ] as const),

@@ -32,15 +32,57 @@ import {
 export { inferProductForm } from './form';
 export { INGREDIENT_ENGINE_RELEASED_AT, INGREDIENT_ENGINE_VERSION } from './version';
 
+/** Point cost of the strongest listed signal on an ingredient row.
+ *
+ * `restricted` covers Annex III restriction entries and positive-list entries
+ * whose own wording excludes the selected product form. Ordinary positive-list
+ * entries (Annexes IV–VI: preservatives, colorants, UV filters) are `watch`,
+ * because the annex authorises the substance and only the conditions are
+ * unresolvable from a label. */
 const DEDUCTION: Record<RiskTier, number> = {
   prohibited: 100,
-  restricted: 45,
+  restricted: 30,
   caution: 22,
   watch: 10,
   clean: 0,
 };
-const MIN_ASSESSMENT_COVERAGE = 0.8;
+/** Below this share of IDENTIFIED ingredients the dated corpus cannot describe
+ * the list well enough to publish any index. Identity coverage — not the share
+ * of rows carrying a signal — is the right gate: a label made entirely of
+ * recognised-but-signal-free ingredients is a legitimate "no listed signal"
+ * result, while a label we cannot read is not. */
+const MIN_IDENTITY_COVERAGE = 0.6;
 const PROHIBITED_CAP = 35;
+/** A product carrying an Annex-III-style restriction entry may not read as a
+ * clean result even when the other rows are unremarkable. */
+const RESTRICTED_CAP = 59;
+/**
+ * Aggregate deduction → index conversion.
+ *
+ * A plain sum saturated at 0 for any ordinary supermarket cosmetic (a
+ * preservative plus three declared fragrance allergens already exceeds 100
+ * points), which made every imperfect product display the same "worst" number
+ * and destroyed the ranking. Penalties are therefore accumulated on a
+ * saturating curve: each additional signal removes a share of the *remaining*
+ * index, so the number stays monotonic in the underlying evidence, never
+ * saturates, and still reaches the floor for genuinely severe labels.
+ *
+ *   index = 100 · e^(−Σ deductions / 100)
+ *
+ * Per-row `deduction` values remain the raw, explainable point costs used by
+ * the "main risk drivers" breakdown; only their aggregation is saturating.
+ */
+const DEDUCTION_DECAY = 100;
+
+function indexFromDeductions(deductionTotal: number): number {
+  if (deductionTotal <= 0) return 100;
+  return Math.round(100 * Math.exp(-deductionTotal / DEDUCTION_DECAY));
+}
+/** An index computed on a partially recognised list may not be presented as a
+ * clean result. Same caps as the food-label rubric, so both surfaces behave
+ * identically when coverage is incomplete. */
+const PARTIAL_COVERAGE_CAP = 94;
+const LIMITED_COVERAGE_CAP = 79;
 
 export interface AnalyzeOptions {
   form?: ProductForm;
@@ -192,10 +234,13 @@ function bandFor(score: number): Band {
   return 'avoid';
 }
 
-function confidenceFor(coverage: number): ProductAssessment['confidence'] {
-  if (coverage >= 0.9) return 'full';
-  if (coverage >= 0.6) return 'partial';
-  return 'limited';
+/** Confidence tracks IDENTITY coverage (can we read the list?) and is capped at
+ * `partial` while any EU condition is unresolved, because an unresolved
+ * condition limits what the index can mean even on a fully read label. */
+function confidenceFor(coverage: number, hasUnresolvedConditions: boolean): ProductAssessment['confidence'] {
+  const base = coverage >= 0.9 ? 'full' : coverage >= 0.7 ? 'partial' : 'limited';
+  if (hasUnresolvedConditions && base === 'full') return 'partial';
+  return base;
 }
 
 interface AnalysisInput {
@@ -208,15 +253,25 @@ function scoreStatusFor(input: {
   total: number;
   parser: ParserSummary;
   form: ProductForm;
-  assessmentCoverage: number;
-  hasUnknownConditions: boolean;
+  /** Share of rows the dated corpus could identify. */
+  identityCoverage: number;
+  /** Rows carrying at least one assessed signal. */
+  assessed: number;
+  /** An Annex II (prohibited-list) match whose exception cannot be resolved. */
+  hasUnresolvedProhibition: boolean;
+  /** Any EU condition that cannot be resolved from the label. */
+  hasUnresolvedConditions: boolean;
 }): ScoreStatus {
   if (input.total === 0) return 'withheld-no-ingredients';
   if (!input.parser.valid) return 'withheld-invalid-parse';
   if (input.parser.source === 'ocr' && !input.parser.reviewed) return 'withheld-review-required';
   if (input.form === 'unknown') return 'withheld-form-unknown';
-  if (input.hasUnknownConditions) return 'withheld-conditions-unknown';
-  if (input.assessmentCoverage < MIN_ASSESSMENT_COVERAGE) return 'withheld-insufficient-evidence';
+  if (input.hasUnresolvedProhibition) return 'withheld-conditions-unknown';
+  // Nothing the corpus can say about this list: publishing "no listed signal"
+  // would read as a positive finding, so the index is withheld instead.
+  if (input.assessed === 0) return 'withheld-insufficient-evidence';
+  if (input.identityCoverage < MIN_IDENTITY_COVERAGE) return 'withheld-insufficient-evidence';
+  if (input.hasUnresolvedConditions) return 'available-with-unresolved-conditions';
   return 'available';
 }
 
@@ -255,12 +310,22 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
   const hasUnknownConditions = assessments.some((item) =>
     item.signals.some((signal) => signal.applicability === 'conditions-unknown'),
   );
+  // Only an unresolved Annex II exception is a genuine "we cannot say whether
+  // this substance is prohibited here" case. Positive/restricted-list
+  // conditions are published with a caveat instead of blocking the index.
+  const hasUnresolvedProhibition = assessments.some((item) =>
+    item.signals.some((signal) =>
+      signal.applicability === 'conditions-unknown' && signal.regulatory?.annex === 'II',
+    ),
+  );
   const scoreStatus = scoreStatusFor({
     total,
     parser,
     form,
-    assessmentCoverage,
-    hasUnknownConditions,
+    identityCoverage: coverage,
+    assessed: assessed.length,
+    hasUnresolvedProhibition,
+    hasUnresolvedConditions: hasUnknownConditions,
   });
 
   let deductionTotal = 0;
@@ -279,16 +344,33 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
     deductionTotal += deduction;
   }
 
-  let score: number | null = null;
-  if (scoreStatus === 'available') {
-    score = Math.max(0, 100 - deductionTotal);
-    if (hasUnconditionalProhibited) score = Math.min(score, PROHIBITED_CAP);
-  }
-
   const worstTier = assessments.reduce<RiskTier | null>(
     (current, item) => strongerTier(current, item.tier),
     null,
   );
+
+  let score: number | null = null;
+  let cappedReason: string | undefined;
+  if (scoreStatus === 'available' || scoreStatus === 'available-with-unresolved-conditions') {
+    score = indexFromDeductions(deductionTotal);
+    // Severity floors: a listed restriction or prohibition may never be
+    // averaged away by the unremarkable rows around it.
+    if (hasUnconditionalProhibited || worstTier === 'prohibited') {
+      score = Math.min(score, PROHIBITED_CAP);
+      cappedReason = 'eu-annex-ii-name-match';
+    } else if (worstTier === 'restricted') {
+      score = Math.min(score, RESTRICTED_CAP);
+      cappedReason = 'eu-restriction-floor';
+    }
+    // Incomplete identity coverage may never read as a clean result.
+    if (coverage < 0.7) {
+      score = Math.min(score, LIMITED_COVERAGE_CAP);
+      cappedReason = 'limited-identity-coverage';
+    } else if (coverage < 0.9) {
+      score = Math.min(score, PARTIAL_COVERAGE_CAP);
+      cappedReason = cappedReason ?? 'partial-identity-coverage';
+    }
+  }
   const flags: ProductFlag[] = [];
   if (!parser.valid) {
     flags.push({
@@ -324,6 +406,16 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
       text: `${conditional.length} ingredient${conditional.length === 1 ? ' has' : 's have'} EU use conditions that cannot be resolved from label order alone.`,
     });
   }
+  const formConflicts = assessments.filter((item) =>
+    item.signals.some((signal) => signal.regulatory?.legalRole === 'positive-list-with-conditions' && signal.applicability === 'applies'),
+  );
+  if (formConflicts.length > 0) {
+    flags.push({
+      level: 'warn',
+      code: 'positive-list-form-conflict',
+      text: `${formConflicts.length} positive-list entr${formConflicts.length === 1 ? 'y does' : 'ies do'} not cover the selected product form. Verify the product type and the official annex entry.`,
+    });
+  }
   const allergens = assessments.filter((item) => item.signals.some((signal) => signal.code === 'eu-fragrance-allergen'));
   if (allergens.length > 0) {
     flags.push({
@@ -350,11 +442,17 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
       text: `${unknownCount} of ${total} label entr${total === 1 ? 'y is' : 'ies are'} not identified by the local glossary or attributed external evidence.`,
     });
   }
-  if (scoreStatus !== 'available') {
+  if (score === null) {
     flags.push({
       level: 'info',
       code: scoreStatus,
       text: 'The numeric score is withheld because the available identity/context evidence is not sufficient for a supported formula-level assessment.',
+    });
+  } else if (scoreStatus === 'available-with-unresolved-conditions') {
+    flags.push({
+      level: 'info',
+      code: 'available-with-unresolved-conditions',
+      text: 'The numeric score is shown with unresolved EU use conditions (concentration, product type, warnings). Conditions that cannot be read from a label are not resolved and are not treated as compliant.',
     });
   }
 
@@ -373,13 +471,13 @@ function analyzePrepared(input: AnalysisInput, opts?: AnalyzeOptions): AnalyzeRe
     assessmentCoverage: Math.round(assessmentCoverage * 1000) / 1000,
     score,
     scoreStatus,
-    confidence: confidenceFor(assessmentCoverage),
+    confidence: confidenceFor(coverage, hasUnknownConditions),
     band: score === null ? null : bandFor(score),
     worstTier,
     unknownIngredients: unknown,
     flags,
     parser,
-    ...(hasUnconditionalProhibited ? { cappedReason: 'eu-annex-ii-name-match' } : {}),
+    ...(cappedReason ? { cappedReason } : {}),
     ...(opts?.vendorEvidence && opts.vendorEvidence.size > 0 ? { vendorEnriched: true } : {}),
     dataset: {
       rows: dataset.meta.rows,

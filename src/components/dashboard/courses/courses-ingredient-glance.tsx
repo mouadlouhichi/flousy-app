@@ -4,8 +4,19 @@ import { useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import type { Messages } from '@/lib/i18n';
-import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
-import type { Band, ProductAssessment, ProductForm, RiskTier } from '@/lib/ingredient-safety/types';
+import {
+  analyzeIngredientsText,
+  IngredientAnalysisError,
+  type IngredientAnalysisFailureKind,
+} from '@/lib/ingredient-analysis-client';
+import type {
+  Band,
+  IngredientAssessment,
+  ProductAssessment,
+  ProductForm,
+  RiskTier,
+  Signal,
+} from '@/lib/ingredient-safety/types';
 
 /**
  * Ingredient glance for a scanned cosmetic.
@@ -40,7 +51,7 @@ interface CoursesIngredientGlanceProps {
 type GlanceState =
   | { status: 'loading' }
   | { status: 'ready'; analysis: ProductAssessment }
-  | { status: 'unavailable' };
+  | { status: 'failed'; kind: IngredientAnalysisFailureKind };
 
 export const BAND_STYLE: Record<Band, { chip: string; text: string; ring: string }> = {
   excellent: {
@@ -163,6 +174,9 @@ export function CoursesIngredientGlance({
   const { messages } = useLanguage();
   const g = messages.ingredientGlance;
   const [state, setState] = useState<GlanceState>({ status: 'loading' });
+  // Bumping the nonce re-runs the effect without changing the text/context, so
+  // a user can retry after a transient failure (offline, 429, 503).
+  const [attempt, setAttempt] = useState(0);
 
   const text = ingredientsText.trim();
   useEffect(() => {
@@ -174,14 +188,18 @@ export function CoursesIngredientGlance({
       .then((analysis) => {
         if (!cancelled) setState({ status: 'ready', analysis });
       })
-      .catch(() => {
-        if (!cancelled) setState({ status: 'unavailable' });
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // Aborting is not a failure: the effect is re-running for new input.
+        if (error instanceof IngredientAnalysisError) setState({ status: 'failed', kind: error.kind });
+        else if (error instanceof Error && error.name === 'AbortError') return;
+        else setState({ status: 'failed', kind: 'network' });
       });
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [text, label, category, form, source, reviewed]);
+  }, [text, label, category, form, source, reviewed, attempt]);
 
   if (!text) return null;
   const loading = state.status === 'loading';
@@ -205,11 +223,26 @@ export function CoursesIngredientGlance({
         </p>
       )}
 
-      {state.status === 'unavailable' && (
-        <p className="mt-2 flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
-          <AppIcon name="info" className="size-3.5" />
-          {g.unavailable}
-        </p>
+      {state.status === 'failed' && (
+        <div className="mt-2 flex items-start gap-2">
+          <AppIcon
+            name={state.kind === 'offline' ? 'cloud_off' : 'error_outline'}
+            className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+          />
+          <p className="flex-1 font-body-sm text-body-sm text-on-surface-variant">
+            {failureText(state.kind, g)}
+          </p>
+          {state.kind !== 'invalid' && (
+            <button
+              type="button"
+              onClick={() => setAttempt((value) => value + 1)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-outline-variant px-2.5 py-1 font-label-sm text-label-sm text-primary hover:bg-surface-container-high transition-colors"
+            >
+              <AppIcon name="refresh" className="size-3.5" />
+              {g.retry}
+            </button>
+          )}
+        </div>
       )}
 
       {state.status === 'ready' && <CoursesIngredientGlanceBody analysis={state.analysis} />}
@@ -226,6 +259,7 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
   const { messages, t } = useLanguage();
   const g = messages.ingredientGlance;
   const [showDetails, setShowDetails] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
   const a = analysis;
 
   const scored = a.score !== null && a.band !== null
@@ -295,7 +329,9 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
         </div>
       ) : (
         <div className="rounded-xl border border-outline-variant bg-surface-container-high/60 px-3 py-2">
-          <p className="font-body-sm text-body-sm font-medium text-on-surface">{g.scoreUnknown}</p>
+          <p className="font-body-sm text-body-sm font-medium text-on-surface">
+            {withheldReasonText(a.scoreStatus, g, t, a)}
+          </p>
           <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">{g.indexNotSafetyVerdict}</p>
         </div>
       )}
@@ -327,6 +363,15 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Unresolved EU conditions: the index is published, but the caveat is
+          part of the result, not a footnote. */}
+      {scored && a.scoreStatus === 'available-with-unresolved-conditions' && (
+        <p className="flex items-start gap-1.5 rounded-xl border border-outline-variant bg-surface-container-high/60 px-3 py-2 font-label-sm text-label-sm text-on-surface-variant">
+          <AppIcon name="help" className="mt-0.5 size-3.5 shrink-0" />
+          {g.conditionsCaveat}
+        </p>
       )}
 
       {/* Takeaway chips — color-coded counts; the flagged pill toggles the list */}
@@ -419,20 +464,33 @@ export function CoursesIngredientGlanceBody({ analysis }: { analysis: ProductAss
                 : ingredient.assessmentState === 'identified-no-assessment'
                   ? g.identityOnly
                   : g.identityAssessed;
+            const open = expanded === ingredient.index;
             return (
-              <li key={ingredient.index} className="flex items-center gap-2.5 px-3 py-2">
-                <span className={`size-2 shrink-0 rounded-full ${tier ? TIER_DOT[tier] : 'bg-outline'}`} aria-hidden="true" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-body-sm text-body-sm text-on-surface">
-                    {ingredient.matchedInci ?? ingredient.raw}
+              <li key={ingredient.index}>
+                <button
+                  type="button"
+                  onClick={() => setExpanded(open ? null : ingredient.index)}
+                  aria-expanded={open}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-start"
+                >
+                  <span className={`size-2 shrink-0 rounded-full ${tier ? TIER_DOT[tier] : 'bg-outline'}`} aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-body-sm text-body-sm text-on-surface">
+                      {ingredient.matchedInci ?? ingredient.raw}
+                    </span>
+                    {ingredient.matchedInci && ingredient.matchedInci !== ingredient.raw && (
+                      <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">{ingredient.raw}</span>
+                    )}
                   </span>
-                  {ingredient.matchedInci && ingredient.matchedInci !== ingredient.raw && (
-                    <span className="block truncate font-label-sm text-label-sm text-on-surface-variant">{ingredient.raw}</span>
-                  )}
-                </span>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${tier ? TIER_STYLE[tier] : 'bg-surface-container-high text-on-surface-variant'}`}>
-                  {tier ? t(g[TIER_LABEL_KEY[tier]]) : identityLabel}
-                </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${tier ? TIER_STYLE[tier] : 'bg-surface-container-high text-on-surface-variant'}`}>
+                    {tier ? t(g[TIER_LABEL_KEY[tier]]) : identityLabel}
+                  </span>
+                  <AppIcon
+                    name="expand_more"
+                    className={`size-4 shrink-0 text-on-surface-variant transition-transform ${open ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {open && <IngredientDetail ingredient={ingredient} g={g} t={t} />}
               </li>
             );
           })}
@@ -495,6 +553,13 @@ export function ingredientFlagText(
     }
     case 'regulatory-conditions-unknown':
       return g.flagConditionsUnknown;
+    case 'positive-list-form-conflict': {
+      const list = names((i) => i.signals.some((signal) =>
+        signal.regulatory?.legalRole === 'positive-list-with-conditions' && signal.applicability === 'applies'));
+      return t(g.flagFormConflict, { count: list.length, names: list.slice(0, 3).join(', ') });
+    }
+    case 'available-with-unresolved-conditions':
+      return g.conditionsCaveat;
     case 'parser-review-required':
       return g.flagParserReview;
     case 'ocr-review-required':
@@ -508,5 +573,159 @@ export function ingredientFlagText(
       return g.flagScoreWithheld;
     default:
       return '';
+  }
+}
+
+/**
+ * Per-ingredient detail — the INCI-app part of this surface.
+ *
+ * Yuka and INCI Beauty both let a shopper tap an ingredient and read *why* it
+ * is coloured: what the name resolved to, what the dated EU source says, and
+ * what is deliberately unknown. Everything rendered here comes from the
+ * analysis response; no conclusion is added in the UI.
+ */
+export function IngredientDetail({
+  ingredient,
+  g,
+  t,
+}: {
+  ingredient: IngredientAssessment;
+  g: GlanceMessages;
+  t: (template: string, values?: Record<string, string | number>) => string;
+}) {
+  const identity = ingredient.identity;
+  const identitySource =
+    identity.status === 'official-glossary'
+      ? g.identityOfficial
+      : identity.status === 'legacy-inventory'
+        ? g.identityLegacy
+        : identity.status === 'externally-identified'
+          ? g.identityExternalSource
+          : g.identityUnidentified;
+
+  return (
+    <div className="space-y-2 border-t border-outline-variant/60 bg-surface/40 px-3 py-2.5">
+      <div className="space-y-0.5">
+        <p className="font-label-sm text-label-sm font-semibold text-on-surface-variant">{g.detailIdentity}</p>
+        <p className="font-body-sm text-body-sm text-on-surface">
+          {identitySource}
+          {identity.canonicalName ? ` — ${identity.canonicalName}` : ''}
+          {identity.entry ? ` (${t(g.detailEntry, { entry: identity.entry })})` : ''}
+        </p>
+        {ingredient.cas && (
+          <p className="font-label-sm text-label-sm text-on-surface-variant">{g.detailCas}: {ingredient.cas}</p>
+        )}
+        {ingredient.functions && ingredient.functions.length > 0 && (
+          <p className="font-label-sm text-label-sm text-on-surface-variant">
+            {g.detailFunctions}: {ingredient.functions.join(', ')}
+          </p>
+        )}
+      </div>
+
+      {ingredient.signals.length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="font-label-sm text-label-sm font-semibold text-on-surface-variant">{g.detailSignals}</p>
+          <ul className="space-y-1.5">
+            {ingredient.signals.map((signal, position) => (
+              <li key={`${signal.code}-${position}`} className="rounded-lg bg-surface-container-high/60 px-2.5 py-1.5">
+                <p className="font-body-sm text-body-sm font-medium text-on-surface">{signalLabel(signal, t, g)}</p>
+                {signal.detail && (
+                  <p className="mt-0.5 font-label-sm text-label-sm text-on-surface-variant">{signal.detail}</p>
+                )}
+                {signal.regulatory && (
+                  <ul className="mt-1 space-y-0.5 font-label-sm text-label-sm text-on-surface-variant">
+                    <li>{t(g.detailAnnexEntry, { annex: signal.regulatory.annex, entry: signal.regulatory.entry })}</li>
+                    <li>
+                      {signal.applicability === 'applies' ? g.detailApplies : g.detailConditionsUnknown}
+                    </li>
+                    {signal.regulatory.maxConcentration && (
+                      <li>{g.detailMaxConcentration}: {signal.regulatory.maxConcentration}</li>
+                    )}
+                    {signal.regulatory.productType && (
+                      <li>{g.detailProductType}: {signal.regulatory.productType}</li>
+                    )}
+                    {signal.regulatory.warnings && (
+                      <li>{g.detailWarnings}: {signal.regulatory.warnings}</li>
+                    )}
+                  </ul>
+                )}
+                {signal.evidence.length > 0 && (
+                  <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant/80">
+                    {g.detailEvidence}: {signal.evidence.join(' · ')}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="font-label-sm text-label-sm text-on-surface-variant">{g.detailNoSignal}</p>
+      )}
+
+      {ingredient.externalEvidence?.map((evidence) => (
+        <p key={evidence.provider} className="font-label-sm text-label-sm text-on-surface-variant">
+          {t(g.detailExternal, { provider: evidence.provider, verdict: evidence.verdict ?? '—' })}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** Localized label for one signal: EU annex entries get a precise name, every
+ *  other signal keeps the label emitted by the evidence layer. */
+function signalLabel(
+  signal: Signal,
+  t: (template: string, values?: Record<string, string | number>) => string,
+  g: GlanceMessages,
+): string {
+  if (signal.regulatory) {
+    return `${t(g.detailAnnexEntry, { annex: signal.regulatory.annex, entry: signal.regulatory.entry })} — ${signal.label}`;
+  }
+  return signal.label;
+}
+
+/** Actionable reason for a withheld index, so the state is never a dead end. */
+export function withheldReasonText(
+  status: ProductAssessment['scoreStatus'],
+  g: GlanceMessages,
+  t: (template: string, values?: Record<string, string | number>) => string,
+  a: Pick<ProductAssessment, 'recognized' | 'total'>,
+): string {
+  switch (status) {
+    case 'withheld-form-unknown':
+      return g.formRequired;
+    case 'withheld-review-required':
+      return g.flagOcrReview;
+    case 'withheld-invalid-parse':
+      return g.flagParserReview;
+    case 'withheld-conditions-unknown':
+      return g.flagProhibitionUnresolved;
+    case 'withheld-insufficient-evidence':
+      return a.recognized === a.total ? g.noSignalWithheld : t(g.insufficientEvidence, {
+        recognized: a.recognized,
+        total: a.total,
+      });
+    case 'withheld-no-ingredients':
+      return g.noIngredientsWithheld;
+    default:
+      return g.scoreUnknown;
+  }
+}
+
+/** Localized copy for a failed request, keyed by the failure the client reports. */
+export function failureText(kind: IngredientAnalysisFailureKind, g: GlanceMessages): string {
+  switch (kind) {
+    case 'offline':
+      return g.errorOffline;
+    case 'rate-limited':
+      return g.errorRateLimited;
+    case 'service':
+      return g.errorService;
+    case 'timeout':
+      return g.errorTimeout;
+    case 'invalid':
+      return g.errorInvalid;
+    default:
+      return g.errorNetwork;
   }
 }

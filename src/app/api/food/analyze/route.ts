@@ -47,7 +47,10 @@ export const dynamic = 'force-dynamic';
 const MAX_INGREDIENTS = 300;
 const MAX_ALLERGEN_TAGS = 50;
 const MAX_ALLERGEN_TAG_LENGTH = 100;
-const ANALYSES_PER_MINUTE = 60;
+/** Same carrier-NAT rationale as `/api/inci/analyze`: one shopper's realistic
+ * rate is a few labels per trip, and shared mobile IPs must not be throttled
+ * before that. The analysis runs against the local corpus and is cheap. */
+const ANALYSES_PER_MINUTE = 180;
 
 function asString(v: unknown, max: number): string | undefined {
   if (typeof v !== 'string') return undefined;

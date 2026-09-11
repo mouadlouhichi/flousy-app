@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeIngredientList } from '../src/lib/ingredient-safety/analyze';
-import { ingredientFlagText, riskDrivers } from '../src/components/dashboard/courses/courses-ingredient-glance';
+import {
+  failureText,
+  ingredientFlagText,
+  riskDrivers,
+  withheldReasonText,
+} from '../src/components/dashboard/courses/courses-ingredient-glance';
 import en from '../messages/en.json';
 import fr from '../messages/fr.json';
 import ar from '../messages/ar.json';
@@ -126,5 +131,59 @@ describe('risk drivers ranking', () => {
       assert.ok(g.riskDriversTitle?.length > 3);
       assert.match(g.driverPoints ?? '', /\{points\}/);
     }
+  });
+
+  it('produces copy for every request-failure kind in all three locales', () => {
+    const kinds = ['offline', 'rate-limited', 'service', 'timeout', 'network', 'invalid'] as const;
+    for (const messages of [en, fr, ar]) {
+      const g = glanceOf(messages);
+      for (const kind of kinds) {
+        const text = failureText(kind, g);
+        assert.ok(text && text.length > 8, `${kind} copy missing`);
+        // Placeholders must be resolved, never rendered raw.
+        assert.ok(!text.includes('{'), `${kind} copy has an unresolved placeholder`);
+      }
+      // Distinct states must not collapse into one generic string.
+      const texts = new Set(kinds.map((kind) => failureText(kind, g)));
+      assert.equal(texts.size, kinds.length, 'failure kinds must be distinguishable');
+    }
+  });
+
+  it('explains every withheld status in all three locales', () => {
+    const statuses = [
+      'withheld-form-unknown',
+      'withheld-review-required',
+      'withheld-invalid-parse',
+      'withheld-conditions-unknown',
+      'withheld-insufficient-evidence',
+      'withheld-no-ingredients',
+    ] as const;
+    for (const messages of [en, fr, ar]) {
+      const g = glanceOf(messages);
+      for (const status of statuses) {
+        const text = withheldReasonText(status, g, t, { recognized: 2, total: 9 });
+        assert.ok(text && text.length > 8, `${status} copy missing`);
+        assert.ok(!text.includes('{'), `${status} copy has an unresolved placeholder`);
+      }
+      // The two "insufficient evidence" shapes are the ones a shopper actually
+      // sees, and they must say different things.
+      const unreadable = withheldReasonText('withheld-insufficient-evidence', g, t, { recognized: 2, total: 9 });
+      const noSignals = withheldReasonText('withheld-insufficient-evidence', g, t, { recognized: 9, total: 9 });
+      assert.notEqual(unreadable, noSignals);
+    }
+  });
+
+  it('composes the unresolved-conditions caveat and the form-conflict flag from real output', () => {
+    // Phenoxyethanol is a positive-list (authorised) entry with conditions the
+    // label does not show: the index is published, so the caveat must exist.
+    const analysis = analyzeIngredientList(['Aqua', 'Phenoxyethanol'], { form: 'leave-on' });
+    assert.equal(analysis.scoreStatus, 'available-with-unresolved-conditions');
+    const g = glanceOf(en);
+    assert.ok(ingredientFlagText('available-with-unresolved-conditions', analysis, g, t).length > 20);
+    // A rinse-off-only positive-list entry in a leave-on product resolves into
+    // an explicit, named conflict.
+    const mit = analyzeIngredientList(['Aqua', 'Methylisothiazolinone'], { form: 'leave-on' });
+    const conflict = ingredientFlagText('positive-list-form-conflict', mit, g, t);
+    assert.match(conflict, /Methylisothiazolinone/i);
   });
 });

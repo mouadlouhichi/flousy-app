@@ -104,6 +104,43 @@ function annexTwoHasConditions(record: RawAnnexRecord): boolean {
   return /\b(?:EXCEPT|EXCEPTION|WHEN USED|UNLESS|NORMAL CONTENT|BELOW\s+\d|WITH THE EXCEPTION)\b/iu.test(text);
 }
 
+/** Use-context wording that appears in the exported `productType` / concentration
+ * fields of Annexes IV–VI (the positive lists). Matched only against the
+ * record's own words, never against a guessed product category. */
+const RINSE_OFF_USE =
+  /\b(?:rinse[-\s]?off|rincer|shower|shampo\w*|soaps?|savon|toothpaste|dentifrice|mouthwash)\b/iu;
+const LEAVE_ON_USE = /\b(?:leave[-\s]?on|sans\s+rincage|sans\s+rinçage|non[-\s]?rinse)\b/iu;
+
+/**
+ * Detect an explicit form conflict for a POSITIVE-LIST entry.
+ *
+ * Annexes IV–VI authorise a substance for named uses at named
+ * concentrations. When the record's own wording covers only the opposite
+ * exposure context from the one the user selected, the annex does not
+ * authorise this use — that is a resolvable fact, not an unknown one
+ * (e.g. methylisothiazolinone: Annex V/57 is a rinse-off-only entry, so a
+ * leave-on declaration is not covered by it).
+ *
+ * Returns 'none' whenever the record does not state a use context, or when it
+ * mentions both contexts, or when the form is unknown. Those cases stay
+ * `conditions-unknown` and never become a verdict.
+ */
+export type PositiveListFormConflict = 'none' | 'rinse-off-only' | 'leave-on-only';
+
+export function positiveListFormConflict(
+  record: Pick<RawAnnexRecord, 'productType' | 'maxConcentration' | 'otherRestrictions'>,
+  form: ProductForm,
+): PositiveListFormConflict {
+  if (form === 'unknown') return 'none';
+  const text = `${record.productType ?? ''} ${record.maxConcentration ?? ''} ${record.otherRestrictions ?? ''}`;
+  if (!text.trim()) return 'none';
+  const rinseOff = RINSE_OFF_USE.test(text);
+  const leaveOn = LEAVE_ON_USE.test(text);
+  if (form === 'leave-on' && rinseOff && !leaveOn) return 'rinse-off-only';
+  if (form === 'rinse-off' && leaveOn && !rinseOff) return 'leave-on-only';
+  return 'none';
+}
+
 function contextNote(record: RawAnnexRecord, form: ProductForm, category?: string): string {
   const productType = record.productType?.trim();
   const knownContext = [form !== 'unknown' ? form : '', category?.trim() ?? ''].filter(Boolean).join(', ');
@@ -120,7 +157,13 @@ function toSignal(record: RawAnnexRecord, form: ProductForm, category?: string):
   const conditionalAnnexTwo = record.annex === 'II' && annexTwoHasConditions(record);
   const isUnconditionalAnnexTwo = record.annex === 'II' && !conditionalAnnexTwo;
   const positiveList = record.annex === 'IV' || record.annex === 'V' || record.annex === 'VI';
-  const applicability = isUnconditionalAnnexTwo ? 'applies' : 'conditions-unknown';
+  const formConflict = positiveList ? positiveListFormConflict(record, form) : 'none';
+  // A positive-list entry whose own wording covers only the opposite exposure
+  // context is a resolved non-authorisation for the selected form; every other
+  // conditional record remains unresolved.
+  const applicability = isUnconditionalAnnexTwo || formConflict !== 'none'
+    ? 'applies'
+    : 'conditions-unknown';
   const legalRole: RegulatoryCondition['legalRole'] = isUnconditionalAnnexTwo
     ? 'prohibited-list'
     : record.annex === 'II' || record.annex === 'III'
@@ -135,7 +178,9 @@ function toSignal(record: RawAnnexRecord, form: ProductForm, category?: string):
     applicability,
     applicabilityReason: isUnconditionalAnnexTwo
       ? 'The exact ingredient name matches an Annex II record without an exception in the exported record.'
-      : contextNote(record, form, category),
+      : formConflict !== 'none'
+        ? `The dated annex authorises this substance for ${formConflict === 'rinse-off-only' ? 'rinse-off' : 'leave-on'} uses only, and the selected product form is ${form}. Verify the product type and the official entry — an ingredient list does not establish the formulation's compliance.`
+        : contextNote(record, form, category),
     ...(record.productType ? { productType: record.productType } : {}),
     ...(record.maxConcentration ? { maxConcentration: record.maxConcentration } : {}),
     ...(record.otherRestrictions ? { otherRestrictions: record.otherRestrictions } : {}),
@@ -146,16 +191,23 @@ function toSignal(record: RawAnnexRecord, form: ProductForm, category?: string):
     sourceUrl: EU_REGULATION_SOURCE_URL,
   };
 
+  // Positive lists (Annexes IV–VI) authorise a substance subject to
+  // conditions: presence on the label is therefore an informational "authorised
+  // substance, conditions not shown on the label" signal (watch), not a
+  // restriction-level concern. The one exception is a resolved form conflict,
+  // where the annex does not cover the use the user selected.
   let tier: RiskTier = 'restricted';
   if (isUnconditionalAnnexTwo) tier = 'prohibited';
-  else if (positiveList) tier = 'restricted';
+  else if (positiveList) tier = formConflict !== 'none' ? 'restricted' : 'watch';
 
   const annexLabel = `EU Cosmetics Annex ${record.annex}, entry ${record.entry}`;
   const label = isUnconditionalAnnexTwo
     ? 'Exact name match in the EU Annex II prohibited list'
-    : positiveList
-      ? 'EU positive-list entry with conditions'
-      : 'EU annex entry with unresolved conditions';
+    : formConflict !== 'none'
+      ? 'EU positive-list entry that does not cover the selected product form'
+      : positiveList
+        ? 'EU positive-list entry — authorised substance, conditions not shown on the label'
+        : 'EU annex entry with unresolved conditions';
   const details = [
     condition.applicabilityReason,
     record.maxConcentration ? `Maximum concentration field: ${record.maxConcentration}` : '',
