@@ -928,6 +928,7 @@
     "generic": "Un problème est survenu. Veuillez réessayer.",
     "networkError": "Erreur réseau. Vérifiez votre connexion.",
     "rulesDenied": "Le serveur a refusé la lecture de vos tontines. Si vous venez de modifier les règles de sécurité, redéployez-les puis rechargez la page.",
+    "circleOtherAccount": "Cette tontine ne liste pas votre compte comme membre. Êtes-vous connecté avec le compte qui l'a créée ou rejointe ?",
     "loadFailedTitle": "Impossible de charger vos tontines",
     "notFound": "Page introuvable",
     "notFoundTitle": "Tontine introuvable",

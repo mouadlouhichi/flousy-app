@@ -928,6 +928,7 @@
     "generic": "Something went wrong. Please try again.",
     "networkError": "Network error. Please check your connection.",
     "rulesDenied": "The server refused to read your circles. If you just changed the security rules, redeploy them and reload.",
+    "circleOtherAccount": "This circle does not list your account as a member. Are you signed in with the account that created or joined it?",
     "loadFailedTitle": "Could not load your circles",
     "notFound": "Page not found",
     "notFoundTitle": "Circle not found",

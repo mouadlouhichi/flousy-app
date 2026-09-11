@@ -1,4 +1,8 @@
 rules_version = '2';
+// ── darat read-rules v3 (resource-based get, no getAfter in read rules) ────
+// Deployment marker: the PUBLISHED rules in the Firebase console
+// (Firestore → Rules) must contain this line. If it doesn't, the live
+// ruleset is older than this file — redeploy and reload the app.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }

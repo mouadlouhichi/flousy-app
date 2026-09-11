@@ -80,6 +80,10 @@ export function DaratScreen() {
   // either one means "we know the load failed", which the detail view
   // turns into an error card instead of an endless spinner.
   const [docsLoadFailed, setDocsLoadFailed] = useState(false);
+  // Set when a rules denial was probed: 'stale-rules' means the account IS
+  // a member and only an outdated deployed ruleset explains the refusal;
+  // 'not-member' means the account has no active seat in that circle.
+  const [denialVerdict, setDenialVerdict] = useState<'stale-rules' | 'not-member' | null>(null);
   const [view, setView] = useState<View>({ kind: 'list' });
   // The id of a circle created/joined in this session. The live snapshots
   // surface it a tick after the transaction commits, so while the detail
@@ -153,11 +157,50 @@ export function DaratScreen() {
       });
     };
 
+    // Called when the server refuses to read a circle doc. Every version of
+    // these rules allows a signed-in user to read their OWN member row
+    // (`memberId == request.auth.uid` — a resource-free branch), so probing
+    // it separates a stale deployed ruleset from a data problem:
+    //   * probe DENIED            → the live ruleset is not this file at all.
+    //   * probe exists + active   → the caller IS a member; only an outdated
+    //     ruleset (one without the read twins) can explain the circle denial.
+    //   * probe missing / inactive → the account genuinely has no seat in
+    //     this circle (wrong account, or a pointer row left behind).
+    const diagnoseCircleDenial = async (circleId: string): Promise<'stale-rules' | 'not-member'> => {
+      try {
+        const memberSnap = await getDoc(doc(db, 'circles', circleId, 'members', user.uid));
+        if (memberSnap.exists()) {
+          const status = (memberSnap.data() as { status?: string }).status;
+          if (status === 'active') {
+            console.error(
+              `[darat] READ DENIED on circles/${circleId} but ${user.uid} IS an active member.\n` +
+              'The LIVE Firestore rules are older than this repo\'s firestore.rules.\n' +
+              'Fix — from the repo root run:\n' +
+              '  firebase use <your-project-id> && firebase deploy --only firestore:rules\n' +
+              'Verify — Firebase console → Firestore → Rules: the published text must contain "activeCircleMemberRead".',
+            );
+            return 'stale-rules';
+          }
+          console.warn(`[darat] member row for ${circleId} exists but status="${status}" — the account has no active seat.`);
+          return 'not-member';
+        }
+        console.warn(
+          `[darat] no member row at circles/${circleId}/members/${user.uid} — ` +
+          'this account is neither organizer nor member of that circle.',
+        );
+        return 'not-member';
+      } catch (probeErr) {
+        console.warn('[darat] self member-row probe denied too — the live ruleset predates the darat self-read branch', probeErr);
+        return 'stale-rules';
+      }
+    };
+
     const unsubPointer = onSnapshot(
       pointerRef,
       async (snap) => {
         if (cancelled) return;
         setLoadError(null);
+        setDenialVerdict(null);
         const ids = snap.docs.map((d) => d.id);
         if (ids.length === 0) {
           // An empty pointer collection is a perfectly valid "no circles
@@ -180,12 +223,18 @@ export function DaratScreen() {
           console.warn('[darat] circle docs load failed', err);
           // The pointer snapshot succeeded but the per-circle docs were
           // refused (rules) or the network dropped. Name the two apart —
-          // "check your connection" is bad advice for a rules denial.
-          setLoadError(
-            (err as { code?: string } | null)?.code === 'permission-denied'
-              ? 'rulesDenied'
-              : 'networkError',
-          );
+          // "check your connection" is bad advice for a rules denial — and
+          // when it IS a denial, probe once to pin down which kind.
+          const code = (err as { code?: string } | null)?.code;
+          if (code === 'permission-denied') {
+            const verdict = await diagnoseCircleDenial(ids[0]);
+            if (cancelled) return;
+            setDenialVerdict(verdict);
+            setLoadError(verdict === 'not-member' ? 'circleOtherAccount' : 'rulesDenied');
+          } else {
+            setDenialVerdict(null);
+            setLoadError('networkError');
+          }
           setDocsLoadFailed(true);
           setCirclesReady(true);
         }
@@ -483,7 +532,9 @@ export function DaratScreen() {
           <div className="flex flex-col gap-3">
             <Alert variant="destructive">
               <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
-              <AlertDescription>{m.errors.networkError}</AlertDescription>
+              <AlertDescription>
+                {(m.errors as Record<string, string>)[loadError ?? 'networkError'] ?? m.errors.generic}
+              </AlertDescription>
             </Alert>
             <button
               type="button"
