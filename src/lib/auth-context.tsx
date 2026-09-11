@@ -20,6 +20,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider, isFirebaseConfigured } from './firebase';
 import { setAuthCookie } from './auth-status';
+import { sendBrandedAuthEmail } from './auth-email-client';
 import { UserProfile } from './store';
 import type { DeletionReport } from './db';
 import { resolveProEntitlement } from './pro-features';
@@ -299,8 +300,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     trackEvent('sign_up', { method: 'email' });
     if (res.user && !res.user.emailVerified) {
+      // Branded verification mail first (our own domain via Resend); the
+      // Firebase default mailer covers deployments where the mail service is
+      // not wired up. Delivery never blocks sign-up.
       try {
-        await firebaseSendEmailVerification(res.user);
+        const idToken = await res.user.getIdToken();
+        await sendBrandedAuthEmail(
+          'email_verification',
+          { idToken },
+          () => firebaseSendEmailVerification(res.user),
+        );
       } catch {
         // non-blocking
       }
@@ -356,14 +365,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const sendResetEmail = async (email: string) => {
-    if (!auth) throw new Error('Firebase Auth is not configured');
-    await firebaseSendPasswordResetEmail(auth, email);
+    const instance = auth;
+    if (!instance) throw new Error('Firebase Auth is not configured');
+    // Custom branded mail (Resend) → falls back to Firebase's built-in mailer
+    // when the deployment has no mail service configured.
+    await sendBrandedAuthEmail('password_reset', { email }, () => firebaseSendPasswordResetEmail(instance, email));
   };
 
   const sendVerificationEmail = async () => {
-    if (auth?.currentUser) {
-      await firebaseSendEmailVerification(auth.currentUser);
-    }
+    const current = auth?.currentUser;
+    if (!current) return;
+    const idToken = await current.getIdToken();
+    await sendBrandedAuthEmail(
+      'email_verification',
+      { idToken },
+      () => firebaseSendEmailVerification(current),
+    );
   };
 
   const updateProfileData = async (
