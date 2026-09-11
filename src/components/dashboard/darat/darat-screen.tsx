@@ -12,10 +12,11 @@
  * create button is hidden and the join flow is replaced with a CTA.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -88,6 +89,12 @@ export function DaratScreen() {
   // a member and only an outdated deployed ruleset explains the refusal;
   // 'not-member' means the account has no active seat in that circle.
   const [denialVerdict, setDenialVerdict] = useState<'stale-rules' | 'not-member' | null>(null);
+  // Latest pointer-removal closure from the subscription effect, so the
+  // unavailable rows can offer a remove action without re-subscribing.
+  const removeUnavailableRef = useRef<((circleId: string) => Promise<void>) | null>(null);
+  const removeUnavailable = useCallback((circleId: string) => {
+    return removeUnavailableRef.current?.(circleId) ?? Promise.resolve();
+  }, []);
   const [view, setView] = useState<View>({ kind: 'list' });
   // The id of a circle created/joined in this session. The live snapshots
   // surface it a tick after the transaction commits, so while the detail
@@ -190,7 +197,14 @@ export function DaratScreen() {
         }
         console.warn(
           `[darat] no member row at circles/${circleId}/members/${user.uid} — ` +
-          'this account is neither organizer nor member of that circle.',
+          'this account is neither organizer nor member of that circle.\n' +
+          'CONFIRM IN 10 SECONDS — Firebase console → Firestore → data, open:\n' +
+          `  circles/${circleId}\n` +
+          'and read its organizerId field:\n' +
+          `  • organizerId == ${user.uid}  -> the published rules are STILL an old ` +
+          'version (they must contain "darat read-rules v3") — re-paste firestore.rules.\n' +
+          '  • organizerId is something else -> these circles belong to another ' +
+          'account; remove them from this list with the ✕ action.',
         );
         return 'not-member';
       } catch (probeErr) {
@@ -272,9 +286,25 @@ export function DaratScreen() {
       },
     );
 
+    // The pointer row is the user's own "my circles" index — deleting it is
+    // allowed by `owner(uid)` under every version of the rules, so a stale
+    // row (circle from another account, or wiped test data) can always be
+    // removed from the list client-side. The live listener re-emits without
+    // the row and the UI recomputes.
+    const removeUnavailable = async (circleId: string) => {
+      if (!user) return;
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'circles', circleId));
+      } catch (err) {
+        console.warn('[darat] could not remove pointer row', circleId, err);
+      }
+    };
+    removeUnavailableRef.current = removeUnavailable;
+
     return () => {
       cancelled = true;
       unsubPointer();
+      removeUnavailableRef.current = null;
     };
     // `circles` is intentionally not listed in deps: the subscription
     // merges snapshots into the existing list, so resubscribing on every
@@ -776,6 +806,15 @@ export function DaratScreen() {
               <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
                 <AppIcon name="error" className="shrink-0 text-[16px] text-error" />
                 <span className="truncate font-mono" dir="ltr">{id}</span>
+                <button
+                  type="button"
+                  onClick={() => void removeUnavailable(id)}
+                  className="ms-auto flex size-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container/40 hover:text-error"
+                  aria-label={`${m.common.remove} ${id}`}
+                  title={m.common.remove}
+                >
+                  <AppIcon name="close" strokeWidth={2.4} className="text-[14px]" />
+                </button>
               </li>
             ))}
           </ul>
