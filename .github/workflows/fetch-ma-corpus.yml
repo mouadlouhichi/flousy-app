@@ -30,8 +30,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source }} --pages=${{ inputs.pages }}
-      - uses: actions/upload-artifact@v4
+      - run: |
+          node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source || 'off' }} --pages=${{ inputs.pages || '20' }} 2>&1 | tee data/harvest.log
+      - if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: ma-corpus-${{ inputs.source }}
-          path: data/ma-corpus-${{ inputs.source }}.json
+          name: ma-corpus-${{ inputs.source || 'off' }}
+          path: |
+            data/ma-corpus-${{ inputs.source || 'off' }}.json
+            data/harvest.log
