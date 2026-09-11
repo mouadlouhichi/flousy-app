@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { establishDashboardSession } from './dashboard-session';
 
 test('close month lives in Profile settings and keeps the confirmation and reopen flow', async ({ page }) => {
   await page.goto('/login');
@@ -6,6 +7,10 @@ test('close month lives in Profile settings and keeps the confirmation and reope
     localStorage.setItem('smartjib_demo_mode', 'true');
     localStorage.setItem('smartjib_onboarding_done', 'true');
   });
+  // The dashboard is auth-gated by the proxy; the seeded localStorage does
+  // not include the session cookie, so plant it as the demo login would
+  // have (see dashboard-session.ts).
+  await establishDashboardSession(page);
   await page.goto('/dashboard');
   await expect(page.getByRole('banner').getByRole('button', { name: 'Previous month' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Close month/ })).toHaveCount(0);

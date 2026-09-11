@@ -65,15 +65,20 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
         setSubmitting(false);
         return;
       }
-      // 2. Mark the invite accepted.
+      // 2. Mark the invite accepted. Both the top-level and circle-scoped
+      // documents must be signed with the accepting user's uid — that is how
+      // the security rules verify the update comes from the invited account.
+      const now = new Date().toISOString();
       await updateDoc(inviteRef, {
         status: 'accepted',
-        acceptedAt: new Date().toISOString(),
+        acceptedAt: now,
+        acceptedByUserId: user.uid,
       });
       const circleInviteRef = doc(db, 'circles', invite.circleId, 'invites', invite.id);
       await updateDoc(circleInviteRef, {
         status: 'accepted',
-        acceptedAt: new Date().toISOString(),
+        acceptedAt: now,
+        acceptedByUserId: user.uid,
       });
       // 3. Add the user to the circle's member roster. The phone is
       // carried over from the invite so the organizer keeps a
@@ -81,9 +86,12 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
       // create time), and the email is the signed-in user's own
       // account email — not the invitee's.
       const memberRef = doc(db, 'circles', invite.circleId, 'members', user.uid);
+      // The rules require a non-empty displayName; fall back to the account
+      // email, then the uid, so a profile with only an email still joins.
+      const displayName = (user.displayName?.trim()) || user.email?.trim() || user.uid;
       await setDoc(memberRef, {
         uid: user.uid,
-        displayName: user.displayName ?? user.email ?? '',
+        displayName,
         email: (user.email ?? '').toLowerCase(),
         phone: invite.phone ?? '',
         status: 'active',
@@ -99,7 +107,10 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
       });
       // 5. Add a ledger entry.
       const ledgerCol = collection(db, 'circles', invite.circleId, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      // The ledger create rule requires the row to carry its own doc id.
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: invite.circleId,
         uid: user.uid,
         kind: 'member_joined',

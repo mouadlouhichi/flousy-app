@@ -271,7 +271,7 @@ export function DaratScreen() {
       members: input.members,
       organizerId: user.uid,
       organizerEmail: user.email ?? '',
-      organizerDisplayName: user.displayName ?? user.email ?? 'Organizer',
+      organizerDisplayName: (user.displayName?.trim()) || user.email || 'Organizer',
       currency: userCurrency,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
@@ -321,7 +321,9 @@ export function DaratScreen() {
         // (the pointer's create rule checks `isCircleMember`).
         tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
           uid: user.uid,
-          displayName: user.displayName ?? user.email ?? 'Organizer',
+          // The rules require a non-empty displayName — an account whose
+          // displayName is '' would be rejected, so fall back to the email.
+          displayName: (user.displayName?.trim()) || user.email || 'Organizer',
           // The organizer's email identifies their SmartJib account;
           // it is not used as an invite gate. We keep it on the row
           // for the household path.
@@ -339,8 +341,12 @@ export function DaratScreen() {
           circleId: circleRef.id,
           joinedAt: new Date(now).toISOString(),
         });
-        // Initial ledger entry.
-        tx.set(doc(ledgerCol), {
+        // Initial ledger entry. The ledger create rule requires the row to
+        // carry its own doc id, so allocate the ref before the transaction
+        // body and write it into the document.
+        const createdLedgerRef = doc(ledgerCol);
+        tx.set(createdLedgerRef, {
+          id: createdLedgerRef.id,
           circleId: circleRef.id,
           uid: user.uid,
           kind: 'created',
@@ -443,9 +449,12 @@ export function DaratScreen() {
         updatedAt: Date.now(),
       });
 
-      // Audit trail.
+      // Audit trail. The ledger create rule requires the row to carry its
+      // own doc id.
       const ledgerCol = collection(db, 'circles', input.circleId, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: input.circleId,
         uid: user.uid,
         kind: 'edited',

@@ -1586,6 +1586,24 @@ service cloud.firestore {
     function activeCircleMember(cid) {
       return isCircleMember(cid, request.auth.uid);
     }
+    /**
+     * True when the caller is joining `cid` under a pending invite that
+     * belongs to them: the in-circle invite row must carry the same phone
+     * the member row is being created with, and the caller signs it with
+     * `acceptedByUserId` in the same batch. That signature is the
+     * anti-forgery check — an unsigned invite row proves nothing about who
+     * typed the code, since invite ids are shared by design.
+     */
+    function joinInviteAgrees(cid, uid, memberDoc) {
+      let accepted = request.resource.data.get('acceptedByUserId', '');
+      return signedIn()
+        && accepted == request.auth.uid
+        && accepted.size() > 0
+        && accepted.size() <= 128
+        && existsAfter(circleInvitePath(cid, accepted))
+        && getAfter(circleInvitePath(cid, accepted)).data.get('status', '') == 'pending'
+        && getAfter(circleInvitePath(cid, accepted)).data.get('phone', '') == memberDoc.get('phone', '');
+    }
     function validDaratRotation(value) {
       return value in ['random', 'fixed', 'bidding'];
     }
@@ -1658,6 +1676,11 @@ service cloud.firestore {
       allow update: if activeCircleMember(circleId)
         && activeCircleMember(circleId)
         && incoming().diff(existing()).affectedKeys().hasOnly(['memberOrder', 'updatedAt']);
+      // A member marking (or reverting) their own payment mutates the
+      // circle's `rounds` array — the toggle updates
+      // rounds[i].payments[uid]. Everything else stays organizer-only.
+      allow update: if activeCircleMember(circleId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['rounds', 'updatedAt']);
       // Closing the circle is organizer-only.
       allow update: if isCircleOrganizer(circleId)
         && existing().get('status', '') == 'active'
@@ -1680,12 +1703,25 @@ service cloud.firestore {
         // user?"); the `phone` is the organizer's reference for the
         // invitee, and is allowed to be empty on the organizer's own
         // row (the organizer didn't invite themselves).
-        allow create: if isCircleOrganizer(circleId)
-          && incoming().uid == memberId
-          && incoming().status == 'active'
-          && isEmail(incoming().email)
-          && (incoming().phone is string
-            && (incoming().phone.size() == 0 || isValidDaratPhone(incoming().phone)))
+        allow create: if (
+            isCircleOrganizer(circleId)
+            && incoming().uid == memberId
+            && incoming().status == 'active'
+            && isEmail(incoming().email)
+            && (incoming().phone.size() == 0 || isValidDaratPhone(incoming().phone))
+          )
+          // ...or the invitee creates their own row by accepting a pending
+          // invite addressed to them. The invite row (read via getAfter so a
+          // transactional accept works) must carry the same phone, and the
+          // caller must sign it with `acceptedByUserId` in the same batch.
+          // An invitee with no account email joins with an empty one — the
+          // rules only require a non-empty displayName.
+          || (
+            incoming().uid == memberId
+            && incoming().status == 'active'
+            && (incoming().email.size() == 0 || isEmail(incoming().email))
+            && joinInviteAgrees(circleId, memberId, incoming())
+          )
           && boundedText(incoming().displayName, 100)
           && incoming().isOrganizer is bool
           && incoming().joinedAt is string
@@ -1724,7 +1760,10 @@ service cloud.firestore {
           || (signedIn()
             && existing().get('status', '') == 'pending'
             && incoming().get('status', '') == 'accepted'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']));
+            // The recipient signs the row with their own uid — the
+            // anti-forgery check the member-create rule relies on.
+            && incoming().get('acceptedByUserId', '') == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']));
         allow delete: if isCircleOrganizer(circleId);
       }
 
@@ -1737,7 +1776,8 @@ service cloud.firestore {
           && incoming().uid == request.auth.uid
           && incoming().kind in [
             'created', 'member_added', 'member_joined', 'member_left',
-            'payment_marked', 'payment_reverted', 'round_resolved', 'closed'
+            'payment_marked', 'payment_reverted', 'round_resolved', 'closed',
+            'edited'
           ]
           && incoming().at is int
           && incoming().id == entryId;
@@ -1780,7 +1820,10 @@ service cloud.firestore {
       allow update: if signedIn()
         && existing().get('status', '') == 'pending'
         && incoming().get('status', '') == 'accepted'
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']);
+        // Signed like the in-circle row: the recipient writes their own
+        // uid, and the member-create rule trusts only signed rows.
+        && incoming().get('acceptedByUserId', '') == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']);
       allow delete: if false;
     }
 

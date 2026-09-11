@@ -35,3 +35,12 @@ Likewise leave `RESEND_API_KEY` unset: the contact spec asserts the truthful
   settings (not the header), canceling confirmation, and reopening it.
 - `dashboard-header.spec.ts` — custom budget-period text and day-badge
   alignment on desktop and mobile in English, French, and Arabic.
+
+## Auth-gated routes
+
+`src/proxy.ts` redirects cookie-less hits on `/dashboard` and `/onboarding`
+to `/login` (the anonymous fast-path). The app sets the `smartjib_authed`
+cookie as soon as a real or demo session starts, so the UI-driven journeys
+pass through naturally. Specs that seed localStorage and jump straight into
+the dashboard must first plant that cookie — use
+`establishDashboardSession(page)` from `e2e/dashboard-session.ts`.
