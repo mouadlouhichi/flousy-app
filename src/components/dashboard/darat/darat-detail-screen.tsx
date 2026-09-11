@@ -310,6 +310,21 @@ export function DaratDetailView({
   // The roster pairs create-time phone placeholders with accepted member rows
   // so names (not uid/phone tails) are what the circle shows.
   const roster = resolveDaratRoster(circle, members);
+  // Round recipients are keyed by memberOrder ids: a uid once the member
+  // accepted, their PHONE placeholder before that. Resolve through the
+  // roster (which pairs the placeholder with the invited entry) so a round
+  // shows "Invited · +212 …" instead of an opaque "…337910" tail, and the
+  // member's real name as soon as they join.
+  const recipientLabel = (uid: string | null): string => {
+    if (!uid) return m.darat.detail.noRecipient;
+    const entry = roster.find((e) => e.id === uid);
+    if (entry) {
+      return entry.joined
+        ? (entry.displayName || memberName(uid))
+        : formatMessage(m.darat.detail.invitedPhone, { phone: entry.phone }, intlLocale);
+    }
+    return memberName(uid);
+  };
   const frequencyLabel =
     circle.frequency === 'weekly'
       ? m.darat.create.frequencyWeekly
@@ -385,8 +400,18 @@ export function DaratDetailView({
               <p className="mt-2 text-[13px] font-medium text-white/60">
                 {m.darat.detail.yourContribution.replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))}
               </p>
+              {!closed && progress.next && (
+                <p className="mt-1 text-[12px] font-medium text-white/50">
+                  {m.darat.detail.progressHint
+                    .replace('{n}', String(progress.next.number))
+                    .replace('{date}', formatYmd(progress.next.date, intlLocale, { day: 'numeric', month: 'short' }))}
+                </p>
+              )}
             </div>
-            <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-3 py-2.5 text-center backdrop-blur">
+            <div
+              className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-3 py-2.5 text-center backdrop-blur"
+              title={`${progress.done}/${progress.total}`}
+            >
               <span className="text-[22px] font-semibold leading-none tabular text-lime">{progress.done}<span className="text-[13px] text-white/60">/{progress.total}</span></span>
               <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">{m.darat.detail.rounds}</span>
             </div>
@@ -503,7 +528,7 @@ export function DaratDetailView({
             const isPast = round.date < today;
             const isCurrent = !closed && progress.next?.number === round.number;
             const isMine = round.recipientId != null && round.recipientId === currentUid;
-            const recipientName = round.recipientId ? memberName(round.recipientId) : m.darat.detail.noRecipient;
+            const recipientName = recipientLabel(round.recipientId);
             const canToggle = Boolean(currentUid && isMember && round.payments[currentUid] !== undefined);
             return (
               <li

@@ -2678,7 +2678,8 @@
       "inviteCode": "Invite code",
       "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
       "invitedPhone": "Invited · {phone}",
-      "organizerOnly": "Owner — not participating"
+      "organizerOnly": "Owner — not participating",
+      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}"
     },
     "join": {
       "title": "Join a Darat circle",
