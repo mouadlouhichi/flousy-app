@@ -2566,7 +2566,14 @@
       "unavailableHint": "Decide with a 10-second console check — Firestore → data → open circles/{id}: if organizerId is YOUR uid ({uid}), the published rules are outdated — redeploy firestore.rules and keep these rows. If it is another uid, these circles belong to a different account — remove them below.",
       "unavailableRemoveConfirm": "Remove this circle from your list? Only do this if the Firebase console shows ANOTHER account as its organizerId.",
       "unavailableRemoveAll": "Remove all",
-      "unavailableRemoveAllConfirm": "Remove all {count} unreadable circles from your list? Only do this if the Firebase console shows ANOTHER account as their organizerId."
+      "unavailableRemoveAllConfirm": "Remove all {count} unreadable circles from your list? Only do this if the Firebase console shows ANOTHER account as their organizerId.",
+      "rulesCheckRun": "Run server rules check",
+      "rulesCheckRunning": "Checking the server rules with a throwaway circle…",
+      "rulesCheckOk": "Server rules verified OK: a freshly created circle opened fine, then was deleted. The entries below are therefore from ANOTHER account or deleted data — removing them from this list is safe.",
+      "rulesCheckDenied": "The published rules are NOT the latest: a freshly created circle was refused too. Re-paste firestore.rules from the branch (the published text must start with “darat read-rules v3”), then reload.",
+      "rulesCheckError": "The check could not run (network). Try again.",
+      "rulesCheckCreateFailed": "The check could not create its probe circle.",
+      "rulesCheckViewInConsole": "Open in Firebase console"
     },
     "create": {
       "title": "Create a Darat circle",

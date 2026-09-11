@@ -82,6 +82,11 @@ export function DaratScreen() {
   const db = firestoreDb;
 
   const isPro = isProUser(profile);
+  // Firebase console deep links for the unavailable rows (build-time
+  // project id from the initialized app, when Firebase is configured).
+  const projectId = db
+    ? ((db.app?.options as { projectId?: string } | undefined)?.projectId ?? null)
+    : null;
 
   const [circles, setCircles] = useState<DaratCircle[]>([]);
   const [circlesReady, setCirclesReady] = useState(false);
@@ -104,6 +109,15 @@ export function DaratScreen() {
   const removeUnavailable = useCallback((circleId: string) => {
     return removeUnavailableRef.current?.(circleId) ?? Promise.resolve();
   }, []);
+  // In-app rules verification: create a throwaway circle with the exact
+  // production path, try to read it back, then delete it. A fresh circle is
+  // provably owned by the caller, so a refused read can ONLY mean the
+  // published ruleset is not this file — no console spelunking required.
+  // (The runner lives right after handleCreate, which it reuses.)
+  const [rulesCheck, setRulesCheck] = useState<{
+    status: 'idle' | 'running' | 'ok' | 'denied' | 'error' | 'createFailed';
+  }>({ status: 'idle' });
+  const rulesCheckRan = useRef(false);
   const [view, setView] = useState<View>({ kind: 'list' });
   // The id of a circle created/joined in this session. The live snapshots
   // surface it a tick after the transaction commits, so while the detail
@@ -333,7 +347,7 @@ export function DaratScreen() {
     contribution: number;
     members: { displayName: string; phone: string }[];
     organizerParticipates: boolean;
-  }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
+  }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
     const defaultsInput: DaratCreateDefaultsInput = {
@@ -465,14 +479,61 @@ export function DaratScreen() {
       }
       return { ok: false, error: 'genericError' };
     }
-    setCreateOpen(false);
-    setPendingDetailId(circleRef.id);
-    setView({ kind: 'detail', circleId: circleRef.id });
     console.info(
       `[darat] circle created ${circleRef.id} (owner participating: ${input.organizerParticipates}, invitees: ${normalisedInvites.length})`,
     );
+    if (!opts?.silent) {
+      setCreateOpen(false);
+      setPendingDetailId(circleRef.id);
+      setView({ kind: 'detail', circleId: circleRef.id });
+    }
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
   }, [db, user, userCurrency]);
+
+  // The rules-check canary reuses the production create path (silent: no
+  // navigation), reads the fresh circle back, and cleans up after itself.
+  const runRulesCheck = useCallback(async () => {
+    if (!user || !db) return;
+    setRulesCheck({ status: 'running' });
+    const res = await handleCreate(
+      {
+        name: 'Diagnostics — safe to delete',
+        contribution: 1,
+        members: [{ displayName: 'Check', phone: '+212600000000' }],
+        organizerParticipates: true,
+      },
+      { silent: true },
+    );
+    if (!res.ok || !res.circleId) {
+      console.warn('[darat] rules check: probe circle create failed', res.error);
+      setRulesCheck({ status: 'createFailed' });
+      return;
+    }
+    const canaryId = res.circleId;
+    console.info(`[darat] rules check: probe circle ${canaryId} created, reading back…`);
+    try {
+      await getDoc(doc(db, 'circles', canaryId));
+      console.info('[darat] rules check: probe circle read OK — published rules are CURRENT. The unreadable entries below are data (another account / deleted docs).');
+      setRulesCheck({ status: 'ok' });
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      console.warn(`[darat] rules check: probe circle read FAILED (${code ?? 'unknown'}) — the published ruleset is older than this build. Re-paste firestore.rules.`);
+      setRulesCheck({ status: code === 'permission-denied' ? 'denied' : 'error' });
+    } finally {
+      // Cleanup: the circle (organizer delete is allowed) and the pointer.
+      try { await deleteDoc(doc(db, 'circles', canaryId)); } catch { /* best effort */ }
+      try { await deleteDoc(doc(db, 'users', user.uid, 'circles', canaryId)); } catch { /* best effort */ }
+    }
+  }, [db, user, handleCreate]);
+
+  // Auto-run the check once per page load when there are unreadable
+  // circles — the verdict decides the whole remediation path.
+  useEffect(() => {
+    if (!circlesReady || failedCircleIds.length === 0) return;
+    if (rulesCheckRan.current) return;
+    rulesCheckRan.current = true;
+    void runRulesCheck();
+  }, [circlesReady, failedCircleIds.length, runRulesCheck]);
 
   // Edit a circle's settings from the detail screen. The organizer-only
   // mutation writes the changed fields and rebuilds the rounds. The
@@ -832,16 +893,58 @@ export function DaratScreen() {
               {m.darat.list.unavailableRemoveAll}
             </button>
           </div>
-          <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
-            {(m.darat.list.unavailableHint as string)
-              .replace('{id}', failedCircleIds[0])
-              .replace('{uid}', user?.uid ?? '')}
-          </p>
+          {rulesCheck.status === 'ok' ? (
+            <p className="rounded-xl bg-lime/30 px-3 py-2 text-[12px] font-semibold leading-relaxed text-on-surface">
+              {m.darat.list.rulesCheckOk}
+            </p>
+          ) : rulesCheck.status === 'denied' ? (
+            <p className="rounded-xl bg-error-container/40 px-3 py-2 text-[12px] font-semibold leading-relaxed text-on-surface">
+              {m.darat.list.rulesCheckDenied}
+            </p>
+          ) : rulesCheck.status === 'running' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckRunning}
+            </p>
+          ) : rulesCheck.status === 'createFailed' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckCreateFailed}
+            </p>
+          ) : rulesCheck.status === 'error' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckError}
+            </p>
+          ) : (
+            <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+              {(m.darat.list.unavailableHint as string)
+                .replace('{id}', failedCircleIds[0])
+                .replace('{uid}', user?.uid ?? '')}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void runRulesCheck()}
+            disabled={rulesCheck.status === 'running'}
+            className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
+          >
+            {m.darat.list.rulesCheckRun}
+          </button>
           <ul className="flex flex-col gap-1.5">
             {failedCircleIds.map((id) => (
               <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
                 <AppIcon name="error" className="shrink-0 text-[16px] text-error" />
                 <span className="truncate font-mono" dir="ltr">{id}</span>
+                {projectId && (
+                  <a
+                    href={`https://console.firebase.google.com/project/${projectId}/firestore/data/circles/${id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+                    aria-label={`${m.darat.list.rulesCheckViewInConsole} ${id}`}
+                    title={m.darat.list.rulesCheckViewInConsole}
+                  >
+                    <AppIcon name="arrow_outward" strokeWidth={2} className="text-[14px]" />
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={() => {

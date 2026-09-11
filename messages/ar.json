@@ -2566,7 +2566,14 @@
       "unavailableHint": "احسم في 10 ثوانٍ من وحدة التحكم — Firestore → البيانات → افتح circles/{id}: إذا كان organizerId هو معرّفك ({uid}) فالقواعد المنشورة قديمة — أعد نشر firestore.rules واحتفظ بهذه الصفوف. إذا كان معرّفاً آخر فهذه الجمعيات لحساب مختلف — احذفها أدناه.",
       "unavailableRemoveConfirm": "إزالة هذه الجمعية من قائمتك؟ افعل ذلك فقط إذا أظهرت وحدة تحكم Firebase حساباً آخر كـ organizerId.",
       "unavailableRemoveAll": "إزالة الكل",
-      "unavailableRemoveAllConfirm": "إزالة كل الجمعيات غير القابلة للقراءة ({count}) من قائمتك؟ افعل ذلك فقط إذا أظهرت وحدة تحكم Firebase حساباً آخر كـ organizerId."
+      "unavailableRemoveAllConfirm": "إزالة كل الجمعيات غير القابلة للقراءة ({count}) من قائمتك؟ افعل ذلك فقط إذا أظهرت وحدة تحكم Firebase حساباً آخر كـ organizerId.",
+      "rulesCheckRun": "تشغيل فحص قواعد الخادم",
+      "rulesCheckRunning": "جارٍ فحص القواعد بجمعية مؤقتة…",
+      "rulesCheckOk": "تم التحقق من قواعد الخادم: جمعية أُنشئت للتو فُتحت بنجاح ثم حُذفت. إذن الإدخالات أدناه من حساب آخر أو بيانات محذوفة — وإزالتها من هذه القائمة آمنة.",
+      "rulesCheckDenied": "القواعد المنشورة ليست الأحدث: جمعية أُنشئت للتو رُفضت أيضاً. أعد لصق firestore.rules من الفرع (يجب أن يبدأ النص المنشور بـ \"darat read-rules v3\") ثم أعد التحميل.",
+      "rulesCheckError": "تعذّر تشغيل الفحص (الشبكة). حاول مجدداً.",
+      "rulesCheckCreateFailed": "تعذّر على الفحص إنشاء جمعيته الاختبارية.",
+      "rulesCheckViewInConsole": "افتح في وحدة تحكم Firebase"
     },
     "create": {
       "title": "إنشاء جمعية دارت",

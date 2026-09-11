@@ -2566,7 +2566,14 @@
       "unavailableHint": "Tranchez en 10 secondes dans la console — Firestore → données → ouvrez circles/{id} : si organizerId est VOTRE uid ({uid}), les règles publiées sont périmées — redéployez firestore.rules et gardez ces lignes. Si c'est un autre uid, ces tontines appartiennent à un autre compte — supprimez-les ci-dessous.",
       "unavailableRemoveConfirm": "Retirer cette tontine de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId.",
       "unavailableRemoveAll": "Tout retirer",
-      "unavailableRemoveAllConfirm": "Retirer les {count} tontines illisibles de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId."
+      "unavailableRemoveAllConfirm": "Retirer les {count} tontines illisibles de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId.",
+      "rulesCheckRun": "Lancer la vérification des règles",
+      "rulesCheckRunning": "Vérification des règles avec une tontine jetable…",
+      "rulesCheckOk": "Règles du serveur vérifiées : une tontine créée à l'instant s'est ouverte, puis a été supprimée. Les entrées ci-dessous viennent donc d'UN AUTRE compte ou de données supprimées — les retirer de cette liste est sans danger.",
+      "rulesCheckDenied": "Les règles publiées ne sont pas les dernières : une tontine créée à l'instant a été refusée aussi. Recollez firestore.rules depuis la branche (le texte publié doit commencer par « darat read-rules v3 »), puis rechargez.",
+      "rulesCheckError": "La vérification n’a pas pu s’exécuter (réseau). Réessayez.",
+      "rulesCheckCreateFailed": "La vérification n'a pas pu créer sa tontine sonde.",
+      "rulesCheckViewInConsole": "Ouvrir dans la console Firebase"
     },
     "create": {
       "title": "Créer une tontine Darat",
