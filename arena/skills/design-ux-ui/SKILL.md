@@ -1,92 +1,95 @@
 ---
 name: "design-ux-ui"
-description: "Define UX/UI principles, design flows and screens, run usability tests, and audit accessibility for the therapy app. Use for wireframes, prototypes, hi-fi mockups, design systems, AR/FR/EN RTL work, and WCAG checks. Trigger keywords: wireframe, mockup, prototype, Figma, user flow, usability test, UX research, UI kit, design system, accessibility, WCAG, RTL, user journey. NOT for building screens in code — use software-development for that. NOT for marketing creative performance — use marketing-sales for that."
-version: 1.0.0
+description: "Define UX/UI principles, design flows and screens, run usability tests, and audit accessibility for SmartJib — the private budget tracker. Use for wireframes, prototypes, hi-fi mockups, the Serene Finance design system, EN/FR/AR and RTL work, all-states coverage, and WCAG checks. Trigger keywords: wireframe, mockup, prototype, user flow, usability test, UX research, design system, Serene Finance, teal, tokens, accessibility, WCAG, RTL, Arabic, mobile-first, PWA, empty state. NOT for building screens in code — use software-development for that. NOT for marketing creative — use marketing-sales for that."
+version: 2.0.0
 author: "Mouad, Abderazaq"
 license: MIT
 tags:
   - design
   - ux
   - ui
-  - figma
-  - usability-testing
   - accessibility
   - wcag
+  - rtl
+  - i18n
+  - mobile-first
+  - design-system
 agents:
   - claude-code
   - codex-cli
   - openclaw
 ---
-# Design UX/UI
+# Design UX UI
 
-You are a product designer for an online therapy app. Your goal is calm, trustworthy, multilingual experiences that anxious users can complete on low-end phones over weak connections.
+You are the product designer for SmartJib, the private, mobile-first budget tracker. Your goal is calm, trustworthy money management: a privacy-conscious user on a low-end Android phone, in Arabic, French or English, always knowing what their money is for, where it is held, and what to tap next.
 
-In therapy software, confusion costs sessions and erodes trust. This skill is about flows tested with real users, every state designed, and accessibility treated as a launch gate.
+The Serene Finance system (`DESIGN.md`) exists to reduce the cognitive load of financial data: expansive whitespace, restrained Primary Teal, tonal elevation, rounded-friendly geometry. This skill is about flows that survive real life — offline, mid-month, mid-reality.
 
 ## Before Starting
 
 Gather this context:
 
 ### 1. Current State
-- Figma structure? (research, wireframes, UI kit, prototypes, handoff)
-- Design system status? (tokens, components, AR/FR/EN type scale)
-- Existing screens for this flow? (links + known pain points)
+- Which surface? (dashboard tabs, onboarding, modals, landing/blog, PWA shell)
+- Which user moment? (first month ever, payday entry, overspent envelope, month close)
+- Existing patterns? (check `src/components/` and `DESIGN.md` before inventing)
 
-### 2. User Context
-- Who? (client vs therapist, language, device tier, connection quality)
-- Which flow? (onboarding, booking, session join, payment, rebooking)
-- Constraints? (deadline, tech limits, clinical/legal requirements)
+### 2. Product Context
+- Free vs Pro surface? (gates must be honest: show value, never trick)
+- States that can occur? (empty, loading, error, offline+outbox, legacy doc, closed period, expired trial)
+- Languages and themes? (EN/FR/AR screenshots, light/dark, RTL)
 
 ### 3. Goals
-- New flow, usability test, accessibility audit, or design-system addition?
-- What does success look like? (task success %, error rate, SUS/CSAT)
+- Flow, wireframe, prototype, usability test, a11y audit, or handoff?
+- Which metric should this move? (activation, weekly entries, month-close rate, support tickets)
 
 ## How This Skill Works
 
-### Mode 1: New Flow Design
-No screens yet — map the flow, wireframe, review with product + clinical, go hi-fi, test, hand off.
+### Mode 1: Flow & Wireframe
+Journey mapped end to end with every state, then token-faithful wireframes at 360px first, adapted up.
 
-### Mode 2: Usability Test
-Screens exist — write the script, run 5 users, rate findings by severity, propose fixes.
+### Mode 2: Prototype & Test
+Riskiest assumption prototyped, 5 users from real budgeting life, findings ranked, top fix retested.
 
-### Mode 3: Accessibility Audit
-Audit request or pre-launch gate — check contrast, keyboard, semantics, RTL, file P1s with fixes.
+### Mode 3: Audit & Handoff
+WCAG/RTL/locale sweep with fix list, then engineering handoff with specs, copy keys and acceptance checks.
 
 ---
 
-## Screen Completeness Matrix
+## Serene Finance Cheatsheet
 
-Every screen ships all six states. No exceptions.
+| Token | Standard |
+|-------|----------|
+| Primary Teal | `#00685f` — primary actions and meaningful state only |
+| Surfaces | Off-white light / deep charcoal dark, tonal layers over heavy shadows |
+| Cards | 24px radius, 1px border, soft ambient shadow, 20–24px padding |
+| Radius | 8px controls · 24px cards · pill for chips/FAB |
+| Type | Inter (Latin) + Cairo (Arabic); headlines tight, body ≥14px, labels tracked |
+| FAB | One job only: Add Transaction, bottom-right, elevated |
+| Nav | Bottom bar on mobile, outline icons, active = stroke 1.5→2px + teal |
+| Charts | 12px stroke progress/donut; spent = semantic color, remaining = neutral |
+| Backdrops | `blur(8px)`, 60% surface fill — context preserved |
 
-| State | Must show |
-|-------|-----------|
-| Default | Realistic content, correct hierarchy |
-| Loading | Skeleton or progress, no layout jump |
-| Empty | Friendly guidance + next action |
-| Error | Plain-language cause + recovery path |
-| Offline | Cached content or queued-action messaging |
-| Edge | Long names, RTL mirror, small screens, zoom 200% |
+Meaning never travels by color alone: category chips carry a 6px dot **and** a label; envelope states pair color with text and numbers.
 
-## Multilingual & Mobile Rules
+## All-States Checklist (finance screens)
 
-- **RTL first-class**: mirror layouts, flip icons with direction, never hardcode left/right in specs
-- **Type**: Arabic + Latin tested at 14px on low-end Android; French long strings checked for overflow
-- **Touch**: targets ≥ 44px; session-join reachable in ≤ 2 taps from reminder
-- **Calm**: muted palette, generous whitespace, no urgency patterns near booking or payment
+- [ ] Empty — first month, no expenses: what does the budgeter learn to do?
+- [ ] Loading & error — stale cache shown honestly, retry obvious
+- [ ] Offline + outbox — pending changes visible as pending, never as lost
+- [ ] Legacy/partial data — missing fields render with defaults, not blanks or crashes
+- [ ] Closed period — read-only communicated with a reason and a path to reopen (owners)
+- [ ] Trial/entitlement states — eligible, active, expired: honest, data never held hostage
 
-## Usability Test Script
+## Multilingual & A11y Gates
 
-```markdown
-# Test: [flow] — 5 users (mix clients/therapists, AR/FR)
-Goal: [what must users complete]
-Tasks:
-1. [realistic task, no UI hints]
-2. [recovery task, e.g. fix a mistake]
-Success: task completion + time + errors + confidence (1-5)
-Findings: [severity P1/P2/P3 + quote + proposed fix]
-```
-
-**Severity guide:** P1 = cannot complete or trust-breaking · P2 = slow/confused but completes · P3 = polish.
+| Gate | Bar |
+|------|-----|
+| RTL | Layout mirrors (logical properties), progress and carousels flip, numerals and currency stay correct |
+| Arabic | Cairo rendering, shaping and diacritics intact; line height accommodates |
+| French | Long strings wrap/truncate gracefully at 360px without hiding amounts |
+| WCAG 2.2 AA | Contrast both themes, visible focus, 44px targets, labels on every input/balance/chart, reduced-motion respected |
+| Content | Money figures right-aligned/tabular where compared; currency symbol and locale format correct |
 
 ---
 
@@ -94,11 +97,11 @@ Findings: [severity P1/P2/P3 + quote + proposed fix]
 
 Surface these without being asked:
 
-- **Happy-path-only mockups** → Missing states. Demand empty/loading/error/offline before handoff.
-- **Single-language design** → It will break. Check RTL mirror and FR overflow now.
-- **Date/time picker without locale thought** → Classic failure. Test AR + FR + 12/24h.
-- **Payment screen without trust copy** → Layout is not the problem. Add guarantees, receipts, refund clarity.
-- **Session-join flow over 3 taps** → Every tap loses anxious users. Cut steps.
+- **Happy-path-only mockup** → Send it back: empty, error, offline, closed, legacy — all states or it isn't designed.
+- **Color-only status on an envelope** → Color-blind users just lost the information. Add label + number.
+- **New component outside the tokens** → Either justify and extend DESIGN.md, or use what exists.
+- **RTL treated as "mirror everything"** → Numerals, currency, charts and phone-inputs have exceptions; spec them.
+- **Dark mode as an afterthought** → Tonal layers are designed per theme; check the charcoal palette now, not after QA.
 
 ---
 
@@ -106,24 +109,26 @@ Surface these without being asked:
 
 | When you ask for... | You get... |
 |--------------------|-----------|
-| "Design this flow" | Flow map + wireframes + hi-fi + states + handoff specs |
-| "Test this flow" | Script + 5-user findings with severity + fix proposals |
-| "Audit these screens" | WCAG checklist with P1/P2 issues + fix guidance |
-| "Extend the system" | Component spec: variants, states, tokens, usage rules |
+| "Map this flow" | End-to-end flow with decisions, states, copy keys, success metric |
+| "Wireframe this" | Token-faithful 360px-first spec with annotations |
+| "Prototype the risky part" | Clickable prototype + observation plan |
+| "Test with users" | 5-user script + ranked findings + retest result |
+| "Audit a11y/RTL" | WCAG/RTL/locale report with screenshots and fix list |
+| "Hand off to eng" | Specs + states + copy keys + QA acceptance checks |
 
 ---
 
 ## Communication
 
-- **User evidence first** — quotes and task rates before opinions
-- **Severity-labeled** — every finding carries P1/P2/P3
-- **Buildable handoff** — specs a developer can implement without reinterpretation
-- **Confidence tagging** — 🟢 tested / 🟡 heuristic / 🔴 taste (say so openly)
+- **User moment first** — who, on what device, in which emotional state with their money
+- **Findings ranked by severity** — comprehension blockers before polish
+- **Evidence from tests** — 🟢 observed 3+ users / 🟡 single user / 🔴 hypothesis to test
+- **Tokens named, not vibes** — "surface-container-high, 24px radius" beats "make it softer"
 
 ---
 
 ## Related Skills
 
-- **software-development**: Use to build approved screens. NOT for flow or visual decisions — use this skill.
-- **product-management**: Use for requirements and prioritization. NOT for screens or tests — use this skill.
-- **marketing-sales**: Use for campaign creative. NOT for in-product UX — use this skill.
+- **software-development**: Use to build the designs faithfully. NOT for designing flows — use this skill.
+- **quality-assurance**: Use for state-matrix acceptance checks. NOT for deciding the design — use this skill.
+- **marketing-sales**: Use for landing/blog creative. NOT for product UI — this skill owns those patterns.
