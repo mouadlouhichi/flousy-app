@@ -18,13 +18,10 @@ import {
   collection,
   doc,
   getDoc,
-  limit,
   onSnapshot,
-  query,
   runTransaction,
   setDoc,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -78,6 +75,11 @@ export function DaratScreen() {
 
   const [circles, setCircles] = useState<DaratCircle[]>([]);
   const [circlesReady, setCirclesReady] = useState(false);
+  // The per-circle docs behind the pointer rows were refused (rules or
+  // network). Distinct from `loadError` (the pointer stream itself died):
+  // either one means "we know the load failed", which the detail view
+  // turns into an error card instead of an endless spinner.
+  const [docsLoadFailed, setDocsLoadFailed] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
   // The id of a circle created/joined in this session. The live snapshots
   // surface it a tick after the transaction commits, so while the detail
@@ -107,11 +109,13 @@ export function DaratScreen() {
     window.history.replaceState({}, '', cleaned);
   }, [searchParams, joinInitialCode]);
 
-  // Subscribe to the user's circles pointer + scan the shared collection for
-  // circles the user organized. Each source is independent: a missing
-  // composite index on the `organizerId` query must not blow up the page.
-  // We catch each source separately and only surface a hard error if both
-  // genuinely fail.
+  // Subscribe to the user's circles pointer (`users/{uid}/circles`). Every
+  // member — the organizer included — gets a pointer row when a circle is
+  // created or joined, so this single stream is a complete "my circles"
+  // source. The old second source (a `circles` where organizerId == uid
+  // scan) is gone on purpose: Firestore rules cannot inspect a query's
+  // `where` filters, so that list can never be granted safely and now
+  // denies by design (`allow list: if false`).
   useEffect(() => {
     if (!user || !db) {
       // While auth is bootstrapping we don't start subscriptions and
@@ -125,45 +129,6 @@ export function DaratScreen() {
     }
     let cancelled = false;
     const pointerRef = collection(db, 'users', user.uid, 'circles');
-    const unsubscribers: Array<() => void> = [];
-
-    // Track whether each source has ever emitted. An empty result
-    // from either source is a perfectly valid "no circles yet"
-    // outcome; the error path is reserved for source.onSnapshot
-    // firing its error callback. Distinguishing these is what
-    // prevents the spurious "Could not load your circles" alert on
-    // a brand-new account that has zero circles.
-    const sourceState: {
-      pointer: { hasEmitted: boolean; errored: boolean };
-      organized: { hasEmitted: boolean; errored: boolean };
-    } = {
-      pointer: { hasEmitted: false, errored: false },
-      organized: { hasEmitted: false, errored: false },
-    };
-
-    const recomputeError = () => {
-      // The hard-error UI is reserved for the case where:
-      //   * both sources have errored (e.g. rules denied both reads), AND
-      //   * we have no circles to show.
-      // An empty "0 rows" is a successful no-results outcome, not an
-      // error. A "permission denied" on one source with a clean
-      // success on the other is also not a hard error — the user
-      // just sees what they have.
-      if (circles.length > 0) {
-        setLoadError(null);
-        return;
-      }
-      const bothErrored = sourceState.pointer.errored && sourceState.organized.errored;
-      // We only surface the alert when the subscriptions are
-      // completely dead (both errored before emitting anything).
-      // Once either source has emitted, the empty state is correct
-      // even if the other source errors.
-      setLoadError(
-        bothErrored && !sourceState.pointer.hasEmitted && !sourceState.organized.hasEmitted
-          ? 'networkError'
-          : null,
-      );
-    };
 
     const mergeDoc = (
       docs: { id: string; data?: () => unknown; exists: () => boolean }[],
@@ -188,76 +153,53 @@ export function DaratScreen() {
       });
     };
 
-    const onPointerSuccess = async (snap: { docs: { id: string }[] }) => {
-      sourceState.pointer = { hasEmitted: true, errored: false };
-      try {
-        const docs = await Promise.all(
-          snap.docs.map((d) => getDoc(doc(db, 'circles', d.id))),
-        );
+    const unsubPointer = onSnapshot(
+      pointerRef,
+      async (snap) => {
         if (cancelled) return;
-        mergeDoc(docs);
+        setLoadError(null);
+        const ids = snap.docs.map((d) => d.id);
+        if (ids.length === 0) {
+          // An empty pointer collection is a perfectly valid "no circles
+          // yet" outcome, not an error.
+          setCircles([]);
+          setCirclesReady(true);
+          setDocsLoadFailed(false);
+          return;
+        }
+        try {
+          const docs = await Promise.all(
+            ids.map((id) => getDoc(doc(db, 'circles', id))),
+          );
+          if (cancelled) return;
+          mergeDoc(docs);
+          setCirclesReady(true);
+          setDocsLoadFailed(false);
+        } catch (err) {
+          if (cancelled) return;
+          console.warn('[darat] circle docs load failed', err);
+          // The pointer snapshot succeeded but the per-circle docs were
+          // refused (rules or network). Mark ready so the UI renders the
+          // failure state instead of spinning forever.
+          setDocsLoadFailed(true);
+          setCirclesReady(true);
+        }
+      },
+      (err) => {
+        console.warn('[darat] pointer snapshot failed', err);
+        if (cancelled) return;
+        setLoadError('networkError');
         setCirclesReady(true);
-        recomputeError();
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[darat] pointer docs load failed', err);
-        sourceState.pointer = { hasEmitted: sourceState.pointer.hasEmitted, errored: true };
-        recomputeError();
-      }
-    };
-    const onPointerError = (err: unknown) => {
-      console.warn('[darat] pointer snapshot failed', err);
-      sourceState.pointer = { hasEmitted: false, errored: true };
-      recomputeError();
-      if (!cancelled) setCirclesReady(true);
-    };
-    const onOrganizedSuccess = async (snap: { docs: { id: string }[] }) => {
-      sourceState.organized = { hasEmitted: true, errored: false };
-      try {
-        const docs = await Promise.all(
-          snap.docs.map((d) => getDoc(doc(db, 'circles', d.id))),
-        );
-        if (cancelled) return;
-        mergeDoc(docs);
-        setCirclesReady(true);
-        recomputeError();
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[darat] organized docs load failed', err);
-        sourceState.organized = { hasEmitted: sourceState.organized.hasEmitted, errored: true };
-        recomputeError();
-      }
-    };
-    const onOrganizedError = (err: unknown) => {
-      // The most common cause is a missing composite index
-      // (deployed elsewhere but not yet here, e.g. a fresh staging
-      // environment). We log and continue — the pointer source will
-      // still show every circle the user is a member of.
-      console.warn('[darat] organized snapshot failed (often a missing index, safe to ignore)', err);
-      sourceState.organized = { hasEmitted: false, errored: true };
-      recomputeError();
-      if (!cancelled) setCirclesReady(true);
-    };
-
-    const unsubPointer = onSnapshot(pointerRef, onPointerSuccess, onPointerError);
-    unsubscribers.push(unsubPointer);
-
-    const unsubOrganized = onSnapshot(
-      query(collection(db, 'circles'), where('organizerId', '==', user.uid), limit(50)),
-      onOrganizedSuccess,
-      onOrganizedError,
+      },
     );
-    unsubscribers.push(unsubOrganized);
 
     return () => {
       cancelled = true;
-      for (const u of unsubscribers) u();
+      unsubPointer();
     };
-    // `circles` is intentionally read inside recomputeError() to keep
-    // the rule "any error path that doesn't yield a result is not a
-    // hard error" correct, but not listed in deps to avoid
-    // resubscribing on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `circles` is intentionally not listed in deps: the subscription
+    // merges snapshots into the existing list, so resubscribing on every
+    // render would be both wasteful and flickery.
   }, [db, user, authLoading]);
 
   // Build a new circle with the minimum required fields. The organizer can
@@ -518,11 +460,35 @@ export function DaratScreen() {
   if (view.kind === 'detail') {
     const circle = circles.find((c) => c.id === view.circleId);
     if (!circle) {
+      // A known-failed load beats any spinner: the pointer stream died or
+      // the per-circle docs were refused, so "not found" would be a lie —
+      // show the failure card with a way back instead.
+      const loadKnownFailed = circlesReady && (loadError !== null || docsLoadFailed);
       // A circle created or joined in this session reaches the list through
       // the live snapshot a moment after the write commits — and on the very
       // first load the list itself is still bootstrapping. Neither state is
       // "not found": show a loading card so the destructive alert never
       // flashes while data is simply in flight.
+      if (loadKnownFailed) {
+        return (
+          <div className="flex flex-col gap-3">
+            <Alert variant="destructive">
+              <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
+              <AlertDescription>{m.errors.networkError}</AlertDescription>
+            </Alert>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingDetailId(null);
+                setView({ kind: 'list' });
+              }}
+              className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+            >
+              {m.common.back}
+            </button>
+          </div>
+        );
+      }
       if (view.circleId === pendingDetailId || !circlesReady) {
         return (
           <div className="flex flex-col items-center gap-4 py-16">
@@ -605,11 +571,11 @@ export function DaratScreen() {
         }
       />
 
-      {loadError && circlesReady && circles.length === 0 && (
+      {(loadError || docsLoadFailed) && circlesReady && circles.length === 0 && (
         <Alert variant="destructive">
           <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
           <AlertDescription>
-            {(m.errors as Record<string, string>)[loadError] ?? m.errors.generic}
+            {(m.errors as Record<string, string>)[loadError ?? 'networkError'] ?? m.errors.generic}
           </AlertDescription>
         </Alert>
       )}
