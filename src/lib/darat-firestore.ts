@@ -52,11 +52,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * returns the validated, default-filled object. The caller is responsible for
  * writing the document and the per-user pointer; this function does not
  * touch Firestore.
+ *
+ * `circleId` is the document id the caller allocated for the write
+ * (`doc(collection(db, 'circles'))`). It is stamped into the body because
+ * the Firestore rules require the `id` field on every circle doc, and a
+ * placeholder like `''` used to be persisted verbatim — every reader then
+ * saw `circle.id === ''`, the post-create detail navigation failed with
+ * "Circle not found", and clicking the card after a reload crashed with
+ * `Invalid document reference … but circles has 1`.
  */
-export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
+export function buildDaratCreateDefaults(
+  input: DaratCreateDefaultsInput,
+  circleId: string,
+): {
   circle: Omit<DaratCircle, 'createdAt' | 'updatedAt'>;
   rounds: DaratRound[];
 } {
+  if (!circleId) {
+    throw new Error('darat create: circleId is required (allocate the doc ref before building the body)');
+  }
   // Validation
   const v = validateDaratCreate({
     name: input.name,
@@ -107,7 +121,7 @@ export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
   });
 
   const circle: Omit<DaratCircle, 'createdAt' | 'updatedAt'> = {
-    id: '', // assigned by Firestore on create
+    id: circleId,
     name: input.name.trim(),
     organizerId: input.organizerId,
     currency: input.currency,

@@ -16,7 +16,7 @@ import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatMessage } from '@/lib/i18n-core';
-import { normalizeDaratCircle, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { daratCircleFromSnapshot, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
 import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
@@ -71,7 +71,9 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
     if (!db) return;
     const unsubCircle = onSnapshot(doc(db, 'circles', circle.id), (snap) => {
       if (snap.exists()) {
-        setCircle(normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) }));
+        // Snapshot data first, doc id last: the stored `id` field (older
+        // creates wrote `''`) must never shadow the real document id.
+        setCircle(daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>));
       }
     });
     const unsubMembers = onSnapshot(collection(db, 'circles', circle.id, 'members'), (snap) => {

@@ -34,7 +34,7 @@ import { isProUser } from '@/lib/pro-features';
 import { formatMessage } from '@/lib/i18n-core';
 import { buildDaratCreateDefaults, type DaratCreateDefaultsInput } from '@/lib/darat-firestore';
 import {
-  normalizeDaratCircle,
+  daratCircleFromSnapshot,
   type DaratCircle,
   type DaratRotation,
   type DaratFrequency,
@@ -79,6 +79,11 @@ export function DaratScreen() {
   const [circles, setCircles] = useState<DaratCircle[]>([]);
   const [circlesReady, setCirclesReady] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
+  // The id of a circle created/joined in this session. The live snapshots
+  // surface it a tick after the transaction commits, so while the detail
+  // view is waiting on exactly this circle we render a loading state
+  // instead of flashing the "Circle not found" alert.
+  const [pendingDetailId, setPendingDetailId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinInitialCode, setJoinInitialCode] = useState<string | undefined>(undefined);
@@ -167,10 +172,10 @@ export function DaratScreen() {
       for (const s of docs) {
         if (s.exists()) {
           out.push(
-            normalizeDaratCircle({
-              id: s.id,
-              ...((s.data?.() as Record<string, unknown>) ?? {}),
-            }),
+            daratCircleFromSnapshot(
+              s.id,
+              (s.data?.() as Record<string, unknown>) ?? {},
+            ),
           );
         }
       }
@@ -285,8 +290,11 @@ export function DaratScreen() {
       fixedOrder: null,
       randomSeed: null,
     };
-    const defaults = buildDaratCreateDefaults(defaultsInput);
+    // Allocate the document ref before building the body so the body can
+    // carry its real id — the rules require `doc.id is string`, and an
+    // empty placeholder would be persisted and shadow the doc id on read.
     const circleRef = doc(collection(db, 'circles'));
+    const defaults = buildDaratCreateDefaults(defaultsInput, circleRef.id);
     const now = Date.now();
     const ledgerCol = collection(db, 'circles', circleRef.id, 'ledger');
     const expiresAt = new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -386,6 +394,7 @@ export function DaratScreen() {
       return { ok: false, error: 'genericError' };
     }
     setCreateOpen(false);
+    setPendingDetailId(circleRef.id);
     setView({ kind: 'detail', circleId: circleRef.id });
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
   }, [db, user, userCurrency]);
@@ -407,7 +416,7 @@ export function DaratScreen() {
       const ref = doc(db, 'circles', input.circleId);
       const snap = await getDoc(ref);
       if (!snap.exists()) return { ok: false, error: 'notFound' };
-      const current = normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) });
+      const current = daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>);
       if (current.organizerId !== user.uid) return { ok: false, error: 'forbidden' };
 
       const next = {
@@ -437,6 +446,12 @@ export function DaratScreen() {
       });
 
       await updateDoc(ref, {
+        // Repair legacy docs that stored the create-time placeholder
+        // `id: ''`: the rules gate organizer updates on
+        // validDaratCircleShape(incoming()), and a real string id keeps
+        // that shape valid. `current.id` is the doc id (the snapshot id
+        // always wins on read), so this is a no-op for healthy docs.
+        id: current.id,
         name: next.name,
         contribution: next.contribution,
         currency: current.currency,
@@ -503,6 +518,31 @@ export function DaratScreen() {
   if (view.kind === 'detail') {
     const circle = circles.find((c) => c.id === view.circleId);
     if (!circle) {
+      // A circle created or joined in this session reaches the list through
+      // the live snapshot a moment after the write commits — and on the very
+      // first load the list itself is still bootstrapping. Neither state is
+      // "not found": show a loading card so the destructive alert never
+      // flashes while data is simply in flight.
+      if (view.circleId === pendingDetailId || !circlesReady) {
+        return (
+          <div className="flex flex-col items-center gap-4 py-16">
+            <span className="flex size-12 animate-pulse items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
+              <AppIcon name="groups" className="text-[22px]" />
+            </span>
+            <p className="text-[14px] font-medium text-on-surface-variant">{m.common.loading}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingDetailId(null);
+                setView({ kind: 'list' });
+              }}
+              className="rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+            >
+              {m.common.back}
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col gap-3">
           <Alert variant="destructive">
@@ -624,6 +664,7 @@ export function DaratScreen() {
           onClose={() => setJoinOpen(false)}
           onJoined={(circleId) => {
             setJoinOpen(false);
+            setPendingDetailId(circleId);
             setView({ kind: 'detail', circleId });
           }}
           initialCode={joinInitialCode}

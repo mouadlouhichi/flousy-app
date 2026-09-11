@@ -29,7 +29,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { isProUser } from '@/lib/pro-features';
 import { formatCurrency } from '@/lib/currency';
 import {
-  normalizeDaratCircle,
+  daratCircleFromSnapshot,
   type DaratCircle,
 } from '@/lib/darat';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -61,7 +61,7 @@ export function DaratWidget() {
       const out: DaratCircle[] = [];
       for (const s of fetched) {
         if (s.exists()) {
-          out.push(normalizeDaratCircle({ id: s.id, ...(s.data() as Record<string, unknown>) }));
+          out.push(daratCircleFromSnapshot(s.id, s.data() as Record<string, unknown>));
         }
       }
       out.sort((a, b) => b.createdAt - a.createdAt);

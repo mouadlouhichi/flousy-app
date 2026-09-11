@@ -59,7 +59,9 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
         setSubmitting(false);
         return;
       }
-      const invite = normalizeDaratInvite({ id: inviteSnap.id, ...(inviteSnap.data() as Record<string, unknown>) });
+      // Snapshot data first, doc id last — a stored `id` field must never
+      // shadow the real document id (same invariant as the circle reads).
+      const invite = normalizeDaratInvite({ ...(inviteSnap.data() as Record<string, unknown>), id: inviteSnap.id });
       if (invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now()) {
         setCodeError(m.darat.join.notFound);
         setSubmitting(false);
