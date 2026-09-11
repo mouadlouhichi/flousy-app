@@ -1,0 +1,31 @@
+day,phase,channel,format,asset_or_brief,primary_language,pillar,hook,cta,utm_content,status,owner,notes
+1,launch,feed,post,posts/09-budget-in-your-language.png,ar,mad_language,ميزانيتك بلغتك,Visit bio link,mad_feed_ar_v1,ready,,Publish first for final grid order
+2,launch,stories,story,stories/01-welcome-to-smartjib.png,fr,calm,Bienvenue chez SmartJib,Link sticker,calm_story_fr_v1,ready,,Add Start highlight
+3,launch,feed,post,posts/08-save-for-what-matters.png,ar,goals,وفر للي كيهمك,Comment with a goal,goal_feed_ar_v1,ready,,Never ask for amount
+4,launch,stories,poll,templates/story-1080x1920.svg,ar,community,كتخطّط لفلوسك؟,Vote,,brief,,Native poll sticker
+5,launch,feed,post,posts/07-give-every-dirham-a-job.png,fr,calm,Planifier Ajuster Respirer,Save for reset,calm_feed_fr_v1,ready,,
+6,launch,stories,story,stories/04-private-by-design.png,fr,privacy,Sans connexion bancaire,Learn more,private_story_fr_v1,ready,,
+7,launch,feed,post,posts/06-private-by-design.png,fr,privacy,Sans connexion bancaire,Visit feature page,private_feed_fr_v1,ready,,Reply to trust questions
+8,launch,stories,question,stories/05-ask-a-budget-question.png,ar,community,شنو بغيتي تعرف؟,Ask a general question,,ready,,Do not solicit private data
+9,launch,feed,post,posts/05-money-places.png,ar,purpose_place,فين كاينة فلوسك؟,Answer bank home or wallet,purpose_place_feed_ar_v1,ready,,
+10,launch,stories,story,stories/03-money-places.png,fr,purpose_place,Trois endroits un plan,Slider,,ready,,
+11,launch,feed,post,posts/04-purpose-and-place.png,fr,purpose_place,Pour quoi Et où,Save the concept,purpose_place_feed_fr_v1,ready,,
+12,launch,stories,poll,templates/story-1080x1920.svg,fr,community,Tu paies plus souvent comment ?,Vote,,brief,,Options cash/card; no account detail
+13,launch,feed,post,posts/03-three-buckets-one-clear-view.png,ar,calm,ضروريات رغبات توفير,Comment on a bucket,calm_feed_ar_v1,ready,,
+14,launch,stories,story,stories/02-three-buckets.png,ar,calm,كل درهم عندو دور,Save,,ready,,
+15,launch,feed,post,posts/02-give-your-money-a-plan.png,fr,calm,Donne un rôle à chaque dirham,Save for later,calm_feed_fr_v2,ready,,
+16,launch,stories,story,stories/07-app-tour.png,fr,product,Tour rapide,Visit bio link,product_story_fr_v1,ready,,Demo data only
+17,launch,feed,post,posts/01-your-money-on-purpose.png,fr,brand,Ton budget Ton rythme,Follow and visit bio,calm_feed_fr_v3,ready,,Pin with posts 04 and 06
+18,always_on,reels,reel,reels/01-give-every-dirham-a-job-cover.png,fr,calm,Donne un rôle à chaque dirham,Start via bio,calm_reel_fr_v1,ready,,Use script in REELS_AND_STORIES.md
+19,always_on,stories,reply,templates/story-1080x1920.svg,ar,community,جواب على سؤال ديالكم,View FAQ,,brief,,Anonymize question
+20,always_on,feed,carousel,templates/feed-post-1080x1350.svg,fr,habit,Trois choses à faire le jour de paie,Save,habit_carousel_fr_v1,brief,,3-5 slides
+21,always_on,stories,poll,templates/story-1080x1920.svg,fr,community,Tu fais ton budget quand ?,Vote,,brief,,Beginning of month/when I can
+22,always_on,reels,reel,reels/02-budgeting-is-not-a-punishment-cover.png,ar,calm,الميزانية ماشي عقاب,Share,calm_reel_ar_v1,ready,,Local review before promotion
+23,always_on,stories,story,stories/08-budget-tip.png,ar,habit,نصيحة صغيرة,Save,,ready,,One action only
+24,always_on,feed,carousel,templates/feed-post-1080x1350.svg,ar,habit,كيفاش ترجع من بعد مصروف مفاجئ؟,Save,habit_carousel_ar_v1,brief,,No shame language
+25,always_on,stories,link,templates/story-1080x1920.svg,fr,product,Commence avec le vrai montant,Link sticker,calm_story_fr_v2,brief,,
+26,always_on,reels,reel,reels/03-why-no-bank-connection-cover.png,fr,privacy,Pourquoi pas de connexion bancaire ?,Learn more,private_reel_fr_v1,ready,,
+27,always_on,stories,question,stories/05-ask-a-budget-question.png,fr,community,Quel point du budget expliquer ensuite ?,Ask,,ready,,No private screenshots
+28,always_on,feed,carousel,templates/feed-post-1080x1350.svg,fr,purpose_place,Un retrait change le lieu pas le rôle,Save,purpose_place_carousel_fr_v2,brief,,Use fictional 300 MAD example
+29,always_on,stories,story,stories/06-savings-goals.png,ar,goals,حتى الهدف الصغير كيتحسب,Reply with goal type,goal_story_ar_v1,ready,,Do not ask amount
+30,review,internal,report,LAUNCH_PLAN.md,mixed,operations,What earned saves shares and starts,Decide next month,,planned,,Review qualified outcomes not likes alone

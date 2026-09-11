@@ -1,0 +1,5 @@
+week_start,phase,channel,campaign,message,language,spend_mad,impressions,reach,video_plays,landing_sessions,cta_clicks,account_completes,onboarding_completes,week1_returns,email_delivered,email_clicks,email_unsubscribes,email_complaints,data_quality_status,decision,owner,notes
+YYYY-MM-DD,foundation,organic_instagram,clarity_ma_launch,calm,fr,0,,,,,,,,,,,,,not_checked,baseline,,
+YYYY-MM-DD,pilot,meta,clarity_ma_pilot,purpose_place,fr,0,,,,,,,,,,,,,not_checked,hold,,
+YYYY-MM-DD,pilot,search,clarity_ma_pilot,private,fr,0,,,,,,,,,,,,,not_checked,hold,,
+YYYY-MM-DD,lifecycle,email,clarity_ma_welcome,calm,fr,0,,,,,,,,,,,,,not_checked,hold,,
