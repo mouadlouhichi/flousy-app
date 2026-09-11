@@ -270,9 +270,16 @@ browser deployment should use the documented `NEXT_PUBLIC_*` names.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Build/public | Absolute canonical origin, e.g. `https://smartjib.app` |
 | `APP_URL` | Server | Trusted base for invitation accept links; falls back to the canonical/platform URL |
-| `RESEND_API_KEY` | Server secret | Enables invitation and contact delivery |
+| `RESEND_API_KEY` | Server secret | Enables invitation, contact and branded auth-email delivery |
 | `RESEND_FROM_EMAIL` | Server | SPF/DKIM-verified sender, e.g. `SmartJib <hello@smartjib.app>` |
+| `RESEND_AUTH_FROM_EMAIL` | Server | Optional dedicated sender for auth mail (password reset / verification); falls back to `RESEND_FROM_EMAIL` |
 | `CONTACT_TO_EMAIL` | Server | Fixed recipient for public contact messages |
+
+Auth emails (password reset, email verification) are minted by `/api/auth/email`
+with the Firebase Admin SDK (`FIREBASE_SERVICE_ACCOUNT_JSON`) and delivered via
+Resend with the branded template; the links resolve on the app's own
+`/auth/action` handler page. When `RESEND_API_KEY` or the service account is
+absent, the app falls back to Firebase Auth's built-in mailer.
 
 Production refuses Resend's `@resend.dev` sandbox sender. Vercel variables are
 scoped independently to Production, Preview and Development, and a redeploy is

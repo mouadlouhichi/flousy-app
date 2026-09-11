@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import en from '../../../../messages/en.json';
 import fr from '../../../../messages/fr.json';
 import ar from '../../../../messages/ar.json';
@@ -7,6 +6,15 @@ import { formatMessage, type Language, type Messages } from '@/lib/i18n-core';
 import { verifyFirebaseIdToken, type TokenRejection } from '@/lib/firebase-id-token';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { checkArcjet } from '@/lib/server/arcjet';
+import {
+  isEmailConfigured,
+  isProductionDeployment,
+  isSandboxSender,
+  renderBrandedEmail,
+  resolveAppBaseUrl,
+  resolveSender,
+  sendEmail,
+} from '@/lib/server/email';
 
 export const runtime = 'nodejs';
 
@@ -14,22 +22,6 @@ const EMAIL_MESSAGES: Record<Language, Messages> = { en, fr, ar };
 
 /** Roles a signed-in member may be invited with; mirrors `householdInvites` in firestore.rules. */
 const INVITABLE_ROLES = ['editor', 'viewer', 'contributor', 'custom'] as const;
-
-/**
- * Only domains the sender is expected to control. Resend's own sandbox domain is
- * refused outside preview builds, otherwise a production deploy that still ships
- * the default `onboarding@resend.dev` sender silently drops every invite.
- */
-const SANDBOX_SENDER = '@resend.dev';
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 /* -------------------------------------------------------------------------- */
 /* Abuse limits                                                                */
@@ -132,52 +124,6 @@ async function readDocument(collection: string, id: string, token: string): Prom
 }
 
 /**
- * Deployment environment as the platform sees it.
- *
- * `NODE_ENV` is `production` on Vercel **preview** deployments too, so guarding
- * the sandbox sender on it made every preview build refuse to mail anything —
- * which is precisely where a reviewer tests the invite flow. `VERCEL_ENV`
- * distinguishes the two; it is only consulted when absent in favour of NODE_ENV.
- */
-function isProductionDeployment(): boolean {
-  const vercelEnv = process.env.VERCEL_ENV;
-  if (vercelEnv) return vercelEnv === 'production';
-  return process.env.NODE_ENV === 'production';
-}
-
-/**
- * Base URL for the accept link.
- *
- * The previous fallback derived the base from the incoming request's own URL,
- * i.e. from the caller's `Host` header — attacker-controlled text, on an email
- * whose link grants household access. Only platform-provided values are used
- * now: previews point at the preview deployment (so the flow is testable) and
- * production at the explicitly configured site origin.
- */
-function resolveAppBaseUrl(): string {
-  const production = isProductionDeployment();
-  const candidates = production
-    ? [process.env.APP_URL, process.env.NEXT_PUBLIC_SITE_URL, vercelUrl('VERCEL_PROJECT_PRODUCTION_URL')]
-    : [vercelUrl('VERCEL_URL'), vercelUrl('VERCEL_PROJECT_PRODUCTION_URL'), process.env.APP_URL, process.env.NEXT_PUBLIC_SITE_URL];
-  for (const candidate of candidates) {
-    const value = (candidate || '').trim().replace(/\/+$/, '');
-    if (!value) continue;
-    try {
-      const url = new URL(value.startsWith('http') ? value : `https://${value}`);
-      if (url.hostname.includes('.') || url.hostname === 'localhost') return url.origin;
-    } catch {
-      /* try the next candidate */
-    }
-  }
-  return 'https://smartjib.app';
-}
-
-function vercelUrl(name: string): string | undefined {
-  const value = process.env[name];
-  return value ? `https://${value.replace(/^https?:\/\//, '')}` : undefined;
-}
-
-/**
  * Configuration probe for this deployment — sends nothing and reveals no secret.
  *
  * "The invite email didn't arrive" is almost always an environment-variable
@@ -186,22 +132,20 @@ function vercelUrl(name: string): string | undefined {
  * panel does when it wants to explain why only a code was produced.
  */
 export async function GET() {
-  const from = process.env.RESEND_FROM_EMAIL || 'SmartJib <onboarding@resend.dev>';
-  const configured = Boolean(process.env.RESEND_API_KEY);
+  const from = resolveSender();
+  const configured = isEmailConfigured();
   return NextResponse.json({
     emailConfigured: configured,
-    sandboxSender: from.includes(SANDBOX_SENDER),
+    sandboxSender: isSandboxSender(from),
     environment: isProductionDeployment() ? 'production' : process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
-    code: configured ? (isProductionDeployment() && from.includes(SANDBOX_SENDER) ? 'sandbox_sender' : 'ready') : 'email_not_configured',
+    code: configured ? (isProductionDeployment() && isSandboxSender(from) ? 'sandbox_sender' : 'ready') : 'email_not_configured',
   });
 }
 
 /** Sends a locale-aware, escaped household invitation email. */
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL || 'SmartJib <onboarding@resend.dev>';
-  const production = isProductionDeployment();
-  if (!apiKey) {
+  const from = resolveSender();
+  if (!isEmailConfigured()) {
     // The invitation itself is valid and its code works; only the email is
     // unavailable. `code` lets the UI say that instead of a generic failure, and
     // the hint names the variables to set (per environment — a preview does not
@@ -212,7 +156,7 @@ export async function POST(request: NextRequest) {
       hint: 'Set RESEND_API_KEY (and RESEND_FROM_EMAIL) for this Vercel environment, then redeploy.',
     }, { status: 503 });
   }
-  if (production && from.includes(SANDBOX_SENDER)) {
+  if (isProductionDeployment() && isSandboxSender(from)) {
     // Fail loudly instead of "200 OK, nothing delivered": Resend only lets a
     // sandbox sender mail the address verified on the account.
     return NextResponse.json({
@@ -318,32 +262,41 @@ export async function POST(request: NextRequest) {
     }
     const acceptUrl = `${baseUrl}/dashboard/profile?invite=${encodeURIComponent(inviteId)}`;
 
-    const delivery = await new Resend(apiKey).emails.send({
+    const { html, text } = renderBrandedEmail({
+      language,
+      preheader: interpolate(emailCopy.emailSubject),
+      title: interpolate(emailCopy.emailSubject),
+      greeting: emailCopy.emailGreeting,
+      paragraphs: [interpolate(emailCopy.emailBody), emailCopy.emailExpires],
+      highlight: { label: messages.emails.householdLabel, value: householdName.slice(0, 100) },
+      cta: { label: emailCopy.emailAccept, url: acceptUrl },
+      fallbackLinkCaption: messages.emails.fallbackLinkCaption,
+      securityNote: messages.emails.inviteSecurityNote,
+      automatedNotice: formatMessage(messages.emails.automatedNotice, { appName: messages.common.appName }),
+      logoUrl: `${baseUrl}/logo-256.png`,
+      brandName: messages.common.appName,
+      siteUrl: baseUrl,
+    });
+
+    const delivery = await sendEmail({
       from,
       to: recipient,
       subject: interpolate(emailCopy.emailSubject),
-      html: `<div dir="${language === 'ar' ? 'rtl' : 'ltr'}"><p>${escapeHtml(emailCopy.emailGreeting)}</p><p>${escapeHtml(interpolate(emailCopy.emailBody))}</p><p><a href="${escapeHtml(acceptUrl)}">${escapeHtml(emailCopy.emailAccept)}</a></p><p>${escapeHtml(emailCopy.emailExpires)}</p></div>`,
-      text: [
-        emailCopy.emailGreeting,
-        interpolate(emailCopy.emailBody),
-        `${emailCopy.emailAccept}: ${acceptUrl}`,
-        emailCopy.emailExpires,
-      ].join('\n\n'),
-    }, {
+      html,
+      text,
       // The invite document ID is stable across a client retry. Provider-level
       // idempotency protects against duplicate mail across serverless instances
       // and after an ambiguous network timeout.
       idempotencyKey: `household-invite-${inviteId}`,
     });
-    if (delivery.error) {
+    if (!delivery.ok) {
       // Resend answers with the real reason (unverified domain, test key,
       // quota); it is logged server-side and reduced to a code for the client,
       // so no provider internals leak into the UI.
-      console.error('Resend rejected the invitation email', delivery.error);
       return NextResponse.json({
         error: 'The email provider refused to deliver this invitation.',
-        code: from.includes(SANDBOX_SENDER) ? 'sandbox_sender' : 'delivery_failed',
-        hint: from.includes(SANDBOX_SENDER)
+        code: isSandboxSender(from) ? 'sandbox_sender' : 'delivery_failed',
+        hint: isSandboxSender(from)
           ? 'This deployment is mailing from the Resend sandbox address, which only delivers to the address verified on the Resend account.'
           : undefined,
       }, { status: 502 });

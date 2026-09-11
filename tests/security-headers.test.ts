@@ -87,14 +87,31 @@ describe('server endpoint abuse limits', () => {
   });
 
   it('refuses the Resend sandbox sender in production only, using the platform environment', () => {
+    // The sandbox-sender guard lives in the shared mail module now.
+    const mailer = read('src/lib/server/email.ts');
     // `NODE_ENV` is production on Vercel previews as well, which made a preview
     // refuse the sandbox sender it legitimately needs to test with.
-    assert.match(invitations, /process\.env\.VERCEL_ENV/);
-    assert.doesNotMatch(invitations, /production && from\.includes[\s\S]{0,80}NODE_ENV === 'production'/);
-    assert.match(invitations, /@resend\.dev/);
-    // A probe so a deployment's configuration can be checked without sending.
+    assert.match(mailer, /process\.env\.VERCEL_ENV/);
+    assert.doesNotMatch(mailer, /production && from\.includes[\s\S]{0,80}NODE_ENV === 'production'/);
+    assert.match(mailer, /@resend\.dev/);
+    // The route keeps refusing it in production before any mail is attempted…
+    assert.match(invitations, /isProductionDeployment\(\) && isSandboxSender\(from\)/);
+    // …and exposes a probe so a deployment's configuration can be checked
+    // without sending.
     assert.match(invitations, /export async function GET/);
     assert.match(invitations, /emailConfigured/);
+  });
+
+  it('never reveals account existence through the public reset endpoint', () => {
+    // /api/auth/email is reachable without a session (forgot-password flow),
+    // so an unknown address must answer exactly like a sent one.
+    const authEmail = read('src/app/api/auth/email/route.ts');
+    assert.match(authEmail, /auth\/user-not-found/);
+    assert.match(authEmail, /rate_limited/);
+    assert.match(authEmail, /x-forwarded-for/);
+    // …and the verification flow proves identity instead of trusting a body.
+    assert.match(authEmail, /verifyFirebaseIdToken/);
+    assert.match(authEmail, /caller\.email/);
   });
 
   it('builds the accept link from platform config, never from the Host header', () => {
