@@ -1587,22 +1587,18 @@ service cloud.firestore {
       return isCircleMember(cid, request.auth.uid);
     }
     /**
-     * True when the caller is joining `cid` under a pending invite that
-     * belongs to them: the in-circle invite row must carry the same phone
-     * the member row is being created with, and the caller signs it with
-     * `acceptedByUserId` in the same batch. That signature is the
-     * anti-forgery check — an unsigned invite row proves nothing about who
-     * typed the code, since invite ids are shared by design.
+     * True when the caller writes their own member row under an invite the
+     * join transaction just flipped to 'accepted' and signed with their
+     * uid. `getAfter` sees the post-batch state, so inside the transaction
+     * the invite is already accepted — the signature is what proves the
+     * accepter is the caller, since invite ids are shared by design.
      */
-    function joinInviteAgrees(cid, uid, memberDoc) {
-      let accepted = request.resource.data.get('acceptedByUserId', '');
-      return signedIn()
-        && accepted == request.auth.uid
-        && accepted.size() > 0
-        && accepted.size() <= 128
-        && existsAfter(circleInvitePath(cid, accepted))
-        && getAfter(circleInvitePath(cid, accepted)).data.get('status', '') == 'pending'
-        && getAfter(circleInvitePath(cid, accepted)).data.get('phone', '') == memberDoc.get('phone', '');
+    function joinInviteAgrees(cid, inviteId, uid) {
+      return inviteId is string
+        && inviteId.size() > 0
+        && existsAfter(circleInvitePath(cid, inviteId))
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('status', '') == 'accepted'
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('acceptedByUserId', '') == uid;
     }
     function validDaratRotation(value) {
       return value in ['random', 'fixed', 'bidding'];
@@ -1674,7 +1670,6 @@ service cloud.firestore {
       // A member can leave the circle: that mutates the circle's memberOrder +
       // status only (no shape change to organizerId / contribution / frequency).
       allow update: if activeCircleMember(circleId)
-        && activeCircleMember(circleId)
         && incoming().diff(existing()).affectedKeys().hasOnly(['memberOrder', 'updatedAt']);
       // A member marking (or reverting) their own payment mutates the
       // circle's `rounds` array — the toggle updates
@@ -1697,35 +1692,30 @@ service cloud.firestore {
         allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
 
         // Organizer can add members; a user can also add their own row when
-        // accepting an invite (handled in the invites block).
+        // accepting an invite — the join transaction flips the in-circle
+        // invite to 'accepted' (signed with their uid) and writes the member
+        // row in the same batch, so the gate is an accepted invite that
+        // names them (`joinInviteAgrees`).
         // The member's `email` is the signed-in user's own account
         // email (used by the household path to resolve "who is this
         // user?"); the `phone` is the organizer's reference for the
         // invitee, and is allowed to be empty on the organizer's own
         // row (the organizer didn't invite themselves).
-        allow create: if (
-            isCircleOrganizer(circleId)
-            && incoming().uid == memberId
-            && incoming().status == 'active'
-            && isEmail(incoming().email)
-            && (incoming().phone.size() == 0 || isValidDaratPhone(incoming().phone))
-          )
-          // ...or the invitee creates their own row by accepting a pending
-          // invite addressed to them. The invite row (read via getAfter so a
-          // transactional accept works) must carry the same phone, and the
-          // caller must sign it with `acceptedByUserId` in the same batch.
-          // An invitee with no account email joins with an empty one — the
-          // rules only require a non-empty displayName.
-          || (
-            incoming().uid == memberId
-            && incoming().status == 'active'
-            && (incoming().email.size() == 0 || isEmail(incoming().email))
-            && joinInviteAgrees(circleId, memberId, incoming())
-          )
+        allow create: if incoming().uid == memberId
+          && incoming().status == 'active'
+          && isEmail(incoming().email)
+          && (incoming().phone is string
+            && (incoming().phone.size() == 0 || isValidDaratPhone(incoming().phone)))
           && boundedText(incoming().displayName, 100)
           && incoming().isOrganizer is bool
           && incoming().joinedAt is string
-          && incoming().sourcePlaceId is string;
+          && incoming().sourcePlaceId is string
+          && (
+            isCircleOrganizer(circleId)
+            || (memberId == request.auth.uid
+              && incoming().isOrganizer == false
+              && joinInviteAgrees(circleId, incoming().get('inviteId', ''), request.auth.uid))
+          );
         // The organizer can update any member row; the member themselves can
         // flip their own status to 'left' (the leave flow) or update their
         // sourcePlaceId.

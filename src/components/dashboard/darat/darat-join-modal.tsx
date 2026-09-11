@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { collection, getDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, getDoc, doc, runTransaction } from 'firebase/firestore';
 import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
@@ -65,56 +65,67 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
         setSubmitting(false);
         return;
       }
-      // 2. Mark the invite accepted. Both the top-level and circle-scoped
-      // documents must be signed with the accepting user's uid — that is how
-      // the security rules verify the update comes from the invited account.
-      const now = new Date().toISOString();
-      await updateDoc(inviteRef, {
-        status: 'accepted',
-        acceptedAt: now,
-        acceptedByUserId: user.uid,
-      });
-      const circleInviteRef = doc(db, 'circles', invite.circleId, 'invites', invite.id);
-      await updateDoc(circleInviteRef, {
-        status: 'accepted',
-        acceptedAt: now,
-        acceptedByUserId: user.uid,
-      });
-      // 3. Add the user to the circle's member roster. The phone is
-      // carried over from the invite so the organizer keeps a
-      // useful reference on the roster (the phone they typed at
-      // create time), and the email is the signed-in user's own
-      // account email — not the invitee's.
+      // 2-5. Flip the invite to accepted, add the member row, the user
+      // pointer, and a ledger row — all in one transaction, exactly like
+      // the create flow. Sequential writes burned the invite on a partial
+      // failure: an invite already marked 'accepted' can never be reused,
+      // so a rejection on any later row left the invitee locked out of
+      // the circle with no retry path.
       const memberRef = doc(db, 'circles', invite.circleId, 'members', user.uid);
-      // The rules require a non-empty displayName; fall back to the account
-      // email, then the uid, so a profile with only an email still joins.
-      const displayName = (user.displayName?.trim()) || user.email?.trim() || user.uid;
-      await setDoc(memberRef, {
-        uid: user.uid,
-        displayName,
-        email: (user.email ?? '').toLowerCase(),
-        phone: invite.phone ?? '',
-        status: 'active',
-        isOrganizer: false,
-        joinedAt: new Date().toISOString(),
-        sourcePlaceId: 'bank',
-      });
-      // 4. Add the user pointer.
-      await setDoc(doc(db, 'users', user.uid, 'circles', invite.circleId), {
-        uid: user.uid,
-        circleId: invite.circleId,
-        joinedAt: new Date().toISOString(),
-      });
-      // 5. Add a ledger entry.
-      const ledgerCol = collection(db, 'circles', invite.circleId, 'ledger');
-      // The ledger create rule requires the row to carry its own doc id.
-      const ledgerRef = doc(ledgerCol);
-      await setDoc(ledgerRef, {
-        id: ledgerRef.id,
-        circleId: invite.circleId,
-        uid: user.uid,
-        kind: 'member_joined',
-        at: Date.now(),
+      const pointerRef = doc(db, 'users', user.uid, 'circles', invite.circleId);
+      const circleInviteRef = doc(db, 'circles', invite.circleId, 'invites', invite.id);
+      const ledgerRef = doc(collection(db, 'circles', invite.circleId, 'ledger'));
+      const acceptedAt = new Date().toISOString();
+      await runTransaction(db, async (tx) => {
+        // Both invite rows are signed with the accepting account's uid —
+        // the member-row create rule gates a self-join on an accepted
+        // invite that names the joiner, so the signature is what makes
+        // the rest of this batch pass.
+        tx.update(inviteRef, {
+          status: 'accepted',
+          acceptedAt,
+          acceptedByUserId: user.uid,
+        });
+        tx.update(circleInviteRef, {
+          status: 'accepted',
+          acceptedAt,
+          acceptedByUserId: user.uid,
+        });
+        // 3. Add the user to the circle's member roster. The phone is
+        // carried over from the invite so the organizer keeps a
+        // useful reference on the roster (the phone they typed at
+        // create time), the email is the signed-in user's own
+        // account email — not the invitee's — and the inviteId is
+        // what the rules check to let a non-organizer write a member
+        // row at all.
+        tx.set(memberRef, {
+          uid: user.uid,
+          // The rules require 1-100 chars; a blank account display name
+          // falls through to the email instead of a refused row.
+          displayName: (user.displayName && user.displayName.trim()) || user.email || 'Member',
+          email: (user.email ?? '').toLowerCase(),
+          phone: invite.phone ?? '',
+          status: 'active',
+          isOrganizer: false,
+          joinedAt: acceptedAt,
+          sourcePlaceId: 'bank',
+          inviteId: invite.id,
+        });
+        // 4. Add the user pointer.
+        tx.set(pointerRef, {
+          uid: user.uid,
+          circleId: invite.circleId,
+          joinedAt: acceptedAt,
+        });
+        // 5. Add a ledger entry. The row carries its own doc id, as the
+        // ledger create rule requires (`incoming().id == entryId`).
+        tx.set(ledgerRef, {
+          id: ledgerRef.id,
+          circleId: invite.circleId,
+          uid: user.uid,
+          kind: 'member_joined',
+          at: Date.now(),
+        });
       });
       onJoined(invite.circleId);
     } catch (err) {
