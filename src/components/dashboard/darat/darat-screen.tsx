@@ -179,8 +179,13 @@ export function DaratScreen() {
           if (cancelled) return;
           console.warn('[darat] circle docs load failed', err);
           // The pointer snapshot succeeded but the per-circle docs were
-          // refused (rules or network). Mark ready so the UI renders the
-          // failure state instead of spinning forever.
+          // refused (rules) or the network dropped. Name the two apart —
+          // "check your connection" is bad advice for a rules denial.
+          setLoadError(
+            (err as { code?: string } | null)?.code === 'permission-denied'
+              ? 'rulesDenied'
+              : 'networkError',
+          );
           setDocsLoadFailed(true);
           setCirclesReady(true);
         }
@@ -188,7 +193,11 @@ export function DaratScreen() {
       (err) => {
         console.warn('[darat] pointer snapshot failed', err);
         if (cancelled) return;
-        setLoadError('networkError');
+        setLoadError(
+          (err as { code?: string } | null)?.code === 'permission-denied'
+            ? 'rulesDenied'
+            : 'networkError',
+        );
         setCirclesReady(true);
       },
     );

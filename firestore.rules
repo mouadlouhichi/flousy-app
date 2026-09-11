@@ -1597,6 +1597,13 @@ service cloud.firestore {
     // errors and the read is denied ("Missing or insufficient permissions"
     // on every circle a legitimate organizer or member tried to open).
     // Reads check the committed state with `get` / `exists` instead.
+    //
+    // Two invariants keep these twins safe to evaluate in read rules:
+    //   1. NEVER `get()`/`exists()` the document being requested — that is
+    //      what `resource.data` is for. Cross-doc gets (member row, circle
+    //      doc) are the canonical documented pattern and are fine.
+    //   2. Keep them cheap: every get rule gets at most 2 cross-doc reads,
+    //      well under the 10-calls-per-request budget.
     function isCircleOrganizerRead(cid) {
       return signedIn()
         && exists(circlePath(cid))
@@ -1667,7 +1674,12 @@ service cloud.firestore {
     }
 
     match /circles/{circleId} {
-      allow get: if isCircleOrganizerRead(circleId) || activeCircleMemberRead(circleId);
+      // `resource.data` IS the requested circle in a get rule — the
+      // organizer branch needs no cross-doc read at all. Members take the
+      // canonical path: one get() on their own member row.
+      allow get: if signedIn()
+        && (resource.data.get('organizerId', '') == request.auth.uid
+          || activeCircleMemberRead(circleId));
       // No list on the shared collection. The rules language cannot inspect
       // a query's `where` filters (there is no `query.where` variable), so
       // a scan of /circles can never be proven to return only documents the
@@ -1710,10 +1722,13 @@ service cloud.firestore {
       allow delete: if isCircleOrganizer(circleId);
 
       match /members/{memberId} {
-        // Any active circle member can read the roster.
-        allow get: if activeCircleMemberRead(circleId)
-          || isCircleOrganizerRead(circleId)
-          || memberId == request.auth.uid;
+        // Any active circle member can read the roster. Your own row is a
+        // resource-only branch (no cross-doc read); the organizer and
+        // member checks read OTHER docs (circle doc / caller's own row),
+        // never the row being requested.
+        allow get: if memberId == request.auth.uid
+          || activeCircleMemberRead(circleId)
+          || isCircleOrganizerRead(circleId);
         allow list: if activeCircleMemberRead(circleId) || isCircleOrganizerRead(circleId);
 
         // Organizer can add members; a user can also add their own row when
