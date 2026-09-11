@@ -2562,7 +2562,11 @@
       "nextRound": "Prochain tour : {date}",
       "yourTurn": "C'est votre tour de recevoir la cagnotte",
       "notYourTurn": "Prochain bénéficiaire : {name}",
-      "unavailableTitle": "Tontines que vous possédez ou avez rejointes, impossibles à ouvrir"
+      "unavailableTitle": "Tontines que vous possédez ou avez rejointes, impossibles à ouvrir",
+      "unavailableHint": "Tranchez en 10 secondes dans la console — Firestore → données → ouvrez circles/{id} : si organizerId est VOTRE uid ({uid}), les règles publiées sont périmées — redéployez firestore.rules et gardez ces lignes. Si c'est un autre uid, ces tontines appartiennent à un autre compte — supprimez-les ci-dessous.",
+      "unavailableRemoveConfirm": "Retirer cette tontine de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId.",
+      "unavailableRemoveAll": "Tout retirer",
+      "unavailableRemoveAllConfirm": "Retirer les {count} tontines illisibles de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId."
     },
     "create": {
       "title": "Créer une tontine Darat",

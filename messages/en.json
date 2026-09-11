@@ -2562,7 +2562,11 @@
       "nextRound": "Next round: {date}",
       "yourTurn": "Your turn to receive the pot",
       "notYourTurn": "Next recipient: {name}",
-      "unavailableTitle": "Circles you own or joined that could not be opened"
+      "unavailableTitle": "Circles you own or joined that could not be opened",
+      "unavailableHint": "Decide with a 10-second console check — Firestore → data → open circles/{id}: if organizerId is YOUR uid ({uid}), the published rules are outdated — redeploy firestore.rules and keep these rows. If it is another uid, these circles belong to a different account — remove them below.",
+      "unavailableRemoveConfirm": "Remove this circle from your list? Only do this if the Firebase console shows ANOTHER account as its organizerId.",
+      "unavailableRemoveAll": "Remove all",
+      "unavailableRemoveAllConfirm": "Remove all {count} unreadable circles from your list? Only do this if the Firebase console shows ANOTHER account as their organizerId."
     },
     "create": {
       "title": "Create a Darat circle",

@@ -2562,7 +2562,11 @@
       "nextRound": "الدورة القادمة: {date}",
       "yourTurn": "دورك لتستلم المبلغ",
       "notYourTurn": "المستلم التالي: {name}",
-      "unavailableTitle": "جمعيات تملكها أو انضممت إليها تعذّر فتحها"
+      "unavailableTitle": "جمعيات تملكها أو انضممت إليها تعذّر فتحها",
+      "unavailableHint": "احسم في 10 ثوانٍ من وحدة التحكم — Firestore → البيانات → افتح circles/{id}: إذا كان organizerId هو معرّفك ({uid}) فالقواعد المنشورة قديمة — أعد نشر firestore.rules واحتفظ بهذه الصفوف. إذا كان معرّفاً آخر فهذه الجمعيات لحساب مختلف — احذفها أدناه.",
+      "unavailableRemoveConfirm": "إزالة هذه الجمعية من قائمتك؟ افعل ذلك فقط إذا أظهرت وحدة تحكم Firebase حساباً آخر كـ organizerId.",
+      "unavailableRemoveAll": "إزالة الكل",
+      "unavailableRemoveAllConfirm": "إزالة كل الجمعيات غير القابلة للقراءة ({count}) من قائمتك؟ افعل ذلك فقط إذا أظهرت وحدة تحكم Firebase حساباً آخر كـ organizerId."
     },
     "create": {
       "title": "إنشاء جمعية دارت",

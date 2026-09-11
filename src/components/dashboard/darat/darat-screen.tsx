@@ -798,9 +798,28 @@ export function DaratScreen() {
 
       {failedCircleIds.length > 0 && circlesReady && (
         <section className="flex flex-col gap-2 rounded-[1.75rem] border border-dashed border-error/40 bg-error-container/20 p-4">
-          <h2 className="text-[13px] font-semibold text-on-surface">
-            {m.darat.list.unavailableTitle} ({failedCircleIds.length})
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[13px] font-semibold text-on-surface">
+              {m.darat.list.unavailableTitle} ({failedCircleIds.length})
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                const confirmText = (m.darat.list.unavailableRemoveAllConfirm as string)
+                  .replace('{count}', String(failedCircleIds.length));
+                if (!confirm(confirmText)) return;
+                for (const id of failedCircleIds) void removeUnavailable(id);
+              }}
+              className="shrink-0 rounded-full border border-error/40 px-3 py-1 text-[11px] font-semibold text-error transition-colors hover:bg-error-container/40"
+            >
+              {m.darat.list.unavailableRemoveAll}
+            </button>
+          </div>
+          <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+            {(m.darat.list.unavailableHint as string)
+              .replace('{id}', failedCircleIds[0])
+              .replace('{uid}', user?.uid ?? '')}
+          </p>
           <ul className="flex flex-col gap-1.5">
             {failedCircleIds.map((id) => (
               <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
@@ -808,7 +827,10 @@ export function DaratScreen() {
                 <span className="truncate font-mono" dir="ltr">{id}</span>
                 <button
                   type="button"
-                  onClick={() => void removeUnavailable(id)}
+                  onClick={() => {
+                    if (!confirm(m.darat.list.unavailableRemoveConfirm)) return;
+                    void removeUnavailable(id);
+                  }}
                   className="ms-auto flex size-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container/40 hover:text-error"
                   aria-label={`${m.common.remove} ${id}`}
                   title={m.common.remove}
