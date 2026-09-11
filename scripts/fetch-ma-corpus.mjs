@@ -50,7 +50,10 @@ const FIELDS = [
 function arg(name, fallback) {
   const prefix = `--${name}=`;
   const hit = process.argv.find((value) => value.startsWith(prefix));
-  return hit ? hit.slice(prefix.length) : fallback;
+  // A push-triggered run passes empty inputs; treat them as "use the default"
+  // so the same command line works from a workflow and from a terminal.
+  const value = hit ? hit.slice(prefix.length).trim() : '';
+  return value || fallback;
 }
 
 const sourceKey = arg('source', 'off');
