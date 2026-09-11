@@ -241,6 +241,7 @@ export interface ExpenseProductAttachment {
   ranking?: ProductRanking;
   ingredientsText?: string;
   allergenTags?: string[];
+  novaGroup?: NovaGroup;
   source: ProductSource;
   sourceUrl?: string;
   sourceDatabase?: string;
@@ -2586,6 +2587,18 @@ export interface ProductFieldProvenance {
 export type SessionStatus = 'active' | 'completed';
 
 /**
+ * NOVA processing group, when the source provides one.
+ *
+ * NOVA classifies foods by how much industrial processing they underwent, not
+ * by nutrient content: 1 unprocessed or minimally processed, 2 processed
+ * culinary ingredients, 3 processed foods, 4 ultra-processed foods and drinks.
+ * It is an attributed Open Food Facts value, reported beside the label-signal
+ * grade and never mixed into it — the grade stays reproducible from the
+ * printed wording alone, while NOVA depends on how the product was made.
+ */
+export type NovaGroup = 1 | 2 | 3 | 4;
+
+/**
  * A product's quality ranking when the source provides one — the Nutri-Score
  * letter grade (a–e) from Open Food Facts. Optional calculation points are
  * raw formula points (lower is generally better), never a percentage.
@@ -2632,6 +2645,8 @@ export interface Product {
   ingredientsText?: string;
   /** Trusted OFF allergen tag cross-checks (e.g. en:milk). */
   allergenTags?: string[];
+  /** NOVA processing group from the source (1–4); informational only. */
+  novaGroup?: NovaGroup;
   /** Field-level source history; user corrections can outrank stale providers. */
   provenance?: Record<string, ProductFieldProvenance>;
   retrievedAt?: string;
@@ -2711,6 +2726,8 @@ export interface SessionItem {
   lineTotal: number; // round2(unitPrice * qty) — stored, never re-derived
   /** Snapshot of the product's ranking, when the source provided one. */
   ranking?: ProductRanking;
+  /** Snapshot of the source's NOVA processing group, when provided. */
+  novaGroup?: NovaGroup;
   /**
    * Cosmetic ingredient quality summary (score + tier counts). Optional —
    * only beauty lines with an INCI list get one, refined async after the

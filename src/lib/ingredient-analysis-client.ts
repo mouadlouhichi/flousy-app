@@ -16,6 +16,41 @@ export interface AnalyzeIngredientsOptions {
   reviewed?: boolean;
 }
 
+/**
+ * Why an ingredient analysis could not be completed.
+ *
+ * Production reality: the scan surface is used on phones in supermarkets, so
+ * "offline", "rate limited" and "service down" are ordinary states, not
+ * exceptions. Each maps to distinct, actionable UI copy and only the
+ * retryable kinds expose a retry action.
+ */
+export type IngredientAnalysisFailureKind =
+  | 'offline'
+  | 'rate-limited'
+  | 'service'
+  | 'network'
+  | 'timeout'
+  | 'invalid';
+
+export class IngredientAnalysisError extends Error {
+  readonly kind: IngredientAnalysisFailureKind;
+
+  constructor(kind: IngredientAnalysisFailureKind, message: string) {
+    super(message);
+    this.name = 'IngredientAnalysisError';
+    this.kind = kind;
+  }
+
+  get retryable(): boolean {
+    return this.kind !== 'invalid';
+  }
+}
+
+/** Best-effort connectivity probe; `navigator` is absent on the server. */
+export function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 80;
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -110,10 +145,16 @@ async function requestAnalysis(
   ingredientsText: string,
   opts: AnalyzeIngredientsOptions | undefined,
 ): Promise<ProductAssessment> {
+  // Fail fast and honestly instead of waiting for a request that cannot
+  // succeed: a supermarket with no signal is the normal case for this feature.
+  if (isOffline()) {
+    throw new IngredientAnalysisError('offline', 'device is offline');
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
   try {
-    const response = await fetch('/api/inci/analyze', {
+    response = await fetch('/api/inci/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -126,10 +167,28 @@ async function requestAnalysis(
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`ingredient analysis failed: HTTP ${response.status}`);
-    return (await response.json()) as ProductAssessment;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new IngredientAnalysisError('timeout', 'ingredient analysis timed out');
+    }
+    throw new IngredientAnalysisError(
+      isOffline() ? 'offline' : 'network',
+      'ingredient analysis request failed',
+    );
   } finally {
     clearTimeout(timer);
+  }
+  if (!response.ok) {
+    const kind: IngredientAnalysisFailureKind =
+      response.status === 429 ? 'rate-limited'
+        : response.status >= 500 ? 'service'
+          : 'invalid';
+    throw new IngredientAnalysisError(kind, `ingredient analysis failed: HTTP ${response.status}`);
+  }
+  try {
+    return (await response.json()) as ProductAssessment;
+  } catch {
+    throw new IngredientAnalysisError('service', 'ingredient analysis returned an unreadable body');
   }
 }
 
@@ -155,9 +214,22 @@ export async function analyzeIngredientsText(
       return value;
     });
     inFlight.set(key, shared);
-    void shared.finally(() => {
-      if (inFlight.get(key) === shared) inFlight.delete(key);
-    }).catch(() => undefined);
   }
-  return waitForSubscriber(shared, opts?.signal);
+  // A failed request must leave the in-flight map before the caller resumes:
+  // a rejected promise left behind would be handed to the next caller for the
+  // same key, so a transient failure (offline scan, 429, 503) could never be
+  // retried inside the TTL. The cleanup is attached to the same promise the
+  // caller awaits, which is what makes the ordering hold; the abort path in
+  // `waitForSubscriber` rejects separately and never cancels a shared request.
+  const caller = shared.then(
+    (value) => {
+      if (inFlight.get(key) === shared) inFlight.delete(key);
+      return value;
+    },
+    (error: unknown) => {
+      if (inFlight.get(key) === shared) inFlight.delete(key);
+      throw error;
+    },
+  );
+  return waitForSubscriber(caller, opts?.signal);
 }

@@ -98,6 +98,7 @@ export function KnowledgeScreen() {
       ...(product.ingredientsText ? { ingredientsText: product.ingredientsText } : {}),
       ...(product.ranking ? { ranking: product.ranking } : {}),
       ...(product.allergenTags ? { allergenTags: product.allergenTags } : {}),
+      ...(product.novaGroup ? { novaGroup: product.novaGroup } : {}),
       ...(product.cosmeticForm ? { cosmeticForm: product.cosmeticForm } : {}),
       ...(product.domain === 'cosmetic' ? { beauty: true } : {}),
       domain: product.domain,
@@ -250,6 +251,7 @@ export function KnowledgeScreen() {
               name={product?.name}
               category={product?.category}
               offAllergenTags={product?.allergenTags}
+              offNovaGroup={product?.novaGroup}
             />
           ) : selectedDomain === 'household' || selectedDomain === 'pet' ? (
             <div className="rounded-2xl border border-dashed border-outline-variant p-4 font-body-md text-body-md text-on-surface-variant">

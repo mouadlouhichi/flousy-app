@@ -41,7 +41,17 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAX_INGREDIENTS = 300;
-const ANALYSES_PER_MINUTE = 60;
+/**
+ * Per-IP budget for cosmetic label analyses.
+ *
+ * Deliberately above a single user's realistic rate (a supermarket trip is a
+ * handful of scans, and the browser cache dedupes repeats for 10 minutes)
+ * because mobile carriers in the target markets share one public IP across
+ * thousands of subscribers: at the old 60/min a busy cell tower produced 429s
+ * for shoppers who had done nothing unusual. The request is CPU-bound and
+ * cheap (in-memory dataset, ~5–20 ms), so the higher ceiling costs little.
+ */
+const ANALYSES_PER_MINUTE = 180;
 
 const FORMS = new Set(['leave-on', 'rinse-off', 'unknown']);
 const INPUT_SOURCES = new Set(['typed', 'paste', 'ocr', 'provider', 'unknown']);

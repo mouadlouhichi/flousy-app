@@ -566,6 +566,11 @@
             "maxLength": 100
           }
         },
+        "novaGroup": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
         "assessmentRequestId": {
           "type": "string",
           "maxLength": 128
@@ -2357,6 +2362,11 @@
             "type": "string",
             "maxLength": 100
           }
+        },
+        "novaGroup": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
         },
         "provenance": {
           "type": "object",

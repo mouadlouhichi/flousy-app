@@ -1,7 +1,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { lookupOffProduct, mapOffProduct } from '../src/lib/product-lookup';
+import { lookupOffProduct, mapOffProduct, PRODUCT_LOOKUP_FIELDS } from '../src/lib/product-lookup';
 import { barcodeChecksumValid } from '../src/lib/course-session';
 import { lookupMaSeed, MA_SEED_COUNT } from '../src/lib/ma-product-seed';
 
@@ -99,6 +99,32 @@ describe('mapOffProduct', () => {
         `nutriscore_grade=${String(junk)} must not produce a ranking`,
       );
     }
+  });
+
+  it('maps the NOVA processing group only when the source reports a real one', () => {
+    // Numeric form, and the "4 - Ultra processed…" string some regions return.
+    assert.equal(mapOffProduct({ status: 1, product: { ...product, nova_group: 4 } })?.novaGroup, 4);
+    assert.equal(
+      mapOffProduct({ status: 1, product: { ...product, nova_groups: '4 - Ultra processed food and drink products' } })?.novaGroup,
+      4,
+    );
+    assert.equal(mapOffProduct({ status: 1, product: { ...product, nova_group: '2' } })?.novaGroup, 2);
+    assert.equal(mapOffProduct({ status: 1, product: { ...product, nova_group: 1 } })?.novaGroup, 1);
+    // Anything outside 1–4, and anything unparseable, is dropped rather than
+    // defaulted: an invented NOVA group would be worse than an absent one.
+    for (const junk of [0, 5, -1, 1.5, 'unknown', '', null, {}, []]) {
+      assert.equal(
+        mapOffProduct({ status: 1, product: { ...product, nova_group: junk } })?.novaGroup,
+        undefined,
+        `nova_group=${String(junk)} must not produce a NOVA group`,
+      );
+    }
+    assert.equal(mapOffProduct({ status: 1, product })?.novaGroup, undefined);
+  });
+
+  it('requests the NOVA group from the upstream API', () => {
+    assert.match(PRODUCT_LOOKUP_FIELDS, /nova_group/);
+    assert.match(PRODUCT_LOOKUP_FIELDS, /nova_groups/);
   });
 
   it('falls back to the French / English / generic name fields', () => {

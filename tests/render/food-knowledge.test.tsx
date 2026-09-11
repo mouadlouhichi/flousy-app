@@ -127,6 +127,40 @@ describe('FoodKnowledgeBody render smoke', () => {
     }
   });
 
+  it('renders the NOVA processing group as an attributed source value beside the grade', async () => {
+    const { FoodKnowledgeBody, NOVA_LABEL_KEY } = await import(
+      '../../src/components/dashboard/courses/courses-food-panel'
+    );
+    const juice = analyzeFoodText(
+      'orange juice, water, sugar, acidifier: citric acid, vitamin c, natural flavour',
+    );
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const messages = catalogs[locale].foodKnowledge;
+      for (const group of [1, 2, 3, 4] as const) {
+        const html = renderToStaticMarkup(
+          React.createElement(FoodKnowledgeBody, { analysis: juice, novaGroup: group }),
+        );
+        assert.ok(html.includes(messages.novaTitle), `${locale}/${group}: NOVA title missing`);
+        assert.ok(
+          html.includes(messages.novaGroupLabel.replace('{group}', String(group))),
+          `${locale}/${group}: NOVA group chip missing`,
+        );
+        assert.ok(
+          html.includes(messages[NOVA_LABEL_KEY[group] as keyof typeof messages] as string),
+          `${locale}/${group}: NOVA group label missing`,
+        );
+        assert.ok(html.includes(messages.novaNote), `${locale}/${group}: NOVA attribution missing`);
+      }
+      // Without a NOVA value the section must not appear at all — an absent
+      // classification is not the same as "unprocessed".
+      const without = renderToStaticMarkup(
+        React.createElement(FoodKnowledgeBody, { analysis: juice }),
+      );
+      assert.equal(without.includes(messages.novaTitle), false, `${locale}: NOVA section must stay hidden`);
+    }
+  });
+
   it('renders generic class wording as unresolved identity rather than a known additive', async () => {
     const { FoodKnowledgeBody } = await import(
       '../../src/components/dashboard/courses/courses-food-panel'

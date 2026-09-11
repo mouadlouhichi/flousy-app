@@ -2,6 +2,7 @@ import type {
   AssessmentOrigin,
   CourseSession,
   ExpenseProductAttachment,
+  NovaGroup,
   MonthBudget,
   Product,
   ProductFieldProvenance,
@@ -455,8 +456,16 @@ function parseIncomeSource(raw: unknown, field: string) {
 
 const PRODUCT_PROVENANCE_FIELDS = [
   'name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText',
-  'ranking', 'allergenTags', 'cosmeticForm', 'domain',
+  'ranking', 'allergenTags', 'novaGroup', 'cosmeticForm', 'domain',
 ] as const;
+
+/** NOVA processing group persisted from the source; informational only. */
+function novaGroupValue(raw: unknown, field: string): NovaGroup {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1 || raw > 4) {
+    throw new InvalidFinanceBackupError(`${field} must be a NOVA group between 1 and 4.`);
+  }
+  return raw as NovaGroup;
+}
 
 function parseProductRanking(raw: unknown, field: string): ProductRanking {
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
@@ -504,7 +513,7 @@ function parseProductAttachment(raw: unknown, field: string): ExpenseProductAtta
   if (!isObject(raw)) throw new InvalidFinanceBackupError(`${field} must be an object.`);
   assertKnownKeys(raw, [
     'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
-    'domain', 'ranking', 'ingredientsText', 'allergenTags', 'source', 'sourceUrl',
+    'domain', 'ranking', 'ingredientsText', 'allergenTags', 'novaGroup', 'source', 'sourceUrl',
     'sourceDatabase', 'retrievedAt', 'provenance',
   ], field);
   const barcode = text(raw.barcode, `${field}.barcode`, 14);
@@ -530,6 +539,7 @@ function parseProductAttachment(raw: unknown, field: string): ExpenseProductAtta
     ...(raw.allergenTags !== undefined
       ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) }
       : {}),
+    ...(raw.novaGroup !== undefined ? { novaGroup: novaGroupValue(raw.novaGroup, `${field}.novaGroup`) } : {}),
     source: enumValue(raw.source, `${field}.source`, PRODUCT_SOURCES),
     ...(optionalString(raw.sourceUrl, `${field}.sourceUrl`, 1000) ? { sourceUrl: raw.sourceUrl as string } : {}),
     ...(optionalString(raw.sourceDatabase, `${field}.sourceDatabase`, 50)
@@ -606,7 +616,8 @@ function parseSessionQuality(raw: unknown, field: string): SessionItemQuality {
     score,
     ...(raw.scoreStatus !== undefined ? {
       scoreStatus: enumValue(raw.scoreStatus, `${field}.scoreStatus`, [
-        'available', 'withheld-invalid-parse', 'withheld-review-required',
+        'available', 'available-with-unresolved-conditions',
+        'withheld-invalid-parse', 'withheld-review-required',
         'withheld-form-unknown', 'withheld-conditions-unknown',
         'withheld-insufficient-evidence', 'withheld-no-ingredients',
       ] as const),
@@ -931,7 +942,7 @@ function parseProduct(raw: unknown, field: string): Product {
     'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
     'lastPrice', 'priceUpdatedAt', 'source', 'sourceUrl', 'sourceDatabase',
     'domain', 'domainSource', 'gs1PrefixAllocation', 'origin', 'ranking',
-    'beauty', 'cosmeticForm', 'ingredientsText', 'allergenTags', 'provenance', 'retrievedAt',
+    'beauty', 'cosmeticForm', 'ingredientsText', 'allergenTags', 'novaGroup', 'provenance', 'retrievedAt',
     'staleAfter', 'createdAt', 'updatedAt',
   ], field);
   const barcode = productBarcode(raw.barcode, `${field}.barcode`);
@@ -973,6 +984,7 @@ function parseProduct(raw: unknown, field: string): Product {
     ...(raw.cosmeticForm !== undefined ? { cosmeticForm: enumValue(raw.cosmeticForm, `${field}.cosmeticForm`, ['leave-on', 'rinse-off', 'unknown'] as const) } : {}),
     ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
     ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
+    ...(raw.novaGroup !== undefined ? { novaGroup: novaGroupValue(raw.novaGroup, `${field}.novaGroup`) } : {}),
     ...(provenance ? { provenance } : {}),
     ...(optionalString(raw.retrievedAt, `${field}.retrievedAt`, 40) ? { retrievedAt: raw.retrievedAt as string } : {}),
     ...(optionalString(raw.staleAfter, `${field}.staleAfter`, 40) ? { staleAfter: raw.staleAfter as string } : {}),
@@ -986,7 +998,7 @@ function parseSessionItem(raw: unknown, field: string) {
   assertKnownKeys(raw, [
     'key', 'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl',
     'quantity', 'domain', 'beauty', 'cosmeticForm', 'source', 'sourceUrl', 'sourceDatabase',
-    'provenance', 'retrievedAt', 'staleAfter', 'ingredientsText', 'allergenTags',
+    'provenance', 'retrievedAt', 'staleAfter', 'ingredientsText', 'allergenTags', 'novaGroup',
     'assessmentRequestId', 'assessmentOrigin', 'assessment', 'qty', 'unitPrice',
     'lineTotal', 'ranking', 'quality',
   ], field);
@@ -1047,6 +1059,7 @@ function parseSessionItem(raw: unknown, field: string) {
     ...(optionalString(raw.staleAfter, `${field}.staleAfter`, 40) ? { staleAfter: raw.staleAfter as string } : {}),
     ...(optionalString(raw.ingredientsText, `${field}.ingredientsText`, MAX_INGREDIENT_TEXT_LENGTH) ? { ingredientsText: raw.ingredientsText as string } : {}),
     ...(raw.allergenTags !== undefined ? { allergenTags: stringArray(raw.allergenTags, `${field}.allergenTags`, 50) } : {}),
+    ...(raw.novaGroup !== undefined ? { novaGroup: novaGroupValue(raw.novaGroup, `${field}.novaGroup`) } : {}),
     ...(optionalString(raw.assessmentRequestId, `${field}.assessmentRequestId`, 160) ? { assessmentRequestId: raw.assessmentRequestId as string } : {}),
     ...(assessmentOrigin ? { assessmentOrigin } : {}),
     ...(assessment !== undefined ? { assessment } : {}),

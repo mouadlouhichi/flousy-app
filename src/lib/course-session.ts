@@ -418,6 +418,8 @@ export interface RemoteProductInfo {
   cosmeticForm?: import('./ingredient-safety/types').ProductForm;
   domain?: import('./store').ProductDomain;
   allergenTags?: string[];
+  /** NOVA processing group from the source (1–4); informational only. */
+  novaGroup?: import('./store').NovaGroup;
   source?: import('./store').ProductSource;
   sourceUrl?: string;
   sourceDatabase?: string;
@@ -443,6 +445,8 @@ export type ProductResolution =
          * overlay is the offline fallback for records without a list.
          */
         ingredientsText?: string;
+        /** NOVA processing group from the source (1–4); informational only. */
+        novaGroup?: import('./store').NovaGroup;
         /** Source hint that the record is cosmetic/beauty (see RemoteProductInfo). */
         beauty?: boolean;
       };

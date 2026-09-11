@@ -87,6 +87,7 @@ describe('unified scan resolution', () => {
             category: 'Moisturizers',
             ingredientsText: 'Aqua, Glycerin',
             domain: 'cosmetic',
+            novaGroup: 4,
             source: 'obf',
             retrievedAt: '2026-09-08T12:00:00.000Z',
             provenance: {
@@ -110,6 +111,10 @@ describe('unified scan resolution', () => {
     assert.equal(refreshed.name, 'Locally corrected name');
     assert.equal(refreshed.brand, 'Provider brand');
     assert.equal(refreshed.ingredientsText, 'Aqua, Glycerin');
+    // The NOVA group is provider-owned: a refresh fills the gap and records
+    // where it came from, like every other provider field.
+    assert.equal(refreshed.novaGroup, 4);
+    assert.equal(refreshed.provenance.novaGroup?.source, 'obf');
     assert.equal(refreshed.provenance.name?.source, 'manual');
     assert.equal(refreshed.provenance.brand?.source, 'obf');
     assert.equal(refreshed.domain, 'cosmetic');

@@ -403,6 +403,27 @@ describe('Finance backup deep validation (M1)', () => {
     assert.ok(read.notices.some((notice) => notice.code === 'generatedIds'));
   });
 
+  it('keeps the NOVA group on the product and rejects an out-of-range one', () => {
+    const backed = validBackup();
+    backed.products = [{
+      barcode: '3760044183738', name: 'Biscuit', source: 'manual',
+      novaGroup: 4,
+      createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+    }];
+    const parsed = parseFinanceBackup(serializeFinanceBackup(backed as unknown as FinanceBackup));
+    assert.equal(parsed.products?.[0].novaGroup, 4);
+
+    for (const junk of [0, 5, 2.5, '4', null]) {
+      const bad = validBackup();
+      bad.products = [{
+        barcode: '3760044183738', name: 'Biscuit', source: 'manual',
+        novaGroup: junk,
+        createdAt: '2026-07-01T00:00:00.000Z', updatedAt: '2026-07-01T00:00:00.000Z',
+      }];
+      expectRejected(bad as unknown as Record<string, unknown>, 'must be a NOVA group between 1 and 4');
+    }
+  });
+
   it('keeps a bounded cosmetic INCI list and rejects one above its cap', () => {
     const backed = validBackup();
     backed.products = [{
@@ -565,6 +586,7 @@ describe('an exported backup re-imports (M-)', () => {
             ranking: { grade: 'b', calculationPoints: 2, algorithmVersion: '2023' },
             ingredientsText: 'Water',
             allergenTags: ['en:milk'],
+            novaGroup: 4,
             source: 'off',
             sourceUrl: 'https://world.openfoodfacts.org/product/6111234567895',
             sourceDatabase: 'off',
@@ -634,6 +656,7 @@ describe('an exported backup re-imports (M-)', () => {
         lastPrice: 12,
         ingredientsText: 'Aqua, Glycerin, Niacinamide',
         allergenTags: ['en:milk'],
+        novaGroup: 3,
         ranking: { grade: 'b', calculationPoints: 2, algorithmVersion: '2023' },
         beauty: true,
         cosmeticForm: 'leave-on',
@@ -674,6 +697,7 @@ describe('an exported backup re-imports (M-)', () => {
           staleAfter: '2026-07-09T18:00:00.000Z',
           ingredientsText: 'Aqua, Glycerin, Niacinamide',
           allergenTags: ['en:milk'],
+          novaGroup: 3,
           assessmentRequestId: 'assessment-1',
           assessmentOrigin: {
             sessionId: 'sess-1',
@@ -734,6 +758,15 @@ describe('an exported backup re-imports (M-)', () => {
       restored.products?.[0].ingredientsText,
       'Aqua, Glycerin, Niacinamide',
       'the cosmetic INCI field round-trips through the backup (informational only)',
+    );
+    // The NOVA processing group is source-reported metadata: it round-trips on
+    // the product, on an expense attachment and on a session line.
+    assert.equal(restored.products?.[0].novaGroup, 3);
+    assert.equal(restored.sessions?.[0].items[0]?.novaGroup, 3);
+    assert.equal(
+      (restored.months?.['2026-07']?.variableExpenses?.[0] as { productAttachment?: { novaGroup?: number } })
+        ?.productAttachment?.novaGroup,
+      4,
     );
     assert.equal(restored.sessions?.[0].total, 17);
     assert.equal(restored.sessions?.[0].revision, 4);

@@ -189,6 +189,82 @@ comedogenic(['Triticum Vulgare Germ Oil'], 5);
 comedogenic(['Laureth-4'], 5);
 
 // ---------------------------------------------------------------------------
+// Published hazard assessments for substances whose EU annex entry is a
+// conditional authorisation, not a hazard statement.
+//
+// Scope discipline: this table is deliberately tiny. It only carries
+// substances whose hazard character is stated by an EU body (ECHA / SCCS) and
+// whose dated annex entry would otherwise read as a neutral "authorised"
+// row — for example methylisothiazolinone, whose Annex V entry permits a very
+// low rinse-off concentration while the substance is a well-documented potent
+// contact sensitiser. Every entry is an attributed observation:
+// `kind: 'hazard-assessment'`, tier `caution` at most, never `prohibited`, and
+// never a compliance verdict. Hazards that the dated annex corpus already
+// expresses (Annex II bans, Annex III restrictions) are NOT duplicated here.
+// ---------------------------------------------------------------------------
+interface HazardAssessment {
+  names: string[];
+  detail: string;
+  evidence: string[];
+}
+
+const HAZARD_ASSESSMENTS: HazardAssessment[] = [
+  {
+    names: ['Triclosan'],
+    detail:
+      'EU-level assessments describe triclosan as persistent and bioaccumulative and assess it for endocrine-disrupting properties; the dated annex restricts both the product types and the concentration. Environmental and resistance concerns are documented in the published EU assessments.',
+    evidence: [
+      'ECHA substance assessment — triclosan (persistence, bioaccumulation, endocrine-disruptor assessment)',
+      'Regulation (EC) No 1223/2009 Annex V entry 25',
+    ],
+  },
+  {
+    names: ['Triclocarban'],
+    detail:
+      'Triclocarban is assessed at EU level for persistence, bioaccumulation and endocrine-disrupting properties; the dated annex limits it to rinse-off uses and low concentrations.',
+    evidence: [
+      'ECHA substance assessment — triclocarban (PBT / endocrine-disruptor assessment)',
+      'Regulation (EC) No 1223/2009 Annex III entry 100 and Annex V entry 23',
+    ],
+  },
+  {
+    names: [
+      'Methylisothiazolinone',
+      'Methylchloroisothiazolinone',
+      'Methylchloroisothiazolinone and Methylisothiazolinone',
+    ],
+    detail:
+      'A potent contact sensitiser: EU action restricted it to rinse-off products at 0.0015% after widespread contact-allergy cases. Significance depends on individual sensitisation.',
+    evidence: [
+      'SCCS opinions on methylisothiazolinone (skin sensitisation)',
+      'Regulation (EC) No 1223/2009 Annex V entries 39 and 57 (rinse-off only, 0.0015%)',
+    ],
+  },
+  {
+    names: ['Benzophenone-3', 'Oxybenzone'],
+    detail:
+      'Assessed at EU level for endocrine-disrupting properties; SCCS opinions reduced the permitted concentration and excluded some spray uses. A frequent photoallergen.',
+    evidence: [
+      'SCCS opinions on benzophenone-3 (endocrine activity, photoallergy)',
+      'Regulation (EC) No 1223/2009 Annex VI entry 4',
+    ],
+  },
+];
+
+for (const assessment of HAZARD_ASSESSMENTS) {
+  overlay({
+    names: assessment.names,
+    code: 'published-hazard-assessment',
+    label: 'Published EU hazard assessment',
+    detail: assessment.detail,
+    tier: 'caution',
+    kind: 'hazard-assessment',
+    applicability: 'applies',
+    evidence: assessment.evidence,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Fragrance allergens — the two EU labelling generations
 // ---------------------------------------------------------------------------
 const ALLERGEN_EVIDENCE_2003 = [

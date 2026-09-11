@@ -104,6 +104,20 @@ const analysis: ProductAssessment = {
 mock.module('@/lib/ingredient-analysis-client', {
   namedExports: {
     analyzeIngredientsText: async () => analysis as unknown as ProductAssessment,
+    // Mirrors the real module's public surface so the component under test
+    // imports exactly what production imports.
+    IngredientAnalysisError: class IngredientAnalysisError extends Error {
+      readonly kind: string;
+      constructor(kind: string, message: string) {
+        super(message);
+        this.name = 'IngredientAnalysisError';
+        this.kind = kind;
+      }
+      get retryable(): boolean {
+        return this.kind !== 'invalid';
+      }
+    },
+    isOffline: () => false,
   },
 });
 
@@ -174,6 +188,103 @@ describe('CoursesIngredientGlance render smoke', () => {
       const g = catalogs[locale].ingredientGlance as unknown as Record<string, string>;
       const driverPoints = g.driverPoints.replace('{points}', '100');
       assert.ok(html.includes(driverPoints), `${locale}: localized point label missing`);
+    }
+  });
+
+  it('renders the per-ingredient detail with identity, conditions and sources', async () => {
+    const { IngredientDetail } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    const detail = {
+      index: 1,
+      raw: 'Methylisothiazolinone',
+      normalized: 'METHYLISOTHIAZOLINONE',
+      matched: true,
+      matchedInci: 'METHYLISOTHIAZOLINONE',
+      cas: '2682-20-4',
+      functions: ['PRESERVATIVE'],
+      identity: { status: 'official-glossary' as const, canonicalName: 'METHYLISOTHIAZOLINONE', entry: '1234' },
+      signals: [
+        {
+          code: 'eu-annex-v-57',
+          kind: 'regulatory' as const,
+          label: 'EU positive-list entry that does not cover the selected product form',
+          detail: 'Rinse-off only, 0.0015%.',
+          tier: 'restricted' as const,
+          applicability: 'applies' as const,
+          evidence: ['Regulation (EC) No 1223/2009 Annex V entry 57'],
+          regulatory: {
+            jurisdiction: 'EU' as const,
+            framework: 'Regulation (EC) No 1223/2009' as const,
+            annex: 'V' as const,
+            entry: '57',
+            legalRole: 'positive-list-with-conditions' as const,
+            applicability: 'applies' as const,
+            applicabilityReason: 'rinse-off only',
+            maxConcentration: '0,0015 %',
+            warnings: 'Not to be used in leave-on preparations',
+            effectiveAsOf: '2026-05-26',
+            sourceUpdated: '2026-05-26',
+            sourceUrl: 'https://eur-lex.europa.eu/eli/reg/2009/1223/2026-05-18/eng',
+          },
+        },
+      ],
+      tier: 'restricted' as const,
+      assessmentState: 'assessed-signal' as const,
+    };
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(IngredientDetail, {
+          ingredient: detail,
+          g,
+          t: languageValue().t,
+        }),
+      );
+      assert.ok(html.includes('METHYLISOTHIAZOLINONE'), `${locale}: canonical name missing`);
+      assert.ok(html.includes('2682-20-4'), `${locale}: CAS missing`);
+      assert.ok(html.includes('PRESERVATIVE'), `${locale}: function missing`);
+      assert.ok(html.includes('0,0015 %'), `${locale}: max concentration missing`);
+      assert.ok(html.includes(g.detailAnnexEntry.replace('{annex}', 'V').replace('{entry}', '57')),
+        `${locale}: annex entry label missing`);
+      assert.ok(html.includes('Regulation (EC) No 1223/2009 Annex V entry 57'), `${locale}: source missing`);
+    }
+  });
+
+  it('renders a clean result as a published index plus the no-listed-signal caveat', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    // A fully read label where the dated corpus matched nothing: the index is
+    // published, and the card must still say what that number is and is not.
+    const clean: ProductAssessment = {
+      ...analysis,
+      total: 2,
+      recognized: 2,
+      localRecognized: 2,
+      assessed: 0,
+      assessmentCoverage: 0,
+      score: 100,
+      scoreStatus: 'available',
+      confidence: 'partial',
+      band: 'excellent',
+      worstTier: null,
+      cappedReason: undefined,
+      ingredients: [],
+      flags: [
+        { level: 'info', code: 'no-listed-signal', text: '' },
+      ],
+    };
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientGlanceBody, { analysis: clean }),
+      );
+      assert.ok(html.includes('100'), `${locale}: clean index missing`);
+      assert.ok(html.includes(g.flagNoListedSignal), `${locale}: clean-result caveat missing`);
+      assert.ok(html.includes(g.indexNotSafetyVerdict), `${locale}: safety caveat missing`);
     }
   });
 

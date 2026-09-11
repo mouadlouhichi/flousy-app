@@ -1,10 +1,12 @@
 # Cosmetic label evidence analysis
 
-**Implementation version:** `ingredient-evidence-v3`
+**Implementation version:** `ingredient-evidence-v4`
 **EU source date represented by the structured corpus:** 18 May 2026
 **Purpose:** ingredient identity and source-attributed evidence, **not** a product-safety, medical, authorization, or legal-compliance verdict.
 
-`ingredient-evidence-v3` (2026-09-09) adds per-ingredient deduction transparency, a ranked "main risk drivers" UI, and a wider identity-alias table (common trade names plus French/Arabic label wording, every target verified against the dated glossary). Aliases establish identity only; regulatory status still comes exclusively from the structured annex corpus.
+`ingredient-evidence-v4` (2026-09-11) makes the index publishable for real products. Previous revisions withheld the numeric index whenever *any* EU condition was unresolved — which is every cosmetic containing a preservative, a UV filter or a colorant — so the score was withheld on 100% of realistic supermarket labels. The model now distinguishes an *unresolved condition* (published with a caveat) from a *withheld* result, treats positive-list entries as authorised-subject-to-conditions rather than restrictions, and aggregates deductions on a saturating curve so a worse label always ranks below a better one instead of everything saturating at 0. See `docs/RISK_BANK_PRODUCTION_AUDIT_2026-09-11.md` for the evidence and the parity work behind this change.
+
+`ingredient-evidence-v3` (2026-09-09) added per-ingredient deduction transparency, a ranked "main risk drivers" UI, and a wider identity-alias table (common trade names plus French/Arabic label wording, every target verified against the dated glossary). Aliases establish identity only; regulatory status still comes exclusively from the structured annex corpus.
 
 ## Request path and privacy
 
@@ -80,15 +82,79 @@ The engine keeps the internal 0–100 index (100 = strongest clean evidence). **
 
 ## Numeric output
 
-A numeric **bounded evidence index** is available only when all of these hold:
+A numeric **bounded evidence index** is published when all of these hold:
 
 - parser structure is valid;
 - OCR text, if applicable, was reviewed;
-- product form is known;
-- regulatory applicability needed by matched signals is resolved;
-- assessed-evidence coverage is at least 80%.
+- product form is known (explicit choice, or inferred from the product name/category);
+- no matched EU **prohibited-list** (Annex II) record has an exception that cannot be resolved from the label;
+- at least one row carries a listed signal **or** the dated corpus itself identified at least 90% of the rows (see “Clean labels” below);
+- at least 60% of the rows are identified by the dated corpus (identity coverage, not signal coverage).
 
-Otherwise `score` and `band` are `null`, with a machine-readable `scoreStatus`. Even when available, the index is not a safety rating or compliance determination. The UI does not use stars or “clean/safe product” language and always displays source date, product form, uncertainty, and the legal/medical caveat.
+`scoreStatus` then reads either `available` or `available-with-unresolved-conditions`. The second is the ordinary case for a real cosmetic: Annexes III–VI carry concentration, product-type and warning conditions that an ingredient list cannot express. Those conditions stay unresolved — they are published as a mandatory caveat with `confidence` capped at `partial`, never silently treated as compliant.
+
+Otherwise `score` and `band` are `null` with a machine-readable `scoreStatus`:
+
+| Status | Meaning |
+|---|---|
+| `withheld-no-ingredients` | nothing was provided to analyze |
+| `withheld-invalid-parse` | unbalanced/incomplete structure; the parsed rows need review |
+| `withheld-review-required` | OCR draft not yet confirmed by the user |
+| `withheld-form-unknown` | exposure context (leave-on/rinse-off) not chosen yet |
+| `withheld-conditions-unknown` | an Annex II exception cannot be resolved from the label |
+| `withheld-insufficient-evidence` | too few rows identified, or a list with no listed signal that the corpus only partly read |
+
+### Clean labels
+
+A fully read list on which nothing matched is a result, not a blank: every row
+was checked against Annexes II–VI and the dated hazard overlays. When the
+corpus **itself** (glossary or inventory, not an external provider) identifies
+at least 90% of the rows and no row carries a signal, the index is published —
+100 with band `excellent` — together with a mandatory `no-listed-signal` flag
+and `confidence` capped at `partial`:
+
+> No EU annex or dated hazard list mentions any ingredient here — that is not a
+> certificate of harmlessness.
+
+The 90% threshold is what makes absence publishable. On a partly read label the
+rows we could not identify could hold the finding, so a zero-signal list below
+that threshold stays withheld instead of displaying a clean number. Rows
+identified only by an outside provider name lookup do not count towards the
+threshold: a name is not a hazard assessment, and recognition must not be what
+turns “nothing matched” into a published clean index.
+
+This is the same discipline as the unresolved-conditions caveat, applied in the
+other direction: the corpus says what it found, says what it did not find, and
+never converts either into a claim about the product.
+
+## How the index is computed
+
+Per-row cost (`deduction`) is the point value of the row's strongest supported signal, with regulatory signals at full weight and curated/comfort signals position-weighted (earlier label wording weighs more):
+
+| Tier | Points | Typical source |
+|---|---:|---|
+| `prohibited` | 100 | exact Annex II name match without an exception in the exported record |
+| `restricted` | 30 | Annex III restriction entry; or a positive-list entry whose own wording excludes the selected product form |
+| `caution` | 22 | curated signals (undeclared fragrance, formaldehyde releasers, EU fragrance allergens, published EU hazard assessments) |
+| `watch` | 10 | positive-list entry (Annexes IV–VI) — an authorised substance whose conditions the label does not show |
+
+Deductions are aggregated on a saturating curve, `index = 100 · e^(−Σ/100)`, so each additional signal removes a share of the *remaining* index. A plain sum saturated at 0 for any ordinary product (a preservative plus three declared fragrance allergens already exceeded 100 points), which made every imperfect product display the same worst-case number. The curve keeps the result strictly monotonic in the evidence while preserving the ranking.
+
+Severity and coverage floors are applied afterwards, and the applied reason is reported as `cappedReason`:
+
+- a `prohibited` row caps the index at 35;
+- a `restricted` row caps it at 59 (a listed restriction may never be averaged into a clean result);
+- identity coverage below 90% caps it at 94, below 70% at 79.
+
+Even when available, the index is not a safety rating or compliance determination. The UI does not use stars or “clean/safe product” language and always displays source date, product form, uncertainty, and the legal/medical caveat.
+
+## Positive-list form conflicts (resolved applicability)
+
+Annexes IV–VI authorise a substance for named uses. When a record's own wording covers only the opposite exposure context from the one selected, the annex does not cover that use, and the engine resolves it as `applies` with a `restricted` tier and an explicit flag — for example methylisothiazolinone (Annex V/57 is rinse-off-only), so a leave-on declaration is not treated as an authorised use. This is resolution of the dated record's own wording, not a compliance verdict; a record that states no use context, or mentions both contexts, stays `conditions-unknown`.
+
+## Published hazard assessments
+
+A small curated table (see `src/lib/ingredient-safety/eu-lists.ts`) carries substances whose hazard character is stated by an EU body but whose dated annex entry reads as a neutral authorisation — currently triclosan, triclocarban, the isothiazolinones and benzophenone-3. Every entry is attributed (`kind: 'hazard-assessment'`, tier `caution` at most, never `prohibited`) and never duplicates what the annex corpus already expresses.
 
 ## Cache identity and cancellation
 

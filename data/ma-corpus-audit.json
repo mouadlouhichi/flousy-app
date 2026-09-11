@@ -1,0 +1,991 @@
+{
+ "input": "/home/user/flousy-app/data/ma-corpus-off.json",
+ "source": "off-morocco-manual-pages-1-6",
+ "fetchedAt": "2026-09-11T00:00:00.000Z",
+ "reportedTotal": 22848,
+ "corpusSize": 203,
+ "buckets": {
+  "cosmetic-withheld": 1,
+  "domain:cosmetic": 1,
+  "domain:food": 83,
+  "domain:unknown": 112,
+  "food-unranked:nothing-recognized": 5,
+  "food-unranked:water": 26,
+  "has-ingredient-text": 196,
+  "kind:water": 26,
+  "no-ingredient-text": 7,
+  "total": 203
+ },
+ "ranked": 195,
+ "scored": 164,
+ "unrankedFood": 31,
+ "noIngredients": 7,
+ "cosmetic": 1,
+ "coverage": {
+  "full": 122,
+  "partial": 53,
+  "limited": 14,
+  "none": 6
+ },
+ "bands": {
+  "caution": 1,
+  "excellent": 91,
+  "good": 62,
+  "moderate": 10
+ },
+ "cosmeticStatus": {
+  "withheld-form-unknown": 1
+ },
+ "topUnknowns": [
+  {
+   "name": "food:colorant",
+   "count": 3,
+   "examples": [
+    "6111037000599",
+    "6111242100930",
+    "90338243"
+   ]
+  },
+  {
+   "name": "food:conservateur",
+   "count": 3,
+   "examples": [
+    "6111259092495",
+    "6111259092525",
+    "6191585701858"
+   ]
+  },
+  {
+   "name": "food:d et b12",
+   "count": 3,
+   "examples": [
+    "6111203007513",
+    "6111203007520",
+    "6111203001467"
+   ]
+  },
+  {
+   "name": "food:epaississant",
+   "count": 3,
+   "examples": [
+    "6111246721261",
+    "6111246721940",
+    "6111246721957"
+   ]
+  },
+  {
+   "name": "food:carbonatos de amonio",
+   "count": 2,
+   "examples": [
+    "8434165466333",
+    "7622210204424"
+   ]
+  },
+  {
+   "name": "food:edulcorants",
+   "count": 2,
+   "examples": [
+    "5449000133328",
+    "6111032009870"
+   ]
+  },
+  {
+   "name": "food:stabilisants",
+   "count": 2,
+   "examples": [
+    "6111242106949",
+    "6111246720783"
+   ]
+  },
+  {
+   "name": "food:مخثر",
+   "count": 2,
+   "examples": [
+    "6111242102187",
+    "6111266962644"
+   ]
+  },
+  {
+   "name": "food:15 غ ل من المواد الدسمة",
+   "count": 1,
+   "examples": [
+    "6111032009665"
+   ]
+  },
+  {
+   "name": "food:30g l de matiere grasse",
+   "count": 1,
+   "examples": [
+    "6111246950845"
+   ]
+  },
+  {
+   "name": "food:30غ ل من المادة الدسمة",
+   "count": 1,
+   "examples": [
+    "6111246950845"
+   ]
+  },
+  {
+   "name": "food:8 sulfate 3",
+   "count": 1,
+   "examples": [
+    "6111128000163"
+   ]
+  },
+  {
+   "name": "food:96 bleagbooates",
+   "count": 1,
+   "examples": [
+    "5449000135544"
+   ]
+  },
+  {
+   "name": "food:acesulfam k",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:acidifiant",
+   "count": 1,
+   "examples": [
+    "90338243"
+   ]
+  },
+  {
+   "name": "food:acidifiant acid citric",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:acidifiants",
+   "count": 1,
+   "examples": [
+    "5449000133328"
+   ]
+  },
+  {
+   "name": "food:agente de tratamiento de la harina metabisulfito sodico pued",
+   "count": 1,
+   "examples": [
+    "8434165466333"
+   ]
+  },
+  {
+   "name": "food:ajr apport journalier recommande",
+   "count": 1,
+   "examples": [
+    "6111024002186"
+   ]
+  },
+  {
+   "name": "food:alfa tocoferol",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:almendras",
+   "count": 1,
+   "examples": [
+    "8425197712024"
+   ]
+  },
+  {
+   "name": "food:antioxydant",
+   "count": 1,
+   "examples": [
+    "6111203001467"
+   ]
+  },
+  {
+   "name": "food:bacteria",
+   "count": 1,
+   "examples": [
+    "6111242100992"
+   ]
+  },
+  {
+   "name": "food:bicarbonates",
+   "count": 1,
+   "examples": [
+    "5449000061515"
+   ]
+  },
+  {
+   "name": "food:bicarbonates d ammonium",
+   "count": 1,
+   "examples": [
+    "6111259342828"
+   ]
+  },
+  {
+   "name": "food:bifide et bacteries",
+   "count": 1,
+   "examples": [
+    "6111032002208"
+   ]
+  },
+  {
+   "name": "food:carbon dioxide",
+   "count": 1,
+   "examples": [
+    "5449000054227"
+   ]
+  },
+  {
+   "name": "food:carbonate",
+   "count": 1,
+   "examples": [
+    "6111252421971"
+   ]
+  },
+  {
+   "name": "food:carbonatos de sodio",
+   "count": 1,
+   "examples": [
+    "7622210204424"
+   ]
+  },
+  {
+   "name": "food:carbonatos sodio",
+   "count": 1,
+   "examples": [
+    "8434165466333"
+   ]
+  },
+  {
+   "name": "food:chlorures",
+   "count": 1,
+   "examples": [
+    "5449000061515"
+   ]
+  },
+  {
+   "name": "food:ciclamati",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:cinnamon",
+   "count": 1,
+   "examples": [
+    "7613287431943"
+   ]
+  },
+  {
+   "name": "food:colorant caroteni",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:colorant naturel",
+   "count": 1,
+   "examples": [
+    "6111032006619"
+   ]
+  },
+  {
+   "name": "food:colza",
+   "count": 1,
+   "examples": [
+    "6111242103528"
+   ]
+  },
+  {
+   "name": "food:contient une source de phenylalanine",
+   "count": 1,
+   "examples": [
+    "5449000133328"
+   ]
+  },
+  {
+   "name": "food:corector de aciditate citrati de sodiu",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:correcteur d acidite",
+   "count": 1,
+   "examples": [
+    "6191585701858"
+   ]
+  },
+  {
+   "name": "food:correcteurs d acidite",
+   "count": 1,
+   "examples": [
+    "6111184007618"
+   ]
+  },
+  {
+   "name": "food:corrector de acidez fosfatos de calcio",
+   "count": 1,
+   "examples": [
+    "8434165466333"
+   ]
+  },
+  {
+   "name": "food:d et e",
+   "count": 1,
+   "examples": [
+    "6111203007377"
+   ]
+  },
+  {
+   "name": "food:e apa",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:edulcorant glycoside de steviol",
+   "count": 1,
+   "examples": [
+    "6111252422411"
+   ]
+  },
+  {
+   "name": "food:epaississant gomme guar",
+   "count": 1,
+   "examples": [
+    "6111180007339"
+   ]
+  },
+  {
+   "name": "food:esteri glicerici ai rasinilor din lemn",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:extrait de fleur de peche 0 1",
+   "count": 1,
+   "examples": [
+    "6111252422411"
+   ]
+  },
+  {
+   "name": "food:ferrous sulfate",
+   "count": 1,
+   "examples": [
+    "8434165437418"
+   ]
+  },
+  {
+   "name": "food:flavours",
+   "count": 1,
+   "examples": [
+    "8410376009392"
+   ]
+  },
+  {
+   "name": "food:gelifiant e 440 et acidifiant e 330",
+   "count": 1,
+   "examples": [
+    "6111184001074"
+   ]
+  },
+  {
+   "name": "food:good food nescafe classic تحدث الي نستله 080 105 10 10 صنع م",
+   "count": 1,
+   "examples": [
+    "6111018903161"
+   ]
+  },
+  {
+   "name": "food:gout",
+   "count": 1,
+   "examples": [
+    "6111259092495"
+   ]
+  },
+  {
+   "name": "food:gras",
+   "count": 1,
+   "examples": [
+    "6111032009870"
+   ]
+  },
+  {
+   "name": "food:guma de acacia",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:huile de coco hydrogenee",
+   "count": 1,
+   "examples": [
+    "6191585701858"
+   ]
+  },
+  {
+   "name": "food:huiles et graisses 100 vegetales",
+   "count": 1,
+   "examples": [
+    "6111037000506"
+   ]
+  },
+  {
+   "name": "food:humidite pas plus de 16",
+   "count": 1,
+   "examples": [
+    "6111242660373"
+   ]
+  },
+  {
+   "name": "food:il continue a vous apporter les bienfaits des proteines",
+   "count": 1,
+   "examples": [
+    "6111242101203"
+   ]
+  },
+  {
+   "name": "food:indulcitori",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:jus de canneberge a base de concentre 0 1",
+   "count": 1,
+   "examples": [
+    "6111252422428"
+   ]
+  },
+  {
+   "name": "food:jus de framboise a base de concentre 0 1",
+   "count": 1,
+   "examples": [
+    "6111252422428"
+   ]
+  },
+  {
+   "name": "food:jus de mure a base de concentre 0 09",
+   "count": 1,
+   "examples": [
+    "6111252422428"
+   ]
+  },
+  {
+   "name": "food:leavening agents",
+   "count": 1,
+   "examples": [
+    "8434165437418"
+   ]
+  },
+  {
+   "name": "food:maltodextrines",
+   "count": 1,
+   "examples": [
+    "6111242103528"
+   ]
+  },
+  {
+   "name": "food:margarine allegee 60 m g corps gras et huiles 100 vegetales",
+   "count": 1,
+   "examples": [
+    "6111037000599"
+   ]
+  },
+  {
+   "name": "food:matiere grasse 1",
+   "count": 1,
+   "examples": [
+    "6111242100930"
+   ]
+  },
+  {
+   "name": "food:matiere grasse 3",
+   "count": 1,
+   "examples": [
+    "6111242100305"
+   ]
+  },
+  {
+   "name": "food:matiere grasse pas moins de 82",
+   "count": 1,
+   "examples": [
+    "6111242660373"
+   ]
+  },
+  {
+   "name": "food:matiere laitiere solide non grasse 2",
+   "count": 1,
+   "examples": [
+    "6111242660373"
+   ]
+  },
+  {
+   "name": "food:melanges de produits laitiers",
+   "count": 1,
+   "examples": [
+    "6111032002208"
+   ]
+  },
+  {
+   "name": "food:ni cholesterol",
+   "count": 1,
+   "examples": [
+    "6111242101203"
+   ]
+  },
+  {
+   "name": "food:niacin",
+   "count": 1,
+   "examples": [
+    "8434165437418"
+   ]
+  },
+  {
+   "name": "food:nitrate",
+   "count": 1,
+   "examples": [
+    "6111128001115"
+   ]
+  },
+  {
+   "name": "food:nitrates",
+   "count": 1,
+   "examples": [
+    "5449000061515"
+   ]
+  },
+  {
+   "name": "food:obd1 999 999 1112606 266963207 mb",
+   "count": 1,
+   "examples": [
+    "6111035000430"
+   ]
+  },
+  {
+   "name": "food:oleoresine de capsicum",
+   "count": 1,
+   "examples": [
+    "6111184007618"
+   ]
+  },
+  {
+   "name": "food:omega 6 que notre organisme ne peut fabriquer",
+   "count": 1,
+   "examples": [
+    "6111024002186"
+   ]
+  },
+  {
+   "name": "food:palm",
+   "count": 1,
+   "examples": [
+    "6111259343344"
+   ]
+  },
+  {
+   "name": "food:palm fat",
+   "count": 1,
+   "examples": [
+    "6111031005439"
+   ]
+  },
+  {
+   "name": "food:palme",
+   "count": 1,
+   "examples": [
+    "6111031005033"
+   ]
+  },
+  {
+   "name": "food:palmiste",
+   "count": 1,
+   "examples": [
+    "6111031005033"
+   ]
+  },
+  {
+   "name": "food:pea fiber 3",
+   "count": 1,
+   "examples": [
+    "8410376009392"
+   ]
+  },
+  {
+   "name": "food:piment en saumure",
+   "count": 1,
+   "examples": [
+    "6111184007618"
+   ]
+  },
+  {
+   "name": "food:piment rouge fort",
+   "count": 1,
+   "examples": [
+    "6111184007618"
+   ]
+  },
+  {
+   "name": "food:poids net 110 g",
+   "count": 1,
+   "examples": [
+    "6111032002208"
+   ]
+  },
+  {
+   "name": "food:polyglycerol polyricinoleate",
+   "count": 1,
+   "examples": [
+    "6111259347021"
+   ]
+  },
+  {
+   "name": "food:polyphosphate",
+   "count": 1,
+   "examples": [
+    "6111028001017"
+   ]
+  },
+  {
+   "name": "food:poudres a lever",
+   "count": 1,
+   "examples": [
+    "6111259342828"
+   ]
+  },
+  {
+   "name": "food:pp",
+   "count": 1,
+   "examples": [
+    "6111242103528"
+   ]
+  },
+  {
+   "name": "food:preparations cerealieres",
+   "count": 1,
+   "examples": [
+    "6111032002208"
+   ]
+  },
+  {
+   "name": "food:preparations de fruits",
+   "count": 1,
+   "examples": [
+    "6111032010135"
+   ]
+  },
+  {
+   "name": "food:provitamine a",
+   "count": 1,
+   "examples": [
+    "6111245470023"
+   ]
+  },
+  {
+   "name": "food:pulpa de portocale 4",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:r ee z cagstzaca",
+   "count": 1,
+   "examples": [
+    "6111101001361"
+   ]
+  },
+  {
+   "name": "food:raising agents",
+   "count": 1,
+   "examples": [
+    "6111259343344"
+   ]
+  },
+  {
+   "name": "food:residu a sec",
+   "count": 1,
+   "examples": [
+    "6111128001115"
+   ]
+  },
+  {
+   "name": "food:riboflavin",
+   "count": 1,
+   "examples": [
+    "8434165437418"
+   ]
+  },
+  {
+   "name": "food:sels mineraux",
+   "count": 1,
+   "examples": [
+    "6111242103528"
+   ]
+  },
+  {
+   "name": "food:sirop de glucoza fructoza",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:stabilisant carraghenanes",
+   "count": 1,
+   "examples": [
+    "6111203007377"
+   ]
+  },
+  {
+   "name": "food:stabilizatori",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:suc de portocale din concentrat 3",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:sulfates",
+   "count": 1,
+   "examples": [
+    "5449000061515"
+   ]
+  },
+  {
+   "name": "food:sweetened beverages",
+   "count": 1,
+   "examples": [
+    "5449000000439"
+   ]
+  },
+  {
+   "name": "food:sweetener maltitol",
+   "count": 1,
+   "examples": [
+    "8410376009392"
+   ]
+  },
+  {
+   "name": "food:sweetener maltitol 15",
+   "count": 1,
+   "examples": [
+    "8434165437418"
+   ]
+  },
+  {
+   "name": "food:taurines",
+   "count": 1,
+   "examples": [
+    "6111242103528"
+   ]
+  },
+  {
+   "name": "food:thickener",
+   "count": 1,
+   "examples": [
+    "6111246721940"
+   ]
+  },
+  {
+   "name": "food:vitamina c acid l ascorbic",
+   "count": 1,
+   "examples": [
+    "5449000147417"
+   ]
+  },
+  {
+   "name": "food:β carotene",
+   "count": 1,
+   "examples": [
+    "6111203001467"
+   ]
+  },
+  {
+   "name": "food:الشوكولاط",
+   "count": 1,
+   "examples": [
+    "6111032006749"
+   ]
+  },
+  {
+   "name": "food:املاح استحلاب",
+   "count": 1,
+   "examples": [
+    "6111028001246"
+   ]
+  },
+  {
+   "name": "food:انظر الصلاحية يحفظ في 6 c على الاكثر maroc الرقم الاقتصادي",
+   "count": 1,
+   "examples": [
+    "6111271800054"
+   ]
+  },
+  {
+   "name": "food:بذور اللفت",
+   "count": 1,
+   "examples": [
+    "5410093179616"
+   ]
+  },
+  {
+   "name": "food:عصير التفاح 2",
+   "count": 1,
+   "examples": [
+    "6111243860376"
+   ]
+  },
+  {
+   "name": "food:عصير الليمون 3",
+   "count": 1,
+   "examples": [
+    "6111243860376"
+   ]
+  },
+  {
+   "name": "food:فوسفاط الصوديوم",
+   "count": 1,
+   "examples": [
+    "6111206000696"
+   ]
+  },
+  {
+   "name": "food:ڤيتامينات aوd3",
+   "count": 1,
+   "examples": [
+    "6111242102187"
+   ]
+  },
+  {
+   "name": "food:لوتين",
+   "count": 1,
+   "examples": [
+    "6111032002918"
+   ]
+  },
+  {
+   "name": "food:ليوغور م د",
+   "count": 1,
+   "examples": [
+    "6111032001003"
+   ]
+  },
+  {
+   "name": "food:مادة حافظة حمض السوريك",
+   "count": 1,
+   "examples": [
+    "6111266962644"
+   ]
+  },
+  {
+   "name": "food:مثبت",
+   "count": 1,
+   "examples": [
+    "5449000036872"
+   ]
+  },
+  {
+   "name": "food:مثبت فوسفاط البوتاسيوم",
+   "count": 1,
+   "examples": [
+    "6111032006749"
+   ]
+  },
+  {
+   "name": "food:مثبت فوسفاط الصوديوم",
+   "count": 1,
+   "examples": [
+    "6111032006718"
+   ]
+  },
+  {
+   "name": "food:مركبات نحاس الكلوروفيل",
+   "count": 1,
+   "examples": [
+    "6111032002918"
+   ]
+  },
+  {
+   "name": "food:مركز عصير البرتقال",
+   "count": 1,
+   "examples": [
+    "5449000036872"
+   ]
+  },
+  {
+   "name": "food:مستحضرات الفواكه",
+   "count": 1,
+   "examples": [
+    "6111032002918"
+   ]
+  },
+  {
+   "name": "food:مستحلب 471",
+   "count": 1,
+   "examples": [
+    "5410093179616"
+   ]
+  },
+  {
+   "name": "food:مستحلب احادي وثنايي كلسريد نباتي",
+   "count": 1,
+   "examples": [
+    "6111203007520"
+   ]
+  },
+  {
+   "name": "food:مغطى بالكراميل",
+   "count": 1,
+   "examples": [
+    "6111032006718"
+   ]
+  },
+  {
+   "name": "food:منكم ملون 1600 وفينا",
+   "count": 1,
+   "examples": [
+    "6111099003897"
+   ]
+  },
+  {
+   "name": "food:مواد حافظة",
+   "count": 1,
+   "examples": [
+    "5449000036872"
+   ]
+  },
+  {
+   "name": "food:مواد معدل",
+   "count": 1,
+   "examples": [
+    "6111184004730"
+   ]
+  },
+  {
+   "name": "food:يحفظ في البرودة بين 4 و 6 19 من المواد الدسمة",
+   "count": 1,
+   "examples": [
+    "6111206000733"
+   ]
+  }
+ ]
+}

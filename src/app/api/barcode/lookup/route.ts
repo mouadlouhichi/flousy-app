@@ -27,7 +27,10 @@ const OFF_HOSTS: readonly HostDefinition[] = [
 
 const CACHE_TTL_MS = 5 * 60_000;
 const CACHE_MAX = 100;
-const LOOKUPS_PER_MINUTE = 60;
+/** Set above a single shopper's rate: mobile carriers share one public IP
+ * across many subscribers, and a too-tight ceiling throttles ordinary users.
+ * Upstream Open-Facts calls remain the real constraint and are cached. */
+const LOOKUPS_PER_MINUTE = 120;
 const GLOBAL_DEADLINE_MS = 10_000;
 const SOURCE_WALK_BUDGET_MS = 6_500;
 const cache = new Map<string, { at: number; body: unknown }>();

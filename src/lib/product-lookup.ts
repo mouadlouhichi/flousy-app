@@ -2,13 +2,18 @@
 
 import type { RemoteProductInfo } from './course-session';
 import { detectLabelDomain } from './food-knowledge/domain';
-import type { ProductDomain, ProductSource } from './store';
+import type { NovaGroup, ProductDomain, ProductSource } from './store';
 import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
 export const PRODUCT_LOOKUP_FIELDS =
   'code,product_name,product_name_fr,product_name_en,product_name_ar,generic_name,abbreviated_product_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
   'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
-  'allergens_tags,nutriscore_grade,nutriscore_score,nutriscore_version,countries_tags,manufacturing_places';
+  'allergens_tags,nutriscore_grade,nutriscore_score,nutriscore_version,countries_tags,manufacturing_places,' +
+  // NOVA classifies foods by the extent and purpose of industrial processing
+  // (1 un/minimally processed … 4 ultra-processed). It is reported as an
+  // attributed source value: it never enters the label-signal grade, which is
+  // computed only from the printed wording.
+  'nova_group,nova_groups';
 
 const PLACEHOLDER_CATEGORIES = new Set([
   'incorrect product type',
@@ -131,6 +136,18 @@ export function mapOffProduct(
   const domain = inferred === 'unknown' ? defaultDomainForDatabase(database) : inferred;
   const beauty = domain === 'cosmetic';
 
+  // Open Food Facts exposes the NOVA group both as a number and as a
+  // human-readable "4 - Ultra processed…" string. Only the number is kept: the
+  // wording is rendered locally in the user's language, and string values are
+  // accepted because some regions return "4".
+  const novaGroup = (() => {
+    const raw = product.nova_group ?? product.nova_groups;
+    const value = typeof raw === 'string' ? Number(raw.trim().split(/[^0-9]/)[0]) : raw;
+    return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 4
+      ? value as NovaGroup
+      : undefined;
+  })();
+
   const gradeRaw = pick('nutriscore_grade', 8);
   const grade = gradeRaw && /^[a-e]$/i.test(gradeRaw) ? gradeRaw.toLowerCase() : undefined;
   const pointsRaw = product.nutriscore_score;
@@ -160,6 +177,7 @@ export function mapOffProduct(
     } } : {}),
     ...(ingredientsText ? { ingredientsText } : {}),
     ...(allergenTags?.length ? { allergenTags } : {}),
+    ...(novaGroup ? { novaGroup } : {}),
     domain,
     ...(beauty ? { beauty: true } : {}),
     source,

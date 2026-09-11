@@ -63,33 +63,67 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'gluten', 'blé', 'froment', 'wheat', 'seigle', 'rye', 'orge', 'barley',
       'avoine', 'oats', 'épeautre', 'spelt', 'kamut', 'triticale',
       'tarwe', 'rogge', 'haver', 'gerst',
-    ],
+    
+      'قمح',
+      'القمح',
+      'طحين القمح',
+      'دقيق القمح',
+      'فرينة',
+      'شعير',
+      'الشعير',
+      'شوفان',
+      'الشوفان',
+      'جاودار',
+      'خبز',
+      'جلوتين',
+      'الجلوتين',
+      'سميد',
+      'كسكس',],
     guard: [],
   },
   crustaceans: {
     terms: [
       'crevette', 'crevettes', 'shrimp', 'crabe', 'crab', 'langouste', 'lobster',
       'homard', 'écrevisse', 'crayfish', 'crustacés', 'crustacean', 'crustaceans',
-    ],
+    
+      'قريدس',
+      'القريدس',
+      'روبيان',
+      'الروبيان',
+      'جمبري',
+      'الجمبري',
+      'سلطعون',
+      'كركند',
+      'قشريات',],
     guard: [],
   },
   eggs: {
-    terms: ['œuf', 'oeuf', 'egg', 'eggs', 'ovo', 'albumine', 'albumen', 'ovoproduit', 'jaune d’œuf', 'ei', 'eieren', 'eigeel'],
+    terms: ['بيض', 'البيض', 'أصفر البيض', 'صفار البيض', 'بياض البيض', 'مسحوق البيض', 'œuf', 'oeuf', 'egg', 'eggs', 'ovo', 'albumine', 'albumen', 'ovoproduit', 'jaune d’œuf', 'ei', 'eieren', 'eigeel'],
     guard: [],
   },
   fish: {
     terms: [
       'poisson', 'fish', 'saumon', 'salmon', 'thon', 'tuna', 'cabillaud', 'cod',
       'anchois', 'anchovy', 'sardine', 'sardines', 'merlu', 'hake', 'truite', 'trout',
-    ],
+    
+      'سمك',
+      'السمك',
+      'تونة',
+      'التونة',
+      'سردين',
+      'السردين',
+      'سلمون',
+      'ماكريل',
+      'قد',
+      'أسماك',],
     guard: [],
   },
   peanuts: {
-    terms: ['arachide', 'arachides', 'cacahuète', 'cacahuete', 'peanut', 'peanuts'],
+    terms: ['فول سوداني', 'الفول السوداني', 'كاكاوية', 'arachide', 'arachides', 'cacahuète', 'cacahuete', 'peanut', 'peanuts'],
     guard: [],
   },
   soybeans: {
-    terms: ['soja', 'soya', 'soybean', 'soybeans', 'soy', 'tofu', 'edamame', 'sauce soja'],
+    terms: ['صوجا', 'الصوجا', 'صويا', 'فول الصويا', 'ليسيتين الصوجا', 'ليستين الصوجا', 'زيت الصوجا', 'soja', 'soya', 'soybean', 'soybeans', 'soy', 'tofu', 'edamame', 'sauce soja'],
     guard: [],
   },
   milk: {
@@ -100,7 +134,28 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'milk protein', 'yaourt', 'yogurt', 'yoghurt', 'fromage', 'cheese', 'crème fraîche',
       'creme fraiche', 'lait de vache', 'lait écrémé', 'lait entier', 'lait en poudre',
       'melk', 'weipoeder', 'wei', 'magere melkpoeder', 'volle melkpoeder',
-    ],
+    
+      'حليب',
+      'الحليب',
+      'لبن',
+      'قشدة',
+      'القشدة',
+      'قشطة',
+      'زبدة',
+      'الزبدة',
+      'جبن',
+      'جبنة',
+      'أجبان',
+      'الأجبان',
+      'مسحوق الحليب',
+      'بروتينات الحليب',
+      'مصل الحليب',
+      'لاكتوز',
+      'يوغورت',
+      'ياغورت',
+      'رايب',
+      'سمن',
+      'حليب مجفف',],
     guard: [
       'crème de riz', 'crème de marron', 'crème de coco', 'coconut cream',
       'lait de coco', 'coconut milk', 'lait d’amande', 'lait d amande', 'almond milk',
@@ -116,30 +171,41 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'noix du bresil', 'brazil nut', 'brazil nuts', 'noix de macadamia', 'macadamia',
       'macadamias', 'macadamia nut', 'macadamia nuts', 'queensland nut',
       'queensland nuts', 'noix de pacane',
-    ],
+    
+      'لوز',
+      'اللوز',
+      'بندق',
+      'البندق',
+      'جوز',
+      'الجوز',
+      'فستق',
+      'الفستق',
+      'كاجو',
+      'عين الجمل',
+      'بيكان',],
     guard: [
       'noix de coco', 'coconut', 'huile de coco', 'coco râpé', 'coco rape',
-      'noix de muscade',
+      'noix de muscade', 'جوز الهند', 'زيت جوز الهند', 'حليب جوز الهند',
     ],
   },
   celery: {
-    terms: ['céleri', 'celeri', 'celery', 'graines de céleri', 'celery seed', 'céleri-rave'],
+    terms: ['كرفس', 'الكرفس', 'céleri', 'celeri', 'celery', 'graines de céleri', 'celery seed', 'céleri-rave'],
     guard: [],
   },
   mustard: {
-    terms: ['moutarde', 'mustard', 'moutarde de dijon', 'graines de moutarde'],
+    terms: ['خردل', 'الخردل', 'موتارد', 'moutarde', 'mustard', 'moutarde de dijon', 'graines de moutarde'],
     guard: [],
   },
   sesame: {
-    terms: ['sésame', 'sesame', 'tahini', 'tahin', 'sesam'],
+    terms: ['سمسم', 'السمسم', 'جلجلان', 'طحينة', 'الطحينة', 'sésame', 'sesame', 'tahini', 'tahin', 'sesam'],
     guard: [],
   },
   sulphites: {
-    terms: ['sulfites', 'sulphites', 'sulfite', 'sulphite', 'sulfur dioxide', 'anhydride sulfureux', 'métabisulfite', 'metabisulfite'],
+    terms: ['سلفيت', 'سلفيتات', 'كبريتيت', 'ميتابيسلفيت', 'ثنائي أكسيد الكبريت', 'مواد كبريتية', 'sulfites', 'sulphites', 'sulfite', 'sulphite', 'sulfur dioxide', 'anhydride sulfureux', 'métabisulfite', 'metabisulfite'],
     guard: [],
   },
   lupin: {
-    terms: ['lupin', 'lupine', 'lupini'],
+    terms: ['ترمس', 'الترمس', 'lupin', 'lupine', 'lupini'],
     guard: [],
   },
   molluscs: {
@@ -148,7 +214,13 @@ const ALLERGEN_TERMS: Record<AllergenGroup, { terms: string[]; guard: string[] }
       'oyster', 'oysters', 'calamar', 'squid', 'seiche', 'cuttlefish', 'poulpe',
       'octopus', 'coquille saint-jacques', 'scallop', 'bigorneau', 'whelk', 'palourde',
       'clam',
-    ],
+    
+      'رخويات',
+      'محار',
+      'المحار',
+      'حلزون',
+      'أخطبوط',
+      'كاليماري',],
     guard: [],
   },
 };
@@ -199,16 +271,16 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E131', names: ['bleu patenté v', 'patent blue v'], band: 'watch', role: 'colour' },
   { e: 'E132', names: ['indigotine', 'carmin d’indigo', 'indigo carmine'], band: 'neutral', role: 'colour' },
   { e: 'E133', names: ['bleu brillant fcf', 'brilliant blue fcf'], band: 'neutral', role: 'colour' },
-  { e: 'E150', names: ['caramel', 'caramel e150', 'plain caramel'], band: 'neutral', role: 'colour' },
+  { e: 'E150', names: ['caramel', 'caramel e150', 'plain caramel', 'كراميل', 'كرامل', ], band: 'neutral', role: 'colour' },
   { e: 'E153', names: ['noir végétal', 'vegetable carbon'], band: 'neutral', role: 'colour' },
-  { e: 'E160', names: ['bêta-carotène', 'beta-carotene', 'carotènes'], band: 'neutral', role: 'colour' },
+  { e: 'E160', names: ['bêta-carotène', 'beta-carotene', 'carotènes', 'بيتا كاروتين', 'كاروتين', 'كاروتينات', 'carotenes', ], band: 'neutral', role: 'colour' },
   { e: 'E160b', names: ['rocou', 'annatto', 'norbixine', 'annatto norbixine'], band: 'neutral', role: 'colour' },
   { e: 'E171', names: ['dioxyde de titane', 'titanium dioxide', 'e171'], band: 'avoid', role: 'colour', notices: ['eu-banned'], note: 'No longer authorised as a food additive in the EU (2022).' },
   // Preservatives
-  { e: 'E200', names: ['acide sorbique', 'sorbic acid'], band: 'neutral', role: 'preservative' },
-  { e: 'E202', names: ['sorbate de potassium', 'potassium sorbate'], band: 'neutral', role: 'preservative' },
+  { e: 'E200', names: ['acide sorbique', 'sorbic acid', 'حمض السوربيك', 'حامض السوريك', ], band: 'neutral', role: 'preservative' },
+  { e: 'E202', names: ['sorbate de potassium', 'potassium sorbate', 'سوربات البوتاسيوم', 'سوريات البوتاسيوم', 'سوربات البوتاسيوم (e202)', ], band: 'neutral', role: 'preservative' },
   { e: 'E210', names: ['acide benzoïque', 'benzoic acid'], band: 'neutral', role: 'preservative' },
-  { e: 'E211', names: ['benzoate de sodium', 'sodium benzoate'], band: 'watch', role: 'preservative', note: 'EU reviewed; see Reg. 1333/2008 Annex II conditions.' },
+  { e: 'E211', names: ['benzoate de sodium', 'sodium benzoate', 'بنزوات الصوديوم', 'بنزوات الصوديوم (e211)', ], band: 'watch', role: 'preservative', note: 'EU reviewed; see Reg. 1333/2008 Annex II conditions.' },
   { e: 'E220', names: ['anhydride sulfureux', 'sulfur dioxide'], band: 'watch', role: 'preservative' },
   { e: 'E221', names: ['sulfite de sodium', 'sodium sulfite'], band: 'watch', role: 'preservative' },
   { e: 'E223', names: ['métabisulfite de sodium', 'sodium metabisulfite'], band: 'watch', role: 'preservative' },
@@ -218,7 +290,9 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E251', names: ['nitrate de sodium', 'sodium nitrate'], band: 'watch', role: 'preservative' },
   { e: 'E252', names: ['nitrate de potassium', 'potassium nitrate'], band: 'watch', role: 'preservative' },
   // Antioxidants
-  { e: 'E300', names: ['acide ascorbique', 'ascorbic acid', 'vitamine c'], band: 'neutral', role: 'antioxidant' },
+  // NB: "vitamin c"/"فيتامين ج" are intentionally not E300 aliases — on a label they are
+  // declared as nutrients (fortification rows), not as the additive ascorbic acid.
+  { e: 'E300', names: ['acide ascorbique', 'ascorbic acid', 'vitamine c', 'حمض الأسكوربيك'], band: 'neutral', role: 'antioxidant' },
   { e: 'E301', names: ['ascorbate de sodium', 'sodium ascorbate'], band: 'neutral', role: 'antioxidant' },
   { e: 'E304', names: ['palmitate d’ascorbyle', 'ascorbyl palmitate'], band: 'neutral', role: 'antioxidant' },
   { e: 'E306', names: ['extrait riche en tocophérols', 'tocopherol-rich extract'], band: 'neutral', role: 'antioxidant' },
@@ -227,15 +301,15 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E320', names: ['bha', 'butylhydroxyanisole'], band: 'watch', role: 'antioxidant' },
   { e: 'E321', names: ['bht', 'butylhydroxytoluène', 'butylhydroxytoluene'], band: 'watch', role: 'antioxidant' },
   // Emulsifiers / stabilisers / thickeners
-  { e: 'E322', names: ['lécithine', 'lecithin', 'lécithine de tournesol', 'lécithine de soja'], band: 'neutral', role: 'emulsifier' },
-  { e: 'E407', names: ['carraghénane', 'carrageenan', 'carraghénine'], band: 'watch', role: 'stabiliser' },
+  { e: 'E322', names: ['lécithine', 'lecithin', 'lécithine de tournesol', 'lécithine de soja', 'ليسيتين الصوجا', 'ليستين الصوجا', 'لسيتين الصوجا', 'ليسيتين', 'ليسيتين عباد الشمس', ], band: 'neutral', role: 'emulsifier' },
+  { e: 'E407', names: ['carraghénane', 'carrageenan', 'carraghénine', 'كاراجينان', 'كاراجينات', 'كاراگينان', 'كاراجينين', ], band: 'watch', role: 'stabiliser' },
   { e: 'E410', names: ['farine de graines de caroube', 'carob gum', 'gomme de caroube'], band: 'neutral', role: 'stabiliser' },
-  { e: 'E412', names: ['gomme de guar', 'guar gum'], band: 'neutral', role: 'thickener' },
-  { e: 'E415', names: ['gomme xanthane', 'xanthan gum'], band: 'neutral', role: 'thickener' },
-  { e: 'E440', names: ['pectine', 'pectin'], band: 'neutral', role: 'stabiliser' },
+  { e: 'E412', names: ['gomme de guar', 'guar gum', 'صمغ الغوار', 'صمغ غوار', ], band: 'neutral', role: 'thickener' },
+  { e: 'E415', names: ['gomme xanthane', 'xanthan gum', 'صمغ الزنتان', 'صمغ الزانثان', 'صمغ زنتان', ], band: 'neutral', role: 'thickener' },
+  { e: 'E440', names: ['pectine', 'pectin', 'بكتين', 'بكتين الفواكه', ], band: 'neutral', role: 'stabiliser' },
   { e: 'E460', names: ['cellulose', 'cellulose microcristalline'], band: 'neutral', role: 'stabiliser' },
   { e: 'E466', names: ['carboxyméthylcellulose', 'carboxymethylcellulose'], band: 'neutral', role: 'stabiliser' },
-  { e: 'E471', names: ['mono- et diglycérides d’acides gras', 'mono- and diglycerides of fatty acids', 'monoglycérides'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E471', names: ['mono- et diglycérides d’acides gras', 'mono- and diglycerides of fatty acids', 'monoglycérides', 'أحادي وثنائي كليسريد', 'أحادي وثنائي كليسريد نباتي', 'مونو وديجليسريد', 'mono-diglycerides', ], band: 'neutral', role: 'emulsifier' },
   { e: 'E481', names: ['stéaroyl-2-lactylate de sodium', 'sodium stearoyl lactylate'], band: 'neutral', role: 'emulsifier' },
   // Sweeteners / humectants
   { e: 'E420', names: ['sorbitol', 'sirop de sorbitol'], band: 'neutral', role: 'sweetener' },
@@ -250,16 +324,32 @@ const ADDITIVES: AdditiveDef[] = [
   { e: 'E270', names: ['acide lactique', 'lactic acid'], band: 'neutral', role: 'acidity' },
   { e: 'E296', names: ['acide malique', 'malic acid'], band: 'neutral', role: 'acidity' },
   { e: 'E297', names: ['acide fumarique', 'fumaric acid'], band: 'neutral', role: 'acidity' },
-  { e: 'E330', names: ['acide citrique', 'citric acid', 'citroenzuur'], band: 'neutral', role: 'acidity' },
-  { e: 'E331', names: ['citrate de sodium', 'sodium citrate'], band: 'neutral', role: 'acidity' },
+  { e: 'E330', names: ['acide citrique', 'citric acid', 'citroenzuur', 'حمض الستريك', 'حامض الستريك', 'حمض السيتريك', 'حمض الليمون', ], band: 'neutral', role: 'acidity' },
+  { e: 'E331', names: ['citrate de sodium', 'sodium citrate', 'سيترات الصوديوم', 'سترات الصوديوم', 'حمض الستريك الصوديوم', ], band: 'neutral', role: 'acidity' },
   { e: 'E332', names: ['citrate de potassium', 'potassium citrate'], band: 'neutral', role: 'acidity' },
-  { e: 'E500', names: ['carbonate de sodium', 'bicarbonate de sodium', 'sodium carbonate', 'sodium bicarbonate'], band: 'neutral', role: 'raising' },
-  { e: 'E503', names: ['carbonate d’ammonium', 'ammonium carbonate'], band: 'neutral', role: 'raising' },
+  { e: 'E500', names: ['carbonate de sodium', 'bicarbonate de sodium', 'sodium carbonate', 'sodium bicarbonate', 'بيكربونات الصوديوم', 'بيكربونات الصودا', 'كربونات الصوديوم', ], band: 'neutral', role: 'raising' },
+  { e: 'E503', names: ['carbonate d’ammonium', 'ammonium carbonate', 'بيكربونات الأمونيوم', 'كربونات الأمونيوم', 'bicarbonate d’ammonium', 'ammonium bicarbonate', ], band: 'neutral', role: 'raising' },
   { e: 'E621', names: ['glutamate monosodique', 'monosodium glutamate', 'msg', 'mononatriumglutamaat'], band: 'watch', role: 'flavour-enhancer' },
   { e: 'E627', names: ['natriumguanylaat', 'disodium guanylate', 'guanylate disodique'], band: 'watch', role: 'flavour-enhancer' },
   { e: 'E631', names: ['dinatriuminosinaat', 'disodium inosinate', 'inosinate disodique'], band: 'watch', role: 'flavour-enhancer' },
   { e: 'E901', names: ['cire d’abeille', 'beeswax'], band: 'neutral', role: 'glazing' },
   { e: 'E904', names: ['gomme laque', 'shellac'], band: 'neutral', role: 'glazing' },
+  { e: 'E338', names: ['acide phosphorique', 'phosphoric acid', 'حمض الفوسفوريك'], band: 'neutral', role: 'acidity' },
+  { e: 'E339', names: ['phosphates de sodium', 'sodium phosphates', 'فوسفات الصوديوم', 'orthophosphates de sodium'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E341', names: ['phosphates de calcium', 'calcium phosphates', 'فوسفات الكالسيوم', 'فوسفات ثلاثي الكالسيوم'], band: 'neutral', role: 'other' },
+  { e: 'E385', names: ['calcium disodium edta', 'calcium disodium ethylenediaminetetraacetate', 'edta calcium disodique', 'كالسيوم دي صوديوم edta'], band: 'neutral', role: 'preservative' },
+  { e: 'E414', names: ['gomme arabique', 'gum arabic', 'acacia gum', 'صمغ عربي', 'صمغ الأكاسيا'], band: 'neutral', role: 'thickener' },
+  { e: 'E445', names: ['esters glycériques de résine de bois', 'glycerol esters of wood rosin', 'إسترات الجلسرين'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E450', names: ['diphosphates', 'pyrophosphates', 'pyrophosphate acide de sodium', 'بيروفوسفات', 'ثنائي الفوسفاط', 'أملاح مستحلبة'], band: 'neutral', role: 'raising' },
+  { e: 'E451', names: ['triphosphates', 'triphosphate de sodium', 'ثلاثي الفوسفات'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E452', names: ['polyphosphates', 'متعدد الفوسفات', 'متعدد الفوسفاط', 'بولي فوسفات'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E472e', names: ['esters monoacétyltartriques', 'mono- and diacetyl tartaric acid esters', 'e472e'], band: 'neutral', role: 'emulsifier' },
+  { e: 'E282', names: ['propionate de calcium', 'calcium propionate'], band: 'neutral', role: 'preservative' },
+  { e: 'E234', names: ['nisine', 'nisin'], band: 'neutral', role: 'preservative' },
+  { e: 'E1422', names: ['amidon modifié acétylé', 'acetylated distarch adipate', 'نشا معدل'], band: 'neutral', role: 'stabiliser' },
+  { e: 'E1442', names: ['amidon hydroxypropylé', 'hydroxypropyl distarch phosphate', 'نشا معدل (e1442)'], band: 'neutral', role: 'stabiliser' },
+  { e: 'E1450', names: ['amidon modifié', 'starch sodium octenyl succinate', 'نشا معدل (e1450)'], band: 'neutral', role: 'stabiliser' },
+  { e: 'E491', names: ['monostéarate de sorbitane', 'sorbitan monostearate'], band: 'neutral', role: 'emulsifier' },
 ];
 
 const ADDITIVE_BY_CODE = new Map<string, AdditiveDef>();
@@ -304,12 +394,24 @@ export function lookupAdditives(folded: string): AdditiveHit[] {
       at = hay.indexOf(alias, at + 1);
     }
   }
-  const eMatch = hay.match(/(^|\s)(e\d{3,4}[a-z]?)(\s|$)/);
-  if (eMatch) {
-    const def = ADDITIVE_BY_CODE.get(eMatch[2].toLowerCase());
-    if (def) {
-      found.push({ at: eMatch.index ?? 0, len: eMatch[2].length, def });
+  // Every E code in the token, in label order. Moroccan and French labels
+  // routinely list several in one parenthetical — "(E452، E341، E450)" — where
+  // an Arabic comma separates them, so whitespace boundaries are not enough.
+  for (const match of hay.matchAll(/(?<![\p{L}\p{N}])e\d{3,4}[a-z]{0,2}(?![\p{L}\p{N}])/gu)) {
+    const raw = match[0].toLowerCase();
+    // "E160a"/"E500ii" name a subgroup of a registered additive. Fall back to
+    // the parent entry so a label that does disclose its additive is not
+    // reported as unknown (nor mistaken for vague "colour" wording).
+    let candidate = raw;
+    let def: AdditiveDef | undefined;
+    while (candidate.length > 1) {
+      def = ADDITIVE_BY_CODE.get(candidate);
+      if (def) break;
+      const shorter = candidate.replace(/[a-z]+$/, '');
+      if (shorter === candidate) break;
+      candidate = shorter;
     }
+    if (def) found.push({ at: match.index ?? 0, len: raw.length, def });
   }
   found.sort((a, b) => a.at - b.at || b.len - a.len);
   const seen = new Set<string>();
@@ -349,7 +451,7 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['caséine', 'casein', 'lactose', 'protéines de lait'], family: 'dairy', allergens: ['milk'], roles: ['protein'] },
   { keys: ['ferments lactiques', 'lactic ferments', 'bactéries lactiques', 'ferments', 'cultures lactiques', 'lactic cultures'], family: 'culture', roles: ['ferment'], note: 'Live lactic bacteria used to acidify and flavour fermented dairy.' },
   { keys: ['présure', 'rennet', 'enzyme coagulante', 'coagulating enzyme'], family: 'other', roles: ['enzyme'], note: 'Coagulating enzyme (traditionally calf rennet, now often microbial).' },
-  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'sel iodé', 'iodised salt', 'iodized salt', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride', 'zout', 'keukenzout', 'zeezout', 'ملح'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
+  { keys: ['sel', 'sel de mer', 'sel fin', 'sel gemme', 'sel iodé', 'iodised salt', 'iodized salt', 'salt', 'sea salt', 'chlorure de sodium', 'sodium chloride', 'zout', 'keukenzout', 'zeezout', 'sal', 'sal marina', 'ملح'], family: 'salt', roles: ['seasoning'], note: 'Sodium chloride; seasoning and preservation.' },
   { keys: ['sucre', 'sucre blanc', 'sugar', 'saccharose', 'suiker', 'witte suiker', 'سكر'], family: 'sugar', roles: ['sweetener'], note: 'Sucrose.' },
   { keys: ['sucre de canne', 'cane sugar'], family: 'sugar', roles: ['sweetener'] },
   { keys: ['glucose', 'glucose syrup', 'sirop de glucose', 'dextrose', 'fructose'], family: 'sugar', roles: ['sweetener'] },
@@ -428,9 +530,66 @@ const ROWS: FoodKnowledgeRow[] = [
   { keys: ['café', 'coffee', 'قهوة', 'extrait de café', 'coffee extract'], family: 'other', roles: ['flavour'], note: 'Coffee; source of caffeine.' },
   { keys: ['chicorée', 'chicory', 'chicoree'], family: 'fruit-veg', roles: ['flavour'], note: 'Chicory root; common coffee extender.' },
   { keys: ['extrait de malt', 'malt extract', 'orge maltée', 'malted barley'], family: 'cereal', roles: ['flavour'], note: 'Malt extract from germinated barley.' },
-];
+// --- Arabic (Moroccan label) and Spanish (import) layer ----------------------
+// A large share of Moroccan products print their ingredient list in Arabic,
+// and imported lines print Spanish; without these rows those labels scored
+// "0 recognized" and could not be ranked at all. Arabic nouns are listed with
+// and without the definite article because row matching is word-boundary
+// based and "الحليب" is a different string from "حليب".
+{ keys: ['حليب', 'الحليب', 'حليب كامل الدسم', 'حليب نصف دسم', 'حليب شبه منزوع الدسم', 'حليب بدون قشدة', 'حليب منزوع الدسم', 'حليب خالي من الدسم', 'حليب مبستر', 'حليب معقم', 'حليب مجفف', 'حليب مركب', 'حليب طري', 'حليب طازج', 'لبن'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
+{ keys: ['مسحوق الحليب', 'مسحوق الحليب بدون قشدة', 'حليب مجفف منزوع الدسم', 'مسحوق الحليب المنزوع'], family: 'dairy', allergens: ['milk'], roles: ['base', 'dry'] },
+{ keys: ['قشدة', 'القشدة', 'قشطة', 'قشطة الحليب', 'كريمة', 'كريم'], family: 'dairy', allergens: ['milk'], roles: ['fat'] },
+{ keys: ['زبدة', 'الزبدة', 'سمن', 'سمنة', 'دهن حليبي'], family: 'dairy', allergens: ['milk'], roles: ['fat'] },
+{ keys: ['جبن', 'جبنة', 'أجبان', 'الأجبان', 'جبن أبيض', 'جبن مذوب', 'جبنة مذوبة', 'جبن شيدر', 'شيدر'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
+{ keys: ['بروتينات الحليب', 'بروتين الحليب', 'مصل الحليب', 'مسحوق مصل الحليب', 'لاكتوز', 'اللاكتوز'], family: 'dairy', allergens: ['milk'], roles: ['protein'] },
+{ keys: ['يوغورت', 'ياغورت', 'زبادي', 'رايب', 'حليب مخمر', 'منتوج حليبي'], family: 'dairy', allergens: ['milk'], roles: ['culture'] },
+{ keys: ['خمائر حليبية', 'الخمائر اللبنية', 'خميرة', 'خمائر', 'تخمير الكفير', 'خمائر الكفير', 'بكتيريا', 'بروبيوتيك'], family: 'culture', roles: ['ferment'] },
+{ keys: ['زيت', 'الزيت', 'زيوت', 'زيوت نباتية', 'زيوت نباتية مصفاة', 'زيت الزيتون', 'زيت زيتون', 'زيت عباد الشمس', 'زيت الصوجا', 'زيت الذرة', 'زيت الكانولا', 'زيت نباتي', 'دهون نباتية', 'دهن نباتي', 'مادة دهنية نباتية', 'مادة دهنية حليبية', 'مادة دسمة نباتية', 'مادة دسمة', 'مواد دسمة', 'مواد دهنية', 'دهون حليبية', 'شحم نباتي', 'مارغرين', 'مرغرين'], family: 'fat-oil', roles: ['fat'] },
+{ keys: ['ماء معدني', 'ماء الشرب', 'ماء مصفى', 'مياه'], family: 'water', roles: ['base'] },
+{ keys: ['السكر', 'سكر القصب', 'سكر ابيض', 'مسحوق السكر'], family: 'sugar', roles: ['sweetener'] },
+{ keys: ['محليات', 'محلي', 'شراب الجلوكوز', 'مالتوديكسترين', 'مالتودكسترين', 'دكستروز'], family: 'sugar', roles: ['sweetener'] },
+{ keys: ['الملح', 'ملح الطعام', 'ملح غذائي', 'كلورور الصوديوم'], family: 'salt', roles: ['seasoning'] },
+{ keys: ['دقيق', 'طحين', 'فرينة', 'قمح', 'القمح', 'دقيق القمح', 'طحين القمح', 'خبز', 'شعير', 'شوفان', 'ذرة', 'أرز', 'سميد', 'نشا', 'نشا الذرة', 'نشا معدل'], family: 'cereal', roles: ['base'] },
+{ keys: ['طماطم مركزة', 'معجون الطماطم', 'تفاح', 'موز', 'فراولة', 'فريز', 'مشمش', 'برتقال', 'ليمون', 'خوخ', 'عنب', 'زبيب', 'أناناس', 'مانجو', 'كيوي', 'إجاص'], family: 'fruit-veg', roles: ['base'] },
+{ keys: ['بصل', 'ثوم', 'جزر', 'بطاطا', 'بطاطس', 'فلفل', 'فلفل أحمر', 'فلفل حلو', 'زيتون', 'خيار', 'سبانخ'], family: 'fruit-veg', roles: ['base'] },
+{ keys: ['لحم', 'اللحم', 'دجاج', 'الدجاج', 'بقر', 'لحم البقر', 'ديك رومي', 'نقانق', 'مرتديلا'], family: 'meat-fish', roles: ['protein'] },
+{ keys: ['سمك', 'السمك', 'تونة', 'التونة', 'سردين', 'السردين', 'سلمون', 'أسماك', 'ثون'], family: 'meat-fish', allergens: ['fish'], roles: ['protein'] },
+{ keys: ['عدس', 'حمص', 'فول', 'فاصوليا', 'لوبيا', 'فول الصويا', 'بازلاء'], family: 'legume', roles: ['protein'] },
+{ keys: ['لوز', 'اللوز', 'بندق', 'البندق', 'جوز', 'الجوز', 'فستق', 'الفستق', 'كاجو', 'عين الجمل', 'سمسم', 'جلجلان', 'بذور عباد الشمس', 'بذور الكتان', 'شيا'], family: 'nut-seed', roles: ['fat', 'protein'] },
+{ keys: ['بيض', 'البيض', 'أصفر البيض', 'صفار البيض', 'بياض البيض'], family: 'egg', allergens: ['eggs'], roles: ['binder'] },
+{ keys: ['كاكاو', 'الكاكاو', 'شوكولاتة', 'الشوكولاتة', 'شوكولاط', 'رقائق الشوكولاته', 'زبدة الكاكاو'], family: 'other', roles: ['flavour'] },
+{ keys: ['القهوة', 'حبوب القهوة', 'قهوة سريعة التحضير', 'شاي', 'الشاي', 'شاي أخضر', 'شاي اسود', 'أتاي',
+    'green tea', 'black tea', 'tea', 'the vert', 'the noir', 'cafe soluble', 'soluble coffee', 'instant coffee'],
+    family: 'other', roles: ['stimulant'], note: 'Coffee and tea; caffeine-bearing infusions.' },
+// NB: "flavour enhancer(s)" is deliberately not a row — it is a functional
+  // class the rubric treats as vague, and a key of "flavor" would prefix-match
+  // "flavor enhancers" and hide that vagueness. Only the declared ingredient
+  // category itself ("arome", "aroma", "نكهة") belongs here.
+  { keys: ['نكهة', 'نكهات', 'نكهة طبيعية', 'arome', 'aromes', 'aroma', 'aromas', 'vanilline', 'vanillina'], family: 'other', roles: ['flavouring'] },
+{ keys: ['الخل', 'خل المائدة', 'خل التفاح', 'vinaigre de table'], family: 'other', roles: ['acid'] },
+{ keys: ['خردل', 'الخردل', 'moutarde', 'mostaza'], family: 'herb-spice', allergens: ['mustard'], roles: ['condiment'] },
+{ keys: ['عسل', 'العسل'], family: 'sugar', roles: ['sweetener', 'natural'] },
+{ keys: ['كالسيوم', 'الكالسيوم', 'حديد', 'فيتامين', 'فيتامينات', 'vitamins', 'vitamine', 'vitamines', 'calcium', 'fer', 'manganese', 'magnésium', 'magnesium', 'potassium', 'sodium', 'zinc', 'phosphore'], family: 'other', roles: ['fortification'] },
+{ keys: ['صمغ', 'صمغ الزنتان', 'صمغ الزانثان', 'صمغ الغوار', 'صمغ عربي', 'أغار', 'علكة', 'بكتين', 'كاراجينان', 'كاراجينات', 'كاراگينان'], family: 'other', roles: ['texture'] },
+{ keys: ['fraises', 'fraises des bois', 'strawberries', 'tomates', 'tomatoes'], family: 'fruit-veg', roles: ['base'] },
+{ keys: ['maquereaux', 'sardines'], family: 'meat-fish', allergens: ['fish'], roles: ['protein'] },
+{ keys: ['ferment lactique', 'presure', 'culture lactique', 'bifidobacterium', 'bifidus', 'lactobacillus'], family: 'culture', roles: ['ferment'] },
+{ keys: ['matière grasse laitière', 'matiere grasse laitiere', 'matière grasse végétale', 'matiere grasse vegetale', 'corps gras végétal', 'corps gras vegetal', 'graisse végétale', 'graisse vegetale', 'crème de lait', 'creme de lait'], family: 'fat-oil', roles: ['fat'] },
+{ keys: ['sels de fonte', 'sel de fonte', 'emulsifying salts', 'sels émulsifiants', 'sel émulsifiant', 'phosphate', 'phosphates', 'polyphosphates', 'citrate', 'citrates'], family: 'other', roles: ['emulsifier', 'texture'] },
+{ keys: ['caféine', 'cafeine', 'caffeine'], family: 'other', roles: ['stimulant'] },
+{ keys: ['fromages', 'fromage fondu', 'cheeses', 'processed cheese'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
+// Spanish imports (Moroccan shelves carry Spanish-labelled lines)
+{ keys: ['azucar', 'azúcar'], family: 'sugar', roles: ['sweetener'] },
+  { keys: ['leche', 'leche en polvo', 'leche desnatada en polvo', 'queso', 'nata', 'mantequilla'], family: 'dairy', allergens: ['milk'], roles: ['base'] },
+  { keys: ['aceite de girasol', 'aceite de nabina', 'grasa de palma', 'grasa vegetal', 'manteca de cacao'], family: 'fat-oil', roles: ['fat'] },
+  { keys: ['harina de trigo', 'almidon', 'almidón de trigo', 'arroz', 'maiz', 'maíz', 'galleta', 'galletas'], family: 'cereal', roles: ['base'] },
+  { keys: ['atun', 'atún', 'pescado'], family: 'meat-fish', allergens: ['fish'], roles: ['protein'] },
+  { keys: ['huevo'], family: 'egg', allergens: ['eggs'], roles: ['binder'] },
+  { keys: ['cacao magro en polvo', 'cacao desgrasado en polvo', 'mayonesa'], family: 'other', roles: ['flavour'] },
+{ keys: ['املاح معدنية', 'أملاح معدنية', 'jarabe de glucosa', 'jarabe de glucosa y fructosa', 'gasificantes', 'levadura', 'suero', 'suero lacteo', 'lactosa', 'proteina', 'proteinas', 'fibra alimentaria', 'extracto de malta', 'aroma natural', 'aromas naturales', 'sal mineral'], family: 'other', roles: ['ingredient'] },];
 
 /** Boundary-safe matching keys → row (longest key wins). */
+
 const ROW_KEYS = ROWS.flatMap((row) => row.keys.map((k) => ({ key: foldForMatch(k), row }))).sort(
   (a, b) => b.key.length - a.key.length,
 );
@@ -466,11 +625,12 @@ const UNSPECIFIED_CLASS_TERMS: Record<FoodUnspecifiedClass, readonly string[]> =
   ],
   colour: [
     'colour', 'color', 'colouring', 'coloring', 'colourant', 'colorant',
-    'colorant alimentaire', 'kleurstof',
+    'colorant alimentaire', 'kleurstof', 'ملون', 'ملونات', 'ملون طبيعي', 'صبغة', 'صبغات',
   ],
   'food-acid': [
     'food acid', 'food acids', 'acidity regulator', 'acidity regulators',
     'acidulant', 'acidulants', 'acidifiant', 'acidifiants', 'voedingszuur',
+    'محمض', 'محمضات', 'منظم الحموضة', 'مصحح الحموضة',
   ],
   'protein-source': [
     'protein', 'proteins', 'protein source', 'source of protein', 'proteine',
@@ -479,17 +639,28 @@ const UNSPECIFIED_CLASS_TERMS: Record<FoodUnspecifiedClass, readonly string[]> =
   preservative: [
     'preservative', 'preservatives', 'conservateur', 'conservateurs',
     'conservateur alimentaire', 'conservateurs alimentaires', 'preservatief',
+    'مادة حافظة', 'مواد حافظة', 'حافظة', 'حافظات', 'عامل الحفظ',
   ],
   antioxidant: [
     'antioxidant', 'antioxidants', 'antioxydant', 'antioxydants',
+    'مضادات الأكسدة', 'مضاد الأكسدة', 'مضاد للأكسدة',
   ],
   stabiliser: [
     'stabiliser', 'stabilisers', 'stabilizer', 'stabilizers',
-    'stabilisant', 'stabilisants', 'stabilisator',
+    'stabilisant', 'stabilisants', 'stabilisator', 'مثبت', 'مثبتات',
+  ],
+  thickener: [
+    'thickener', 'thickeners', 'epaississant', 'epaississants',
+    'gelifiant', 'gelifiants', 'gelling agent', 'gelling agents',
+    'verdikkingsmiddel', 'مخثر', 'مخثرات', 'مكثف', 'مثخن',
+  ],
+  emulsifier: [
+    'emulsifier', 'emulsifiers', 'emulsifiant', 'emulsifiants',
+    'emulgator', 'املاح مستحلبة', 'أملاح مستحلبة', 'مستحلب', 'مستحلبات',
   ],
   sweetener: [
     'sweetener', 'sweeteners', 'edulcorant', 'edulcorants',
-    'edulcorant de table', 'zoetstof', 'zoetstoffen',
+    'edulcorant de table', 'zoetstof', 'zoetstoffen', 'محليات', 'محلي', 'محلى',
   ],
 };
 

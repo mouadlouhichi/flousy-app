@@ -78,6 +78,8 @@ export type FoodUnspecifiedClass =
   | 'preservative'
   | 'antioxidant'
   | 'stabiliser'
+  | 'thickener'
+  | 'emulsifier'
   | 'sweetener';
 
 export interface AllergenHit {

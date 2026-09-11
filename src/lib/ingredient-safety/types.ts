@@ -31,6 +31,7 @@ export type EvidenceKind =
   | 'comfort'
   | 'historical'
   | 'identity'
+  | 'hazard-assessment'
   | 'external';
 
 export type Applicability = 'applies' | 'does-not-apply' | 'conditions-unknown';
@@ -174,8 +175,24 @@ export interface ParserSummary {
   diagnostics: ParserDiagnostic[];
 }
 
+/**
+ * Why a numeric index is or is not published.
+ *
+ * `available-with-unresolved-conditions` is the ordinary case for a real
+ * cosmetic: EU positive/restricted lists carry concentration and product-type
+ * conditions that an ingredient list cannot resolve. The index is published
+ * with a mandatory caveat and reduced confidence rather than being withheld,
+ * because withholding it for the presence of an ordinary preservative made the
+ * feature unscoreable in practice.
+ *
+ * Withholding is reserved for the cases where publishing a number would be
+ * misleading: no ingredients, an unreviewed/invalid parse, an unknown product
+ * form, an unresolved Annex II (prohibited-list) exception, or a list the dated
+ * corpus cannot describe at all.
+ */
 export type ScoreStatus =
   | 'available'
+  | 'available-with-unresolved-conditions'
   | 'withheld-invalid-parse'
   | 'withheld-review-required'
   | 'withheld-form-unknown'
