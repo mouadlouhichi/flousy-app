@@ -20,6 +20,7 @@ import { ScoreRing } from './courses-score-ring';
 import { BAND_LABEL_KEY, BAND_STYLE } from './courses-ingredient-glance';
 import { LabelOcrButton } from './label-ocr-button';
 import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
+import type { NovaGroup } from '@/lib/store';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -45,6 +46,8 @@ interface CoursesFoodPanelProps {
   category?: string;
   /** Trusted OFF allergen tags used only as a cross-check. */
   offAllergenTags?: string[];
+  /** NOVA processing group reported by Open Food Facts (1–4), if any. */
+  offNovaGroup?: NovaGroup;
 }
 
 const FAMILY_KEY: Record<FoodFamily, string> = {
@@ -78,6 +81,22 @@ const UNSPECIFIED_CLASS_KEY: Record<FoodUnspecifiedClass, string> = {
   sweetener: 'unspecifiedSweetener',
 };
 
+/** NOVA processing group labels, 1 = least processed … 4 = ultra-processed. */
+export const NOVA_LABEL_KEY: Record<NovaGroup, string> = {
+  1: 'novaGroup1',
+  2: 'novaGroup2',
+  3: 'novaGroup3',
+  4: 'novaGroup4',
+};
+
+/** Tone per group: 4 is the only group the chip warns about. */
+export const NOVA_TONE: Record<NovaGroup, 'additive' | 'concern' | 'allergen'> = {
+  1: 'additive',
+  2: 'additive',
+  3: 'allergen',
+  4: 'concern',
+};
+
 const CONCERN_LABEL_KEY: Record<FoodConcernCode, string> = {
   'partially-hydrogenated-oil': 'concernPartiallyHydrogenatedOil',
 };
@@ -92,6 +111,7 @@ export function CoursesFoodPanel({
   name,
   category,
   offAllergenTags,
+  offNovaGroup,
 }: CoursesFoodPanelProps) {
   const { messages: m, t, language } = useLanguage();
   const g = m.foodKnowledge;
@@ -248,7 +268,7 @@ export function CoursesFoodPanel({
         </div>
       )}
 
-      {analysis && <FoodKnowledgeBody analysis={analysis} />}
+      {analysis && <FoodKnowledgeBody analysis={analysis} novaGroup={offNovaGroup} />}
       {pending.status === 'ready' && !analysis && (
         <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">{g.unavailable}</p>
       )}
@@ -271,7 +291,7 @@ const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
 };
 
 /** Exported pure body — shared by the course panel and the standalone screen. */
-export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
+export function FoodKnowledgeBody({ analysis, novaGroup }: { analysis: FoodAnalysis; novaGroup?: NovaGroup }) {
   const { messages: m, t } = useLanguage();
   const g = m.foodKnowledge;
   const ig = m.ingredientGlance;
@@ -379,6 +399,27 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
             </div>
           )}
           <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.gradeTooltip}</p>
+        </section>
+      )}
+
+      {/* Ultra-processing (NOVA) — an attributed source value, kept apart from
+          the label-signal grade above: the grade is reproducible from the
+          printed wording, while NOVA depends on how the product was made. */}
+      {novaGroup && (
+        <section className="rounded-xl border border-outline-variant bg-surface/50 p-3">
+          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="science" className="size-4 text-on-surface-variant" />
+            {g.novaTitle}
+          </h4>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Chip tone={NOVA_TONE[novaGroup]}>
+              {t(g.novaGroupLabel, { group: novaGroup })}
+            </Chip>
+            <span className="font-label-sm text-label-sm text-on-surface">
+              {g[NOVA_LABEL_KEY[novaGroup] as keyof typeof g]}
+            </span>
+          </div>
+          <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.novaNote}</p>
         </section>
       )}
 

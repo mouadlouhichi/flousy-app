@@ -96,6 +96,33 @@ label scoring **better** (94 vs 85) purely because it omitted E-numbers:
 - presentation follows the cosmetic side: the ring and chips show the risk
   direction (`100 − index`, higher = riskier) with risk-worded band labels.
 
+### NOVA processing group (2026-09-nova-v1)
+
+Open Food Facts reports a **NOVA group** (1 unprocessed or minimally
+processed … 4 ultra-processed food or drink) for many products. It is fetched
+(`nova_group`, `nova_groups`), persisted on the product document, on expense
+attachments and on session lines, and rendered by the food panel as its own
+section: a `NOVA {group}` chip, the group's label, and a note naming the
+source.
+
+NOVA is **not** part of the label-signal grade and never will be by mixing:
+
+- the grade is reproducible from the printed wording alone (additives,
+  concerns, vague classes, recognition coverage) — the same input always
+  yields the same number on any device;
+- NOVA depends on how the product was *made*, which a printed ingredient list
+  cannot establish, and it is a single attributed value in a third-party
+  record rather than an auditable local derivation.
+
+Mixing them would make the ring unreproducible and would let a provider field
+silently move a number the UI presents as computed from the label. The two are
+therefore shown side by side, each labelled with what it is: the ring is the
+label-signal index, the chip is a source-reported classification.
+
+Only values 1–4 are accepted; anything else (`0`, `5`, `"unknown"`, `""`, a
+fraction, an object) is dropped rather than defaulted, at the mapper, in the
+Firestore rules and in the backup parser.
+
 ### Yuka-style risk ring + vitamins (2026-09-food-v6)
 
 Product-owner direction: the expanded food panel must lead with the same

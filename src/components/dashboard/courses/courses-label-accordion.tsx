@@ -48,6 +48,8 @@ interface CoursesLabelAccordionProps {
   ingredientsProvenance?: ProductFieldProvenance;
   domain?: import('@/lib/store').ProductDomain;
   allergenTags?: string[];
+  /** NOVA processing group reported by the source (1–4); informational only. */
+  novaGroup?: import('@/lib/store').NovaGroup;
   form?: ProductForm;
   onFormChange?: (form: ProductForm) => void;
   /** Source hint that the record is cosmetic/beauty even when name/category
@@ -70,6 +72,7 @@ export function CoursesLabelAccordion({
   ingredientsProvenance,
   domain: explicitDomain,
   allergenTags,
+  novaGroup,
   form,
   onFormChange,
   beauty,
@@ -407,6 +410,7 @@ export function CoursesLabelAccordion({
               name={labelName}
               category={category}
               offAllergenTags={allergenTags}
+              offNovaGroup={novaGroup}
             />
           )}
         </div>

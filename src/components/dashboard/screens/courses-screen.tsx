@@ -20,6 +20,7 @@ import {
   type AssessmentOrigin,
   type CourseSession,
   type MoneyPlace,
+  type NovaGroup,
   type ProductDomain,
   type ProductFieldProvenance,
   type ProductRanking,
@@ -68,6 +69,8 @@ interface PendingProduct {
   form?: ProductForm;
   domain?: ProductDomain;
   allergenTags?: string[];
+  /** NOVA processing group from the source (1–4); informational only. */
+  novaGroup?: NovaGroup;
   productSource?: ProductSource;
   provenance?: Record<string, ProductFieldProvenance>;
   sourceUrl?: string;
@@ -293,6 +296,7 @@ function CoursesScreenInner() {
           form: product.cosmeticForm,
           domain: product.domain,
           allergenTags: product.allergenTags,
+          novaGroup: product.novaGroup,
           productSource: product.source,
           provenance: product.provenance,
           sourceUrl: product.sourceUrl,
@@ -318,6 +322,7 @@ function CoursesScreenInner() {
               form: current.form ?? fresh.cosmeticForm,
               domain: fresh.domain,
               allergenTags: fresh.allergenTags ?? current.allergenTags,
+              novaGroup: fresh.novaGroup ?? current.novaGroup,
               productSource: fresh.source,
               provenance: fresh.provenance ?? current.provenance,
               sourceUrl: fresh.sourceUrl ?? current.sourceUrl,
@@ -405,6 +410,7 @@ function CoursesScreenInner() {
       domain: pending.domain,
       cosmeticForm: pending.form,
       allergenTags: pending.allergenTags,
+      novaGroup: pending.novaGroup,
       quantity: pending.quantity,
       provenance: effectiveProvenance,
       sourceUrl: pending.sourceUrl,
@@ -433,6 +439,7 @@ function CoursesScreenInner() {
         domain: pending.domain,
         cosmeticForm: pending.form,
         allergenTags: pending.allergenTags,
+        novaGroup: pending.novaGroup,
         ranking: pending.ranking,
         beauty: pending.beauty,
         source: pending.productSource ?? (pending.source === 'manual' ? 'manual' : 'off'),
@@ -1280,6 +1287,7 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         ingredientsProvenance={pending.provenance?.ingredientsText}
         domain={pending.domain}
         allergenTags={pending.allergenTags}
+        novaGroup={pending.novaGroup}
         form={pending.form}
         onFormChange={onFormChange}
         beauty={pending.beauty}

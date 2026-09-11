@@ -43,7 +43,7 @@ Probes were run against the committed corpora (33,116 identity rows; 2,385 annex
 | Distinguishes authorised-with-conditions from a restriction | partial | partial | ✖ **every preservative cost 45 pts as a "restriction"** | ✔ positive lists = `watch`, restrictions = `restricted`, resolved form conflicts flagged |
 | Allergen / fragrance disclosure | ✔ | ✔ | ✔ | ✔ unchanged |
 | Nutri-Score on food | ✔ | n/a | ✔ (ranking chip) | ✔ unchanged |
-| NOVA / ultra-processing on food | ✔ | n/a | ✖ | ✖ — [recommended, not blocking](#7-still-open-before-and-after-go-live) |
+| NOVA / ultra-processing on food | ✔ | n/a | ✖ | ✔ — shipped as `2026-09-nova-v1` (attributed chip, kept out of the grade) |
 | Works with no network | ✔ (cached) | ✖ | ✖ | ✖ but now **explained**: offline/429/5xx/timeout are distinct, actionable states with retry |
 | Failure states are distinguishable | ✔ | ✔ | ✖ one generic "unavailable" | ✔ offline · rate-limited · service · timeout · invalid |
 | Score cannot be mistaken for a safety verdict | ✔ | ✔ | ✔ | ✔ unchanged (caveat on every panel) |
@@ -185,6 +185,9 @@ still withhold exactly as before.
 | Rate limits | `src/app/api/{inci/analyze,inci/lookup,food/analyze,barcode/lookup}/route.ts` |
 | Deployment tracing | `next.config.mjs` |
 | Release guard | `scripts/verify-ingredient-data.mjs`, `package.json` (`verify:data`, wired into `check`) |
+| NOVA fetch, mapping and validation | `src/lib/product-lookup.ts` |
+| NOVA persistence (product / attachment / session line) and merge | `src/lib/store.ts`, `src/lib/course-session.ts`, `src/lib/scan-resolution.ts`, `src/lib/finance-backup.ts`, `firestore.rules` |
+| NOVA chip in the food panel | `src/components/dashboard/courses/courses-food-panel.tsx`, `courses-label-accordion.tsx`, `screens/{courses-screen,knowledge-screen}.tsx` |
 | Copy for the new states (en/fr/ar) | `messages/*.json` |
 | Regression + source-contract tests | `tests/ingredient-safety.test.ts`, `tests/ingredient-analysis-client.test.ts`, `tests/render/ingredient-glance.test.tsx` |
 | Methodology | `docs/COSMETIC_INGREDIENT_SCORING.md` |
@@ -209,7 +212,10 @@ Test coverage added for the findings above:
 - methylisothiazolinone form conflict and hazard assessment (F-03, F-10);
 - failure kinds mapped from HTTP 429/5xx, network and offline states, plus retry (F-05);
 - form inference for wash-off vs leave-on and local-language wording (F-06);
-- tracing contract (F-01).
+- tracing contract (F-01);
+- NOVA mapping accepts only 1–4 and drops everything else, round-trips through
+  the backup, merges on refresh with source provenance, and renders in all
+  three locales as an attributed value beside (never inside) the grade.
 
 ---
 
@@ -228,7 +234,7 @@ Unchanged by this revision, and still true:
 
 | # | Item | Why it is not blocking | Recommendation |
 |---|---|---|---|
-| 1 | **NOVA / ultra-processing on food** | Yuka shows it; our food panel already shows Nutri-Score, allergens, additives and a label-vagueness breakdown, so the food surface is useful without it | Add `nova_group` to the Open Food Facts fields, persist it on the product document (Firestore rules allowlist), and render a chip. Medium effort, no engine change |
+| 1 | ~~**NOVA / ultra-processing on food**~~ | — | **Done** (2026-09-nova-v1, see §4/§5): `nova_group`/`nova_groups` are fetched, validated to 1–4 at every boundary, persisted on products, expense attachments and session lines, and rendered as its own attributed section in the food panel. Deliberately kept out of the label-signal grade — see `docs/FEATURE_LABEL_KNOWLEDGE.md` |
 | 2 | **Offline scoring** | Yuka scores on-device; ours needs the network. Both surfaces now explain the state and offer retry, so the failure is legible rather than silent | If offline scanning becomes a requirement, ship a bounded on-device corpus (identity + tiers only) for the top ~2,000 cosmetic ingredients and score locally |
 | 3 | **Identity-coverage telemetry** | The unknown-ingredient aggregate exists but is not dashboarded | Publish a weekly count of `unidentified` rows per dataset version and use it to prioritise alias work; this is the main driver of user-visible "not recognized" chips |
 | 4 | **Real-device camera validation** | CI covers deterministic lifecycle and browser-fake contracts, not camera drivers | Keep the release checklist item: Android Chrome + iOS Safari, low light, damaged/creased labels |

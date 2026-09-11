@@ -67,6 +67,7 @@ function productToRemote(product: Product): RemoteProductInfo {
     ...(product.cosmeticForm ? { cosmeticForm: product.cosmeticForm } : {}),
     ...(product.domain ? { domain: product.domain } : {}),
     ...(product.allergenTags ? { allergenTags: [...product.allergenTags] } : {}),
+    ...(product.novaGroup ? { novaGroup: product.novaGroup } : {}),
     source: product.source,
     ...(product.sourceUrl ? { sourceUrl: product.sourceUrl } : {}),
     ...(product.sourceDatabase ? { sourceDatabase: product.sourceDatabase } : {}),
@@ -125,6 +126,7 @@ function materialize(
       ...(remote.ingredientsText ? { ingredientsText: baseProvenance } : {}),
       ...(remote.ranking ? { ranking: baseProvenance } : {}),
       ...(remote.allergenTags ? { allergenTags: baseProvenance } : {}),
+      ...(remote.novaGroup ? { novaGroup: baseProvenance } : {}),
       ...(remote.provenance ?? {}),
     },
   };
@@ -141,7 +143,7 @@ export function mergeResolvedProduct(
   refresh: ResolvedProduct,
   domainOverride?: ProductDomain,
 ): ResolvedProduct {
-  const fields = ['name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText', 'cosmeticForm', 'ranking', 'allergenTags'] as const;
+  const fields = ['name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText', 'cosmeticForm', 'ranking', 'allergenTags', 'novaGroup'] as const;
   const merged: ResolvedProduct = {
     ...baseline,
     retrievedAt: refresh.retrievedAt,
