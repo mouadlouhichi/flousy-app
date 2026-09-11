@@ -1,4 +1,4 @@
-# SmartJib social brand guide — Morocco-first refresh
+# SmartJib social brand guide — Forest & Lime
 
 ## The feeling
 
@@ -44,22 +44,24 @@ Use a fluent Morocco-based Darija reviewer for paid campaigns, legal language, o
 
 ## Color system
 
-The refreshed palette is friendly and recognizably SmartJib: deep teal carries trust; cream, mint, coral, and saffron add warmth and local everyday energy.
+Social artwork uses the same **Forest & Lime** tokens as the product. [`../../DESIGN.md`](../../DESIGN.md) is authoritative; there is no separate “social-only” palette.
 
 | Name | Hex | Role |
 | --- | --- | --- |
-| Teal | `#006B62` | Primary brand surface, buttons, key icons |
-| Deep teal | `#004F49` | High-contrast dark panels |
-| Bright teal | `#058F82` | Secondary emphasis |
-| Mint | `#9CE9DB` | Gentle support, progress, icon accent |
-| Cream | `#FFF9F1` | Friendly default background |
-| Paper | `#F7FAF8` | Cool neutral background |
-| Coral | `#E98362` | Joy, warmth, needs / wants emphasis |
-| Saffron | `#E9B35C` | Savings, optimism, small sparkles |
-| Ink | `#172622` | Main text |
-| Muted | `#5E716B` | Supporting text only |
+| Forest | `#0F3B36` | Primary ink, dark surface, key icon and CTA |
+| Forest deep | `#0A2C28` | Highest-contrast dark panel and pressed state |
+| Forest soft | `#1A4F48` | Raised treatment on forest |
+| Lime | `#C5E6A6` | Sole high-attention accent and highlighted surface |
+| Lime bright | `#D6F0BD` | Light tonal strip or hover-style treatment |
+| Lime deep | `#A9D383` | Savings role, borders and chart strokes |
+| Mint | `#E3F0E6` | Pale ambient tint |
+| Sage | `#C9DCCB` | Rings, shadows and quiet texture |
+| Background | `#F3F7F3` | Default canvas |
+| Surface | `#FFFFFF` / `#FBFDFB` | Cards and low containers |
+| Ink | `#0E1A17` | Main text |
+| Muted | `#5B6B63` | Supporting text only |
 
-Use one warm accent per layout. Do not flood a post with all accent colors at once.
+Use lime once as the clear accent, not as decoration everywhere. Never set lime text on white. Put forest-deep text and icons on lime or lime-deep surfaces. Needs / wants / savings use forest `#0F3B36`, secondary green `#4F7F5B`, and lime-deep `#A9D383`, always with visible labels.
 
 ## Typography
 
@@ -68,8 +70,8 @@ The generator now uses the actual licensed font files in [`fonts/`](fonts/), not
 | Role | Font | Weight | Rule |
 | --- | --- | --- | --- |
 | Latin / French display | **Plus Jakarta Sans ExtraBold** | **800** | Short, confident headlines; sentence case. |
-| Latin / French body & labels | **Inter** | 400–600 | Keep data, amounts, and supporting text exceptionally readable on mobile. |
-| Arabic / Darija display | **Cairo ExtraBold** | **850** | Always use Cairo for short RTL hooks; right-align the headline. |
+| Latin / French body & labels | **Plus Jakarta Sans** | 400–700 | Match the product while keeping amounts and support copy readable on mobile. |
+| Arabic / Darija display | **Cairo ExtraBold** | **850** | Use Cairo for short RTL hooks; right-align the headline. |
 | Arabic / Darija body | **IBM Plex Sans Arabic** | 400–600 | Use for RTL support text and cards; leave a clear right edge. |
 
 ### Bold display and line-height
@@ -96,7 +98,7 @@ The selected font files and their SIL Open Font License files are included in [`
 
 ## Icon language
 
-Use **Lucide** as the only functional-icon family. The generated kit renders the official Lucide SVG geometry for wallet, target, location pin, shield, calendar, coins, language, and chat. See [`ICON_SOURCES.md`](ICON_SOURCES.md) for the exact source icon names. Keep icons as rounded outlines with a single, high-contrast stroke; use the circle or card behind them for the warm color moment.
+Use **Lucide** as the only functional-icon family. The generated kit renders the official Lucide SVG geometry for wallet, target, location pin, shield, calendar, coins, language, and chat. See [`ICON_SOURCES.md`](ICON_SOURCES.md) for the exact source icon names. Keep icons as rounded outlines with a single, high-contrast stroke; use a forest, mint or lime tonal container rather than an unrelated accent color.
 
 - Put an icon in a generous circle or card—not in a cramped corner.
 - Keep icon strokes at a consistent visual weight.
@@ -128,7 +130,7 @@ Export at native dimensions, use sRGB, and do not upscale a smaller canvas.
 
 ## Accessibility and trust
 
-- Keep key claim text at readable contrast; avoid mint or saffron text on cream for essential information.
+- Keep key claim text at WCAG AA contrast; never use lime text on white, and use forest-deep content on lime surfaces.
 - Write alt text for every feed post. The matching fields are in [`CAPTIONS.md`](CAPTIONS.md).
 - Burn subtitles into every Reel and leave visual room for native Instagram captions.
 - Never invite people to share account numbers, balances, passwords, bank credentials, or private screenshots.

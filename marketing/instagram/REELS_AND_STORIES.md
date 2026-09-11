@@ -13,7 +13,7 @@ Use the supplied static cover/frame files as production artwork. Add video, live
 ## Recording rules
 
 - Record vertical at **1080 × 1920**; leave the key title/action within the central safe area.
-- Burn in accurate subtitles. Use **IBM Plex Sans Arabic** for Arabic/Darija captions and **Inter** for French/English captions. Reserve **Cairo ExtraBold** and **Plus Jakarta Sans ExtraBold** for short cover hooks.
+- Burn in accurate subtitles. Use **IBM Plex Sans Arabic** for Arabic/Darija captions and **Plus Jakarta Sans** for French/English captions. Reserve **Cairo ExtraBold** and **Plus Jakarta Sans ExtraBold** for short cover hooks.
 - Keep Latin multi-line display text compact. Give Arabic display lines visibly more vertical space; do not copy Latin line-height settings into Arabic.
 - Use only realistic, consented, or demo SmartJib data. Blur names, balances, email addresses, account numbers, and notifications.
 - Make the first two seconds understandable without sound.

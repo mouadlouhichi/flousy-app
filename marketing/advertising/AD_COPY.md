@@ -119,5 +119,5 @@ Do not use “You forgot your budget,” countdowns or any copy that reveals acc
 
 - **Calm feed:** Illustration SmartJib couleur crème avec le titre « Ton budget. Ton rythme. » et trois étapes : prévoir, répartir, ajuster.
 - **Purpose/place feed:** Carte SmartJib expliquant la différence entre le rôle de l’argent et l’endroit où il est gardé.
-- **Privacy feed:** Carte teal SmartJib indiquant « Sans connexion bancaire » et « Tu choisis ce que tu veux suivre ».
-- **Arabic calm feed:** Visuel SmartJib teal avec le titre arabe « فلوسك بوضوح، بلا ضغط » et une invitation à commencer son budget.
+- **Privacy feed:** Carte forest SmartJib indiquant « Sans connexion bancaire » et « Tu choisis ce que tu veux suivre ».
+- **Arabic calm feed:** Visuel SmartJib forest et lime avec le titre arabe « فلوسك بوضوح، بلا ضغط » et une invitation à commencer son budget.

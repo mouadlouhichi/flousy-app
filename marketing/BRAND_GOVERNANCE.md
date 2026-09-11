@@ -26,16 +26,19 @@ SmartJib turns money planning into a calm next step, not a judgment. It should f
 
 A Morocco-based reviewer must approve the Darija/Arabic lines before paid distribution.
 
-## Visual system
+## Visual system — Forest & Lime
 
-- Primary: Teal `#006B62`; deep teal `#004F49`; bright teal `#058F82`.
-- Support: Mint `#9CE9DB`; cream `#FFF9F1`; paper `#F7FAF8`.
-- Warm accents: Coral `#E98362`; saffron `#E9B35C`.
-- Text: Ink `#172622`; muted `#5E716B`.
-- Latin display: Plus Jakarta Sans ExtraBold; body/data: Inter.
-- Arabic display: Cairo ExtraBold; Arabic body: IBM Plex Sans Arabic.
-- Functional icons: Lucide only. Do not mix icon families.
-- Use one warm accent per layout, one dominant message and generous whitespace.
+[`../DESIGN.md`](../DESIGN.md) is authoritative. Marketing artwork extends those product tokens; it does not invent a separate social palette.
+
+- Brand anchors: forest `#0F3B36`, forest-deep `#0A2C28`, forest-soft `#1A4F48`.
+- Sole brand accent: lime `#C5E6A6`, with lime-bright `#D6F0BD` and lime-deep `#A9D383` for tonal variation.
+- Ambient surfaces: background `#F3F7F3`, white `#FFFFFF`, mint `#E3F0E6`, sage `#C9DCCB`.
+- Text: ink `#0E1A17`; muted `#5B6B63`; outline-variant `#DBE5DC`.
+- Category roles: needs = forest `#0F3B36`; wants = secondary green `#4F7F5B`; savings = lime-deep `#A9D383`. Always include a label, not color alone.
+- Latin display, body and data: Plus Jakarta Sans. Arabic display: Cairo ExtraBold; Arabic body: IBM Plex Sans Arabic for reliable exported shaping.
+- Functional icons: Lucide only. Use the current wallet artwork from `public/logo.png`; do not mix logo generations or icon families.
+- Lime is an accent, not body text. Never put lime text on white; pair lime surfaces with forest-deep text.
+- Use one dominant message, generous whitespace, pill controls, and soft rounded cards. Avoid gradients, glass effects, neon glows and loud multi-accent decoration.
 
 ## Approved claims matrix
 

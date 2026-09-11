@@ -1,6 +1,6 @@
 # SmartJib marketing operating folder
 
-A launch-ready, Morocco-first marketing system built on the published SmartJib identity: calm teal, warm cream, mint, coral and saffron; confident Plus Jakarta Sans / Cairo display typography; and a clear, non-judgmental voice.
+A launch-ready, Morocco-first marketing system built on SmartJib’s published **Forest & Lime** identity: deep forest surfaces, one confident lime accent, pale mint/sage depth, the new wallet mark, Plus Jakarta Sans / Cairo typography, and a clear, non-judgmental voice. [`../DESIGN.md`](../DESIGN.md) is the visual source of truth.
 
 ## Start here
 

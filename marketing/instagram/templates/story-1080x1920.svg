@@ -2,37 +2,37 @@
   <title id="title">SmartJib editable Morocco-first Story template</title>
   <desc id="desc">A warm vertical Story template with corrected headline rhythm and a clear native sticker zone.</desc>
   <style>
-    .latin { font-family: Inter, "Inter Variable", Arial, sans-serif; }
+    .latin { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Variable", Arial, sans-serif; }
     .arabic { font-family: "IBM Plex Sans Arabic", Cairo, "Noto Sans Arabic", sans-serif; }
     .eyebrow { font-size: 27px; font-weight: 700; letter-spacing: 1.2px; }
-    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", Inter, Arial, sans-serif; }
+    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", "Plus Jakarta Sans", Arial, sans-serif; }
     .arabic-display { font-family: "Cairo ExtraBold", Cairo, "Noto Sans Arabic", sans-serif; }
     .headline { font-size: 112px; font-weight: 800; letter-spacing: -2px; }
     .body { font-size: 33px; font-weight: 520; }
     .label { font-size: 21px; font-weight: 700; letter-spacing: 1px; }
   </style>
-  <rect width="1080" height="1920" fill="#DDF6EF"/>
-  <circle cx="910" cy="326" r="292" fill="#F7FAF8"/>
-  <path d="M 824 286 L 843 326 L 883 345 L 843 364 L 824 404 L 805 364 L 765 345 L 805 326 Z" fill="#E9B35C"/>
-  <text x="82" y="118" fill="#006B62" class="latin eyebrow">SMARTJIB</text>
+  <rect width="1080" height="1920" fill="#E3F0E6"/>
+  <circle cx="910" cy="326" r="292" fill="#FBFDFB"/>
+  <path d="M 824 286 L 843 326 L 883 345 L 843 364 L 824 404 L 805 364 L 765 345 L 805 326 Z" fill="#A9D383"/>
+  <text x="82" y="118" fill="#0F3B36" class="latin eyebrow">SMARTJIB</text>
   <rect x="290" y="91" width="98" height="40" rx="20" fill="#FFFFFF"/>
-  <text x="315" y="119" fill="#006B62" class="latin label">00</text>
-  <text x="82" y="159" fill="#5E716B" class="latin label">STORY · MAD</text>
-  <text x="82" y="406" fill="#172622" class="latin-display headline">Une idée</text>
-  <text x="82" y="510" fill="#172622" class="latin-display headline">à la fois.</text>
-  <text x="84" y="591" fill="#5E716B" class="latin body">Garde le message au centre, avec de l’air.</text>
-  <rect x="82" y="828" width="916" height="472" rx="62" fill="#006B62" transform="translate(13 14)" opacity=".18"/>
-  <rect x="72" y="814" width="936" height="472" rx="62" fill="#006B62"/>
-  <text x="122" y="892" fill="#9CE9DB" class="latin label">AJOUTE TON VISUEL</text>
+  <text x="315" y="119" fill="#0F3B36" class="latin label">00</text>
+  <text x="82" y="159" fill="#5B6B63" class="latin label">STORY · MAD</text>
+  <text x="82" y="406" fill="#0E1A17" class="latin-display headline">Une idée</text>
+  <text x="82" y="510" fill="#0E1A17" class="latin-display headline">à la fois.</text>
+  <text x="84" y="591" fill="#5B6B63" class="latin body">Garde le message au centre, avec de l’air.</text>
+  <rect x="82" y="828" width="916" height="472" rx="62" fill="#0F3B36" transform="translate(13 14)" opacity=".18"/>
+  <rect x="72" y="814" width="936" height="472" rx="62" fill="#0F3B36"/>
+  <text x="122" y="892" fill="#C5E6A6" class="latin label">AJOUTE TON VISUEL</text>
   <text x="122" y="1021" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:700">Capture, photo ou</text>
   <text x="122" y="1089" fill="#FFFFFF" class="latin body" style="font-size:55px;font-weight:700">mini explication.</text>
-  <circle cx="824" cy="1058" r="110" fill="#9CE9DB"/>
+  <circle cx="824" cy="1058" r="110" fill="#C5E6A6"/>
   <!-- Lucide: Play -->
-  <svg x="714" y="948" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">
+  <svg x="714" y="948" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#0F3B36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Play icon" role="img">
     <polygon points="6 3 20 12 6 21 6 3"/>
   </svg>
-  <rect x="82" y="1442" width="916" height="122" rx="44" fill="#FFFFFF" stroke="#9CE9DB" stroke-width="3" stroke-dasharray="13 13"/>
-  <text x="540" y="1517" text-anchor="middle" fill="#006B62" class="latin label">ZONE POUR STICKER INSTAGRAM NATIF</text>
-  <text x="82" y="1823" fill="#5E716B" class="latin label">smartjib.app</text>
+  <rect x="82" y="1442" width="916" height="122" rx="44" fill="#FFFFFF" stroke="#C5E6A6" stroke-width="3" stroke-dasharray="13 13"/>
+  <text x="540" y="1517" text-anchor="middle" fill="#0F3B36" class="latin label">ZONE POUR STICKER INSTAGRAM NATIF</text>
+  <text x="82" y="1823" fill="#5B6B63" class="latin label">smartjib.app</text>
   <!-- Keep essential content roughly between y=220 and y=1650. Use Arabic/Darija with Cairo ExtraBold for hooks, IBM Plex Sans Arabic for support, and 1.24–1.28 display line-height. -->
 </svg>

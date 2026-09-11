@@ -1,40 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
   <title id="title">SmartJib Morocco-first editable feed template</title>
-  <desc id="desc">Warm cream portrait feed template with a friendly headline, a rounded information card, and a logo placeholder.</desc>
+  <desc id="desc">Pale mint portrait feed template with a friendly headline, a rounded information card, and a logo placeholder.</desc>
   <style>
-    .latin { font-family: Inter, "Inter Variable", Arial, sans-serif; }
+    .latin { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Variable", Arial, sans-serif; }
     .arabic { font-family: "IBM Plex Sans Arabic", Cairo, "Noto Sans Arabic", sans-serif; }
     .eyebrow { font-size: 24px; font-weight: 700; letter-spacing: 1.2px; }
-    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", Inter, Arial, sans-serif; }
+    .latin-display { font-family: "Plus Jakarta Sans", "Plus Jakarta Sans ExtraBold", "Plus Jakarta Sans", Arial, sans-serif; }
     .arabic-display { font-family: "Cairo ExtraBold", Cairo, "Noto Sans Arabic", sans-serif; }
     .headline { font-size: 104px; font-weight: 800; letter-spacing: -2px; }
     .body { font-size: 31px; font-weight: 520; }
     .label { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   </style>
-  <rect width="1080" height="1350" fill="#FFF9F1"/>
-  <circle cx="924" cy="188" r="252" fill="#F8DAD2"/>
-  <path d="M 825 210 L 842 246 L 878 263 L 842 280 L 825 316 L 808 280 L 772 263 L 808 246 Z" fill="#E9B35C"/>
-  <text x="82" y="101" fill="#006B62" class="latin eyebrow">SMARTJIB</text>
-  <rect x="252" y="76" width="86" height="36" rx="18" fill="#DDF6EF"/>
-  <text x="276" y="102" fill="#006B62" class="latin label">00</text>
-  <text x="82" y="139" fill="#5E716B" class="latin label">PILIER · MAD</text>
-  <text x="82" y="312" fill="#172622" class="latin-display headline">Ton idée,</text>
-  <text x="82" y="408" fill="#172622" class="latin-display headline">sans pression.</text>
-  <text x="82" y="474" fill="#5E716B" class="latin body">Une ligne de soutien, simple et locale.</text>
-  <rect x="82" y="608" width="916" height="456" rx="58" fill="#006B62" transform="translate(12 14)" opacity=".18"/>
-  <rect x="72" y="594" width="936" height="456" rx="58" fill="#FFFFFF" stroke="#D6E4DE" stroke-width="2"/>
-  <text x="122" y="664" fill="#006B62" class="latin label">UNE INFORMATION UTILE</text>
-  <text x="122" y="762" fill="#172622" class="latin body" style="font-size:46px;font-weight:700">Garde la carte claire.</text>
-  <text x="122" y="821" fill="#5E716B" class="latin body">Une explication courte vaut mieux qu’un mur de texte.</text>
-  <rect x="122" y="875" width="490" height="26" rx="13" fill="#9CE9DB"/>
-  <rect x="122" y="920" width="650" height="26" rx="13" fill="#DDF6EF"/>
-  <circle cx="850" cy="932" r="96" fill="#DDF6EF"/>
+  <rect width="1080" height="1350" fill="#F3F7F3"/>
+  <circle cx="924" cy="188" r="252" fill="#E3F0E6"/>
+  <path d="M 825 210 L 842 246 L 878 263 L 842 280 L 825 316 L 808 280 L 772 263 L 808 246 Z" fill="#A9D383"/>
+  <text x="82" y="101" fill="#0F3B36" class="latin eyebrow">SMARTJIB</text>
+  <rect x="252" y="76" width="86" height="36" rx="18" fill="#E3F0E6"/>
+  <text x="276" y="102" fill="#0F3B36" class="latin label">00</text>
+  <text x="82" y="139" fill="#5B6B63" class="latin label">PILIER · MAD</text>
+  <text x="82" y="312" fill="#0E1A17" class="latin-display headline">Ton idée,</text>
+  <text x="82" y="408" fill="#0E1A17" class="latin-display headline">sans pression.</text>
+  <text x="82" y="474" fill="#5B6B63" class="latin body">Une ligne de soutien, simple et locale.</text>
+  <rect x="82" y="608" width="916" height="456" rx="58" fill="#0F3B36" transform="translate(12 14)" opacity=".18"/>
+  <rect x="72" y="594" width="936" height="456" rx="58" fill="#FFFFFF" stroke="#DBE5DC" stroke-width="2"/>
+  <text x="122" y="664" fill="#0F3B36" class="latin label">UNE INFORMATION UTILE</text>
+  <text x="122" y="762" fill="#0E1A17" class="latin body" style="font-size:46px;font-weight:700">Garde la carte claire.</text>
+  <text x="122" y="821" fill="#5B6B63" class="latin body">Une explication courte vaut mieux qu’un mur de texte.</text>
+  <rect x="122" y="875" width="490" height="26" rx="13" fill="#C5E6A6"/>
+  <rect x="122" y="920" width="650" height="26" rx="13" fill="#E3F0E6"/>
+  <circle cx="850" cy="932" r="96" fill="#E3F0E6"/>
   <!-- Lucide: WalletCards. Keep this single icon family for all functional icons. -->
-  <svg x="794" y="876" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="#006B62" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Wallet icon" role="img">
+  <svg x="794" y="876" width="112" height="112" viewBox="0 0 24 24" fill="none" stroke="#0F3B36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Wallet icon" role="img">
     <rect width="18" height="18" x="3" y="3" rx="2"/>
     <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2"/>
     <path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1.9c1.6 1.6 4.1 1.6 5.7 0l1.1-.9c.5-.5 1.3-.9 2.1-.9H21"/>
   </svg>
-  <text x="82" y="1272" fill="#5E716B" class="latin label">smartjib.app</text>
-  <!-- Use Plus Jakarta Sans for French/Latin display and Cairo for Arabic/Darija display; use Inter / IBM Plex Sans Arabic for supporting copy. Use a Lucide icon or ../brand/smartjib-logo-mark-transparent.png when a visual anchor helps. -->
+  <text x="82" y="1272" fill="#5B6B63" class="latin label">smartjib.app</text>
+  <!-- Use Plus Jakarta Sans for French/Latin display and body, Cairo for Arabic/Darija display, and IBM Plex Sans Arabic for supporting RTL copy. Use a Lucide icon or ../brand/smartjib-logo-mark-transparent.png when a visual anchor helps. -->
 </svg>

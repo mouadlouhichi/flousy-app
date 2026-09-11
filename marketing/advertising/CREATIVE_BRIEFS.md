@@ -12,11 +12,11 @@
 
 ## C01 — Calm plan
 
-**Insight:** starting feels easier when “perfect” is removed.  
-**Hook:** `Ton budget. Ton rythme.` / `فلوسك بوضوح، بلا ضغط.`  
-**Visual:** cream or teal field, warm saffron sparkle, one monthly plan card with three calm steps.  
-**Proof:** MAD context and `Prévoir · Répartir · Ajuster`.  
-**CTA:** `Commencer mon budget` / `نبدا ميزانيتي`.  
+**Insight:** starting feels easier when “perfect” is removed.
+**Hook:** `Ton budget. Ton rythme.` / `فلوسك بوضوح، بلا ضغط.`
+**Visual:** pale background or forest field, one restrained lime accent, and one monthly plan card with three calm steps.
+**Proof:** MAD context and `Prévoir · Répartir · Ajuster`.
+**CTA:** `Commencer mon budget` / `نبدا ميزانيتي`.
 **Avoid:** before/after wealth visuals, red warnings, coins raining, shame.
 
 Deliverables:
@@ -27,21 +27,21 @@ Deliverables:
 
 ## C02 — Purpose versus place
 
-**Insight:** one balance cannot explain both intention and location.  
-**Hook:** `Pour quoi ? Et où ?`  
-**Visual:** two large rounded cards. Purpose card: target/coral. Place card: map pin/teal. Connect with a simple line, not an equation.  
-**Proof:** `Besoins · envies · épargne` versus `Banque · maison · portefeuille`.  
+**Insight:** one balance cannot explain both intention and location.
+**Hook:** `Pour quoi ? Et où ?`
+**Visual:** two large rounded cards. Purpose card: target/lime. Place card: map pin/forest. Connect with a simple line, not an equation.
+**Proof:** `Besoins · envies · épargne` versus `Banque · maison · portefeuille`.
 **CTA:** `Voir comment ça marche`.
 
 Motion: show 500 MAD moving from bank to wallet while the “courses” purpose stays in place. Explicitly label it as an example.
 
 ## C03 — Manual privacy
 
-**Insight:** no bank connection can be a deliberate control choice.  
-**Hook:** `Sans connexion bancaire.`  
-**Visual:** deep teal field, generous shield outline, cream type.  
-**Proof:** `Tu choisis ce que tu veux suivre.` / `Pas d’identifiants bancaires à partager.`  
-**CTA:** `Découvrir le fonctionnement`.  
+**Insight:** no bank connection can be a deliberate control choice.
+**Hook:** `Sans connexion bancaire.`
+**Visual:** forest-deep field, generous shield outline, white type and a restrained lime detail.
+**Proof:** `Tu choisis ce que tu veux suivre.` / `Pas d’identifiants bancaires à partager.`
+**CTA:** `Découvrir le fonctionnement`.
 **Avoid:** padlock clichés, “bank-grade,” “unhackable,” fake certification badges.
 
 ## C04 — Creator product walkthrough
@@ -60,9 +60,9 @@ Motion: show 500 MAD moving from bank to wallet while the “courses” purpose 
 
 ## C05 — Month reset
 
-**Hook:** `15 minutes pour voir le mois.`  
-**Visual:** three numbered steps and a calm progress line.  
-**Use:** organic/retention first; promote only if it drives qualified starts.  
+**Hook:** `15 minutes pour voir le mois.`
+**Visual:** three numbered steps and a calm progress line.
+**Use:** organic/retention first; promote only if it drives qualified starts.
 **CTA:** `Planifier mon mois`.
 
 ## Export QA
