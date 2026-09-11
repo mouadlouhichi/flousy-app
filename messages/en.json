@@ -2597,7 +2597,7 @@
       "inviteConsentTitle": "Before you invite",
       "inviteConsent": "I confirm the people I'm inviting know about the circle and have given me their phone number to share with SmartJib for the invite.",
       "dragHandle": "Drag to reorder",
-      "startHint": "You can change the frequency, rotation, and start date on the next screen.",
+      "startHint": "You can change the frequency, rotation, and payment order on the next screen.",
       "addMember": "Add a member",
       "memberNamePlaceholder": "Name",
       "rotation": "Rotation order",
@@ -2699,7 +2699,8 @@
       "save": "Save changes",
       "saving": "Saving…",
       "saved": "Circle updated.",
-      "error": "Couldn't save your changes. Please try again."
+      "error": "Couldn't save your changes. Please try again.",
+      "paymentOrder": "Payment order — drag to set who receives when"
     },
     "monthlyHook": {
       "widgetTitle": "Your Darat circles",

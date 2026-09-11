@@ -13,6 +13,11 @@ import { parseAmountInput } from '@/lib/parse-amount';
 
 interface Props {
   circle: DaratCircle;
+  /**
+   * Display label per memberOrder id (uid or phone placeholder), resolved
+   * by the parent from the live roster — the modal itself never fetches.
+   */
+  memberLabels: Record<string, string>;
   onClose: () => void;
   /**
    * Apply edits. Returns the new state the parent should adopt, or an
@@ -55,7 +60,7 @@ function todayPlusDays(days: number): string {
  * for single-select frequency/rotation groups, primary submit that
  * fills the action bar.
  */
-export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
+export function DaratEditModal({ circle, memberLabels, onClose, onSubmit }: Props) {
   const { messages: m } = useLanguage();
   const { symbol, currency } = useCurrency();
   const [name, setName] = useState(circle.name);
@@ -68,12 +73,54 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
   const [organizerParticipates, setOrganizerParticipates] = useState(
     circle.memberOrder.includes(circle.organizerId),
   );
+  // Agreed-order editing: the payout order the user can drag into place
+  // when the rotation is "fixed". Initialized from the stored order.
+  const [order, setOrder] = useState<string[]>(circle.memberOrder);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
 
   const numericAmount = parseAmountInput(amount) ?? 0;
   const isFixedRotation = rotation === 'fixed';
+
+  // Drag-to-reorder the agreed payout order (same mechanics as the create
+  // modal's member list: the key travels through dataTransfer so closures
+  // never see a stale value).
+  const moveEntry = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromId);
+      const toIdx = prev.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+  const onDragStart = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    setDragKey(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const onDragOver = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== dragOverKey) setDragOverKey(id);
+  };
+  const onDrop = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('text/plain') || dragKey;
+    if (fromId) moveEntry(fromId, id);
+    setDragKey(null);
+    setDragOverKey(null);
+  };
+  const onDragEnd = () => {
+    setDragKey(null);
+    setDragOverKey(null);
+  };
 
   const frequencyChips: ChoiceChipOption[] = [
     { value: 'weekly', label: m.darat.create.frequencyWeekly, icon: 'event_repeat' },
@@ -82,7 +129,7 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
   ];
   const rotationChips: ChoiceChipOption[] = [
     { value: 'random', label: m.darat.create.rotationRandom, icon: 'dices' },
-    { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list-ordered' },
+    { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list_ordered' },
     { value: 'bidding', label: m.darat.create.rotationBidding, icon: 'gavel' },
   ];
 
@@ -113,7 +160,7 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
         frequency,
         rotation,
         startDate,
-        fixedOrder: isFixedRotation ? circle.memberOrder : null,
+        fixedOrder: isFixedRotation ? order : null,
         organizerParticipates,
       });
       if (!res.ok) setError(res.error ?? 'genericError');
@@ -242,6 +289,42 @@ export function DaratEditModal({ circle, onClose, onSubmit }: Props) {
             {m.darat.create.participateHint}
           </p>
         </div>
+
+        {/* ── Agreed payment order (fixed rotation only) ── */}
+        {isFixedRotation && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              {m.darat.edit.paymentOrder}
+            </label>
+            <ol className="flex flex-col gap-1.5">
+              {order.map((id, idx) => (
+                <li
+                  key={id}
+                  draggable
+                  onDragStart={onDragStart(id)}
+                  onDragOver={onDragOver(id)}
+                  onDrop={onDrop(id)}
+                  onDragEnd={onDragEnd}
+                  className={`flex items-center gap-3 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-all ${
+                    dragOverKey === id
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-outline-variant'
+                  } ${dragKey === id ? 'opacity-50' : ''}`}
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-forest text-[11px] font-semibold text-lime">
+                    {idx + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
+                    {memberLabels[id] ?? id}
+                  </span>
+                  <span aria-hidden="true" className="shrink-0 cursor-grab text-on-surface-variant active:cursor-grabbing">
+                    <AppIcon name="drag_indicator" className="text-[20px]" />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
 
         {/* ── Start date ── */}
         <div className="flex flex-col gap-1.5">

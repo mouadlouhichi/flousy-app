@@ -354,6 +354,7 @@ export function DaratScreen() {
     contribution: number;
     members: { displayName: string; phone: string }[];
     organizerParticipates: boolean;
+    startDate?: string;
   }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
@@ -369,7 +370,9 @@ export function DaratScreen() {
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
       rotation: 'random',
-      startDate: (() => {
+      // The create form picks the first round date; fall back to a week
+      // out for programmatic callers.
+      startDate: input.startDate?.trim() || (() => {
         const d = new Date();
         d.setUTCDate(d.getUTCDate() + 7);
         return d.toISOString().slice(0, 10);
@@ -508,6 +511,7 @@ export function DaratScreen() {
         contribution: 1,
         members: [{ displayName: 'Check', phone: '+212600000000' }],
         organizerParticipates: true,
+        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       },
       { silent: true },
     );

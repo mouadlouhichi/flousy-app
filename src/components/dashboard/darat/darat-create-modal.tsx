@@ -39,6 +39,8 @@ interface Props {
     members: MemberDraft[];
     /** Owner participates in the rotation (default true). */
     organizerParticipates: boolean;
+    /** First round date (YYYY-MM-DD). */
+    startDate: string;
   }) => Promise<{
     ok: boolean;
     circleId?: string;
@@ -93,7 +95,14 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
   // without a seat in the rotation (no member row, no rounds for them).
   // They keep owner rights and the circle stays in "my circles".
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
+  // First round date — defaults to a week out, same default the create
+  // handler used before this field existed on the form.
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string; startDate?: string }>({});
   // The post-create summary, shown after the transaction commits.
   // When this is non-null the form is replaced by the share-links panel.
   const [created, setCreated] = useState<{ circleId: string; invites: CreatedInvite[] } | null>(null);
@@ -213,6 +222,16 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     const next: typeof fieldErrors = {};
     if (!name.trim()) next.name = (m.darat.create.errors as Record<string, string>).nameRequired ?? m.errors.generic;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) next.amount = (m.darat.create.errors as Record<string, string>).amountInvalid ?? m.errors.generic;
+    {
+      // Same rule the server applies (validateDaratCreate): YYYY-MM-DD,
+      // not before today. The date input enforces the format; the floor
+      // check gives the user a localized inline error instead of a
+      // server bounce.
+      const today = new Date().toISOString().slice(0, 10);
+      if (!startDate || startDate < today) {
+        next.startDate = (m.darat.create.errors as Record<string, string>).startDateInvalid ?? m.errors.generic;
+      }
+    }
     if (totalMembers < DARAT_MIN_MEMBERS) {
       // An owner who does not participate needs the invitees alone to
       // carry the rotation — one invitee is not a rotation.
@@ -238,6 +257,7 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
         contribution: numericAmount,
         members: invitees,
         organizerParticipates,
+        startDate,
       });
       if (!res.ok) {
         setError(res.error ?? 'genericError');
@@ -448,6 +468,39 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
             <p role="alert" className="text-[12px] font-medium text-error mt-1">{fieldErrors.amount}</p>
           ) : (
             <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.amountHint}</p>
+          )}
+        </div>
+
+        {/* ── First round date ── */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="darat-create-start-date"
+            className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            {m.darat.create.startDate}
+          </label>
+          <div
+            className={`flex items-center gap-2 w-full h-12 ps-4 pe-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
+              fieldErrors.startDate ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
+            }`}
+          >
+            <AppIcon name="calendar_clock" className="text-[20px] text-on-surface-variant" />
+            <input
+              id="darat-create-start-date"
+              type="date"
+              value={startDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
+              }}
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+            />
+          </div>
+          {fieldErrors.startDate ? (
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{fieldErrors.startDate}</p>
+          ) : (
+            <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.startDateHint}</p>
           )}
         </div>
 

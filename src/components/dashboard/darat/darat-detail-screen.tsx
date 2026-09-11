@@ -233,6 +233,21 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
     ? ((m.darat.detail as unknown) as Record<string, string>)[actionError] ?? m.errors.generic
     : null;
 
+  // Display labels for the edit modal's agreed-order list: the live roster
+  // name when the member joined, the "Invited · phone" wording for pending
+  // placeholders, the uid tail otherwise.
+  const memberLabels: Record<string, string> = {};
+  for (const id of circle.memberOrder) {
+    const row = members[id];
+    if (row?.displayName) {
+      memberLabels[id] = row.displayName;
+    } else if (/\d/.test(id)) {
+      memberLabels[id] = formatMessage(m.darat.detail.invitedPhone, { phone: id }, intlLocale);
+    } else {
+      memberLabels[id] = formatMemberId(id, language);
+    }
+  }
+
   return (
     <>
       <DaratDetailView
@@ -254,6 +269,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
       {editOpen && (
         <DaratEditModal
           circle={circle}
+          memberLabels={memberLabels}
           onClose={() => setEditOpen(false)}
           onSubmit={handleEdit}
         />

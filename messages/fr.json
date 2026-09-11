@@ -2597,7 +2597,7 @@
       "inviteConsentTitle": "Avant d'inviter",
       "inviteConsent": "Je confirme que les personnes que j'invite sont au courant du cercle et m'ont donné leur numéro de téléphone à partager avec SmartJib pour l'envoi de l'invitation.",
       "dragHandle": "Glisser pour réorganiser",
-      "startHint": "Vous pourrez modifier la fréquence, la rotation et la date de départ à l'étape suivante.",
+      "startHint": "Vous pouvez changer la fréquence, la rotation et l’ordre de paiement sur l’écran suivant.",
       "addMember": "Ajouter un membre",
       "memberNamePlaceholder": "Nom",
       "rotation": "Ordre de rotation",
@@ -2699,7 +2699,8 @@
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "saved": "Tontine mise à jour.",
-      "error": "Impossible d'enregistrer vos modifications. Veuillez réessayer."
+      "error": "Impossible d'enregistrer vos modifications. Veuillez réessayer.",
+      "paymentOrder": "Ordre de paiement — glissez pour définir qui reçoit quand"
     },
     "monthlyHook": {
       "widgetTitle": "Vos tontines Darat",
