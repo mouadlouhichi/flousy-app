@@ -82,7 +82,10 @@ async function getPage(page) {
       await sleep(2_000 * attempt);
       continue;
     }
-    if (!response.ok) throw new Error(`${sourceKey} page ${page}: HTTP ${response.status}`);
+    if (!response.ok) {
+      const body = (await response.text().catch(() => '')).slice(0, 300);
+      throw new Error(`${sourceKey} page ${page}: HTTP ${response.status} ${body}`);
+    }
     return response.json();
   }
   throw new Error(`${sourceKey} page ${page}: gave up after retries`);

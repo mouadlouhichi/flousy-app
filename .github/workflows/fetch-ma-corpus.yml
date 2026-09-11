@@ -32,7 +32,16 @@ jobs:
         with:
           node-version: '22'
       - run: |
-          node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source || 'off' }} --pages=${{ inputs.pages || '20' }} 2>&1 | tee data/harvest.log
+          set +e
+          node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source || 'off' }} --pages=${{ inputs.pages || '20' }} > data/harvest.log 2>&1
+          echo "exit=$?" >> data/harvest.log
+      # The workflow log is not reachable from the dev sandbox, so the fetcher's
+      # output is mirrored into the check-run summary where the API can read it.
+      - if: always()
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat data/harvest.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - run: node scripts/split-corpus.mjs data/ma-corpus-${{ inputs.source || 'off' }}.json --per=400
       # Gist files are returned inline by the API only while under ~1 MB, so the
       # corpus is published in parts and reassembled on the other side.
