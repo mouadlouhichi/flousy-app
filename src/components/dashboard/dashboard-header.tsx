@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BudgetAlerts } from '@/components/ui/BudgetAlerts';
@@ -89,26 +88,27 @@ export function DashboardHeader() {
     // the true centre — the two 1fr gutters keep it optically centred on
     // mobile (logo | month | actions) and on desktop alike.
     return (
-      <header className="sticky top-0 z-20 bg-surface-container-low/85 backdrop-blur-xl border-b border-outline-variant/40 shadow-[0_1px_16px_-6px_rgba(23,29,28,0.15)] px-3 sm:px-4 md:px-8 py-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl px-3 sm:px-4 md:px-8 py-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
         <div className="flex min-w-0 items-center gap-3 justify-self-start">
         {/* Mobile Logo — the wordmark only fits alongside the month pill and
             the action buttons from ~440px; below that keep just the icon. */}
         <div className="md:hidden flex min-w-0 items-center gap-2">
-          <Image
-            src="/logo.png"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-128.png"
             alt={m.common.appName}
             width={26}
             height={28}
             className="shrink-0 object-contain"
-            priority
+            fetchPriority="high"
           />
-          <span className="hidden min-[440px]:inline truncate font-headline-sm text-headline-sm text-primary font-extrabold tracking-tight">
-            SmartJib
+          <span className="hidden min-[440px]:inline truncate font-display text-[19px] font-semibold tracking-[-0.03em] text-on-surface">
+            smartjib<span className="text-lime-deep dark:text-lime">.</span>
           </span>
         </div>
 
         {/* Desktop Page Title */}
-        <h1 className="hidden md:block font-headline-md text-headline-md font-extrabold text-on-surface capitalize">
+        <h1 className="hidden md:block font-display text-[22px] font-semibold tracking-[-0.02em] text-on-surface capitalize">
           {getLocalizedProfilePageTitle(pathname, m) ?? (activeItem ? getLocalizedNavTitle(activeItem, m) : m.navigation.dashboardOverview)}
         </h1>
 
@@ -121,8 +121,8 @@ export function DashboardHeader() {
           aria-label={m.search.open}
           title={m.search.title}
           aria-current={activeScreen === 'search' ? 'page' : undefined}
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-            activeScreen === 'search' ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant'
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors shadow-ambient ${
+            activeScreen === 'search' ? 'bg-primary text-on-primary' : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-high border border-outline-variant/70'
           }`}
         >
           <AppIcon name="search" className="text-[18px]" />
@@ -131,7 +131,7 @@ export function DashboardHeader() {
 
       {/* Center Month Selector — true-centred by the grid gutter above */}
       <div
-        className="flex shrink-0 items-center gap-0.5 sm:gap-1 bg-surface-container px-1 sm:px-3 py-1 sm:py-1.5 rounded-full border border-outline-variant min-w-0"
+        className="flex shrink-0 items-center gap-0.5 sm:gap-1 bg-surface-container-lowest px-1 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-outline-variant/70 shadow-ambient min-w-0"
         title={
           budgetStartDay && budgetStartDay > 1
             ? `${m.navigation.customBudgetMonth} (${formatLocalizedDayOfMonth(budgetStartDay, language, intlLocale)})`
@@ -140,7 +140,7 @@ export function DashboardHeader() {
       >
         <button
           onClick={handlePrevMonth}
-          className="relative p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+          className="relative p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-colors"
           aria-label={m.navigation.previousMonth}
           title={canGoPrevMonth ? undefined : m.insights.historyLockedTitle}
         >
@@ -149,16 +149,16 @@ export function DashboardHeader() {
             <AppIcon name="lock" className="absolute -end-0.5 -top-0.5 text-[10px] text-primary" />
           )}
         </button>
-        <span className="flex min-w-0 items-center justify-center gap-1 font-label-sm sm:font-label-lg text-label-sm sm:text-label-lg font-bold text-on-surface sm:min-w-[64px] text-center uppercase">
+        <span className="flex min-w-0 items-center justify-center gap-1 text-[12px] sm:text-[13px] font-semibold tracking-[0.02em] text-on-surface sm:min-w-[64px] text-center uppercase">
           {budgetPeriod && periodStart && periodEnd ? (
             <>
               {/* Flex alignment keeps the day badge from lifting above the date text. */}
               <span className="hidden items-center gap-1 whitespace-nowrap sm:inline-flex">
                 <span>{periodStart.month}</span>
-                <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-lime px-1.5 py-0.5 text-forest-deep">
                   <AppIcon
                     name="loop"
-                    className="shrink-0 text-[14px] text-primary"
+                    className="shrink-0 text-[14px]"
                     aria-label={m.navigation.customBudgetMonth}
                   />
                   <span>{periodStart.day}</span>
@@ -168,10 +168,10 @@ export function DashboardHeader() {
               </span>
               <span className="inline-flex items-center gap-1 whitespace-nowrap sm:hidden">
                 <span>{periodEnd.month}</span>
-                <span className="inline-flex items-center gap-0.5 rounded-full border border-primary/45 bg-primary/10 px-1.5 py-0.5">
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-lime px-1.5 py-0.5 text-forest-deep">
                   <AppIcon
                     name="loop"
-                    className="shrink-0 text-[12px] text-primary"
+                    className="shrink-0 text-[12px]"
                     aria-label={m.navigation.customBudgetMonth}
                   />
                   <span>{periodEnd.day}</span>
@@ -184,7 +184,7 @@ export function DashboardHeader() {
         </span>
         <button
           onClick={handleNextMonth}
-          className="p-0.5 sm:p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-variant rounded-lg transition-colors"
+          className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-colors"
           aria-label={m.navigation.nextMonth}
         >
           <AppIcon name={isRTL ? 'chevron_left' : 'chevron_right'} className=" text-[16px] sm:text-[18px]" />
@@ -197,12 +197,12 @@ export function DashboardHeader() {
           type="button"
           onClick={syncState === 'failed' ? retrySync : undefined}
           disabled={syncState !== 'failed'}
-          className={`hidden items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold sm:flex ${
+          className={`hidden items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:flex ${
             syncState === 'saved' || syncState === 'local'
-              ? 'bg-primary/10 text-primary'
+              ? 'bg-lime/60 text-forest-deep dark:bg-lime/15 dark:text-lime'
               : syncState === 'pending'
-                ? 'bg-tertiary-container text-on-tertiary-container'
-                : 'bg-error/10 text-error'
+                ? 'bg-warning-container text-warning'
+                : 'bg-error-container text-error'
           }`}
           title={syncState === 'failed' ? m.sync.retry : m.sync[syncState]}
         >
@@ -225,7 +225,7 @@ export function DashboardHeader() {
 
         {canAddExpense && <button
           onClick={() => openExpenseModal()}
-          className="hidden md:flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-full font-label-md font-bold hover:bg-accent-foreground shadow-xs transition-all"
+          className="hidden md:flex items-center gap-1.5 h-10 px-4 bg-primary text-on-primary rounded-full text-[13px] font-semibold hover:bg-primary-hover shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all active:scale-[0.98]"
         >
           <AppIcon name="add" className=" text-[18px]" />
           <span>{m.navigation.newTransaction}</span>
@@ -239,10 +239,10 @@ export function DashboardHeader() {
           aria-label={m.navigation.openProfileAccount}
           title={m.navigation.profileAccount}
           aria-current={isProfileActive ? 'page' : undefined}
-          className={`group md:hidden flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+          className={`group md:hidden flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-sm font-semibold ring-2 transition-all shadow-ambient ${
             isProfileActive
-              ? 'bg-primary text-on-primary'
-              : 'bg-primary/10 text-primary hover:bg-primary/20'
+              ? 'ring-primary'
+              : 'ring-surface-container-lowest hover:ring-lime'
           }`}
         >
           <ProfileAvatar
@@ -253,7 +253,7 @@ export function DashboardHeader() {
             fallbackClassName={
               isProfileActive
                 ? 'bg-primary text-on-primary'
-                : 'bg-primary/10 text-primary group-hover:bg-primary/20'
+                : 'bg-lime text-forest-deep'
             }
           />
         </Link>

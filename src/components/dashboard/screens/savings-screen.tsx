@@ -26,7 +26,7 @@ export function SavingsScreen() {
   const canEdit = workspace === 'personal' || canEditArea('savings', true);
 
   if (!canView) return (
-    <div className="rounded-3xl border border-outline-variant bg-surface-container p-8 text-center">
+    <div className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-8 text-center">
       <p className="text-sm font-bold text-on-surface">{m.household.savingsPrivateTitle}</p>
       <div className="mx-auto mt-4 h-16 max-w-sm rounded-xl bg-surface-variant blur-sm" />
       <p className="mt-4 text-xs text-on-surface-variant">{m.household.savingsPrivateDescription}</p>

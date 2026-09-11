@@ -12,7 +12,7 @@ import { CategoryIconPicker } from '../ui/category-icon-picker';
 import { SegmentedControl } from '../ui/segmented-control';
 import { useMoneyPlaces } from '../../lib/use-money-places';
 import { MemberBadges } from '../ui/member-badges';
-import { VariableExpense, MoneyPlace, availableForCharge, bucketOf } from '../../lib/store';
+import { VariableExpense, MoneyPlace, availableForCharge, bucketOf, type ExpenseProductAttachment } from '../../lib/store';
 import { customCategorySchema, expenseSchema } from '../../lib/validation';
 import { useCurrency } from '../../lib/currency-context';
 import { isProUser } from '../../lib/pro-features';
@@ -56,7 +56,7 @@ interface ExpenseModalProps {
 
 const ADD_CATEGORY_VALUE = '__add_variable_category__';
 const VARIABLE_CATEGORY_COLORS = [
-  '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
+  '#0f3b36', '#7fb069', '#3b82f6', '#8b5cf6',
   '#ec4899', '#f97316', '#10b981', '#eab308',
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
@@ -120,6 +120,7 @@ export function ExpenseModal({
   const [ocrResult, setOcrResult] = useState<ReceiptParse | null>(null);
   const [ocrError, setOcrError] = useState<string>('');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [productAttachment, setProductAttachment] = useState<ExpenseProductAttachment | undefined>();
   const [typeTouched, setTypeTouched] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -142,6 +143,7 @@ export function ExpenseModal({
       setReceiptUrl(initialExpense.receiptUrl);
       setReceiptError('');
       setTagsInput((initialExpense.tags || []).join(', '));
+      setProductAttachment(initialExpense.productAttachment);
       setTypeTouched(true);
     } else {
       setName(prefill?.name || '');
@@ -155,6 +157,7 @@ export function ExpenseModal({
       setReceiptUrl(undefined);
       setReceiptError('');
       setTagsInput('');
+      setProductAttachment(undefined);
       setTypeTouched(false);
     }
     setOcrProgress(null);
@@ -338,6 +341,11 @@ export function ExpenseModal({
       person: person.trim() || 'Self',
       payerMemberId: payerMemberId.trim() || 'self',
       receiptUrl,
+      ...(productAttachment ? {
+        productAttachment,
+        sourceType: 'barcode' as const,
+        sourceId: productAttachment.gtin14,
+      } : {}),
       ...(isPro && parseTags(tagsInput).length ? { tags: parseTags(tagsInput) } : {}),
     };
 
@@ -429,6 +437,24 @@ export function ExpenseModal({
               onClose={() => setScannerOpen(false)}
               onProduct={(product) => {
                 setName([product.brand, product.name].filter(Boolean).join(' – ').slice(0, 80));
+                setProductAttachment({
+                  barcode: product.barcode,
+                  gtin14: product.gtin14,
+                  name: product.name,
+                  brand: product.brand,
+                  category: product.category,
+                  imageUrl: product.imageUrl,
+                  quantity: product.quantity,
+                  domain: product.domain,
+                  ranking: product.ranking,
+                  ingredientsText: product.ingredientsText,
+                  allergenTags: product.allergenTags,
+                  source: product.source,
+                  sourceUrl: product.sourceUrl,
+                  sourceDatabase: product.sourceDatabase,
+                  retrievedAt: product.retrievedAt,
+                  provenance: product.provenance,
+                });
                 setScannerOpen(false);
               }}
             />
@@ -440,12 +466,28 @@ export function ExpenseModal({
                 unlockScanAudio();
                 setScannerOpen(true);
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-label-lg text-label-lg font-bold text-on-primary shadow-xs transition-colors hover:bg-accent-foreground"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 font-label-lg text-label-lg font-bold text-on-primary shadow-xs transition-colors hover:bg-primary-hover"
             >
               <AppIcon name="scan_barcode" className="size-5" />
               {m.barcode.scanProduct}
             </button>
           )
+        )}
+        {productAttachment && !scannerOpen && (
+          <div className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
+            <AppIcon name="inventory_2" className="size-4 text-primary" />
+            <span className="min-w-0 flex-1 truncate" dir="ltr">
+              {productAttachment.barcode} · {productAttachment.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setProductAttachment(undefined)}
+              className="rounded-full p-1 hover:bg-surface-container-high"
+              aria-label={m.common.remove}
+            >
+              <AppIcon name="close" className="size-4" />
+            </button>
+          </div>
         )}
 
         {/* ── Category — add a new one inline, like fixed charges ── */}
@@ -522,7 +564,7 @@ export function ExpenseModal({
                         <button
                           type="button"
                           onClick={handleAddCategory}
-                          className="flex-1 rounded-xl bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
+                          className="flex-1 rounded-full bg-primary px-4 py-2 text-[13px] font-bold text-on-primary hover:opacity-90 sm:flex-none"
                         >
                           {m.common.add}
                         </button>
@@ -731,7 +773,7 @@ export function ExpenseModal({
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialExpense ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialExpense ? e.saveChanges : e.addTitle}</span>

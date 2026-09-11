@@ -11,7 +11,8 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { db as firestoreDb, isFirebaseConfigured } from '@/lib/firebase';
+import { isFirebaseConfigured } from '@/lib/firebase';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ProfileIdentity } from '../profile/profile-identity';

@@ -4,12 +4,12 @@ import { NextRequest } from 'next/server';
 import { POST } from '../src/app/api/inci/analyze/route';
 
 /**
- * Integration tests for the vendor coverage fallback of POST /api/inci/analyze.
+ * Integration tests for attributed vendor evidence of POST /api/inci/analyze.
  *
  * Behaviour under test:
  *  - no INCI_API_KEY ⇒ the route is pure-local and never calls out;
  *  - a key + unrecognized names ⇒ unrecognized raws are POSTed to the provider
- *    and only its "safe" entries are adopted (`vendorEnriched: true`);
+ *    and all observations are retained as informational-only evidence;
  *  - provider failures ⇒ identical to the pure-local result (fail-open);
  *  - a fully recognized list never triggers a vendor call.
  *
@@ -21,15 +21,20 @@ const UNKNOWN_TEXT = 'Aqua, Glycerin, Phlogiston Essence, Unobtainium Complex';
 
 type FetchCall = { url: string; init?: { headers?: Record<string, string>; body?: string } };
 
-async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+async function callRaw(body: unknown, ip: string): Promise<{ status: number; body: Record<string, unknown> }> {
   const req = new NextRequest('http://localhost/api/inci/analyze', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
-    body: JSON.stringify({ inciText: text, form: 'leave-on' }),
+    body: JSON.stringify(body),
   });
   const res = await POST(req);
-  assert.equal(res.status, 200);
-  return (await res.json()) as Record<string, unknown>;
+  return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+}
+
+async function callApi(text: string, ip: string): Promise<Record<string, unknown>> {
+  const result = await callRaw({ inciText: text, form: 'leave-on' }, ip);
+  assert.equal(result.status, 200);
+  return result.body;
 }
 
 function makeFetchStub(handler: (call: FetchCall) => Promise<unknown> | unknown) {
@@ -68,6 +73,49 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+function withoutVolatileTime(value: Record<string, unknown>): Record<string, unknown> {
+  const copy = structuredClone(value);
+  delete copy.assessedAt;
+  return copy;
+}
+
+describe('POST /api/inci/analyze input boundaries', () => {
+  it('rejects empty, non-string, per-token, and aggregate-overflow arrays', async () => {
+    const cases: Array<[unknown, string]> = [
+      [{ ingredients: [] }, 'provide at least one ingredient'],
+      [{ ingredients: 'Aqua' }, 'ingredients must be an array'],
+      [{ ingredients: ['Aqua', { name: 'Glycerin' }] }, 'ingredients must be strings'],
+      [{ ingredients: ['A'.repeat(501)] }, 'ingredient too long'],
+      [{ ingredients: Array.from({ length: 25 }, () => 'A'.repeat(500)) }, 'ingredient list too long'],
+      [{ inciText: 'A'.repeat(12_001), ingredients: ['Aqua'] }, 'invalid text field'],
+      [{ inciText: 'Aqua', category: 'A'.repeat(201) }, 'invalid text field'],
+      [{ inciText: 'Aqua', form: 'spray' }, 'invalid product form'],
+      [{ inciText: 'Aqua', source: 'OCR' }, 'invalid input source'],
+      [{ inciText: 'Aqua', source: 'ocr', reviewed: 'true' }, 'reviewed must be boolean'],
+    ];
+    for (const [index, [body, error]] of cases.entries()) {
+      const result = await callRaw(body, `10.8.0.${index + 1}`);
+      assert.equal(result.status, 400);
+      assert.equal(result.body.error, error);
+    }
+  });
+
+  it('accepts a pre-split list at the exact shared aggregate limit', async () => {
+    const ingredients = [
+      ...Array.from({ length: 24 }, () => 'A'.repeat(478)),
+      'B'.repeat(480),
+    ];
+    assert.equal(ingredients.join(', ').length, 12_000);
+    const result = await callRaw({ ingredients, form: 'leave-on' }, '10.8.1.1');
+    assert.equal(result.status, 200);
+    assert.equal(result.body.total, 25);
+    assert.equal((result.body.unknownIngredients as unknown[]).length, 20);
+    const unknownFlag = (result.body.flags as Array<{ code: string; text: string }>)
+      .find((flag) => flag.code === 'unknown-ingredients');
+    assert.match(unknownFlag?.text ?? '', /^25 of 25 /);
+  });
+});
+
 describe('POST /api/inci/analyze vendor fallback', () => {
   it('never calls the vendor without a key (pure-local result)', async () => {
     let fetchCalls = 0;
@@ -79,10 +127,10 @@ describe('POST /api/inci/analyze vendor fallback', () => {
     assert.equal(fetchCalls, 0);
     assert.equal(res.vendorEnriched, undefined);
     assert.equal(res.recognized, 2);
-    assert.equal((res.ingredients as { tier: string | null }[]).filter((i) => i.tier === null).length, 2);
+    assert.equal((res.ingredients as { tier: string | null }[]).filter((i) => i.tier === null).length, 4);
   });
 
-  it('posts only unrecognized names and adopts safe entries (vendorEnriched)', async () => {
+  it('posts only unidentified names and retains all provider verdicts without scoring them', async () => {
     process.env.INCI_API_KEY = 'sk-test';
     const { calls, stub } = makeFetchStub((call) => {
       assert.equal(call.url, 'https://inciapi.com/v1/analyze');
@@ -101,12 +149,19 @@ describe('POST /api/inci/analyze vendor fallback', () => {
     const res = await callApi(UNKNOWN_TEXT, '10.1.0.2');
     assert.equal(calls.length, 1);
     assert.equal(res.vendorEnriched, true);
-    assert.equal(res.recognized, 3);
+    assert.equal(res.recognized, 4);
     assert.equal(res.total, 4);
-    const remaining = (res.ingredients as { tier: string | null; raw: string }[]).filter(
-      (i) => i.tier === null,
-    );
-    assert.deepEqual(remaining.map((i) => i.raw), ['Unobtainium Complex']);
+    const external = (res.ingredients as Array<{
+      tier: string | null;
+      raw: string;
+      assessmentState: string;
+      externalEvidence?: Array<{ verdict?: string; informationalOnly: boolean }>;
+    }>).slice(2);
+    assert.ok(external.every((ingredient) => ingredient.tier === null));
+    assert.ok(external.every((ingredient) => ingredient.assessmentState === 'externally-identified'));
+    assert.deepEqual(external.map((ingredient) => ingredient.externalEvidence?.[0]?.verdict), ['safe', 'unsafe']);
+    assert.ok(external.every((ingredient) => ingredient.externalEvidence?.[0]?.informationalOnly === true));
+    assert.equal(res.score, null);
   });
 
   it('fails open: a vendor error leaves the pure-local result unchanged', async () => {
@@ -121,7 +176,7 @@ describe('POST /api/inci/analyze vendor fallback', () => {
     globalThis.fetch = (async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
     const httpRes = await callApi(UNKNOWN_TEXT, '10.1.0.4');
     assert.equal(httpRes.vendorEnriched, undefined);
-    assert.equal(JSON.stringify(httpRes), JSON.stringify(plain));
+    assert.deepEqual(withoutVolatileTime(httpRes), withoutVolatileTime(plain));
 
     // Network error.
     globalThis.fetch = (async () => {
@@ -129,7 +184,7 @@ describe('POST /api/inci/analyze vendor fallback', () => {
     }) as unknown as typeof fetch;
     const netRes = await callApi(UNKNOWN_TEXT, '10.1.0.5');
     assert.equal(netRes.vendorEnriched, undefined);
-    assert.equal(JSON.stringify(netRes), JSON.stringify(plain));
+    assert.deepEqual(withoutVolatileTime(netRes), withoutVolatileTime(plain));
   });
 
   it('never calls the vendor when the local snapshot already covers the list', async () => {

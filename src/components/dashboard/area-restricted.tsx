@@ -24,7 +24,7 @@ export function AreaRestricted({ area, icon = 'lock' }: AreaRestrictedProps) {
   return (
     <div
       role="status"
-      className="rounded-3xl border border-outline-variant bg-surface-container p-8 text-center"
+      className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-8 text-center"
     >
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-variant text-on-surface-variant">
         <AppIcon name={icon} className="text-[22px]" />

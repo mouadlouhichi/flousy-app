@@ -1,23 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { BarcodeScannerPanel, unlockScanAudio } from '@/components/ui/barcode-scanner-panel';
 import { RankingChip } from '@/components/ui/ranking-chip';
 import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
-import { lookupOffProduct } from '@/lib/product-lookup';
 import { useLanguage } from '@/lib/i18n-context';
-import type { RemoteProductInfo } from '@/lib/course-session';
+import type { BarcodeCandidate } from '@/lib/gtin';
+import type { ResolvedProduct } from '@/lib/scan-resolution';
+import { useCourseSession } from '@/hooks/use-course-session';
+import { useDashboard } from '@/components/dashboard/dashboard-provider';
 
 type LookupState =
   | { kind: 'idle' }
   | { kind: 'busy'; code: string }
   | { kind: 'missing'; code: string }
   | { kind: 'lookup-failed'; code: string }
-  | { kind: 'found'; product: RemoteProductInfo; code: string };
+  | { kind: 'found'; product: ResolvedProduct; code: string };
 
 interface ExpenseBarcodeScannerProps {
-  onProduct: (product: RemoteProductInfo, barcode: string) => void;
+  onProduct: (product: ResolvedProduct) => void;
   onClose: () => void;
 }
 
@@ -31,19 +33,40 @@ interface ExpenseBarcodeScannerProps {
  */
 export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScannerProps) {
   const { messages: m, t, language } = useLanguage();
+  const { user } = useDashboard();
+  const courseStore = useCourseSession(user?.uid ?? null);
   const [lookup, setLookup] = useState<LookupState>({ kind: 'idle' });
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const handleCode = (code: string) => {
-    setLookup({ kind: 'busy', code });
-    lookupOffProduct(code, { lang: language })
-      .then((outcome) => {
-        if (outcome.kind === 'found') setLookup({ kind: 'found', product: outcome.product, code });
-        // `error` (network/timeout/upstream) is retry-able and must NOT be
-        // dressed up as "the product doesn't exist".
-        else if (outcome.kind === 'not-found') setLookup({ kind: 'missing', code });
-        else setLookup({ kind: 'lookup-failed', code });
-      })
-      .catch(() => setLookup({ kind: 'lookup-failed', code }));
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleCode = async (candidate: BarcodeCandidate) => {
+    const requestId = ++requestIdRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLookup({ kind: 'busy', code: candidate.rawValue });
+    const result = await courseStore.resolveBarcode(candidate, {
+      lang: language,
+      signal: controller.signal,
+    });
+    if (requestId !== requestIdRef.current || controller.signal.aborted) return;
+    if (result.kind === 'invalid') {
+      setLookup({ kind: 'lookup-failed', code: candidate.rawValue });
+    } else if (result.kind === 'found') {
+      setLookup({ kind: 'found', product: result.product, code: result.canonical.gtin });
+      if (result.revalidate) {
+        const refreshed = await result.revalidate.catch(() => null);
+        if (refreshed && requestId === requestIdRef.current && !controller.signal.aborted) {
+          setLookup({ kind: 'found', product: refreshed, code: result.canonical.gtin });
+        }
+      }
+    } else if (result.kind === 'not-found' && result.reason === 'not-found') {
+      setLookup({ kind: 'missing', code: result.canonical.gtin });
+    } else {
+      setLookup({ kind: 'lookup-failed', code: result.canonical.gtin });
+    }
   };
 
   // Holds the whole narrowed state so `code` and `product` stay accessible.
@@ -51,7 +74,7 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
 
   return (
     <BarcodeScannerPanel
-      enabled
+      enabled={lookup.kind === 'idle'}
       onCode={handleCode}
       className="rounded-2xl border border-outline-variant bg-surface-container p-3.5 md:p-4"
       labels={{
@@ -121,7 +144,11 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setLookup({ kind: 'idle' })}
+                onClick={() => {
+                  abortRef.current?.abort();
+                  requestIdRef.current += 1;
+                  setLookup({ kind: 'idle' });
+                }}
                 className="rounded-full border border-outline-variant px-4 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
               >
                 {m.barcode.scanAnother}
@@ -129,10 +156,10 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
               <button
                 type="button"
                 onClick={() => {
-                  onProduct(found.product, found.code);
+                  onProduct(found.product);
                   onClose();
                 }}
-                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:bg-accent-foreground shadow-xs transition-colors"
+                className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 font-label-md text-label-md text-on-primary hover:bg-primary-hover shadow-xs transition-colors"
               >
                 <AppIcon name="check" className="size-4" />
                 {m.barcode.useProduct}
@@ -142,7 +169,14 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
         ) : lookup.kind === 'missing' ? (
           <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-outline-variant bg-surface-container px-4 py-3 font-body-md text-body-md text-on-surface-variant">
             <AppIcon name="info" className="size-5 shrink-0 text-tertiary" />
-            <span>{t(m.barcode.notFound, { code: lookup.code })}</span>
+            <span className="min-w-0 flex-1">{t(m.barcode.notFound, { code: lookup.code })}</span>
+            <button
+              type="button"
+              onClick={() => setLookup({ kind: 'idle' })}
+              className="shrink-0 rounded-full border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm"
+            >
+              {m.barcode.scanAnother}
+            </button>
           </div>
         ) : lookup.kind === 'lookup-failed' ? (
           <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-tertiary/40 bg-tertiary-container/30 px-4 py-3 font-body-md text-body-md text-on-surface">
@@ -150,7 +184,7 @@ export function ExpenseBarcodeScanner({ onProduct, onClose }: ExpenseBarcodeScan
             <span className="min-w-0 flex-1">{m.courses.lookupFailed}</span>
             <button
               type="button"
-              onClick={() => handleCode(lookup.code)}
+              onClick={() => void handleCode({ rawValue: lookup.code, source: 'manual' })}
               className="tap-target shrink-0 rounded-full border border-outline-variant px-3.5 py-1.5 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-variant transition-colors"
             >
               {m.common.retry}

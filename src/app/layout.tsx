@@ -8,59 +8,81 @@ import { LightLanguageProvider } from '@/lib/i18n-light';
 import { LocalizedDocumentTitle } from '@/components/localized-document-title';
 import { SkipToContentLink } from '@/components/ui/skip-to-content';
 import { Toaster } from '@/components/ui/toaster';
-import { SITE_URL } from '@/lib/seo';
+import { DEFAULT_ROBOTS, OG_IMAGE, OG_LOCALE, SITE_NAME, SITE_URL, TWITTER_CARD } from '@/lib/seo';
 import '../index.css';
 import '@fontsource-variable/jetbrains-mono/wght.css';
 import '@fontsource-variable/cairo/wght.css';
 
-const instrumentSans = localFont({
+const jakartaSans = localFont({
+  // Plus Jakarta Sans — the geometric grotesque behind the rebrand (large
+  // tabular balance figures, soft headline curves). Single latin file: its
+  // unicode-range covers ASCII + Latin-1 (é è ç à « ») + œ, i.e. everything
+  // the en/fr UI renders — Arabic is served by Cairo. next/font preloads
+  // every src entry, so the latin-ext subset is intentionally left out to
+  // keep the LCP font request small.
   src: [
     {
-      path: './fonts/instrument-sans-latin-wght-normal.woff2',
-      weight: '400 700',
-      style: 'normal',
-    },
-    {
-      path: './fonts/instrument-sans-latin-ext-wght-normal.woff2',
-      weight: '400 700',
+      path: './fonts/plus-jakarta-sans-latin-wght-normal.woff2',
+      weight: '200 800',
       style: 'normal',
     },
   ],
-  variable: '--font-instrument',
+  variable: '--font-jakarta',
+  // `swap` + preload: first paint happens in next/font's size-adjusted
+  // system-ui fallback (so the font never blocks LCP text), then swaps to
+  // the brand font with near-zero CLS.
   display: 'swap',
   preload: true,
 });
 
+const defaultTitle = 'SmartJib - Free Private Budget Tracker & Money Manager App';
+const defaultDescription =
+  'SmartJib is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.';
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'SmartJib - Free Private Budget Tracker & Money Manager App',
+    default: defaultTitle,
     template: '%s · SmartJib',
   },
-  description:
-    'SmartJib is a private budget tracker for needs, wants, and savings that separately tracks money in your bank, home, and wallet—without bank connections.',
+  description: defaultDescription,
+  // Site-wide social defaults so every route without its own openGraph/
+  // twitter block (login, dashboard, error pages…) still unfurls with the
+  // brand title, description and generated OG image. Private routes stay
+  // noindex via their own metadata; their OG tags only affect unfurls.
+  openGraph: {
+    title: defaultTitle,
+    description: defaultDescription,
+    url: '/',
+    siteName: SITE_NAME,
+    type: 'website',
+    locale: OG_LOCALE,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: TWITTER_CARD,
+    title: defaultTitle,
+    description: defaultDescription,
+    images: [OG_IMAGE.url],
+  },
+  robots: DEFAULT_ROBOTS,
   applicationName: 'SmartJib',
   authors: [{ name: 'SmartJib Team' }],
   creator: 'SmartJib Team',
   publisher: 'SmartJib',
+  category: 'finance',
+  // Kept to factual multi-word phrases. Google ignores meta keywords and
+  // Bing treats single generic words (money, free, bank…) as a spam signal,
+  // so the old list did more harm than good.
   keywords: [
     'budget tracker',
+    'private budget tracker',
     'expense manager',
-    'private budgeting',
-    'PWA',
-    'no bank connection',
     'needs wants savings budget',
     'money place tracking',
-    'budgeting',
-    'smartjib',
-    'money',
-    'free',
-    'dirham',
-    'bank',
-    'mad',
-    'start',
-    'budgeting styles',
-    'start budgeting'
+    'no bank connection',
+    'budgeting methods',
+    'multi-currency budget app',
   ],
   generator: 'Next.js',
   manifest: '/manifest.json',
@@ -89,7 +111,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#00685f',
+  themeColor: '#0f3b36',
   colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
@@ -115,7 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       dir="ltr"
       suppressHydrationWarning
-      className={instrumentSans.variable}
+      className={jakartaSans.variable}
     >
       <head>
         {/*
@@ -132,7 +154,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         <InstallPromptCapture />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* Next.js already emits apple-mobile-web-app-capable from the
+            appleWebApp metadata above; a second tag here only duplicated it. */}
       </head>
       <body className="font-sans antialiased">
         <LightLanguageProvider>

@@ -27,6 +27,11 @@
  */
 
 import { normalizeInciToken } from '@/lib/ingredient-safety/normalize';
+import {
+  MAX_INGREDIENT_TEXT_LENGTH,
+  type ExternalIngredientEvidence,
+} from '@/lib/ingredient-safety/types';
+import { isValidGtin } from '@/lib/gtin';
 
 export const VENDOR_INCI_ENDPOINT = 'https://inciapi.com/v1/products/';
 /**
@@ -39,7 +44,9 @@ export const VENDOR_INCI_SAFETY_PATH = '/safety';
 export const VENDOR_INCI_ANALYZE_ENDPOINT = 'https://inciapi.com/v1/analyze';
 type EnvVarMap = Record<string, string | undefined>;
 const VENDOR_TIMEOUT_MS = 3_000;
-const MAX_INCI_LENGTH = 8_000;
+const MAX_VENDOR_INGREDIENTS = 300;
+const MAX_VENDOR_INGREDIENT_NAME_LENGTH = 500;
+const MAX_VENDOR_VERDICT_LENGTH = 100;
 
 export function vendorKey(env: EnvVarMap = process.env): string | undefined {
   const key = env.INCI_API_KEY;
@@ -48,6 +55,25 @@ export function vendorKey(env: EnvVarMap = process.env): string | undefined {
 
 export function isVendorConfigured(env: EnvVarMap = process.env): boolean {
   return vendorKey(env) !== undefined;
+}
+
+function joinVendorIngredientArray(value: unknown, objectsOnly = false): string | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_VENDOR_INGREDIENTS) return null;
+  const names: string[] = [];
+  for (const entry of value) {
+    let rawName: unknown;
+    if (!objectsOnly && typeof entry === 'string') rawName = entry;
+    else if (entry && typeof entry === 'object') {
+      rawName = (entry as { inciName?: unknown; name?: unknown }).inciName
+        ?? (entry as { name?: unknown }).name;
+    } else return null;
+    if (typeof rawName !== 'string') return null;
+    const name = rawName.trim();
+    if (!name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) return null;
+    names.push(name);
+  }
+  const joined = names.join(', ');
+  return joined.length <= MAX_INGREDIENT_TEXT_LENGTH ? joined : null;
 }
 
 /**
@@ -78,39 +104,15 @@ export function extractVendorInci(body: unknown): string | null {
 
   if (typeof rawInci === 'string') {
     const text = rawInci.trim();
-    return text && text.length <= MAX_INCI_LENGTH ? text : null;
+    return text && text.length <= MAX_INGREDIENT_TEXT_LENGTH ? text : null;
   }
-  if (Array.isArray(rawInci)) {
-    const names = rawInci
-      .map((entry) =>
-        typeof entry === 'string'
-          ? entry.trim()
-          : entry && typeof entry === 'object'
-            ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
-            : '',
-      )
-      .filter(Boolean);
-    if (names.length === 0) return null;
-    const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
-    return joined.length > 0 ? joined : null;
-  }
+  if (Array.isArray(rawInci)) return joinVendorIngredientArray(rawInci);
 
   // Safety response may keep INCI only as parsedIngredients (objects with
   // inciName/name) rather than rawInci.
   const parsed =
     root.parsedIngredients ?? root.analysis?.parsedIngredients;
-  if (Array.isArray(parsed)) {
-    const names = parsed
-      .map((entry) =>
-        entry && typeof entry === 'object'
-          ? String((entry as { inciName?: unknown; name?: unknown }).inciName ?? (entry as { name?: unknown }).name ?? '').trim()
-          : '',
-      )
-      .filter(Boolean);
-    if (names.length === 0) return null;
-    const joined = names.join(', ').slice(0, MAX_INCI_LENGTH);
-    return joined.length > 0 ? joined : null;
-  }
+  if (Array.isArray(parsed)) return joinVendorIngredientArray(parsed, true);
 
   return null;
 }
@@ -133,8 +135,11 @@ export function extractVendorProduct(body: unknown): VendorProductInfo | null {
   if (!root || typeof root !== 'object') return null;
   const product: Record<string, unknown> =
     root.product ?? (root as unknown as Record<string, unknown>);
-  const pickName = (value: unknown): string | undefined =>
-    typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  const pickName = (value: unknown): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const text = value.trim();
+    return text && text.length <= 200 ? text : undefined;
+  };
   const name =
     pickName(product.product_name) ??
     pickName(product.productName) ??
@@ -148,12 +153,8 @@ export function extractVendorProduct(body: unknown): VendorProductInfo | null {
   const brand =
     pickName(product.brand) ??
     pickName(root.brand) ??
-    (typeof product.brands === 'string' && product.brands.trim()
-      ? product.brands.split(',')[0].trim()
-      : undefined) ??
-    (typeof root.brands === 'string' && root.brands.trim()
-      ? root.brands.split(',')[0].trim()
-      : undefined);
+    pickName(typeof product.brands === 'string' ? product.brands.split(',')[0] : undefined) ??
+    pickName(typeof root.brands === 'string' ? root.brands.split(',')[0] : undefined);
   return { name, ...(brand ? { brand } : {}), ingredientsText };
 }
 
@@ -179,9 +180,10 @@ export async function fetchVendorPayload(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  outerSignal?: AbortSignal,
 ): Promise<unknown | null> {
   const key = vendorKey(env);
-  if (!key || (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code))) {
+  if (!key || !isValidGtin(code) || outerSignal?.aborted) {
     return null;
   }
 
@@ -198,7 +200,7 @@ export async function fetchVendorPayload(
       try {
         const res = await fetchImpl(url, {
           headers: { 'X-API-Key': key, Accept: 'application/json' },
-          signal: controller.signal,
+          signal: outerSignal ? AbortSignal.any([outerSignal, controller.signal]) : controller.signal,
         });
         if (!res.ok) continue;
         return await res.json();
@@ -217,8 +219,9 @@ export async function fetchVendorInci(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  signal?: AbortSignal,
 ): Promise<string | null> {
-  const body = await fetchVendorPayload(code, env, fetchImpl);
+  const body = await fetchVendorPayload(code, env, fetchImpl, signal);
   return extractVendorInci(body);
 }
 
@@ -227,18 +230,16 @@ export async function fetchVendorProduct(
   code: string,
   env: EnvVarMap = process.env,
   fetchImpl: FetchLike = defaultFetch,
+  signal?: AbortSignal,
 ): Promise<VendorProductInfo | null> {
-  const body = await fetchVendorPayload(code, env, fetchImpl);
+  const body = await fetchVendorPayload(code, env, fetchImpl, signal);
   return extractVendorProduct(body);
 }
 
 // ---------------------------------------------------------------------------
-// Analysis fallback — coverage enrichment for names the LOCAL CosIng snapshot
-// does not recognize. The provider's per-ingredient entries are adopted ONLY
-// when their reported safety level maps 1:1 to one of our tiers ('safe' →
-// clean); any other verdict is ignored, so a third party can never inject a
-// penalty (or a clean bill) the local model did not intend. Parsing is
-// defensive and every failure degrades to the pure-local result.
+// External analysis evidence. Every provider verdict is retained with source
+// attribution, but it is informational only: it never creates a local tier,
+// clears a concern, or improves the numeric score.
 // ---------------------------------------------------------------------------
 
 export interface VendorAnalyzeEntry {
@@ -257,7 +258,7 @@ export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[]
     analysis?: { parsedIngredients?: unknown };
   };
   const raw = root.parsedIngredients ?? root.analysis?.parsedIngredients ?? root.ingredients;
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw) || raw.length > MAX_VENDOR_INGREDIENTS) return [];
   const entries: VendorAnalyzeEntry[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
@@ -274,46 +275,53 @@ export function extractVendorAnalyzeEntries(body: unknown): VendorAnalyzeEntry[]
         : typeof obj.name === 'string'
           ? obj.name.trim()
           : '';
-    if (!inciName) continue;
+    if (!inciName || inciName.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) continue;
+    const safetyLevel = typeof obj.safetyLevel === 'string' ? obj.safetyLevel.trim() : '';
+    const safetyScore = typeof obj.safetyScore === 'number' && Number.isFinite(obj.safetyScore)
+      ? obj.safetyScore
+      : undefined;
     entries.push({
       inciName,
-      ...(typeof obj.safetyLevel === 'string' && obj.safetyLevel.trim()
-        ? { safetyLevel: obj.safetyLevel.trim() }
+      ...(safetyLevel && safetyLevel.length <= MAX_VENDOR_VERDICT_LENGTH
+        ? { safetyLevel }
         : {}),
-      ...(typeof obj.safetyScore === 'number' ? { safetyScore: obj.safetyScore } : {}),
+      ...(safetyScore !== undefined ? { safetyScore } : {}),
       ...(typeof obj.found === 'boolean' ? { found: obj.found } : {}),
     });
   }
   return entries;
 }
 
-/**
- * Build the normalized-name → recognition map consumed by the analysis
- * engine. Keys match the engine's normalizeInciToken output. Only entries the
- * vendor explicitly reports as 'safe' are adopted (clean tier); anything else
- * — unknown levels, found:false — is left unrecognized.
- */
-export function buildVendorRecognition(
+/** Build a normalized-name → attributed provider-evidence map. */
+export function buildVendorEvidence(
   entries: readonly VendorAnalyzeEntry[],
-): Map<string, { label: string; detail: string; evidence: string[] }> {
-  const map = new Map<string, { label: string; detail: string; evidence: string[] }>();
+): Map<string, ExternalIngredientEvidence> {
+  const map = new Map<string, ExternalIngredientEvidence>();
+  if (entries.length > MAX_VENDOR_INGREDIENTS) return map;
   for (const entry of entries) {
     const name = entry.inciName.trim();
-    if (!name) continue;
-    if (entry.found === false) continue;
-    if ((entry.safetyLevel ?? '').toLowerCase() !== 'safe') continue;
+    if (!name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH) continue;
     const key = normalizeInciToken(name);
     if (!key) continue;
+    const verdict = entry.safetyLevel?.trim();
+    const score = typeof entry.safetyScore === 'number' && Number.isFinite(entry.safetyScore)
+      ? entry.safetyScore
+      : undefined;
     map.set(key, {
-      label: name.toUpperCase(),
-      detail:
-        'Not present in the local CosIng snapshot, but reported safe by the external ' +
-        `ingredient database (provider level "${entry.safetyLevel}").`,
-      evidence: ['INCI API provider analysis (external database)'],
+      provider: 'INCI API (inciapi.com)',
+      reportedName: name,
+      ...(verdict && verdict.length <= MAX_VENDOR_VERDICT_LENGTH ? { verdict } : {}),
+      ...(score !== undefined ? { score } : {}),
+      ...(entry.found !== undefined ? { found: entry.found } : {}),
+      informationalOnly: true,
     });
   }
   return map;
 }
+
+/** @deprecated Use buildVendorEvidence. Kept for integrations compiled against
+ * the old name; semantics are now informational-only and include all verdicts. */
+export const buildVendorRecognition = buildVendorEvidence;
 
 type AnalyzeFetchImpl = (
   url: string,
@@ -324,32 +332,42 @@ const defaultAnalyzeFetch: AnalyzeFetchImpl = (url, init) =>
   fetch(url, init as RequestInit) as Promise<{ ok: boolean; json: () => Promise<unknown> }>;
 
 /**
- * Ask the vendor to analyze the ingredient names the local snapshot missed.
- * POSTs the raw list; returns the recognized-safe map (empty when the vendor
- * had nothing to add or anything failed). Never called without a key.
+ * Ask the vendor about names the local glossary missed. Raw names are sent only
+ * when the optional provider is configured; every returned verdict is kept as
+ * attributed informational evidence.
  */
-export async function fetchVendorAnalyzeRecognition(
+export async function fetchVendorAnalyzeEvidence(
   names: readonly string[],
   env: EnvVarMap = process.env,
   fetchImpl: AnalyzeFetchImpl = defaultAnalyzeFetch,
-): Promise<Map<string, { label: string; detail: string; evidence: string[] }>> {
+): Promise<Map<string, ExternalIngredientEvidence>> {
   const key = vendorKey(env);
   if (!key || names.length === 0) return new Map();
+  const ingredients = names.map((name) => name.trim());
+  if (
+    ingredients.length > MAX_VENDOR_INGREDIENTS
+    || ingredients.some((name) => !name || name.length > MAX_VENDOR_INGREDIENT_NAME_LENGTH)
+    || ingredients.reduce((length, name) => length + name.length, 0)
+      + Math.max(0, ingredients.length - 1) * 2 > MAX_INGREDIENT_TEXT_LENGTH
+  ) return new Map();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VENDOR_TIMEOUT_MS);
   try {
     const res = await fetchImpl(VENDOR_INCI_ANALYZE_ENDPOINT, {
       method: 'POST',
       headers: { 'X-API-Key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ ingredients: names.slice(0, 300) }),
+      body: JSON.stringify({ ingredients }),
       signal: controller.signal,
     });
     if (!res.ok) return new Map();
     const body = await res.json();
-    return buildVendorRecognition(extractVendorAnalyzeEntries(body));
+    return buildVendorEvidence(extractVendorAnalyzeEntries(body));
   } catch {
     return new Map();
   } finally {
     clearTimeout(timer);
   }
 }
+
+/** @deprecated Use fetchVendorAnalyzeEvidence. */
+export const fetchVendorAnalyzeRecognition = fetchVendorAnalyzeEvidence;

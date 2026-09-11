@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useReportWebVitals } from 'next/web-vitals';
 import { trackEvent } from '@/lib/analytics';
+import { isDevToolsVitalsNoise } from '@/lib/client-error-classify';
 
 /**
  * Production observability, kept deliberately small:
@@ -47,18 +48,6 @@ function report(kind: string, message: string, stack?: string): void {
   } catch {
     // Never let the reporter itself throw.
   }
-}
-
-/**
- * Known Chrome DevTools bug (see GoogleChrome/web-vitals#792): with DevTools
- * open, the Performance-panel integration injects its own copy of web-vitals
- * as an anonymous `VM*` script, which throws
- * `Cannot read properties of undefined (reading 'startTime')` from
- * `reportAllChanges` on soft navigations. It originates in the browser — not
- * in app code — so it must never be beaconed as an app error.
- */
-function isDevToolsVitalsNoise(message: string, stack?: string): boolean {
-  return message.includes("reading 'startTime'") && (stack?.includes('reportAllChanges') ?? false);
 }
 
 export function ObservabilityReporter() {

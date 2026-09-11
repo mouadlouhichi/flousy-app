@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AppIcon } from '@/components/ui/app-icon';
@@ -20,7 +19,7 @@ import { canExportAnything, TOOL_AREA } from '@/lib/household-rbac';
 /** Tiny uppercase section heading with a hairline rule under it. */
 function SidebarGroupLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-5 mb-1.5 border-b border-surface-variant/40 px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-on-surface-variant/80 first:mt-0">
+    <p className="mt-6 mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant/70 first:mt-0">
       {children}
     </p>
   );
@@ -45,9 +44,9 @@ function SidebarToolRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-start font-label-lg text-on-surface-variant transition-colors hover:bg-surface-variant/40 hover:text-on-surface"
+      className="flex w-full items-center gap-3 rounded-full px-3.5 py-2.5 text-start text-[14px] font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
     >
-      <AppIcon name={icon} className="shrink-0 text-[21px]" />
+      <AppIcon name={icon} strokeWidth={1.8} className="shrink-0 text-[20px]" />
       <span className="truncate">{label}</span>
     </button>
   );
@@ -83,19 +82,20 @@ export function Sidebar() {
   // Tonal step above the page surface (container-high) plus a soft edge
   // shadow, so the rail reads as chrome rather than flat background.
   return (
-    <aside className="hidden md:flex flex-col w-64 border-e border-outline-variant/40 bg-surface-container-high shadow-[1px_0_16px_rgba(23,29,28,0.10)] shrink-0 fixed top-0 bottom-0 start-0 z-30">
+    <aside className="hidden md:flex flex-col w-64 border-e border-outline-variant/60 bg-surface-container-lowest shrink-0 fixed top-0 bottom-0 start-0 z-30">
       {/* Brand Logo */}
-      <div className="p-5 flex items-center gap-3 border-b border-surface-variant/50">
-        <Image
-          src="/logo.png"
+      <div className="px-6 pt-7 pb-5 flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-128.png"
           alt={m.common.appName}
-          width={40}
-          height={40}
+          width={36}
+          height={36}
           className="object-contain"
-          priority
+          fetchPriority="high"
         />
-        <span className="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">
-          SmartJib
+        <span className="font-display text-[22px] font-semibold tracking-[-0.03em] text-on-surface">
+          smartjib<span className="text-lime-deep dark:text-lime">.</span>
         </span>
       </div>
 
@@ -115,22 +115,23 @@ export function Sidebar() {
                 href={item.href}
                 prefetch={true}
                 aria-current={isActive ? 'page' : undefined}
-                className={`relative flex items-center gap-3 rounded-2xl px-3 py-2.5 font-label-lg transition-colors ${
+                className={`relative flex items-center gap-3 rounded-full px-3.5 py-2.5 text-[14px] transition-colors ${
                   isActive
-                    ? 'font-bold text-primary'
-                    : 'text-on-surface-variant hover:bg-surface-variant/40 hover:text-on-surface'
+                    ? 'font-semibold text-on-primary'
+                    : 'font-medium text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                 }`}
               >
                 {isActive && (
                   <motion.span
                     layoutId="dashboard-sidebar-active-bg"
-                    className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
+                    className="absolute inset-0 rounded-full bg-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.5)]"
                     transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
                   />
                 )}
                 <AppIcon
                   name={item.sidebarIcon}
-                  className={`relative z-10 text-[21px] ${isActive ? 'filled' : ''}`}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className="relative z-10 text-[20px]"
                 />
                 <span className="relative z-10 truncate">{getLocalizedNavLabel(item, m)}</span>
               </Link>
@@ -177,21 +178,21 @@ export function Sidebar() {
       {/* Bottom Profile Footer — whole row opens the profile page. Shares
           the sidebar's sliding active pill so Profile doesn't leave Overview
           (or whichever tab you came from) looking selected. */}
-      <div className="p-4 border-t border-outline-variant/40 bg-surface-container-low/70">
+      <div className="p-4">
         <Link
           href="/dashboard/profile"
           prefetch={true}
           aria-current={activeScreen === 'profile' ? 'page' : undefined}
-          className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 transition-colors ${
+          className={`relative flex items-center gap-3 overflow-hidden rounded-[1.375rem] px-3 py-3 transition-colors ${
             activeScreen === 'profile'
-              ? 'text-primary'
-              : 'text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface'
+              ? 'text-on-primary'
+              : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'
           }`}
         >
           {activeScreen === 'profile' && (
             <motion.span
               layoutId="dashboard-sidebar-active-bg"
-              className="absolute inset-0 rounded-2xl bg-primary/10 shadow-xs"
+              className="absolute inset-0 rounded-[1.375rem] bg-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.5)]"
               transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
             />
           )}
@@ -199,21 +200,21 @@ export function Sidebar() {
             src={avatarSrc}
             initial={userInitial}
             alt=""
-            className="relative z-10 h-10 w-10"
-            fallbackClassName="bg-primary/20 text-primary font-bold"
+            className="relative z-10 h-10 w-10 ring-2 ring-surface-container-lowest"
+            fallbackClassName="bg-lime text-forest-deep font-semibold"
           />
           <div className="relative z-10 flex min-w-0 flex-1 flex-col truncate">
-            <span className="font-label-lg font-bold text-on-surface truncate">
+            <span className={`text-[14px] font-semibold truncate ${activeScreen === 'profile' ? 'text-on-primary' : 'text-on-surface'}`}>
               {profile?.displayName || (user?.email ? user.email.split('@')[0] : m.auth.anonymousUser)}
             </span>
-            <span className="font-label-sm text-[10px] text-primary uppercase font-extrabold tracking-wider">
+            <span className={`text-[11px] font-medium truncate ${activeScreen === 'profile' ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>
               {t(m.auth.planLabel, { plan: isPro ? m.profile.links.pro : m.profile.free })}
             </span>
           </div>
           <AppIcon
-            name="person"
-            className={`relative z-10 shrink-0 text-[20px] ${
-              activeScreen === 'profile' ? 'filled text-primary' : 'text-on-surface-variant'
+            name="chevron_right"
+            className={`relative z-10 shrink-0 text-[18px] rtl:rotate-180 ${
+              activeScreen === 'profile' ? 'text-on-primary/80' : 'text-on-surface-variant'
             }`}
           />
         </Link>

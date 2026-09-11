@@ -16,6 +16,7 @@ import { FooterSection } from '@/components/landing/footer-section';
 import { JsonLd } from '@/components/seo/json-ld';
 import {
   SMARTJIB_FACTUAL_DESCRIPTION,
+  DEFAULT_ROBOTS,
   LANDING_FAQS,
   OG_IMAGE,
   SITE_NAME,
@@ -29,10 +30,7 @@ const description =
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: DEFAULT_ROBOTS,
   alternates: {
     // Self-referential canonical only. There is a single URL per page — the UI
     // language is a client preference, not a locale path — so declaring

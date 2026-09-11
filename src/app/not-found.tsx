@@ -27,7 +27,7 @@ export default function NotFound() {
       */}
       <a
         href="/"
-        className="mt-sm px-6 py-3 bg-primary text-on-primary font-headline-md text-headline-md rounded-xl shadow-sm hover:bg-primary-container"
+        className="mt-sm px-6 py-3 bg-primary text-on-primary font-headline-md text-headline-md rounded-full shadow-sm hover:bg-primary-container"
       >
         {m.errors.goHome}
       </a>

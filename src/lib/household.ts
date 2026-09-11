@@ -22,8 +22,11 @@ import { resolveProEntitlement } from './pro-features';
  * would visibly change somebody's budget.
  */
 export function normalizeHousehold(id: string, value: Partial<Household>): Household {
+  // fundTarget is validated out of the raw spread: an invalid stored value
+  // (negative, NaN from a hand-edit) must vanish rather than ride along.
+  const { fundTarget, ...rest } = value;
   return {
-    ...value,
+    ...rest,
     id,
     name: value.name || 'Household',
     kind: value.kind === 'business' ? 'business' : 'household',
@@ -37,6 +40,9 @@ export function normalizeHousehold(id: string, value: Partial<Household>): House
     activeCategories: value.activeCategories?.length
       ? value.activeCategories
       : [...HOUSEHOLD_DEFAULT_CATEGORIES],
+    ...(typeof fundTarget === 'number' && Number.isFinite(fundTarget) && fundTarget >= 0
+      ? { fundTarget: Math.round(fundTarget * 100) / 100 }
+      : {}),
     createdAt: value.createdAt || new Date(0).toISOString(),
     updatedAt: value.updatedAt || value.createdAt || new Date(0).toISOString(),
     schemaVersion: Math.max(2, value.schemaVersion || 0),
@@ -74,6 +80,12 @@ export interface Household {
   fixedCategories?: FixedCategoryItem[];
   defaultCategoryBudgets?: Record<string, number>;
   enableRollover?: boolean;
+  /**
+   * Monthly amount the household aims to pool in the shared fund (money paid
+   * with the 'household' payer). Owner-set; purely a target — the pooled
+   * total for the period is computed from the payments themselves.
+   */
+  fundTarget?: number;
   entitlementOwnerId: string;
   /** Readable projection of the owner's entitlement for member-side feature gates. */
   entitlementSource?: 'launch_trial' | 'stripe' | 'cmi' | 'admin';
@@ -125,6 +137,30 @@ export interface HouseholdPayer {
   id: string;
   label: string;
   color?: string;
+}
+
+/**
+ * Payer chips for a shared workspace ("who paid?").
+ *
+ * "Me" already stands for the signed-in member, so their own roster row is
+ * left out — listing it again showed a one-person household as
+ * "Me · Mouad · Household funds" with "Me" and "Mouad" being the same payer.
+ * Pooled "Household funds" only means something once someone else shares
+ * the budget, so that chip appears only alongside another active member.
+ */
+export function householdPayerOptions(
+  members: HouseholdMember[],
+  currentUserId: string | undefined,
+  labels: { me: string; funds: string },
+): HouseholdPayer[] {
+  const others = members.filter(
+    (member) => member.status === 'active' && !(currentUserId && (member.userId === currentUserId || member.id === currentUserId)),
+  );
+  return [
+    { id: 'self', label: labels.me },
+    ...(others.length > 0 ? [{ id: 'household', label: labels.funds }] : []),
+    ...others.map((member) => ({ id: member.id, label: member.displayName, color: member.avatarColor })),
+  ];
 }
 
 export function householdStorageKey(householdId: string | undefined, monthKey: string) {
@@ -180,34 +216,21 @@ export function computeHouseholdContributions(
   month: Pick<MonthBudget, 'variableExpenses' | 'fixedExpenses'> | undefined | null,
   members: HouseholdMember[],
 ): HouseholdContributions {
-  const collaborators = members.filter((member) => member.status === 'active' && member.role !== 'profile');
-  const byMemberId = new Map(collaborators.map((member) => [member.id, member]));
-  const byUserId = new Map(
-    collaborators.filter((member) => member.userId).map((member) => [member.userId as string, member]),
-  );
+  const { collaborators, byMemberId, byUserId } = contributionMemberMaps(members);
   const paidByMemberId = new Map<string, number>(collaborators.map((member) => [member.id, 0]));
   let pooledTotal = 0;
   let unattributedTotal = 0;
 
   const attribute = (payerMemberId: string | undefined, createdByUserId: string | undefined, amount: number) => {
     if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return;
-    const named = payerMemberId ? byMemberId.get(payerMemberId) : undefined;
-    if (named) {
-      paidByMemberId.set(named.id, (paidByMemberId.get(named.id) || 0) + amount);
-      return;
-    }
-    if (payerMemberId === 'household') {
+    const target = attributeContribution(payerMemberId, createdByUserId, byMemberId, byUserId);
+    if (target.kind === 'member') {
+      paidByMemberId.set(target.memberId, (paidByMemberId.get(target.memberId) || 0) + amount);
+    } else if (target.kind === 'pooled') {
       pooledTotal += amount;
-      return;
+    } else {
+      unattributedTotal += amount;
     }
-    if ((!payerMemberId || payerMemberId === 'self') && createdByUserId) {
-      const author = byUserId.get(createdByUserId);
-      if (author) {
-        paidByMemberId.set(author.id, (paidByMemberId.get(author.id) || 0) + amount);
-        return;
-      }
-    }
-    unattributedTotal += amount;
   };
 
   for (const expense of month?.variableExpenses || []) {
@@ -230,6 +253,126 @@ export function computeHouseholdContributions(
     pooledTotal: roundMoney(pooledTotal),
     unattributedTotal: roundMoney(unattributedTotal),
   };
+}
+
+/** One payment that a contribution row is made of (tappable drill-down). */
+export interface HouseholdContributionItem {
+  id: string;
+  kind: 'variable' | 'fixed';
+  name: string;
+  /** YYYY-MM-DD as stored on the transaction. */
+  date: string;
+  amount: number;
+  category: string;
+}
+
+/**
+ * The individual payments behind one member's contribution total, using the
+ * exact same attribution rules as `computeHouseholdContributions` (named
+ * payer first, then `self`/missing resolved through createdByUserId). Pooled
+ * and unattributed payments never land on a member row, so they are excluded
+ * here too — the totals of these items always add up to the row's `paid`.
+ */
+export function computeMemberContributionItems(
+  month: Pick<MonthBudget, 'variableExpenses' | 'fixedExpenses'> | undefined | null,
+  members: HouseholdMember[],
+  memberId: string,
+): HouseholdContributionItem[] {
+  const { byMemberId, byUserId } = contributionMemberMaps(members);
+
+  const attributedTo = (payerMemberId: string | undefined, createdByUserId: string | undefined): string | null => {
+    const target = attributeContribution(payerMemberId, createdByUserId, byMemberId, byUserId);
+    return target.kind === 'member' ? target.memberId : null;
+  };
+
+  const items: HouseholdContributionItem[] = [];
+  for (const expense of month?.variableExpenses || []) {
+    if (!expense || typeof expense.amount !== 'number' || !Number.isFinite(expense.amount) || expense.amount <= 0) continue;
+    if (attributedTo(expense.payerMemberId, expense.createdByUserId) !== memberId) continue;
+    items.push({ id: expense.id, kind: 'variable', name: expense.name, date: expense.date, amount: expense.amount, category: expense.type });
+  }
+  for (const bill of month?.fixedExpenses || []) {
+    const paid = fixedPaidAmount(bill);
+    if (!bill || paid <= 0) continue;
+    if (attributedTo(bill.payerMemberId, bill.createdByUserId) !== memberId) continue;
+    items.push({ id: bill.id, kind: 'fixed', name: bill.name, date: bill.paidAt || bill.date || '', amount: paid, category: bill.type });
+  }
+  return items.sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/** Where one payment lands under the shared attribution rules. */
+type ContributionAttribution =
+  | { kind: 'member'; memberId: string }
+  | { kind: 'pooled' }
+  | { kind: 'unattributed' };
+
+/**
+ * The single attribution rule used by every contribution view: a named
+ * active collaborator wins, then the pooled 'household' payer, then a
+ * 'self'/missing payer resolved through the createdByUserId audit stamp —
+ * anything else is unattributed.
+ */
+function attributeContribution(
+  payerMemberId: string | undefined,
+  createdByUserId: string | undefined,
+  byMemberId: Map<string, HouseholdMember>,
+  byUserId: Map<string, HouseholdMember>,
+): ContributionAttribution {
+  const named = payerMemberId ? byMemberId.get(payerMemberId) : undefined;
+  if (named) return { kind: 'member', memberId: named.id };
+  if (payerMemberId === 'household') return { kind: 'pooled' };
+  if ((!payerMemberId || payerMemberId === 'self') && createdByUserId) {
+    const author = byUserId.get(createdByUserId);
+    if (author) return { kind: 'member', memberId: author.id };
+  }
+  return { kind: 'unattributed' };
+}
+
+function contributionMemberMaps(members: HouseholdMember[]) {
+  const collaborators = members.filter((member) => member.status === 'active' && member.role !== 'profile');
+  const byMemberId = new Map(collaborators.map((member) => [member.id, member]));
+  const byUserId = new Map(
+    collaborators.filter((member) => member.userId).map((member) => [member.userId as string, member]),
+  );
+  return { collaborators, byMemberId, byUserId };
+}
+
+/**
+ * The individual payments behind the pooled ('household' payer) or the
+ * unattributed contribution total — the same transactions the summary rows
+ * in the household panel aggregate, so the drill-down always adds up to the
+ * row it was opened from.
+ */
+export function computeGroupContributionItems(
+  month: Pick<MonthBudget, 'variableExpenses' | 'fixedExpenses'> | undefined | null,
+  members: HouseholdMember[],
+  group: 'pooled' | 'unattributed',
+): HouseholdContributionItem[] {
+  const { byMemberId, byUserId } = contributionMemberMaps(members);
+  const items: HouseholdContributionItem[] = [];
+  const consider = (
+    id: string,
+    kind: 'variable' | 'fixed',
+    name: string,
+    date: string,
+    amount: number,
+    category: string,
+    payerMemberId: string | undefined,
+    createdByUserId: string | undefined,
+  ) => {
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return;
+    if (attributeContribution(payerMemberId, createdByUserId, byMemberId, byUserId).kind !== group) return;
+    items.push({ id, kind, name, date, amount, category });
+  };
+  for (const expense of month?.variableExpenses || []) {
+    if (!expense) continue;
+    consider(expense.id, 'variable', expense.name, expense.date, expense.amount, expense.type, expense.payerMemberId, expense.createdByUserId);
+  }
+  for (const bill of month?.fixedExpenses || []) {
+    if (!bill) continue;
+    consider(bill.id, 'fixed', bill.name, bill.paidAt || bill.date || '', fixedPaidAmount(bill), bill.type, bill.payerMemberId, bill.createdByUserId);
+  }
+  return items.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 export interface HouseholdInvoice {

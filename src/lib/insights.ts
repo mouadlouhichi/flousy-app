@@ -17,6 +17,7 @@ import {
   money,
   totalCashOnHand,
 } from './store';
+import { payerKey } from './localized-labels';
 
 const DAY_MS = 86_400_000;
 
@@ -493,9 +494,25 @@ export interface CustomReport {
   previous: Map<string, number>;
 }
 
+/**
+ * Roster context used to canonicalize the `member` dimension. Without it a
+ * single person shows up as several rows: the modal stores the *localized*
+ * payer label ('Me' / 'Moi' / 'أنا'), older rows say 'Self', newer rows the
+ * member id, and imports may stamp the account uid — `payerKey` folds all of
+ * those into one canonical key, and `memberIdByUserId` resolves uid stamps to
+ * the roster id so an imported row joins the member's own bucket.
+ */
+export interface ReportPayerContext {
+  /** Roster id of the signed-in member (their rows canonicalize to 'self'). */
+  selfMemberId?: string;
+  /** Member id keyed by account uid. */
+  memberIdByUserId?: Record<string, string>;
+}
+
 function reportKeys(
   dimension: ReportDimension,
   item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string },
+  payers?: ReportPayerContext,
 ): string[] {
   switch (dimension) {
     case 'category':
@@ -504,8 +521,16 @@ function reportKeys(
       return [item.place || '—'];
     case 'tag':
       return item.tags && item.tags.length > 0 ? item.tags : ['—'];
-    case 'member':
-      return [item.payerMemberId || item.person || '—'];
+    case 'member': {
+      // Resolve a uid stamp to the roster id FIRST, then canonicalize like
+      // the Trends per-person breakdown: every 'self' spelling (and a
+      // missing payer, which the expense modal defaults to Self) lands in
+      // the single 'self' bucket.
+      const rosterId = item.payerMemberId
+        ? payers?.memberIdByUserId?.[item.payerMemberId] ?? item.payerMemberId
+        : undefined;
+      return [payerKey(item.person, rosterId, payers?.selfMemberId)];
+    }
   }
 }
 
@@ -522,15 +547,18 @@ export function buildCustomReport(
     scope?: ReportScope;
     filters?: Partial<Record<ReportDimension, string>>;
     previousMonths?: MonthBudget[];
+    /** Roster context for canonical member keys (see ReportPayerContext). */
+    payers?: ReportPayerContext;
   },
 ): CustomReport {
   const scope = options.scope || 'all';
   const filters = options.filters || {};
+  const payers = options.payers;
 
   const matches = (item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string }) =>
     (Object.keys(filters) as ReportDimension[]).every((dim) => {
       const wanted = filters[dim];
-      return !wanted || reportKeys(dim, item).includes(wanted);
+      return !wanted || reportKeys(dim, item, payers).includes(wanted);
     });
 
   const aggregate = (set: MonthBudget[]) => {
@@ -539,7 +567,7 @@ export function buildCustomReport(
     let count = 0;
     const add = (item: { type: string; place?: string; tags?: string[]; person?: string; payerMemberId?: string }, amount: number) => {
       if (amount <= 0 || !matches(item)) return;
-      const keys = reportKeys(options.dimension, item);
+      const keys = reportKeys(options.dimension, item, payers);
       // A tagged expense with N tags is counted once per tag, but only once in
       // the total, so shares can exceed 100 % only in the tag dimension.
       for (const key of keys) {
@@ -575,12 +603,12 @@ export function buildCustomReport(
 }
 
 /** Distinct values available for a dimension in the given months (filter pickers). */
-export function reportDimensionValues(months: MonthBudget[], dimension: ReportDimension): string[] {
+export function reportDimensionValues(months: MonthBudget[], dimension: ReportDimension, payers?: ReportPayerContext): string[] {
   const values = new Set<string>();
   for (const month of months) {
-    for (const exp of month.variableExpenses || []) reportKeys(dimension, exp).forEach((k) => k !== '—' && values.add(k));
+    for (const exp of month.variableExpenses || []) reportKeys(dimension, exp, payers).forEach((k) => k !== '—' && values.add(k));
     if (dimension === 'category' || dimension === 'member') {
-      for (const bill of month.fixedExpenses || []) reportKeys(dimension, bill).forEach((k) => k !== '—' && values.add(k));
+      for (const bill of month.fixedExpenses || []) reportKeys(dimension, bill, payers).forEach((k) => k !== '—' && values.add(k));
     }
   }
   return Array.from(values).sort((a, b) => a.localeCompare(b));

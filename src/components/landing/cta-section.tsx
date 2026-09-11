@@ -40,16 +40,16 @@ export function CtaSection() {
     <section ref={sectionRef} className="relative py-24 lg:py-32 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         <div
-          className={`relative border border-foreground transition-all duration-1000 ${
+          className={`surface-forest relative overflow-hidden rounded-[2.5rem] shadow-forest transition-all duration-1000 ${
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
           }`}
           onMouseMove={handleMouseMove}
         >
           {/* Spotlight effect */}
           <div 
-            className="absolute inset-0 opacity-10 pointer-events-none transition-opacity duration-300"
+            className="absolute inset-0 pointer-events-none transition-opacity duration-300"
             style={{
-              background: `radial-gradient(600px circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(0,0,0,0.15), transparent 40%)`
+              background: `radial-gradient(600px circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(197,230,166,0.16), transparent 40%)`
             }}
           />
           
@@ -57,13 +57,13 @@ export function CtaSection() {
             <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
               {/* Left content */}
               <div className="flex-1">
-                <h2 className="text-4xl lg:text-7xl font-display tracking-tight mb-8 leading-[0.95]">
+                <h2 className="text-4xl lg:text-7xl font-display font-semibold tracking-[-0.03em] mb-8 leading-[0.95] text-white">
 {m.landing.cta.titleLine1}
                   <br />
                   {m.landing.cta.titleLine2}
                 </h2>
 
-                <p className="text-xl text-muted-foreground mb-12 leading-relaxed max-w-xl">
+                <p className="text-xl text-white/65 mb-12 leading-relaxed max-w-xl">
                   {m.landing.cta.description}
                 </p>
 
@@ -71,7 +71,7 @@ export function CtaSection() {
                   <Button
                     asChild
                     size="lg"
-                    className="bg-primary hover:bg-accent-foreground text-white px-8 h-14 text-base rounded-full group"
+                    className="bg-lime hover:bg-lime-bright text-forest-deep px-8 h-14 text-base rounded-full group shadow-[0_12px_28px_-10px_rgba(0,0,0,0.5)]"
                   >
                     <a href={isLoggedIn ? "/dashboard" : "/login"}>
                       {isLoggedIn ? m.landing.nav.goToDashboard : m.landing.cta.ctaPrimary}
@@ -82,27 +82,26 @@ export function CtaSection() {
                     asChild
                     size="lg"
                     variant="outline"
-                    className="h-14 px-8 text-base rounded-full border-foreground/20 hover:bg-foreground/5"
+                    className="h-14 px-8 text-base rounded-full border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
                   >
                     <a href="#pricing">{m.landing.cta.ctaSecondary}</a>
                   </Button>
                 </div>
 
-                <p className="text-sm text-muted-foreground mt-8 font-mono">
+                <p className="text-sm text-white/50 mt-8">
                   {m.landing.cta.noCreditCard}
                 </p>
               </div>
 
               {/* Right animation */}
-              <div className="hidden lg:flex items-center justify-center w-[500px] h-[500px] -me-16">
+              <div className="hidden lg:flex items-center justify-center w-[500px] h-[500px] -me-16 text-lime">
                 <AnimatedTetrahedron />
               </div>
             </div>
           </div>
 
           {/* Decorative corner */}
-          <div className="absolute end-0 top-0 h-32 w-32 border-b border-s border-foreground/10" />
-          <div className="absolute bottom-0 start-0 h-32 w-32 border-e border-t border-foreground/10" />
+          <div aria-hidden className="dot-matrix-forest pointer-events-none absolute inset-y-8 end-8 w-1/3 opacity-50 [mask-image:linear-gradient(to_left,black,transparent)]" />
         </div>
       </div>
     </section>

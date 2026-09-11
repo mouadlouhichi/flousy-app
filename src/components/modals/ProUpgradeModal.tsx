@@ -123,7 +123,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
     <Modal isOpen={isOpen} onClose={onClose} title={isPro ? p.memberTitle : p.title} className="max-w-2xl">
       <div className="flex flex-col gap-5">
         <div className="rounded-3xl border border-primary/20 bg-primary/5 p-6 text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-on-primary">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary text-on-primary">
             <AppIcon name={isPro ? 'verified' : 'workspace_premium'} className="text-[28px]" />
           </span>
           <h3 className="mt-4 text-xl font-extrabold text-on-surface">{statusTitle}</h3>
@@ -153,7 +153,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
             type="button"
             onClick={() => { void startTrial(); }}
             disabled={pending}
-            className="w-full rounded-2xl bg-primary px-4 py-4 text-base font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-60"
+            className="w-full rounded-full bg-primary px-4 py-4 text-base font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             {pending ? m.common.loading : m.pro.trialAction}
           </button>
@@ -163,7 +163,7 @@ export function ProUpgradeModal({ isOpen, onClose }: ProUpgradeModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-2xl bg-primary px-4 py-4 text-base font-bold text-on-primary"
+            className="w-full rounded-full bg-primary px-4 py-4 text-base font-bold text-on-primary"
           >
             {p.backToDashboard}
           </button>

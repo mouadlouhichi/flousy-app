@@ -3,7 +3,6 @@
 import { AppIcon } from '@/components/ui/app-icon';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { loginSchema, signUpSchema } from '../../lib/validation';
@@ -11,6 +10,7 @@ import { authErrorMessage } from '../../lib/auth-errors';
 import { getCurrentMonthKey } from '../../lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
 import { enableDemoMode, exitDemoMode, isDemoMode, isOnboardingDoneLocally } from '@/lib/demo-mode';
+import { setAuthCookie } from '@/lib/auth-status';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +24,14 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Demo state is a client-only localStorage read: resolving it during render
+  // made the first client render disagree with the prerendered HTML (a
+  // hydration mismatch) whenever a demo session existed. Applied after mount.
+  const [demoActive, setDemoActive] = useState(false);
+
+  React.useEffect(() => {
+    setDemoActive(isDemoMode());
+  }, []);
 
   React.useEffect(() => {
     if (loading) return;
@@ -47,6 +55,10 @@ export default function LoginPage() {
     }
 
     if (destination) {
+      // Re-assert the middleware gate cookie before any bounce to a private
+      // route: without it src/proxy.ts would send the browser straight back
+      // here (cookie-less private hits redirect to /login) → redirect loop.
+      setAuthCookie(true);
       try {
         router.replace(destination);
       } catch {
@@ -55,15 +67,13 @@ export default function LoginPage() {
     }
   }, [user, profile, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const demoActive = isDemoMode();
+  // NOTE: no `if (loading) return <spinner/>` here, on purpose. The form is
+  // the LCP element; gating it on Firebase Auth boot meant the prerendered
+  // HTML contained only a spinner and the real page (and LCP) waited for JS
+  // download + SDK init + the onAuthStateChanged network round-trip — ~3.5s
+  // of dead time for the overwhelming majority of visitors, who sign OUT.
+  // Signed-in users briefly see the form and are redirected by the effect
+  // above, exactly like after a successful submit.
 
   const navigateTo = (path: string) => {
     window.location.assign(path);
@@ -79,6 +89,7 @@ export default function LoginPage() {
   /** Leave the demo session so the real sign-in form is usable again. */
   const handleExitDemo = () => {
     exitDemoMode();
+    setDemoActive(false);
     setError('');
     setMessage('');
   };
@@ -176,21 +187,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main id="main-content" className="min-h-screen bg-background flex flex-col justify-center items-center px-4 py-8 font-sans">
-      <div className="w-full max-w-[420px] bg-surface p-6 sm:p-8 rounded-[28px] border border-outline-variant/50 shadow-md flex flex-col gap-5">
+    <main id="main-content" className="backdrop-mint min-h-screen flex flex-col justify-center items-center px-4 py-8 font-sans">
+      <div className="w-full max-w-[420px] bg-surface-container-lowest p-6 sm:p-8 rounded-[2rem] border border-outline-variant shadow-floating flex flex-col gap-5">
         {/* Logo & Header */}
         <div className="flex flex-col items-center text-center gap-1">
           <a href="/" className="flex flex-col items-center gap-1.5 group">
-            <Image
-              src="/logo.png"
-              alt={m.common.appName}
-              width={64}
-              height={64}
-              className="object-contain"
-              priority
-            />
-            <span className="font-display text-[32px] font-extrabold text-primary tracking-tight">
-              SmartJib
+            {/* Pre-resized 7 KB logo served as a static file: the /_next/image
+                optimizer hop (cold on every uncached hit) sat on the LCP
+                critical chain of the first page every visitor loads. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-128.png" alt={m.common.appName} width={64} height={64} className="object-contain" fetchPriority="high" />
+            <span className="font-display text-[32px] font-semibold text-on-surface tracking-[-0.03em]">
+              smartjib<span className="text-lime-deep dark:text-lime">.</span>
             </span>
           </a>
           <p className="text-[15px] font-medium text-on-surface-variant mt-0.5">
@@ -216,14 +224,14 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleDemoAccess}
-                className="flex-1 py-2.5 bg-primary hover:bg-primary text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary text-on-primary text-[14px] font-bold rounded-full transition-all shadow-ambient cursor-pointer"
               >
                 {m.auth.demoContinue}
               </button>
               <button
                 type="button"
                 onClick={handleExitDemo}
-                className="px-3 py-2.5 border border-outline-variant text-on-surface-variant text-[13px] font-bold rounded-xl hover:bg-surface transition-all cursor-pointer"
+                className="px-3 py-2.5 border border-forest/20 text-forest-deep text-[13px] font-semibold rounded-full hover:bg-white/40 transition-all cursor-pointer"
               >
                 {m.auth.demoExit}
               </button>
@@ -244,7 +252,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleDemoAccess}
-              className="w-full py-2.5 bg-primary hover:bg-primary text-white text-[14px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer"
+              className="w-full py-2.5 bg-primary hover:bg-primary text-on-primary text-[14px] font-bold rounded-full transition-all shadow-ambient cursor-pointer"
             >
               {m.auth.continueDemo}
             </button>
@@ -253,14 +261,14 @@ export default function LoginPage() {
 
         {/* Success Message Banner */}
         {message && (
-          <div className="p-3.5 bg-primary-container border border-primary/30 rounded-xl text-[14px] text-primary font-medium">
+          <div className="p-3.5 bg-lime/50 border border-lime-deep/40 rounded-2xl text-[14px] text-forest-deep font-medium dark:bg-lime/10 dark:text-lime">
             {message}
           </div>
         )}
 
         {/* Error Banner */}
         {error && (
-          <div className="p-3.5 bg-error-container/20 border border-error/40 rounded-xl text-[14px] text-error font-medium">
+          <div className="p-3.5 bg-error/10 border border-error/30 rounded-2xl text-[14px] text-error font-medium">
             {error}
           </div>
         )}
@@ -279,7 +287,7 @@ export default function LoginPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder={m.auth.namePlaceholder}
                   required
-                  className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full ps-10 pe-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                 />
               </div>
             </div>
@@ -295,7 +303,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={m.auth.emailPlaceholder}
                 required
-                className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                className="w-full ps-10 pe-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all outline-none"
               />
             </div>
           </div>
@@ -322,7 +330,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={m.auth.passwordPlaceholder}
                   required={!isResetting}
-                  className="w-full ps-10 pe-4 py-3 bg-background border border-outline-variant rounded-xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface transition-all outline-none"
+                  className="w-full ps-10 pe-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl text-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                 />
               </div>
             </div>
@@ -331,7 +339,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-primary hover:bg-primary active:scale-[0.99] text-white font-bold text-[16px] py-3.5 rounded-xl transition-all shadow-xs mt-1 disabled:opacity-50 cursor-pointer"
+            className="w-full bg-primary hover:bg-primary-hover active:scale-[0.99] text-on-primary font-bold text-[16px] py-3.5 rounded-full transition-all shadow-xs mt-1 disabled:opacity-50 cursor-pointer"
           >
             {submitting
               ? m.common.processing
@@ -347,11 +355,14 @@ export default function LoginPage() {
           <>
             {/* OR Divider */}
             <div className="flex items-center gap-3 my-1">
-              <div className="flex-1 h-px bg-surface-variant" />
-              <span className="text-[12px] font-bold text-on-surface-variant/60 uppercase tracking-wider">
+              <div className="flex-1 h-px bg-outline-variant" />
+              {/* Full variant color, not /60: at 12px this needs ≥4.5:1 and
+                  60%-alpha over the surface lands closer to 3.3:1 (WCAG AA /
+                  Lighthouse color-contrast). */}
+              <span className="text-[12px] font-bold text-on-surface-variant uppercase tracking-wider">
                 {m.common.or}
               </span>
-              <div className="flex-1 h-px bg-surface-variant" />
+              <div className="flex-1 h-px bg-outline-variant" />
             </div>
 
             {/* Google Sign In Button */}
@@ -359,7 +370,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={submitting}
-              className="w-full py-3.5 px-4 bg-surface hover:bg-surface-container-low text-on-surface-variant border border-outline-variant rounded-xl font-bold text-[15px] flex items-center justify-center gap-3 transition-all shadow-2xs cursor-pointer"
+              className="w-full py-3.5 px-4 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant rounded-full font-semibold text-[15px] flex items-center justify-center gap-3 transition-all shadow-ambient cursor-pointer"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path

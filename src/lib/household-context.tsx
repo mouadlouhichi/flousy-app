@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth-context';
+import { HouseholdContext } from './household-context-lite';
 import { isProUser } from './pro-features';
 import {
   acceptHouseholdInvite,
@@ -37,6 +38,7 @@ import {
   type HouseholdInvite,
   type HouseholdMember,
   type HouseholdPayer,
+  householdPayerOptions,
   type HouseholdRole,
   type WorkspaceKind,
 } from './household';
@@ -73,9 +75,10 @@ export type HouseholdConfigurationPatch = Pick<
   | 'fixedCategories'
   | 'defaultCategoryBudgets'
   | 'enableRollover'
+  | 'fundTarget'
 >;
 
-type HouseholdContextValue = {
+export type HouseholdContextValue = {
   household: Household | null;
   members: HouseholdMember[];
   loading: boolean;
@@ -97,6 +100,8 @@ type HouseholdContextValue = {
   /** 'denied' => membership really is gone; 'unavailable' => keep retrying. */
   householdAccess: HouseholdAccess;
   payers: HouseholdPayer[];
+  /** The signed-in user's own roster row id (undefined outside a household). */
+  myMemberId?: string;
   pendingInvites: HouseholdInvite[];
   create: (name: string, kind?: WorkspaceKind) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
@@ -145,7 +150,9 @@ export interface HouseholdAccessRepair {
 
 export type { SponsorRebindOutcome };
 
-const HouseholdContext = createContext<HouseholdContextValue | null>(null);
+// The context object lives in ./household-context-lite so that light
+// consumers (e.g. currency-context on /login) can read it without bundling
+// the Firestore-backed data layer this provider module needs.
 
 export function HouseholdProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, updateProfileData } = useAuth();
@@ -337,20 +344,14 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
 
   const payers = useMemo<HouseholdPayer[]>(() => {
     if (household) {
-      return [
-        { id: 'self', label: m.household.me },
-        { id: 'household', label: m.household.funds },
-        ...members
-          .filter((member) => member.status === 'active')
-          .map((member) => ({ id: member.id, label: member.displayName, color: member.avatarColor })),
-      ];
+      return householdPayerOptions(members, user?.uid, { me: m.household.me, funds: m.household.funds });
     }
     const legacy = profile?.householdMembers || [];
     return [
       { id: 'self', label: m.household.me },
       ...legacy.map((label, index) => ({ id: `legacy-${index}`, label, color: COLORS[index % COLORS.length] })),
     ];
-  }, [household, members, profile?.householdMembers, m.household.funds, m.household.me]);
+  }, [household, members, user?.uid, profile?.householdMembers, m.household.funds, m.household.me]);
 
   const create = useCallback(async (name: string, kind: WorkspaceKind = 'household') => {
     if (!user || !profile || !isProUser(profile)) throw new Error(m.household.genericError);
@@ -719,6 +720,7 @@ export function HouseholdProvider({ children }: { children: React.ReactNode }) {
     exportSections,
     householdAccess: access,
     payers,
+    myMemberId: myMember?.id,
     pendingInvites,
     create,
     addProfile,
@@ -743,6 +745,4 @@ export function useHousehold() {
 }
 
 /** Currency/auth providers are also used on login routes where no household provider exists. */
-export function useOptionalHousehold() {
-  return useContext(HouseholdContext);
-}
+export { useOptionalHousehold } from './household-context-lite';

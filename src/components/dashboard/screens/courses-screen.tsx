@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Input } from '@/components/ui/input';
 import { useCourseSession } from '@/hooks/use-course-session';
@@ -8,14 +8,27 @@ import { isProFeatureUnlocked } from '@/lib/household';
 import { normalizeDigitsToAscii, parseAmountInput } from '@/lib/parse-amount';
 import { useHousehold } from '@/lib/household-context';
 import { trackEvent } from '@/lib/analytics';
-import { isMoroccanBarcode, normalizeBarcode, round2, sessionUnits, summarizeQuality } from '@/lib/course-session';
+import { isMoroccanBarcode, round2, sessionUnits, summarizeQuality } from '@/lib/course-session';
 import { formatCurrency } from '@/lib/currency';
 import { postCourseSession } from '@/lib/db';
+import { submitProductReport } from '@/lib/product-report';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { formatShortDate, getCurrentMonthKey } from '@/lib/utils';
 import { useLanguage } from '@/lib/i18n-context';
-import { addVariableExpense, type CourseSession, type MoneyPlace, type ProductRanking, type SessionItemQuality, type VariableExpense } from '@/lib/store';
+import {
+  addVariableExpense,
+  type AssessmentOrigin,
+  type CourseSession,
+  type MoneyPlace,
+  type ProductDomain,
+  type ProductFieldProvenance,
+  type ProductRanking,
+  type ProductSource,
+  type SessionItemQuality,
+  type VariableExpense,
+} from '@/lib/store';
 import { analyzeIngredientsText } from '@/lib/ingredient-analysis-client';
+import type { ProductAssessment, ProductForm } from '@/lib/ingredient-safety/types';
 import { isCosmeticRecord } from '@/lib/food-knowledge/domain';
 import { AreaRestricted } from '../area-restricted';
 import { SCREEN_AREA } from '@/lib/household-rbac';
@@ -29,11 +42,13 @@ import { RankingChip } from '@/components/ui/ranking-chip';
 import { QualityScoreChip } from '@/components/ui/quality-score-chip';
 import { ScanLookupCard } from '@/components/ui/scan-lookup-card';
 import { useDashboard } from '../dashboard-provider';
+import { parseGtin, type BarcodeCandidate } from '@/lib/gtin';
 
 /** A resolved (or to-be-entered) product waiting for its price. */
 interface PendingProduct {
   /** Present when a barcode was scanned/typed (catalogued when added). */
   barcode?: string;
+  gtin14?: string;
   name: string;
   brand?: string;
   category?: string;
@@ -50,6 +65,15 @@ interface PendingProduct {
   ranking?: ProductRanking;
   /** Source hint that this is a cosmetic/beauty record (INCI panel, vendor fallback). */
   beauty?: boolean;
+  form?: ProductForm;
+  domain?: ProductDomain;
+  allergenTags?: string[];
+  productSource?: ProductSource;
+  provenance?: Record<string, ProductFieldProvenance>;
+  sourceUrl?: string;
+  sourceDatabase?: string;
+  retrievedAt?: string;
+  staleAfter?: string;
 }
 
 /**
@@ -150,11 +174,23 @@ function CoursesScreenInner() {
   const [manualPrice, setManualPrice] = useState('');
   const [postingBill, setPostingBill] = useState(false);
   const [postingError, setPostingError] = useState<string | null>(null);
+  const scanRequestIdRef = useRef(0);
+  const scanAbortRef = useRef<AbortController | null>(null);
 
   const active = store.active;
-  const billSession = viewingBill;
+  const billSession = viewingBill
+    ? store.history.find((session) => session.id === viewingBill.id) ?? viewingBill
+    : null;
 
   const clearNotice = () => setNotice(null);
+
+  useEffect(() => () => scanAbortRef.current?.abort(), []);
+  useEffect(() => {
+    scanAbortRef.current?.abort();
+    scanRequestIdRef.current += 1;
+    setResolving(false);
+    setResolvingCode(null);
+  }, [active?.id]);
 
   // ---- scan / manual code handling ---------------------------------------------
   const openPending = (product: PendingProduct, prefilledPrice?: string) => {
@@ -168,78 +204,148 @@ function CoursesScreenInner() {
     setPendingPrice(prefilledPrice ?? '');
   };
 
-  const handleCode = async (raw: string) => {
+  const handleCode = async (candidate: BarcodeCandidate) => {
     if (resolving || !active || !scanUnlocked) return;
     clearNotice();
-
-    // Re-scan of a line already on the bill: POS behaviour — add one unit
-    // instantly, keep the line's price, no network lookup involved.
-    const { barcode: scannedBarcode } = normalizeBarcode(raw);
-    if (scannedBarcode) {
-      const existing = active.items.find((line) => line.barcode === scannedBarcode);
-      if (existing) {
-        store.setQty(existing.key, existing.qty + 1);
-        setNotice({
-          kind: 'info',
-          text: t(c.scannedAdded, { name: existing.name, qty: existing.qty + 1 }),
-        });
-        return;
+    const parsed = parseGtin(candidate);
+    if (!parsed.ok) {
+      if (candidate.source === 'manual') {
+        setNotice({ kind: 'warn', text: c.codeInvalidOverride });
+        // Explicit override means “add an unbarcoded item”; the unverified
+        // value is never looked up, attached, or used as a catalog key.
+        openPending({ name: '', source: 'manual', ma: false });
+      } else {
+        setNotice({ kind: 'warn', text: c.codeInvalid });
       }
+      return;
     }
 
-    setResolving(true);
-    // Show the code in the loading card so the user can verify the read.
-    setResolvingCode(scannedBarcode ?? (raw.replace(/[^0-9]/g, '') || null));
-    try {
-      const result = await store.resolveBarcode(raw, { lang: language });
-      if (!result.ok) {
-        setNotice({ kind: 'warn', text: c.codeInvalid });
-        openPending({ name: '', source: 'manual', ma: false });
+    const canonical = parsed.value;
+    // POS behavior (main-branch parity): with a pending card open, scanning
+    // the SAME product increments its quantity; a different product must not
+    // silently replace the pending one.
+    if (pending) {
+      if (pending.gtin14 && pending.gtin14 === canonical.gtin14) {
+        const nextQty = pendingQty + 1;
+        setPendingQty(nextQty);
+        setNotice({
+          kind: 'info',
+          text: t(c.scannedAdded, { name: pending.name || pending.barcode || '', qty: nextQty }),
+        });
         return;
       }
-      const { barcode, resolution } = result;
+      setNotice({ kind: 'warn', text: c.finishCurrent });
+      return;
+    }
+    const existing = active.items.find((line) => line.gtin14 === canonical.gtin14);
+    if (existing) {
+      store.setQty(existing.key, existing.qty + 1);
+      setNotice({
+        kind: 'info',
+        text: t(c.scannedAdded, { name: existing.name, qty: existing.qty + 1 }),
+      });
+      return;
+    }
+
+    const requestId = ++scanRequestIdRef.current;
+    scanAbortRef.current?.abort();
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
+    setResolving(true);
+    setResolvingCode(canonical.gtin);
+
+    try {
+      const result = await store.resolveBarcode(candidate, {
+        lang: language,
+        signal: controller.signal,
+      });
+      if (requestId !== scanRequestIdRef.current || controller.signal.aborted) return;
+
+      if (result.kind === 'invalid') {
+        setNotice({ kind: 'warn', text: c.codeInvalid });
+        return;
+      }
+      if (result.kind === 'restricted-circulation') {
+        // Issuer-specific amount layouts are never interpreted as a price
+        // without an explicit configured confirmation flow.
+        setNotice({ kind: 'warn', text: c.codeInvalid });
+        return;
+      }
+
+      const barcode = result.canonical.gtin;
+      const gtin14 = result.canonical.gtin14;
       const ma = isMoroccanBarcode(barcode);
-      if (resolution.kind === 'found') {
-        // No "from catalog / from Open Food Facts" toast: the pending card
-        // already shows the product, so the source line was just noise.
+      if (result.kind === 'found') {
+        const product = result.product;
         openPending({
           barcode,
-          name: resolution.product.name,
-          brand: resolution.product.brand,
-          category: resolution.product.category,
-          imageUrl: resolution.product.imageUrl,
-          ingredientsText: resolution.product.ingredientsText,
-          quantity: resolution.product.quantity,
-          ranking: resolution.product.ranking,
-          source: resolution.source,
+          gtin14,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          imageUrl: product.imageUrl,
+          ingredientsText: product.ingredientsText,
+          quantity: product.quantity,
+          ranking: product.ranking,
+          source: result.source,
           ma,
-          beauty: resolution.product.beauty,
+          beauty: product.beauty,
+          form: product.cosmeticForm,
+          domain: product.domain,
+          allergenTags: product.allergenTags,
+          productSource: product.source,
+          provenance: product.provenance,
+          sourceUrl: product.sourceUrl,
+          sourceDatabase: product.sourceDatabase,
+          retrievedAt: product.retrievedAt,
+          staleAfter: product.staleAfter,
         });
-      } else {
-        const embeddedPrice =
-          resolution.kind === 'not-found' ? resolution.embeddedPrice : undefined;
-        if (embeddedPrice != null) {
-          // In-store scale label: the name still has to be typed, but the
-          // amount is already printed in the barcode, so prefill it.
-          setNotice({ kind: 'info', text: c.priceFromLabel });
-          openPending({ barcode, name: '', source: 'manual', ma }, embeddedPrice.toFixed(2));
-        } else {
-          setNotice({
-            kind: 'warn',
-            text: resolution.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
-          });
-          openPending({ barcode, name: '', source: 'manual', ma });
+
+        if (result.revalidate) {
+          void result.revalidate.then((fresh) => {
+            if (!fresh || requestId !== scanRequestIdRef.current || controller.signal.aborted) return;
+            setPending((current) => current?.gtin14 === gtin14 ? {
+              ...current,
+              name: fresh.name || current.name,
+              brand: fresh.brand ?? current.brand,
+              category: fresh.category ?? current.category,
+              imageUrl: fresh.imageUrl ?? current.imageUrl,
+              ingredientsText: fresh.ingredientsText ?? current.ingredientsText,
+              quantity: fresh.quantity ?? current.quantity,
+              ranking: fresh.ranking ?? current.ranking,
+              source: 'remote',
+              beauty: fresh.beauty ?? current.beauty,
+              form: current.form ?? fresh.cosmeticForm,
+              domain: fresh.domain,
+              allergenTags: fresh.allergenTags ?? current.allergenTags,
+              productSource: fresh.source,
+              provenance: fresh.provenance ?? current.provenance,
+              sourceUrl: fresh.sourceUrl ?? current.sourceUrl,
+              sourceDatabase: fresh.sourceDatabase ?? current.sourceDatabase,
+              retrievedAt: fresh.retrievedAt ?? current.retrievedAt,
+              staleAfter: fresh.staleAfter ?? current.staleAfter,
+            } : current);
+          }).catch(() => undefined);
         }
+        return;
       }
+
+      setNotice({
+        kind: 'warn',
+        text: result.reason === 'lookup-failed' ? c.lookupFailed : c.notFound,
+      });
+      openPending({ barcode, gtin14, name: '', source: 'manual', ma });
     } finally {
-      setResolving(false);
-      setResolvingCode(null);
+      if (requestId === scanRequestIdRef.current) {
+        setResolving(false);
+        setResolvingCode(null);
+      }
     }
   };
 
   // ---- pending confirmations ----------------------------------------------------
   const confirmPending = () => {
-    if (!pending) return;
+    if (!pending || !active) return;
     const price = parsePrice(pendingPrice);
     if (price == null) {
       setNotice({ kind: 'warn', text: c.priceRequired });
@@ -249,47 +355,130 @@ function CoursesScreenInner() {
       setNotice({ kind: 'warn', text: c.nameRequired });
       return;
     }
-    // Persist the INCI list on the catalog product so the ingredient glance
-    // survives across sessions: the resolution cascade's text when it had
-    // one, else the manual paste remembered on this device.
-    const ingredientsText =
-      pending.ingredientsText?.trim() ||
-      (pending.barcode ? readInciOverlayEntry(pending.barcode) : undefined);
+
+    scanAbortRef.current?.abort();
+    scanRequestIdRef.current += 1;
+    const confirmedOverlay = pending.barcode
+      ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)
+      : undefined;
+    const ingredientsText = confirmedOverlay?.text || pending.ingredientsText?.trim();
+    const now = new Date().toISOString();
+    const ingredientsProvenance: ProductFieldProvenance | undefined = ingredientsText
+      ? confirmedOverlay
+        ? {
+            source: confirmedOverlay.source,
+            retrievedAt: confirmedOverlay.updatedAt,
+          }
+        : pending.provenance?.ingredientsText ?? {
+            source: pending.productSource ?? (pending.source === 'manual' ? 'manual' : 'off'),
+            retrievedAt: pending.retrievedAt ?? now,
+          }
+      : undefined;
+    const effectiveProvenance = {
+      ...(pending.provenance ?? {}),
+      ...(ingredientsProvenance ? { ingredientsText: ingredientsProvenance } : {}),
+    };
+    const analysisSource = ingredientsProvenance?.source === 'ocr'
+      ? 'ocr' as const
+      : ingredientsProvenance?.source === 'manual'
+        ? 'paste' as const
+        : 'provider' as const;
+    const analysisReviewed = analysisSource !== 'ocr' || (confirmedOverlay ? confirmedOverlay.reviewed : true);
+    const itemKey = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const assessmentRequestId = `assessment-${itemKey}`;
+    const origin: AssessmentOrigin = {
+      sessionId: active.id,
+      lineItemId: itemKey,
+      requestId: assessmentRequestId,
+      gtin14: pending.gtin14,
+      requestedAt: new Date().toISOString(),
+    };
+
     store.addScannedLine({
+      key: itemKey,
       barcode: pending.barcode,
+      gtin14: pending.gtin14,
       name: pending.name.trim(),
       category: pending.category,
+      domain: pending.domain,
+      cosmeticForm: pending.form,
+      allergenTags: pending.allergenTags,
+      quantity: pending.quantity,
+      provenance: effectiveProvenance,
+      sourceUrl: pending.sourceUrl,
+      sourceDatabase: pending.sourceDatabase,
+      retrievedAt: pending.retrievedAt,
+      staleAfter: pending.staleAfter,
       unitPrice: price,
       qty: pendingQty,
       ranking: pending.ranking,
+      assessmentRequestId,
+      assessmentOrigin: origin,
       ...(ingredientsText ? { ingredientsText } : {}),
       ...(pending.beauty ? { beauty: true } : {}),
     });
 
-    // Cosmetic quality score for the session line: the same engine the label
-    // panel runs (server-side, CosIng-backed — the in-memory cache means the
-    // panel and this share one request). The summary lands on the line once
-    // the analysis resolves; a re-scan keeps the existing quality.
+    if (pending.barcode) {
+      store.upsertProduct({
+        barcode: pending.barcode,
+        gtin14: pending.gtin14,
+        name: pending.name.trim(),
+        brand: pending.brand,
+        category: pending.category,
+        imageUrl: pending.imageUrl,
+        quantity: pending.quantity,
+        ingredientsText,
+        domain: pending.domain,
+        cosmeticForm: pending.form,
+        allergenTags: pending.allergenTags,
+        ranking: pending.ranking,
+        beauty: pending.beauty,
+        source: pending.productSource ?? (pending.source === 'manual' ? 'manual' : 'off'),
+        sourceUrl: pending.sourceUrl,
+        sourceDatabase: pending.sourceDatabase,
+        retrievedAt: pending.retrievedAt,
+        staleAfter: pending.staleAfter,
+        provenance: {
+          ...effectiveProvenance,
+          ...(pending.source === 'manual' ? { name: { source: 'manual' as const, retrievedAt: now } } : {}),
+          lastPrice: { source: 'manual', retrievedAt: now },
+          ...(pending.form ? { cosmeticForm: { source: 'manual' as const, retrievedAt: now } } : {}),
+        },
+        lastPrice: price,
+        priceUpdatedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     if (
-      pending.barcode &&
       ingredientsText &&
-      isCosmeticRecord({ beauty: pending.beauty, category: pending.category, name: pending.name, ingredientsText })
+      isCosmeticRecord({
+        beauty: pending.beauty,
+        domain: pending.domain,
+        category: pending.category,
+        name: pending.name,
+        ingredientsText,
+      })
     ) {
-      const barcode = pending.barcode;
-      const alreadyScored = active?.items.some((line) => line.barcode === barcode && line.quality);
-      if (!alreadyScored) {
-        void analyzeIngredientsText(ingredientsText, {
-          label: pending.name,
-          category: pending.category,
-        })
-          .then((analysis) => {
-            const quality = summarizeQuality(analysis);
-            if (quality) store.setLineQuality(barcode, quality);
-          })
-          .catch(() => {
-            /* analysis is informational — the line simply has no chip */
+      void analyzeIngredientsText(ingredientsText, {
+        label: pending.name,
+        category: pending.category,
+        ...(pending.form ? { form: pending.form } : {}),
+        source: analysisSource,
+        reviewed: analysisReviewed,
+      })
+        .then((analysis) => {
+          store.applyAssessment(origin, {
+            quality: summarizeQuality(analysis),
+            assessment: analysis,
           });
-      }
+        })
+        .catch(() => {
+          /* Evidence is informational; the immutable line remains unscored. */
+        });
     }
 
     setPending(null);
@@ -335,6 +524,11 @@ function CoursesScreenInner() {
       setPostingError(c.logPermissionDenied);
       return;
     }
+    if (store.pendingMutations > 0 || store.syncState === 'syncing') {
+      store.retrySync();
+      setPostingError(c.syncBeforePost);
+      return;
+    }
     const [year, monthNumber, day] = billSession.date.split('-').map(Number);
     const destinationMonth = getCurrentMonthKey(month.periodStartDay, new Date(year, monthNumber - 1, day));
     setPostingBill(true);
@@ -345,7 +539,7 @@ function CoursesScreenInner() {
         const target = workspace === 'household' && household?.id
           ? { workspace: 'household' as const, householdId: household.id }
           : { workspace: 'personal' as const, uid: user.uid };
-        await postCourseSession({
+        const posted = await postCourseSession({
           uid: user.uid,
           sessionId: billSession.id,
           target,
@@ -361,6 +555,7 @@ function CoursesScreenInner() {
               }
             : profile,
         });
+        store.acceptCommittedSession(posted.session);
       } else {
         if (destinationMonth !== currentMonthKey) throw new Error('Select the destination period before posting.');
         const expense: VariableExpense = {
@@ -464,6 +659,32 @@ function CoursesScreenInner() {
             </div>
           </div>
 
+          {store.syncState !== 'synced' && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-outline-variant bg-surface-container-high px-4 py-3 font-body-md text-body-md text-on-surface">
+              <AppIcon
+                name={store.syncState === 'conflict' || store.syncState === 'failed' ? 'sync_problem' : 'cloud_upload'}
+                className="size-5 text-tertiary"
+              />
+              <span className="min-w-0 flex-1">
+                {store.syncState === 'conflict'
+                  ? c.syncConflict
+                  : store.syncState === 'failed'
+                    ? c.syncFailed
+                    : t(c.syncPending, { count: store.pendingMutations })}
+              </span>
+              {(store.syncState === 'failed' || store.syncState === 'pending') && (
+                <button type="button" onClick={store.retrySync} className="rounded-full border border-outline-variant px-3 py-1.5 font-label-sm text-label-sm">
+                  {c.syncRetry}
+                </button>
+              )}
+              {store.syncState === 'conflict' && (
+                <button type="button" onClick={store.discardConflictingMutation} className="rounded-full border border-error/40 px-3 py-1.5 font-label-sm text-label-sm text-error">
+                  {c.syncDiscardLocal}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Notice */}
           {notice && (
             <div
@@ -485,7 +706,10 @@ function CoursesScreenInner() {
 
           {/* Scanner — Pro feature; free plans see the upgrade card instead */}
           {scanUnlocked ? (
-            <CoursesScannerPanel enabled onCode={handleCode} />
+            <CoursesScannerPanel
+              enabled
+              onCode={(candidate) => void handleCode(candidate)}
+            />
           ) : (
             <CoursesScanUpsell onUpgrade={openProModal} />
           )}
@@ -502,9 +726,30 @@ function CoursesScreenInner() {
               onPrice={setPendingPrice}
               onName={(name) => setPending({ ...pending, name })}
               onConfirm={confirmPending}
-              onSkip={() => setPending(null)}
-              onIngredientsText={(text) =>
-                setPending((p) => (p && p.barcode === pending.barcode ? { ...p, ingredientsText: text } : p))
+              onSkip={() => {
+                scanAbortRef.current?.abort();
+                scanRequestIdRef.current += 1;
+                setPending(null);
+              }}
+              onIngredientsText={(text, metadata) =>
+                setPending((p) => {
+                  if (!p || p.gtin14 !== pending.gtin14) return p;
+                  const provenance = { ...(p.provenance ?? {}) };
+                  if (text) {
+                    const source: ProductSource = metadata?.source === 'ocr'
+                      ? 'ocr'
+                      : metadata?.source === 'remote'
+                        ? 'vendor'
+                        : 'manual';
+                    provenance.ingredientsText = { source, retrievedAt: new Date().toISOString() };
+                  } else {
+                    delete provenance.ingredientsText;
+                  }
+                  return { ...p, ingredientsText: text, provenance };
+                })
+              }
+              onFormChange={(form) =>
+                setPending((p) => (p && p.gtin14 === pending.gtin14 ? { ...p, form } : p))
               }
             />
           ) : resolving ? (
@@ -573,7 +818,7 @@ function CoursesScreenInner() {
                   </label>
                   <button
                     type="submit"
-                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 transition-opacity"
                   >
                     <AppIcon name="add" className="size-4" />
                     {c.manualAdd}
@@ -780,7 +1025,11 @@ interface PendingCardProps {
   onConfirm: () => void;
   onSkip: () => void;
   /** Panel adopted a missing-INCI list (external fallback / paste / OCR). */
-  onIngredientsText: (text: string) => void;
+  onIngredientsText: (
+    text: string | undefined,
+    metadata?: { source: 'manual' | 'ocr' | 'remote'; reviewed: boolean },
+  ) => void;
+  onFormChange: (form: ProductForm) => void;
 }
 
 /**
@@ -793,6 +1042,9 @@ function useCosmeticQualityPreview(
   text: string,
   name: string,
   category: string | undefined,
+  form: ProductForm | undefined,
+  source: ProductAssessment['parser']['source'],
+  reviewed: boolean,
 ): SessionItemQuality | null {
   const [quality, setQuality] = useState<SessionItemQuality | null>(null);
   useEffect(() => {
@@ -801,8 +1053,16 @@ function useCosmeticQualityPreview(
       return;
     }
     let cancelled = false;
+    const controller = new AbortController();
     setQuality(null);
-    analyzeIngredientsText(text, { label: name || undefined, category })
+    analyzeIngredientsText(text, {
+      label: name || undefined,
+      category,
+      form,
+      source,
+      reviewed,
+      signal: controller.signal,
+    })
       .then((analysis) => {
         if (!cancelled) setQuality(summarizeQuality(analysis));
       })
@@ -811,22 +1071,55 @@ function useCosmeticQualityPreview(
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [isCosmetic, text, name, category]);
+  }, [isCosmetic, text, name, category, form, source, reviewed]);
   return quality;
 }
 
-function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredientsText }: PendingCardProps) {
-  const { messages: m } = useLanguage();
+function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice, onName, onConfirm, onSkip, onIngredientsText, onFormChange }: PendingCardProps) {
+  const { messages: m, language } = useLanguage();
+  const { user } = useDashboard();
   const c = m.courses;
   const needsName = pending.source === 'manual';
 
+  // Wrong-result report: lightweight feedback loop for bad scan lookups.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNote, setReportNote] = useState('');
+  const [reportOutcome, setReportOutcome] = useState<'idle' | 'sending' | 'stored' | 'saved-offline'>('idle');
+  useEffect(() => {
+    setReportOpen(false);
+    setReportNote('');
+    setReportOutcome('idle');
+  }, [pending.barcode, pending.name]);
+
+  const submitReport = () => {
+    if (!pending.barcode || reportOutcome === 'sending') return;
+    setReportOutcome('sending');
+    void submitProductReport({
+      barcode: pending.barcode,
+      resolvedName: pending.name,
+      note: reportNote,
+      domain: pending.domain,
+      locale: language,
+    }, { uid: user?.uid ?? null })
+      .then((outcome) => setReportOutcome(outcome));
+  };
+
   // Cosmetic quality preview for the chip: the record's INCI list (or the
   // per-device overlay the panel would fall back to), cosmetic records only.
-  const qualityText = (
-    pending.ingredientsText?.trim() ||
-    (pending.barcode ? readInciOverlayEntry(pending.barcode) ?? '' : '')
-  ).trim();
+  const previewOverlay = pending.barcode
+    ? readInciOverlayEntry(pending.barcode, user?.uid ?? null)
+    : undefined;
+  const qualityText = (previewOverlay?.text || pending.ingredientsText?.trim() || '').trim();
+  const qualitySource: ProductAssessment['parser']['source'] = previewOverlay
+    ? previewOverlay.source === 'ocr' ? 'ocr' : 'paste'
+    : pending.provenance?.ingredientsText?.source === 'ocr'
+      ? 'ocr'
+      : pending.provenance?.ingredientsText?.source === 'manual'
+        ? 'paste'
+        : 'provider';
+  const qualityReviewed = previewOverlay?.reviewed ?? Boolean(qualityText);
   const cosmeticRecord = !needsName && isCosmeticRecord({
     beauty: pending.beauty,
     category: pending.category,
@@ -838,6 +1131,9 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
     qualityText,
     pending.name,
     pending.category,
+    pending.form,
+    qualitySource,
+    qualityReviewed,
   );
 
   return (
@@ -893,33 +1189,85 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         </button>
       </div>
 
-      {/* Quantity + price — the point of this step, so it comes first. */}
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      {/* Quantity + price — the point of this step, so it comes first.
+          One row at every width: the stepper and the Add button are fixed,
+          the price field absorbs the remaining space instead of wrapping. */}
+      <div className="mt-3 flex items-center gap-2">
         <QtyControl value={qty} onChange={onQty} />
 
-        <div className="flex items-center gap-2">
-          <Input
-            value={price}
-            onChange={(e) => onPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
-            onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
-            placeholder="0.00"
-            inputMode="decimal"
-            autoFocus={!needsName}
-            dir="ltr"
-            aria-label={c.unitPrice}
-            className="w-32 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
-          />
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={resolving}
-            className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
-          >
-            <AppIcon name="add" className="size-4" />
-            {c.add}
-          </button>
-        </div>
+        <Input
+          value={price}
+          onChange={(e) => onPrice(normalizeDigitsToAscii(e.target.value).replace(/[^0-9.,]/g, ''))}
+          onKeyDown={(e) => e.key === 'Enter' && onConfirm()}
+          placeholder="0.00"
+          inputMode="decimal"
+          autoFocus={!needsName}
+          dir="ltr"
+          aria-label={c.unitPrice}
+          className="min-w-0 flex-1 bg-surface text-right text-[15px] font-medium tabular-nums placeholder:font-normal"
+        />
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={resolving}
+          className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 font-label-md text-label-md text-on-primary hover:opacity-90 disabled:opacity-40 transition-opacity"
+        >
+          <AppIcon name="add" className="size-4" />
+          {c.add}
+        </button>
       </div>
+
+      {/* Wrong-result report — quick feedback loop for bad scan lookups. */}
+      {pending.barcode && !needsName && (
+        <div className="mt-2.5">
+          {reportOutcome === 'stored' || reportOutcome === 'saved-offline' ? (
+            <p className="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant">
+              <AppIcon name="check" className="size-3.5 text-primary" />
+              {reportOutcome === 'stored' ? c.reportSent : c.reportSavedOffline}
+            </p>
+          ) : reportOpen ? (
+            <form
+              onSubmit={(event) => { event.preventDefault(); submitReport(); }}
+              className="flex flex-col gap-1.5"
+            >
+              <span className="font-label-md text-label-md text-on-surface">{c.reportWrongTitle}</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={reportNote}
+                  onChange={(e) => setReportNote(e.target.value)}
+                  placeholder={c.reportNotePlaceholder}
+                  maxLength={500}
+                  className="min-w-0 flex-1 bg-surface"
+                />
+                <button
+                  type="submit"
+                  disabled={reportOutcome === 'sending'}
+                  className="flex h-9 shrink-0 items-center rounded-xl border border-outline-variant bg-surface px-4 font-label-md text-label-md text-on-surface hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+                >
+                  {c.reportSend}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setReportOpen(false); setReportNote(''); }}
+                  aria-label={m.common.close}
+                  className="tap-target shrink-0 p-1 text-on-surface-variant hover:text-on-surface"
+                >
+                  <AppIcon name="close" className="size-4" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              className="flex items-center gap-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <AppIcon name="flag" className="size-3.5" />
+              {c.reportWrong}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Label-knowledge accordion — domain-aware preview + expandable panel.
           Cosmetics get the INCI score ring + glance; food gets the coverage
@@ -929,6 +1277,11 @@ function PendingCard({ pending, qty, price, resolving, currency, onQty, onPrice,
         name={needsName ? undefined : pending.name}
         category={pending.category}
         ingredientsText={pending.ingredientsText}
+        ingredientsProvenance={pending.provenance?.ingredientsText}
+        domain={pending.domain}
+        allergenTags={pending.allergenTags}
+        form={pending.form}
+        onFormChange={onFormChange}
         beauty={pending.beauty}
         needsName={needsName}
         onIngredientsText={onIngredientsText}

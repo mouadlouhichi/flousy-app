@@ -48,7 +48,7 @@ export function ChoiceChips({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+        <label className="text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
           {label}
         </label>
       )}

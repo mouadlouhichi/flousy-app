@@ -78,8 +78,8 @@ export function MetricsSection() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 mb-16 lg:mb-24">
           <div>
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-              <span className="w-8 h-px bg-foreground/30" />
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+              <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep"><span className="size-1.5 rounded-full bg-forest-deep" /></span>
               {m.landing.metrics.eyebrow}
             </span>
             <h2
@@ -94,7 +94,7 @@ export function MetricsSection() {
           </div>
           <div className="flex items-center gap-4 font-mono text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />{m.landing.metrics.live}</span>
+              <span className="w-2 h-2 rounded-full bg-lime-deep animate-pulse" />{m.landing.metrics.live}</span>
             <span className="text-foreground/30">|</span>
             <span suppressHydrationWarning>{time ?? "--:--:--"}</span>
           </div>

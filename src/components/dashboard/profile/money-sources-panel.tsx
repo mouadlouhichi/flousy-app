@@ -178,7 +178,7 @@ export function MoneySourcesPanel() {
                     <button
                       type="button"
                       onClick={handleSaveEdit}
-                      className="flex-1 rounded-xl bg-primary py-2 text-xs font-bold text-on-primary"
+                      className="flex-1 rounded-full bg-primary py-2 text-xs font-bold text-on-primary"
                     >
                       {m.common.save}
                     </button>
@@ -215,7 +215,7 @@ export function MoneySourcesPanel() {
             <button
               type="button"
               onClick={handleAdd}
-              className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-bold text-on-primary"
+              className="flex-1 rounded-full bg-primary py-2.5 text-sm font-bold text-on-primary"
             >
               {p.addSource}
             </button>

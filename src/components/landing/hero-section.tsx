@@ -29,10 +29,18 @@ export function HeroSection() {
   const isLoggedIn = Boolean(user || isDemo);
   const words = m.landing.hero.words;
   const [wordIndex, setWordIndex] = useState(0);
+  // The per-character blur-in animation (`.animate-char-in`) starts every
+  // glyph at opacity:0 with a 0.5s animation + up to ~0.5s of stagger delay.
+  // Applied to the FIRST render, the hero headline — the LCP element — isn't
+  // fully painted until the animation finishes, adding ~1s to LCP. The staged
+  // entrance now only plays for rotation N>0; the initial word paints
+  // instantly (and identically between SSR and hydration).
+  const [hasRotated, setHasRotated] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       setWordIndex((current) => (current + 1) % words.length);
+      setHasRotated(true);
     }, 2500);
 
     return () => window.clearInterval(interval);
@@ -41,7 +49,7 @@ export function HeroSection() {
   }, [words.length]);
 
   return (
-    <section className="relative flex min-h-screen flex-col justify-center overflow-hidden">
+    <section className="backdrop-mint relative flex min-h-screen flex-col justify-center overflow-hidden">
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute top-1/2 h-[600px] w-[600px] -translate-y-1/2 opacity-40 lg:h-[800px] lg:w-[800px] ${isRTL ? 'left-0' : 'right-0'}`}
@@ -56,14 +64,14 @@ export function HeroSection() {
         {[...Array(8)].map((_, index) => (
           <div
             key={`h-${index}`}
-            className="absolute inset-x-0 h-px bg-foreground/10"
+            className="absolute inset-x-0 h-px bg-forest/10 dark:bg-lime/10"
             style={{ top: `${12.5 * (index + 1)}%` }}
           />
         ))}
         {[...Array(12)].map((_, index) => (
           <div
             key={`v-${index}`}
-            className="absolute bottom-0 top-0 w-px bg-foreground/10"
+            className="absolute bottom-0 top-0 w-px bg-forest/10 dark:bg-lime/10"
             style={{ left: `${8.33 * (index + 1)}%` }}
           />
         ))}
@@ -71,14 +79,16 @@ export function HeroSection() {
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-32 lg:px-12 lg:py-40">
         <div className="mb-8">
-          <span className="inline-flex items-center gap-3 font-mono text-sm text-muted-foreground">
-            <span aria-hidden="true" className="h-px w-8 bg-foreground/30" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+            <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep">
+              <span className="size-1.5 rounded-full bg-forest-deep" />
+            </span>
             {m.landing.hero.eyebrow}
           </span>
         </div>
 
         <div className="mb-12">
-          <h1 className="font-display text-[clamp(3rem,12vw,10rem)] leading-[0.9] rtl:leading-tight tracking-tight">
+          <h1 className="font-display text-[clamp(3rem,11vw,9rem)] font-semibold leading-[0.92] rtl:leading-tight tracking-[-0.04em] text-on-surface">
             <span className="block">{m.landing.hero.titleLine1}</span>
             <span className="block">
               {m.landing.hero.titleLine2Prefix}{' '}
@@ -90,8 +100,8 @@ export function HeroSection() {
                     words[wordIndex].split('').map((character, index) => (
                       <span
                         key={`${wordIndex}-${index}`}
-                        className="animate-char-in inline-block"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                        className={hasRotated ? 'animate-char-in inline-block' : 'inline-block'}
+                        style={hasRotated ? { animationDelay: `${index * 50}ms` } : undefined}
                       >
                         {character}
                       </span>
@@ -100,7 +110,7 @@ export function HeroSection() {
                 </span>
                 <span
                   aria-hidden="true"
-                  className="absolute inset-x-0 -bottom-2 h-3 bg-foreground/10"
+                  className="absolute inset-x-0 bottom-[0.06em] -z-10 h-[0.28em] rounded-full bg-lime dark:bg-lime/30"
                 />
               </span>
             </span>
@@ -108,7 +118,7 @@ export function HeroSection() {
         </div>
 
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-24">
-          <p className="max-w-xl text-xl leading-relaxed text-muted-foreground lg:text-2xl">
+          <p className="max-w-xl text-lg leading-relaxed text-on-surface-variant lg:text-xl">
             {m.landing.hero.description}
           </p>
 
@@ -116,7 +126,7 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="group h-14 rounded-full bg-primary px-8 text-base text-white hover:bg-primary/90"
+              className="group h-14 rounded-full bg-primary px-8 text-base text-on-primary shadow-[0_12px_28px_-10px_rgba(15,59,54,0.55)] hover:bg-primary-hover"
             >
               <a href={isLoggedIn ? "/dashboard" : "/login"}>
                 {isLoggedIn ? m.landing.nav.goToDashboard : m.landing.hero.ctaPrimary}
@@ -127,7 +137,7 @@ export function HeroSection() {
               asChild
               size="lg"
               variant="outline"
-              className="h-14 rounded-full border-foreground/20 px-8 text-base hover:bg-foreground/5"
+              className="h-14 rounded-full border-outline-variant bg-surface-container-lowest px-8 text-base text-on-surface hover:bg-surface-container-high"
             >
               <a href="#how-it-works">{m.landing.hero.ctaSecondary}</a>
             </Button>
@@ -141,8 +151,8 @@ export function HeroSection() {
             <div key={setIndex} className="flex gap-16" aria-hidden={setIndex === 1}>
               {m.landing.hero.stats.map((stat) => (
                 <div key={`${stat.detail}-${setIndex}`} className="flex items-baseline gap-4">
-                  <span className="font-display text-4xl lg:text-5xl">{formatStatValue(stat.value)}</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="font-display text-4xl font-semibold tracking-[-0.03em] text-on-surface lg:text-5xl">{formatStatValue(stat.value)}</span>
+                  <span className="text-sm text-on-surface-variant">
                     {stat.label}
                     <span className="mt-1 block font-mono text-xs">{stat.detail}</span>
                   </span>

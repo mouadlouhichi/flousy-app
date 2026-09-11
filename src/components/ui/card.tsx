@@ -1,15 +1,41 @@
 import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
-function Card({ className, ...props }: React.ComponentProps<'div'>) {
+/**
+ * Card surfaces from the reference design:
+ *  - `default`  white, hairline border, soft ambient shadow, 28px radius
+ *  - `forest`   deep green hero surface with a subtle lime sheen
+ *  - `lime`     pale lime accent surface
+ *  - `tonal`    mint tint, borderless — quiet grouping inside other cards
+ */
+const cardVariants = cva(
+  'relative flex flex-col gap-6 rounded-[1.75rem] py-6 text-card-foreground transition-shadow',
+  {
+    variants: {
+      variant: {
+        default: 'bg-card border border-outline-variant shadow-ambient',
+        forest: 'surface-forest border border-white/5 shadow-forest text-inverse-on-surface',
+        lime: 'surface-lime text-forest-deep',
+        tonal: 'bg-surface-container-high',
+        outline: 'bg-transparent border border-outline-variant',
+      },
+    },
+    defaultVariants: { variant: 'default' },
+  },
+)
+
+function Card({
+  className,
+  variant,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof cardVariants>) {
   return (
     <div
       data-slot="card"
-      className={cn(
-        'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm',
-        className,
-      )}
+      data-variant={variant ?? 'default'}
+      className={cn(cardVariants({ variant }), className)}
       {...props}
     />
   )
@@ -20,7 +46,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="card-header"
       className={cn(
-        '@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6',
+        '@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6',
         className,
       )}
       {...props}
@@ -32,7 +58,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-title"
-      className={cn('leading-none font-semibold', className)}
+      className={cn('leading-none font-semibold tracking-[-0.01em]', className)}
       {...props}
     />
   )
@@ -42,7 +68,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-description"
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('text-on-surface-variant text-sm', className)}
       {...props}
     />
   )
@@ -89,4 +115,5 @@ export {
   CardAction,
   CardDescription,
   CardContent,
+  cardVariants,
 }

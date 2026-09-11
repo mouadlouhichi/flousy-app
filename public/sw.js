@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartjib-v7';
+const CACHE_NAME = 'smartjib-v9';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
 const HTML_CACHE_NAME = 'smartjib-html-v7';
@@ -17,11 +17,10 @@ const ASSETS_TO_CACHE = [
   '/favicon.svg',
   '/favicon-96x96.png',
   '/apple-touch-icon.png',
-  '/web-app-manifest-192x192.png',
-  '/web-app-manifest-512x512.png',
-  // legacy compat
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {

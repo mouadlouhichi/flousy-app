@@ -1,131 +1,313 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-/**
- * Camera + hardware scanner input for course sessions.
- *
- * Decoding strategy (auto-detected):
- *   1. native  — `navigator.mediaDevices` + `BarcodeDetector` (Chrome/Android)
- *   2. zxing   — `@zxing/browser` JS decoder (iOS Safari, Firefox; lazy-loaded)
- *   3. wedge   — hardware USB/Bluetooth scanners that type digits + Enter
- *                (always active while `enabled`, regardless of camera)
- *
- * The camera feed is digitally zoomed by default (2×) so distant barcodes
- * fill the frame and are easier to line up; a torch toggle appears whenever
- * the device exposes one. The camera auto-starts once `enabled` so the scan
- * view is ready without an extra tap.
- *
- * Identical codes seen within `debounceMs` are dropped (camera re-detect).
- */
+import type { BarcodeCandidate, BarcodeSymbology } from '@/lib/gtin';
+import {
+  KeyboardWedgeCollector,
+  armScannerGeneration,
+  claimScannerCandidate,
+  createScannerAcceptanceState,
+  invalidateScannerGeneration,
+} from '@/lib/scanner-lifecycle';
 
 export type ScanMethod = 'native' | 'zxing' | 'none';
-export type ScanError = 'camera-unavailable' | 'camera-denied' | 'decode-unavailable' | null;
+export type ScannerState = 'idle' | 'acquiring' | 'ready' | 'accepted' | 'paused' | 'error';
+export type ScanError =
+  | 'camera-unavailable'
+  | 'camera-denied'
+  | 'camera-not-found'
+  | 'camera-busy'
+  | 'camera-constraints'
+  | 'insecure-context'
+  | 'camera-ended'
+  | 'decode-unavailable'
+  | null;
 
 interface UseBarcodeScannerOptions {
-  /** Attach listeners / allow starting. Turn off to tear everything down. */
   enabled: boolean;
-  /** Fires with the raw scanned code (after the dedupe window). */
-  onCode: (code: string) => void;
-  /** Ignore an identical code seen within this window (ms). */
-  debounceMs?: number;
-  /** Start the camera automatically once `enabled` (default true). */
+  onCode: (candidate: BarcodeCandidate) => void;
   autoStart?: boolean;
-  /** Initial digital zoom, 1 = none (default 2×). */
+  /** Initial zoom, 1 = none (default 2×). Hardware zoom when the track
+   * supports it; otherwise digital zoom applied to the feed. */
   initialZoom?: number;
+  deviceId?: string;
+}
+
+interface NativeDetectedBarcode {
+  rawValue: string;
+  format?: string;
 }
 
 interface NativeBarcodeDetector {
-  detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]>;
+  detect(source: CanvasImageSource): Promise<NativeDetectedBarcode[]>;
 }
 
+interface NumericCapability {
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+interface VideoCapabilities extends MediaTrackCapabilities {
+  torch?: boolean;
+  zoom?: NumericCapability | number;
+}
+
+interface VideoSettings extends MediaTrackSettings {
+  zoom?: number;
+}
+
+const DECODE_INTERVAL_MS = 70;
+const ROI_WIDTH_RATIO = 0.82;
+const ROI_HEIGHT_RATIO = 0.38;
+/** A just-accepted camera code is suppressed for this long, so holding a
+ * product in view cannot machine-gun quantity increments; intentionally
+ * re-presenting the product (the POS gesture) always takes longer. */
+const SAME_CODE_RETRIGGER_MS = 1500;
+/** Digital zoom bounds/step for devices whose camera track has no zoom
+ * capability — the feed is then scaled in CSS, exactly like the original
+ * scanner behaviour (default 2× so barcodes fill the frame). */
 const MIN_ZOOM = 1;
-const MAX_ZOOM = 8;
+const MAX_DIGITAL_ZOOM = 8;
 const ZOOM_STEP = 0.5;
-/** Roughly how often the native decoder samples the feed (ms). */
-const DECODE_INTERVAL_MS = 40;
+
+function clampDigitalZoom(value: number): number {
+  return Math.min(MAX_DIGITAL_ZOOM, Math.max(MIN_ZOOM, value));
+}
+
+function nativeFormat(value: string | undefined): BarcodeSymbology {
+  const normalized = (value ?? '').toLowerCase();
+  if (normalized === 'ean_8') return 'EAN_8';
+  if (normalized === 'ean_13') return 'EAN_13';
+  if (normalized === 'upc_a') return 'UPC_A';
+  if (normalized === 'upc_e') return 'UPC_E';
+  if (normalized === 'itf') return 'ITF_14';
+  if (normalized === 'code_128') return 'CODE_128';
+  return 'UNKNOWN';
+}
+
+function classifyMediaError(error: unknown): Exclude<ScanError, null> {
+  if (typeof window !== 'undefined' && !window.isSecureContext) return 'insecure-context';
+  const name = error instanceof DOMException
+    ? error.name
+    : typeof error === 'object' && error && 'name' in error
+      ? String((error as { name?: unknown }).name)
+      : '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'camera-denied';
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') return 'camera-not-found';
+  if (name === 'NotReadableError' || name === 'TrackStartError') return 'camera-busy';
+  if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') return 'camera-constraints';
+  return 'camera-unavailable';
+}
 
 export function useBarcodeScanner({
   enabled,
   onCode,
-  debounceMs = 700,
   autoStart = true,
   initialZoom = 2,
+  deviceId,
 }: UseBarcodeScannerOptions) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
-  const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
-  const runningRef = useRef(false);
+  const acceptanceRef = useRef(createScannerAcceptanceState());
+  const activeRef = useRef(false);
   const enabledRef = useRef(enabled);
-  const torchOnRef = useRef(false);
-  /** Incremented on every stop/start so a superseded `getUserMedia` is discarded. */
-  const startTokenRef = useRef(0);
-  const zoomRef = useRef(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, initialZoom)));
   const onCodeRef = useRef(onCode);
-  onCodeRef.current = onCode;
-  enabledRef.current = enabled;
+  const torchOnRef = useRef(false);
+  const lastCameraCodeRef = useRef<string | null>(null);
+  const lastAcceptedAtRef = useRef(0);
+  /** Late-bound decoder restarter — `accept` re-arms decoding, but the native/
+   * zxing starters are defined later in the hook (TDZ), so they are bound here
+   * after their definitions on every render. */
+  const restartDecodersRef = useRef<(generation: number) => void>(() => undefined);
+  const clearFramesRef = useRef(0);
+  const pauseReasonRef = useRef<'visibility' | 'accepted' | null>(null);
 
-  const [running, setRunning] = useState(false);
+  enabledRef.current = enabled;
+  onCodeRef.current = onCode;
+
+  const [state, setState] = useState<ScannerState>('idle');
   const [error, setError] = useState<ScanError>(null);
   const [method, setMethod] = useState<ScanMethod>('none');
-  const [zoom, setZoomState] = useState(zoomRef.current);
+  const [zoom, setZoomState] = useState(() => clampDigitalZoom(initialZoom));
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchAvailable, setTorchAvailable] = useState(false);
+  const [roiActive, setRoiActive] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  /** A camera stream is attached and its tracks are live — drives the panel's
+   * live-preview treatment independently of the decoder state. */
+  const [streamLive, setStreamLive] = useState(false);
 
-  const stop = useCallback(() => {
-    startTokenRef.current += 1; // invalidate any in-flight start
+  const tearDown = useCallback(() => {
+    invalidateScannerGeneration(acceptanceRef.current);
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    if (zxingControlsRef.current) {
-      try {
-        zxingControlsRef.current.stop();
-      } catch {
-        /* already stopped */
-      }
-      zxingControlsRef.current = null;
+    try {
+      zxingControlsRef.current?.stop();
+    } catch {
+      // Decoder may already be stopped.
     }
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    zxingControlsRef.current = null;
+    const stream = streamRef.current;
     streamRef.current = null;
+    activeRef.current = false;
+    stream?.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
     if (videoRef.current) videoRef.current.srcObject = null;
-    runningRef.current = false;
+    // The preview state must follow the teardown, or the panel's Stop button
+    // stays in its "running" branch and the camera can never be restarted.
+    setStreamLive(false);
     torchOnRef.current = false;
-    setRunning(false);
     setTorchOn(false);
+    setTorchAvailable(false);
+    setZoomRange(null);
+    // Fall back to digital zoom, keeping the user's chosen level (bounded).
+    setZoomState((current) => clampDigitalZoom(current));
+    setRoiActive(false);
     setMethod('none');
   }, []);
 
-  const emit = useCallback(
-    (code: string) => {
-      const now = Date.now();
-      const last = lastCodeRef.current;
-      if (last && last.code === code && now - last.at < debounceMs) return;
-      lastCodeRef.current = { code, at: now };
-      onCodeRef.current(code);
-    },
-    [debounceMs],
-  );
+  const stop = useCallback(() => {
+    acceptanceRef.current.armed = false;
+    pauseReasonRef.current = null;
+    tearDown();
+    setState('idle');
+  }, [tearDown]);
+
+  /** Stops every decoder loop but KEEPS the camera stream, the video element,
+   * the torch and the zoom alive — the original main-branch behaviour where
+   * the preview stays live after a scan instead of turning the camera off. */
+  const pauseDecoders = useCallback(() => {
+    invalidateScannerGeneration(acceptanceRef.current);
+    acceptanceRef.current.armed = false;
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    try {
+      zxingControlsRef.current?.stop();
+    } catch {
+      // Decoder may already be stopped.
+    }
+    zxingControlsRef.current = null;
+    activeRef.current = false;
+    setRoiActive(false);
+    setMethod('none');
+  }, []);
+
+  /** Soft pause for consumer gates (resolving/pending): decoders off, camera
+   * stays on. A no-op when the camera is not running. */
+  const pause = useCallback(() => {
+    if (!streamRef.current) return;
+    pauseDecoders();
+    setState((prev) => (prev === 'idle' ? prev : 'paused'));
+  }, [pauseDecoders]);
+
+  /** True while a live camera stream is still attached to the video element. */
+  const isStreamLive = useCallback(() => {
+    const stream = streamRef.current;
+    return Boolean(stream && stream.getVideoTracks().some((track) => track.readyState === 'live'));
+  }, []);
+
+  /** Synchronously locks acceptance, then stops every decoder before the
+   * consumer callback or feedback runs. The camera itself keeps streaming —
+   * decoding re-arms on the same live feed immediately (main-branch behavior:
+   * once enabled, the camera stays on), and consumer gates simply ignore
+   * candidates they do not want. */
+  const accept = useCallback((candidate: BarcodeCandidate, generation: number) => {
+    const isCamera = candidate.source === 'camera-native' || candidate.source === 'camera-zxing';
+    // Same-code retrigger window — checked BEFORE the claim so a suppressed
+    // candidate never consumes the armed generation. The native path also
+    // gates on empty frames, so a stationary barcode never re-fires there.
+    if (
+      isCamera
+      && candidate.rawValue === lastCameraCodeRef.current
+      && Date.now() - lastAcceptedAtRef.current < SAME_CODE_RETRIGGER_MS
+    ) return false;
+    if (!claimScannerCandidate(acceptanceRef.current, generation, enabledRef.current)) return false;
+    pauseReasonRef.current = 'accepted';
+    if (isCamera) {
+      lastCameraCodeRef.current = candidate.rawValue;
+      lastAcceptedAtRef.current = Date.now();
+    }
+    pauseDecoders();
+    setState('accepted');
+    onCodeRef.current(candidate);
+    // Auto-rearm on the still-live stream: no consumer `enabled` flip is
+    // needed to resume scanning — the original scanner never turned off
+    // after a code.
+    if (enabledRef.current && streamRef.current) {
+      const rearmGeneration = armScannerGeneration(acceptanceRef.current);
+      activeRef.current = true;
+      pauseReasonRef.current = null;
+      setState('ready');
+      restartDecodersRef.current(rearmGeneration);
+    }
+    return true;
+  }, [pauseDecoders]);
 
   const getVideoTrack = useCallback(() => streamRef.current?.getVideoTracks()[0] ?? null, []);
 
-  const refreshTorchSupport = useCallback(() => {
+  const refreshCapabilities = useCallback(async () => {
     const track = getVideoTrack();
-    const capabilities = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
-      torch?: boolean;
-    };
+    if (!track) return;
+    const capabilities = (track.getCapabilities?.() ?? {}) as VideoCapabilities;
     setTorchAvailable(capabilities.torch === true);
-  }, [getVideoTrack]);
+    const rawZoom = capabilities.zoom;
+    if (rawZoom && typeof rawZoom === 'object') {
+      const min = Number(rawZoom.min ?? 1);
+      const max = Number(rawZoom.max ?? min);
+      const step = Math.max(0.1, Number(rawZoom.step ?? 0.1));
+      if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+        setZoomRange({ min, max, step });
+        const desired = Math.min(max, Math.max(min, initialZoom));
+        try {
+          await track.applyConstraints({ advanced: [{ zoom: desired } as MediaTrackConstraintSet] });
+          setZoomState(desired);
+        } catch {
+          setZoomState(Number((track.getSettings() as VideoSettings).zoom ?? min));
+        }
+      }
+    }
+  }, [getVideoTrack, initialZoom]);
+
+  /** Hardware zoom when the track exposes a range; digital (CSS) zoom on the
+   * feed otherwise, matching the original scanner behaviour on every device. */
+  const setZoom = useCallback(async (next: number) => {
+    const track = getVideoTrack();
+    if (track && zoomRange) {
+      const clamped = Math.min(zoomRange.max, Math.max(zoomRange.min, next));
+      try {
+        await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] });
+        setZoomState(Number((track.getSettings() as VideoSettings).zoom ?? clamped));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    setZoomState(clampDigitalZoom(next));
+    return true;
+  }, [getVideoTrack, zoomRange]);
+
+  const zoomIn = useCallback(() => {
+    void setZoom(zoom + (zoomRange?.step ?? ZOOM_STEP));
+  }, [setZoom, zoom, zoomRange]);
+  const zoomOut = useCallback(() => {
+    void setZoom(zoom - (zoomRange?.step ?? ZOOM_STEP));
+  }, [setZoom, zoom, zoomRange]);
 
   const setTorch = useCallback(async (on: boolean) => {
     const track = getVideoTrack();
     if (!track) return false;
     try {
-      await track.applyConstraints({
-        advanced: [{ torch: on } as unknown as MediaTrackConstraintSet],
-      });
+      await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
       torchOnRef.current = on;
       setTorchOn(on);
       return true;
@@ -138,217 +320,306 @@ export function useBarcodeScanner({
     await setTorch(!torchOnRef.current);
   }, [setTorch]);
 
-  const setZoom = useCallback((next: number) => {
-    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 10) / 10));
-    zoomRef.current = clamped;
-    setZoomState(clamped);
-  }, []);
-
-  const zoomIn = useCallback(() => setZoom(zoomRef.current + ZOOM_STEP), [setZoom]);
-  const zoomOut = useCallback(() => setZoom(zoomRef.current - ZOOM_STEP), [setZoom]);
-
-  /** JS fallback decoder. Reuses the stream we already own (no second getUserMedia). */
-  const startZxing = useCallback(async () => {
+  const startZxing = useCallback(async (generation: number) => {
     const stream = streamRef.current;
     const video = videoRef.current;
-    if (!stream || !video) return;
+    if (!stream || !video || generation !== acceptanceRef.current.generation) return;
     setMethod('zxing');
+    setRoiActive(false);
     try {
       const { BrowserMultiFormatReader, BarcodeFormat } = await import('@zxing/browser');
-      const reader = new BrowserMultiFormatReader(undefined, {
-        delayBetweenScanAttempts: 50,
-      });
-      // Restrict to the grocery codes the native detector also targets — this
-      // trims false positives and makes the JS decoder measurably snappier.
+      if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
+      const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 70 });
       reader.possibleFormats = [
         BarcodeFormat.EAN_13,
         BarcodeFormat.EAN_8,
         BarcodeFormat.UPC_A,
         BarcodeFormat.UPC_E,
-        BarcodeFormat.CODE_128,
       ];
-      zxingControlsRef.current = await reader.decodeFromStream(stream, video, (result) => {
-        if (result && result.getText()) emit(result.getText());
+      // Decode from the already-playing video element, NOT from the stream:
+      // `decodeFromStream`'s controls.stop() disposes the MediaStream tracks,
+      // which turned the camera off on every pause (iOS shows a frozen frame
+      // with no way back). With `decodeFromVideoElement` our hook stays the
+      // sole owner of the stream — pause keeps the preview live, re-arm just
+      // restarts the decode loop, and teardown stops the tracks itself.
+      const controls = await reader.decodeFromVideoElement(video, (result) => {
+        if (!result || generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
+        const rawValue = result.getText();
+        if (!rawValue) return;
+        const formatName = BarcodeFormat[result.getBarcodeFormat()] as string | undefined;
+        accept({ rawValue, format: nativeFormat(formatName), source: 'camera-zxing' }, generation);
       });
+      if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) {
+        controls.stop();
+        return;
+      }
+      zxingControlsRef.current = controls;
     } catch {
-      stop();
+      if (generation !== acceptanceRef.current.generation) return;
+      tearDown();
       setError('decode-unavailable');
+      setState('error');
     }
-  }, [emit, stop]);
+  }, [accept, tearDown]);
 
-  /** Native BarcodeDetector loop (GPU-accelerated where available). */
-  const startNative = useCallback(() => {
+  const startNative = useCallback((generation: number) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || generation !== acceptanceRef.current.generation) return;
     setMethod('native');
-
-    const Ctor = (window as unknown as {
-      BarcodeDetector: new (opts?: { formats: string[] }) => NativeBarcodeDetector;
+    setRoiActive(true);
+    const Constructor = (window as unknown as {
+      BarcodeDetector: new (options?: { formats: string[] }) => NativeBarcodeDetector;
     }).BarcodeDetector;
-
     let detector: NativeBarcodeDetector;
     try {
-      detector = new Ctor({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
-      });
+      detector = new Constructor({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf'] });
     } catch {
-      // Formats unsupported on this build — fall back to the JS decoder.
-      void startZxing();
+      void startZxing(generation);
       return;
     }
-
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) {
+      void startZxing(generation);
+      return;
+    }
+    let detecting = false;
     let lastDecodeAt = 0;
-    const tick = async () => {
-      if (!streamRef.current) return;
-      const v = videoRef.current;
-      const now = performance.now();
-      // Wait for real frames and throttle so we don't hammer the detector.
-      if (v && v.videoWidth > 0 && v.videoHeight > 0 && now - lastDecodeAt >= DECODE_INTERVAL_MS) {
+    const tick = async (now: number) => {
+      if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed || !streamRef.current) return;
+      const currentVideo = videoRef.current;
+      if (!detecting && currentVideo && currentVideo.videoWidth > 0 && currentVideo.videoHeight > 0 && now - lastDecodeAt >= DECODE_INTERVAL_MS) {
+        detecting = true;
         lastDecodeAt = now;
+        const sourceWidth = Math.round(currentVideo.videoWidth * ROI_WIDTH_RATIO);
+        const sourceHeight = Math.round(currentVideo.videoHeight * ROI_HEIGHT_RATIO);
+        const sourceX = Math.round((currentVideo.videoWidth - sourceWidth) / 2);
+        const sourceY = Math.round((currentVideo.videoHeight - sourceHeight) / 2);
+        canvas.width = sourceWidth;
+        canvas.height = sourceHeight;
+        context.drawImage(currentVideo, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
         try {
-          const codes = await detector.detect(v);
-          for (const detected of codes) {
-            if (detected.rawValue) emit(detected.rawValue);
+          const codes = await detector.detect(canvas);
+          if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
+          if (codes.length === 0) {
+            clearFramesRef.current += 1;
+            if (clearFramesRef.current >= 3) lastCameraCodeRef.current = null;
+          } else {
+            clearFramesRef.current = 0;
+            const detected = codes.find((code) => code.rawValue && code.rawValue !== lastCameraCodeRef.current);
+            if (detected) {
+              accept({
+                rawValue: detected.rawValue,
+                format: nativeFormat(detected.format),
+                source: 'camera-native',
+              }, generation);
+              return;
+            }
           }
         } catch {
-          /* frame not ready yet — keep polling */
+          // A transient frame/decode error does not invalidate the camera.
+        } finally {
+          detecting = false;
         }
       }
-      rafRef.current = requestAnimationFrame(tick);
+      if (generation === acceptanceRef.current.generation && acceptanceRef.current.armed) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [emit, startZxing]);
+  }, [accept, startZxing]);
 
-  const start = useCallback(async () => {
-    if (runningRef.current || !enabledRef.current) return;
-    const token = ++startTokenRef.current;
-    runningRef.current = true;
-    setError(null);
+  restartDecodersRef.current = (generation: number) => {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
+    else void startZxing(generation);
+  };
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      runningRef.current = false;
-      setError('camera-unavailable');
+  const start = useCallback(async (requestedDeviceId?: string) => {
+    if (!enabledRef.current || activeRef.current) return;
+    // Fast path: the camera stream from the previous scan is still live —
+    // re-arm decoding on it instead of turning the camera off and on again.
+    if (isStreamLive() && videoRef.current?.srcObject) {
+      pauseDecoders();
+      const generation = armScannerGeneration(acceptanceRef.current);
+      activeRef.current = true;
+      pauseReasonRef.current = null;
+      setError(null);
+      setState('ready');
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
+      else void startZxing(generation);
       return;
     }
+    tearDown();
+    const generation = armScannerGeneration(acceptanceRef.current);
+    activeRef.current = true;
+    pauseReasonRef.current = null;
+    setError(null);
+    setState('acquiring');
 
-    // Ask for more pixels when the native detector is available (it is
-    // GPU-accelerated and reads better from a higher-res feed); the JS decoder
-    // prefers a lighter 720p feed so CPU decode stays smooth.
-    const useNative = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      activeRef.current = false;
+      acceptanceRef.current.armed = false;
+      setError(typeof window !== 'undefined' && !window.isSecureContext ? 'insecure-context' : 'camera-unavailable');
+      setState('error');
+      return;
+    }
 
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' },
-          ...(useNative
-            ? { width: { ideal: 1280 }, height: { ideal: 720 } }
-            : { width: { ideal: 1280 }, height: { ideal: 720 } }),
+          ...(requestedDeviceId || deviceId
+            ? { deviceId: { exact: requestedDeviceId || deviceId } }
+            : { facingMode: { ideal: 'environment' } }),
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
-    } catch {
-      if (token === startTokenRef.current) {
-        runningRef.current = false;
-        setError('camera-denied');
+    } catch (caught) {
+      if (generation === acceptanceRef.current.generation) {
+        activeRef.current = false;
+        acceptanceRef.current.armed = false;
+        setError(classifyMediaError(caught));
+        setState('error');
       }
       return;
     }
 
-    // Superseded (e.g. StrictMode remount or a stop during the prompt) — drop
-    // the stream instead of leaking a second camera.
-    if (token !== startTokenRef.current) {
+    if (generation !== acceptanceRef.current.generation || !enabledRef.current || !acceptanceRef.current.armed) {
       stream.getTracks().forEach((track) => track.stop());
       return;
     }
     streamRef.current = stream;
+    setStreamLive(true);
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+      track.onended = () => {
+        if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
+        acceptanceRef.current.armed = false;
+        tearDown();
+        setError('camera-ended');
+        setState('error');
+      };
+    }
 
     const video = videoRef.current;
     if (!video) {
-      stream.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      if (token === startTokenRef.current) {
-        runningRef.current = false;
-        setError('camera-unavailable');
-      }
+      tearDown();
+      setError('camera-unavailable');
+      setState('error');
       return;
     }
     video.srcObject = stream;
     try {
       await video.play();
     } catch {
-      /* autoplay policy — the frame still renders */
+      // Some browsers start rendering after the first user gesture.
     }
+    if (generation !== acceptanceRef.current.generation || !acceptanceRef.current.armed) return;
 
-    if (token !== startTokenRef.current) return; // superseded mid-play
-
-    setRunning(true);
-
-    if (useNative) {
-      startNative();
-    } else {
-      await startZxing();
+    setState('ready');
+    void refreshCapabilities();
+    try {
+      const found = await navigator.mediaDevices.enumerateDevices();
+      if (generation === acceptanceRef.current.generation) setDevices(found.filter((item) => item.kind === 'videoinput'));
+    } catch {
+      // Device enumeration is optional.
     }
-    refreshTorchSupport();
-  }, [startNative, startZxing, refreshTorchSupport]);
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) startNative(generation);
+    else void startZxing(generation);
+  }, [deviceId, isStreamLive, pauseDecoders, refreshCapabilities, startNative, startZxing, tearDown]);
 
-  // Auto-start / auto-stop the camera with the session lifecycle.
+  const rearm = useCallback((options?: { allowSameCameraCode?: boolean }) => {
+    if (options?.allowSameCameraCode) lastCameraCodeRef.current = null;
+    if (!enabledRef.current) return;
+    setState('paused');
+    void start();
+  }, [start]);
+
+  const startedForEnableRef = useRef(false);
   useEffect(() => {
     if (!enabled) {
-      stop();
+      startedForEnableRef.current = false;
+      // Consumer gate (resolving/pending/sheet): pause decoding but keep the
+      // camera preview live, exactly like the original scanner behaviour.
+      pause();
       return;
     }
-    if (autoStart) void start();
-  }, [enabled, autoStart, start, stop]);
+    if (autoStart && !startedForEnableRef.current) {
+      startedForEnableRef.current = true;
+      void start();
+    }
+  }, [enabled, autoStart, pause, start]);
 
-  // Keyboard wedge: hardware scanners type a burst of digits (fast) and
-  // finish with Enter. Human typing is slower than the inter-key budget, so
-  // it can never trigger a scan.
+  // A keyboard wedge represents an explicit hardware trigger. It shares the
+  // same synchronous acceptance mutex and supports every GTIN length.
   useEffect(() => {
     if (!enabled) return;
-    let buffer = '';
-    let lastKeyAt = 0;
+    const collector = new KeyboardWedgeCollector();
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!acceptanceRef.current.armed) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
-        buffer = '';
-        return; // focused fields handle their own Enter (manual entry)
-      }
-      const now = Date.now();
-      if (now - lastKeyAt > 100) buffer = '';
-      lastKeyAt = now;
-      if (/^[0-9]$/.test(event.key)) {
-        buffer += event.key;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+        collector.reset();
         return;
       }
-      if (event.key === 'Enter' && buffer.length >= 8 && buffer.length <= 13) {
+      const value = collector.push(event.key);
+      if (value !== null) {
         event.preventDefault();
-        emit(buffer);
-        buffer = '';
+        accept(
+          { rawValue: value, format: 'UNKNOWN', source: 'wedge' },
+          acceptanceRef.current.generation,
+        );
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [enabled, emit]);
+  }, [accept, enabled]);
 
-  // Tear down camera on unmount.
+  useEffect(() => {
+    if (!enabled) return;
+    const onVisibility = () => {
+      if (document.hidden && (state === 'ready' || state === 'acquiring')) {
+        acceptanceRef.current.armed = false;
+        pauseReasonRef.current = 'visibility';
+        tearDown();
+        setState('paused');
+      } else if (!document.hidden && pauseReasonRef.current === 'visibility') {
+        pauseReasonRef.current = null;
+        void start();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [enabled, start, state, tearDown]);
+
   useEffect(() => () => stop(), [stop]);
 
   return {
     videoRef,
     start,
     stop,
-    running,
+    rearm,
+    state,
+    // The preview counts as running while the camera stream is attached —
+    // this includes the post-scan 'accepted' pause and consumer-gated pauses,
+    // so the panel keeps showing the feed, the scan frame and the zoom control
+    // (original UX) instead of an idle camera placeholder.
+    running: streamLive || state === 'acquiring',
     error,
     method,
     zoom,
     setZoom,
     zoomIn,
     zoomOut,
-    canZoomIn: zoom < MAX_ZOOM,
-    canZoomOut: zoom > MIN_ZOOM,
+    canZoomIn: zoom < (zoomRange?.max ?? MAX_DIGITAL_ZOOM),
+    canZoomOut: zoom > (zoomRange?.min ?? MIN_ZOOM),
+    hardwareZoomAvailable: Boolean(zoomRange),
     torchOn,
     torchAvailable,
     toggleTorch,
+    roiActive,
+    devices,
   };
 }

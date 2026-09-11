@@ -46,23 +46,23 @@ export function CustomSelect({
   return (
     <div className={`flex flex-col gap-sm ${className}`}>
       {label && (
-        <label className="font-label-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider">
+        <label className="text-[12px] font-medium text-on-surface-variant">
           {label}
         </label>
       )}
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger
           aria-label={ariaLabel || label}
-          className={`w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl font-body-md text-body-md text-on-surface hover:border-outline hover:bg-surface-container-low focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 ${triggerClassName}`}
+          className={`w-full h-12 px-4 bg-surface-container-lowest border border-outline-variant rounded-2xl font-body-md text-body-md text-on-surface hover:border-outline/60 focus:border-primary focus:ring-[3px] focus:ring-primary/15 transition-all duration-200 ${triggerClassName}`}
         >
           <SelectValue placeholder={placeholder || m.common.select} />
         </SelectTrigger>
-        <SelectContent className={`bg-surface border border-outline-variant rounded-xl shadow-lg ${contentClassName}`}>
+        <SelectContent className={`bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-floating ${contentClassName}`}>
           {options.map((option) => (
             <SelectItem
               key={option.value}
               value={option.value}
-              className="p-4 font-body-md text-body-md text-on-surface hover:bg-surface-variant/50 focus:bg-primary/10 focus:text-primary cursor-pointer"
+              className="p-3.5 rounded-xl font-body-md text-body-md text-on-surface hover:bg-surface-container-high focus:bg-primary/10 focus:text-primary cursor-pointer"
             >
               {option.label}
             </SelectItem>

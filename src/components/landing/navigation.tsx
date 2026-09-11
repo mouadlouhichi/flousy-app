@@ -1,16 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Moon, Sun, Globe } from "lucide-react";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { useAuthStatus } from '@/lib/auth-status';
+import { isDemoMode } from '@/lib/demo-mode';
 
 export function Navigation() {
   const { messages: m, language, setLanguage, localeNames } = useLightLanguage();
   const { signedIn: user } = useAuthStatus();
-  const isDemo = typeof window !== 'undefined' && localStorage.getItem('smartjib_demo_mode') === 'true';
+  // Read after mount only: resolving localStorage during render made the CTA
+  // text differ between the served HTML and the first client render for
+  // demo-mode visitors (hydration mismatch). Same pattern as HeroSection.
+  const [isDemo, setIsDemo] = useState(false);
+  useEffect(() => {
+    setIsDemo(isDemoMode());
+  }, []);
   const isLoggedIn = Boolean(user || isDemo);
 
   const navLinks = [
@@ -76,7 +82,7 @@ export function Navigation() {
       <nav 
         className={`relative z-50 mx-auto transition-all duration-500 ${
           isScrolled || isMobileMenuOpen
-            ? "bg-background/80 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-lg max-w-[1200px]"
+            ? "bg-surface-container-lowest/85 backdrop-blur-xl border border-outline-variant rounded-full shadow-floating max-w-[1200px]"
             : "bg-transparent max-w-[1400px]"
         }`}
       >
@@ -87,15 +93,16 @@ export function Navigation() {
         >
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <Image
-              src="/logo.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-128.png"
               alt={m.common.appName}
               width={34}
               height={34}
               className="object-contain"
-              priority
+              fetchPriority="high"
             />
-            <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>SmartJib</span>
+            <span className={`font-display font-semibold tracking-[-0.03em] transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>smartjib<span className="text-lime-deep dark:text-lime">.</span></span>
           </a>
 
           {/* Desktop Navigation */}
@@ -136,7 +143,7 @@ export function Navigation() {
                 <span className="uppercase text-xs font-bold">{language}</span>
               </button>
               <div
-                className={`absolute end-0 top-full mt-2 bg-background border border-foreground/10 rounded-xl shadow-xl overflow-hidden transition-all duration-200 ${
+                className={`absolute end-0 top-full mt-2 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-floating overflow-hidden transition-all duration-200 ${
                   showLang ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-1'
                 }`}
               >
@@ -156,7 +163,7 @@ export function Navigation() {
               <Button
                 asChild
                 size="sm"
-                className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
+                className={`bg-primary hover:bg-primary-hover hover:cursor-pointer rounded-full shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
               >
                 <a href="/dashboard">{m.landing.nav.goToDashboard}</a>
               </Button>
@@ -168,7 +175,7 @@ export function Navigation() {
                 <Button
                   asChild
                   size="sm"
-                  className={`bg-primary hover:bg-primary/90 hover:cursor-pointer rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
+                  className={`bg-primary hover:bg-primary-hover hover:cursor-pointer rounded-full shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all duration-500 ${isScrolled ? "px-4 h-8 text-sm" : "px-6"}`}
                 >
                   <a href="/login">{m.landing.nav.startBudgeting}</a>
                 </Button>
@@ -198,9 +205,15 @@ export function Navigation() {
       <div
         id="mobile-menu"
         aria-hidden={!isMobileMenuOpen}
+        // `inert` (not just aria-hidden): the closed menu is only
+        // opacity-0/pointer-events-none, so its links and buttons stayed in the
+        // tab order — an `[aria-hidden]` ancestor with focusable descendants
+        // (WCAG 4.1.2 / axe aria-hidden-focus). inert removes them from both
+        // the sequential focus order and the accessibility tree while closed.
+        inert={!isMobileMenuOpen}
         className={`md:hidden fixed inset-0 bg-background z-40 transition-all duration-500 ${
-          isMobileMenuOpen 
-            ? "opacity-100 pointer-events-auto" 
+          isMobileMenuOpen
+            ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         }`}
         style={{ top: 0 }}
@@ -261,7 +274,7 @@ export function Navigation() {
             {isLoggedIn ? (
               <Button
                 asChild
-                className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
+                className="flex-1 bg-primary hover:bg-primary-hover text-on-primary rounded-full h-14 text-base"
               >
                 <a href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>{m.landing.nav.goToDashboard}</a>
               </Button>
@@ -276,7 +289,7 @@ export function Navigation() {
                 </Button>
                 <Button
                   asChild
-                  className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-full h-14 text-base"
+                  className="flex-1 bg-primary hover:bg-primary-hover text-on-primary rounded-full h-14 text-base"
                 >
                   <a href="/login">{m.landing.nav.startBudgeting}</a>
                 </Button>

@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/currency';
 import { formatShortDate } from '@/lib/utils';
 import type { CourseSession } from '@/lib/store';
 import { QualityScoreChip } from '@/components/ui/quality-score-chip';
+import { CoursesIngredientGlanceBody } from './courses-ingredient-glance';
 
 interface CoursesBillProps {
   session: CourseSession;
@@ -157,25 +158,35 @@ export function CoursesBill({ session, onBack, onNewCourse }: CoursesBillProps) 
       <div className="rounded-3xl border border-outline-variant bg-surface-container-low p-5 md:p-6">
         <pre
           dir={isRTL ? 'rtl' : 'ltr'}
-          className="font-mono text-[12px] md:text-[13px] leading-relaxed text-on-surface whitespace-pre text-start"
+          className="font-code text-[12px] md:text-[13px] leading-relaxed text-on-surface whitespace-pre text-start"
         >
           {billText}
         </pre>
 
         {/* Cosmetic quality — only lines the ingredient engine scored show a
             chip (after the item name, matching the pending/active list). */}
-        {session.items.some((line) => line.quality) && (
+        {session.items.some((line) => line.quality || line.assessment) && (
           <div className="mt-4 border-t border-dashed border-outline-variant pt-4">
             <p className="mb-2 font-label-md text-label-md font-semibold text-on-surface-variant">
               {c.qualitySummary}
             </p>
-            <ul className="space-y-1.5">
+            <ul className="space-y-2">
               {session.items
-                .filter((line) => line.quality)
+                .filter((line) => line.quality || line.assessment)
                 .map((line) => (
-                  <li key={line.key} className="flex items-center gap-2 font-body-sm text-body-sm">
-                    <span className="min-w-0 flex-1 truncate text-on-surface">{line.name}</span>
-                    {line.quality && <QualityScoreChip quality={line.quality} />}
+                  <li key={line.key} className="rounded-xl border border-outline-variant bg-surface/50 px-3 py-2 font-body-sm text-body-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-on-surface">{line.name}</span>
+                      {line.quality && <QualityScoreChip quality={line.quality} />}
+                    </div>
+                    {line.assessment && (
+                      <details className="mt-2 border-t border-outline-variant/70 pt-2">
+                        <summary className="cursor-pointer font-label-sm text-label-sm text-primary">
+                          {messages.ingredientGlance.reviewIngredients}
+                        </summary>
+                        <CoursesIngredientGlanceBody analysis={line.assessment} />
+                      </details>
+                    )}
                   </li>
                 ))}
             </ul>

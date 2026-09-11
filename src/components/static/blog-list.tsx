@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { StaticPageShell } from '@/components/static/page-shell';
@@ -20,9 +19,10 @@ export function BlogList() {
   const s = m.static.blog;
   const posts = getLocalizedBlogPosts(language);
 
-  useEffect(() => {
-    document.title = `${s.eyebrow} · ${m.common.appName}`;
-  }, [m.common.appName, s.eyebrow]);
+  // No document.title override here: <LocalizedDocumentTitle/> owns the tab
+  // title (English keeps the prerendered "Budgeting Guides · SmartJib", other
+  // locales get their translation). A second writer only caused flashes and,
+  // before the metadata fix, reverted the tab to "Blog · SmartJib".
 
   return (
     <StaticPageShell

@@ -26,9 +26,14 @@ export function OverviewScreen() {
     handleUpdateStrategy,
     isPro,
     openProModal,
+    openIncomeModal,
   } = useDashboard();
   const { canViewArea, workspace, household } = useHousehold();
   const insightsUnlocked = isProFeatureUnlocked(isPro, workspace, household);
+  // Same gate as the sidebar tool row and the profile entry: managing income
+  // sources is a Pro capability, and the provider additionally refuses to
+  // open the sheet for members without the income area.
+  const canOpenIncome = insightsUnlocked && canViewArea('income') && typeof openIncomeModal === 'function';
   const area = SCREEN_AREA.overview!;
   // The summary screen is the `dashboard` area. Individual figures inside it
   // are additionally gated by the area that owns each number (balances,
@@ -52,6 +57,7 @@ export function OverviewScreen() {
       onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
       insightsUnlocked={insightsUnlocked}
       onUpgrade={openProModal}
+      onOpenIncome={canOpenIncome ? openIncomeModal : undefined}
     />
   );
 }

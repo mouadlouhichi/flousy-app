@@ -42,8 +42,8 @@ export function InfrastructureSection() {
               isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"
             }`}
           >
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-              <span className="w-8 h-px bg-foreground/30" />
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+              <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep"><span className="size-1.5 rounded-full bg-forest-deep" /></span>
               {m.landing.infrastructure.eyebrow}
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
@@ -82,8 +82,8 @@ export function InfrastructureSection() {
               {/* Header */}
               <div className="px-6 py-4 border-b border-foreground/10 flex items-center justify-between">
                 <span className="text-sm font-mono text-muted-foreground">{m.landing.infrastructure.whatYouGet}</span>
-                <span className="flex items-center gap-2 text-xs font-mono text-green-600">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />{m.landing.infrastructure.freeToStart}</span>
+                <span className="flex items-center gap-2 text-xs font-mono text-secondary">
+                  <span className="w-2 h-2 rounded-full bg-lime-deep animate-pulse" />{m.landing.infrastructure.freeToStart}</span>
               </div>
 
               {/* Perks */}

@@ -95,7 +95,7 @@ export function IosInstallSheet({ open, onClose }: IosInstallSheetProps) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 w-full rounded-2xl bg-primary px-4 py-3 font-label-lg font-bold text-on-primary transition-opacity hover:opacity-90"
+          className="mt-6 w-full rounded-full bg-primary px-4 py-3 font-label-lg font-bold text-on-primary transition-opacity hover:opacity-90"
         >
           {m.pwa.gotIt}
         </button>

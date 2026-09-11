@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useLightLanguage } from "@/lib/i18n-light";
 import { AnimatedWave } from "./animated-wave";
 
@@ -30,9 +29,11 @@ export function FooterSection() {
       { name: t('helpCenter', 'Help center'), href: '/help' },
       { name: t('contactUs', 'Contact us'), href: '/contact' },
     ]},
+    // One link per URL per nav block: a second /about link with a different
+    // anchor added nothing — crawlers count only the first link's anchor —
+    // and duplicate-anchor footer links read as manipulative.
     { title: t('company', 'Company'), links: [
       { name: t('about', 'About'), href: '/about' },
-      { name: t('privateTracker', 'About Private Budget Tracker'), href: '/about' },
       { name: t('careers', 'Careers'), href: '/careers' },
       { name: t('freeMorocco', 'Free Budget Tracker Morocco'), href: '/' },
     ]},
@@ -43,7 +44,7 @@ export function FooterSection() {
     ]},
   ];
   return (
-    <footer className="relative border-t border-foreground/10">
+    <footer className="relative border-t border-outline-variant">
       <div className="absolute inset-0 h-64 opacity-20 pointer-events-none overflow-hidden">
         <AnimatedWave />
       </div>
@@ -53,8 +54,9 @@ export function FooterSection() {
           <div className="grid grid-cols-2 md:grid-cols-7 gap-12 lg:gap-8">
             <div className="col-span-2">
               <a href="/" className="inline-flex items-center gap-2 mb-6">
-                <Image src="/logo.png" alt={common.appName} width={30} height={30} className="object-contain" />
-                <span className="text-2xl font-display">SmartJib</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-128.png" alt={common.appName} width={30} height={30} className="object-contain" loading="lazy" />
+                <span className="text-2xl font-display font-semibold tracking-[-0.03em]">smartjib<span className="text-lime-deep dark:text-lime">.</span></span>
               </a>
               <p className="text-muted-foreground leading-relaxed max-w-xs">{ft.tagline}</p>
               <p className="mt-4 text-xs text-muted-foreground leading-relaxed">

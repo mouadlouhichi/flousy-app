@@ -49,7 +49,44 @@ export function localizePlaceName(
 export function localizePersonName(name: string | undefined, messages: Messages): string {
   if (!name) return messages.modals.expense.self;
   const key = PERSON_KEYS[name as keyof typeof PERSON_KEYS];
-  return key ? messages.modals.expense[key] : name;
+  if (key) return messages.modals.expense[key];
+  if (payerKey(name) === 'self') return messages.modals.expense.self;
+  if (payerKey(name) === 'household') return messages.household.funds;
+  return name;
+}
+
+/**
+ * Every spelling the app has ever persisted for "the member who logged it
+ * paid": the ExpenseModal's `person` snapshot is the *localized* payer label
+ * (“Me” / “Moi” / “أنا”), the legacy default is “Self”, and the id is `self`.
+ * Pooled household money is stored as `household` with a localized label.
+ */
+const SELF_LABELS = new Set(['self', 'me', 'moi', 'أنا', 'moi-même', 'myself']);
+const HOUSEHOLD_LABELS = new Set(['household', 'household funds', 'fonds du foyer', 'أموال الأسرة', 'funds']);
+
+/**
+ * Canonical grouping key for a payer. Prefers the stable member id
+ * (`payerMemberId`), falls back to the display-name snapshot, and collapses
+ * every self/household spelling to `self` / `household` so one person never
+ * appears as two rows in a breakdown.
+ *
+ * `selfMemberId` is the signed-in user's own roster row: an expense tagged
+ * with that id was paid by the same person as one tagged `self`, so it maps
+ * to `self` too (a one-person household otherwise saw "Me" and "Mouad" as
+ * two payers).
+ */
+export function payerKey(person: string | undefined, payerMemberId?: string, selfMemberId?: string): string {
+  const id = (payerMemberId || '').trim();
+  const idLower = id.toLowerCase();
+  if (idLower && SELF_LABELS.has(idLower)) return 'self';
+  if (idLower && HOUSEHOLD_LABELS.has(idLower)) return 'household';
+  if (id && selfMemberId && id === selfMemberId) return 'self';
+  if (id) return id;
+  const label = (person || '').trim();
+  const lower = label.toLowerCase();
+  if (!lower || SELF_LABELS.has(lower)) return 'self';
+  if (HOUSEHOLD_LABELS.has(lower)) return 'household';
+  return label;
 }
 
 export function localizeDebtStatus(status: 'open' | 'settled', messages: Messages): string {

@@ -611,6 +611,85 @@ export function normalizeDaratMember(raw: Partial<DaratMember> & { uid: string }
   };
 }
 
+/** One roster row on the circle detail screen. */
+export interface DaratRosterEntry {
+  /** The member uid once joined; the raw placeholder (phone) before that. */
+  id: string;
+  displayName: string;
+  phone: string;
+  status: DaratMemberStatus | 'invited';
+  isOrganizer: boolean;
+  /** True once the invitee accepted and has a member row. */
+  joined: boolean;
+}
+
+/** Digits-only phone used to match a create-time placeholder to a member row. */
+export function normalizeDaratPhone(phone: string): string {
+  return phone.replace(/[^\d]/g, '');
+}
+
+/**
+ * Resolve what the member roster should SHOW.
+ *
+ * `memberOrder` is written at create time as `[organizerUid, ...phones]`
+ * because invitees have no uid until they accept; the members subcollection
+ * on the other hand is keyed by uid. Reading `memberOrder` verbatim therefore
+ * shows accepted members as a truncated phone tail and hides their real
+ * names. This matcher pairs each placeholder with its member row by uid
+ * first, then by normalized phone (a placeholder only looks like a phone
+ * when it carries enough digits), and finally appends any member rows the
+ * order does not reference so nobody is ever missing from the roster.
+ */
+export function resolveDaratRoster(
+  circle: Pick<DaratCircle, 'memberOrder' | 'organizerId'>,
+  members: Record<string, DaratMember>,
+): DaratRosterEntry[] {
+  const byPhone = new Map<string, DaratMember>();
+  for (const member of Object.values(members)) {
+    const phone = normalizeDaratPhone(member.phone || '');
+    if (phone.length >= 8 && !byPhone.has(phone)) byPhone.set(phone, member);
+  }
+
+  const entries: DaratRosterEntry[] = [];
+  const matched = new Set<string>();
+
+  for (const id of circle.memberOrder) {
+    const byUid = members[id];
+    const byPhoneMatch =
+      !byUid && normalizeDaratPhone(id).length >= 8 ? byPhone.get(normalizeDaratPhone(id)) : undefined;
+    const member = byUid ?? byPhoneMatch;
+    if (member) {
+      matched.add(member.uid);
+      entries.push({
+        id: member.uid,
+        displayName: member.displayName || id,
+        phone: member.phone,
+        status: member.status,
+        isOrganizer: member.isOrganizer || member.uid === circle.organizerId,
+        joined: true,
+      });
+    } else {
+      entries.push({ id, displayName: '', phone: id, status: 'invited', isOrganizer: false, joined: false });
+    }
+  }
+
+  // Defensive: an accepted member whose placeholder was rewritten out of the
+  // order must still appear on the roster.
+  for (const member of Object.values(members)) {
+    if (matched.has(member.uid) || circle.memberOrder.includes(member.uid)) continue;
+    entries.push({
+      id: member.uid,
+      displayName: member.displayName,
+      phone: member.phone,
+      status: member.status,
+      isOrganizer: member.isOrganizer || member.uid === circle.organizerId,
+      joined: true,
+    });
+  }
+
+  return entries;
+}
+
 export function normalizeDaratInvite(raw: Partial<DaratInvite> & { id: string }): DaratInvite {
   return {
     id: raw.id,

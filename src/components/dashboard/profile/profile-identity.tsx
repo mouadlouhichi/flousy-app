@@ -74,7 +74,7 @@ export function ProfileIdentity() {
   };
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-outline-variant bg-surface-container">
+    <section className="overflow-hidden rounded-3xl border border-outline-variant bg-surface-container-lowest">
       {/* Cover — gives the card a header instead of dumping identity in one row. */}
       <div className="relative h-24 bg-gradient-to-br from-primary via-primary to-primary/70 sm:h-28">
         <div
@@ -117,7 +117,7 @@ export function ProfileIdentity() {
             {isPro && (
               <span
                 title={p.proMember}
-                className="absolute -bottom-1 -end-1 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-sm ring-[3px] ring-surface-container"
+                className="absolute -bottom-1 -end-1 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-lime text-forest-deep shadow-sm ring-[3px] ring-surface-container-lowest"
               >
                 <AppIcon name="workspace_premium" className="text-[14px]" />
               </span>
@@ -154,7 +154,7 @@ export function ProfileIdentity() {
                 <button
                   type="button"
                   onClick={handleSaveName}
-                  className="flex-1 rounded-xl bg-primary py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
+                  className="flex-1 rounded-full bg-primary py-2.5 text-xs font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90"
                 >
                   {m.common.save}
                 </button>
@@ -195,7 +195,7 @@ export function ProfileIdentity() {
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${
                     isPro
-                      ? 'bg-amber-400/15 text-amber-700 ring-1 ring-inset ring-amber-400/40 dark:text-amber-300'
+                      ? 'bg-lime/40 text-forest-deep ring-1 ring-inset ring-lime-deep/50 dark:bg-lime/15 dark:text-lime'
                       : 'bg-surface-variant text-on-surface-variant ring-1 ring-inset ring-outline-variant'
                   }`}
                 >
@@ -219,7 +219,7 @@ export function ProfileIdentity() {
           <button
             type="button"
             onClick={openProModal}
-            className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 sm:w-auto"
+            className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 sm:w-auto"
           >
             <AppIcon name="workspace_premium" className="text-[16px]" />
             {p.upgradeToPro}

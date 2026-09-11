@@ -18,7 +18,6 @@ import {
   collection,
   doc,
   getDoc,
-  getFirestore,
   limit,
   onSnapshot,
   query,
@@ -30,8 +29,9 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { isProUser } from '@/lib/pro-features';
-import { formatCurrency } from '@/lib/currency';
+import { formatMessage } from '@/lib/i18n-core';
 import { buildDaratCreateDefaults, type DaratCreateDefaultsInput } from '@/lib/darat-firestore';
 import {
   normalizeDaratCircle,
@@ -45,6 +45,7 @@ import { ProLockedCard } from '@/components/dashboard/pro-locked-card';
 import { DaratCreateModal } from './darat-create-modal';
 import { DaratJoinModal } from './darat-join-modal';
 import { DaratDetailScreen } from './darat-detail-screen';
+import { DaratCircleCard, DaratHero } from './darat-ui';
 
 type View =
   | { kind: 'list' }
@@ -69,7 +70,9 @@ export function DaratScreen() {
   const { user, profile, loading: authLoading } = useAuth();
   const { messages: m, intlLocale } = useLanguage();
   const { currency: userCurrency } = useCurrency();
-  const db = getFirestore();
+  // Shared handle: `null` when Firebase isn't configured (demo / preview),
+  // in which case the screen simply shows the empty state instead of crashing.
+  const db = firestoreDb;
 
   const isPro = isProUser(profile);
 
@@ -105,7 +108,7 @@ export function DaratScreen() {
   // We catch each source separately and only surface a hard error if both
   // genuinely fail.
   useEffect(() => {
-    if (!user) {
+    if (!user || !db) {
       // While auth is bootstrapping we don't start subscriptions and
       // we don't show the empty state. Once auth resolves to a real
       // user the effect re-runs and the subscriptions come online.
@@ -260,7 +263,7 @@ export function DaratScreen() {
     contribution: number;
     members: { displayName: string; phone: string }[];
   }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
-    if (!user) return { ok: false, error: 'noUser' };
+    if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
     const defaultsInput: DaratCreateDefaultsInput = {
       name: input.name,
@@ -268,7 +271,7 @@ export function DaratScreen() {
       members: input.members,
       organizerId: user.uid,
       organizerEmail: user.email ?? '',
-      organizerDisplayName: user.displayName ?? user.email ?? 'Organizer',
+      organizerDisplayName: (user.displayName?.trim()) || user.email || 'Organizer',
       currency: userCurrency,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
@@ -318,7 +321,9 @@ export function DaratScreen() {
         // (the pointer's create rule checks `isCircleMember`).
         tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
           uid: user.uid,
-          displayName: user.displayName ?? user.email ?? 'Organizer',
+          // The rules require a non-empty displayName — an account whose
+          // displayName is '' would be rejected, so fall back to the email.
+          displayName: (user.displayName?.trim()) || user.email || 'Organizer',
           // The organizer's email identifies their SmartJib account;
           // it is not used as an invite gate. We keep it on the row
           // for the household path.
@@ -336,8 +341,12 @@ export function DaratScreen() {
           circleId: circleRef.id,
           joinedAt: new Date(now).toISOString(),
         });
-        // Initial ledger entry.
-        tx.set(doc(ledgerCol), {
+        // Initial ledger entry. The ledger create rule requires the row to
+        // carry its own doc id, so allocate the ref before the transaction
+        // body and write it into the document.
+        const createdLedgerRef = doc(ledgerCol);
+        tx.set(createdLedgerRef, {
+          id: createdLedgerRef.id,
           circleId: circleRef.id,
           uid: user.uid,
           kind: 'created',
@@ -393,7 +402,7 @@ export function DaratScreen() {
     startDate?: string;
     fixedOrder?: string[] | null;
   }): Promise<{ ok: boolean; error?: string }> => {
-    if (!user) return { ok: false, error: 'noUser' };
+    if (!user || !db) return { ok: false, error: 'noUser' };
     try {
       const ref = doc(db, 'circles', input.circleId);
       const snap = await getDoc(ref);
@@ -440,9 +449,12 @@ export function DaratScreen() {
         updatedAt: Date.now(),
       });
 
-      // Audit trail.
+      // Audit trail. The ledger create rule requires the row to carry its
+      // own doc id.
       const ledgerCol = collection(db, 'circles', input.circleId, 'ledger');
-      await setDoc(doc(ledgerCol), {
+      const ledgerRef = doc(ledgerCol);
+      await setDoc(ledgerRef, {
+        id: ledgerRef.id,
         circleId: input.circleId,
         uid: user.uid,
         kind: 'edited',
@@ -460,16 +472,30 @@ export function DaratScreen() {
   // all hooks so we never violate the rules of hooks.
   if (!isPro) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5 pb-24">
+        <DaratHero
+          eyebrow={m.darat.eyebrow}
+          title={m.darat.title}
+          intro={m.darat.intro}
+          intlLocale={intlLocale}
+          stats={null}
+        />
         <ProLockedCard
           icon="groups"
           title={m.darat.proGate.title}
           body={m.darat.proGate.body}
           onUpgrade={() => router.push('/dashboard/profile/pro')}
         />
-        <p className="text-sm text-on-surface-variant">
-          {m.darat.list.empty}
-        </p>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[m.darat.proGate.perk1, m.darat.proGate.perk2, m.darat.proGate.perk3, m.darat.proGate.perk4].map((perk) => (
+            <li key={perk} className="flex items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-[13px] font-medium text-on-surface shadow-ambient">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
+                <AppIcon name="check" strokeWidth={2.6} className="text-[14px]" />
+              </span>
+              {perk}
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
@@ -486,7 +512,7 @@ export function DaratScreen() {
           <button
             type="button"
             onClick={() => setView({ kind: 'list' })}
-            className="self-start text-sm font-semibold text-primary underline"
+            className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
           >
             {m.common.back}
           </button>
@@ -502,39 +528,42 @@ export function DaratScreen() {
     );
   }
 
+  const activeCircles = circles.filter((c) => c.status !== 'closed');
+  const organizedCount = user ? activeCircles.filter((c) => c.organizerId === user.uid).length : 0;
+
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">
-            {m.darat.eyebrow}
-          </p>
-          <h1 className="mt-1 text-2xl font-extrabold text-on-surface sm:text-3xl">
-            {m.darat.title}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-on-surface-variant">
-            {m.darat.intro}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setJoinOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border border-outline-variant px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant"
-          >
-            <AppIcon name="group_add" className="text-[18px]" />
-            {m.darat.join.title}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary transition-colors hover:opacity-90"
-          >
-            <AppIcon name="add" className="text-[18px]" />
-            {m.darat.list.createCta}
-          </button>
-        </div>
-      </header>
+    <div className="flex flex-col gap-5 pb-24">
+      <DaratHero
+        eyebrow={m.darat.eyebrow}
+        title={m.darat.title}
+        intro={m.darat.intro}
+        intlLocale={intlLocale}
+        stats={{
+          active: formatMessage(m.darat.list.active, { count: activeCircles.length }, intlLocale),
+          organizer: `${m.darat.list.asOrganizer} · ${organizedCount}`,
+          member: `${m.darat.list.asMember} · ${activeCircles.length - organizedCount}`,
+        }}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setJoinOpen(true)}
+              className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 text-[14px] font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              <AppIcon name="group_add" className="text-[18px]" />
+              {m.darat.join.title}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-lime px-4 text-[14px] font-semibold text-forest-deep shadow-[0_10px_24px_-10px_rgba(0,0,0,0.6)] transition-all hover:bg-lime-bright active:scale-[0.98]"
+            >
+              <AppIcon name="add" strokeWidth={2.4} className="text-[18px]" />
+              {m.darat.list.createCta}
+            </button>
+          </>
+        }
+      />
 
       {loadError && circlesReady && circles.length === 0 && (
         <Alert variant="destructive">
@@ -546,16 +575,18 @@ export function DaratScreen() {
       )}
 
       {circles.length === 0 && circlesReady && (
-        <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-outline-variant p-8 text-center">
-          <AppIcon name="groups" className="text-5xl text-on-surface-variant" />
+        <div className="flex flex-col items-center gap-3 rounded-[1.75rem] border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
+          <span className="flex size-14 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
+            <AppIcon name="groups" className="text-[26px]" />
+          </span>
           <div>
-            <p className="text-sm font-bold text-on-surface">{m.darat.list.empty}</p>
-            <p className="mt-1 text-xs text-on-surface-variant">{m.darat.list.emptyHint}</p>
+            <p className="text-[15px] font-semibold text-on-surface">{m.darat.list.empty}</p>
+            <p className="mt-1 text-[13px] text-on-surface-variant">{m.darat.list.emptyHint}</p>
           </div>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="mt-1 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-bold text-on-primary transition-colors hover:opacity-90"
+            className="mt-1 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-on-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all hover:bg-primary-hover active:scale-[0.98]"
           >
             <AppIcon name="add" className="text-[18px]" />
             {m.darat.list.createCta}
@@ -564,41 +595,21 @@ export function DaratScreen() {
       )}
 
       {circles.length > 0 && (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {circles.map((circle) => (
-            <li key={circle.id}>
-              <button
-                type="button"
-                onClick={() => setView({ kind: 'detail', circleId: circle.id })}
-                className="group flex w-full flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-4 text-left transition hover:border-primary/40 hover:shadow-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <AppIcon name="groups" className="text-2xl text-primary" />
-                  <h3 className="text-base font-bold text-on-surface">{circle.name}</h3>
-                  {circle.status === 'closed' && (
-                    <span className="ml-auto rounded-full bg-surface-variant px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
-                      {m.darat.detail.status.closed}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-on-surface-variant">
-                  {m.darat.list.pot.replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))}
-                </p>
-                <p className="text-xs text-on-surface-variant">
-                  {m.darat.list.membersCount
-                    .replace('{count}', String(circle.memberOrder.length))}
-                  {' · '}
-                  {circle.rotation === 'random' && m.darat.create.rotationRandom}
-                  {circle.rotation === 'fixed' && m.darat.create.rotationFixed}
-                  {circle.rotation === 'bidding' && m.darat.create.rotationBidding}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-primary group-hover:underline">
-                  {m.darat.list.openCircle} →
-                </p>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <section className="flex flex-col gap-3">
+          <h2 className="px-1 text-[16px] font-semibold tracking-[-0.01em] text-on-surface">{m.darat.list.title}</h2>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {circles.map((circle) => (
+              <li key={circle.id}>
+                <DaratCircleCard
+                  circle={circle}
+                  isOrganizer={circle.organizerId === user?.uid}
+                  currentUid={user?.uid}
+                  onOpen={() => setView({ kind: 'detail', circleId: circle.id })}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {createOpen && (

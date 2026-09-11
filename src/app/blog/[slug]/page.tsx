@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { BlogArticle } from '@/components/static/blog-article';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BLOG_POSTS, getBlogPost, type BlogPost } from '@/lib/blog';
-import { OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/seo';
+import { DEFAULT_ROBOTS, OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/seo';
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
@@ -28,10 +28,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     title: post.title,
     description: post.excerpt,
     authors: [{ name: 'SmartJib Team' }],
-    robots: {
-      index: true,
-      follow: true,
-    },
+    robots: DEFAULT_ROBOTS,
     alternates: {
       canonical: path,
     },

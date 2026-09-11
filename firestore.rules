@@ -41,6 +41,135 @@ service cloud.firestore {
     function boundedText(value, maxBytes) {
       return value is string && value.size() > 0 && value.size() <= maxBytes;
     }
+    function optionalText(data, key, maxBytes) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxBytes);
+    }
+    // Wrong-result reports from the scan flow: a bounded, write-once record a
+    // signed-in account files about a lookup that resolved to the wrong
+    // product. Review happens through an admin path that bypasses rules.
+    // Notification inbox rows are server-written; the client may create its
+    // own bounded row and may only ever flip `readAt` on update. Shapes are
+    // capped so the collection can never become a message relay.
+    function validUserNotification(data) {
+      return data.keys().hasOnly(['kind', 'title', 'body', 'icon', 'severity', 'href', 'createdAt', 'readAt'])
+        && data.kind is string && data.kind.size() <= 40
+        && data.title is string && data.title.size() <= 120
+        && data.body is string && data.body.size() <= 500
+        && data.icon is string && data.icon.size() <= 40
+        && data.severity in ['info', 'warning', 'error']
+        && data.href is string && data.href.size() <= 200
+        && data.createdAt is number
+        && (data.readAt == null || data.readAt is number);
+    }
+
+    function validProductReportDocument(data) {
+      return data.keys().hasOnly([
+          'barcode', 'resolvedName', 'note', 'domain', 'locale', 'createdAt'])
+        && boundedText(data.barcode, 20)
+        && boundedText(data.resolvedName, 200)
+        && optionalText(data, 'note', 500)
+        && optionalText(data, 'domain', 32)
+        && optionalText(data, 'locale', 8)
+        && data.createdAt is string
+        && data.createdAt.size() > 0
+        && data.createdAt.size() <= 40;
+    }
+    function validProductDocument(data) {
+      // Rules cannot iterate arbitrary map values, so provenance has a fixed key
+      // set and the entries that affect assessment/routing are checked explicitly.
+      // Keeping this in one helper also stays below Firestore's 1000-expression
+      // budget; composing one helper per optional field is expanded at every call.
+      let ranking = data.get('ranking', {});
+      let provenance = data.get('provenance', {});
+      let ingredientsProvenance = provenance is map ? provenance.get('ingredientsText', {}) : {};
+      let ingredientsSource = ingredientsProvenance is map ? ingredientsProvenance.get('source', '') : '';
+      return data.keys().hasOnly([
+          'barcode', 'gtin14', 'name', 'brand', 'category', 'imageUrl', 'quantity',
+          'lastPrice', 'priceUpdatedAt', 'source', 'sourceUrl', 'sourceDatabase',
+          'domain', 'domainSource', 'gs1PrefixAllocation', 'origin', 'ranking',
+          'beauty', 'cosmeticForm', 'ingredientsText', 'allergenTags', 'provenance',
+          'retrievedAt', 'staleAfter', 'createdAt', 'updatedAt'
+        ])
+        && data.barcode is string
+        && data.barcode.matches('^([0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$')
+        && data.gtin14 is string
+        && data.gtin14.matches('^[0-9]{14}$')
+        && ((data.barcode.size() == 14 && data.barcode == data.gtin14)
+          || (data.barcode.size() == 13 && '0' + data.barcode == data.gtin14)
+          || (data.barcode.size() == 12 && '00' + data.barcode == data.gtin14)
+          || (data.barcode.size() == 8 && '000000' + data.barcode == data.gtin14))
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.source in ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session']
+        && data.createdAt is string && data.createdAt.size() > 0 && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() > 0 && data.updatedAt.size() <= 64
+        && data.get('brand', '') is string && data.get('brand', '').size() <= 200
+        && data.get('category', '') is string && data.get('category', '').size() <= 200
+        && data.get('imageUrl', '') is string && data.get('imageUrl', '').size() <= 2000
+        && data.get('quantity', '') is string && data.get('quantity', '').size() <= 100
+        && (!('lastPrice' in data) || isMoney(data.lastPrice))
+        && data.get('priceUpdatedAt', '') is string
+        && data.get('sourceUrl', '') is string && data.get('sourceUrl', '').size() <= 2000
+        && data.get('sourceDatabase', '') is string
+        && data.get('domain', 'unknown') in ['food', 'cosmetic', 'household', 'pet', 'unknown']
+        && data.get('domainSource', 'inferred') in ['source', 'inferred', 'user']
+        && data.get('gs1PrefixAllocation', '') is string
+        && data.get('origin', '') is string
+        && ranking is map
+        && (!('ranking' in data)
+          || (ranking.keys().hasOnly(['grade', 'calculationPoints', 'score', 'algorithmVersion'])
+            && ranking.get('grade', '') is string
+            && ranking.get('grade', '').size() > 0
+            && ranking.get('grade', '').size() <= 8
+            && (!('calculationPoints' in ranking) || ranking.calculationPoints is number)
+            && (!('score' in ranking) || ranking.score is number)
+            && ranking.get('algorithmVersion', '') is string))
+        && (!('beauty' in data) || data.beauty is bool)
+        && data.get('cosmeticForm', 'unknown') in ['leave-on', 'rinse-off', 'unknown']
+        && data.get('ingredientsText', '') is string && data.get('ingredientsText', '').size() <= 12000
+        && (!('allergenTags' in data)
+          || (data.allergenTags is list && data.allergenTags.size() <= 50))
+        && provenance is map
+        && provenance.keys().hasOnly([
+          'name', 'brand', 'category', 'imageUrl', 'quantity', 'ingredientsText',
+          'ranking', 'allergenTags', 'cosmeticForm', 'domain'
+        ])
+        && (!('ingredientsText' in provenance)
+          || (ingredientsProvenance is map
+            && ingredientsProvenance.keys().hasOnly(['source', 'retrievedAt', 'sourceUrl', 'language'])
+            && ingredientsSource in ['manual', 'ocr', 'off', 'obf', 'opf', 'opff', 'vendor', 'seed', 'session']))
+        && data.get('retrievedAt', '') is string
+        && data.get('staleAfter', '') is string;
+    }
+    function validCourseSessionDocument(data, sessionId) {
+      return data.keys().hasOnly([
+          'id', 'status', 'startedAt', 'endedAt', 'date', 'currency', 'place',
+          'items', 'total', 'revision', 'updatedAt', 'lastMutationId',
+          'loggedExpenseId', 'loggedMonthKey', 'loggedWorkspace',
+          'loggedWorkspaceId', 'loggedMutationId', 'loggedAt'
+        ])
+        && data.id == sessionId
+        && data.status in ['active', 'completed']
+        && boundedText(data.startedAt, 64)
+        && data.date is string
+        && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && boundedText(data.currency, 12)
+        && boundedText(data.place, 80)
+        && data.items is list
+        && data.items.size() <= 500
+        && isMoney(data.total)
+        && data.revision is int
+        && data.revision >= 1
+        && boundedText(data.lastMutationId, 160)
+        && optionalText(data, 'endedAt', 64)
+        && optionalText(data, 'updatedAt', 64)
+        && optionalText(data, 'loggedExpenseId', 160)
+        && optionalText(data, 'loggedMonthKey', 16)
+        && (!('loggedWorkspace' in data)
+          || data.loggedWorkspace in ['personal', 'household'])
+        && optionalText(data, 'loggedWorkspaceId', 160)
+        && optionalText(data, 'loggedMutationId', 160)
+        && optionalText(data, 'loggedAt', 64);
+    }
     function entitlementFieldsChanged() {
       return incoming().diff(existing()).affectedKeys().hasAny([
         'plan', 'entitlementSource', 'entitlementStatus',
@@ -915,6 +1044,10 @@ service cloud.firestore {
           || (data.activeCategories is list && data.activeCategories.size() <= 100))
         && (!('monthStartDate' in data)
           || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
+        // Monthly shared-fund target; 0 clears it. Bounded so a typo cannot
+        // write an absurd number into every member's progress bar.
+        && (!('fundTarget' in data)
+          || (data.fundTarget is number && data.fundTarget >= 0 && data.fundTarget <= 1000000000))
         && (!('kind' in data) || data.kind in ['household', 'business'])
         && (!('entitlementSource' in data)
           || tokenValue(data.entitlementSource) in ['launch_trial', 'stripe', 'cmi', 'admin'])
@@ -1041,31 +1174,53 @@ service cloud.firestore {
 
       match /products/{barcode} {
         allow get, list: if owner(uid);
+        // New records use canonical GTIN-14 document IDs. Legacy 8/12/13-digit
+        // records remain readable/updatable so clients can migrate them.
         allow create: if owner(uid)
-          && (barcode.matches('^[0-9]{8}$') || barcode.matches('^[0-9]{13}$'))
-          && boundedText(incoming().name, 100)
-          && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice));
+          && validProductDocument(request.resource.data)
+          && request.resource.data.gtin14 == barcode;
         allow update: if owner(uid)
-          && (!('lastPrice' in incoming()) || isMoney(incoming().lastPrice))
-          && (!('name' in incoming()) || boundedText(incoming().name, 100));
+          && validProductDocument(request.resource.data)
+          && (request.resource.data.get('barcode', '') == barcode
+            || request.resource.data.get('gtin14', '') == barcode);
         allow delete: if owner(uid);
       }
 
       match /sessions/{sessionId} {
         allow get, list: if owner(uid);
         allow create: if owner(uid)
-          && incoming().status in ['active', 'completed']
-          && incoming().place is string
-          && incoming().place.size() > 0
-          && incoming().place.size() <= 80
-          && isMoney(incoming().total)
-          && incoming().items is list
-          && incoming().items.size() <= 500;
+          && validCourseSessionDocument(incoming(), sessionId)
+          && incoming().revision == 1;
         allow update: if owner(uid)
-          && isMoney(incoming().total)
-          && incoming().items is list
-          && incoming().items.size() <= 500
-          && (!('status' in incoming()) || incoming().status in ['active', 'completed']);
+          && validCourseSessionDocument(incoming(), sessionId)
+          && !(existing().get('status', 'active') == 'completed' && incoming().status == 'active')
+          && ((!('revision' in existing()) && incoming().revision == 1)
+            || ('revision' in existing()
+              && existing().revision is int
+              && incoming().revision == existing().revision + 1))
+          && incoming().lastMutationId != existing().get('lastMutationId', '');
+        allow delete: if owner(uid);
+      }
+
+      // Wrong-result reports from the scan flow: owner-scoped, write-once,
+      // bounded shape. Clients never read another account's reports; review
+      // happens through an admin path that bypasses these rules.
+      match /productReports/{reportId} {
+        allow read: if owner(uid);
+        allow create: if owner(uid)
+          && validProductReportDocument(incoming());
+        allow update, delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if owner(uid);
+        allow create: if owner(uid) && validUserNotification(incoming());
+        // The inbox is append-most on the client side: marking read is the
+        // only mutation a signed-in owner can perform, and it only touches
+        // `readAt` so a compromised client can never rewrite history.
+        allow update: if owner(uid)
+          && request.resource.data.diff(existing()).affectedKeys().hasOnly(['readAt'])
+          && (incoming().get('readAt', 0) == null || incoming().get('readAt', 0) is number);
         allow delete: if owner(uid);
       }
     }
@@ -1435,6 +1590,20 @@ service cloud.firestore {
     function activeCircleMember(cid) {
       return isCircleMember(cid, request.auth.uid);
     }
+    /**
+     * True when the caller writes their own member row under an invite the
+     * join transaction just flipped to 'accepted' and signed with their
+     * uid. `getAfter` sees the post-batch state, so inside the transaction
+     * the invite is already accepted — the signature is what proves the
+     * accepter is the caller, since invite ids are shared by design.
+     */
+    function joinInviteAgrees(cid, inviteId, uid) {
+      return inviteId is string
+        && inviteId.size() > 0
+        && existsAfter(circleInvitePath(cid, inviteId))
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('status', '') == 'accepted'
+        && getAfter(circleInvitePath(cid, inviteId)).data.get('acceptedByUserId', '') == uid;
+    }
     function validDaratRotation(value) {
       return value in ['random', 'fixed', 'bidding'];
     }
@@ -1505,8 +1674,12 @@ service cloud.firestore {
       // A member can leave the circle: that mutates the circle's memberOrder +
       // status only (no shape change to organizerId / contribution / frequency).
       allow update: if activeCircleMember(circleId)
-        && activeCircleMember(circleId)
         && incoming().diff(existing()).affectedKeys().hasOnly(['memberOrder', 'updatedAt']);
+      // A member marking (or reverting) their own payment mutates the
+      // circle's `rounds` array — the toggle updates
+      // rounds[i].payments[uid]. Everything else stays organizer-only.
+      allow update: if activeCircleMember(circleId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['rounds', 'updatedAt']);
       // Closing the circle is organizer-only.
       allow update: if isCircleOrganizer(circleId)
         && existing().get('status', '') == 'active'
@@ -1523,14 +1696,16 @@ service cloud.firestore {
         allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
 
         // Organizer can add members; a user can also add their own row when
-        // accepting an invite (handled in the invites block).
+        // accepting an invite — the join transaction flips the in-circle
+        // invite to 'accepted' (signed with their uid) and writes the member
+        // row in the same batch, so the gate is an accepted invite that
+        // names them (`joinInviteAgrees`).
         // The member's `email` is the signed-in user's own account
         // email (used by the household path to resolve "who is this
         // user?"); the `phone` is the organizer's reference for the
         // invitee, and is allowed to be empty on the organizer's own
         // row (the organizer didn't invite themselves).
-        allow create: if isCircleOrganizer(circleId)
-          && incoming().uid == memberId
+        allow create: if incoming().uid == memberId
           && incoming().status == 'active'
           && isEmail(incoming().email)
           && (incoming().phone is string
@@ -1538,7 +1713,13 @@ service cloud.firestore {
           && boundedText(incoming().displayName, 100)
           && incoming().isOrganizer is bool
           && incoming().joinedAt is string
-          && incoming().sourcePlaceId is string;
+          && incoming().sourcePlaceId is string
+          && (
+            isCircleOrganizer(circleId)
+            || (memberId == request.auth.uid
+              && incoming().isOrganizer == false
+              && joinInviteAgrees(circleId, incoming().get('inviteId', ''), request.auth.uid))
+          );
         // The organizer can update any member row; the member themselves can
         // flip their own status to 'left' (the leave flow) or update their
         // sourcePlaceId.
@@ -1573,7 +1754,10 @@ service cloud.firestore {
           || (signedIn()
             && existing().get('status', '') == 'pending'
             && incoming().get('status', '') == 'accepted'
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']));
+            // The recipient signs the row with their own uid — the
+            // anti-forgery check the member-create rule relies on.
+            && incoming().get('acceptedByUserId', '') == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']));
         allow delete: if isCircleOrganizer(circleId);
       }
 
@@ -1586,7 +1770,8 @@ service cloud.firestore {
           && incoming().uid == request.auth.uid
           && incoming().kind in [
             'created', 'member_added', 'member_joined', 'member_left',
-            'payment_marked', 'payment_reverted', 'round_resolved', 'closed'
+            'payment_marked', 'payment_reverted', 'round_resolved', 'closed',
+            'edited'
           ]
           && incoming().at is int
           && incoming().id == entryId;
@@ -1629,7 +1814,10 @@ service cloud.firestore {
       allow update: if signedIn()
         && existing().get('status', '') == 'pending'
         && incoming().get('status', '') == 'accepted'
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt']);
+        // Signed like the in-circle row: the recipient writes their own
+        // uid, and the member-create rule trusts only signed rows.
+        && incoming().get('acceptedByUserId', '') == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedAt', 'acceptedByUserId']);
       allow delete: if false;
     }
 

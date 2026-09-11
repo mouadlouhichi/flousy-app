@@ -185,7 +185,7 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute inset-0 bg-surface/60 backdrop-blur-[8px]"
+            className="absolute inset-0 bg-forest-deep/40 backdrop-blur-[6px]"
             onClick={onClose}
           />
 
@@ -204,22 +204,22 @@ export function Modal({ isOpen, onClose, title, children, triggerRef, className 
             onAnimationComplete={() => {
               if (modalRef.current) modalRef.current.style.willChange = 'auto';
             }}
-            className={`relative z-10 w-full max-w-lg bg-surface rounded-t-3xl sm:rounded-2xl shadow-[0_12px_40px_-10px_rgba(0,0,0,0.15)] border border-outline-variant overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] ${className}`}
+            className={`relative z-10 w-full max-w-lg bg-surface-container-lowest rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-floating border border-outline-variant overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] ${className}`}
           >
             {/* Drag handle on mobile */}
             <div className="w-full flex justify-center pt-2 pb-1 sm:hidden">
-              <div className="w-12 h-1.5 bg-outline-variant rounded-full"></div>
+              <div className="w-10 h-1.5 bg-outline-variant rounded-full"></div>
             </div>
 
             {/* Header */}
-            <div className="px-4 py-2 sm:px-lg sm:pt-sm sm:pb-md flex justify-between items-center border-b border-surface-variant">
-              <h2 className="font-headline-sm sm:font-headline-md text-headline-sm sm:text-headline-md text-on-surface">{title}</h2>
+            <div className="px-4 py-2 sm:px-lg sm:pt-sm sm:pb-md flex justify-between items-center border-b border-outline-variant/70">
+              <h2 className="font-display text-[18px] sm:text-[20px] font-semibold tracking-[-0.02em] text-on-surface">{title}</h2>
               <button
                 onClick={onClose}
                 aria-label={m.modal.close}
-                className="tap-target p-1.5 sm:p-2 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary "
+                className="tap-target flex size-9 items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <AppIcon name="close" className="  text-[20px] sm:text-[24px] !block" />
+                <AppIcon name="close" className="text-[18px] !block" />
               </button>
             </div>
 

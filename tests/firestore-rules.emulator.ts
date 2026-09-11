@@ -107,6 +107,129 @@ after(async () => {
   await environment.cleanup();
 });
 
+const catalogProduct = (overrides: Record<string, unknown> = {}) => ({
+  barcode: '4006381333931',
+  gtin14: '04006381333931',
+  name: 'Test product',
+  source: 'off',
+  provenance: {
+    name: {
+      source: 'off',
+      retrievedAt: '2026-09-08T12:00:00.000Z',
+      sourceUrl: 'https://world.openfoodfacts.org/product/4006381333931',
+    },
+  },
+  createdAt: '2026-09-08T12:00:00.000Z',
+  updatedAt: '2026-09-08T12:00:00.000Z',
+  ...overrides,
+});
+
+const courseSession = (overrides: Record<string, unknown> = {}) => ({
+  id: 'course-test',
+  status: 'active',
+  startedAt: '2026-09-08T12:00:00.000Z',
+  date: '2026-09-08',
+  currency: 'MAD',
+  place: 'bank',
+  items: [],
+  total: 0,
+  revision: 1,
+  updatedAt: '2026-09-08T12:00:00.000Z',
+  lastMutationId: 'course-mutation-1',
+  ...overrides,
+});
+
+describe('bounded product catalog and shopping-session rules', () => {
+  it('accepts a canonical product with reviewed OCR provenance', async () => {
+    const db = asUser('alice');
+    await assertSucceeds(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      source: 'ocr',
+      ingredientsText: 'Aqua, Glycerin',
+      provenance: {
+        name: { source: 'off', retrievedAt: '2026-09-08T12:00:00.000Z' },
+        ingredientsText: { source: 'ocr', retrievedAt: '2026-09-08T12:01:00.000Z' },
+      },
+    })));
+  });
+
+  it('rejects non-canonical identity, unknown keys, and oversized ingredient text', async () => {
+    const db = asUser('alice');
+    await assertFails(setDoc(doc(db, 'users/alice/products/4006381333931'), catalogProduct()));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      gtin14: '00000000000000',
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      unexpected: true,
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      ingredientsText: 'a'.repeat(12_001),
+    })));
+  });
+
+  it('rejects malformed or unbounded product provenance', async () => {
+    const db = asUser('alice');
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        ingredientsText: {
+          source: 'unattributed',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+        },
+      },
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        secretField: {
+          source: 'manual',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+        },
+      },
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct({
+      provenance: {
+        ingredientsText: {
+          source: 'manual',
+          retrievedAt: '2026-09-08T12:00:00.000Z',
+          payload: 'not allowed',
+        },
+      },
+    })));
+  });
+
+  it('requires revisioned, bounded shopping-session documents', async () => {
+    const db = asUser('alice');
+    const ref = doc(db, 'users/alice/sessions/course-test');
+    await assertSucceeds(setDoc(ref, courseSession()));
+    await assertSucceeds(setDoc(ref, courseSession({
+      revision: 2,
+      lastMutationId: 'course-mutation-2',
+      items: [{ key: 'line-1' }],
+    })));
+    await assertFails(setDoc(ref, courseSession({
+      revision: 2,
+      lastMutationId: 'course-mutation-3',
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/wrong-id'), courseSession()));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/course-large'), courseSession({
+      id: 'course-large',
+      items: Array.from({ length: 501 }, (_, index) => ({ key: `line-${index}` })),
+    })));
+    await assertFails(setDoc(doc(db, 'users/alice/sessions/course-extra'), courseSession({
+      id: 'course-extra',
+      internal: { unrestricted: true },
+    })));
+  });
+
+  it('does not expose another account catalog or sessions', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/alice/products/04006381333931'), catalogProduct());
+      await setDoc(doc(db, 'users/alice/sessions/course-test'), courseSession());
+    });
+    const mallory = asUser('mallory');
+    await assertFails(getDoc(doc(mallory, 'users/alice/products/04006381333931')));
+    await assertFails(getDoc(doc(mallory, 'users/alice/sessions/course-test')));
+  });
+});
+
 describe('revisioned personal finance rules', () => {
   it('requires an immutable ledger row and an exact revision increment', async () => {
     const db = asUser('alice');
@@ -1361,9 +1484,9 @@ describe('darat circle create transaction', () => {
     }));
   }
 
-  function circleDoc(organizerId: string, memberOrder: string[]) {
+  function circleDoc(organizerId: string, memberOrder: string[], docId = 'circle-1') {
     return {
-      id: 'circle-1',
+      id: docId,
       name: 'Family',
       organizerId,
       currency: 'MAD',
@@ -1509,7 +1632,8 @@ describe('darat circle create transaction', () => {
   it('lets the recipient flip their own invite from pending to accepted', async () => {
     // The recipient, who has the code, can update the row to
     // accepted. The update is restricted to the `pending -> accepted`
-    // transition (no other fields can be touched).
+    // transition and must sign the row with their own uid — the
+    // member-row create rule gates the join on that signature.
     await seed(async (db) => {
       await setDoc(doc(db, 'daratInvites/inv-1'), {
         circleId: 'circle-1',
@@ -1524,6 +1648,330 @@ describe('darat circle create transaction', () => {
     await assertSucceeds(updateDoc(doc(inviteeDb, 'daratInvites/inv-1'), {
       status: 'accepted',
       acceptedAt: new Date(TODAY_MS).toISOString(),
+      acceptedByUserId: 'invitee',
     }));
+  });
+
+  it('refuses an invite flip that signs somebody else as the accepter', async () => {
+    // `acceptedByUserId` is a signature, not a free field: the update rule
+    // requires it to name the caller, and its absence is a refusal the
+    // same way a mismatch is.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'daratInvites/inv-1'), {
+        circleId: 'circle-1',
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      });
+    });
+    const inviteeDb = asUser('invitee', { email: 'invitee@example.com' });
+    await assertFails(updateDoc(doc(inviteeDb, 'daratInvites/inv-1'), {
+      status: 'accepted',
+      acceptedAt: new Date(TODAY_MS).toISOString(),
+      acceptedByUserId: 'someone-else',
+    }));
+    await assertFails(updateDoc(doc(inviteeDb, 'daratInvites/inv-1'), {
+      status: 'accepted',
+      acceptedAt: new Date(TODAY_MS).toISOString(),
+    }));
+  });
+
+  it('lets a create transaction through with server-generated ids, exactly as the client writes it', async () => {
+    // The regression test for the production create failure: the client
+    // creates every doc ref up front (circle, ledger, invites) instead of
+    // naming fixed ids, and the ledger row must carry its own doc id —
+    // `incoming().id == entryId` — or the whole transaction is refused
+    // with a bare permission-denied.
+    const db = asUser('org', { email: 'org@example.com' });
+    const circleRef = doc(collection(db, 'circles'));
+    const now = Date.now();
+    const invites = [
+      { phone: INVITEE_PHONE, name: 'Invitee One' },
+      { phone: SECOND_PHONE, name: 'Invitee Two' },
+    ];
+    await assertSucceeds(runTransaction(db, async (tx) => {
+      tx.set(circleRef, circleDoc('org', ['org', ...invites.map((i) => i.phone)], ''));
+      tx.set(doc(db, 'circles', circleRef.id, 'members/org'), memberDoc('org', true));
+      tx.set(doc(db, 'users/org/circles', circleRef.id), {
+        uid: 'org',
+        circleId: circleRef.id,
+        joinedAt: new Date(now).toISOString(),
+      });
+      const ledgerRef = doc(collection(db, 'circles', circleRef.id, 'ledger'));
+      tx.set(ledgerRef, {
+        id: ledgerRef.id,
+        circleId: circleRef.id,
+        uid: 'org',
+        kind: 'created',
+        at: now,
+      });
+      for (const invite of invites) {
+        const inviteRef = doc(collection(db, 'circles', circleRef.id, 'invites'));
+        const inviteFields = {
+          circleId: circleRef.id,
+          phone: invite.phone,
+          invitedByUid: 'org',
+          expiresAt: new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          acceptedAt: null,
+          status: 'pending',
+        };
+        tx.set(inviteRef, inviteFields);
+        tx.set(doc(db, 'daratInvites', inviteRef.id), inviteFields);
+      }
+    }));
+  });
+
+  it('refuses a ledger row that does not carry its own doc id', async () => {
+    // The exact write that broke production: a create transaction whose
+    // ledger row omits `id` aborts the ledger create rule (a missing key
+    // cannot be compared), and the refusal rolls back the whole batch.
+    const db = asUser('org', { email: 'org@example.com' });
+    const circleRef = doc(collection(db, 'circles'));
+    const now = Date.now();
+    await assertFails(runTransaction(db, async (tx) => {
+      tx.set(circleRef, circleDoc('org', ['org', INVITEE_PHONE], ''));
+      tx.set(doc(db, 'circles', circleRef.id, 'members/org'), memberDoc('org', true));
+      tx.set(doc(db, 'users/org/circles', circleRef.id), {
+        uid: 'org',
+        circleId: circleRef.id,
+        joinedAt: new Date(now).toISOString(),
+      });
+      tx.set(doc(collection(db, 'circles', circleRef.id, 'ledger')), {
+        circleId: circleRef.id,
+        uid: 'org',
+        kind: 'created',
+        at: now,
+      });
+      const inviteRef = doc(collection(db, 'circles', circleRef.id, 'invites'));
+      const inviteFields = {
+        circleId: circleRef.id,
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      };
+      tx.set(inviteRef, inviteFields);
+      tx.set(doc(db, 'daratInvites', inviteRef.id), inviteFields);
+    }));
+  });
+
+  it('lets the organizer append an edited ledger row carrying its id', async () => {
+    // The edit flow writes its audit row after updating the circle: the
+    // kind must be in the allow-list and the row must store its own id.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', INVITEE_PHONE]));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+    });
+    const db = asUser('org', { email: 'org@example.com' });
+    const ledgerRef = doc(collection(db, 'circles/circle-1/ledger'));
+    await assertSucceeds(setDoc(ledgerRef, {
+      id: ledgerRef.id,
+      circleId: 'circle-1',
+      uid: 'org',
+      kind: 'edited',
+      at: Date.now(),
+      changed: ['name', 'contribution'],
+    }));
+  });
+
+  it('lets an active member rewrite rounds + updatedAt to mark a payment, and nothing else', async () => {
+    // Payment status lives inside each round, so marking a payment is a
+    // rounds-array rewrite. An active member may do exactly that — and
+    // may not touch anything else on the circle.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', 'member']));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+      await setDoc(doc(db, 'circles/circle-1/members/member'), memberDoc('member', false));
+    });
+    const db = asUser('member', { email: 'member@example.com' });
+    const paid = buildRounds(['org', 'member']).map((r, i) =>
+      i === 0 ? { ...r, payments: { ...r.payments, member: 'paid' } } : r);
+    await assertSucceeds(updateDoc(doc(db, 'circles/circle-1'), {
+      rounds: paid,
+      updatedAt: TODAY_MS + 1000,
+    }));
+    await assertFails(updateDoc(doc(db, 'circles/circle-1'), { name: 'Hostile takeover' }));
+    // A combined rewrite must be refused. The rounds payload here has to be
+    // FRESH: `affectedKeys()` reports only keys whose value actually
+    // changed, and re-sending the rounds/updatedAt the first assert already
+    // committed would shrink the diff to `memberOrder` alone — which the
+    // leave branch legitimately allows (leaving reorders the member order).
+    const paidLater = buildRounds(['org', 'member']).map((r, i) =>
+      i === 1 ? { ...r, payments: { ...r.payments, member: 'paid' } } : r);
+    await assertFails(updateDoc(doc(db, 'circles/circle-1'), {
+      rounds: paidLater,
+      updatedAt: TODAY_MS + 2000,
+      memberOrder: ['member', 'org'],
+    }));
+    // The payment audit row is a normal ledger append: own uid, allowed
+    // kind, and the row's own id.
+    const ledgerRef = doc(collection(db, 'circles/circle-1/ledger'));
+    await assertSucceeds(setDoc(ledgerRef, {
+      id: ledgerRef.id,
+      circleId: 'circle-1',
+      uid: 'member',
+      kind: 'payment_marked',
+      at: Date.now(),
+      roundNumber: 1,
+    }));
+  });
+
+  it('lets an invitee join in one transaction, exactly as the client writes it', async () => {
+    // The join flow: look up the invite by code, then flip both invite
+    // rows to accepted (signed with the joiner's uid), write the member
+    // row, the dashboard pointer, and the ledger row — atomically, so a
+    // rejection anywhere rolls the invite back to pending instead of
+    // burning it.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', INVITEE_PHONE]));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+      await setDoc(doc(db, 'users/org/circles/circle-1'), {
+        uid: 'org',
+        circleId: 'circle-1',
+        joinedAt: new Date(TODAY_MS).toISOString(),
+      });
+      const inviteFields = {
+        circleId: 'circle-1',
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      };
+      await setDoc(doc(db, 'circles/circle-1/invites/inv-1'), inviteFields);
+      await setDoc(doc(db, 'daratInvites/inv-1'), inviteFields);
+    });
+    const db = asUser('invitee', { email: 'invitee@example.com' });
+    const acceptedAt = new Date(TODAY_MS).toISOString();
+    const ledgerRef = doc(collection(db, 'circles/circle-1/ledger'));
+    await assertSucceeds(runTransaction(db, async (tx) => {
+      tx.update(doc(db, 'daratInvites/inv-1'), {
+        status: 'accepted',
+        acceptedAt,
+        acceptedByUserId: 'invitee',
+      });
+      tx.update(doc(db, 'circles/circle-1/invites/inv-1'), {
+        status: 'accepted',
+        acceptedAt,
+        acceptedByUserId: 'invitee',
+      });
+      tx.set(doc(db, 'circles/circle-1/members/invitee'), {
+        uid: 'invitee',
+        displayName: 'Invitee One',
+        email: 'invitee@example.com',
+        phone: INVITEE_PHONE,
+        status: 'active',
+        isOrganizer: false,
+        joinedAt: acceptedAt,
+        sourcePlaceId: 'bank',
+        inviteId: 'inv-1',
+      });
+      tx.set(doc(db, 'users/invitee/circles/circle-1'), {
+        uid: 'invitee',
+        circleId: 'circle-1',
+        joinedAt: acceptedAt,
+      });
+      tx.set(ledgerRef, {
+        id: ledgerRef.id,
+        circleId: 'circle-1',
+        uid: 'invitee',
+        kind: 'member_joined',
+        at: Date.now(),
+      });
+    }));
+    // Membership is real: the circle and the roster are now readable.
+    await assertSucceeds(getDoc(doc(db, 'circles/circle-1')));
+    await assertSucceeds(getDoc(doc(db, 'circles/circle-1/members/invitee')));
+    await assertSucceeds(getDoc(doc(db, 'users/invitee/circles/circle-1')));
+    // And the member may leave again: their own pointer is deletable.
+    await assertSucceeds(deleteDoc(doc(db, 'users/invitee/circles/circle-1')));
+  });
+
+  it('refuses a self-join member row that no accepted invite vouches for', async () => {
+    // The member-row create rule accepts an organizer, or a joiner whose
+    // own invite was just flipped to accepted naming them. Anything else
+    // — no inviteId, an unknown id, a still-pending invite, an invite
+    // accepted by somebody else — is a refusal.
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', INVITEE_PHONE]));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+      const inviteFields = {
+        circleId: 'circle-1',
+        phone: INVITEE_PHONE,
+        invitedByUid: 'org',
+        expiresAt: new Date(TODAY_MS + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      };
+      await setDoc(doc(db, 'circles/circle-1/invites/inv-1'), inviteFields);
+      await setDoc(doc(db, 'circles/circle-1/invites/inv-2'), {
+        ...inviteFields,
+        status: 'accepted',
+        acceptedAt: new Date(TODAY_MS).toISOString(),
+        acceptedByUserId: 'someone-else',
+      });
+    });
+    const db = asUser('invitee', { email: 'invitee@example.com' });
+    const baseMember = {
+      uid: 'invitee',
+      displayName: 'Invitee One',
+      email: 'invitee@example.com',
+      phone: INVITEE_PHONE,
+      status: 'active',
+      isOrganizer: false,
+      joinedAt: new Date(TODAY_MS).toISOString(),
+      sourcePlaceId: 'bank',
+    };
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), baseMember));
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), { ...baseMember, inviteId: '' }));
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), { ...baseMember, inviteId: 'no-such-invite' }));
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), { ...baseMember, inviteId: 'inv-1' }));
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), { ...baseMember, inviteId: 'inv-2' }));
+    // The gate is not a loophole for claiming the organizer seat either.
+    await assertFails(setDoc(doc(db, 'circles/circle-1/members/invitee'), {
+      ...baseMember,
+      inviteId: 'inv-2',
+      isOrganizer: true,
+    }));
+  });
+});
+
+describe('wrong-result product report rules', () => {
+  const productReport = (overrides: Record<string, unknown> = {}) => ({
+    barcode: '4006381333931',
+    resolvedName: 'Wrong product name',
+    note: 'This is a different product',
+    domain: 'food',
+    locale: 'en',
+    createdAt: '2026-09-09T12:00:00.000Z',
+    ...overrides,
+  });
+
+  it('accepts a bounded report and only exposes it to its owner', async () => {
+    await assertSucceeds(setDoc(doc(asUser('alice'), 'users/alice/productReports/r-1'), productReport()));
+    await assertSucceeds(getDoc(doc(asUser('alice'), 'users/alice/productReports/r-1')));
+    await assertFails(getDoc(doc(asUser('bob'), 'users/alice/productReports/r-1')));
+  });
+
+  it('rejects unknown keys and empty or oversized required fields', async () => {
+    const mine = 'users/alice/productReports';
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-2`), productReport({ extra: 'x' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-3`), productReport({ barcode: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-4`), productReport({ resolvedName: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-5`), productReport({ note: 'x'.repeat(501) })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-6`), productReport({ createdAt: '' })));
+    await assertFails(setDoc(doc(asUser('alice'), `${mine}/r-7`), productReport({ createdAt: 12 })));
+  });
+
+  it('is write-once: clients cannot update or delete a filed report', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'users/alice/productReports/r-8'), productReport());
+    });
+    const mine = doc(asUser('alice'), 'users/alice/productReports/r-8');
+    await assertFails(setDoc(mine, productReport({ note: 'edited' }), { merge: true }));
+    await assertFails(deleteDoc(mine));
   });
 });

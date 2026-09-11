@@ -12,27 +12,13 @@ import FirebaseAnalytics from '@/components/FirebaseAnalytics';
  * Providers that require Firebase (auth, household, currency, i18n).
  *
  * IMPORTANT (performance): this is intentionally mounted ONLY on the
- * authenticated app routes (/login, /onboarding, /dashboard) — never in the
- * root layout. Mounting it globally made every public page (home, blog,
- * legal pages) download, parse and hydrate the Firebase SDK even though the
- * marketing site never needs it.
+ * authenticated app routes (/onboarding, /dashboard) — never in the root
+ * layout, and never on /login (see login-providers.tsx: sharing this file
+ * with the login bundle used to ship HouseholdProvider's Firestore data
+ * layer to anonymous visitors). Mounting it globally made every public page
+ * (home, blog, legal pages) download, parse and hydrate the Firebase SDK
+ * even though the marketing site never needs it.
  */
-/** Auth + i18n + currency only — used on login so household listeners cannot block sign-in. */
-export function LoginProviders({ children }: { children: ReactNode }) {
-  return (
-    <AuthProvider>
-      <LanguageProvider>
-        <CurrencyProvider>
-          <Suspense fallback={null}>
-            <FirebaseAnalytics />
-          </Suspense>
-          {children}
-        </CurrencyProvider>
-      </LanguageProvider>
-    </AuthProvider>
-  );
-}
-
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
