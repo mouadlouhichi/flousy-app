@@ -103,11 +103,38 @@ describe('custom reports', () => {
 
     const byMember = buildCustomReport([a], { dimension: 'member' });
     assert.equal(byMember.rows.find((r) => r.key === 'm1')?.amount, 400);
-    assert.equal(byMember.total, 4300); // rent counted (no payer → '—')
+    assert.equal(byMember.total, 4300);
+    // A bill nobody attributed defaults to the recorder: rent lands in the
+    // single canonical 'self' bucket (the expense modal's default payer).
+    assert.equal(byMember.rows.find((r) => r.key === 'self')?.amount, 3000);
 
     const filtered = buildCustomReport([a], { dimension: 'member', filters: { tag: 'voyage' } });
     assert.equal(filtered.total, 1000);
     assert.deepEqual(reportDimensionValues([a], 'tag'), ['voyage', 'work']);
+  });
+
+  it('folds every self spelling and uid stamp into one member row', async () => {
+    const { buildCustomReport, reportDimensionValues } = await import('../src/lib/insights');
+    // One person, five historical spellings: the localized labels the modal
+    // stored ('Me', 'Moi'), the legacy 'Self', the literal 'self' payer, and
+    // their own roster id — plus an import that stamped the account uid.
+    const m = emptyMonth('2026-02');
+    m.variableExpenses = [
+      { id: '1', name: 'A', amount: 10, place: 'Bank', type: 'Groceries', date: '2026-02-01', person: 'Me' },
+      { id: '2', name: 'B', amount: 20, place: 'Bank', type: 'Groceries', date: '2026-02-02', person: 'Moi' },
+      { id: '3', name: 'C', amount: 30, place: 'Bank', type: 'Groceries', date: '2026-02-03', person: 'Self' },
+      { id: '4', name: 'D', amount: 40, place: 'Bank', type: 'Groceries', date: '2026-02-04', payerMemberId: 'self' },
+      { id: '5', name: 'E', amount: 50, place: 'Bank', type: 'Groceries', date: '2026-02-05', payerMemberId: 'own-1' },
+      { id: '6', name: 'F', amount: 60, place: 'Bank', type: 'Groceries', date: '2026-02-06', payerMemberId: 'uid-abc' },
+      { id: '7', name: 'G', amount: 70, place: 'Bank', type: 'Groceries', date: '2026-02-07', payerMemberId: 'household' },
+    ] as never;
+    const payers = { selfMemberId: 'own-1', memberIdByUserId: { 'uid-abc': 'own-1' } };
+    const report = buildCustomReport([m], { dimension: 'member', payers });
+    assert.equal(report.rows.length, 2); // one 'self' row + the pooled row
+    assert.equal(report.rows.find((r) => r.key === 'self')?.amount, 210);
+    assert.equal(report.rows.find((r) => r.key === 'household')?.amount, 70);
+    // The filter picker lists the same canonical keys, not the raw spellings.
+    assert.deepEqual(reportDimensionValues([m], 'member', payers), ['household', 'self']);
   });
 
   it('exposes previous-window amounts for deltas', async () => {

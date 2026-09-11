@@ -21,6 +21,7 @@ import {
   normalizeDaratInvite,
   normalizeDaratMember,
   normalizeDaratRound,
+  resolveDaratRoster,
   validateDaratCreate,
   type DaratCircle,
 } from '../src/lib/darat';
@@ -514,5 +515,39 @@ describe('darat: next round lookup', () => {
   it('returns null when no round is upcoming', () => {
     const r = daratNextRound(circle, 'u1', '2030-01-01');
     assert.equal(r, null);
+  });
+});
+
+describe('darat: roster resolution', () => {
+  const organizer = normalizeDaratMember({ uid: 'uid-org', displayName: 'Organizer', isOrganizer: true, phone: '' });
+  const joined = normalizeDaratMember({ uid: 'uid-amy', displayName: 'Amy', phone: '+212 6 12 34 56 78' });
+  const circle = { organizerId: 'uid-org', memberOrder: ['uid-org', '+212612345678', '+212699999999'] };
+
+  it('pairs phone placeholders with accepted member rows so names show', () => {
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [joined.uid]: joined });
+    assert.deepEqual(roster.map((entry) => entry.id), ['uid-org', 'uid-amy', '+212699999999']);
+    assert.equal(roster[1].displayName, 'Amy');
+    assert.equal(roster[1].joined, true);
+    assert.equal(roster[2].joined, false);
+    assert.equal(roster[2].status, 'invited');
+  });
+
+  it('flags organizer and left members', () => {
+    const left = normalizeDaratMember({ uid: 'uid-amy', displayName: 'Amy', phone: '+212 6 12 34 56 78', status: 'left' });
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [left.uid]: left });
+    assert.equal(roster[0].isOrganizer, true);
+    assert.equal(roster[1].status, 'left');
+  });
+
+  it('appends accepted members the order never referenced', () => {
+    const extra = normalizeDaratMember({ uid: 'uid-zed', displayName: 'Zed', phone: '' });
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [extra.uid]: extra });
+    assert.deepEqual(roster.map((entry) => entry.id).slice(-1), ['uid-zed']);
+  });
+
+  it('does not mistake uids for phones', () => {
+    const roster = resolveDaratRoster({ organizerId: 'uid-org', memberOrder: ['uid-org'] }, { [organizer.uid]: organizer });
+    assert.equal(roster.length, 1);
+    assert.equal(roster[0].joined, true);
   });
 });

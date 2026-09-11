@@ -274,12 +274,12 @@ export function OverviewTab({
             onSelectPlace={canSeeBalances ? (id) => setHistoryPlaceId(id) : undefined}
             primaryAction={
               canEditExpenses
-                ? { label: m.dashboard.addExpense, icon: 'download', onClick: onOpenExpenseModal }
+                ? { label: m.dashboard.addExpense, icon: 'add_expense', onClick: onOpenExpenseModal }
                 : undefined
             }
             secondaryAction={
               canEditBalances
-                ? { label: m.dashboard.moveMoney, icon: 'upload', onClick: onOpenMoveMoneyModal }
+                ? { label: m.dashboard.moveMoney, icon: 'move_money', onClick: onOpenMoveMoneyModal }
                 : undefined
             }
           />

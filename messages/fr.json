@@ -748,7 +748,8 @@
       "noHistoryYet": "Pas encore d’historique — la courbe est indicative jusqu’à la clôture d’un deuxième mois.",
       "householdFundsNote": "« Fonds du foyer » désigne l’argent payé depuis la cagnotte commune plutôt que par une personne. Il figure ici pour information et reste hors de la part de chaque membre dans le règlement.",
       "householdFundsNoteEmpty": "Marquez une dépense « Fonds du foyer » quand elle est payée depuis la cagnotte commune plutôt que par une personne. Le règlement de la page Foyer la garde alors hors de la part de chacun.",
-      "householdFundsLink": "Ouvrir le règlement"
+      "householdFundsLink": "Ouvrir le règlement",
+      "sparkNoHistory": "La courbe de tendance apparaît dès qu’un deuxième mois de données existe."
     }
   },
   "courses": {
@@ -873,7 +874,9 @@
     "billDueInDays": "Dû dans {days} jours",
     "goalNear": "Financé à {percent} — presque terminé",
     "trialEndingTitle": "Essai Pro bientôt terminé",
-    "trialEndingDays": "Il reste {days} jours à votre essai Pro"
+    "trialEndingDays": "Il reste {days} jours à votre essai Pro",
+    "inbox": "De SmartJib",
+    "markAllRead": "Tout marquer comme lu"
   },
   "legal": {
     "eyebrow": "Juridique",
@@ -2207,7 +2210,19 @@
     "inviteCodeReady": "Invitation créée. Partagez le code ci-dessous si l’e-mail n’est pas disponible.",
     "inviteCodeHint": "Toute personne avec ce code peut rejoindre via Foyer → Rejoindre.",
     "contributor": "Contributeur",
-    "businessSolo": "Cet espace pro est individuel : il n'a ni membres ni invitations. Passez à votre espace foyer pour gérer les membres."
+    "businessSolo": "Cet espace pro est individuel : il n'a ni membres ni invitations. Passez à votre espace foyer pour gérer les membres.",
+    "viewContribution": "Voir le détail des contributions",
+    "contributionDetailTitle": "{name} — ce mois-ci",
+    "noContributionItems": "Aucun paiement enregistré ce mois-ci.",
+    "equalShare": "Part égale",
+    "paidThisMonth": "Payé ce mois-ci",
+    "balanceLabel": "Solde",
+    "fundTargetTitle": "Fonds du foyer",
+    "fundTargetSet": "Définir l’objectif",
+    "fundTargetPlaceholder": "Objectif mensuel du fonds",
+    "fundTargetDescription": "Un montant mensuel que le foyer vise à mettre en commun (dépenses payées avec le payeur « Fonds du foyer »).",
+    "fundTargetSaved": "Objectif du fonds enregistré",
+    "fundTargetOf": "sur {target} visés"
   },
   "consent": {
     "title": "Confidentialité",
@@ -2419,7 +2434,8 @@
     "kindDebt": "Dette",
     "tags": "Tags",
     "tagsPlaceholder": "Ajouter des tags (séparés par des virgules)",
-    "open": "Rechercher"
+    "open": "Rechercher",
+    "total": "Total de {count, plural, one {1 résultat} other {# résultats}}"
   },
   "report": {
     "title": "Rapport mensuel",
@@ -2621,7 +2637,9 @@
         "pending": "En attente",
         "collected": "Collectée",
         "paidOut": "Versée",
-        "closed": "Clôturée"
+        "closed": "Clôturée",
+        "left": "Parti",
+        "removed": "Retiré"
       },
       "markPaid": "Marquer ma contribution comme payée",
       "markUnpaid": "Annuler le paiement",
@@ -2641,7 +2659,8 @@
       "close": "Clôturer la tontine",
       "closeConfirm": "Clôturer cette tontine ? Une fois clôturée, plus aucun tour ne se déroule.",
       "inviteCode": "Code d'invitation",
-      "inviteCodeHint": "Partagez ce code ou le lien avec une personne de confiance — elle peut rejoindre depuis la page Darat."
+      "inviteCodeHint": "Partagez ce code ou le lien avec une personne de confiance — elle peut rejoindre depuis la page Darat.",
+      "invitedPhone": "Invité · {phone}"
     },
     "join": {
       "title": "Rejoindre une tontine Darat",

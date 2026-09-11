@@ -308,6 +308,7 @@ export function TrendsTab({ month, trendsMonths, trendsLoading, profile, onOpenP
             activeId={ringViewId}
             onChange={setRingViewId}
             actionsLabel={m.tabs.trends.viewsLabel}
+            noHistoryLabel={m.tabs.trends.sparkNoHistory}
             rtl={isRTL}
             className="relative"
           />

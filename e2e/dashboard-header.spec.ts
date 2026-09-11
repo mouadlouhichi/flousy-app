@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { establishDashboardSession } from './dashboard-session';
 import en from '../messages/en.json' with { type: 'json' };
 import fr from '../messages/fr.json' with { type: 'json' };
 import ar from '../messages/ar.json' with { type: 'json' };
@@ -23,6 +24,9 @@ for (const { language, intlLocale, name, messages } of locales) {
         periodStartDay: 25,
       }));
     }, language);
+    // The dashboard is auth-gated by the proxy; carry the session cookie
+    // the seeded demo session would have set (see dashboard-session.ts).
+    await establishDashboardSession(page);
     await page.goto('/dashboard');
 
     const selector = page.getByRole('banner')
