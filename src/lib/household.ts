@@ -256,6 +256,61 @@ export function computeHouseholdContributions(
   };
 }
 
+/** One payment that a contribution row is made of (tappable drill-down). */
+export interface HouseholdContributionItem {
+  id: string;
+  kind: 'variable' | 'fixed';
+  name: string;
+  /** YYYY-MM-DD as stored on the transaction. */
+  date: string;
+  amount: number;
+  category: string;
+}
+
+/**
+ * The individual payments behind one member's contribution total, using the
+ * exact same attribution rules as `computeHouseholdContributions` (named
+ * payer first, then `self`/missing resolved through createdByUserId). Pooled
+ * and unattributed payments never land on a member row, so they are excluded
+ * here too — the totals of these items always add up to the row's `paid`.
+ */
+export function computeMemberContributionItems(
+  month: Pick<MonthBudget, 'variableExpenses' | 'fixedExpenses'> | undefined | null,
+  members: HouseholdMember[],
+  memberId: string,
+): HouseholdContributionItem[] {
+  const collaborators = members.filter((member) => member.status === 'active' && member.role !== 'profile');
+  const byMemberId = new Map(collaborators.map((member) => [member.id, member]));
+  const byUserId = new Map(
+    collaborators.filter((member) => member.userId).map((member) => [member.userId as string, member]),
+  );
+
+  const attributedTo = (payerMemberId: string | undefined, createdByUserId: string | undefined): string | null => {
+    const named = payerMemberId ? byMemberId.get(payerMemberId) : undefined;
+    if (named) return named.id;
+    if (payerMemberId === 'household') return null;
+    if ((!payerMemberId || payerMemberId === 'self') && createdByUserId) {
+      const author = byUserId.get(createdByUserId);
+      if (author) return author.id;
+    }
+    return null;
+  };
+
+  const items: HouseholdContributionItem[] = [];
+  for (const expense of month?.variableExpenses || []) {
+    if (!expense || typeof expense.amount !== 'number' || !Number.isFinite(expense.amount) || expense.amount <= 0) continue;
+    if (attributedTo(expense.payerMemberId, expense.createdByUserId) !== memberId) continue;
+    items.push({ id: expense.id, kind: 'variable', name: expense.name, date: expense.date, amount: expense.amount, category: expense.type });
+  }
+  for (const bill of month?.fixedExpenses || []) {
+    const paid = fixedPaidAmount(bill);
+    if (!bill || paid <= 0) continue;
+    if (attributedTo(bill.payerMemberId, bill.createdByUserId) !== memberId) continue;
+    items.push({ id: bill.id, kind: 'fixed', name: bill.name, date: bill.paidAt || bill.date || '', amount: paid, category: bill.type });
+  }
+  return items.sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
 export interface HouseholdInvoice {
   id: string;
   name: string;

@@ -873,7 +873,9 @@
     "billDueInDays": "Due in {days} days",
     "goalNear": "{percent} funded — almost there",
     "trialEndingTitle": "Pro trial ending soon",
-    "trialEndingDays": "{days} days left in your Pro trial"
+    "trialEndingDays": "{days} days left in your Pro trial",
+    "inbox": "From SmartJib",
+    "markAllRead": "Mark all as read"
   },
   "legal": {
     "eyebrow": "Legal",
@@ -2207,7 +2209,13 @@
     "inviteCodeReady": "Invitation created. Share the code below if email is unavailable.",
     "inviteCodeHint": "Anyone with this code can join from Household → Join.",
     "contributor": "Contributor",
-    "businessSolo": "This is a solo business workspace: it has no members or invitations. Switch to your household workspace to manage the family roster."
+    "businessSolo": "This is a solo business workspace: it has no members or invitations. Switch to your household workspace to manage the family roster.",
+    "viewContribution": "View contribution details",
+    "contributionDetailTitle": "{name} — this month",
+    "noContributionItems": "No payments recorded for this month.",
+    "equalShare": "Equal share",
+    "paidThisMonth": "Paid this month",
+    "balanceLabel": "Balance"
   },
   "consent": {
     "title": "Privacy controls",
@@ -2419,7 +2427,8 @@
     "kindDebt": "Debt",
     "tags": "Tags",
     "tagsPlaceholder": "Add tags (comma separated)",
-    "open": "Search"
+    "open": "Search",
+    "total": "Total of {count, plural, one {1 result} other {# results}}"
   },
   "report": {
     "title": "Monthly report",
@@ -2621,7 +2630,9 @@
         "pending": "Pending",
         "collected": "Collected",
         "paidOut": "Paid out",
-        "closed": "Closed"
+        "closed": "Closed",
+        "left": "Left",
+        "removed": "Removed"
       },
       "markPaid": "Mark my contribution paid",
       "markUnpaid": "Undo payment",
@@ -2641,7 +2652,8 @@
       "close": "Close circle",
       "closeConfirm": "Close this circle? Once closed, no more rounds run and no payouts are made.",
       "inviteCode": "Invite code",
-      "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page."
+      "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
+      "invitedPhone": "Invited · {phone}"
     },
     "join": {
       "title": "Join a Darat circle",

@@ -2556,6 +2556,55 @@
         "nextRevision",
         "createdAt"
       ]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "A notification row written by the server (reminder dispatcher) and read in the notification centre.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "href": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readAt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "body",
+        "icon",
+        "severity",
+        "href",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -2613,6 +2662,10 @@
     "/households/{householdId}/invoices/{invoiceId}": {
       "schema": "HouseholdInvoice",
       "description": "Contributor submissions with atomic approval posting"
+    },
+    "/users/{uid}/notifications/{notificationId}": {
+      "schema": "UserNotification",
+      "description": "Server-written per-user notification inbox; client reads and marks readAt"
     }
   },
   "paths": {

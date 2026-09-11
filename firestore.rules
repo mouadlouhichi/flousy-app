@@ -47,6 +47,21 @@ service cloud.firestore {
     // Wrong-result reports from the scan flow: a bounded, write-once record a
     // signed-in account files about a lookup that resolved to the wrong
     // product. Review happens through an admin path that bypasses rules.
+    // Notification inbox rows are server-written; the client may create its
+    // own bounded row and may only ever flip `readAt` on update. Shapes are
+    // capped so the collection can never become a message relay.
+    function validUserNotification(data) {
+      return data.keys().hasOnly(['kind', 'title', 'body', 'icon', 'severity', 'href', 'createdAt', 'readAt'])
+        && data.kind is string && data.kind.size() <= 40
+        && data.title is string && data.title.size() <= 120
+        && data.body is string && data.body.size() <= 500
+        && data.icon is string && data.icon.size() <= 40
+        && data.severity in ['info', 'warning', 'error']
+        && data.href is string && data.href.size() <= 200
+        && data.createdAt is number
+        && (data.readAt == null || data.readAt is number);
+    }
+
     function validProductReportDocument(data) {
       return data.keys().hasOnly([
           'barcode', 'resolvedName', 'note', 'domain', 'locale', 'createdAt'])
@@ -1191,6 +1206,18 @@ service cloud.firestore {
         allow create: if owner(uid)
           && validProductReportDocument(incoming());
         allow update, delete: if false;
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if owner(uid);
+        allow create: if owner(uid) && validUserNotification(incoming());
+        // The inbox is append-most on the client side: marking read is the
+        // only mutation a signed-in owner can perform, and it only touches
+        // `readAt` so a compromised client can never rewrite history.
+        allow update: if owner(uid)
+          && request.resource.data.diff(existing()).affectedKeys().hasOnly(['readAt'])
+          && (incoming().get('readAt', 0) == null || incoming().get('readAt', 0) is number);
+        allow delete: if owner(uid);
       }
     }
 

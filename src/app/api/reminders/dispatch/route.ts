@@ -10,6 +10,7 @@ import { isPushConfigured, sendPush } from '@/lib/server/push';
 import {
   normalizeReminderPrefs,
   planReminders,
+  type PlannedReminder,
   type ReminderCopy,
   type StoredPushSubscription,
 } from '@/lib/reminders';
@@ -140,6 +141,36 @@ export async function POST(request: NextRequest) {
     if (reminders.length === 0) continue;
     stats.planned += reminders.length;
     if (dryRun) continue;
+
+    // Persist the planned reminders into the user's notification inbox so the
+    // in-app notification centre reads them from the database. Ids are stable
+    // per reminder instance (not per day), and the merge write refreshes the
+    // copy/createdAt while preserving the user's `readAt`.
+    const notificationIcon: Record<PlannedReminder['kind'], string> = {
+      bill: 'event_upcoming',
+      goal: 'flag',
+      trial: 'hourglass_top',
+    };
+    for (const reminder of reminders) {
+      const notificationId = reminder.id.replace(/:[^:]+$/, '');
+      await db
+        .doc(`users/${doc.id}/notifications/${notificationId}`)
+        .set(
+          {
+            kind: reminder.kind,
+            title: reminder.title,
+            body: reminder.body,
+            icon: notificationIcon[reminder.kind],
+            severity: reminder.kind === 'goal' ? 'info' : reminder.daysUntil === 0 ? 'warning' : 'info',
+            href: reminder.url,
+            createdAt: now.getTime(),
+          },
+          { merge: true },
+        )
+        .catch(() => {
+          stats.skipped += 1;
+        });
+    }
 
     // Push to every device; drop subscriptions the push service says are gone.
     const subscriptions: StoredPushSubscription[] = Array.isArray(profile.pushSubscriptions) ? profile.pushSubscriptions : [];

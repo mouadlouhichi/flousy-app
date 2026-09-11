@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
   limit,
   writeBatch,
   runTransaction,
@@ -15,6 +16,7 @@ import {
   arrayRemove,
   deleteField,
 } from 'firebase/firestore';
+import { normalizeUserNotification, sortUserNotifications, type UserNotification } from './notifications';
 import { auth, isFirebaseConfigured } from './firebase';
 import { db } from './firebase-db';
 import {
@@ -1427,6 +1429,7 @@ export async function deleteUserBudgetData(uid: string): Promise<DeletionReport>
   await run('budget months', () => deleteCollection('users', uid, 'months'));
   await run('products and sessions', () => deleteUserCourseData(uid));
   await run('finance ledger', () => deleteCollection('users', uid, 'ledger'));
+  await run('notifications', () => deleteCollection('users', uid, 'notifications'));
 
   return report;
 }
@@ -2086,4 +2089,48 @@ export function subscribePendingHouseholdInvites(email: string | null | undefine
       onData([]);
     },
   );
+}
+
+// User notifications — server-written, client-read -----------------------------
+// The reminder dispatcher (and future server events) writes rows under
+// users/{uid}/notifications; the client subscribes and only ever flips
+// `readAt`, which is the single field the update rule allows to change.
+
+export function subscribeUserNotifications(
+  uid: string | null | undefined,
+  onData: (notifications: UserNotification[]) => void,
+): () => void {
+  if (!uid || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  const notifications = query(
+    collection(db, 'users', uid, 'notifications'),
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  );
+  return onSnapshot(
+    notifications,
+    (snap) =>
+      onData(
+        sortUserNotifications(
+          snap.docs.map((item) => normalizeUserNotification(item.id, item.data() as Record<string, unknown>)),
+        ),
+      ),
+    (err) => {
+      console.error('Error listening to notifications:', err);
+      onData([]);
+    },
+  );
+}
+
+/** Mark notifications read in one batch; rules only permit touching `readAt`. */
+export async function markUserNotificationsRead(
+  uid: string,
+  notificationIds: string[],
+  readAt: number,
+): Promise<void> {
+  if (!isFirebaseConfigured || !db || notificationIds.length === 0) return;
+  const batch = writeBatch(db);
+  for (const notificationId of notificationIds) {
+    batch.update(doc(db, 'users', uid, 'notifications', notificationId), { readAt });
+  }
+  await batch.commit();
 }

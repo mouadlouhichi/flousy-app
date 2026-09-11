@@ -15,7 +15,7 @@ import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatMessage } from '@/lib/i18n-core';
-import { normalizeDaratCircle, normalizeDaratMember, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { normalizeDaratCircle, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
 import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
@@ -292,6 +292,9 @@ export function DaratDetailView({
   const closed = circle.status === 'closed';
   const pot = circle.contribution * circle.memberOrder.length;
   const memberName = (uid: string) => members[uid]?.displayName || formatMemberId(uid, language);
+  // The roster pairs create-time phone placeholders with accepted member rows
+  // so names (not uid/phone tails) are what the circle shows.
+  const roster = resolveDaratRoster(circle, members);
   const frequencyLabel =
     circle.frequency === 'weekly'
       ? m.darat.create.frequencyWeekly
@@ -404,30 +407,56 @@ export function DaratDetailView({
               {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}
             </h2>
           </div>
-          <AvatarStack names={circle.memberOrder.map(memberName)} />
+          <AvatarStack names={roster.map((entry) => (entry.joined ? entry.displayName : entry.phone))} />
         </div>
         <ul className="flex flex-col divide-y divide-outline-variant/60">
-          {circle.memberOrder.map((uid, idx) => {
-            const member = members[uid];
-            const isMe = uid === currentUid;
-            const name = memberName(uid);
+          {roster.map((entry, idx) => {
+            const isMe = entry.joined && entry.id === currentUid;
+            const leftOrRemoved = entry.status === 'left' || entry.status === 'removed';
             return (
-              <li key={uid} className="flex items-center gap-3 py-2.5">
-                <span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${avatarTone(idx)} ${isMe ? 'ring-2 ring-lime-deep ring-offset-2 ring-offset-surface-container-lowest' : ''}`} aria-hidden="true">
-                  {monogram(name)}
-                </span>
+              <li key={entry.id} className={`flex items-center gap-3 py-2.5 ${leftOrRemoved ? 'opacity-60' : ''}`}>
+                {entry.joined ? (
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${avatarTone(idx)} ${isMe ? 'ring-2 ring-lime-deep ring-offset-2 ring-offset-surface-container-lowest' : ''}`} aria-hidden="true">
+                    {monogram(entry.displayName)}
+                  </span>
+                ) : (
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed border-outline-variant bg-surface-container-low text-on-surface-variant" aria-hidden="true">
+                    <AppIcon name="hourglass_top" className="text-[14px]" />
+                  </span>
+                )}
                 <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
-                  {name}
-                  {isMe && <AppIcon name="person" className="ms-1.5 inline text-[14px] text-forest dark:text-lime" title={m.darat.detail.youAreMember} />}
+                  {entry.joined ? (
+                    <>
+                      {entry.displayName}
+                      {entry.phone && (
+                        <span className="ms-1.5 text-[12px] font-medium text-on-surface-variant" dir="ltr">{entry.phone}</span>
+                      )}
+                      {isMe && <AppIcon name="person" className="ms-1.5 inline text-[14px] text-forest dark:text-lime" title={m.darat.detail.youAreMember} />}
+                    </>
+                  ) : (
+                    <span className="text-on-surface-variant">
+                      {formatMessage(m.darat.detail.invitedPhone, { phone: entry.phone }, intlLocale)}
+                    </span>
+                  )}
                 </span>
-                {member?.isOrganizer && (
+                {entry.isOrganizer && (
                   <span className="shrink-0 rounded-full bg-lime px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-forest-deep">
                     {m.darat.detail.organizerShort}
                   </span>
                 )}
-                {member?.status === 'left' && (
+                {entry.status === 'left' && (
                   <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
-                    {m.darat.detail.status.closed}
+                    {m.darat.detail.status.left}
+                  </span>
+                )}
+                {entry.status === 'removed' && (
+                  <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
+                    {m.darat.detail.status.removed}
+                  </span>
+                )}
+                {!entry.joined && (
+                  <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
+                    {m.darat.detail.status.pending}
                   </span>
                 )}
               </li>

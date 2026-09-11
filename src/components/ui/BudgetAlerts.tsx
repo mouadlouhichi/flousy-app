@@ -6,8 +6,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { useHousehold } from '@/lib/household-context';
 import { AMOUNT_AREA } from '@/lib/household-rbac';
+import { markUserNotificationsRead, subscribeUserNotifications } from '@/lib/db';
+import { countUnreadNotifications, unreadNotificationIds, type UserNotification } from '@/lib/notifications';
 import { MonthBudget, SavingGoal, calculateEnvelopeAmounts, calculateEnvelopeSpent, calculateCategorySpent, getUpcomingBills } from '../../lib/store';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -29,8 +32,27 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
   const { messages: m, t, intlLocale } = useLanguage();
   const percent = (value: number) => formatLocalizedPercent(value, intlLocale);
   const { pendingInvites, canViewArea } = useHousehold();
+  const { user } = useAuth();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+
+  // ── Database-backed inbox: server-written notification rows the client
+  // reads live and marks read. Empty when Firebase is not configured (demo
+  // mode), so local-only alerts keep working unchanged. ──
+  const [dbNotifications, setDbNotifications] = useState<UserNotification[]>([]);
+  useEffect(() => subscribeUserNotifications(user?.uid, setDbNotifications), [user?.uid]);
+  const dbUnread = countUnreadNotifications(dbNotifications);
+  const openDbNotification = async (notification: UserNotification) => {
+    if (user && notification.readAt == null) {
+      await markUserNotificationsRead(user.uid, [notification.id], Date.now()).catch(() => {});
+    }
+    setIsOpen(false);
+    if (notification.href) router.push(notification.href);
+  };
+  const markAllDbRead = async () => {
+    if (!user) return;
+    await markUserNotificationsRead(user.uid, unreadNotificationIds(dbNotifications), Date.now()).catch(() => {});
+  };
   const [seenBudgetKey, setSeenBudgetKey] = useState<string | null>(null);
   // Reminders the user has tapped. Persisted so a bill you already opened
   // stays greyed out across reloads until the reminder itself changes
@@ -215,7 +237,8 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
   const hasUnreadReminders =
     reminders.length > 0 && seenReminderKey !== reminderKey && storedReminderKey !== reminderKey;
 
-  const hasUnreadNotifications = hasUnreadBudgetAlerts || hasUnreadReminders || pendingInvites.length > 0;
+  const hasUnreadNotifications =
+    hasUnreadBudgetAlerts || hasUnreadReminders || pendingInvites.length > 0 || dbUnread > 0;
   const openNotifications = () => {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
@@ -240,7 +263,7 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
             ? 'bg-primary text-on-primary'
             : 'text-on-surface-variant hover:bg-surface-container-lowest hover:text-on-surface'
         }`}
-        aria-label={t(m.alerts.viewNotifications, { count: alerts.length + pendingInvites.length + reminders.length })}
+        aria-label={t(m.alerts.viewNotifications, { count: alerts.length + pendingInvites.length + reminders.length + dbNotifications.length })}
       >
         <AppIcon name="notifications" className="text-[22px]" />
         {hasUnreadNotifications && (
@@ -270,6 +293,63 @@ export function BudgetAlerts({ month, goals = [], entitlement }: BudgetAlertsPro
           </div>
 
           <div className="space-y-3 mt-3">
+            {dbNotifications.length > 0 && (
+              <div className="space-y-1.5 border-b border-outline-variant pb-3">
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{m.alerts.inbox}</p>
+                  {dbUnread > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => void markAllDbRead()}
+                      className="text-[11px] font-semibold text-primary hover:underline"
+                    >
+                      {m.alerts.markAllRead}
+                    </button>
+                  )}
+                </div>
+                <ul className="flex flex-col gap-1">
+                  {dbNotifications.map((notification) => {
+                    const isRead = notification.readAt != null;
+                    return (
+                      <li key={notification.id}>
+                        <button
+                          type="button"
+                          onClick={() => void openDbNotification(notification)}
+                          className={`group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-start transition-colors ${
+                            isRead
+                              ? 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                              : 'bg-lime/35 text-on-surface hover:bg-lime/55 dark:bg-lime/10 dark:hover:bg-lime/20'
+                          }`}
+                        >
+                          <span
+                            className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                              isRead
+                                ? 'bg-surface-container-highest text-on-surface-variant'
+                                : notification.severity === 'error'
+                                  ? 'bg-error/15 text-error'
+                                  : notification.severity === 'warning'
+                                    ? 'bg-warning/15 text-warning'
+                                    : 'bg-forest text-lime'
+                            }`}
+                          >
+                            <AppIcon name={notification.icon} className="text-[17px]" />
+                          </span>
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className={`truncate text-[13px] ${isRead ? 'font-medium' : 'font-semibold'}`}>
+                              {notification.title}
+                            </span>
+                            <span className="truncate text-[11px] text-on-surface-variant">{notification.body}</span>
+                          </span>
+                          {notification.readAt == null && (
+                            <span className="size-2 shrink-0 rounded-full bg-error" aria-hidden="true" />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             {pendingInvites.length > 0 && <div className="space-y-1.5 border-b border-outline-variant pb-3"><p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">{m.alerts.householdInvitations}</p>{pendingInvites.map((invite) => <Link key={invite.id} href={`/dashboard/profile?invite=${encodeURIComponent(invite.id)}`} onClick={() => setIsOpen(false)} className="block rounded-2xl bg-lime/35 p-2.5 text-sm text-on-surface hover:bg-lime/55 dark:bg-lime/10 dark:hover:bg-lime/20"><span className="font-bold">{m.alerts.householdInvitation}</span><span className="block text-xs text-on-surface-variant">{t(m.alerts.openToJoinAs, { role: localizeHouseholdRole(invite.role, m) })}</span></Link>)}</div>}
 
             {reminders.length > 0 && (

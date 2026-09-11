@@ -52,6 +52,9 @@ export function SearchScreen() {
     [corpus, debounced],
   );
 
+  // Footer total: the combined amount of everything the search matched.
+  const hitsTotal = useMemo(() => hits.reduce((sum, hit) => sum + (hit.amount || 0), 0), [hits]);
+
   const kindLabel: Record<SearchHit['kind'], string> = {
     variable: s.kindVariable,
     fixed: s.kindFixed,
@@ -130,6 +133,15 @@ export function SearchScreen() {
               </li>
             ))}
           </ul>
+          {/* Running total of the matched transactions, pinned under the list. */}
+          <div className="sticky bottom-24 flex items-center justify-between gap-3 rounded-2xl border border-outline-variant bg-surface-container-lowest px-4 py-3 shadow-floating">
+            <span className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
+              {t(s.total, { count: hits.length })}
+            </span>
+            <span className="shrink-0 font-mono text-base font-bold tabular text-on-surface">
+              {format(hitsTotal)}
+            </span>
+          </div>
         </>
       )}
     </div>

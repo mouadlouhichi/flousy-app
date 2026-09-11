@@ -11,7 +11,16 @@ import { useLanguage } from '@/lib/i18n-context';
 import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { type MonthBudget } from '@/lib/store';
-import { computeHouseholdContributions, isAssignableMemberRole, type HouseholdMember } from '@/lib/household';
+import {
+  computeHouseholdContributions,
+  computeMemberContributionItems,
+  isAssignableMemberRole,
+  type HouseholdContributionItem,
+  type HouseholdMember,
+} from '@/lib/household';
+import { Modal } from '@/components/ui/Modal';
+import { formatShortDate } from '@/lib/utils';
+import { localizeCategoryName } from '@/lib/localized-labels';
 import {
   AREA_LEVEL_OPTIONS,
   DEFAULT_CUSTOM_PERMISSIONS,
@@ -78,6 +87,8 @@ export function HouseholdPanel({
   };
 
   const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
+  // Member whose contribution drill-down is open (tap a contribution row).
+  const [detailMember, setDetailMember] = useState<HouseholdMember | null>(null);
 
   const saveMember = async (updated: HouseholdMember) => {
     setBusy(true);
@@ -367,8 +378,18 @@ export function HouseholdPanel({
                 <p className="mb-2 font-bold">{h.monthlyContributions}</p>
                 <div className="space-y-2">
                   {contributions.rows.map(({ member, paid, balance }) => (
-                    <div key={member.id} className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm">
-                      <span className="min-w-0 truncate">{member.displayName}</span>
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => setDetailMember(member)}
+                      title={h.viewContribution}
+                      className="flex w-full justify-between gap-3 rounded-lg bg-surface-container p-3 text-start text-sm transition-colors hover:bg-surface-container-high"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate">{member.displayName}</span>
+                        <AppIcon name="chevron_right" className="shrink-0 text-[14px] text-on-surface-variant rtl:-scale-x-100" />
+                        <span className="sr-only"> {h.viewContribution}</span>
+                      </span>
                       <span className="shrink-0 font-semibold tabular-nums">
                         {format(paid)} ·{' '}
                         {balance === 0 ? (
@@ -379,7 +400,7 @@ export function HouseholdPanel({
                           <span className="text-error">−{format(Math.abs(balance))}</span>
                         )}
                       </span>
-                    </div>
+                    </button>
                   ))}
                   {contributions.pooledTotal > 0 && (
                     <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
@@ -547,7 +568,93 @@ export function HouseholdPanel({
             {notice}
           </p>
         )}
+
+        {detailMember && (
+          <ContributionDetailModal
+            member={detailMember}
+            month={month}
+            members={members}
+            onClose={() => setDetailMember(null)}
+          />
+        )}
       </div>
+  );
+}
+
+/**
+ * Drill-down behind a contribution row: the member's paid/equal-share/balance
+ * summary plus every payment that makes up the total, newest first.
+ */
+function ContributionDetailModal({
+  member,
+  month,
+  members,
+  onClose,
+}: {
+  member: HouseholdMember;
+  month?: MonthBudget;
+  members: HouseholdMember[];
+  onClose: () => void;
+}) {
+  const { format } = useCurrency();
+  const { messages: m, t, intlLocale } = useLanguage();
+  const h = m.household;
+
+  const items: HouseholdContributionItem[] = computeMemberContributionItems(month, members, member.id);
+  const paid = items.reduce((sum, item) => sum + item.amount, 0);
+  const row = computeHouseholdContributions(month, members).rows.find((entry) => entry.member.id === member.id);
+  const balance = row?.balance ?? paid;
+  const equalShare = row ? paid - balance : 0;
+
+  return (
+    <Modal isOpen onClose={onClose} title={t(h.contributionDetailTitle, { name: member.displayName })}>
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-surface-container p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{h.paidThisMonth}</p>
+            <p className="mt-1 font-semibold tabular-nums text-on-surface">{format(paid)}</p>
+          </div>
+          <div className="rounded-xl bg-surface-container p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{h.equalShare}</p>
+            <p className="mt-1 font-semibold tabular-nums text-on-surface">{format(equalShare)}</p>
+          </div>
+          <div className="rounded-xl bg-surface-container p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{h.balanceLabel}</p>
+            <p className={`mt-1 font-semibold tabular-nums ${balance > 0 ? 'text-primary' : balance < 0 ? 'text-error' : 'text-on-surface'}`}>
+              {balance > 0 ? '+' : balance < 0 ? '−' : ''}{format(Math.abs(balance))}
+            </p>
+          </div>
+        </div>
+
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-surface-container p-3 text-sm text-on-surface-variant">{h.noContributionItems}</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-outline-variant/60 rounded-xl border border-outline-variant">
+            {items.map((item) => (
+              <li key={`${item.kind}-${item.id}`} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-on-surface">{item.name}</span>
+                  <span className="block truncate text-xs text-on-surface-variant">
+                    {item.kind === 'fixed' ? m.navigation.fixedBills : m.navigation.variableExpenses}
+                    {item.category ? ` · ${localizeCategoryName(item.category, m)}` : ''}
+                    {item.date ? ` · ${formatShortDate(item.date, intlLocale)}` : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums text-on-surface">{format(item.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-full bg-primary py-3 font-bold text-on-primary"
+        >
+          {m.common.close}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

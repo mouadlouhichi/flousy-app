@@ -36,6 +36,7 @@ import {
   normalizeHouseholdName,
   isAssignableMemberRole,
   computeHouseholdContributions,
+  computeMemberContributionItems,
   type HouseholdMember,
 } from '../src/lib/household';
 import { normalizeMonth } from '../src/lib/store';
@@ -523,5 +524,54 @@ describe('tearing down a workspace only issues queries the rules can authorize',
     const ledger = teardown.indexOf("wipe('ledger')");
     assert.ok(savings > 0 && ledger > 0 && savings < ledger,
       'data/savings must be deleted before the ledger rows that describe it');
+  });
+});
+
+describe('Household contribution drill-down items', () => {
+  const mouad = makeMember('mouad', { displayName: 'louhichi mouad', userId: 'uid-mouad', role: 'owner' });
+  const luigi = makeMember('luigi', { displayName: 'Luigi Family', userId: 'uid-luigi', role: 'editor' });
+  const members = [mouad, luigi];
+
+  const month = normalizeMonth({
+    variableExpenses: [
+      { id: 'e1', name: 'Groceries', amount: 300, type: 'Groceries', date: '2026-09-01', place: 'bank', payerMemberId: 'mouad' },
+      { id: 'e2', name: 'Bus', amount: 100, type: 'Transport', date: '2026-09-02', place: 'wallet', payerMemberId: 'luigi' },
+      { id: 'e3', name: 'Self pay', amount: 50, type: 'Other', date: '2026-09-03', place: 'bank', payerMemberId: 'self', createdByUserId: 'uid-luigi' },
+      { id: 'e4', name: 'Pooled', amount: 80, type: 'Other', date: '2026-09-04', place: 'bank', payerMemberId: 'household' },
+    ],
+    fixedExpenses: [
+      { id: 'f1', name: 'Rent', amount: 200, type: 'Rent', date: '2026-09-05', place: 'bank', paidAmount: 200, payerMemberId: 'mouad' },
+    ],
+  }, '2026-09');
+
+  it('lists exactly the payments attributed to the member, newest first', () => {
+    const items = computeMemberContributionItems(month, members, 'mouad');
+    assert.deepEqual(items.map((item) => item.id), ['f1', 'e1']);
+    assert.equal(items[0].kind, 'fixed');
+    assert.equal(items[0].amount, 200);
+    assert.equal(items[1].kind, 'variable');
+  });
+
+  it('resolves self payers through createdByUserId like the totals do', () => {
+    const items = computeMemberContributionItems(month, members, 'luigi');
+    assert.deepEqual(items.map((item) => item.id), ['e3', 'e2']);
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    const row = computeHouseholdContributions(month, members).rows.find((entry) => entry.member.id === 'luigi');
+    assert.equal(total, row?.paid);
+  });
+
+  it('keeps pooled payments out of every member drill-down', () => {
+    for (const member of members) {
+      const ids = computeMemberContributionItems(month, members, member.id).map((item) => item.id);
+      assert.ok(!ids.includes('e4'));
+    }
+  });
+
+  it('totals of the items always equal the row paid figure', () => {
+    const rows = computeHouseholdContributions(month, members).rows;
+    for (const row of rows) {
+      const total = computeMemberContributionItems(month, members, row.member.id).reduce((s, i) => s + i.amount, 0);
+      assert.equal(total, row.paid, row.member.id);
+    }
   });
 });
