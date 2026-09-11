@@ -59,6 +59,13 @@ type View =
 const DARAT_RULES_MARKER = 'darat read-rules v3';
 
 /**
+ * Diagnostics UI (the in-app rules canary + verdict banner). Hidden for now
+ * — reads are healthy, so the section is noise. Flip to true to bring back
+ * the auto-check, the verdict banner and the re-run button.
+ */
+const SHOW_RULES_CHECK = false;
+
+/**
  * A generated invite that the create modal can present to the organizer
  * so they can share a same-origin link with each invitee. The `id` is the
  * UUID that both `/circles/{cid}/invites/{id}` and
@@ -529,6 +536,7 @@ export function DaratScreen() {
   // Auto-run the check once per page load when there are unreadable
   // circles — the verdict decides the whole remediation path.
   useEffect(() => {
+    if (!SHOW_RULES_CHECK) return;
     if (!circlesReady || failedCircleIds.length === 0) return;
     if (rulesCheckRan.current) return;
     rulesCheckRan.current = true;
@@ -893,7 +901,7 @@ export function DaratScreen() {
               {m.darat.list.unavailableRemoveAll}
             </button>
           </div>
-          {rulesCheck.status === 'ok' ? (
+          {SHOW_RULES_CHECK && (rulesCheck.status === 'ok' ? (
             <p className="rounded-xl bg-lime/30 px-3 py-2 text-[12px] font-semibold leading-relaxed text-on-surface">
               {m.darat.list.rulesCheckOk}
             </p>
@@ -919,15 +927,17 @@ export function DaratScreen() {
                 .replace('{id}', failedCircleIds[0])
                 .replace('{uid}', user?.uid ?? '')}
             </p>
+          ))}
+          {SHOW_RULES_CHECK && (
+            <button
+              type="button"
+              onClick={() => void runRulesCheck()}
+              disabled={rulesCheck.status === 'running'}
+              className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
+            >
+              {m.darat.list.rulesCheckRun}
+            </button>
           )}
-          <button
-            type="button"
-            onClick={() => void runRulesCheck()}
-            disabled={rulesCheck.status === 'running'}
-            className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
-          >
-            {m.darat.list.rulesCheckRun}
-          </button>
           <ul className="flex flex-col gap-1.5">
             {failedCircleIds.map((id) => (
               <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
