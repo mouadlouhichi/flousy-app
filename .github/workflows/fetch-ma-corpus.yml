@@ -1,0 +1,30 @@
+name: Fetch Moroccan product corpus
+
+# Manual data audit helper: the sandbox has no outbound access to
+# openfoodfacts.org, so this runs the fetch script in Actions and hands back
+# the raw corpus as an artifact. Not part of the app's CI.
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'off (food) or obf (cosmetics)'
+        required: false
+        default: 'off'
+      pages:
+        description: 'Pages of 100 products'
+        required: false
+        default: '20'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/fetch-ma-corpus.mjs --source=${{ inputs.source }} --pages=${{ inputs.pages }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ma-corpus-${{ inputs.source }}
+          path: data/ma-corpus-${{ inputs.source }}.json
