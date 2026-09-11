@@ -2863,6 +2863,8 @@
     "unspecifiedPreservative": "Conservateur (substance exacte non précisée)",
     "unspecifiedAntioxidant": "Antioxydant (substance exacte non précisée)",
     "unspecifiedStabiliser": "Stabilisant (substance exacte non précisée)",
+    "unspecifiedThickener": "Épaississant (substance exacte non précisée)",
+    "unspecifiedEmulsifier": "Émulsifiant (substance exacte non précisée)",
     "unspecifiedSweetener": "Édulcorant (substance exacte non précisée)",
     "pasteHelp": "Collez la liste d’ingrédients de l’étiquette, séparée par des virgules.",
     "pasteInvalid": "Saisissez au moins un ingrédient à analyser.",

@@ -78,6 +78,8 @@ const UNSPECIFIED_CLASS_KEY: Record<FoodUnspecifiedClass, string> = {
   preservative: 'unspecifiedPreservative',
   antioxidant: 'unspecifiedAntioxidant',
   stabiliser: 'unspecifiedStabiliser',
+  thickener: 'unspecifiedThickener',
+  emulsifier: 'unspecifiedEmulsifier',
   sweetener: 'unspecifiedSweetener',
 };
 

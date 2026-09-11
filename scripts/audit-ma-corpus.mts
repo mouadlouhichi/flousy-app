@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { analyzeFoodText } from '../src/lib/food-knowledge/analyze';
 import { detectLabelDomain, detectFoodKind } from '../src/lib/food-knowledge/domain';
+import { foldForMatch } from '../src/lib/food-knowledge/lists';
 import { foodLabelGrade } from '../src/lib/food-knowledge/grade';
 import { analyzeInciText } from '../src/lib/ingredient-safety/analyze';
 import { inferProductForm } from '../src/lib/ingredient-safety/form';
@@ -110,11 +111,17 @@ for (const product of corpus.products) {
     continue;
   }
 
-  const analysis = analyzeFoodText(text, {
+  let analysis;
+  try {
+    analysis = analyzeFoodText(text, {
     ...(name ? { label: name } : {}),
     ...(category ? { category } : {}),
-    ...(product.allergens_tags?.length ? { offAllergenTags: product.allergen_tags } : {}),
   });
+  } catch (error) {
+    bump(buckets, 'analysis-threw');
+    remember('analysis-threw', `${code}: ${String(error).slice(0, 80)}`);
+    continue;
+  }
   const grade = foodLabelGrade(analysis);
   ranked += 1;
 
@@ -136,12 +143,14 @@ for (const product of corpus.products) {
     bump(bandCounts, grade.band);
   }
 
+  // Only genuinely unrecognized rows: a row the tables know about (even with
+  // family 'other', like rennet) is not a knowledge gap.
   for (const ingredient of analysis.ingredients) {
-    if (ingredient.family && ingredient.family !== 'other') continue;
-    const key = ingredient.raw.trim().toLowerCase().slice(0, 60);
-    if (!key) continue;
-    bump(unknownCounts, `food:${key}`);
-    remember(`food:${key}`, code);
+    if (ingredient.recognized) continue;
+    const normalized = foldForMatch(ingredient.raw).slice(0, 60);
+    if (!normalized) continue;
+    bump(unknownCounts, `food:${normalized}`);
+    remember(`food:${normalized}`, code);
   }
 
   if (detectFoodKind({ name, category, ingredientsText: text }) === 'water') {

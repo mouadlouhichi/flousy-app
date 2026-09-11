@@ -2863,6 +2863,8 @@
     "unspecifiedPreservative": "Preservative (exact substance not specified)",
     "unspecifiedAntioxidant": "Antioxidant (exact substance not specified)",
     "unspecifiedStabiliser": "Stabiliser (exact substance not specified)",
+    "unspecifiedThickener": "Thickener (exact substance not specified)",
+    "unspecifiedEmulsifier": "Emulsifier (exact substance not specified)",
     "unspecifiedSweetener": "Sweetener (exact substance not specified)",
     "pasteHelp": "Paste the ingredient list from the label, separated by commas.",
     "pasteInvalid": "Enter at least one ingredient to analyze.",

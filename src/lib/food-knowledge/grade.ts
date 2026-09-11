@@ -84,6 +84,8 @@ function unspecifiedClassHits(
     antioxidant: [[300, 321]],
     'food-acid': [[260, 300], [330, 350]],
     stabiliser: [[400, 422], [440, 499]],
+    thickener: [[400, 419], [440, 449], [460, 469], [1400, 1450]],
+    emulsifier: [[322, 322], [432, 436], [442, 445], [470, 495]],
     sweetener: [[420, 421], [950, 969]],
     'flavour-enhancer': [[620, 637]],
     'protein-source': [],
