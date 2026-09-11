@@ -12,6 +12,7 @@ import type { Messages } from '@/lib/i18n-core';
 import { localizeHouseholdRole } from '@/lib/localized-labels';
 import { type MonthBudget } from '@/lib/store';
 import {
+  computeGroupContributionItems,
   computeHouseholdContributions,
   computeMemberContributionItems,
   isAssignableMemberRole,
@@ -49,7 +50,7 @@ export function HouseholdPanel({
   const { messages: m, t, language } = useLanguage();
   const h = m.household;
   const isPro = isProUser(profile);
-  const { household, members, isOwner, entitlementActive, renameHousehold, create, invite, acceptInvite, updateMember, canViewArea, workspace } =
+  const { household, members, isOwner, entitlementActive, renameHousehold, create, invite, acceptInvite, updateMember, updateConfiguration, canViewArea, workspace } =
     useHousehold();
   // The roster, per-member contribution totals and the invite form are all
   // `members` data. Someone with an invitation code still has no membership
@@ -87,8 +88,13 @@ export function HouseholdPanel({
   };
 
   const [editingMember, setEditingMember] = useState<HouseholdMember | null>(null);
-  // Member whose contribution drill-down is open (tap a contribution row).
+  // Contribution drill-down target: a member row, or the pooled/unattributed
+  // group row (tap any row in "This month's contributions").
   const [detailMember, setDetailMember] = useState<HouseholdMember | null>(null);
+  const [detailGroup, setDetailGroup] = useState<'pooled' | 'unattributed' | null>(null);
+  // Household fund target editor (owner-set monthly pooling goal).
+  const [fundOpen, setFundOpen] = useState(false);
+  const [fundDraft, setFundDraft] = useState('');
 
   const saveMember = async (updated: HouseholdMember) => {
     setBusy(true);
@@ -373,7 +379,7 @@ export function HouseholdPanel({
               )}
             </div>
 
-            {workspace === 'household' && contributions.rows.length > 0 && (
+            {workspace === 'household' && (contributions.rows.length > 0 || isOwner) && (
               <div className="border-t border-outline-variant pt-4">
                 <p className="mb-2 font-bold">{h.monthlyContributions}</p>
                 <div className="space-y-2">
@@ -403,21 +409,65 @@ export function HouseholdPanel({
                     </button>
                   ))}
                   {contributions.pooledTotal > 0 && (
-                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
-                      <span className="min-w-0 truncate">{h.funds}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailGroup('pooled')}
+                      title={h.viewContribution}
+                      className="flex w-full justify-between gap-3 rounded-lg bg-surface-container p-3 text-start text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate">{h.funds}</span>
+                        <AppIcon name="chevron_right" className="shrink-0 text-[14px] rtl:-scale-x-100" />
+                        <span className="sr-only"> {h.viewContribution}</span>
+                      </span>
                       <span className="shrink-0 font-semibold tabular-nums">{format(contributions.pooledTotal)}</span>
-                    </div>
+                    </button>
                   )}
                   {contributions.unattributedTotal > 0 && (
-                    <div className="flex justify-between gap-3 rounded-lg bg-surface-container p-3 text-sm text-on-surface-variant">
-                      <span className="min-w-0 truncate">{h.contributionsUnattributed}</span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailGroup('unattributed')}
+                      title={h.viewContribution}
+                      className="flex w-full justify-between gap-3 rounded-lg bg-surface-container p-3 text-start text-sm text-on-surface-variant transition-colors hover:bg-surface-container-high"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate">{h.contributionsUnattributed}</span>
+                        <AppIcon name="chevron_right" className="shrink-0 text-[14px] rtl:-scale-x-100" />
+                        <span className="sr-only"> {h.viewContribution}</span>
+                      </span>
                       <span className="shrink-0 font-semibold tabular-nums">{format(contributions.unattributedTotal)}</span>
-                    </div>
+                    </button>
                   )}
                 </div>
                 {(contributions.pooledTotal > 0 || contributions.unattributedTotal > 0) && (
                   <p className="mt-2 text-xs text-on-surface-variant">{h.contributionsExcluded}</p>
                 )}
+                <HouseholdFundBlock
+                  fundTarget={household.fundTarget}
+                  pooledTotal={contributions.pooledTotal}
+                  editable={isOwner && entitlementActive}
+                  open={fundOpen}
+                  draft={fundDraft}
+                  onOpen={() => {
+                    setFundDraft(household.fundTarget ? String(household.fundTarget) : '');
+                    setFundOpen(true);
+                  }}
+                  onClose={() => setFundOpen(false)}
+                  onDraftChange={setFundDraft}
+                  onSave={async () => {
+                    const value = Number(fundDraft.replace(',', '.'));
+                    const target = Number.isFinite(value) && value > 0 ? Math.round(value * 100) / 100 : 0;
+                    await run(async () => {
+                      // 0 clears the target; the rules accept fundTarget >= 0.
+                      await updateConfiguration({ fundTarget: target });
+                      setFundOpen(false);
+                      setNotice(h.fundTargetSaved);
+                    });
+                  }}
+                  format={format}
+                  h={h}
+                  cancelLabel={m.common.cancel}
+                />
                 <p className="mt-2 text-xs text-on-surface-variant">{h.contributionGuide}</p>
               </div>
             )}
@@ -577,6 +627,15 @@ export function HouseholdPanel({
             onClose={() => setDetailMember(null)}
           />
         )}
+
+        {detailGroup && (
+          <GroupContributionModal
+            group={detailGroup}
+            month={month}
+            members={members}
+            onClose={() => setDetailGroup(null)}
+          />
+        )}
       </div>
   );
 }
@@ -646,6 +705,168 @@ function ContributionDetailModal({
           </ul>
         )}
 
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full rounded-full bg-primary py-3 font-bold text-on-primary"
+        >
+          {m.common.close}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * The shared-pot summary and its target editor. The pooled total for the
+ * period is computed from the payments (the 'household' payer); the owner
+ * sets the monthly target it is measured against. Saving 0 clears it.
+ */
+function HouseholdFundBlock({
+  fundTarget,
+  pooledTotal,
+  editable,
+  open,
+  draft,
+  onOpen,
+  onClose,
+  onDraftChange,
+  onSave,
+  format,
+  h,
+  cancelLabel,
+}: {
+  fundTarget?: number;
+  pooledTotal: number;
+  editable: boolean;
+  open: boolean;
+  draft: string;
+  onOpen: () => void;
+  onClose: () => void;
+  onDraftChange: (value: string) => void;
+  onSave: () => void | Promise<void>;
+  format: (value: number) => string;
+  h: Messages['household'];
+  cancelLabel: string;
+}) {
+  const hasTarget = typeof fundTarget === 'number' && fundTarget > 0;
+  const progress = hasTarget ? Math.min(100, (pooledTotal / (fundTarget as number)) * 100) : 0;
+  if (open) {
+    return (
+      <div className="mt-3 rounded-xl border border-primary/40 bg-surface-container p-3">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface-variant">{h.fundTargetTitle}</p>
+        <div className="flex gap-2">
+          <input
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            inputMode="decimal"
+            autoFocus
+            aria-label={h.fundTargetPlaceholder}
+            placeholder={h.fundTargetPlaceholder}
+            className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface p-2 text-sm text-on-surface"
+          />
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary"
+          >
+            {h.fundTargetSet}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-2 py-2 text-sm text-on-surface-variant hover:bg-primary/10"
+          >
+            {cancelLabel}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-on-surface-variant">{h.fundTargetDescription}</p>
+      </div>
+    );
+  }
+  if (!hasTarget && !editable) return null;
+  return (
+    <div className="mt-3 rounded-xl border border-outline-variant bg-surface-container p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant">{h.fundTargetTitle}</p>
+        {editable && (
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={h.fundTargetSet}
+            className="tap-target rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
+          >
+            <AppIcon name="edit" className="text-[18px]" />
+          </button>
+        )}
+      </div>
+      {hasTarget ? (
+        <>
+          <p className="mt-1 text-sm font-semibold tabular-nums text-on-surface">
+            {format(pooledTotal)}{' '}
+            <span className="font-medium text-on-surface-variant">{h.fundTargetOf.replace('{target}', format(fundTarget as number))}</span>
+          </p>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-outline-variant" aria-hidden="true">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        </>
+      ) : (
+        <p className="mt-1 text-xs text-on-surface-variant">{h.fundTargetDescription}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Drill-down behind the pooled ("Household funds") and "Unattributed
+ * payments" summary rows: the exact transactions that make up the total,
+ * newest first, under the same attribution rules as the member rows.
+ */
+function GroupContributionModal({
+  group,
+  month,
+  members,
+  onClose,
+}: {
+  group: 'pooled' | 'unattributed';
+  month?: MonthBudget;
+  members: HouseholdMember[];
+  onClose: () => void;
+}) {
+  const { format } = useCurrency();
+  const { messages: m, intlLocale } = useLanguage();
+  const h = m.household;
+  const items = computeGroupContributionItems(month, members, group);
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const title = group === 'pooled' ? h.funds : h.contributionsUnattributed;
+
+  return (
+    <Modal isOpen onClose={onClose} title={title}>
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="rounded-xl bg-surface-container p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">{h.paidThisMonth}</p>
+          <p className="mt-1 font-semibold tabular-nums text-on-surface">{format(total)}</p>
+        </div>
+        {items.length === 0 ? (
+          <p className="rounded-xl bg-surface-container p-3 text-sm text-on-surface-variant">{h.noContributionItems}</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-outline-variant/60 rounded-xl border border-outline-variant">
+            {items.map((item) => (
+              <li key={`${item.kind}-${item.id}`} className="flex items-center justify-between gap-3 p-3 text-sm">
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-on-surface">{item.name}</span>
+                  <span className="block truncate text-xs text-on-surface-variant">
+                    {item.kind === 'fixed' ? m.navigation.fixedBills : m.navigation.variableExpenses}
+                    {item.category ? ` · ${localizeCategoryName(item.category, m)}` : ''}
+                    {item.date ? ` · ${formatShortDate(item.date, intlLocale)}` : ''}
+                  </span>
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums text-on-surface">{format(item.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-on-surface-variant">{h.contributionsExcluded}</p>
         <button
           type="button"
           onClick={onClose}

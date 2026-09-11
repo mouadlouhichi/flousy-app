@@ -748,7 +748,8 @@
       "noHistoryYet": "No history yet — the curve is illustrative until a second month closes.",
       "householdFundsNote": "\"Household funds\" is money paid from the shared pot rather than by one person. It is listed here for completeness and stays out of each member’s share in the settle-up.",
       "householdFundsNoteEmpty": "Tag an expense as \"Household funds\" when it is paid from the shared pot rather than by one person. The settle-up on the household page then keeps it out of everyone’s share.",
-      "householdFundsLink": "Open settle-up"
+      "householdFundsLink": "Open settle-up",
+      "sparkNoHistory": "The trend line appears once a second month of data exists."
     }
   },
   "courses": {
@@ -2215,7 +2216,13 @@
     "noContributionItems": "No payments recorded for this month.",
     "equalShare": "Equal share",
     "paidThisMonth": "Paid this month",
-    "balanceLabel": "Balance"
+    "balanceLabel": "Balance",
+    "fundTargetTitle": "Household fund",
+    "fundTargetSet": "Set target",
+    "fundTargetPlaceholder": "Monthly fund target",
+    "fundTargetDescription": "A monthly amount the household aims to pool in the shared fund (expenses paid with the \"Household funds\" payer).",
+    "fundTargetSaved": "Fund target saved",
+    "fundTargetOf": "of {target} targeted"
   },
   "consent": {
     "title": "Privacy controls",

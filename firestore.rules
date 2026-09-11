@@ -1044,6 +1044,10 @@ service cloud.firestore {
           || (data.activeCategories is list && data.activeCategories.size() <= 100))
         && (!('monthStartDate' in data)
           || (data.monthStartDate is int && data.monthStartDate >= 1 && data.monthStartDate <= 31))
+        // Monthly shared-fund target; 0 clears it. Bounded so a typo cannot
+        // write an absurd number into every member's progress bar.
+        && (!('fundTarget' in data)
+          || (data.fundTarget is number && data.fundTarget >= 0 && data.fundTarget <= 1000000000))
         && (!('kind' in data) || data.kind in ['household', 'business'])
         && (!('entitlementSource' in data)
           || tokenValue(data.entitlementSource) in ['launch_trial', 'stripe', 'cmi', 'admin'])

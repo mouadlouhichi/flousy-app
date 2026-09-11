@@ -30,13 +30,17 @@ interface BalanceOverviewRingProps {
   actionsLabel: string;
   /** Mirror the action arc for right-to-left layouts. */
   rtl?: boolean;
+  /**
+   * Caption shown instead of the sparkline while fewer than two months of
+   * real data exist. The chart never draws invented values: what is on
+   * screen is always the per-period series.
+   */
+  noHistoryLabel?: string;
   className?: string;
 }
 
 const SPARK_W = 160;
 const SPARK_H = 56;
-/** Decorative curve shown while a view has fewer than two months of history. */
-const PLACEHOLDER_SPARK = [0.35, 0.42, 0.4, 0.55, 0.5, 0.68, 0.62, 0.8];
 /** Angular distance between neighbouring action buttons on the bottom arc. */
 const ARC_STEP_DEG = 28;
 
@@ -54,18 +58,21 @@ export function BalanceOverviewRing({
   onChange,
   actionsLabel,
   rtl = false,
+  noHistoryLabel,
   className,
 }: BalanceOverviewRingProps) {
   const gradId = useId();
   const active = views.find((v) => v.id === activeId) ?? views[0];
   if (!active) return null;
 
+  // Real data only: fewer than two periods means there is no trend to draw,
+  // so the disc shows an honest empty state instead of a decorative curve.
   const hasHistory = Boolean(active.spark && active.spark.length > 1);
-  const series = hasHistory ? (active.spark as number[]) : PLACEHOLDER_SPARK;
-  const path = buildSparkPath(series, SPARK_W, SPARK_H);
-  const last = sparkPoint(series, series.length - 1, SPARK_W, SPARK_H);
-  const lastLeft = `${((last.x / SPARK_W) * 100).toFixed(2)}%`;
-  const lastTop = `${((last.y / SPARK_H) * 100).toFixed(2)}%`;
+  const series = hasHistory ? (active.spark as number[]) : null;
+  const path = series ? buildSparkPath(series, SPARK_W, SPARK_H) : '';
+  const last = series ? sparkPoint(series, series.length - 1, SPARK_W, SPARK_H) : null;
+  const lastLeft = last ? `${((last.x / SPARK_W) * 100).toFixed(2)}%` : '0%';
+  const lastTop = last ? `${((last.y / SPARK_H) * 100).toFixed(2)}%` : '0%';
 
   const first = -((views.length - 1) * ARC_STEP_DEG) / 2;
   const dir = rtl ? -1 : 1;
@@ -92,30 +99,46 @@ export function BalanceOverviewRing({
         <div className="absolute inset-[13%] flex flex-col items-center justify-center text-center">
           <div aria-hidden className="relative w-[64%]" style={{ aspectRatio: `${SPARK_W} / ${SPARK_H}` }}>
             <div className="dot-matrix absolute inset-x-3 inset-y-0 opacity-40 [mask-image:radial-gradient(closest-side,black,transparent)]" />
-            <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} className="absolute inset-0 h-full w-full overflow-visible">
-              <defs>
-                <linearGradient id={`${gradId}-spark`} x1="0" x2="1" y1="0" y2="0">
-                  <stop offset="0%" stopColor="var(--sage)" />
-                  <stop offset="55%" stopColor="var(--lime-deep)" />
-                  <stop offset="100%" stopColor="var(--forest)" />
-                </linearGradient>
-              </defs>
-              <path
-                key={active.id}
-                d={path}
-                fill="none"
-                stroke={`url(#${gradId}-spark)`}
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-                pathLength={1}
-                className={cn('animate-draw-line', !hasHistory && 'opacity-50')}
-              />
-              <circle cx={last.x} cy={last.y} r={6} fill="var(--surface-container-lowest)" stroke="var(--forest)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
-              <circle cx={last.x} cy={last.y} r={2.2} fill="var(--forest)" />
-            </svg>
-            {active.delta && (
+            {series && last ? (
+              <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} className="absolute inset-0 h-full w-full overflow-visible">
+                <defs>
+                  <linearGradient id={`${gradId}-spark`} x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stopColor="var(--sage)" />
+                    <stop offset="55%" stopColor="var(--lime-deep)" />
+                    <stop offset="100%" stopColor="var(--forest)" />
+                  </linearGradient>
+                </defs>
+                <path
+                  key={active.id}
+                  d={path}
+                  fill="none"
+                  stroke={`url(#${gradId}-spark)`}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                  pathLength={1}
+                  className="animate-draw-line"
+                />
+                <circle cx={last.x} cy={last.y} r={6} fill="var(--surface-container-lowest)" stroke="var(--forest)" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
+                <circle cx={last.x} cy={last.y} r={2.2} fill="var(--forest)" />
+              </svg>
+            ) : (
+              <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} className="absolute inset-0 h-full w-full overflow-visible">
+                {/* No invented curve: a dashed baseline marks the empty chart. */}
+                <line
+                  x1={4}
+                  x2={SPARK_W - 4}
+                  y1={SPARK_H - 6}
+                  y2={SPARK_H - 6}
+                  stroke="var(--outline-variant)"
+                  strokeWidth={2}
+                  strokeDasharray="5 6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+            {active.delta && last && (
               <span
                 className={cn(
                   'absolute z-10 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold tabular shadow-sm',
@@ -129,6 +152,9 @@ export function BalanceOverviewRing({
             )}
           </div>
 
+          {!hasHistory && noHistoryLabel && (
+            <span className="mt-1 max-w-[90%] text-[10.5px] leading-4 text-on-surface-variant/70">{noHistoryLabel}</span>
+          )}
           <MoneyFigure
             value={active.amount}
             size="xl"

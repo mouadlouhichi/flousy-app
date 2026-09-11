@@ -75,6 +75,7 @@ export type HouseholdConfigurationPatch = Pick<
   | 'fixedCategories'
   | 'defaultCategoryBudgets'
   | 'enableRollover'
+  | 'fundTarget'
 >;
 
 export type HouseholdContextValue = {

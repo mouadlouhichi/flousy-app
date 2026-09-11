@@ -748,7 +748,8 @@
       "noHistoryYet": "Pas encore d’historique — la courbe est indicative jusqu’à la clôture d’un deuxième mois.",
       "householdFundsNote": "« Fonds du foyer » désigne l’argent payé depuis la cagnotte commune plutôt que par une personne. Il figure ici pour information et reste hors de la part de chaque membre dans le règlement.",
       "householdFundsNoteEmpty": "Marquez une dépense « Fonds du foyer » quand elle est payée depuis la cagnotte commune plutôt que par une personne. Le règlement de la page Foyer la garde alors hors de la part de chacun.",
-      "householdFundsLink": "Ouvrir le règlement"
+      "householdFundsLink": "Ouvrir le règlement",
+      "sparkNoHistory": "La courbe de tendance apparaît dès qu’un deuxième mois de données existe."
     }
   },
   "courses": {
@@ -2215,7 +2216,13 @@
     "noContributionItems": "Aucun paiement enregistré ce mois-ci.",
     "equalShare": "Part égale",
     "paidThisMonth": "Payé ce mois-ci",
-    "balanceLabel": "Solde"
+    "balanceLabel": "Solde",
+    "fundTargetTitle": "Fonds du foyer",
+    "fundTargetSet": "Définir l’objectif",
+    "fundTargetPlaceholder": "Objectif mensuel du fonds",
+    "fundTargetDescription": "Un montant mensuel que le foyer vise à mettre en commun (dépenses payées avec le payeur « Fonds du foyer »).",
+    "fundTargetSaved": "Objectif du fonds enregistré",
+    "fundTargetOf": "sur {target} visés"
   },
   "consent": {
     "title": "Confidentialité",
