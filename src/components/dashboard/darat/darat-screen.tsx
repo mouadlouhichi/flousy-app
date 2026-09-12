@@ -391,7 +391,6 @@ export function DaratScreen() {
     // carry its real id — the rules require `doc.id is string`, and an
     // empty placeholder would be persisted and shadow the doc id on read.
     const circleRef = doc(collection(db, 'circles'));
-    const defaults = buildDaratCreateDefaults(defaultsInput, circleRef.id);
     const now = Date.now();
     const ledgerCol = collection(db, 'circles', circleRef.id, 'ledger');
     const expiresAt = new Date(now + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -416,6 +415,9 @@ export function DaratScreen() {
     // The transaction also lets the rules read the freshly-written
     // member row when checking the pointer's `isCircleMember` guard.
     try {
+      console.info(`[darat] create: building body for ${circleRef.id}…`);
+      const defaults = buildDaratCreateDefaults(defaultsInput, circleRef.id);
+      console.info('[darat] create: body ready, running transaction…');
       await runTransaction(db, async (tx) => {
         tx.set(circleRef, {
           ...defaults.circle,
@@ -492,6 +494,13 @@ export function DaratScreen() {
       const code = (err as { code?: string } | null)?.code;
       if (code === 'permission-denied') {
         return { ok: false, error: 'forbidden' };
+      }
+      // The builder throws `darat create validation failed: <key>` — map
+      // the key straight to the localized field error instead of a bare
+      // "something went wrong".
+      const validation = err instanceof Error ? err.message.match(/validation failed: (\w+)$/) : null;
+      if (validation) {
+        return { ok: false, error: validation[1] };
       }
       return { ok: false, error: 'genericError' };
     }
@@ -696,6 +705,56 @@ export function DaratScreen() {
       return { ok: false, error: 'genericError' }
     }
   }, [db, user]);
+
+  // Post-create surfacing. The detail view needs the freshly created
+  // circle in `circles`; waiting only for the live pointer snapshot can
+  // spin forever when the listener lags or the read stalls. Two guards:
+  //  1. a DIRECT fetch — the transaction committed, so the doc is readable
+  //     by its organizer right now; surface it without waiting for the
+  //     listener at all.
+  //  2. an 8s bound — if it still has not appeared, stop spinning and show
+  //     the failure card with a way back.
+  useEffect(() => {
+    if (view.kind !== 'detail' || !db) return;
+    const id = view.circleId;
+    if (circles.some((c) => c.id === id)) return;
+    if (id !== pendingDetailId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'circles', id));
+        if (cancelled) return;
+        if (snap.exists()) {
+          const circle = daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>);
+          setCircles((prev) => {
+            if (prev.some((c) => c.id === circle.id)) return prev;
+            const next = [...prev, circle];
+            next.sort((a, b) => b.createdAt - a.createdAt);
+            return next;
+          });
+          setFailedCircleIds((prev) => prev.filter((x) => x !== id));
+          setDocsLoadFailed(false);
+          setLoadError(null);
+          setDenialVerdict(null);
+          console.info('[darat] created circle surfaced via direct fetch');
+        }
+      } catch (err) {
+        console.warn('[darat] direct fetch of the created circle failed', err);
+      }
+    })();
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      console.warn(`[darat] circle ${id} did not surface within 8s — showing the failure card`);
+      setPendingDetailId(null);
+      setDocsLoadFailed(true);
+      setLoadError((prev) => prev ?? 'networkError');
+      setCirclesReady(true);
+    }, 8000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [view, circles, pendingDetailId, db]);
 
   // Pro gate — the feature is locked for non-Pro users. Rendered AFTER
   // all hooks so we never violate the rules of hooks.
