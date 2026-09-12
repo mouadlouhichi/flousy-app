@@ -199,6 +199,24 @@ export function getSidebarNavItems(isPro: boolean): DashboardNavItem[] {
 }
 
 /**
+ * Mobile dashboard quick access: the screens that neither the five-slot
+ * bottom nav nor the dashboard surface itself exposes. Search and profile
+ * live in the header, courses in the floating quick actions, so all of them
+ * are excluded here. Pro-only screens are included and filtered by the
+ * caller's plan — the row renders nothing for free users.
+ */
+export function getMobileQuickAccessItems(isPro: boolean): DashboardNavItem[] {
+  return DASHBOARD_NAV_ITEMS.filter(
+    (item) =>
+      item.hiddenFromNav &&
+      item.id !== 'search' &&
+      item.id !== 'profile' &&
+      item.id !== 'courses' &&
+      (!item.proOnly || isPro),
+  );
+}
+
+/**
  * Profile subpages, presented as grouped links on the Profile page itself
  * (the sidebar/footer profile entry opens it). Listed here so tests can keep
  * every navigation surface honest about what is (and is not) a destination.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DASHBOARD_NAV_ITEMS,
   PROFILE_SUBPAGE_NAV_ITEMS,
+  getMobileQuickAccessItems,
   getProfilePageTitle,
   getScreenIdFromPath,
   getSidebarNavItems,
@@ -86,6 +87,27 @@ describe('Dashboard navigation items', () => {
     const hrefs = DASHBOARD_NAV_ITEMS.map((i) => i.href);
     assert.strictEqual(new Set(ids).size, ids.length);
     assert.strictEqual(new Set(hrefs).size, hrefs.length);
+  });
+
+  it('quick access surfaces exactly the screens no other mobile surface exposes', () => {
+    const pro = getMobileQuickAccessItems(true).map((item) => item.id);
+    // knowledge, trends and Darat: hidden from the five-slot bottom nav and
+    // not linked from the dashboard itself.
+    assert.deepEqual(pro, ['knowledge', 'trends', 'darat']);
+  });
+
+  it('quick access renders nothing for free users (every destination is Pro-gated)', () => {
+    assert.deepEqual(getMobileQuickAccessItems(false), []);
+  });
+
+  it('quick access never duplicates a screen that already has a mobile surface', () => {
+    const ids: string[] = getMobileQuickAccessItems(true).map((item) => item.id);
+    for (const item of getVisibleNavItems(true)) {
+      assert.ok(!ids.includes(item.id), `${item.id} is in the bottom nav`);
+    }
+    for (const reserved of ['search', 'profile', 'courses']) {
+      assert.ok(!ids.includes(reserved), `${reserved} has its own entry point`);
+    }
   });
 
   it('resolves the courses route but keeps it out of the nav bars', () => {
