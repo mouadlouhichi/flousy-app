@@ -12,19 +12,17 @@
  * create button is hidden and the join flow is replaced with a CTA.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
-  limit,
   onSnapshot,
-  query,
   runTransaction,
   setDoc,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth-context';
 import { useLanguage } from '@/lib/i18n-context';
@@ -34,7 +32,7 @@ import { isProUser } from '@/lib/pro-features';
 import { formatMessage } from '@/lib/i18n-core';
 import { buildDaratCreateDefaults, type DaratCreateDefaultsInput } from '@/lib/darat-firestore';
 import {
-  normalizeDaratCircle,
+  daratCircleFromSnapshot,
   type DaratCircle,
   type DaratRotation,
   type DaratFrequency,
@@ -50,6 +48,22 @@ import { DaratCircleCard, DaratHero } from './darat-ui';
 type View =
   | { kind: 'list' }
   | { kind: 'detail'; circleId: string };
+
+/**
+ * The deployment marker this client build expects to find in the PUBLISHED
+ * Firestore rules (Firebase console → Firestore → Rules, first lines).
+ * Older published rulesets deny every darat read with a bare
+ * "Missing or insufficient permissions" — every diagnostic log below names
+ * this marker so a mismatch is identifiable from the console alone.
+ */
+const DARAT_RULES_MARKER = 'darat read-rules v3';
+
+/**
+ * Diagnostics UI (the in-app rules canary + verdict banner). Hidden for now
+ * — reads are healthy, so the section is noise. Flip to true to bring back
+ * the auto-check, the verdict banner and the re-run button.
+ */
+const SHOW_RULES_CHECK = false;
 
 /**
  * A generated invite that the create modal can present to the organizer
@@ -75,10 +89,48 @@ export function DaratScreen() {
   const db = firestoreDb;
 
   const isPro = isProUser(profile);
+  // Firebase console deep links for the unavailable rows (build-time
+  // project id from the initialized app, when Firebase is configured).
+  const projectId = db
+    ? ((db.app?.options as { projectId?: string } | undefined)?.projectId ?? null)
+    : null;
 
   const [circles, setCircles] = useState<DaratCircle[]>([]);
   const [circlesReady, setCirclesReady] = useState(false);
+  // The per-circle docs behind the pointer rows were refused (rules or
+  // network). Distinct from `loadError` (the pointer stream itself died):
+  // either one means "we know the load failed", which the detail view
+  // turns into an error card instead of an endless spinner.
+  const [docsLoadFailed, setDocsLoadFailed] = useState(false);
+  // Pointer rows whose circle doc could not be fetched. The owner still
+  // sees them listed (as unavailable rows) — the pointer stream is the
+  // source of truth for WHAT is mine, even when a doc read is refused.
+  const [failedCircleIds, setFailedCircleIds] = useState<string[]>([]);
+  // Set when a rules denial was probed: 'stale-rules' means the account IS
+  // a member and only an outdated deployed ruleset explains the refusal;
+  // 'not-member' means the account has no active seat in that circle.
+  const [denialVerdict, setDenialVerdict] = useState<'stale-rules' | 'not-member' | null>(null);
+  // Latest pointer-removal closure from the subscription effect, so the
+  // unavailable rows can offer a remove action without re-subscribing.
+  const removeUnavailableRef = useRef<((circleId: string) => Promise<void>) | null>(null);
+  const removeUnavailable = useCallback((circleId: string) => {
+    return removeUnavailableRef.current?.(circleId) ?? Promise.resolve();
+  }, []);
+  // In-app rules verification: create a throwaway circle with the exact
+  // production path, try to read it back, then delete it. A fresh circle is
+  // provably owned by the caller, so a refused read can ONLY mean the
+  // published ruleset is not this file — no console spelunking required.
+  // (The runner lives right after handleCreate, which it reuses.)
+  const [rulesCheck, setRulesCheck] = useState<{
+    status: 'idle' | 'running' | 'ok' | 'denied' | 'error' | 'createFailed';
+  }>({ status: 'idle' });
+  const rulesCheckRan = useRef(false);
   const [view, setView] = useState<View>({ kind: 'list' });
+  // The id of a circle created/joined in this session. The live snapshots
+  // surface it a tick after the transaction commits, so while the detail
+  // view is waiting on exactly this circle we render a loading state
+  // instead of flashing the "Circle not found" alert.
+  const [pendingDetailId, setPendingDetailId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinInitialCode, setJoinInitialCode] = useState<string | undefined>(undefined);
@@ -102,11 +154,13 @@ export function DaratScreen() {
     window.history.replaceState({}, '', cleaned);
   }, [searchParams, joinInitialCode]);
 
-  // Subscribe to the user's circles pointer + scan the shared collection for
-  // circles the user organized. Each source is independent: a missing
-  // composite index on the `organizerId` query must not blow up the page.
-  // We catch each source separately and only surface a hard error if both
-  // genuinely fail.
+  // Subscribe to the user's circles pointer (`users/{uid}/circles`). Every
+  // member — the organizer included — gets a pointer row when a circle is
+  // created or joined, so this single stream is a complete "my circles"
+  // source. The old second source (a `circles` where organizerId == uid
+  // scan) is gone on purpose: Firestore rules cannot inspect a query's
+  // `where` filters, so that list can never be granted safely and now
+  // denies by design (`allow list: if false`).
   useEffect(() => {
     if (!user || !db) {
       // While auth is bootstrapping we don't start subscriptions and
@@ -120,45 +174,6 @@ export function DaratScreen() {
     }
     let cancelled = false;
     const pointerRef = collection(db, 'users', user.uid, 'circles');
-    const unsubscribers: Array<() => void> = [];
-
-    // Track whether each source has ever emitted. An empty result
-    // from either source is a perfectly valid "no circles yet"
-    // outcome; the error path is reserved for source.onSnapshot
-    // firing its error callback. Distinguishing these is what
-    // prevents the spurious "Could not load your circles" alert on
-    // a brand-new account that has zero circles.
-    const sourceState: {
-      pointer: { hasEmitted: boolean; errored: boolean };
-      organized: { hasEmitted: boolean; errored: boolean };
-    } = {
-      pointer: { hasEmitted: false, errored: false },
-      organized: { hasEmitted: false, errored: false },
-    };
-
-    const recomputeError = () => {
-      // The hard-error UI is reserved for the case where:
-      //   * both sources have errored (e.g. rules denied both reads), AND
-      //   * we have no circles to show.
-      // An empty "0 rows" is a successful no-results outcome, not an
-      // error. A "permission denied" on one source with a clean
-      // success on the other is also not a hard error — the user
-      // just sees what they have.
-      if (circles.length > 0) {
-        setLoadError(null);
-        return;
-      }
-      const bothErrored = sourceState.pointer.errored && sourceState.organized.errored;
-      // We only surface the alert when the subscriptions are
-      // completely dead (both errored before emitting anything).
-      // Once either source has emitted, the empty state is correct
-      // even if the other source errors.
-      setLoadError(
-        bothErrored && !sourceState.pointer.hasEmitted && !sourceState.organized.hasEmitted
-          ? 'networkError'
-          : null,
-      );
-    };
 
     const mergeDoc = (
       docs: { id: string; data?: () => unknown; exists: () => boolean }[],
@@ -167,10 +182,10 @@ export function DaratScreen() {
       for (const s of docs) {
         if (s.exists()) {
           out.push(
-            normalizeDaratCircle({
-              id: s.id,
-              ...((s.data?.() as Record<string, unknown>) ?? {}),
-            }),
+            daratCircleFromSnapshot(
+              s.id,
+              (s.data?.() as Record<string, unknown>) ?? {},
+            ),
           );
         }
       }
@@ -183,76 +198,152 @@ export function DaratScreen() {
       });
     };
 
-    const onPointerSuccess = async (snap: { docs: { id: string }[] }) => {
-      sourceState.pointer = { hasEmitted: true, errored: false };
+    // Called when the server refuses to read a circle doc. Every version of
+    // these rules allows a signed-in user to read their OWN member row
+    // (`memberId == request.auth.uid` — a resource-free branch), so probing
+    // it separates a stale deployed ruleset from a data problem:
+    //   * probe DENIED            → the live ruleset is not this file at all.
+    //   * probe exists + active   → the caller IS a member; only an outdated
+    //     ruleset (one without the read twins) can explain the circle denial.
+    //   * probe missing / inactive → the account genuinely has no seat in
+    //     this circle (wrong account, or a pointer row left behind).
+    const diagnoseCircleDenial = async (circleId: string): Promise<'stale-rules' | 'not-member'> => {
       try {
-        const docs = await Promise.all(
-          snap.docs.map((d) => getDoc(doc(db, 'circles', d.id))),
+        const memberSnap = await getDoc(doc(db, 'circles', circleId, 'members', user.uid));
+        if (memberSnap.exists()) {
+          const status = (memberSnap.data() as { status?: string }).status;
+          if (status === 'active') {
+            console.error(
+              `[darat] READ DENIED on circles/${circleId} but ${user.uid} IS an active member.\n` +
+              `The LIVE Firestore rules are older than this build (expected marker: "${DARAT_RULES_MARKER}").\n` +
+              'Fix — from the repo root run:\n' +
+              '  firebase use <your-project-id> && firebase deploy --only firestore:rules\n' +
+              'Verify — Firebase console → Firestore → Rules: the published text must contain the marker above.',
+            );
+            return 'stale-rules';
+          }
+          console.warn(`[darat] member row for ${circleId} exists but status="${status}" — the account has no active seat.`);
+          return 'not-member';
+        }
+        console.warn(
+          `[darat] no member row at circles/${circleId}/members/${user.uid} — ` +
+          'this account is neither organizer nor member of that circle.\n' +
+          'CONFIRM IN 10 SECONDS — Firebase console → Firestore → data, open:\n' +
+          `  circles/${circleId}\n` +
+          'and read its organizerId field:\n' +
+          `  • organizerId == ${user.uid}  -> the published rules are STILL an old ` +
+          'version (they must contain "darat read-rules v3") — re-paste firestore.rules.\n' +
+          '  • organizerId is something else -> these circles belong to another ' +
+          'account; remove them from this list with the ✕ action.',
         );
-        if (cancelled) return;
-        mergeDoc(docs);
-        setCirclesReady(true);
-        recomputeError();
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[darat] pointer docs load failed', err);
-        sourceState.pointer = { hasEmitted: sourceState.pointer.hasEmitted, errored: true };
-        recomputeError();
+        return 'not-member';
+      } catch (probeErr) {
+        console.warn('[darat] self member-row probe denied too — the live ruleset predates the darat self-read branch', probeErr);
+        return 'stale-rules';
       }
     };
-    const onPointerError = (err: unknown) => {
-      console.warn('[darat] pointer snapshot failed', err);
-      sourceState.pointer = { hasEmitted: false, errored: true };
-      recomputeError();
-      if (!cancelled) setCirclesReady(true);
-    };
-    const onOrganizedSuccess = async (snap: { docs: { id: string }[] }) => {
-      sourceState.organized = { hasEmitted: true, errored: false };
-      try {
-        const docs = await Promise.all(
-          snap.docs.map((d) => getDoc(doc(db, 'circles', d.id))),
+
+    const unsubPointer = onSnapshot(
+      pointerRef,
+      async (snap) => {
+        if (cancelled) return;
+        setLoadError(null);
+        setDenialVerdict(null);
+        const ids = snap.docs.map((d) => d.id);
+        if (ids.length === 0) {
+          // An empty pointer collection is a perfectly valid "no circles
+          // yet" outcome, not an error.
+          setCircles([]);
+          setFailedCircleIds([]);
+          setCirclesReady(true);
+          setDocsLoadFailed(false);
+          return;
+        }
+        // allSettled so one refused circle never hides the rest of the
+        // list: fulfilled docs render as cards, rejected ids stay visible
+        // as unavailable rows below.
+        const settled = await Promise.allSettled(
+          ids.map((id) => getDoc(doc(db, 'circles', id))),
         );
         if (cancelled) return;
+        // Plain discriminated-union narrowing (no custom type predicates):
+        // the generic snapshot types shift between environments, and a
+        // hand-written predicate across PromiseSettledResult broke CI's
+        // typecheck. `r.status` narrowing needs no annotations at all.
+        type CircleSnapshot = { id: string; data?: () => unknown; exists: () => boolean };
+        const docs: CircleSnapshot[] = [];
+        const failedIds: string[] = [];
+        let firstRejection: { reason?: unknown } | null = null;
+        for (let i = 0; i < settled.length; i++) {
+          const r = settled[i];
+          if (r.status === 'fulfilled') {
+            docs.push(r.value);
+          } else {
+            failedIds.push(ids[i]);
+            if (!firstRejection) firstRejection = r;
+          }
+        }
         mergeDoc(docs);
+        setFailedCircleIds(failedIds);
+        setDocsLoadFailed(failedIds.length > 0);
         setCirclesReady(true);
-        recomputeError();
-      } catch (err) {
+        if (failedIds.length === 0) {
+          setLoadError(null);
+          setDenialVerdict(null);
+          // Healthy-sync receipt: reads succeeded, so the published rules
+          // include this build's marker. If a later report shows this line,
+          // the rules were fine at that moment — great for correlating
+          // "it worked yesterday" reports with deploy history.
+          console.info(`[darat] ${docs.length} circle(s) synced — reads OK (rules marker "${DARAT_RULES_MARKER}" confirmed)`);
+          return;
+        }
+        const code = (firstRejection?.reason as { code?: string } | null)?.code;
+        console.warn(`[darat] ${failedIds.length} circle doc(s) could not be read`, failedIds, firstRejection?.reason);
+        if (code === 'permission-denied') {
+          const verdict = await diagnoseCircleDenial(failedIds[0]);
+          if (cancelled) return;
+          setDenialVerdict(verdict);
+          setLoadError(verdict === 'not-member' ? 'circleOtherAccount' : 'rulesDenied');
+        } else {
+          setDenialVerdict(null);
+          setLoadError('networkError');
+        }
+      },
+      (err) => {
+        console.warn('[darat] pointer snapshot failed', err);
         if (cancelled) return;
-        console.warn('[darat] organized docs load failed', err);
-        sourceState.organized = { hasEmitted: sourceState.organized.hasEmitted, errored: true };
-        recomputeError();
-      }
-    };
-    const onOrganizedError = (err: unknown) => {
-      // The most common cause is a missing composite index
-      // (deployed elsewhere but not yet here, e.g. a fresh staging
-      // environment). We log and continue — the pointer source will
-      // still show every circle the user is a member of.
-      console.warn('[darat] organized snapshot failed (often a missing index, safe to ignore)', err);
-      sourceState.organized = { hasEmitted: false, errored: true };
-      recomputeError();
-      if (!cancelled) setCirclesReady(true);
-    };
-
-    const unsubPointer = onSnapshot(pointerRef, onPointerSuccess, onPointerError);
-    unsubscribers.push(unsubPointer);
-
-    const unsubOrganized = onSnapshot(
-      query(collection(db, 'circles'), where('organizerId', '==', user.uid), limit(50)),
-      onOrganizedSuccess,
-      onOrganizedError,
+        setLoadError(
+          (err as { code?: string } | null)?.code === 'permission-denied'
+            ? 'rulesDenied'
+            : 'networkError',
+        );
+        setCirclesReady(true);
+      },
     );
-    unsubscribers.push(unsubOrganized);
+
+    // The pointer row is the user's own "my circles" index — deleting it is
+    // allowed by `owner(uid)` under every version of the rules, so a stale
+    // row (circle from another account, or wiped test data) can always be
+    // removed from the list client-side. The live listener re-emits without
+    // the row and the UI recomputes.
+    const removeUnavailable = async (circleId: string) => {
+      if (!user) return;
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'circles', circleId));
+      } catch (err) {
+        console.warn('[darat] could not remove pointer row', circleId, err);
+      }
+    };
+    removeUnavailableRef.current = removeUnavailable;
 
     return () => {
       cancelled = true;
-      for (const u of unsubscribers) u();
+      unsubPointer();
+      removeUnavailableRef.current = null;
     };
-    // `circles` is intentionally read inside recomputeError() to keep
-    // the rule "any error path that doesn't yield a result is not a
-    // hard error" correct, but not listed in deps to avoid
-    // resubscribing on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `circles` is intentionally not listed in deps: the subscription
+    // merges snapshots into the existing list, so resubscribing on every
+    // render would be both wasteful and flickery.
   }, [db, user, authLoading]);
 
   // Build a new circle with the minimum required fields. The organizer can
@@ -262,7 +353,13 @@ export function DaratScreen() {
     name: string;
     contribution: number;
     members: { displayName: string; phone: string }[];
-  }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
+    organizerParticipates: boolean;
+    startDate?: string;
+    /** Rotation chosen at create time (random | fixed). */
+    rotation?: DaratRotation;
+    /** Agreed-order payout sequence (memberOrder ids) when rotation=fixed. */
+    fixedOrder?: string[] | null;
+  }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
     const defaultsInput: DaratCreateDefaultsInput = {
@@ -273,19 +370,26 @@ export function DaratScreen() {
       organizerEmail: user.email ?? '',
       organizerDisplayName: (user.displayName?.trim()) || user.email || 'Organizer',
       currency: userCurrency,
+      organizerParticipates: input.organizerParticipates,
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
-      rotation: 'random',
-      startDate: (() => {
+      // Rotation (and, for agreed order, the payout sequence) is picked on
+      // the create form now; bidding stays an edit-time switch.
+      rotation: input.rotation ?? 'random',
+      fixedOrder: input.rotation === 'fixed' ? (input.fixedOrder ?? null) : null,
+      // The create form picks the first round date; fall back to a week
+      // out for programmatic callers.
+      startDate: input.startDate?.trim() || (() => {
         const d = new Date();
         d.setUTCDate(d.getUTCDate() + 7);
         return d.toISOString().slice(0, 10);
       })(),
       sourcePlaceId: 'bank',
-      fixedOrder: null,
       randomSeed: null,
     };
-    const defaults = buildDaratCreateDefaults(defaultsInput);
+    // Allocate the document ref before building the body so the body can
+    // carry its real id — the rules require `doc.id is string`, and an
+    // empty placeholder would be persisted and shadow the doc id on read.
     const circleRef = doc(collection(db, 'circles'));
     const now = Date.now();
     const ledgerCol = collection(db, 'circles', circleRef.id, 'ledger');
@@ -311,31 +415,39 @@ export function DaratScreen() {
     // The transaction also lets the rules read the freshly-written
     // member row when checking the pointer's `isCircleMember` guard.
     try {
+      console.info(`[darat] create: building body for ${circleRef.id}…`);
+      const defaults = buildDaratCreateDefaults(defaultsInput, circleRef.id);
+      console.info('[darat] create: body ready, running transaction…');
       await runTransaction(db, async (tx) => {
         tx.set(circleRef, {
           ...defaults.circle,
           createdAt: now,
           updatedAt: now,
         });
-        // Organizer's own member row — must exist before the pointer
-        // (the pointer's create rule checks `isCircleMember`).
-        tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
-          uid: user.uid,
-          // The rules require a non-empty displayName — an account whose
-          // displayName is '' would be rejected, so fall back to the email.
-          displayName: (user.displayName?.trim()) || user.email || 'Organizer',
-          // The organizer's email identifies their SmartJib account;
-          // it is not used as an invite gate. We keep it on the row
-          // for the household path.
-          email: (user.email ?? '').toLowerCase(),
-          phone: '',
-          status: 'active',
-          isOrganizer: true,
-          joinedAt: new Date(now).toISOString(),
-          sourcePlaceId: 'bank',
-        });
+        // Organizer's own member row — only when they participate in the
+        // rotation. An owner who opted out keeps owner rights through
+        // `organizerId` (edit/close/read) without a seat in the rounds.
+        if (input.organizerParticipates) {
+          tx.set(doc(db, 'circles', circleRef.id, 'members', user.uid), {
+            uid: user.uid,
+            // The rules require a non-empty displayName — an account whose
+            // displayName is '' would be rejected, so fall back to the email.
+            displayName: (user.displayName?.trim()) || user.email || 'Organizer',
+            // The organizer's email identifies their SmartJib account;
+            // it is not used as an invite gate. We keep it on the row
+            // for the household path.
+            email: (user.email ?? '').toLowerCase(),
+            phone: '',
+            status: 'active',
+            isOrganizer: true,
+            joinedAt: new Date(now).toISOString(),
+            sourcePlaceId: 'bank',
+          });
+        }
         // Per-user pointer so the dashboard widget can list "your
-        // circles" without scanning the shared collection.
+        // circles" without scanning the shared collection. Written for
+        // participating AND non-participating owners alike: the pointer
+        // stream is what makes "my circles" complete.
         tx.set(doc(db, 'users', user.uid, 'circles', circleRef.id), {
           uid: user.uid,
           circleId: circleRef.id,
@@ -383,16 +495,88 @@ export function DaratScreen() {
       if (code === 'permission-denied') {
         return { ok: false, error: 'forbidden' };
       }
+      // The builder throws `darat create validation failed: <key>` — map
+      // the key straight to the localized field error instead of a bare
+      // "something went wrong".
+      const validation = err instanceof Error ? err.message.match(/validation failed: (\w+)$/) : null;
+      if (validation) {
+        return { ok: false, error: validation[1] };
+      }
       return { ok: false, error: 'genericError' };
     }
-    setCreateOpen(false);
-    setView({ kind: 'detail', circleId: circleRef.id });
+    console.info(
+      `[darat] circle created ${circleRef.id} (owner participating: ${input.organizerParticipates}, invitees: ${normalisedInvites.length})`,
+    );
+    // Non-silent callers stay in the modal: the post-create summary (codes,
+    // copy links, WhatsApp buttons) is where the organizer sends the
+    // invites — closing it here would unmount the panel before it ever
+    // renders and the codes would be lost from the UI. Navigation happens
+    // when they tap "Open circle" (openCreatedCircle below).
+    if (opts?.silent) {
+      setCreateOpen(false);
+    }
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
   }, [db, user, userCurrency]);
 
+  // "Open circle" from the post-create summary: close the modal and land
+  // on the fresh circle's detail view.
+  const openCreatedCircle = useCallback((circleId: string) => {
+    setCreateOpen(false);
+    setPendingDetailId(circleId);
+    setView({ kind: 'detail', circleId });
+  }, []);
+
+  // The rules-check canary reuses the production create path (silent: no
+  // navigation), reads the fresh circle back, and cleans up after itself.
+  const runRulesCheck = useCallback(async () => {
+    if (!user || !db) return;
+    setRulesCheck({ status: 'running' });
+    const res = await handleCreate(
+      {
+        name: 'Diagnostics — safe to delete',
+        contribution: 1,
+        members: [{ displayName: 'Check', phone: '+212600000000' }],
+        organizerParticipates: true,
+        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      },
+      { silent: true },
+    );
+    if (!res.ok || !res.circleId) {
+      console.warn('[darat] rules check: probe circle create failed', res.error);
+      setRulesCheck({ status: 'createFailed' });
+      return;
+    }
+    const canaryId = res.circleId;
+    console.info(`[darat] rules check: probe circle ${canaryId} created, reading back…`);
+    try {
+      await getDoc(doc(db, 'circles', canaryId));
+      console.info('[darat] rules check: probe circle read OK — published rules are CURRENT. The unreadable entries below are data (another account / deleted docs).');
+      setRulesCheck({ status: 'ok' });
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      console.warn(`[darat] rules check: probe circle read FAILED (${code ?? 'unknown'}) — the published ruleset is older than this build. Re-paste firestore.rules.`);
+      setRulesCheck({ status: code === 'permission-denied' ? 'denied' : 'error' });
+    } finally {
+      // Cleanup: the circle (organizer delete is allowed) and the pointer.
+      try { await deleteDoc(doc(db, 'circles', canaryId)); } catch { /* best effort */ }
+      try { await deleteDoc(doc(db, 'users', user.uid, 'circles', canaryId)); } catch { /* best effort */ }
+    }
+  }, [db, user, handleCreate]);
+
+  // Auto-run the check once per page load when there are unreadable
+  // circles — the verdict decides the whole remediation path.
+  useEffect(() => {
+    if (!SHOW_RULES_CHECK) return;
+    if (!circlesReady || failedCircleIds.length === 0) return;
+    if (rulesCheckRan.current) return;
+    rulesCheckRan.current = true;
+    void runRulesCheck();
+  }, [circlesReady, failedCircleIds.length, runRulesCheck]);
+
   // Edit a circle's settings from the detail screen. The organizer-only
   // mutation writes the changed fields and rebuilds the rounds. The
-  // memberOrder is also rewritten if the rotation was changed to "fixed".
+  // memberOrder is also rewritten if the rotation was changed to "fixed"
+  // or the participation toggle flipped (join/leave the rotation as owner).
   const handleEdit = useCallback(async (input: {
     circleId: string;
     name?: string;
@@ -401,13 +585,14 @@ export function DaratScreen() {
     rotation?: DaratRotation;
     startDate?: string;
     fixedOrder?: string[] | null;
+    organizerParticipates?: boolean;
   }): Promise<{ ok: boolean; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     try {
       const ref = doc(db, 'circles', input.circleId);
       const snap = await getDoc(ref);
       if (!snap.exists()) return { ok: false, error: 'notFound' };
-      const current = normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) });
+      const current = daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>);
       if (current.organizerId !== user.uid) return { ok: false, error: 'forbidden' };
 
       const next = {
@@ -426,6 +611,64 @@ export function DaratScreen() {
 
       // Rebuild the rounds from the same pure library used at creation.
       const { daratBuildRounds } = await import('@/lib/darat');
+
+      // Participation toggle: flipping it rewrites memberOrder and needs a
+      // matching member-row create/delete, so it runs as one transaction.
+      const participatesNow = current.memberOrder.includes(user.uid);
+      if (input.organizerParticipates !== undefined && input.organizerParticipates !== participatesNow) {
+        if (!input.organizerParticipates && current.memberOrder.length - 1 < 2) {
+          // Without the organizer the invitees alone must carry the rotation.
+          return { ok: false, error: 'membersTooFew' };
+        }
+        const nextOrder = input.organizerParticipates
+          ? [...current.memberOrder, user.uid]
+          : current.memberOrder.filter((id) => id !== user.uid);
+        const toggleRounds = daratBuildRounds({
+          memberOrder: nextOrder,
+          contribution: next.contribution,
+          frequency: next.frequency,
+          rotation: next.rotation,
+          startDate: next.startDate,
+          randomSeed: next.randomSeed,
+          fixedOrder: next.fixedOrder,
+        });
+        const memberRef = doc(db, 'circles', input.circleId, 'members', user.uid);
+        const ledgerCol = collection(db, 'circles', input.circleId, 'ledger');
+        const ledgerRef = doc(ledgerCol);
+        await runTransaction(db, async (tx) => {
+          tx.update(ref, {
+            ...next,
+            id: current.id,
+            memberOrder: nextOrder,
+            rounds: toggleRounds,
+            updatedAt: Date.now(),
+          });
+          if (input.organizerParticipates) {
+            tx.set(memberRef, {
+              uid: user.uid,
+              displayName: (user.displayName?.trim()) || user.email || 'Organizer',
+              email: (user.email ?? '').toLowerCase(),
+              phone: '',
+              status: 'active',
+              isOrganizer: true,
+              joinedAt: new Date().toISOString(),
+              sourcePlaceId: 'bank',
+            });
+          } else {
+            tx.delete(memberRef);
+          }
+          tx.set(ledgerRef, {
+            id: ledgerRef.id,
+            circleId: input.circleId,
+            uid: user.uid,
+            kind: 'edited',
+            at: Date.now(),
+            changed: ['organizerParticipates'],
+          });
+        });
+        return { ok: true };
+      }
+
       const updatedRounds = daratBuildRounds({
         memberOrder: current.memberOrder,
         contribution: next.contribution,
@@ -437,6 +680,12 @@ export function DaratScreen() {
       });
 
       await updateDoc(ref, {
+        // Repair legacy docs that stored the create-time placeholder
+        // `id: ''`: the rules gate organizer updates on
+        // validDaratCircleShape(incoming()), and a real string id keeps
+        // that shape valid. `current.id` is the doc id (the snapshot id
+        // always wins on read), so this is a no-op for healthy docs.
+        id: current.id,
         name: next.name,
         contribution: next.contribution,
         currency: current.currency,
@@ -467,6 +716,56 @@ export function DaratScreen() {
       return { ok: false, error: 'genericError' }
     }
   }, [db, user]);
+
+  // Post-create surfacing. The detail view needs the freshly created
+  // circle in `circles`; waiting only for the live pointer snapshot can
+  // spin forever when the listener lags or the read stalls. Two guards:
+  //  1. a DIRECT fetch — the transaction committed, so the doc is readable
+  //     by its organizer right now; surface it without waiting for the
+  //     listener at all.
+  //  2. an 8s bound — if it still has not appeared, stop spinning and show
+  //     the failure card with a way back.
+  useEffect(() => {
+    if (view.kind !== 'detail' || !db) return;
+    const id = view.circleId;
+    if (circles.some((c) => c.id === id)) return;
+    if (id !== pendingDetailId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'circles', id));
+        if (cancelled) return;
+        if (snap.exists()) {
+          const circle = daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>);
+          setCircles((prev) => {
+            if (prev.some((c) => c.id === circle.id)) return prev;
+            const next = [...prev, circle];
+            next.sort((a, b) => b.createdAt - a.createdAt);
+            return next;
+          });
+          setFailedCircleIds((prev) => prev.filter((x) => x !== id));
+          setDocsLoadFailed(false);
+          setLoadError(null);
+          setDenialVerdict(null);
+          console.info('[darat] created circle surfaced via direct fetch');
+        }
+      } catch (err) {
+        console.warn('[darat] direct fetch of the created circle failed', err);
+      }
+    })();
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      console.warn(`[darat] circle ${id} did not surface within 8s — showing the failure card`);
+      setPendingDetailId(null);
+      setDocsLoadFailed(true);
+      setLoadError((prev) => prev ?? 'networkError');
+      setCirclesReady(true);
+    }, 8000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [view, circles, pendingDetailId, db]);
 
   // Pro gate — the feature is locked for non-Pro users. Rendered AFTER
   // all hooks so we never violate the rules of hooks.
@@ -503,6 +802,57 @@ export function DaratScreen() {
   if (view.kind === 'detail') {
     const circle = circles.find((c) => c.id === view.circleId);
     if (!circle) {
+      // A known-failed load beats any spinner: the pointer stream died or
+      // the per-circle docs were refused, so "not found" would be a lie —
+      // show the failure card with a way back instead.
+      const loadKnownFailed = circlesReady && (loadError !== null || docsLoadFailed);
+      // A circle created or joined in this session reaches the list through
+      // the live snapshot a moment after the write commits — and on the very
+      // first load the list itself is still bootstrapping. Neither state is
+      // "not found": show a loading card so the destructive alert never
+      // flashes while data is simply in flight.
+      if (loadKnownFailed) {
+        return (
+          <div className="flex flex-col gap-3">
+            <Alert variant="destructive">
+              <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
+              <AlertDescription>
+                {(m.errors as Record<string, string>)[loadError ?? 'networkError'] ?? m.errors.generic}
+              </AlertDescription>
+            </Alert>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingDetailId(null);
+                setView({ kind: 'list' });
+              }}
+              className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+            >
+              {m.common.back}
+            </button>
+          </div>
+        );
+      }
+      if (view.circleId === pendingDetailId || !circlesReady) {
+        return (
+          <div className="flex flex-col items-center gap-4 py-16">
+            <span className="flex size-12 animate-pulse items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
+              <AppIcon name="groups" className="text-[22px]" />
+            </span>
+            <p className="text-[14px] font-medium text-on-surface-variant">{m.common.loading}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingDetailId(null);
+                setView({ kind: 'list' });
+              }}
+              className="rounded-full border border-outline-variant bg-surface-container-lowest px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+            >
+              {m.common.back}
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col gap-3">
           <Alert variant="destructive">
@@ -565,11 +915,11 @@ export function DaratScreen() {
         }
       />
 
-      {loadError && circlesReady && circles.length === 0 && (
+      {(loadError || docsLoadFailed) && circlesReady && circles.length === 0 && (
         <Alert variant="destructive">
           <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
           <AlertDescription>
-            {(m.errors as Record<string, string>)[loadError] ?? m.errors.generic}
+            {(m.errors as Record<string, string>)[loadError ?? 'networkError'] ?? m.errors.generic}
           </AlertDescription>
         </Alert>
       )}
@@ -612,10 +962,102 @@ export function DaratScreen() {
         </section>
       )}
 
+      {failedCircleIds.length > 0 && circlesReady && (
+        <section className="flex flex-col gap-2 rounded-[1.75rem] border border-dashed border-error/40 bg-error-container/20 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[13px] font-semibold text-on-surface">
+              {m.darat.list.unavailableTitle} ({failedCircleIds.length})
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                const confirmText = (m.darat.list.unavailableRemoveAllConfirm as string)
+                  .replace('{count}', String(failedCircleIds.length));
+                if (!confirm(confirmText)) return;
+                for (const id of failedCircleIds) void removeUnavailable(id);
+              }}
+              className="shrink-0 rounded-full border border-error/40 px-3 py-1 text-[11px] font-semibold text-error transition-colors hover:bg-error-container/40"
+            >
+              {m.darat.list.unavailableRemoveAll}
+            </button>
+          </div>
+          {SHOW_RULES_CHECK && (rulesCheck.status === 'ok' ? (
+            <p className="rounded-xl bg-lime/30 px-3 py-2 text-[12px] font-semibold leading-relaxed text-on-surface">
+              {m.darat.list.rulesCheckOk}
+            </p>
+          ) : rulesCheck.status === 'denied' ? (
+            <p className="rounded-xl bg-error-container/40 px-3 py-2 text-[12px] font-semibold leading-relaxed text-on-surface">
+              {m.darat.list.rulesCheckDenied}
+            </p>
+          ) : rulesCheck.status === 'running' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckRunning}
+            </p>
+          ) : rulesCheck.status === 'createFailed' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckCreateFailed}
+            </p>
+          ) : rulesCheck.status === 'error' ? (
+            <p className="text-[12px] font-medium text-on-surface-variant">
+              {m.darat.list.rulesCheckError}
+            </p>
+          ) : (
+            <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+              {(m.darat.list.unavailableHint as string)
+                .replace('{id}', failedCircleIds[0])
+                .replace('{uid}', user?.uid ?? '')}
+            </p>
+          ))}
+          {SHOW_RULES_CHECK && (
+            <button
+              type="button"
+              onClick={() => void runRulesCheck()}
+              disabled={rulesCheck.status === 'running'}
+              className="self-start rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold text-on-surface transition-colors hover:bg-surface-container-high disabled:opacity-50"
+            >
+              {m.darat.list.rulesCheckRun}
+            </button>
+          )}
+          <ul className="flex flex-col gap-1.5">
+            {failedCircleIds.map((id) => (
+              <li key={id} className="flex items-center gap-2 text-[12px] font-medium text-on-surface-variant">
+                <AppIcon name="error" className="shrink-0 text-[16px] text-error" />
+                <span className="truncate font-mono" dir="ltr">{id}</span>
+                {projectId && (
+                  <a
+                    href={`https://console.firebase.google.com/project/${projectId}/firestore/data/circles/${id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+                    aria-label={`${m.darat.list.rulesCheckViewInConsole} ${id}`}
+                    title={m.darat.list.rulesCheckViewInConsole}
+                  >
+                    <AppIcon name="arrow_outward" strokeWidth={2} className="text-[14px]" />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm(m.darat.list.unavailableRemoveConfirm)) return;
+                    void removeUnavailable(id);
+                  }}
+                  className="ms-auto flex size-7 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container/40 hover:text-error"
+                  aria-label={`${m.common.remove} ${id}`}
+                  title={m.common.remove}
+                >
+                  <AppIcon name="close" strokeWidth={2.4} className="text-[14px]" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {createOpen && (
         <DaratCreateModal
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreate}
+          onViewCircle={openCreatedCircle}
         />
       )}
 
@@ -624,6 +1066,7 @@ export function DaratScreen() {
           onClose={() => setJoinOpen(false)}
           onJoined={(circleId) => {
             setJoinOpen(false);
+            setPendingDetailId(circleId);
             setView({ kind: 'detail', circleId });
           }}
           initialCode={joinInitialCode}

@@ -2,11 +2,13 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  daratPhonesMatch,
   DARAT_MAX_MEMBERS,
   DARAT_MIN_MEMBERS,
   PHONE_RE,
   daratAllRoundDates,
   daratBuildRounds,
+  daratCircleFromSnapshot,
   daratExpectedPot,
   daratFixedRecipient,
   daratNextRound,
@@ -25,6 +27,7 @@ import {
   validateDaratCreate,
   type DaratCircle,
 } from '../src/lib/darat';
+import { buildDaratCreateDefaults } from '../src/lib/darat-firestore';
 
 describe('darat: amounts & math', () => {
   it('round amounts to 2 decimals', () => {
@@ -549,5 +552,83 @@ describe('darat: roster resolution', () => {
     const roster = resolveDaratRoster({ organizerId: 'uid-org', memberOrder: ['uid-org'] }, { [organizer.uid]: organizer });
     assert.equal(roster.length, 1);
     assert.equal(roster[0].joined, true);
+  });
+});
+
+describe('darat: circle doc id integrity (create → read)', () => {
+  const createInput = {
+    name: 'Family savings',
+    contribution: 500,
+    frequency: 'monthly' as const,
+    rotation: 'random' as const,
+    startDate: '2099-01-01',
+    members: [{ displayName: 'M1', phone: '+212612345678' }],
+    sourcePlaceId: 'bank',
+    organizerId: 'uid-org',
+    organizerEmail: 'organizer@example.com',
+    organizerDisplayName: 'Organizer',
+    currency: 'MAD',
+  };
+
+  it('stamps the allocated circle id into the document body', () => {
+    // Regression: the create path used to persist `id: ''` inside the
+    // circle doc; every reader then saw `circle.id === ''`, the post-create
+    // detail navigation failed with "Circle not found", and clicking the
+    // card after a reload crashed with
+    // `Invalid document reference … but circles has 1`.
+    const { circle } = buildDaratCreateDefaults(createInput, 'circle_abc123');
+    assert.equal(circle.id, 'circle_abc123');
+  });
+
+  it('refuses to build a body without an allocated circle id', () => {
+    assert.throws(() => buildDaratCreateDefaults(createInput, ''));
+  });
+
+  it('organizer opt-out: memberOrder and rounds carry the invitees only', () => {
+    // The owner can run a circle without a seat in the rotation: no
+    // organizer entry in memberOrder, rounds over the invitees only.
+    const { circle, rounds } = buildDaratCreateDefaults(
+      { ...createInput, members: [
+        { displayName: 'M1', phone: '+212612345678' },
+        { displayName: 'M2', phone: '+212612345679' },
+      ], organizerParticipates: false },
+      'circle_optout',
+    );
+    assert.equal(circle.id, 'circle_optout');
+    assert.ok(!circle.memberOrder.includes('uid-org'));
+    assert.equal(circle.memberOrder.length, 2);
+    assert.equal(rounds.length, 2);
+  });
+
+  it('organizer opt-out with fewer than 2 invitees is refused', () => {
+    assert.throws(() =>
+      buildDaratCreateDefaults({ ...createInput, organizerParticipates: false }, 'circle_bad'));
+  });
+
+  it('the snapshot id wins over a stored (possibly empty) id field', () => {
+    // Circles created before the create-path fix still carry `id: ''`
+    // inside the document. Reads must merge snapshot data first and stamp
+    // the snapshot id last, or the stored field shadows the real id and
+    // `doc(db, 'circles', '')` throws "… but circles has 1".
+    const healed = daratCircleFromSnapshot('circle_real', { id: '', name: 'Legacy' });
+    assert.equal(healed.id, 'circle_real');
+    // A healthy doc keeps its path id even if the stored field disagreed.
+    const healthy = daratCircleFromSnapshot('circle_real', { id: 'circle_other', name: 'X' });
+    assert.equal(healthy.id, 'circle_real');
+  });
+});
+
+describe('daratPhonesMatch', () => {
+  it('matches local and international spellings of the same number', () => {
+    assert.equal(daratPhonesMatch('0617337910', '+212617337910'), true);
+    assert.equal(daratPhonesMatch('+212 617 337 910', '0617337910'), true);
+    assert.equal(daratPhonesMatch('212617337910', '617337910'), true);
+  });
+
+  it('rejects different numbers and too-short inputs', () => {
+    assert.equal(daratPhonesMatch('0617337910', '0664809073'), false);
+    assert.equal(daratPhonesMatch('0617337910', '+212664809073'), false);
+    assert.equal(daratPhonesMatch('123', '123'), false);
+    assert.equal(daratPhonesMatch('', '0617337910'), false);
   });
 });

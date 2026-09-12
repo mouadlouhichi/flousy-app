@@ -927,6 +927,8 @@
   "errors": {
     "generic": "Un problème est survenu. Veuillez réessayer.",
     "networkError": "Erreur réseau. Vérifiez votre connexion.",
+    "rulesDenied": "Le serveur a refusé la lecture de vos tontines. Dans la console Firebase (Firestore → Règles), les règles PUBLIÉES doivent contenir « darat read-rules v3 » — déployez firestore.rules depuis cette branche, puis rechargez.",
+    "circleOtherAccount": "Cette tontine ne liste pas votre compte comme membre. Êtes-vous connecté avec le compte qui l'a créée ou rejointe ?",
     "loadFailedTitle": "Impossible de charger vos tontines",
     "notFound": "Page introuvable",
     "notFoundTitle": "Tontine introuvable",
@@ -2605,7 +2607,19 @@
       "pot": "Cagnotte par tour : {amount}",
       "nextRound": "Prochain tour : {date}",
       "yourTurn": "C'est votre tour de recevoir la cagnotte",
-      "notYourTurn": "Prochain bénéficiaire : {name}"
+      "notYourTurn": "Prochain bénéficiaire : {name}",
+      "unavailableTitle": "Tontines que vous possédez ou avez rejointes, impossibles à ouvrir",
+      "unavailableHint": "Tranchez en 10 secondes dans la console — Firestore → données → ouvrez circles/{id} : si organizerId est VOTRE uid ({uid}), les règles publiées sont périmées — redéployez firestore.rules et gardez ces lignes. Si c'est un autre uid, ces tontines appartiennent à un autre compte — supprimez-les ci-dessous.",
+      "unavailableRemoveConfirm": "Retirer cette tontine de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId.",
+      "unavailableRemoveAll": "Tout retirer",
+      "unavailableRemoveAllConfirm": "Retirer les {count} tontines illisibles de votre liste ? Faites-le uniquement si la console Firebase montre UN AUTRE compte comme organizerId.",
+      "rulesCheckRun": "Lancer la vérification des règles",
+      "rulesCheckRunning": "Vérification des règles avec une tontine jetable…",
+      "rulesCheckOk": "Règles du serveur vérifiées : une tontine créée à l'instant s'est ouverte, puis a été supprimée. Les entrées ci-dessous viennent donc d'UN AUTRE compte ou de données supprimées — les retirer de cette liste est sans danger.",
+      "rulesCheckDenied": "Les règles publiées ne sont pas les dernières : une tontine créée à l'instant a été refusée aussi. Recollez firestore.rules depuis la branche (le texte publié doit commencer par « darat read-rules v3 »), puis rechargez.",
+      "rulesCheckError": "La vérification n’a pas pu s’exécuter (réseau). Réessayez.",
+      "rulesCheckCreateFailed": "La vérification n'a pas pu créer sa tontine sonde.",
+      "rulesCheckViewInConsole": "Ouvrir dans la console Firebase"
     },
     "create": {
       "title": "Créer une tontine Darat",
@@ -2620,6 +2634,8 @@
       "frequencyMonthly": "Chaque mois",
       "members": "Inviter des membres",
       "membersHint": "Chaque personne reçoit un code unique partageable par lien. Faites glisser la poignée pour définir l'ordre.",
+      "participate": "Je participe aux tours",
+      "participateHint": "Décochez pour organiser sans participer — vous gardez le contrôle total et la tontine reste dans votre liste.",
       "membersEmptyHint": "Ajoutez au moins une personne avec son nom et son numéro de téléphone.",
       "membersNeedName": "Chaque membre a besoin d'un nom et d'un numéro de téléphone.",
       "memberPhoneLabel": "Numéro de téléphone",
@@ -2627,7 +2643,7 @@
       "inviteConsentTitle": "Avant d'inviter",
       "inviteConsent": "Je confirme que les personnes que j'invite sont au courant du cercle et m'ont donné leur numéro de téléphone à partager avec SmartJib pour l'envoi de l'invitation.",
       "dragHandle": "Glisser pour réorganiser",
-      "startHint": "Vous pourrez modifier la fréquence, la rotation et la date de départ à l'étape suivante.",
+      "startHint": "Vous pouvez changer la fréquence, la rotation et l’ordre de paiement sur l’écran suivant.",
       "addMember": "Ajouter un membre",
       "memberNamePlaceholder": "Nom",
       "rotation": "Ordre de rotation",
@@ -2648,6 +2664,7 @@
       "shareLinksTitle": "Partager les liens d'invitation",
       "shareLinksHint": "Chaque lien est unique. Envoyez-le à une seule personne — le lien l'amène directement sur la page d'adhésion avec son code prérempli.",
       "copyLink": "Copier le lien",
+      "whatsappButton": "WhatsApp",
       "copied": "Copié !",
       "codeLabel": "Code",
       "errors": {
@@ -2660,8 +2677,10 @@
         "noOrganizer": "Vous devez être connecté pour organiser une Darat.",
         "duplicatePhones": "Deux membres ont le même numéro — chacun doit avoir un numéro unique.",
         "phoneFormat": "Saisissez un numéro de téléphone valide (au moins 8 chiffres).",
-        "forbidden": "SmartJib a refusé cette écriture — actualisez et réessayez. Si cela persiste, déconnectez-vous et reconnectez-vous."
-      }
+        "forbidden": "SmartJib a refusé cette écriture — actualisez et réessayez. Si cela persiste, déconnectez-vous et reconnectez-vous.",
+        "minInviteesNoOrganizer": "Organiser sans participer nécessite au moins 2 membres invités."
+      },
+      "whatsappInvite": "Salut {name} ! 👋 Tu es invité(e) à notre tontine « {circle} » sur SmartJib. Contribution : {amount} par tour — premier tour le {date}. Rejoins avec ce lien : {link} (ou tape le code {code} dans l’app)."
     },
     "detail": {
       "title": "{name}",
@@ -2706,7 +2725,15 @@
       "closeConfirm": "Clôturer cette tontine ? Une fois clôturée, plus aucun tour ne se déroule.",
       "inviteCode": "Code d'invitation",
       "inviteCodeHint": "Partagez ce code ou le lien avec une personne de confiance — elle peut rejoindre depuis la page Darat.",
-      "invitedPhone": "Invité · {phone}"
+      "invitedPhone": "Invité · {phone}",
+      "organizerOnly": "Propriétaire — ne participe pas",
+      "progressHint": "Compte les tours dont la date est passée. Suivant : tour {n} · {date}",
+      "inviteCreate": "Créer un code d’invitation",
+      "inviteName": "Nom du membre",
+      "inviteNamePlaceholder": "ex. Youssef",
+      "inviteRevokeConfirm": "Révoquer ce code d’invitation ? Le membre ne pourra plus l’utiliser pour rejoindre.",
+      "invitesTitle": "Invitations en attente",
+      "inviteInvalid": "Nom et numéro de téléphone valides requis."
     },
     "join": {
       "title": "Rejoindre une tontine Darat",
@@ -2726,7 +2753,8 @@
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "saved": "Tontine mise à jour.",
-      "error": "Impossible d'enregistrer vos modifications. Veuillez réessayer."
+      "error": "Impossible d'enregistrer vos modifications. Veuillez réessayer.",
+      "paymentOrder": "Ordre de paiement — glissez pour définir qui reçoit quand"
     },
     "monthlyHook": {
       "widgetTitle": "Vos tontines Darat",

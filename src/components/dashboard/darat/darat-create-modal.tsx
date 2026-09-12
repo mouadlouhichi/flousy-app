@@ -1,15 +1,18 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { ChoiceChips, type ChoiceChipOption } from '@/components/ui/choice-chips';
 import { AmountSymbol } from '@/components/ui/amount-symbol';
 import { useLanguage } from '@/lib/i18n-context';
 import { useCurrency } from '@/lib/currency-context';
+import { useAuth } from '@/lib/auth-context';
 import { DARAT_MAX_MEMBERS, DARAT_MIN_MEMBERS } from '@/lib/darat-firestore';
-import { isLooseDaratPhone } from '@/lib/darat';
+import { isLooseDaratPhone, type DaratRotation } from '@/lib/darat';
+import { formatCurrency } from '@/lib/currency';
 import { parseAmountInput } from '@/lib/parse-amount';
+import { formatYmd } from './darat-ui';
 import type { InviteSummary } from './darat-screen';
 
 interface MemberDraft {
@@ -28,6 +31,11 @@ interface CreatedInvite {
 interface Props {
   onClose: () => void;
   /**
+   * "Open circle" from the post-create summary: closes the modal and
+   * navigates to the fresh circle's detail view.
+   */
+  onViewCircle?: (circleId: string) => void;
+  /**
    * Called with the form payload. The handler is responsible for
    * writing the circle in a transaction; on success it returns the
    * generated invite summaries (UUID + phone) so the modal can
@@ -37,6 +45,14 @@ interface Props {
     name: string;
     contribution: number;
     members: MemberDraft[];
+    /** Owner participates in the rotation (default true). */
+    organizerParticipates: boolean;
+    /** First round date (YYYY-MM-DD). */
+    startDate: string;
+    /** Rotation chosen at create time: random or agreed (fixed) order. */
+    rotation: DaratRotation;
+    /** For agreed order: memberOrder ids in payout position order. */
+    fixedOrder: string[] | null;
   }) => Promise<{
     ok: boolean;
     circleId?: string;
@@ -78,16 +94,38 @@ const newMemberKey = (): string => `m_${Date.now()}_${++nextMemberKey}`;
  * error message below the field, and a primary submit button that
  * fills the width of the actions bar.
  */
-export function DaratCreateModal({ onClose, onSubmit }: Props) {
-  const { messages: m } = useLanguage();
+export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
+  const { messages: m, intlLocale } = useLanguage();
   const { symbol, currency } = useCurrency();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [members, setMembers] = useState<MemberDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [agreedToInvite, setAgreedToInvite] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
+  // Owner participation: when unchecked the organizer runs the circle
+  // without a seat in the rotation (no member row, no rounds for them).
+  // They keep owner rights and the circle stays in "my circles".
+  const [organizerParticipates, setOrganizerParticipates] = useState(true);
+  // First round date — defaults to a week out, same default the create
+  // handler used before this field existed on the form.
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  // Rotation picked at create time. Bidding is intentionally not offered
+  // here — a draw or an agreed order is decided on day one; an auction can
+  // be switched to later from the edit screen.
+  const [rotation, setRotation] = useState<DaratRotation>('random');
+  // Agreed-order payout sequence (memberOrder ids: the organizer uid first
+  // when participating, then the invitee phones), kept in sync with the
+  // members list below and draggable when the rotation is 'fixed'.
+  const [order, setOrder] = useState<string[]>([]);
+  const [orderDragKey, setOrderDragKey] = useState<string | null>(null);
+  const [orderDragOverKey, setOrderDragOverKey] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string; startDate?: string }>({});
   // The post-create summary, shown after the transaction commits.
   // When this is non-null the form is replaced by the share-links panel.
   const [created, setCreated] = useState<{ circleId: string; invites: CreatedInvite[] } | null>(null);
@@ -157,6 +195,66 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
   // Inputs do not initiate a drag on the card.
   const stopDrag: React.DragEventHandler = (e) => e.preventDefault();
 
+  // Keep the agreed-order list aligned with the members list: dropping the
+  // participation checkbox or removing/adding invitees updates the order
+  // (existing positions preserved, new seats appended at the end).
+  useEffect(() => {
+    const validIds = [
+      ...(organizerParticipates && user?.uid ? [user.uid] : []),
+      ...members.map((mem) => mem.phone.trim()),
+    ].filter((id) => id.length > 0);
+    setOrder((prev) => {
+      const kept = prev.filter((id) => validIds.includes(id));
+      for (const id of validIds) {
+        if (!kept.includes(id)) kept.push(id);
+      }
+      return kept;
+    });
+  }, [members, organizerParticipates, user?.uid]);
+
+  const moveOrderEntry = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromId);
+      const toIdx = prev.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+  const onOrderDragStart = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    setOrderDragKey(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const onOrderDragOver = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== orderDragOverKey) setOrderDragOverKey(id);
+  };
+  const onOrderDrop = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('text/plain') || orderDragKey;
+    if (fromId) moveOrderEntry(fromId, id);
+    setOrderDragKey(null);
+    setOrderDragOverKey(null);
+  };
+  const onOrderDragEnd = () => {
+    setOrderDragKey(null);
+    setOrderDragOverKey(null);
+  };
+  // Label per agreed-order id: the organizer's account name, or the name
+  // typed on the invitee row (phone as fallback).
+  const orderLabel = (id: string): string => {
+    if (user?.uid && id === user.uid) {
+      return user.displayName?.trim() || user.email || 'Organizer';
+    }
+    const row = members.find((mem) => mem.phone.trim() === id);
+    return row?.displayName.trim() || id;
+  };
+
   // Per-row validation: classify each member row so the form can show the
   // exact issue next to the field that caused it. The "duplicate" check
   // uses the same lowercased (trimmed) comparison the server's
@@ -199,7 +297,7 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     seenPhones.set(normalized, m.key);
   }
   const hasRowErrors = rowErrors.size > 0;
-  const totalMembers = members.length + 1; // +1 for the organizer
+  const totalMembers = (organizerParticipates ? 1 : 0) + members.length;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +305,23 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     const next: typeof fieldErrors = {};
     if (!name.trim()) next.name = (m.darat.create.errors as Record<string, string>).nameRequired ?? m.errors.generic;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) next.amount = (m.darat.create.errors as Record<string, string>).amountInvalid ?? m.errors.generic;
-    if (totalMembers < DARAT_MIN_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    {
+      // Same rule the server applies (validateDaratCreate): YYYY-MM-DD,
+      // not before today. The date input enforces the format; the floor
+      // check gives the user a localized inline error instead of a
+      // server bounce.
+      const today = new Date().toISOString().slice(0, 10);
+      if (!startDate || startDate < today) {
+        next.startDate = (m.darat.create.errors as Record<string, string>).startDateInvalid ?? m.errors.generic;
+      }
+    }
+    if (totalMembers < DARAT_MIN_MEMBERS) {
+      // An owner who does not participate needs the invitees alone to
+      // carry the rotation — one invitee is not a rotation.
+      next.members = !organizerParticipates
+        ? (m.darat.create.errors as Record<string, string>).minInviteesNoOrganizer ?? m.errors.generic
+        : (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    }
     if (totalMembers > DARAT_MAX_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooMany ?? m.errors.generic;
     if (hasRowErrors) next.members = (m.darat.create.errors as Record<string, string>).duplicatePhones ?? m.errors.generic;
     if (Object.keys(next).length > 0) {
@@ -225,6 +339,10 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
         name: name.trim(),
         contribution: numericAmount,
         members: invitees,
+        organizerParticipates,
+        startDate,
+        rotation,
+        fixedOrder: rotation === 'fixed' ? order : null,
       });
       if (!res.ok) {
         setError(res.error ?? 'genericError');
@@ -258,6 +376,28 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
   const buildShareLink = (inviteId: string): string => {
     if (typeof window === 'undefined') return `/dashboard/darat?join=${inviteId}`;
     return `${window.location.origin}/dashboard/darat?join=${inviteId}`;
+  };
+
+  // The automated WhatsApp invite: a ready-to-send message (name, circle,
+  // amount, first round date, one-tap link + code) opened in wa.me with the
+  // invitee's number when we have one, or the contact picker otherwise.
+  // Nothing is sent automatically — the organizer sees the message in
+  // WhatsApp and presses send, which keeps the consent promise of the
+  // invite checkbox.
+  const buildWhatsappMessage = (invite: CreatedInvite): string => {
+    return (m.darat.create.whatsappInvite as string)
+      .replace('{name}', invite.displayName)
+      .replace('{circle}', name.trim() || m.darat.title)
+      .replace('{amount}', formatCurrency(numericAmount, currency, intlLocale))
+      .replace('{date}', formatYmd(startDate, intlLocale, { day: 'numeric', month: 'short' }))
+      .replace('{link}', buildShareLink(invite.id))
+      .replace('{code}', invite.id);
+  };
+  const openWhatsappInvite = (invite: CreatedInvite) => {
+    const digits = invite.phone.replace(/\D/g, '');
+    const target = digits.length >= 8 ? `https://wa.me/${digits}` : 'https://wa.me/';
+    const url = `${target}?text=${encodeURIComponent(buildWhatsappMessage(invite))}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const copyInviteLink = async (inviteId: string) => {
@@ -325,15 +465,27 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
                           {invite.phone}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => copyInviteLink(invite.id)}
-                        className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
-                        aria-label={`${m.darat.create.copyLink} ${invite.displayName}`}
-                      >
-                        <AppIcon name={justCopied ? 'check' : 'copy'} className="text-[14px]" />
-                        {justCopied ? m.darat.create.copied : m.darat.create.copyLink}
-                      </button>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openWhatsappInvite(invite)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-105 active:scale-[0.97]"
+                          aria-label={`${m.darat.create.whatsappButton} ${invite.displayName}`}
+                          title={m.darat.create.whatsappButton}
+                        >
+                          <AppIcon name="send" className="text-[14px]" />
+                          {m.darat.create.whatsappButton}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyInviteLink(invite.id)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+                          aria-label={`${m.darat.create.copyLink} ${invite.displayName}`}
+                        >
+                          <AppIcon name={justCopied ? 'check' : 'copy'} className="text-[14px]" />
+                          {justCopied ? m.darat.create.copied : m.darat.create.copyLink}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
                       <span className="font-extrabold uppercase tracking-wider">
@@ -360,9 +512,16 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+              className="flex-1 bg-surface-variant/60 text-on-surface font-bold text-[15px] py-3 rounded-xl hover:bg-surface-variant transition-all active:scale-[0.98]"
             >
               {m.common.done}
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewCircle?.(created.circleId)}
+              className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            >
+              {m.darat.list.openCircle}
             </button>
           </div>
         </div>
@@ -436,6 +595,104 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
           ) : (
             <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.amountHint}</p>
           )}
+        </div>
+
+        {/* ── First round date ── */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="darat-create-start-date"
+            className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            {m.darat.create.startDate}
+          </label>
+          <div
+            className={`flex items-center gap-2 w-full h-12 ps-4 pe-2 bg-surface-container-lowest border rounded-xl transition-all duration-200 hover:border-outline hover:bg-surface-container-low focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 ${
+              fieldErrors.startDate ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
+            }`}
+          >
+            <AppIcon name="calendar_clock" className="text-[20px] text-on-surface-variant" />
+            <input
+              id="darat-create-start-date"
+              type="date"
+              value={startDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
+              }}
+              className="flex-1 min-w-0 bg-transparent border-none p-0 font-body-md text-base md:text-body-md text-on-surface placeholder:text-on-surface-variant/50 focus:ring-0 focus:outline-none"
+            />
+          </div>
+          {fieldErrors.startDate ? (
+            <p role="alert" className="text-[12px] font-medium text-error mt-1">{fieldErrors.startDate}</p>
+          ) : (
+            <p className="text-[12px] font-medium text-on-surface-variant mt-1">{m.darat.create.startDateHint}</p>
+          )}
+        </div>
+
+        {/* ── Rotation order ── */}
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="darat-create-rotation"
+            className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase"
+          >
+            {m.darat.create.rotation}
+          </label>
+          <ChoiceChips
+            options={[
+              { value: 'random', label: m.darat.create.rotationRandom, icon: 'dices' },
+              { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list_ordered' },
+            ]}
+            value={rotation}
+            onChange={(v) => setRotation(v as DaratRotation)}
+          />
+          {rotation === 'fixed' && (
+            <ol className="mt-1 flex flex-col gap-1.5">
+              {order.map((id, idx) => (
+                <li
+                  key={id}
+                  draggable
+                  onDragStart={onOrderDragStart(id)}
+                  onDragOver={onOrderDragOver(id)}
+                  onDrop={onOrderDrop(id)}
+                  onDragEnd={onOrderDragEnd}
+                  className={`flex items-center gap-3 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-all ${
+                    orderDragOverKey === id
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-outline-variant'
+                  } ${orderDragKey === id ? 'opacity-50' : ''}`}
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-forest text-[11px] font-semibold text-lime">
+                    {idx + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
+                    {orderLabel(id)}
+                  </span>
+                  <span aria-hidden="true" className="shrink-0 cursor-grab text-on-surface-variant active:cursor-grabbing">
+                    <AppIcon name="drag_indicator" className="text-[20px]" />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        {/* ── Owner participation ── */}
+        <div className="flex flex-col gap-1 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={organizerParticipates}
+              onChange={(e) => setOrganizerParticipates(e.target.checked)}
+              className="size-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span className="text-[14px] font-semibold text-on-surface">
+              {m.darat.create.participate}
+            </span>
+          </label>
+          <p className="ps-7 text-[12px] font-medium text-on-surface-variant">
+            {m.darat.create.participateHint}
+          </p>
         </div>
 
         {/* ── Members list with drag-to-reorder ── */}

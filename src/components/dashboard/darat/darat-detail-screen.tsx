@@ -6,6 +6,7 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
+  runTransaction,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -16,7 +17,7 @@ import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatMessage } from '@/lib/i18n-core';
-import { normalizeDaratCircle, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { daratCircleFromSnapshot, daratPhonesMatch, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
 import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
@@ -65,13 +66,19 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editStatus, setEditStatus] = useState<{ kind: 'saved' | 'error' } | null>(null);
+  // Pending invite codes (organizer view). Live from the in-circle invites
+  // collection; the join gate reads the mirrored top-level row, but this
+  // list is what the organizer shares from.
+  const [pendingInvites, setPendingInvites] = useState<{ id: string; phone: string; displayName?: string }[]>([]);
 
   // Live updates: the shared circle document, plus the member roster.
   useEffect(() => {
     if (!db) return;
     const unsubCircle = onSnapshot(doc(db, 'circles', circle.id), (snap) => {
       if (snap.exists()) {
-        setCircle(normalizeDaratCircle({ id: snap.id, ...(snap.data() as Record<string, unknown>) }));
+        // Snapshot data first, doc id last: the stored `id` field (older
+        // creates wrote `''`) must never shadow the real document id.
+        setCircle(daratCircleFromSnapshot(snap.id, snap.data() as Record<string, unknown>));
       }
     });
     const unsubMembers = onSnapshot(collection(db, 'circles', circle.id, 'members'), (snap) => {
@@ -82,7 +89,19 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
       });
       setMembers(next);
     });
-    return () => { unsubCircle(); unsubMembers(); };
+    const unsubInvites = onSnapshot(collection(db, 'circles', circle.id, 'invites'), (snap) => {
+      const pending: { id: string; phone: string; displayName?: string }[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() as { status?: string; phone?: string; displayName?: string };
+        if (data.status === 'pending') {
+          pending.push({ id: docSnap.id, phone: data.phone ?? '', displayName: data.displayName });
+        }
+      });
+      setPendingInvites(pending);
+    }, (err) => {
+      console.warn('[darat] invites snapshot failed', err);
+    });
+    return () => { unsubCircle(); unsubMembers(); unsubInvites(); };
   }, [db, circle.id]);
 
   const isOrganizer = user?.uid === circle.organizerId;
@@ -227,9 +246,64 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
     return res;
   }, [circle.id, onEdit]);
 
+  // Create a new invite code any time (organizer): an in-circle row plus
+  // the top-level mirror the join flow looks up, sharing an id (the code).
+  const createInvite = useCallback(async (displayName: string, phone: string): Promise<string | null> => {
+    if (!user || !db) return null;
+    try {
+      const inviteRef = doc(collection(db, 'circles', circle.id, 'invites'));
+      const fields = {
+        circleId: circle.id,
+        displayName: displayName.trim(),
+        phone: phone.trim(),
+        invitedByUid: user.uid,
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        acceptedAt: null,
+        status: 'pending',
+      };
+      await runTransaction(db, async (tx) => {
+        tx.set(inviteRef, fields);
+        tx.set(doc(db, 'daratInvites', inviteRef.id), fields);
+      });
+      console.info(`[darat] invite created ${inviteRef.id} for circle ${circle.id}`);
+      return inviteRef.id;
+    } catch (err) {
+      console.error('[darat] invite creation failed', err);
+      return null;
+    }
+  }, [circle.id, db, user]);
+
+  // Revoke = delete the in-circle row. The top-level mirror is delete-only
+  // by rule (audit trail), but a join needs BOTH rows: with the in-circle
+  // row gone the join transaction fails on the missing update, so the code
+  // is effectively dead.
+  const revokeInvite = useCallback(async (inviteId: string) => {
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, 'circles', circle.id, 'invites', inviteId));
+    } catch (err) {
+      console.warn('[darat] invite revoke failed', err);
+    }
+  }, [circle.id, db]);
+
   const errorMessage = actionError
     ? ((m.darat.detail as unknown) as Record<string, string>)[actionError] ?? m.errors.generic
     : null;
+
+  // Display labels for the edit modal's agreed-order list: the live roster
+  // name when the member joined, the "Invited · phone" wording for pending
+  // placeholders, the uid tail otherwise.
+  const memberLabels: Record<string, string> = {};
+  for (const id of circle.memberOrder) {
+    const row = members[id];
+    if (row?.displayName) {
+      memberLabels[id] = row.displayName;
+    } else if (/\d/.test(id)) {
+      memberLabels[id] = formatMessage(m.darat.detail.invitedPhone, { phone: id }, intlLocale);
+    } else {
+      memberLabels[id] = formatMemberId(id, language);
+    }
+  }
 
   return (
     <>
@@ -243,6 +317,9 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         editStatus={editStatus}
         errorMessage={errorMessage}
         actionInProgress={actionInProgress}
+        pendingInvites={pendingInvites}
+        onInvite={createInvite}
+        onRevokeInvite={revokeInvite}
         onBack={onBack}
         onEdit={() => setEditOpen(true)}
         onTogglePayment={recordPayment}
@@ -252,6 +329,7 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
       {editOpen && (
         <DaratEditModal
           circle={circle}
+          memberLabels={memberLabels}
           onClose={() => setEditOpen(false)}
           onSubmit={handleEdit}
         />
@@ -271,6 +349,11 @@ export interface DaratDetailViewProps {
   editStatus: { kind: 'saved' | 'error' } | null;
   errorMessage: string | null;
   actionInProgress: string | null;
+  /** Pending invite codes — the organizer can share (and revoke) any time. */
+  pendingInvites: { id: string; phone: string; displayName?: string }[];
+  /** Creates an invite (name + phone) and returns the new code, or null. */
+  onInvite: (displayName: string, phone: string) => Promise<string | null>;
+  onRevokeInvite: (inviteId: string) => void;
   onBack: () => void;
   onEdit: () => void;
   onTogglePayment: (roundNumber: number, paid: boolean) => void;
@@ -293,6 +376,9 @@ export function DaratDetailView({
   editStatus,
   errorMessage,
   actionInProgress,
+  pendingInvites,
+  onInvite,
+  onRevokeInvite,
   onBack,
   onEdit,
   onTogglePayment,
@@ -308,6 +394,21 @@ export function DaratDetailView({
   // The roster pairs create-time phone placeholders with accepted member rows
   // so names (not uid/phone tails) are what the circle shows.
   const roster = resolveDaratRoster(circle, members);
+  // Round recipients are keyed by memberOrder ids: a uid once the member
+  // accepted, their PHONE placeholder before that. Resolve through the
+  // roster (which pairs the placeholder with the invited entry) so a round
+  // shows "Invited · +212 …" instead of an opaque "…337910" tail, and the
+  // member's real name as soon as they join.
+  const recipientLabel = (uid: string | null): string => {
+    if (!uid) return m.darat.detail.noRecipient;
+    const entry = roster.find((e) => e.id === uid);
+    if (entry) {
+      return entry.joined
+        ? (entry.displayName || memberName(uid))
+        : formatMessage(m.darat.detail.invitedPhone, { phone: entry.phone }, intlLocale);
+    }
+    return memberName(uid);
+  };
   const frequencyLabel =
     circle.frequency === 'weekly'
       ? m.darat.create.frequencyWeekly
@@ -320,6 +421,103 @@ export function DaratDetailView({
       : circle.rotation === 'fixed'
         ? m.darat.create.rotationFixed
         : m.darat.create.rotationBidding;
+
+  // ── Invite-any-time UI state (organizer only) ──
+  const [inviteFormOpen, setInviteFormOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [invitePhone, setInvitePhone] = useState('');
+  const [inviteError, setInviteError] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [rowInviteBusy, setRowInviteBusy] = useState<string | null>(null);
+
+  const shareLink = (code: string): string =>
+    typeof window === 'undefined'
+      ? `/dashboard/darat?join=${code}`
+      : `${window.location.origin}/dashboard/darat?join=${code}`;
+
+  const copyInvite = async (code: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink(code));
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = shareLink(code);
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedInviteId(code);
+      setTimeout(() => setCopiedInviteId(null), 2000);
+    } catch (err) {
+      console.warn('[darat] invite link copy failed', err);
+    }
+  };
+
+  const whatsappMessage = (code: string, name: string, phone: string): string =>
+    (m.darat.create.whatsappInvite as string)
+      .replace('{name}', name || phone)
+      .replace('{circle}', circle.name)
+      .replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))
+      .replace('{date}', formatYmd(circle.startDate, intlLocale, { day: 'numeric', month: 'short' }))
+      .replace('{link}', shareLink(code))
+      .replace('{code}', code);
+
+  const openWhatsapp = (code: string, name: string, phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    const target = digits.length >= 8 ? `https://wa.me/${digits}` : 'https://wa.me/';
+    window.open(
+      `${target}?text=${encodeURIComponent(whatsappMessage(code, name, phone))}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  const whatsappInvite = (invite: { id: string; phone: string; displayName?: string }) => {
+    openWhatsapp(invite.id, invite.displayName || invite.phone, invite.phone);
+  };
+
+  // Re-invite straight from a "still not joined" roster row: reuse the
+  // pending invite for that phone when one exists, otherwise mint a fresh
+  // code on the spot — then open WhatsApp with the prefilled message.
+  const invitePendingMember = async (phone: string, displayName?: string) => {
+    const existing = pendingInvites.find((inv) => daratPhonesMatch(inv.phone, phone));
+    if (existing) {
+      whatsappInvite(existing);
+      return;
+    }
+    setRowInviteBusy(phone);
+    try {
+      const code = await onInvite(displayName || phone, phone);
+      if (!code) return;
+      openWhatsapp(code, displayName || phone, phone);
+    } finally {
+      setRowInviteBusy(null);
+    }
+  };
+
+  const submitInvite = async () => {
+    const name = inviteName.trim();
+    const phone = invitePhone.trim();
+    if (!name || phone.replace(/\D/g, '').length < 8) {
+      setInviteError(true);
+      return;
+    }
+    setInviteBusy(true);
+    const code = await onInvite(name, phone);
+    setInviteBusy(false);
+    if (code) {
+      setInviteName('');
+      setInvitePhone('');
+      setInviteError(false);
+      setInviteFormOpen(false);
+    } else {
+      setInviteError(true);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5 pb-24">
@@ -383,14 +581,29 @@ export function DaratDetailView({
               <p className="mt-2 text-[13px] font-medium text-white/60">
                 {m.darat.detail.yourContribution.replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))}
               </p>
+              {!closed && progress.next && (
+                <p className="mt-1 text-[12px] font-medium text-white/50">
+                  {m.darat.detail.progressHint
+                    .replace('{n}', String(progress.next.number))
+                    .replace('{date}', formatYmd(progress.next.date, intlLocale, { day: 'numeric', month: 'short' }))}
+                </p>
+              )}
             </div>
-            <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-3 py-2.5 text-center backdrop-blur">
+            <div
+              className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-3 py-2.5 text-center backdrop-blur"
+              title={`${progress.done}/${progress.total}`}
+            >
               <span className="text-[22px] font-semibold leading-none tabular text-lime">{progress.done}<span className="text-[13px] text-white/60">/{progress.total}</span></span>
               <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/60">{m.darat.detail.rounds}</span>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {isOrganizer && !circle.memberOrder.includes(currentUid ?? '') && (
+              <span className="rounded-full bg-lime px-3 py-1 text-[12px] font-semibold text-forest-deep">
+                {m.darat.detail.organizerOnly}
+              </span>
+            )}
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{frequencyLabel}</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{rotationLabel}</span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">
@@ -472,11 +685,146 @@ export function DaratDetailView({
                     {m.darat.detail.status.pending}
                   </span>
                 )}
+                {!entry.joined && isOrganizer && !closed && (
+                  <button
+                    type="button"
+                    onClick={() => void invitePendingMember(entry.phone, entry.displayName)}
+                    disabled={rowInviteBusy === entry.phone}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-[11px] font-bold text-white transition-all hover:brightness-105 active:scale-[0.97] disabled:opacity-50"
+                    title={m.darat.create.whatsappButton}
+                  >
+                    <AppIcon name="send" className="text-[13px]" />
+                    {m.darat.create.whatsappButton}
+                  </button>
+                )}
               </li>
             );
           })}
         </ul>
       </section>
+
+      {/* ── Invites (organizer, active circle) — invite any time ── */}
+      {isOrganizer && !closed && (
+        <section className="flex flex-col gap-3 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
+                <AppIcon name="group_add" strokeWidth={2.2} className="text-[15px]" />
+              </span>
+              <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">
+                {m.darat.detail.invite}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setInviteFormOpen((v) => !v)}
+              className="shrink-0 rounded-full bg-primary px-3.5 py-2 text-[12px] font-semibold text-on-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all hover:bg-primary-hover active:scale-[0.98]"
+            >
+              {m.darat.detail.inviteCreate}
+            </button>
+          </div>
+
+          {inviteFormOpen && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={inviteName}
+                  onChange={(e) => { setInviteName(e.target.value); setInviteError(false); }}
+                  placeholder={m.darat.detail.inviteNamePlaceholder}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 text-[14px] font-medium text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={invitePhone}
+                  onChange={(e) => { setInvitePhone(e.target.value); setInviteError(false); }}
+                  placeholder="+212 6 12 34 56 78"
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 text-[14px] font-medium text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => void submitInvite()}
+                  disabled={inviteBusy}
+                  className="h-11 shrink-0 rounded-xl bg-primary px-4 text-[13px] font-bold text-on-primary transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
+                >
+                  {m.darat.detail.inviteCreate}
+                </button>
+              </div>
+              {inviteError ? (
+                <p role="alert" className="text-[12px] font-medium text-error">{m.darat.detail.inviteInvalid}</p>
+              ) : (
+                <p className="text-[12px] font-medium text-on-surface-variant">{m.darat.detail.inviteCodeHint}</p>
+              )}
+            </div>
+          )}
+
+          {pendingInvites.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
+                {m.darat.detail.invitesTitle} ({pendingInvites.length})
+              </h3>
+              <ul className="flex flex-col gap-2">
+                {pendingInvites.map((invite) => (
+                  <li key={invite.id} className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-bold text-on-surface">
+                          {invite.displayName || invite.phone}
+                        </span>
+                        <span className="truncate text-xs text-on-surface-variant" dir="ltr">{invite.phone}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => whatsappInvite(invite)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-105 active:scale-[0.97]"
+                          title={m.darat.create.whatsappButton}
+                        >
+                          <AppIcon name="send" className="text-[14px]" />
+                          {m.darat.create.whatsappButton}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void copyInvite(invite.id)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+                        >
+                          <AppIcon name={copiedInviteId === invite.id ? 'check' : 'copy'} className="text-[14px]" />
+                          {copiedInviteId === invite.id ? m.darat.create.copied : m.darat.create.copyLink}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!confirm(m.darat.detail.inviteRevokeConfirm)) return;
+                            void onRevokeInvite(invite.id);
+                          }}
+                          className="flex size-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container/40 hover:text-error"
+                          aria-label={m.common.remove}
+                          title={m.common.remove}
+                        >
+                          <AppIcon name="close" strokeWidth={2.4} className="text-[15px]" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
+                      <span className="font-extrabold uppercase tracking-wider">{m.darat.detail.inviteCode}:</span>
+                      <code className="select-all break-all rounded-md bg-surface-container px-2 py-0.5 font-mono text-[11px] text-on-surface">{invite.id}</code>
+                      <a
+                        href={shareLink(invite.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="select-all break-all text-primary underline-offset-2 hover:underline"
+                      >
+                        {shareLink(invite.id)}
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── Rounds timeline ── */}
       <section className="flex flex-col gap-4 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
@@ -496,7 +844,7 @@ export function DaratDetailView({
             const isPast = round.date < today;
             const isCurrent = !closed && progress.next?.number === round.number;
             const isMine = round.recipientId != null && round.recipientId === currentUid;
-            const recipientName = round.recipientId ? memberName(round.recipientId) : m.darat.detail.noRecipient;
+            const recipientName = recipientLabel(round.recipientId);
             const canToggle = Boolean(currentUid && isMember && round.payments[currentUid] !== undefined);
             return (
               <li

@@ -556,6 +556,27 @@ export function normalizeDaratCircle(raw: Partial<DaratCircle> & { id: string })
   };
 }
 
+/**
+ * Merge a raw Firestore circle snapshot into a normalized `DaratCircle`.
+ *
+ * The snapshot id (the real document path id) ALWAYS wins over any `id`
+ * field stored inside the document. Call sites must merge snapshot data
+ * first and stamp `id` last — the inverse order lets a stale/empty stored
+ * `id` (e.g. the `id: ''` older create builds wrote before stamping) shadow
+ * the real id, which later explodes as
+ * `Invalid document reference … but circles has 1` the moment the detail
+ * view calls `doc(db, 'circles', circle.id)` with an empty id.
+ *
+ * This helper is the single read path for circles so that invariant lives
+ * in exactly one place (and one test).
+ */
+export function daratCircleFromSnapshot(
+  id: string,
+  raw: Record<string, unknown>,
+): DaratCircle {
+  return normalizeDaratCircle({ ...(raw as Partial<DaratCircle>), id });
+}
+
 export function normalizeDaratRound(raw: Partial<DaratRound>): DaratRound {
   // Same coercion pattern: number fields must be type-guard-checked
   // before Number.isFinite, otherwise strict mode treats the operand
@@ -626,6 +647,18 @@ export interface DaratRosterEntry {
 /** Digits-only phone used to match a create-time placeholder to a member row. */
 export function normalizeDaratPhone(phone: string): string {
   return phone.replace(/[^\d]/g, '');
+}
+
+/**
+ * Loose phone equality for pairing a roster placeholder with an invite row:
+ * both sides are digit-normalized, must carry at least 8 digits, and match
+ * when their last 9 digits agree (Morocco: `0617…` vs `+212617…`).
+ */
+export function daratPhonesMatch(a: string, b: string): boolean {
+  const da = normalizeDaratPhone(a);
+  const db = normalizeDaratPhone(b);
+  if (da.length < 8 || db.length < 8) return false;
+  return da.slice(-9) === db.slice(-9);
 }
 
 /**

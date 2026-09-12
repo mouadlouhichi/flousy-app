@@ -14,6 +14,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   query,
   runTransaction,
   setDoc,
@@ -1936,6 +1937,148 @@ describe('darat circle create transaction', () => {
       inviteId: 'inv-2',
       isOrganizer: true,
     }));
+  });
+});
+
+describe('darat circle reads (getAfter-free read rules)', () => {
+  const INVITEE_PHONE = '+212 6 12 34 56 78';
+  const SECOND_PHONE = '+1-555-123-4567';
+
+  // The read rules must check the COMMITTED state with `get`/`exists`. The
+  // first cut reused the write-side helpers (`getAfter`/`existsAfter`),
+  // which only see the post-batch state of a PENDING WRITE — evaluated in a
+  // get/list rule they error out and every read is denied with "Missing or
+  // insufficient permissions" even for the circle's own organizer. These
+  // tests pin the exact reads the app performs (detail view, roster,
+  // ledger, pointer-driven list).
+  const TODAY_MS = Date.now();
+  const startDate = new Date(TODAY_MS + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  function circleDoc(organizerId: string, memberOrder: string[]) {
+    return {
+      id: 'circle-1',
+      name: 'Family',
+      organizerId,
+      currency: 'MAD',
+      contribution: 100,
+      frequency: 'monthly',
+      rotation: 'random',
+      startDate,
+      fixedOrder: null,
+      randomSeed: 'abcde-1234',
+      memberOrder,
+      rounds: memberOrder.map((_, i) => ({
+        number: i + 1,
+        date: startDate,
+        recipientId: null,
+        pot: 100 * memberOrder.length,
+        discount: 0,
+        status: 'pending',
+        payments: Object.fromEntries(memberOrder.map((id) => [id, 'pending'])),
+      })),
+      status: 'active',
+      closedAt: null,
+      createdAt: TODAY_MS,
+      updatedAt: TODAY_MS,
+    };
+  }
+
+  function memberDoc(uid: string, isOrganizer: boolean) {
+    return {
+      uid,
+      displayName: isOrganizer ? 'Org' : 'Member',
+      email: `${uid}@example.com`,
+      phone: isOrganizer ? '' : '+212 6 12 34 56 78',
+      status: 'active',
+      isOrganizer,
+      joinedAt: new Date(TODAY_MS).toISOString(),
+      sourcePlaceId: 'bank',
+    };
+  }
+
+  async function seedCircle() {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'circles/circle-1'), circleDoc('org', ['org', 'invitee']));
+      await setDoc(doc(db, 'circles/circle-1/members/org'), memberDoc('org', true));
+      await setDoc(doc(db, 'circles/circle-1/members/invitee'), memberDoc('invitee', false));
+      await setDoc(doc(db, 'users/org/circles/circle-1'), {
+        uid: 'org', circleId: 'circle-1', joinedAt: new Date(TODAY_MS).toISOString(),
+      });
+      await setDoc(doc(db, 'users/invitee/circles/circle-1'), {
+        uid: 'invitee', circleId: 'circle-1', joinedAt: new Date(TODAY_MS).toISOString(),
+      });
+    });
+  }
+
+  it('lets the organizer read the circle, the roster, and the ledger', async () => {
+    // The exact reads the detail view performs when a card is clicked.
+    await seedCircle();
+    const db = asUser('org', { email: 'org@example.com' });
+    await assertSucceeds(getDoc(doc(db, 'circles/circle-1')));
+    await assertSucceeds(getDocs(collection(db, 'circles/circle-1/members')));
+    await assertSucceeds(getDocs(collection(db, 'circles/circle-1/ledger')));
+  });
+
+  it('lets an active member read the circle and the roster', async () => {
+    await seedCircle();
+    const db = asUser('invitee', { email: 'invitee@example.com' });
+    await assertSucceeds(getDoc(doc(db, 'circles/circle-1')));
+    await assertSucceeds(getDocs(collection(db, 'circles/circle-1/members')));
+  });
+
+  it('denies a signed-in stranger the circle and its roster', async () => {
+    await seedCircle();
+    const db = asUser('mallory', { email: 'mallory@example.com' });
+    await assertFails(getDoc(doc(db, 'circles/circle-1')));
+    await assertFails(getDocs(collection(db, 'circles/circle-1/members')));
+  });
+
+  it('lets an owner create a circle they do NOT participate in, and read it back', async () => {
+    // The participation toggle: the organizer runs the circle without a
+    // seat in the rotation. memberOrder carries the invitees only, no
+    // organizer member row exists, but the owner pointer is still written
+    // (that is what lists the circle under "my circles") and the owner
+    // reads the circle through the organizerId branch of the get rule.
+    const db = asUser('org', { email: 'org@example.com' });
+    const circleRef = doc(collection(db, 'circles'));
+    const now = Date.now();
+    const order = [INVITEE_PHONE, SECOND_PHONE];
+    await assertSucceeds(runTransaction(db, async (tx) => {
+      tx.set(circleRef, {
+        ...circleDoc('org', order),
+        id: circleRef.id,
+      });
+      // No members/org row: the owner does not participate.
+      tx.set(doc(db, 'users/org/circles', circleRef.id), {
+        uid: 'org',
+        circleId: circleRef.id,
+        joinedAt: new Date(now).toISOString(),
+      });
+      const ledgerRef = doc(collection(db, 'circles', circleRef.id, 'ledger'));
+      tx.set(ledgerRef, {
+        id: ledgerRef.id,
+        circleId: circleRef.id,
+        uid: 'org',
+        kind: 'created',
+        at: now,
+      });
+    }));
+    await assertSucceeds(getDoc(doc(db, 'circles', circleRef.id)));
+    // The pointer create passed inside the transaction above; a follow-up
+    // read through the pointer stream is the app's list source.
+    await assertSucceeds(getDocs(collection(db, 'users/org/circles')));
+  });
+
+  it('denies listing the shared circles collection, organizer filter or not', async () => {
+    // There is no `query.where` in the rules language, so the shared
+    // collection can never be scanned safely — the client uses the pointer
+    // stream. Pin the denial so a scan can never silently return other
+    // people's circles either.
+    await seedCircle();
+    const db = asUser('org', { email: 'org@example.com' });
+    await assertFails(
+      getDocs(query(collection(db, 'circles'), where('organizerId', '==', 'org'), limit(50))),
+    );
   });
 });
 

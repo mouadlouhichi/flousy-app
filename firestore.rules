@@ -1,4 +1,8 @@
 rules_version = '2';
+// ── darat read-rules v3 (resource-based get, no getAfter in read rules) ────
+// Deployment marker: the PUBLISHED rules in the Firebase console
+// (Firestore → Rules) must contain this line. If it doesn't, the live
+// ruleset is older than this file — redeploy and reload the app.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
@@ -1572,13 +1576,15 @@ service cloud.firestore {
     //    only, since `existing().get('field', default)` makes the update path
     //    tolerate documents that predate the field (see README 5-part ship).
 
-    // Read-side helpers. They use `getAfter` / `existsAfter` (rather than
+    // Write-side helpers. They use `getAfter` / `existsAfter` (rather than
     // `get` / `exists`) so that a multi-doc write like the Darat create
     // transaction can pass the rule check: inside a `runTransaction`, a
     // `get` call sees the pre-transaction state, but a `getAfter` call
     // sees the just-written state. For non-transactional writes the
     // "after" state is the same as the current state, so the behavior
-    // is unchanged.
+    // is unchanged. `getAfter` / `existsAfter` are write-batch functions
+    // ("for writes, you can use getAfter()...", see the rules docs) — they
+    // must never appear in a get/list rule; use the *Read twins below.
     function isCircleOrganizer(cid) {
       return signedIn()
         && existsAfter(circlePath(cid))
@@ -1591,6 +1597,31 @@ service cloud.firestore {
     }
     function activeCircleMember(cid) {
       return isCircleMember(cid, request.auth.uid);
+    }
+    // Read-side twins. A get/list rule has no pending write batch, so the
+    // getAfter-based helpers above cannot resolve there — the evaluation
+    // errors and the read is denied ("Missing or insufficient permissions"
+    // on every circle a legitimate organizer or member tried to open).
+    // Reads check the committed state with `get` / `exists` instead.
+    //
+    // Two invariants keep these twins safe to evaluate in read rules:
+    //   1. NEVER `get()`/`exists()` the document being requested — that is
+    //      what `resource.data` is for. Cross-doc gets (member row, circle
+    //      doc) are the canonical documented pattern and are fine.
+    //   2. Keep them cheap: every get rule gets at most 2 cross-doc reads,
+    //      well under the 10-calls-per-request budget.
+    function isCircleOrganizerRead(cid) {
+      return signedIn()
+        && exists(circlePath(cid))
+        && get(circlePath(cid)).data.get('organizerId', '') == request.auth.uid;
+    }
+    function isCircleMemberRead(cid, uid) {
+      return signedIn()
+        && exists(circleMemberPath(cid, uid))
+        && get(circleMemberPath(cid, uid)).data.get('status', '') == 'active';
+    }
+    function activeCircleMemberRead(cid) {
+      return isCircleMemberRead(cid, request.auth.uid);
     }
     /**
      * True when the caller writes their own member row under an invite the
@@ -1649,21 +1680,32 @@ service cloud.firestore {
     }
 
     match /circles/{circleId} {
-      allow get: if isCircleOrganizer(circleId) || activeCircleMember(circleId);
-      allow list: if signedIn() && (
-        // Organizers can list circles they own (queried with where organizerId == auth.uid).
-        // Members listing requires a different approach (see users/{uid}/circles).
-        // The dashboard widget uses users/{uid}/circles; the "circles I organize" view queries by organizerId.
-        // We allow listing with the organizer-id filter via query constraints, so:
-        query.limit != null && query.where != null
-          && ('organizerId' in query.where || 'memberOrder' in query.where)
-      );
+      // `resource.data` IS the requested circle in a get rule — the
+      // organizer branch needs no cross-doc read at all. Members take the
+      // canonical path: one get() on their own member row.
+      allow get: if signedIn()
+        && (resource.data.get('organizerId', '') == request.auth.uid
+          || activeCircleMemberRead(circleId));
+      // No list on the shared collection. The rules language cannot inspect
+      // a query's `where` filters (there is no `query.where` variable), so
+      // a scan of /circles can never be proven to return only documents the
+      // caller may read — granting it would leak every circle to any
+      // signed-in user. The client lists its circles through the pointer
+      // rows at /users/{uid}/circles/{circleId} instead: the create and
+      // join transactions write one for the organizer too, so the pointer
+      // stream is a complete "my circles" source for members AND organizers.
+      allow list: if false;
 
       allow create: if signedIn()
         && incoming().organizerId == request.auth.uid
         && incoming().status == 'active'
-        && validDaratCircleShape(incoming())
-        && incoming().memberOrder.hasAll([request.auth.uid]);
+        && validDaratCircleShape(incoming());
+        // No memberOrder.hasAll([auth.uid]) clause: the owner may run the
+        // circle WITHOUT a seat in the rotation (the participation toggle),
+        // in which case memberOrder carries the invitees only. Ownership
+        // is enforced by organizerId == request.auth.uid above; the shape
+        // check still pins memberOrder to 2..20 entries with matching
+        // rounds, so an empty or single-seat rotation is impossible.
 
       // Organizer can update the circle; members can also flip their own
       // member-order spot to inactive (handled at the members subcollection).
@@ -1691,11 +1733,14 @@ service cloud.firestore {
       allow delete: if isCircleOrganizer(circleId);
 
       match /members/{memberId} {
-        // Any active circle member can read the roster.
-        allow get: if activeCircleMember(circleId)
-          || isCircleOrganizer(circleId)
-          || memberId == request.auth.uid;
-        allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
+        // Any active circle member can read the roster. Your own row is a
+        // resource-only branch (no cross-doc read); the organizer and
+        // member checks read OTHER docs (circle doc / caller's own row),
+        // never the row being requested.
+        allow get: if memberId == request.auth.uid
+          || activeCircleMemberRead(circleId)
+          || isCircleOrganizerRead(circleId);
+        allow list: if activeCircleMemberRead(circleId) || isCircleOrganizerRead(circleId);
 
         // Organizer can add members; a user can also add their own row when
         // accepting an invite — the join transaction flips the in-circle
@@ -1737,9 +1782,9 @@ service cloud.firestore {
         // organizer can read the row directly; the recipient must
         // already have the id in hand to address the doc, so a
         // signed-in user with a pending row is enough to look it up.
-        allow get: if isCircleOrganizer(circleId)
+        allow get: if isCircleOrganizerRead(circleId)
           || (signedIn() && resource.data.get('status', '') == 'pending');
-        allow list: if isCircleOrganizer(circleId);
+        allow list: if isCircleOrganizerRead(circleId);
 
         // Create: organizer only, phone must pass the loose shape.
         allow create: if isCircleOrganizer(circleId)
@@ -1765,8 +1810,8 @@ service cloud.firestore {
 
       match /ledger/{entryId} {
         // Ledger is append-only and visible to all members for transparency.
-        allow get: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
-        allow list: if activeCircleMember(circleId) || isCircleOrganizer(circleId);
+        allow get: if activeCircleMemberRead(circleId) || isCircleOrganizerRead(circleId);
+        allow list: if activeCircleMemberRead(circleId) || isCircleOrganizerRead(circleId);
         allow create: if (isCircleOrganizer(circleId) || activeCircleMember(circleId))
           && incoming().circleId == circleId
           && incoming().uid == request.auth.uid
@@ -1828,13 +1873,16 @@ service cloud.firestore {
     // circles" without scanning the shared collection. The row is created
     // when the user accepts an invite, and removed when they leave.
     match /users/{uid}/circles/{circleId} {
-      allow get: if owner(uid) || isCircleOrganizer(circleId);
+      allow get: if owner(uid) || isCircleOrganizerRead(circleId);
       allow list: if owner(uid);
       allow create: if owner(uid)
         && incoming().uid == uid
         && incoming().circleId == circleId
         && incoming().joinedAt is string
-        && isCircleMember(circleId, uid);
+        // The owner gets a pointer even when they opted out of the
+        // rotation (no member row) — the pointer is what lists the
+        // circle under "my circles".
+        && (isCircleMember(circleId, uid) || isCircleOrganizer(circleId));
       allow delete: if owner(uid) || isCircleOrganizer(circleId);
       allow update: if false;
     }

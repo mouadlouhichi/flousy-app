@@ -927,6 +927,8 @@
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "networkError": "Network error. Please check your connection.",
+    "rulesDenied": "The server refused to read your circles. In the Firebase console (Firestore → Rules) the PUBLISHED rules must contain \"darat read-rules v3\" — deploy firestore.rules from this branch, then reload.",
+    "circleOtherAccount": "This circle does not list your account as a member. Are you signed in with the account that created or joined it?",
     "loadFailedTitle": "Could not load your circles",
     "notFound": "Page not found",
     "notFoundTitle": "Circle not found",
@@ -2605,7 +2607,19 @@
       "pot": "Pot per round: {amount}",
       "nextRound": "Next round: {date}",
       "yourTurn": "Your turn to receive the pot",
-      "notYourTurn": "Next recipient: {name}"
+      "notYourTurn": "Next recipient: {name}",
+      "unavailableTitle": "Circles you own or joined that could not be opened",
+      "unavailableHint": "Decide with a 10-second console check — Firestore → data → open circles/{id}: if organizerId is YOUR uid ({uid}), the published rules are outdated — redeploy firestore.rules and keep these rows. If it is another uid, these circles belong to a different account — remove them below.",
+      "unavailableRemoveConfirm": "Remove this circle from your list? Only do this if the Firebase console shows ANOTHER account as its organizerId.",
+      "unavailableRemoveAll": "Remove all",
+      "unavailableRemoveAllConfirm": "Remove all {count} unreadable circles from your list? Only do this if the Firebase console shows ANOTHER account as their organizerId.",
+      "rulesCheckRun": "Run server rules check",
+      "rulesCheckRunning": "Checking the server rules with a throwaway circle…",
+      "rulesCheckOk": "Server rules verified OK: a freshly created circle opened fine, then was deleted. The entries below are therefore from ANOTHER account or deleted data — removing them from this list is safe.",
+      "rulesCheckDenied": "The published rules are NOT the latest: a freshly created circle was refused too. Re-paste firestore.rules from the branch (the published text must start with “darat read-rules v3”), then reload.",
+      "rulesCheckError": "The check could not run (network). Try again.",
+      "rulesCheckCreateFailed": "The check could not create its probe circle.",
+      "rulesCheckViewInConsole": "Open in Firebase console"
     },
     "create": {
       "title": "Create a Darat circle",
@@ -2620,6 +2634,8 @@
       "frequencyMonthly": "Every month",
       "members": "Invite members",
       "membersHint": "Each person gets a unique invite code you can share by link. Drag the handle to set the order.",
+      "participate": "I'm participating in the rounds",
+      "participateHint": "Uncheck to organize without joining — you keep full owner control and the circle stays in your list.",
       "membersEmptyHint": "Add at least one person with a name and a phone number.",
       "membersNeedName": "Each member needs a name and a phone number.",
       "memberPhoneLabel": "Phone number",
@@ -2627,7 +2643,7 @@
       "inviteConsentTitle": "Before you invite",
       "inviteConsent": "I confirm the people I'm inviting know about the circle and have given me their phone number to share with SmartJib for the invite.",
       "dragHandle": "Drag to reorder",
-      "startHint": "You can change the frequency, rotation, and start date on the next screen.",
+      "startHint": "You can change the frequency, rotation, and payment order on the next screen.",
       "addMember": "Add a member",
       "memberNamePlaceholder": "Name",
       "rotation": "Rotation order",
@@ -2648,6 +2664,7 @@
       "shareLinksTitle": "Share invite links",
       "shareLinksHint": "Each link is unique. Send it to one person — the link takes them straight to the join page with their code prefilled.",
       "copyLink": "Copy link",
+      "whatsappButton": "WhatsApp",
       "copied": "Copied!",
       "codeLabel": "Code",
       "errors": {
@@ -2660,8 +2677,10 @@
         "noOrganizer": "You need to be signed in to organize a Darat.",
         "duplicatePhones": "Two members share the same phone number — each one needs a unique number.",
         "phoneFormat": "Enter a valid phone number (at least 8 digits).",
-        "forbidden": "SmartJib refused this write — refresh and try again. If it keeps happening, sign out and back in."
-      }
+        "forbidden": "SmartJib refused this write — refresh and try again. If it keeps happening, sign out and back in.",
+        "minInviteesNoOrganizer": "Organizing without participating needs at least 2 invited members."
+      },
+      "whatsappInvite": "Hi {name}! 👋 You're invited to our rotating savings circle \"{circle}\" on SmartJib. Contribution: {amount} per round — first round on {date}. Join with this link: {link} (or type code {code} in the app)."
     },
     "detail": {
       "title": "{name}",
@@ -2706,7 +2725,15 @@
       "closeConfirm": "Close this circle? Once closed, no more rounds run and no payouts are made.",
       "inviteCode": "Invite code",
       "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
-      "invitedPhone": "Invited · {phone}"
+      "invitedPhone": "Invited · {phone}",
+      "organizerOnly": "Owner — not participating",
+      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}",
+      "inviteCreate": "Create invite code",
+      "inviteName": "Member name",
+      "inviteNamePlaceholder": "e.g. Youssef",
+      "inviteRevokeConfirm": "Revoke this invite code? The member will no longer be able to join with it.",
+      "invitesTitle": "Pending invites",
+      "inviteInvalid": "Name and a valid phone number are required."
     },
     "join": {
       "title": "Join a Darat circle",
@@ -2726,7 +2753,8 @@
       "save": "Save changes",
       "saving": "Saving…",
       "saved": "Circle updated.",
-      "error": "Couldn't save your changes. Please try again."
+      "error": "Couldn't save your changes. Please try again.",
+      "paymentOrder": "Payment order — drag to set who receives when"
     },
     "monthlyHook": {
       "widgetTitle": "Your Darat circles",
