@@ -507,13 +507,24 @@ export function DaratScreen() {
     console.info(
       `[darat] circle created ${circleRef.id} (owner participating: ${input.organizerParticipates}, invitees: ${normalisedInvites.length})`,
     );
-    if (!opts?.silent) {
+    // Non-silent callers stay in the modal: the post-create summary (codes,
+    // copy links, WhatsApp buttons) is where the organizer sends the
+    // invites — closing it here would unmount the panel before it ever
+    // renders and the codes would be lost from the UI. Navigation happens
+    // when they tap "Open circle" (openCreatedCircle below).
+    if (opts?.silent) {
       setCreateOpen(false);
-      setPendingDetailId(circleRef.id);
-      setView({ kind: 'detail', circleId: circleRef.id });
     }
     return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
   }, [db, user, userCurrency]);
+
+  // "Open circle" from the post-create summary: close the modal and land
+  // on the fresh circle's detail view.
+  const openCreatedCircle = useCallback((circleId: string) => {
+    setCreateOpen(false);
+    setPendingDetailId(circleId);
+    setView({ kind: 'detail', circleId });
+  }, []);
 
   // The rules-check canary reuses the production create path (silent: no
   // navigation), reads the fresh circle back, and cleans up after itself.
@@ -1046,6 +1057,7 @@ export function DaratScreen() {
         <DaratCreateModal
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreate}
+          onViewCircle={openCreatedCircle}
         />
       )}
 

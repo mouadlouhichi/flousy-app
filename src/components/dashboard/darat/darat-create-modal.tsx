@@ -31,6 +31,11 @@ interface CreatedInvite {
 interface Props {
   onClose: () => void;
   /**
+   * "Open circle" from the post-create summary: closes the modal and
+   * navigates to the fresh circle's detail view.
+   */
+  onViewCircle?: (circleId: string) => void;
+  /**
    * Called with the form payload. The handler is responsible for
    * writing the circle in a transaction; on success it returns the
    * generated invite summaries (UUID + phone) so the modal can
@@ -89,7 +94,7 @@ const newMemberKey = (): string => `m_${Date.now()}_${++nextMemberKey}`;
  * error message below the field, and a primary submit button that
  * fills the width of the actions bar.
  */
-export function DaratCreateModal({ onClose, onSubmit }: Props) {
+export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
   const { messages: m, intlLocale } = useLanguage();
   const { symbol, currency } = useCurrency();
   const { user } = useAuth();
@@ -507,9 +512,16 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+              className="flex-1 bg-surface-variant/60 text-on-surface font-bold text-[15px] py-3 rounded-xl hover:bg-surface-variant transition-all active:scale-[0.98]"
             >
               {m.common.done}
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewCircle?.(created.circleId)}
+              className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md"
+            >
+              {m.darat.list.openCircle}
             </button>
           </div>
         </div>
