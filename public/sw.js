@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smartjib-v10';
+const CACHE_NAME = 'smartjib-v11';
 // Prerendered app documents, kept separately from the asset cache so an update
 // of the shell never strands a stale HTML response behind a hashed chunk.
 const HTML_CACHE_NAME = 'smartjib-html-v7';
