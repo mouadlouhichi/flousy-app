@@ -84,7 +84,7 @@ export function DaratHero({
       <div className="relative flex flex-col gap-5">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
-            <AppIcon name="groups" strokeWidth={2.2} className="text-[20px]" />
+            <AppIcon name="user_group" strokeWidth={2.2} className="text-[20px]" />
           </span>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-lime">{eyebrow}</p>
@@ -167,7 +167,7 @@ export function DaratCircleCard({
       <div className="flex w-full items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-full', closed ? 'bg-surface-container-high text-on-surface-variant' : 'bg-forest text-lime')}>
-            <AppIcon name="groups" strokeWidth={2} className="text-[20px]" />
+            <AppIcon name="user_group" strokeWidth={2} className="text-[20px]" />
           </span>
           <div className="min-w-0">
             <h3 className="truncate text-[16px] font-semibold text-on-surface">{circle.name}</h3>

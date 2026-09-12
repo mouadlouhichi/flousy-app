@@ -809,7 +809,7 @@ export function DaratScreen() {
           stats={null}
         />
         <ProLockedCard
-          icon="groups"
+          icon="user_group"
           title={m.darat.proGate.title}
           body={m.darat.proGate.body}
           onUpgrade={() => router.push('/dashboard/profile/pro')}
@@ -866,7 +866,7 @@ export function DaratScreen() {
         return (
           <div className="flex flex-col items-center gap-4 py-16">
             <span className="flex size-12 animate-pulse items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-              <AppIcon name="groups" className="text-[22px]" />
+              <AppIcon name="user_group" className="text-[22px]" />
             </span>
             <p className="text-[14px] font-medium text-on-surface-variant">{m.common.loading}</p>
             <button
@@ -1018,7 +1018,7 @@ export function DaratScreen() {
       {circles.length === 0 && circlesReady && (
         <div className="flex flex-col items-center gap-3 rounded-[1.75rem] border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
           <span className="flex size-14 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-            <AppIcon name="groups" className="text-[26px]" />
+            <AppIcon name="user_group" className="text-[26px]" />
           </span>
           <div>
             <p className="text-[15px] font-semibold text-on-surface">{m.darat.list.empty}</p>

@@ -183,7 +183,7 @@ export const PRO_FEATURES: ProFeature[] = [
   { id: 'csv', icon: 'upload_file' },
   { id: 'categoryBudgets', icon: 'category' },
   { id: 'rollover', icon: 'sync' },
-  { id: 'darat' as ProFeatureId, icon: 'groups' },
+  { id: 'darat' as ProFeatureId, icon: 'user_group' },
 ];
 
 /**

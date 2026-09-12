@@ -565,7 +565,7 @@ export function DaratDetailView({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
-              <AppIcon name="groups" strokeWidth={2.2} className="text-[15px]" />
+              <AppIcon name="user_group" strokeWidth={2.2} className="text-[15px]" />
             </span>
             <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">
               {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}

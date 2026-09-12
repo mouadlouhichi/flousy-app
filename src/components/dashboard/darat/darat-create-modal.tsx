@@ -568,7 +568,7 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
               fieldErrors.name ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
             }`}
           >
-            <AppIcon name="groups" className="text-[20px] text-on-surface-variant" />
+            <AppIcon name="user_group" className="text-[20px] text-on-surface-variant" />
             <input
               id="darat-name"
               type="text"

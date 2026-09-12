@@ -160,7 +160,7 @@ export function DaratWidget() {
         className="group flex w-full items-center gap-3 rounded-[1.75rem] border border-dashed border-outline-variant bg-surface-container-lowest p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-ambient"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-          <AppIcon name="groups" strokeWidth={2} className="text-[18px]" />
+          <AppIcon name="user_group" strokeWidth={2} className="text-[18px]" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] font-semibold text-on-surface">
@@ -185,7 +185,7 @@ export function DaratWidget() {
         className="group flex w-full items-center gap-3 rounded-[1.75rem] border border-dashed border-outline-variant bg-surface-container-lowest p-4 text-start transition-all hover:-translate-y-0.5 hover:shadow-ambient"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-          <AppIcon name="groups" strokeWidth={2} className="text-[18px]" />
+          <AppIcon name="user_group" strokeWidth={2} className="text-[18px]" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[14px] font-semibold text-on-surface">
@@ -211,7 +211,7 @@ export function DaratWidget() {
       <div aria-hidden className="dot-matrix-forest pointer-events-none absolute inset-y-0 end-0 w-1/3 opacity-40 [mask-image:linear-gradient(to_left,black,transparent)]" />
       <div className="relative flex w-full items-center gap-2.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
-          <AppIcon name="groups" strokeWidth={2} className="text-[17px]" />
+          <AppIcon name="user_group" strokeWidth={2} className="text-[17px]" />
         </span>
         <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold text-white">
           {m.darat.monthlyHook.widgetTitle}

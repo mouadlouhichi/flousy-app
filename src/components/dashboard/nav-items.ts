@@ -96,8 +96,8 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   {
     id: 'darat',
     href: '/dashboard/darat',
-    sidebarIcon: 'groups',
-    mobileIcon: 'groups',
+    sidebarIcon: 'user_group',
+    mobileIcon: 'user_group',
     proOnly: true,
     // Pro-only feature reached from the sidebar's "Tools" group. The
     // mobile bottom nav is capped at 5 destinations (asserted in
