@@ -2681,7 +2681,13 @@
       "inviteCodeHint": "شارك هذا الرمز أو الرابط مع شخص تثق به — يمكنه الانضمام من صفحة دارت.",
       "invitedPhone": "مدعو · {phone}",
       "organizerOnly": "المالك — غير مشارك",
-      "progressHint": "يحسب الأدوار التي مرّ تاريخها. التالي: الدور {n} · {date}"
+      "progressHint": "يحسب الأدوار التي مرّ تاريخها. التالي: الدور {n} · {date}",
+      "inviteCreate": "إنشاء رمز دعوة",
+      "inviteName": "اسم العضو",
+      "inviteNamePlaceholder": "مثال: يوسف",
+      "inviteRevokeConfirm": "إلغاء رمز الدعوة هذا؟ لن يتمكن العضو من الانضمام به.",
+      "invitesTitle": "دعوات قيد الانتظار",
+      "inviteInvalid": "الاسم ورقم هاتف صحيح مطلوبان."
     },
     "join": {
       "title": "الانضمام إلى جمعية دارت",

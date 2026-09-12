@@ -2681,7 +2681,13 @@
       "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
       "invitedPhone": "Invited · {phone}",
       "organizerOnly": "Owner — not participating",
-      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}"
+      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}",
+      "inviteCreate": "Create invite code",
+      "inviteName": "Member name",
+      "inviteNamePlaceholder": "e.g. Youssef",
+      "inviteRevokeConfirm": "Revoke this invite code? The member will no longer be able to join with it.",
+      "invitesTitle": "Pending invites",
+      "inviteInvalid": "Name and a valid phone number are required."
     },
     "join": {
       "title": "Join a Darat circle",
