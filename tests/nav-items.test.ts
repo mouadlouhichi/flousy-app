@@ -89,15 +89,14 @@ describe('Dashboard navigation items', () => {
     assert.strictEqual(new Set(hrefs).size, hrefs.length);
   });
 
-  it('quick access surfaces exactly the screens no other mobile surface exposes', () => {
+  it('quick access surfaces exactly the screens the five-slot bottom nav omits', () => {
     const pro = getMobileQuickAccessItems(true).map((item) => item.id);
-    // knowledge, trends and Darat: hidden from the five-slot bottom nav and
-    // not linked from the dashboard itself.
-    assert.deepEqual(pro, ['knowledge', 'trends', 'darat']);
+    // courses for everyone; knowledge, trends and Darat are Pro-gated.
+    assert.deepEqual(pro, ['courses', 'knowledge', 'trends', 'darat']);
   });
 
-  it('quick access renders nothing for free users (every destination is Pro-gated)', () => {
-    assert.deepEqual(getMobileQuickAccessItems(false), []);
+  it('quick access lists only the courses tile for free users', () => {
+    assert.deepEqual(getMobileQuickAccessItems(false).map((item) => item.id), ['courses']);
   });
 
   it('quick access never duplicates a screen that already has a mobile surface', () => {
@@ -105,7 +104,7 @@ describe('Dashboard navigation items', () => {
     for (const item of getVisibleNavItems(true)) {
       assert.ok(!ids.includes(item.id), `${item.id} is in the bottom nav`);
     }
-    for (const reserved of ['search', 'profile', 'courses']) {
+    for (const reserved of ['search', 'profile']) {
       assert.ok(!ids.includes(reserved), `${reserved} has its own entry point`);
     }
   });

@@ -1,8 +1,8 @@
 /**
  * Server-renders the mobile quick-access row in all three locales. Catches
  * missing i18n keys / bad hook usage and pins the plan-aware behaviour:
- * Pro users get the knowledge / analytics / Darat chips, free users get no
- * row at all (every destination it can list is Pro-gated).
+ * Pro users get the courses + knowledge / analytics / Darat tiles, free
+ * users get the courses tile only.
  */
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,7 +37,7 @@ mock.module('next/navigation', {
 describe('render: mobile quick access row', async () => {
   for (const lang of ['en', 'fr', 'ar'] as Language[]) {
     describe(lang, () => {
-      it('lists knowledge, analytics and Darat for Pro users', async () => {
+      it('lists courses, knowledge, analytics and Darat for Pro users', async () => {
         current = lang;
         // Dynamic import: the mocks above must be registered before the
         // component (and its i18n-context import) is evaluated.
@@ -45,15 +45,22 @@ describe('render: mobile quick access row', async () => {
         const html = renderToStaticMarkup(<QuickAccessRow isPro />);
         const m = catalogs[lang].navigation;
         assert.ok(html.includes(m.quickAccess), 'missing the quick-access aria-label');
-        assert.ok(html.includes(m.knowledge), 'missing the knowledge chip');
-        assert.ok(html.includes(m.trends), 'missing the analytics chip');
-        assert.ok(html.includes(m.darat), 'missing the Darat chip');
+        assert.ok(html.includes(m.courses), 'missing the courses tile');
+        assert.ok(html.includes(m.knowledge), 'missing the knowledge tile');
+        assert.ok(html.includes(m.trends), 'missing the analytics tile');
+        assert.ok(html.includes(m.darat), 'missing the Darat tile');
       });
 
-      it('renders no row for free users', async () => {
+      it('renders only the courses tile for free users', async () => {
         current = lang;
         const { QuickAccessRow } = await import('../../src/components/dashboard/quick-access-row');
-        assert.equal(renderToStaticMarkup(<QuickAccessRow isPro={false} />), '');
+        const html = renderToStaticMarkup(<QuickAccessRow isPro={false} />);
+        const m = catalogs[lang].navigation;
+        assert.ok(html.includes(m.quickAccess), 'missing the quick-access heading');
+        assert.ok(html.includes(m.courses), 'missing the courses tile');
+        assert.ok(!html.includes(m.knowledge), 'Pro tiles must stay hidden for free users');
+        assert.ok(!html.includes(m.trends), 'Pro tiles must stay hidden for free users');
+        assert.ok(!html.includes(m.darat), 'Pro tiles must stay hidden for free users');
       });
     });
   }

@@ -7,11 +7,10 @@ import { useLanguage } from '@/lib/i18n-context';
 
 /**
  * Mobile-only quick-access section on the dashboard: tiles for the screens
- * that are unreachable from the five-slot bottom nav or the dashboard
- * surface itself (knowledge, analytics and Darat for Pro users — on md+ the
- * sidebar lists them, so the whole section hides there). The list is
- * plan-aware: every destination it can list is Pro-gated, so free users get
- * no section at all.
+ * the five-slot bottom nav does not list — courses for everyone, plus
+ * knowledge, analytics and Darat for Pro users (on md+ the sidebar lists
+ * them, so the whole section hides there). The list is plan-aware:
+ * Pro-gated tiles only appear for Pro users.
  */
 export function QuickAccessRow({ isPro }: { isPro: boolean }) {
   const router = useRouter();
@@ -30,7 +29,7 @@ export function QuickAccessRow({ isPro }: { isPro: boolean }) {
             {m.navigation.quickAccess}
           </h2>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {items.map((item) => (
             <button
               key={item.id}
