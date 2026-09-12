@@ -2618,6 +2618,7 @@
       "shareLinksTitle": "Partager les liens d'invitation",
       "shareLinksHint": "Chaque lien est unique. Envoyez-le à une seule personne — le lien l'amène directement sur la page d'adhésion avec son code prérempli.",
       "copyLink": "Copier le lien",
+      "whatsappButton": "WhatsApp",
       "copied": "Copié !",
       "codeLabel": "Code",
       "errors": {
@@ -2632,7 +2633,8 @@
         "phoneFormat": "Saisissez un numéro de téléphone valide (au moins 8 chiffres).",
         "forbidden": "SmartJib a refusé cette écriture — actualisez et réessayez. Si cela persiste, déconnectez-vous et reconnectez-vous.",
         "minInviteesNoOrganizer": "Organiser sans participer nécessite au moins 2 membres invités."
-      }
+      },
+      "whatsappInvite": "Salut {name} ! 👋 Tu es invité(e) à notre tontine « {circle} » sur SmartJib. Contribution : {amount} par tour — premier tour le {date}. Rejoins avec ce lien : {link} (ou tape le code {code} dans l’app)."
     },
     "detail": {
       "title": "{name}",

@@ -10,7 +10,9 @@ import { useCurrency } from '@/lib/currency-context';
 import { useAuth } from '@/lib/auth-context';
 import { DARAT_MAX_MEMBERS, DARAT_MIN_MEMBERS } from '@/lib/darat-firestore';
 import { isLooseDaratPhone, type DaratRotation } from '@/lib/darat';
+import { formatCurrency } from '@/lib/currency';
 import { parseAmountInput } from '@/lib/parse-amount';
+import { formatYmd } from './darat-ui';
 import type { InviteSummary } from './darat-screen';
 
 interface MemberDraft {
@@ -88,7 +90,7 @@ const newMemberKey = (): string => `m_${Date.now()}_${++nextMemberKey}`;
  * fills the width of the actions bar.
  */
 export function DaratCreateModal({ onClose, onSubmit }: Props) {
-  const { messages: m } = useLanguage();
+  const { messages: m, intlLocale } = useLanguage();
   const { symbol, currency } = useCurrency();
   const { user } = useAuth();
   const [name, setName] = useState('');
@@ -371,6 +373,28 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
     return `${window.location.origin}/dashboard/darat?join=${inviteId}`;
   };
 
+  // The automated WhatsApp invite: a ready-to-send message (name, circle,
+  // amount, first round date, one-tap link + code) opened in wa.me with the
+  // invitee's number when we have one, or the contact picker otherwise.
+  // Nothing is sent automatically — the organizer sees the message in
+  // WhatsApp and presses send, which keeps the consent promise of the
+  // invite checkbox.
+  const buildWhatsappMessage = (invite: CreatedInvite): string => {
+    return (m.darat.create.whatsappInvite as string)
+      .replace('{name}', invite.displayName)
+      .replace('{circle}', name.trim() || m.darat.title)
+      .replace('{amount}', formatCurrency(numericAmount, currency, intlLocale))
+      .replace('{date}', formatYmd(startDate, intlLocale, { day: 'numeric', month: 'short' }))
+      .replace('{link}', buildShareLink(invite.id))
+      .replace('{code}', invite.id);
+  };
+  const openWhatsappInvite = (invite: CreatedInvite) => {
+    const digits = invite.phone.replace(/\D/g, '');
+    const target = digits.length >= 8 ? `https://wa.me/${digits}` : 'https://wa.me/';
+    const url = `${target}?text=${encodeURIComponent(buildWhatsappMessage(invite))}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const copyInviteLink = async (inviteId: string) => {
     const link = buildShareLink(inviteId);
     try {
@@ -436,15 +460,27 @@ export function DaratCreateModal({ onClose, onSubmit }: Props) {
                           {invite.phone}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => copyInviteLink(invite.id)}
-                        className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
-                        aria-label={`${m.darat.create.copyLink} ${invite.displayName}`}
-                      >
-                        <AppIcon name={justCopied ? 'check' : 'copy'} className="text-[14px]" />
-                        {justCopied ? m.darat.create.copied : m.darat.create.copyLink}
-                      </button>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openWhatsappInvite(invite)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-105 active:scale-[0.97]"
+                          aria-label={`${m.darat.create.whatsappButton} ${invite.displayName}`}
+                          title={m.darat.create.whatsappButton}
+                        >
+                          <AppIcon name="send" className="text-[14px]" />
+                          {m.darat.create.whatsappButton}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyInviteLink(invite.id)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+                          aria-label={`${m.darat.create.copyLink} ${invite.displayName}`}
+                        >
+                          <AppIcon name={justCopied ? 'check' : 'copy'} className="text-[14px]" />
+                          {justCopied ? m.darat.create.copied : m.darat.create.copyLink}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
                       <span className="font-extrabold uppercase tracking-wider">
