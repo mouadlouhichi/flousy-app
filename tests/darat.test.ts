@@ -2,17 +2,18 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  daratPhonesMatch,
   DARAT_MAX_MEMBERS,
   DARAT_MIN_MEMBERS,
   PHONE_RE,
   daratAllRoundDates,
   daratBuildRounds,
+  daratCircleFromSnapshot,
   daratExpectedPot,
   daratFixedRecipient,
   daratNextRound,
   daratRandomOrder,
   daratRandomRecipient,
-  daratResolveBid,
   daratRoundAmount,
   daratRoundDate,
   daratTotalRounds,
@@ -21,6 +22,7 @@ import {
   normalizeDaratInvite,
   normalizeDaratMember,
   normalizeDaratRound,
+  resolveDaratRoster,
   validateDaratCreate,
   type DaratCircle,
 } from '../src/lib/darat';
@@ -121,70 +123,6 @@ describe('darat: fixed-order rotation', () => {
   });
 });
 
-describe('darat: bidding rotation', () => {
-  const memberOrder = ['a', 'b', 'c', 'd'];
-  const pot = 4000;
-
-  it('lowest bid wins', () => {
-    const result = daratResolveBid(
-      { a: 200, b: 100, c: 300, d: 150 },
-      pot,
-      memberOrder,
-    );
-    assert.equal(result.winnerId, 'b');
-    assert.equal(result.discount, 100);
-    // 100 / 3 = 33.33..., rounded to 2 decimals
-    assert.equal(result.redistribution.a, 33.33);
-    assert.equal(result.redistribution.c, 33.33);
-    assert.equal(result.redistribution.d, 33.33);
-  });
-
-  it('zero bid is allowed and wins against non-zero bids', () => {
-    const result = daratResolveBid({ a: 0, b: 10 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a');
-    assert.equal(result.discount, 0);
-    // All non-winners share the 0 discount equally → all get 0
-    assert.deepEqual(result.redistribution, { b: 0, c: 0, d: 0 });
-  });
-
-  it('ties are broken by member order', () => {
-    const result = daratResolveBid({ c: 50, a: 50, b: 200 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a'); // a appears before c in memberOrder
-  });
-
-  it('the discount is capped at the pot', () => {
-    // a bids the pot + something; b bids a tiny amount. a must still be the winner
-    // (lower bid) and discount capped to pot.
-    const result = daratResolveBid({ a: 0, b: 9999 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a');
-    assert.equal(result.discount, 0); // a bid 0, so no discount
-    // Now flip: a bids 9999, b bids 0 → b wins (lowest) at 0, no cap needed.
-    const flipped = daratResolveBid({ a: 9999, b: 0 }, pot, memberOrder);
-    assert.equal(flipped.winnerId, 'b');
-    assert.equal(flipped.discount, 0);
-    // And the true cap: a bids pot + 100, b bids 0 — but b is lower, so a never wins.
-    // Force a to win with everyone else equal: only a bids the cap and b matches.
-    const tie = daratResolveBid({ a: pot + 100, b: pot + 100 }, pot, memberOrder);
-    assert.equal(tie.winnerId, 'a'); // a wins by memberOrder tie-break
-    assert.equal(tie.discount, pot); // capped
-  });
-
-  it('no bids yields a noBids result with no winner', () => {
-    const result = daratResolveBid({}, pot, memberOrder);
-    assert.equal(result.winnerId, null);
-    assert.equal(result.noBids, true);
-  });
-
-  it('invalid bids are filtered out', () => {
-    const result = daratResolveBid(
-      { a: -1, b: NaN, c: Infinity, d: 75 } as Record<string, number>,
-      pot,
-      memberOrder,
-    );
-    assert.equal(result.winnerId, 'd');
-  });
-});
-
 describe('darat: buildRounds', () => {
   const baseInput = {
     memberOrder: ['a', 'b', 'c', 'd'],
@@ -219,18 +157,6 @@ describe('darat: buildRounds', () => {
     assert.equal(rounds[1].recipientId, 'a');
     assert.equal(rounds[2].recipientId, 'd');
     assert.equal(rounds[3].recipientId, 'b');
-  });
-
-  it('bidding rotation resolves the discount and sets it on the winning round', () => {
-    const rounds = daratBuildRounds({
-      ...baseInput,
-      rotation: 'bidding',
-      bidsByRound: {
-        1: { a: 200, b: 50, c: 0, d: 300 },
-      },
-    });
-    assert.equal(rounds[0].recipientId, 'c');
-    assert.equal(rounds[0].discount, 0);
   });
 
   it('refuses to build a circle with fewer than 2 members', () => {
@@ -465,14 +391,6 @@ describe('darat: normalizers', () => {
     assert.equal(inv.status, 'pending');
     assert.equal(inv.acceptedAt, null);
     assert.equal(inv.phone, '');
-    // Invites predating the roster-name field keep working; the roster
-    // falls back to the phone for those seats.
-    assert.equal(inv.displayName, '');
-  });
-
-  it('keeps the name the organizer typed on the invite', () => {
-    const inv = normalizeDaratInvite({ id: 'i2', displayName: 'Auntie', phone: '+212 6 12 34 56 78' });
-    assert.equal(inv.displayName, 'Auntie');
   });
 });
 
@@ -526,33 +444,114 @@ describe('darat: next round lookup', () => {
   });
 });
 
-describe('darat: create defaults (client builder)', () => {
-  const baseInput = {
-    name: 'Family',
-    contribution: 500,
-    members: [{ displayName: 'Auntie', phone: '+212 6 12 34 56 78' }],
-    organizerId: 'u1',
-    organizerEmail: 'u1@example.com',
-    organizerDisplayName: 'Me',
-    currency: 'MAD',
-    frequency: 'monthly' as const,
-    rotation: 'random' as const,
-    startDate: '2030-01-01',
-    sourcePlaceId: 'bank',
-    fixedOrder: null,
-    randomSeed: null,
-  };
+describe('darat: roster resolution', () => {
+  const organizer = normalizeDaratMember({ uid: 'uid-org', displayName: 'Organizer', isOrganizer: true, phone: '' });
+  const joined = normalizeDaratMember({ uid: 'uid-amy', displayName: 'Amy', phone: '+212 6 12 34 56 78' });
+  const circle = { organizerId: 'uid-org', memberOrder: ['uid-org', '+212612345678', '+212699999999'] };
 
-  it('stores the real Firestore document id in the circle document', () => {
-    const { circle } = buildDaratCreateDefaults({ ...baseInput, circleId: 'abc123' });
-    // The stored `id` field must be the document id. Circles created before
-    // this stored '' — every reader normalized them to an empty id, which
-    // showed as "Circle not found" after create and as an invalid
-    // `circles/` document reference on card click.
-    assert.equal(circle.id, 'abc123');
+  it('pairs phone placeholders with accepted member rows so names show', () => {
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [joined.uid]: joined });
+    assert.deepEqual(roster.map((entry) => entry.id), ['uid-org', 'uid-amy', '+212699999999']);
+    assert.equal(roster[1].displayName, 'Amy');
+    assert.equal(roster[1].joined, true);
+    assert.equal(roster[2].joined, false);
+    assert.equal(roster[2].status, 'invited');
   });
 
-  it('refuses to build a circle without a document id', () => {
-    assert.throws(() => buildDaratCreateDefaults({ ...baseInput, circleId: '' }));
+  it('flags organizer and left members', () => {
+    const left = normalizeDaratMember({ uid: 'uid-amy', displayName: 'Amy', phone: '+212 6 12 34 56 78', status: 'left' });
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [left.uid]: left });
+    assert.equal(roster[0].isOrganizer, true);
+    assert.equal(roster[1].status, 'left');
+  });
+
+  it('appends accepted members the order never referenced', () => {
+    const extra = normalizeDaratMember({ uid: 'uid-zed', displayName: 'Zed', phone: '' });
+    const roster = resolveDaratRoster(circle, { [organizer.uid]: organizer, [extra.uid]: extra });
+    assert.deepEqual(roster.map((entry) => entry.id).slice(-1), ['uid-zed']);
+  });
+
+  it('does not mistake uids for phones', () => {
+    const roster = resolveDaratRoster({ organizerId: 'uid-org', memberOrder: ['uid-org'] }, { [organizer.uid]: organizer });
+    assert.equal(roster.length, 1);
+    assert.equal(roster[0].joined, true);
+  });
+});
+
+describe('darat: circle doc id integrity (create → read)', () => {
+  const createInput = {
+    name: 'Family savings',
+    contribution: 500,
+    frequency: 'monthly' as const,
+    rotation: 'random' as const,
+    startDate: '2099-01-01',
+    members: [{ displayName: 'M1', phone: '+212612345678' }],
+    sourcePlaceId: 'bank',
+    organizerId: 'uid-org',
+    organizerEmail: 'organizer@example.com',
+    organizerDisplayName: 'Organizer',
+    currency: 'MAD',
+  };
+
+  it('stamps the allocated circle id into the document body', () => {
+    // Regression: the create path used to persist `id: ''` inside the
+    // circle doc; every reader then saw `circle.id === ''`, the post-create
+    // detail navigation failed with "Circle not found", and clicking the
+    // card after a reload crashed with
+    // `Invalid document reference … but circles has 1`.
+    const { circle } = buildDaratCreateDefaults(createInput, 'circle_abc123');
+    assert.equal(circle.id, 'circle_abc123');
+  });
+
+  it('refuses to build a body without an allocated circle id', () => {
+    assert.throws(() => buildDaratCreateDefaults(createInput, ''));
+  });
+
+  it('organizer opt-out: memberOrder and rounds carry the invitees only', () => {
+    // The owner can run a circle without a seat in the rotation: no
+    // organizer entry in memberOrder, rounds over the invitees only.
+    const { circle, rounds } = buildDaratCreateDefaults(
+      { ...createInput, members: [
+        { displayName: 'M1', phone: '+212612345678' },
+        { displayName: 'M2', phone: '+212612345679' },
+      ], organizerParticipates: false },
+      'circle_optout',
+    );
+    assert.equal(circle.id, 'circle_optout');
+    assert.ok(!circle.memberOrder.includes('uid-org'));
+    assert.equal(circle.memberOrder.length, 2);
+    assert.equal(rounds.length, 2);
+  });
+
+  it('organizer opt-out with fewer than 2 invitees is refused', () => {
+    assert.throws(() =>
+      buildDaratCreateDefaults({ ...createInput, organizerParticipates: false }, 'circle_bad'));
+  });
+
+  it('the snapshot id wins over a stored (possibly empty) id field', () => {
+    // Circles created before the create-path fix still carry `id: ''`
+    // inside the document. Reads must merge snapshot data first and stamp
+    // the snapshot id last, or the stored field shadows the real id and
+    // `doc(db, 'circles', '')` throws "… but circles has 1".
+    const healed = daratCircleFromSnapshot('circle_real', { id: '', name: 'Legacy' });
+    assert.equal(healed.id, 'circle_real');
+    // A healthy doc keeps its path id even if the stored field disagreed.
+    const healthy = daratCircleFromSnapshot('circle_real', { id: 'circle_other', name: 'X' });
+    assert.equal(healthy.id, 'circle_real');
+  });
+});
+
+describe('daratPhonesMatch', () => {
+  it('matches local and international spellings of the same number', () => {
+    assert.equal(daratPhonesMatch('0617337910', '+212617337910'), true);
+    assert.equal(daratPhonesMatch('+212 617 337 910', '0617337910'), true);
+    assert.equal(daratPhonesMatch('212617337910', '617337910'), true);
+  });
+
+  it('rejects different numbers and too-short inputs', () => {
+    assert.equal(daratPhonesMatch('0617337910', '0664809073'), false);
+    assert.equal(daratPhonesMatch('0617337910', '+212664809073'), false);
+    assert.equal(daratPhonesMatch('123', '123'), false);
+    assert.equal(daratPhonesMatch('', '0617337910'), false);
   });
 });

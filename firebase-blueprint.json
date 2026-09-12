@@ -116,6 +116,7 @@
           "enum": [
             "invoice",
             "course",
+            "barcode",
             "csv",
             "manual"
           ]
@@ -125,6 +126,9 @@
         },
         "importFingerprint": {
           "type": "string"
+        },
+        "productAttachment": {
+          "$ref": "#/definitions/ExpenseProductAttachment"
         }
       },
       "required": [
@@ -460,23 +464,129 @@
     },
     "SessionItem": {
       "title": "SessionItem",
-      "description": "One line of a course session; name/category are snapshots of the product at scan time.",
+      "description": "Immutable product/evidence snapshot and financial values for one shopping line.",
       "type": "object",
       "properties": {
         "key": {
           "type": "string",
-          "description": "Stable line id: the barcode when present, else a generated row id"
+          "maxLength": 128
         },
         "barcode": {
           "type": "string",
-          "pattern": "^[0-9]{8}$|^[0-9]{13}$"
+          "pattern": "^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$"
+        },
+        "gtin14": {
+          "type": "string",
+          "pattern": "^[0-9]{14}$"
         },
         "name": {
           "type": "string",
           "maxLength": 100
         },
+        "brand": {
+          "type": "string",
+          "maxLength": 100
+        },
         "category": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "quantity": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "food",
+            "cosmetic",
+            "household",
+            "pet",
+            "unknown"
+          ]
+        },
+        "beauty": {
+          "type": "boolean"
+        },
+        "cosmeticForm": {
+          "type": "string",
+          "enum": [
+            "leave-on",
+            "rinse-off",
+            "unknown"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "ocr",
+            "off",
+            "obf",
+            "opf",
+            "opff",
+            "vendor",
+            "seed",
+            "session"
+          ]
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "sourceDatabase": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ProductFieldProvenance"
+          }
+        },
+        "retrievedAt": {
           "type": "string"
+        },
+        "staleAfter": {
+          "type": "string"
+        },
+        "ingredientsText": {
+          "type": "string",
+          "maxLength": 12000
+        },
+        "allergenTags": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "novaGroup": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "assessmentRequestId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "assessmentOrigin": {
+          "$ref": "#/definitions/AssessmentOrigin"
+        },
+        "assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProductAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "qty": {
           "type": "number",
@@ -491,8 +601,7 @@
         "lineTotal": {
           "type": "number",
           "minimum": 0,
-          "maximum": 1000000000,
-          "description": "round2(unitPrice * qty) — stored, never re-derived"
+          "maximum": 1000000000
         },
         "ranking": {
           "$ref": "#/definitions/ProductRanking"
@@ -511,46 +620,148 @@
     },
     "SessionItemQuality": {
       "title": "SessionItemQuality",
-      "description": "Cosmetic ingredient quality summary stored on a session line. Optional — only beauty lines with an INCI list carry one; the score comes from the ingredient-safety engine and is refined once the CosIng index is loaded server-side.",
+      "description": "Historical evidence summary; exact tiers and full assessment survive even when score/band are null.",
       "type": "object",
       "properties": {
+        "schemaVersion": {
+          "type": "integer",
+          "const": 2
+        },
+        "assessmentId": {
+          "type": "string",
+          "maxLength": 256
+        },
         "score": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 100
         },
-        "band": {
+        "scoreStatus": {
           "type": "string",
+          "enum": [
+            "available",
+            "withheld-invalid-parse",
+            "withheld-review-required",
+            "withheld-form-unknown",
+            "withheld-conditions-unknown",
+            "withheld-insufficient-evidence",
+            "withheld-no-ingredients"
+          ]
+        },
+        "band": {
+          "type": [
+            "string",
+            "null"
+          ],
           "enum": [
             "excellent",
             "good",
             "moderate",
             "caution",
-            "avoid"
+            "avoid",
+            null
           ]
+        },
+        "assessedAt": {
+          "type": "string"
+        },
+        "form": {
+          "type": "string",
+          "enum": [
+            "leave-on",
+            "rinse-off",
+            "unknown"
+          ]
+        },
+        "dataset": {
+          "type": "object"
+        },
+        "recognitionCoverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "assessmentCoverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "worstTier": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "clean",
+            "watch",
+            "caution",
+            "restricted",
+            "prohibited",
+            null
+          ]
+        },
+        "unknownCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300
+        },
+        "tiers": {
+          "type": "object",
+          "properties": {
+            "clean": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "watch": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "caution": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "restricted": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "prohibited": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "unassessed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            }
+          }
+        },
+        "assessment": {
+          "$ref": "#/definitions/ProductAssessment"
         },
         "good": {
           "type": "integer",
-          "minimum": 0,
-          "description": "Green tier — clean ingredients"
+          "minimum": 0
         },
         "caution": {
           "type": "integer",
-          "minimum": 0,
-          "description": "Yellow tier — watch + restricted ingredients"
+          "minimum": 0
         },
         "concern": {
           "type": "integer",
-          "minimum": 0,
-          "description": "Orange tier — caution + prohibited ingredients"
+          "minimum": 0
         }
       },
       "required": [
         "score",
-        "band",
-        "good",
-        "caution",
-        "concern"
+        "band"
       ]
     },
     "DebtPayment": {
@@ -681,19 +892,24 @@
     },
     "ProductRanking": {
       "title": "ProductRanking",
-      "description": "A product's quality ranking captured from Open Food Facts — the Nutri-Score letter grade (a-e) with the 0-100 score when known.",
+      "description": "Nutri-Score letter grade and optional raw formula calculation points. Points are not a percentage and lower is generally better; thresholds depend on category and algorithm version.",
       "type": "object",
       "properties": {
         "grade": {
           "type": "string",
-          "pattern": "^[a-e]$",
-          "description": "Nutri-Score letter grade, lower-case"
+          "pattern": "^[a-e]$"
+        },
+        "calculationPoints": {
+          "type": "number",
+          "description": "Raw Nutri-Score formula points; intentionally not bounded to 0–100."
         },
         "score": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 100,
-          "description": "0-100 points, when the source exposes them"
+          "description": "Deprecated legacy field read only during migration."
+        },
+        "algorithmVersion": {
+          "type": "string",
+          "maxLength": 100
         }
       },
       "required": [
@@ -738,8 +954,7 @@
           "type": "string",
           "enum": [
             "random",
-            "fixed",
-            "bidding"
+            "fixed"
           ]
         },
         "startDate": {
@@ -835,17 +1050,12 @@
             "string",
             "null"
           ],
-          "description": "uid of the member who receives the pot; null for undecided bidding rounds"
+          "description": "uid of the member who receives the pot; null until determined"
         },
         "pot": {
           "type": "number",
           "minimum": 0,
-          "description": "Pre-discount pot (contribution × active members)"
-        },
-        "discount": {
-          "type": "number",
-          "minimum": 0,
-          "description": "For bidding rounds: the discount the winner offered, redistributed to the rest"
+          "description": "Pot (contribution × active members)"
         },
         "status": {
           "type": "string",
@@ -1032,6 +1242,177 @@
         "circleId",
         "uid",
         "joinedAt"
+      ]
+    },
+    "ProductFieldProvenance": {
+      "title": "ProductFieldProvenance",
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "ocr",
+            "off",
+            "obf",
+            "opf",
+            "opff",
+            "vendor",
+            "seed",
+            "session"
+          ]
+        },
+        "retrievedAt": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "language": {
+          "type": "string",
+          "maxLength": 20
+        }
+      },
+      "required": [
+        "source",
+        "retrievedAt"
+      ]
+    },
+    "ProductAssessment": {
+      "title": "ProductAssessment",
+      "description": "Complete immutable ingredient identity/evidence/context assessment. Numeric score and band may be null when unsupported.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "AssessmentOrigin": {
+      "title": "AssessmentOrigin",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "lineItemId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "requestId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "gtin14": {
+          "type": "string",
+          "pattern": "^[0-9]{14}$"
+        },
+        "requestedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId",
+        "lineItemId",
+        "requestId",
+        "requestedAt"
+      ]
+    },
+    "ExpenseProductAttachment": {
+      "title": "ExpenseProductAttachment",
+      "description": "Confirmed scan snapshot attached to a variable expense.",
+      "type": "object",
+      "properties": {
+        "barcode": {
+          "type": "string",
+          "pattern": "^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$"
+        },
+        "gtin14": {
+          "type": "string",
+          "pattern": "^[0-9]{14}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "quantity": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "food",
+            "cosmetic",
+            "household",
+            "pet",
+            "unknown"
+          ]
+        },
+        "ranking": {
+          "$ref": "#/definitions/ProductRanking"
+        },
+        "ingredientsText": {
+          "type": "string",
+          "maxLength": 12000
+        },
+        "allergenTags": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "manual",
+            "ocr",
+            "off",
+            "obf",
+            "opf",
+            "opff",
+            "vendor",
+            "seed",
+            "session"
+          ]
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "sourceDatabase": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "retrievedAt": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ProductFieldProvenance"
+          }
+        }
+      },
+      "required": [
+        "barcode",
+        "gtin14",
+        "name",
+        "domain",
+        "source",
+        "retrievedAt"
       ]
     }
   },
@@ -1860,12 +2241,16 @@
     },
     "Product": {
       "title": "Product",
-      "description": "Course catalog entry keyed by normalized barcode; the user's self-learning product database.",
+      "description": "Self-learning catalog record keyed by canonical zero-filled GTIN-14, with source and field-level provenance.",
       "type": "object",
       "properties": {
         "barcode": {
           "type": "string",
-          "pattern": "^[0-9]{8}$|^[0-9]{13}$"
+          "pattern": "^(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})$"
+        },
+        "gtin14": {
+          "type": "string",
+          "pattern": "^[0-9]{14}$"
         },
         "name": {
           "type": "string",
@@ -1881,16 +2266,12 @@
           "maxLength": 100
         },
         "imageUrl": {
-          "type": "string"
-        },
-        "beauty": {
-          "type": "boolean",
-          "description": "Source hint that this is a cosmetic/beauty record — forces the INCI panel even when the mapped name/category is too generic to detect it."
-        },
-        "ingredientsText": {
           "type": "string",
-          "maxLength": 8000,
-          "description": "Full cosmetic INCI list (informational only — never pricing or money semantics); account-scoped copy saved when a scanned line is confirmed."
+          "maxLength": 2000
+        },
+        "quantity": {
+          "type": "string",
+          "maxLength": 100
         },
         "lastPrice": {
           "type": "number",
@@ -1904,23 +2285,100 @@
           "type": "string",
           "enum": [
             "manual",
+            "ocr",
             "off",
+            "obf",
+            "opf",
+            "opff",
+            "vendor",
+            "seed",
             "session"
-          ],
-          "description": "Where the metadata came from"
+          ]
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "sourceDatabase": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "food",
+            "cosmetic",
+            "household",
+            "pet",
+            "unknown"
+          ]
+        },
+        "domainSource": {
+          "type": "string",
+          "enum": [
+            "source",
+            "inferred",
+            "user"
+          ]
+        },
+        "gs1PrefixAllocation": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "GS1 allocation, never manufacturing origin."
         },
         "origin": {
           "type": "string",
-          "description": "'MA' for Moroccan products (GS1 prefix 611)"
+          "maxLength": 100,
+          "description": "Trusted provider origin only; never inferred from a GS1 prefix."
+        },
+        "ranking": {
+          "$ref": "#/definitions/ProductRanking"
+        },
+        "beauty": {
+          "type": "boolean"
+        },
+        "cosmeticForm": {
+          "type": "string",
+          "enum": [
+            "leave-on",
+            "rinse-off",
+            "unknown"
+          ]
+        },
+        "ingredientsText": {
+          "type": "string",
+          "maxLength": 12000
+        },
+        "allergenTags": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "novaGroup": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ProductFieldProvenance"
+          }
+        },
+        "retrievedAt": {
+          "type": "string"
+        },
+        "staleAfter": {
+          "type": "string"
         },
         "createdAt": {
           "type": "string"
         },
         "updatedAt": {
           "type": "string"
-        },
-        "ranking": {
-          "$ref": "#/definitions/ProductRanking"
         }
       },
       "required": [
@@ -1933,7 +2391,7 @@
     },
     "CourseSession": {
       "title": "CourseSession",
-      "description": "A course (shopping trip) captured by scanning barcodes. A completed session IS its bill.",
+      "description": "Revisioned shopping session. A completed session is its historical bill and retains immutable product/evidence snapshots.",
       "type": "object",
       "properties": {
         "id": {
@@ -1983,6 +2441,17 @@
           "minimum": 0,
           "maximum": 1000000000,
           "description": "Denormalized sum of lineTotals"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "lastMutationId": {
+          "type": "string",
+          "maxLength": 128
         },
         "loggedExpenseId": {
           "type": "string",
@@ -2091,6 +2560,55 @@
         "nextRevision",
         "createdAt"
       ]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "A notification row written by the server (reminder dispatcher) and read in the notification centre.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "href": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readAt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "body",
+        "icon",
+        "severity",
+        "href",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
@@ -2113,8 +2631,8 @@
     },
     "/users/{uid}/products/{barcode}": {
       "schema": "Product",
-      "description": "Course catalog by normalized barcode",
-      "idPattern": "^[0-9]{8}$|^[0-9]{13}$"
+      "description": "Private product catalog keyed by zero-filled canonical GTIN-14",
+      "idPattern": "^[0-9]{14}$"
     },
     "/users/{uid}/sessions/{sessionId}": {
       "schema": "CourseSession",
@@ -2148,6 +2666,10 @@
     "/households/{householdId}/invoices/{invoiceId}": {
       "schema": "HouseholdInvoice",
       "description": "Contributor submissions with atomic approval posting"
+    },
+    "/users/{uid}/notifications/{notificationId}": {
+      "schema": "UserNotification",
+      "description": "Server-written per-user notification inbox; client reads and marks readAt"
     }
   },
   "paths": {

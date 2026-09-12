@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { ChoiceChips, type ChoiceChipOption } from '@/components/ui/choice-chips';
@@ -15,11 +15,10 @@ import { DaratDice } from './darat-dice';
 interface Props {
   circle: DaratCircle;
   /**
-   * Resolves a seat id (uid or phone placeholder) to the name the roster
-   * shows, so the drag list speaks the same names as the rest of the
-   * circle (joined member name, else the invited name).
+   * Display label per memberOrder id (uid or phone placeholder), resolved
+   * by the parent from the live roster — the modal itself never fetches.
    */
-  memberName: (seatId: string) => string;
+  memberLabels: Record<string, string>;
   onClose: () => void;
   /**
    * Apply edits. Returns the new state the parent should adopt, or an
@@ -33,6 +32,8 @@ interface Props {
     rotation: DaratRotation;
     startDate: string;
     fixedOrder?: string[] | null;
+    /** Owner joins (true) / leaves (false) the rotation. Omitted = unchanged. */
+    organizerParticipates?: boolean;
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -60,7 +61,7 @@ function todayPlusDays(days: number): string {
  * for single-select frequency/rotation groups, primary submit that
  * fills the action bar.
  */
-export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props) {
+export function DaratEditModal({ circle, memberLabels, onClose, onSubmit }: Props) {
   const { messages: m } = useLanguage();
   const { symbol, currency } = useCurrency();
   const [name, setName] = useState(circle.name);
@@ -68,19 +69,59 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
   const [frequency, setFrequency] = useState<DaratFrequency>(circle.frequency);
   const [rotation, setRotation] = useState<DaratRotation>(circle.rotation);
   const [startDate, setStartDate] = useState(circle.startDate);
-  // The agreed order, editable by drag when rotation === 'fixed'. Seeded
-  // from the stored fixedOrder, else the current memberOrder (the list
-  // the circle was created with).
-  const [order, setOrder] = useState<string[]>(circle.fixedOrder ?? circle.memberOrder);
-  // Drag-and-drop feedback (same pattern as the create modal).
-  const [dragSeat, setDragSeat] = useState<string | null>(null);
-  const [dragOverSeat, setDragOverSeat] = useState<string | null>(null);
+  // Owner participation, derived from the roster (the owner has a seat iff
+  // their uid is in memberOrder) and editable in place.
+  const [organizerParticipates, setOrganizerParticipates] = useState(
+    circle.memberOrder.includes(circle.organizerId),
+  );
+  // Agreed-order editing: the payout order the user can drag into place
+  // when the rotation is "fixed". Initialized from the stored order.
+  const [order, setOrder] = useState<string[]>(circle.memberOrder);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string }>({});
 
   const numericAmount = parseAmountInput(amount) ?? 0;
   const isFixedRotation = rotation === 'fixed';
+
+  // Drag-to-reorder the agreed payout order (same mechanics as the create
+  // modal's member list: the key travels through dataTransfer so closures
+  // never see a stale value).
+  const moveEntry = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setOrder((prev) => {
+      const fromIdx = prev.indexOf(fromId);
+      const toIdx = prev.indexOf(toId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+  const onDragStart = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    setDragKey(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  const onDragOver = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== dragOverKey) setDragOverKey(id);
+  };
+  const onDrop = (id: string) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('text/plain') || dragKey;
+    if (fromId) moveEntry(fromId, id);
+    setDragKey(null);
+    setDragOverKey(null);
+  };
+  const onDragEnd = () => {
+    setDragKey(null);
+    setDragOverKey(null);
+  };
 
   const frequencyChips: ChoiceChipOption[] = [
     { value: 'weekly', label: m.darat.create.frequencyWeekly, icon: 'event_repeat' },
@@ -89,22 +130,8 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
   ];
   const rotationChips: ChoiceChipOption[] = [
     { value: 'random', label: m.darat.create.rotationRandom, icon: 'dices' },
-    { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list-ordered' },
-    { value: 'bidding', label: m.darat.create.rotationBidding, icon: 'gavel' },
+    { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list_ordered' },
   ];
-
-  const moveSeat = useCallback((fromSeat: string, toSeat: string) => {
-    if (fromSeat === toSeat) return;
-    setOrder((prev) => {
-      const fromIdx = prev.indexOf(fromSeat);
-      const toIdx = prev.indexOf(toSeat);
-      if (fromIdx === -1 || toIdx === -1) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(fromIdx, 1);
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +139,14 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
     const next: typeof fieldErrors = {};
     if (!name.trim()) next.name = (m.darat.create.errors as Record<string, string>).nameRequired ?? m.errors.generic;
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) next.amount = (m.darat.create.errors as Record<string, string>).amountInvalid ?? m.errors.generic;
-    if (circle.memberOrder.length < 2) next.members = (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    const orderIfSaved = organizerParticipates
+      ? circle.memberOrder.length
+      : circle.memberOrder.length - (circle.memberOrder.includes(circle.organizerId) ? 1 : 0);
+    if (orderIfSaved < 2) {
+      next.members = !organizerParticipates && circle.memberOrder.includes(circle.organizerId)
+        ? (m.darat.create.errors as Record<string, string>).minInviteesNoOrganizer ?? m.errors.generic
+        : (m.darat.create.errors as Record<string, string>).membersTooFew ?? m.errors.generic;
+    }
     if (circle.memberOrder.length > DARAT_MAX_MEMBERS) next.members = (m.darat.create.errors as Record<string, string>).membersTooMany ?? m.errors.generic;
     if (Object.keys(next).length > 0) {
       setFieldErrors(next);
@@ -127,6 +161,7 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
         rotation,
         startDate,
         fixedOrder: isFixedRotation ? order : null,
+        organizerParticipates,
       });
       if (!res.ok) setError(res.error ?? 'genericError');
     } catch (err) {
@@ -236,68 +271,68 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
             wrap
           />
           {rotation === 'random' && (
-            <div className="mt-1 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-primary">
-              <DaratDice size={18} className="shrink-0" />
+            <div className="flex items-center gap-3 rounded-2xl border border-lime-deep/40 bg-lime/10 p-3 dark:border-lime/30 dark:bg-lime/5">
+              <DaratDice size={18} className="shrink-0 text-forest-deep dark:text-lime" />
               <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
                 {m.darat.create.rotationRandomHint}
               </p>
             </div>
           )}
-          {isFixedRotation && (
-            <div className="mt-1 flex flex-col gap-2">
-              <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
-                {m.darat.create.rotationFixedHint}
-              </p>
-              <ul className="flex flex-col gap-2">
-                {order.map((seatId, index) => {
-                  const isDragOver = dragOverSeat === seatId && dragSeat !== seatId;
-                  return (
-                    <li key={seatId} className="list-none">
-                      <div
-                        draggable
-                        onDragStart={() => {
-                          setDragSeat(seatId);
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = 'move';
-                          if (seatId !== dragOverSeat) setDragOverSeat(seatId);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const fromSeat = e.dataTransfer.getData('text/plain') || dragSeat;
-                          if (fromSeat) moveSeat(fromSeat, seatId);
-                          setDragSeat(null);
-                          setDragOverSeat(null);
-                        }}
-                        onDragEnd={() => {
-                          setDragSeat(null);
-                          setDragOverSeat(null);
-                        }}
-                        className={`flex items-center gap-2 rounded-xl border bg-surface-container-lowest p-3 transition-colors ${
-                          isDragOver ? 'border-primary bg-primary/5' : 'border-outline-variant'
-                        } ${dragSeat === seatId ? 'opacity-60' : ''}`}
-                      >
-                        <span
-                          aria-label={m.darat.create.dragHandle}
-                          className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-variant active:cursor-grabbing"
-                        >
-                          <AppIcon name="drag_indicator" className="text-[20px]" />
-                        </span>
-                        <span className="w-6 shrink-0 text-center text-xs font-bold text-on-surface-variant">
-                          {index + 1}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface">
-                          {memberName(seatId)}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
         </div>
+
+        {/* ── Owner participation ── */}
+        <div className="flex flex-col gap-1 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3.5">
+          <label className="flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={organizerParticipates}
+              onChange={(e) => setOrganizerParticipates(e.target.checked)}
+              className="size-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span className="text-[14px] font-semibold text-on-surface">
+              {m.darat.create.participate}
+            </span>
+          </label>
+          <p className="ps-7 text-[12px] font-medium text-on-surface-variant">
+            {m.darat.create.participateHint}
+          </p>
+        </div>
+
+        {/* ── Agreed payment order (fixed rotation only) ── */}
+        {isFixedRotation && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+              {m.darat.edit.paymentOrder}
+            </label>
+            <ol className="flex flex-col gap-1.5">
+              {order.map((id, idx) => (
+                <li
+                  key={id}
+                  draggable
+                  onDragStart={onDragStart(id)}
+                  onDragOver={onDragOver(id)}
+                  onDrop={onDrop(id)}
+                  onDragEnd={onDragEnd}
+                  className={`flex items-center gap-3 rounded-xl border bg-surface-container-lowest px-3 py-2 transition-all ${
+                    dragOverKey === id
+                      ? 'border-primary ring-2 ring-primary/20'
+                      : 'border-outline-variant'
+                  } ${dragKey === id ? 'opacity-50' : ''}`}
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-forest text-[11px] font-semibold text-lime">
+                    {idx + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-on-surface">
+                    {memberLabels[id] ?? id}
+                  </span>
+                  <span aria-hidden="true" className="shrink-0 cursor-grab text-on-surface-variant active:cursor-grabbing">
+                    <AppIcon name="drag_indicator" className="text-[20px]" />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
 
         {/* ── Start date ── */}
         <div className="flex flex-col gap-1.5">
@@ -339,7 +374,7 @@ export function DaratEditModal({ circle, memberName, onClose, onSubmit }: Props)
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <AppIcon name="check" className="text-[18px]" />
             <span>{submitting ? m.darat.edit.saving : m.darat.edit.save}</span>
