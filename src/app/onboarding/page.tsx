@@ -453,7 +453,7 @@ function OnboardingFlow() {
               alt={m.common.appName}
               width={30}
               height={30}
-              className="object-contain"
+              className="rounded-lg bg-[#f3f7f3] p-0.5 object-contain"
               fetchPriority="high"
             />
             <span className="font-display text-[22px] font-semibold text-on-surface tracking-[-0.03em]">smartjib<span className="text-lime-deep dark:text-lime">.</span></span>

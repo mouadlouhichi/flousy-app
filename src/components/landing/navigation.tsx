@@ -99,7 +99,7 @@ export function Navigation() {
               alt={m.common.appName}
               width={34}
               height={34}
-              className="object-contain"
+              className="rounded-lg bg-[#f3f7f3] p-0.5 object-contain"
               fetchPriority="high"
             />
             <span className={`font-display font-semibold tracking-[-0.03em] transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>smartjib<span className="text-lime-deep dark:text-lime">.</span></span>

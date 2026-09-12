@@ -55,7 +55,7 @@ export function FooterSection() {
             <div className="col-span-2">
               <a href="/" className="inline-flex items-center gap-2 mb-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-128.png" alt={common.appName} width={30} height={30} className="object-contain" loading="lazy" />
+                <img src="/logo-128.png" alt={common.appName} width={30} height={30} className="rounded-lg bg-[#f3f7f3] p-0.5 object-contain" loading="lazy" />
                 <span className="text-2xl font-display font-semibold tracking-[-0.03em]">smartjib<span className="text-lime-deep dark:text-lime">.</span></span>
               </a>
               <p className="text-muted-foreground leading-relaxed max-w-xs">{ft.tagline}</p>

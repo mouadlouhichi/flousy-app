@@ -91,7 +91,7 @@ export function Sidebar() {
           alt={m.common.appName}
           width={36}
           height={36}
-          className="object-contain"
+          className="rounded-lg bg-[#f3f7f3] p-0.5 object-contain"
           fetchPriority="high"
         />
         <span className="font-display text-[22px] font-semibold tracking-[-0.03em] text-on-surface">

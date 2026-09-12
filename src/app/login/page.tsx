@@ -196,7 +196,7 @@ export default function LoginPage() {
                 optimizer hop (cold on every uncached hit) sat on the LCP
                 critical chain of the first page every visitor loads. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-128.png" alt={m.common.appName} width={64} height={64} className="object-contain" fetchPriority="high" />
+            <img src="/logo-128.png" alt={m.common.appName} width={64} height={64} className="rounded-2xl bg-[#f3f7f3] p-1 object-contain" fetchPriority="high" />
             <span className="font-display text-[32px] font-semibold text-on-surface tracking-[-0.03em]">
               smartjib<span className="text-lime-deep dark:text-lime">.</span>
             </span>

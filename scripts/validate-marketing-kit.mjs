@@ -98,6 +98,42 @@ if (requiredFonts.every((name) => existsSync(join(instagramRoot, 'fonts', name))
   pass('Reproducible Inter and Cairo production font files are present');
 }
 
+const publicLogo = join(root, 'public', 'logo.png');
+const marketingLogo = join(instagramRoot, 'brand', 'smartjib-logo-mark-transparent.png');
+if (!readFileSync(publicLogo).equals(readFileSync(marketingLogo))) {
+  fail('The marketing wallet mark does not match the approved public/logo.png master.');
+} else {
+  pass('App and marketing use the same approved 3D wallet master');
+}
+
+const opengraphSource = readFileSync(join(root, 'src', 'app', 'opengraph-image.tsx'), 'utf8');
+if (!opengraphSource.includes("'public', 'logo-128.png'")) {
+  fail('Open Graph artwork must embed the approved public/logo-128.png wallet.');
+} else {
+  pass('Open Graph artwork uses the approved wallet');
+}
+
+const lightBackgroundIcons = [
+  'apple-icon.png',
+  'apple-touch-icon.png',
+  'icon-192.png',
+  'icon-512.png',
+  'icon-maskable-192.png',
+  'icon-maskable-512.png',
+  'web-app-manifest-192x192.png',
+  'web-app-manifest-512x512.png',
+];
+for (const name of lightBackgroundIcons) {
+  const path = join(root, 'public', name);
+  const corner = execFileSync('convert', [path, '-format', '%[pixel:p{0,0}]', 'info:'], { encoding: 'utf8' }).trim();
+  if (!/243\s*,\s*247\s*,\s*243/.test(corner)) {
+    fail(`${name} must use the light #F3F7F3 background behind the dark wallet; found ${corner}.`);
+  }
+}
+if (!errors.some((message) => message.includes('background behind the dark wallet'))) {
+  pass('PWA and Apple icons keep the dark wallet on a contrasting light background');
+}
+
 function pngs(directory) {
   return walk(directory).filter((path) => extname(path).toLowerCase() === '.png');
 }

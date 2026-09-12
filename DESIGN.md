@@ -83,10 +83,11 @@ becoming loud. Money is the protagonist; colour is used to *group and point*, no
 The product name stays **SmartJib**. The wordmark is set lowercase in Jakarta with a lime full
 stop: `smartjib` + `<span class="text-lime-deep dark:text-lime">.</span>`.
 
-**App icon.** The original 3D wallet artwork is kept, recoloured into the palette: forest body
-(`#0f3b36` → `#0a2c28`), white stitched seam and clasp dot, lime (`#c5e6a6`) and pale-lime card
-layers. Every raster in `public/` (logo, PWA icons, apple-touch, favicons) is derived from that
-one master; `favicon.svg` is a flat vector reading of the same silhouette.
+**App icon.** Use the approved 3D wallet master in `public/logo.png`: deep forest body and flap,
+pale-lime card layers, a subtle light edge and a white clasp dot. Every raster in
+`public/` (logo, PWA icons, apple-touch and favicons) is derived from that one master. The dark
+wallet must sit on transparent or light `#f3f7f3` / white artwork—never on a matching forest
+background that makes its silhouette disappear.
 
 ## Colors
 

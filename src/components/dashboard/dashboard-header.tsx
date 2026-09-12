@@ -99,7 +99,7 @@ export function DashboardHeader() {
             alt={m.common.appName}
             width={26}
             height={28}
-            className="shrink-0 object-contain"
+            className="shrink-0 rounded-md bg-[#f3f7f3] p-0.5 object-contain"
             fetchPriority="high"
           />
           <span className="hidden min-[440px]:inline truncate font-display text-[19px] font-semibold tracking-[-0.03em] text-on-surface">

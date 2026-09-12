@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 
 export const alt = 'SmartJib budget tracker for needs, wants, savings, and money places';
@@ -19,7 +21,12 @@ const moneyPlaces = [
   { label: 'Wallet', amount: '400' },
 ];
 
-export default function OpenGraphImage() {
+export const runtime = 'nodejs';
+
+export default async function OpenGraphImage() {
+  const logoFile = await readFile(join(process.cwd(), 'public', 'logo-128.png'));
+  const walletLogo = logoFile.buffer.slice(logoFile.byteOffset, logoFile.byteOffset + logoFile.byteLength);
+
   return new ImageResponse(
     (
       <div
@@ -74,19 +81,20 @@ export default function OpenGraphImage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
-                width: 58,
-                height: 58,
+                width: 62,
+                height: 62,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: 14,
-                background: '#0f3b36',
-                color: '#ffffff',
-                fontSize: 32,
-                fontWeight: 800,
+                borderRadius: 16,
+                background: '#ffffff',
+                border: '1px solid #dbe5dc',
+                padding: 3,
               }}
             >
-              S
+              {/* ImageResponse does not support next/image; use the approved
+                  static wallet directly on a contrasting light tile. */}
+              <img src={walletLogo as unknown as string} alt="" width={56} height={56} style={{ objectFit: 'contain' }} />
             </div>
             <div style={{ display: 'flex', fontSize: 34, fontWeight: 750 }}>SmartJib</div>
           </div>

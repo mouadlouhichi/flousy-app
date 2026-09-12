@@ -105,7 +105,9 @@ Use **Lucide** as the only functional-icon family. The generated kit renders the
 - Keep icon strokes at a consistent visual weight.
 - Use a familiar symbol before adding explanatory words.
 - Do not mix outlined icons with random emoji, clip-art, or glossy 3D stock illustrations.
-- Use the official SmartJib wallet mark for the avatar and primary brand moments only.
+- Use the approved SmartJib 3D wallet mark from `public/logo.png` for the avatar and primary brand moments only.
+- The wallet’s dark body must sit on white, background, mint, or another clearly contrasting light tile—never directly on forest or forest-deep.
+- An icon’s stroke/fill and its container may not be the same color; retain a visible silhouette at thumbnail size.
 
 ## Illustration and layout
 

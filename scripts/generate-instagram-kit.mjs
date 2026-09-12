@@ -561,7 +561,9 @@ function createBrandAssets() {
   {
     const args = canvas(1800, 600, 'none');
     circle(args, 282, 302, 238, colors.mint);
-    circle(args, 282, 302, 192, colors.forest);
+    // The approved wallet has a dark forest body, so it always sits on a
+    // light tile rather than disappearing into a same-colour brand circle.
+    circle(args, 282, 302, 192, colors.background);
     logoAt(args, 107, 127, 350);
     label(args, 'SmartJib', 570, 177, {
       size: 152,

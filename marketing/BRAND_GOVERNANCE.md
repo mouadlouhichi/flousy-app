@@ -37,7 +37,7 @@ A Morocco-based reviewer must approve the Darija/Arabic lines before paid distri
 - Category roles: needs = forest `#0F3B36`; wants = secondary green `#4F7F5B`; savings = lime-deep `#A9D383`. Always include a label, not color alone.
 - Product and email Latin typography follows Plus Jakarta Sans. Instagram and paid-social exports use Inter Semibold / Regular for cleaner mobile rendering.
 - Every Arabic word in marketing artwork uses Cairo: ExtraBold for display and Cairo Variable for support copy. Do not mix Arabic font families.
-- Functional icons: Lucide only. Use the current wallet artwork from `public/logo.png`; do not mix logo generations or icon families.
+- Functional icons: Lucide only. Use the approved 3D wallet from `public/logo.png`; do not mix logo generations or icon families. The wallet and every functional icon must contrast with its container—never reuse the icon’s dark forest as its background.
 - Lime is an accent, not body text. Never put lime text on white; pair lime surfaces with forest-deep text.
 - Use one dominant message, balanced breathing room, pill controls, and soft rounded cards. Avoid large unfinished-looking gaps, gradients, glass effects, neon glows, and loud multi-accent decoration.
 
