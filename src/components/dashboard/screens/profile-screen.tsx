@@ -179,7 +179,7 @@ export function ProfileScreen() {
         },
         {
           href: '/dashboard/darat',
-          icon: 'groups',
+          icon: 'user_group',
           title: m.darat.shortTitle,
           hint: daratHint,
           // Pro-only feature, but the entry stays visible to free users so

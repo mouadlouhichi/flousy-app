@@ -18,6 +18,7 @@ import { AppIcon } from '@/components/ui/app-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatMessage } from '@/lib/i18n-core';
 import { daratCircleFromSnapshot, daratPhonesMatch, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { DaratDice } from './darat-dice';
 import { DaratEditModal } from './darat-edit-modal';
 import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
@@ -273,18 +274,6 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
     }
   }, [circle.id, db, user]);
 
-  // Revoke = delete the in-circle row. The top-level mirror is delete-only
-  // by rule (audit trail), but a join needs BOTH rows: with the in-circle
-  // row gone the join transaction fails on the missing update, so the code
-  // is effectively dead.
-  const revokeInvite = useCallback(async (inviteId: string) => {
-    if (!db) return;
-    try {
-      await deleteDoc(doc(db, 'circles', circle.id, 'invites', inviteId));
-    } catch (err) {
-      console.warn('[darat] invite revoke failed', err);
-    }
-  }, [circle.id, db]);
 
   const errorMessage = actionError
     ? ((m.darat.detail as unknown) as Record<string, string>)[actionError] ?? m.errors.generic
@@ -319,7 +308,6 @@ export function DaratDetailScreen({ circle: initial, onBack, onEdit }: Props) {
         actionInProgress={actionInProgress}
         pendingInvites={pendingInvites}
         onInvite={createInvite}
-        onRevokeInvite={revokeInvite}
         onBack={onBack}
         onEdit={() => setEditOpen(true)}
         onTogglePayment={recordPayment}
@@ -349,11 +337,10 @@ export interface DaratDetailViewProps {
   editStatus: { kind: 'saved' | 'error' } | null;
   errorMessage: string | null;
   actionInProgress: string | null;
-  /** Pending invite codes — the organizer can share (and revoke) any time. */
+  /** Pending invite codes — the row re-invite reuses one when it exists. */
   pendingInvites: { id: string; phone: string; displayName?: string }[];
   /** Creates an invite (name + phone) and returns the new code, or null. */
   onInvite: (displayName: string, phone: string) => Promise<string | null>;
-  onRevokeInvite: (inviteId: string) => void;
   onBack: () => void;
   onEdit: () => void;
   onTogglePayment: (roundNumber: number, paid: boolean) => void;
@@ -378,7 +365,6 @@ export function DaratDetailView({
   actionInProgress,
   pendingInvites,
   onInvite,
-  onRevokeInvite,
   onBack,
   onEdit,
   onTogglePayment,
@@ -416,46 +402,15 @@ export function DaratDetailView({
         ? m.darat.create.frequencyBiweekly
         : m.darat.create.frequencyMonthly;
   const rotationLabel =
-    circle.rotation === 'random'
-      ? m.darat.create.rotationRandom
-      : circle.rotation === 'fixed'
-        ? m.darat.create.rotationFixed
-        : m.darat.create.rotationBidding;
+    circle.rotation === 'random' ? m.darat.create.rotationRandom : m.darat.create.rotationFixed;
 
-  // ── Invite-any-time UI state (organizer only) ──
-  const [inviteFormOpen, setInviteFormOpen] = useState(false);
-  const [inviteName, setInviteName] = useState('');
-  const [invitePhone, setInvitePhone] = useState('');
-  const [inviteError, setInviteError] = useState(false);
-  const [inviteBusy, setInviteBusy] = useState(false);
-  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  // ── Row re-invite state (organizer only) ──
   const [rowInviteBusy, setRowInviteBusy] = useState<string | null>(null);
 
   const shareLink = (code: string): string =>
     typeof window === 'undefined'
       ? `/dashboard/darat?join=${code}`
       : `${window.location.origin}/dashboard/darat?join=${code}`;
-
-  const copyInvite = async (code: string) => {
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareLink(code));
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = shareLink(code);
-        ta.style.position = 'absolute';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-      setCopiedInviteId(code);
-      setTimeout(() => setCopiedInviteId(null), 2000);
-    } catch (err) {
-      console.warn('[darat] invite link copy failed', err);
-    }
-  };
 
   const whatsappMessage = (code: string, name: string, phone: string): string =>
     (m.darat.create.whatsappInvite as string)
@@ -496,26 +451,6 @@ export function DaratDetailView({
       openWhatsapp(code, displayName || phone, phone);
     } finally {
       setRowInviteBusy(null);
-    }
-  };
-
-  const submitInvite = async () => {
-    const name = inviteName.trim();
-    const phone = invitePhone.trim();
-    if (!name || phone.replace(/\D/g, '').length < 8) {
-      setInviteError(true);
-      return;
-    }
-    setInviteBusy(true);
-    const code = await onInvite(name, phone);
-    setInviteBusy(false);
-    if (code) {
-      setInviteName('');
-      setInvitePhone('');
-      setInviteError(false);
-      setInviteFormOpen(false);
-    } else {
-      setInviteError(true);
     }
   };
 
@@ -605,7 +540,10 @@ export function DaratDetailView({
               </span>
             )}
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{frequencyLabel}</span>
-            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">{rotationLabel}</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">
+              {circle.rotation === 'random' && <DaratDice size={11} className="shrink-0" />}
+              {rotationLabel}
+            </span>
             <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[12px] font-semibold text-white/85">
               {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}
             </span>
@@ -627,7 +565,7 @@ export function DaratDetailView({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
-              <AppIcon name="groups" strokeWidth={2.2} className="text-[15px]" />
+              <AppIcon name="user_group" strokeWidth={2.2} className="text-[15px]" />
             </span>
             <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">
               {formatMessage(m.darat.list.membersCount, { count: circle.memberOrder.length }, intlLocale)}
@@ -703,129 +641,6 @@ export function DaratDetailView({
         </ul>
       </section>
 
-      {/* ── Invites (organizer, active circle) — invite any time ── */}
-      {isOrganizer && !closed && (
-        <section className="flex flex-col gap-3 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-full bg-lime text-forest-deep">
-                <AppIcon name="group_add" strokeWidth={2.2} className="text-[15px]" />
-              </span>
-              <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-on-surface">
-                {m.darat.detail.invite}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => setInviteFormOpen((v) => !v)}
-              className="shrink-0 rounded-full bg-primary px-3.5 py-2 text-[12px] font-semibold text-on-primary shadow-[0_8px_20px_-8px_rgba(15,59,54,0.45)] transition-all hover:bg-primary-hover active:scale-[0.98]"
-            >
-              {m.darat.detail.inviteCreate}
-            </button>
-          </div>
-
-          {inviteFormOpen && (
-            <div className="flex flex-col gap-2 rounded-2xl border border-outline-variant bg-surface-container p-3">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="text"
-                  value={inviteName}
-                  onChange={(e) => { setInviteName(e.target.value); setInviteError(false); }}
-                  placeholder={m.darat.detail.inviteNamePlaceholder}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 text-[14px] font-medium text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-                <input
-                  type="tel"
-                  dir="ltr"
-                  value={invitePhone}
-                  onChange={(e) => { setInvitePhone(e.target.value); setInviteError(false); }}
-                  placeholder="+212 6 12 34 56 78"
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 text-[14px] font-medium text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => void submitInvite()}
-                  disabled={inviteBusy}
-                  className="h-11 shrink-0 rounded-xl bg-primary px-4 text-[13px] font-bold text-on-primary transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
-                >
-                  {m.darat.detail.inviteCreate}
-                </button>
-              </div>
-              {inviteError ? (
-                <p role="alert" className="text-[12px] font-medium text-error">{m.darat.detail.inviteInvalid}</p>
-              ) : (
-                <p className="text-[12px] font-medium text-on-surface-variant">{m.darat.detail.inviteCodeHint}</p>
-              )}
-            </div>
-          )}
-
-          {pendingInvites.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">
-                {m.darat.detail.invitesTitle} ({pendingInvites.length})
-              </h3>
-              <ul className="flex flex-col gap-2">
-                {pendingInvites.map((invite) => (
-                  <li key={invite.id} className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface-container-lowest p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-bold text-on-surface">
-                          {invite.displayName || invite.phone}
-                        </span>
-                        <span className="truncate text-xs text-on-surface-variant" dir="ltr">{invite.phone}</span>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => whatsappInvite(invite)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-105 active:scale-[0.97]"
-                          title={m.darat.create.whatsappButton}
-                        >
-                          <AppIcon name="send" className="text-[14px]" />
-                          {m.darat.create.whatsappButton}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void copyInvite(invite.id)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
-                        >
-                          <AppIcon name={copiedInviteId === invite.id ? 'check' : 'copy'} className="text-[14px]" />
-                          {copiedInviteId === invite.id ? m.darat.create.copied : m.darat.create.copyLink}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!confirm(m.darat.detail.inviteRevokeConfirm)) return;
-                            void onRevokeInvite(invite.id);
-                          }}
-                          className="flex size-8 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container/40 hover:text-error"
-                          aria-label={m.common.remove}
-                          title={m.common.remove}
-                        >
-                          <AppIcon name="close" strokeWidth={2.4} className="text-[15px]" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
-                      <span className="font-extrabold uppercase tracking-wider">{m.darat.detail.inviteCode}:</span>
-                      <code className="select-all break-all rounded-md bg-surface-container px-2 py-0.5 font-mono text-[11px] text-on-surface">{invite.id}</code>
-                      <a
-                        href={shareLink(invite.id)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="select-all break-all text-primary underline-offset-2 hover:underline"
-                      >
-                        {shareLink(invite.id)}
-                      </a>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
-
       {/* ── Rounds timeline ── */}
       <section className="flex flex-col gap-4 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-5 shadow-ambient">
         <div className="flex items-center justify-between gap-3">
@@ -895,13 +710,6 @@ export function DaratDetailView({
                         : m.darat.detail.noRecipient}
                     </span>
                   </p>
-                  {round.discount > 0 && (
-                    <p className="text-[12px] text-on-surface-variant">
-                      {m.darat.detail.winningBid
-                        .replace('{name}', recipientName)
-                        .replace('{amount}', formatCurrency(round.discount, circle.currency, intlLocale))}
-                    </p>
-                  )}
                   {canToggle && (
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                       <span className={`flex items-center gap-1.5 text-[12px] font-semibold ${myPayment === 'paid' ? 'text-forest dark:text-lime' : 'text-on-surface-variant'}`}>

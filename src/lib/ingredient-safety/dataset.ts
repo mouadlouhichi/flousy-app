@@ -20,11 +20,8 @@ export interface CosIngDataset {
   casByName: ReadonlyMap<string, string>;
 }
 
-const LEGACY_TSV_PATH =
-  process.env.INGREDIENT_DB_PATH ?? join(process.cwd(), 'data', 'cosing', 'cosing-ingredients.tsv');
-const GLOSSARY_TSV_PATH =
-  process.env.INGREDIENT_GLOSSARY_PATH ??
-  join(process.cwd(), 'data', 'cosing', 'eu-inci-glossary-2025.tsv');
+const LEGACY_TSV_PATH = join(process.cwd(), 'data', 'cosing', 'cosing-ingredients.tsv');
+const GLOSSARY_TSV_PATH = join(process.cwd(), 'data', 'cosing', 'eu-inci-glossary-2025.tsv');
 
 /** Legacy references are retained as provenance only. They are intentionally
  * not consumed by the current legal assessment engine. */
@@ -47,9 +44,30 @@ function splitFunctions(raw: string | undefined): string[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
+/**
+ * Reads one of the committed dataset files. The paths are always
+ * `process.cwd()/data/cosing/<literal>`, so the bundler can statically
+ * scope the read to that subfolder and trace exactly those files into the
+ * server output — never the whole project.
+ */
 function readRequired(path: string, label: string): string {
   try {
     return readFileSync(path, 'utf8');
+  } catch (error) {
+    throw new Error(
+      `${label} dataset not found at ${path} (${(error as Error).message}) — see data/cosing/README.md to restore it`,
+    );
+  }
+}
+
+/**
+ * Test/maintenance hook for alternate dataset fixtures. The path is
+ * dynamic by design — it opts out of bundler file tracing so a fixture
+ * path can never make the build trace the whole project into the output.
+ */
+function readDatasetAt(path: string, label: string): string {
+  try {
+    return readFileSync(/*turbopackIgnore: true*/ path, 'utf8');
   } catch (error) {
     throw new Error(`${label} dataset not found at ${path} (${(error as Error).message})`);
   }
@@ -66,7 +84,12 @@ export function loadCosingDataset(): CosIngDataset {
   let inventoryRows = 0;
   let glossaryRows = 0;
 
-  const legacy = readRequired(LEGACY_TSV_PATH, 'CosIng inventory');
+  // The env overrides are a test/maintenance hook — they go through the
+  // explicitly-untraced reader so a build-time value can never turn this
+  // into a dynamic (whole-project) trace.
+  const legacy = process.env.INGREDIENT_DB_PATH
+    ? readDatasetAt(process.env.INGREDIENT_DB_PATH, 'CosIng inventory')
+    : readRequired(LEGACY_TSV_PATH, 'CosIng inventory');
   for (const line of legacy.split('\n')) {
     if (!line) continue;
     const cells = line.split('\t');
@@ -91,7 +114,9 @@ export function loadCosingDataset(): CosIngDataset {
     if (record.cas && !casByName.has(record.cas)) casByName.set(record.cas, record.inci);
   }
 
-  const glossary = readRequired(GLOSSARY_TSV_PATH, 'EU 2025 INCI glossary');
+  const glossary = process.env.INGREDIENT_GLOSSARY_PATH
+    ? readDatasetAt(process.env.INGREDIENT_GLOSSARY_PATH, 'EU 2025 INCI glossary')
+    : readRequired(GLOSSARY_TSV_PATH, 'EU 2025 INCI glossary');
   for (const line of glossary.split('\n')) {
     if (!line) continue;
     const tab = line.indexOf('\t');

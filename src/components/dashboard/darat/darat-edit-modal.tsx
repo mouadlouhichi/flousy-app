@@ -10,6 +10,7 @@ import { useCurrency } from '@/lib/currency-context';
 import { DARAT_MAX_MEMBERS } from '@/lib/darat-firestore';
 import type { DaratCircle, DaratRotation, DaratFrequency } from '@/lib/darat';
 import { parseAmountInput } from '@/lib/parse-amount';
+import { DaratDice } from './darat-dice';
 
 interface Props {
   circle: DaratCircle;
@@ -130,7 +131,6 @@ export function DaratEditModal({ circle, memberLabels, onClose, onSubmit }: Prop
   const rotationChips: ChoiceChipOption[] = [
     { value: 'random', label: m.darat.create.rotationRandom, icon: 'dices' },
     { value: 'fixed', label: m.darat.create.rotationFixed, icon: 'list_ordered' },
-    { value: 'bidding', label: m.darat.create.rotationBidding, icon: 'gavel' },
   ];
 
   const submit = async (e: React.FormEvent) => {
@@ -270,6 +270,14 @@ export function DaratEditModal({ circle, memberLabels, onClose, onSubmit }: Prop
             ariaLabel={m.darat.create.rotation}
             wrap
           />
+          {rotation === 'random' && (
+            <div className="flex items-center gap-3 rounded-2xl border border-lime-deep/40 bg-lime/10 p-3 dark:border-lime/30 dark:bg-lime/5">
+              <DaratDice size={18} className="shrink-0 text-forest-deep dark:text-lime" />
+              <p className="text-[12px] font-medium leading-relaxed text-on-surface-variant">
+                {m.darat.create.rotationRandomHint}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Owner participation ── */}

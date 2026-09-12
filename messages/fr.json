@@ -1680,6 +1680,7 @@
     "groupAccount": "Compte",
     "overview": "Vue d’ensemble",
     "dashboardOverview": "Vue d’ensemble du tableau de bord",
+    "quickAccess": "Accès rapide",
     "fixedBills": "Factures fixes",
     "variableExpenses": "Dépenses variables",
     "courses": "Courses",
@@ -2136,7 +2137,7 @@
         },
         "darat": {
           "title": "Tontines Darat",
-          "description": "Gérez une tontine rotative (daret / 9or3a) avec vos proches — tirage, ordre ou enchère, avec rappels automatiques et historique complet."
+          "description": "Gérez une tontine rotative (daret / 9or3a) avec vos proches — tirage au sort ou ordre convenu, avec rappels automatiques et historique complet."
         }
       },
       "privateWorkspaceLead": "Les mises à niveau Pro s’appliquent à votre espace privé. Basculez vers",
@@ -2584,12 +2585,12 @@
     "title": "Darat — Tontines rotatives",
     "shortTitle": "Darat",
     "eyebrow": "Pro · Épargne traditionnelle, moderne",
-    "intro": "Amis, famille ou collègues mettent en commun un montant fixe à chaque tour. Un membre récupère la cagnotte entière. Pro gère tout : tirage au sort, ordre convenu ou enchère — avec un historique de paiement partagé.",
+    "intro": "Amis, famille ou collègues mettent en commun un montant fixe à chaque tour. Un membre récupère la cagnotte entière. Pro gère tout : tirage au sort ou ordre convenu — avec un historique de paiement partagé.",
     "proGate": {
       "title": "Darat est une fonctionnalité Pro",
-      "body": "Lancez des tontines rotatives avec jusqu'à 20 membres. Tirage au sort, ordre convenu ou enchère — vous choisissez.",
+      "body": "Lancez des tontines rotatives avec jusqu'à 20 membres. Tirage au sort ou ordre convenu — vous choisissez.",
       "perk1": "Jusqu'à 20 membres par tontine",
-      "perk2": "Rotation aléatoire, ordonnée, ou par enchère",
+      "perk2": "Rotation aléatoire ou ordonnée",
       "perk3": "Suivi automatique des paiements et rappels",
       "perk4": "Chaque contribution est enregistrée dans votre budget mensuel",
       "cta": "Démarrer l'essai Pro gratuit"
@@ -2643,16 +2644,17 @@
       "inviteConsentTitle": "Avant d'inviter",
       "inviteConsent": "Je confirme que les personnes que j'invite sont au courant du cercle et m'ont donné leur numéro de téléphone à partager avec SmartJib pour l'envoi de l'invitation.",
       "dragHandle": "Glisser pour réorganiser",
+      "drawHint": "Lancé une seule fois à la création — l'ordre ci-dessous est désormais définitif pour la tontine.",
+      "drawRolling": "Lancement des dés…",
+      "drawTitle": "Tirage au sort",
       "startHint": "Vous pouvez changer la fréquence, la rotation et l’ordre de paiement sur l’écran suivant.",
       "addMember": "Ajouter un membre",
       "memberNamePlaceholder": "Nom",
       "rotation": "Ordre de rotation",
       "rotationRandom": "Tirage au sort",
       "rotationFixed": "Ordre convenu",
-      "rotationBidding": "Enchère",
-      "rotationRandomHint": "À chaque tour, un tirage au sort désigne le bénéficiaire. Équitable pour tous.",
+      "rotationRandomHint": "Le tirage a lieu une seule fois, à la création : les dés fixent l'ordre, qui reste définitif pour la tontine.",
       "rotationFixedHint": "Vous choisissez l'ordre. Le premier de la liste reçoit la première cagnotte.",
-      "rotationBiddingHint": "À chaque tour, les membres enchérissent une remise. Le moins-disant gagne ; la remise est répartie entre les autres.",
       "startDate": "Date du premier tour",
       "startDateHint": "Quand le premier paiement a-t-il lieu ?",
       "sourcePlace": "Votre source d'argent pour les contributions",
@@ -2711,29 +2713,13 @@
       "paymentRecorded": "Votre paiement a été enregistré pour le tour {n}.",
       "paymentReverted": "Paiement du tour {n} annulé.",
       "paymentFailed": "Impossible d'enregistrer le paiement. Réessayez.",
-      "yourTurnToBid": "C'est à vous d'enchérir",
-      "submitBid": "Soumettre l'enchère",
-      "biddingClosed": "Enchères closes pour ce tour",
-      "winningBid": "{name} a gagné avec une remise de {amount}",
-      "yourBid": "Votre enchère",
-      "bidHint": "Combien de la cagnotte êtes-vous prêt à abandonner ? Saisissez 0 pour enchérir la cagnotte entière.",
-      "invite": "Inviter un membre",
-      "inviteSent": "Code envoyé à {phone}.",
       "leave": "Quitter la tontine",
       "leaveConfirm": "Quitter cette tontine ? Vous cesserez de cotiser et l'organisateur pourra pourvoir votre place.",
       "close": "Clôturer la tontine",
       "closeConfirm": "Clôturer cette tontine ? Une fois clôturée, plus aucun tour ne se déroule.",
-      "inviteCode": "Code d'invitation",
-      "inviteCodeHint": "Partagez ce code ou le lien avec une personne de confiance — elle peut rejoindre depuis la page Darat.",
       "invitedPhone": "Invité · {phone}",
       "organizerOnly": "Propriétaire — ne participe pas",
-      "progressHint": "Compte les tours dont la date est passée. Suivant : tour {n} · {date}",
-      "inviteCreate": "Créer un code d’invitation",
-      "inviteName": "Nom du membre",
-      "inviteNamePlaceholder": "ex. Youssef",
-      "inviteRevokeConfirm": "Révoquer ce code d’invitation ? Le membre ne pourra plus l’utiliser pour rejoindre.",
-      "invitesTitle": "Invitations en attente",
-      "inviteInvalid": "Nom et numéro de téléphone valides requis."
+      "progressHint": "Compte les tours dont la date est passée. Suivant : tour {n} · {date}"
     },
     "join": {
       "title": "Rejoindre une tontine Darat",
@@ -2762,6 +2748,12 @@
       "contributeNext": "Prochaine contribution : {amount} le {date}",
       "payoutNext": "Votre versement : {amount} le {date}",
       "activeIn": "{count, plural, one {# tontine active} other {# tontines actives}}"
+    },
+    "inviteBanner": {
+      "title": "Vous êtes invité à une tontine",
+      "body": "Votre groupe vous a gardé une place. Rejoignez-la avec votre code d'invitation — un seul geste.",
+      "cta": "Rejoindre la tontine",
+      "dismiss": "Plus tard"
     }
   },
   "ingredientGlance": {

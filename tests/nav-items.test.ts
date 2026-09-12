@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DASHBOARD_NAV_ITEMS,
   PROFILE_SUBPAGE_NAV_ITEMS,
+  getMobileQuickAccessItems,
   getProfilePageTitle,
   getScreenIdFromPath,
   getSidebarNavItems,
@@ -86,6 +87,26 @@ describe('Dashboard navigation items', () => {
     const hrefs = DASHBOARD_NAV_ITEMS.map((i) => i.href);
     assert.strictEqual(new Set(ids).size, ids.length);
     assert.strictEqual(new Set(hrefs).size, hrefs.length);
+  });
+
+  it('quick access surfaces exactly the screens the five-slot bottom nav omits', () => {
+    const pro = getMobileQuickAccessItems(true).map((item) => item.id);
+    // courses for everyone; knowledge, trends and Darat are Pro-gated.
+    assert.deepEqual(pro, ['courses', 'knowledge', 'trends', 'darat']);
+  });
+
+  it('quick access lists only the courses tile for free users', () => {
+    assert.deepEqual(getMobileQuickAccessItems(false).map((item) => item.id), ['courses']);
+  });
+
+  it('quick access never duplicates a screen that already has a mobile surface', () => {
+    const ids: string[] = getMobileQuickAccessItems(true).map((item) => item.id);
+    for (const item of getVisibleNavItems(true)) {
+      assert.ok(!ids.includes(item.id), `${item.id} is in the bottom nav`);
+    }
+    for (const reserved of ['search', 'profile']) {
+      assert.ok(!ids.includes(reserved), `${reserved} has its own entry point`);
+    }
   });
 
   it('resolves the courses route but keeps it out of the nav bars', () => {

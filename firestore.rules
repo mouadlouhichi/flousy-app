@@ -1638,7 +1638,7 @@ service cloud.firestore {
         && getAfter(circleInvitePath(cid, inviteId)).data.get('acceptedByUserId', '') == uid;
     }
     function validDaratRotation(value) {
-      return value in ['random', 'fixed', 'bidding'];
+      return value in ['random', 'fixed'];
     }
     function validDaratFrequency(value) {
       return value in ['weekly', 'biweekly', 'monthly'];

@@ -175,7 +175,11 @@ export function proxy(request: NextRequest) {
   if (isAuthGatedPath(pathname) && request.cookies.get(SESSION_COOKIE)?.value !== '1') {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
-    loginUrl.search = '';
+    // Preserve where the visitor was headed (query included) so deep links
+    // survive the sign-in round-trip — a Darat invite link
+    // (/dashboard/darat?join=<code>) is dead without its query. /login reads
+    // the param back after auth and continues to the destination.
+    loginUrl.search = `?redirect=${encodeURIComponent(pathname + request.nextUrl.search)}`;
     const redirect = NextResponse.redirect(loginUrl, { status: 307 });
     redirect.headers.set('Content-Security-Policy', csp);
     redirect.headers.set('Cache-Control', 'private, no-store, max-age=0');

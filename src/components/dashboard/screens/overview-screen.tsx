@@ -56,6 +56,7 @@ export function OverviewScreen() {
       onUpdateStrategy={handleUpdateStrategy}
       onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
       insightsUnlocked={insightsUnlocked}
+      isPro={isPro}
       onUpgrade={openProModal}
       onOpenIncome={canOpenIncome ? openIncomeModal : undefined}
     />

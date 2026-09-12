@@ -954,8 +954,7 @@
           "type": "string",
           "enum": [
             "random",
-            "fixed",
-            "bidding"
+            "fixed"
           ]
         },
         "startDate": {
@@ -1051,17 +1050,12 @@
             "string",
             "null"
           ],
-          "description": "uid of the member who receives the pot; null for undecided bidding rounds"
+          "description": "uid of the member who receives the pot; null until determined"
         },
         "pot": {
           "type": "number",
           "minimum": 0,
-          "description": "Pre-discount pot (contribution × active members)"
-        },
-        "discount": {
-          "type": "number",
-          "minimum": 0,
-          "description": "For bidding rounds: the discount the winner offered, redistributed to the rest"
+          "description": "Pot (contribution × active members)"
         },
         "status": {
           "type": "string",

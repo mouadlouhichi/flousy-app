@@ -13,6 +13,7 @@ import { isLooseDaratPhone, type DaratRotation } from '@/lib/darat';
 import { formatCurrency } from '@/lib/currency';
 import { parseAmountInput } from '@/lib/parse-amount';
 import { formatYmd } from './darat-ui';
+import { DaratDrawPanel } from './darat-dice';
 import type { InviteSummary } from './darat-screen';
 
 interface MemberDraft {
@@ -57,6 +58,8 @@ interface Props {
     ok: boolean;
     circleId?: string;
     invites?: InviteSummary[];
+    /** Random rotation only: seat ids in the drawn payout order (the one-shot draw made at creation). */
+    drawOrder?: string[] | null;
     error?: string;
   }>;
 }
@@ -115,9 +118,8 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
     d.setUTCDate(d.getUTCDate() + 7);
     return d.toISOString().slice(0, 10);
   });
-  // Rotation picked at create time. Bidding is intentionally not offered
-  // here — a draw or an agreed order is decided on day one; an auction can
-  // be switched to later from the edit screen.
+  // Rotation picked at create time: a fair draw or an agreed order,
+  // decided on day one.
   const [rotation, setRotation] = useState<DaratRotation>('random');
   // Agreed-order payout sequence (memberOrder ids: the organizer uid first
   // when participating, then the invitee phones), kept in sync with the
@@ -128,7 +130,7 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; amount?: string; members?: string; startDate?: string }>({});
   // The post-create summary, shown after the transaction commits.
   // When this is non-null the form is replaced by the share-links panel.
-  const [created, setCreated] = useState<{ circleId: string; invites: CreatedInvite[] } | null>(null);
+  const [created, setCreated] = useState<{ circleId: string; invites: CreatedInvite[]; drawOrder: string[] | null } | null>(null);
   // Per-invite "Copied!" toast (auto-clears after a short delay).
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -359,6 +361,7 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
           displayName: inv.displayName,
           phone: inv.phone,
         })),
+        drawOrder: res.drawOrder ?? null,
       });
     } catch (err) {
       console.error('[darat] create failed', err);
@@ -437,12 +440,32 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
     { value: 'no', label: m.common.cancel, icon: 'close' },
   ];
 
+  // Seat ids in the drawn order are the organizer's uid and the invitees'
+  // (trimmed) phone placeholders — resolve both to the names the organizer
+  // typed, the way the circle will show them.
+  const seatLabel = (seatId: string): string => {
+    if (user?.uid && seatId === user.uid) {
+      return (user.displayName && user.displayName.trim()) || user.email || '—';
+    }
+    const digits = (p: string) => p.replace(/\D+/g, '');
+    const seatDigits = digits(seatId);
+    const invite =
+      seatDigits.length > 0
+        ? created?.invites.find((inv) => digits(inv.phone) === seatDigits)
+        : undefined;
+    return invite?.displayName || seatId;
+  };
+
   // Post-create summary view: replaces the form once the transaction
-  // commits. Renders one row per invite with a copy-link button.
+  // commits. The random draw (when the circle uses it) is revealed first —
+  // the dice roll once and the drawn order is shown before the share links.
   if (created) {
     return (
       <Modal isOpen onClose={onClose} title={m.darat.create.created}>
         <div className="flex min-w-0 flex-col gap-4">
+          {created.drawOrder && created.drawOrder.length > 0 && (
+            <DaratDrawPanel circleId={created.circleId} seats={created.drawOrder} seatLabel={seatLabel} />
+          )}
           <div className="flex flex-col gap-1.5">
             <h2 className="text-base font-bold text-on-surface">{m.darat.create.shareLinksTitle}</h2>
             <p className="text-[13px] text-on-surface-variant leading-relaxed">
@@ -545,7 +568,7 @@ export function DaratCreateModal({ onClose, onSubmit, onViewCircle }: Props) {
               fieldErrors.name ? 'border-error focus-within:border-error focus-within:ring-error/20' : 'border-outline-variant'
             }`}
           >
-            <AppIcon name="groups" className="text-[20px] text-on-surface-variant" />
+            <AppIcon name="user_group" className="text-[20px] text-on-surface-variant" />
             <input
               id="darat-name"
               type="text"

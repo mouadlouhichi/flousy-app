@@ -1680,6 +1680,7 @@
     "groupAccount": "Account",
     "overview": "Overview",
     "dashboardOverview": "Dashboard Overview",
+    "quickAccess": "Quick access",
     "fixedBills": "Fixed Bills",
     "variableExpenses": "Variable Expenses",
     "courses": "Courses",
@@ -2136,7 +2137,7 @@
         },
         "darat": {
           "title": "Darat Savings Circles",
-          "description": "Run a rotating savings group (daret / 9or3a) with friends and family — random or bidding rotation, automatic reminders, and a full payment history."
+          "description": "Run a rotating savings group (daret / 9or3a) with friends and family — random draw or agreed order, automatic reminders, and a full payment history."
         }
       },
       "privateWorkspaceLead": "Pro upgrades apply to your private workspace. Switch to",
@@ -2584,12 +2585,12 @@
     "title": "Darat — Rotating Savings Circles",
     "shortTitle": "Darat",
     "eyebrow": "Pro · Traditional savings, modern",
-    "intro": "Friends, family, or coworkers pool a fixed amount each round. One member takes the whole pot. Pro runs the whole thing: random draw, fixed order, or auction bidding — with a shared payment history.",
+    "intro": "Friends, family, or coworkers pool a fixed amount each round. One member takes the whole pot. Pro runs the whole thing: random draw or fixed order — with a shared payment history.",
     "proGate": {
       "title": "Darat is a Pro feature",
-      "body": "Run rotating savings circles with up to 20 members. Random draw, fixed order, or bidding — your call.",
+      "body": "Run rotating savings circles with up to 20 members. Random draw or fixed order — your call.",
       "perk1": "Up to 20 members per circle",
-      "perk2": "Random, fixed-order, and bidding rotation",
+      "perk2": "Random or fixed-order rotation",
       "perk3": "Automatic payment tracking and reminders",
       "perk4": "Each contribution is recorded in your monthly budget",
       "cta": "Start a free Pro trial"
@@ -2643,16 +2644,17 @@
       "inviteConsentTitle": "Before you invite",
       "inviteConsent": "I confirm the people I'm inviting know about the circle and have given me their phone number to share with SmartJib for the invite.",
       "dragHandle": "Drag to reorder",
+      "drawHint": "Rolled once at creation — the order below is now fixed for the circle.",
+      "drawRolling": "Rolling the dice…",
+      "drawTitle": "Random draw",
       "startHint": "You can change the frequency, rotation, and payment order on the next screen.",
       "addMember": "Add a member",
       "memberNamePlaceholder": "Name",
       "rotation": "Rotation order",
       "rotationRandom": "Random draw",
       "rotationFixed": "Agreed order",
-      "rotationBidding": "Bidding",
-      "rotationRandomHint": "Each round, a fair draw decides who receives the pot. Equal for everyone.",
+      "rotationRandomHint": "The draw happens once, at creation: the dice set the order and it stays fixed for the circle.",
       "rotationFixedHint": "You choose the order. The first member on the list gets the first pot.",
-      "rotationBiddingHint": "Each round, members bid a discount. The lowest bidder wins the pot; the discount is split between the rest.",
       "startDate": "First round date",
       "startDateHint": "When does the first payment happen?",
       "sourcePlace": "Your money place for contributions",
@@ -2711,29 +2713,13 @@
       "paymentRecorded": "Your payment was recorded for round {n}.",
       "paymentReverted": "Round {n} payment reverted.",
       "paymentFailed": "Could not record the payment. Please try again.",
-      "yourTurnToBid": "It's your turn to bid",
-      "submitBid": "Submit bid",
-      "biddingClosed": "Bidding closed for this round",
-      "winningBid": "{name} won with a {amount} discount",
-      "yourBid": "Your bid",
-      "bidHint": "How much of the pot are you willing to give up? Enter 0 to bid the full pot.",
-      "invite": "Invite a member",
-      "inviteSent": "Code sent to {phone}.",
       "leave": "Leave circle",
       "leaveConfirm": "Leave this circle? You'll stop paying into it and your spot will open for the organizer to fill.",
       "close": "Close circle",
       "closeConfirm": "Close this circle? Once closed, no more rounds run and no payouts are made.",
-      "inviteCode": "Invite code",
-      "inviteCodeHint": "Share this code or the link with someone you trust — they can join from the Darat page.",
       "invitedPhone": "Invited · {phone}",
       "organizerOnly": "Owner — not participating",
-      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}",
-      "inviteCreate": "Create invite code",
-      "inviteName": "Member name",
-      "inviteNamePlaceholder": "e.g. Youssef",
-      "inviteRevokeConfirm": "Revoke this invite code? The member will no longer be able to join with it.",
-      "invitesTitle": "Pending invites",
-      "inviteInvalid": "Name and a valid phone number are required."
+      "progressHint": "Counts rounds whose date has passed. Next: round {n} · {date}"
     },
     "join": {
       "title": "Join a Darat circle",
@@ -2762,6 +2748,12 @@
       "contributeNext": "Next contribution: {amount} on {date}",
       "payoutNext": "Your payout: {amount} on {date}",
       "activeIn": "{count, plural, one {# active circle} other {# active circles}}"
+    },
+    "inviteBanner": {
+      "title": "You're invited to a Darat circle",
+      "body": "Your group saved a spot for you. Join with your invite code — it only takes a tap.",
+      "cta": "Join the circle",
+      "dismiss": "Not now"
     }
   },
   "ingredientGlance": {

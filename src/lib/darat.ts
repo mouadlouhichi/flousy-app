@@ -8,8 +8,8 @@
  *     `firebase-blueprint.json`; the test `tests/darat.test.ts` pins the
  *     equality.
  *
- *  2. Pure rotation algorithms (قرعة / random, agreed / fixed order, مزايدة /
- *     bidding). They take inputs, return outputs, and never touch Firebase or
+ *  2. Pure rotation algorithms (قرعة / random, agreed / fixed order). They
+ *     take inputs, return outputs, and never touch Firebase or
  *     React. Same input → same output, every time, on the server and the
  *     client. That is what makes a Darat "the same" for every member of the
  *     circle even if they each open it on a different device.
@@ -29,7 +29,7 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export type DaratRotation = 'random' | 'fixed' | 'bidding';
+export type DaratRotation = 'random' | 'fixed';
 export type DaratFrequency = 'weekly' | 'biweekly' | 'monthly';
 export type DaratMemberStatus = 'active' | 'left' | 'removed';
 export type DaratRoundStatus = 'pending' | 'collected' | 'paid_out' | 'closed';
@@ -47,13 +47,8 @@ export interface DaratRound {
   date: string;
   /** Member id (uid) who receives the pot, or null if not yet determined. */
   recipientId: string | null;
-  /** Pre-discount pot for this round (contribution × active members at that round). */
+  /** Pot for this round (contribution × active members at that round). */
   pot: number;
-  /**
-   * For bidding circles only: the discount the winner offered, redistributed
-   * to the other members. Always 0 for `random` and `fixed` circles.
-   */
-  discount: number;
   status: DaratRoundStatus;
   /** Per-member payment status, keyed by member id. */
   payments: Record<string, DaratPaymentStatus>;
@@ -141,6 +136,12 @@ export interface DaratInvite {
   circleId: string;
   /** Loose phone number (8+ digits, separators allowed). See `PHONE_RE`. */
   phone: string;
+  /**
+   * The name the organizer typed for this invitee. Shown on the roster
+   * until the invite is accepted, and used as the member row's display
+   * name when the account has none. Empty on invites predating the field.
+   */
+  displayName: string;
   invitedByUid: string;
   /** ISO timestamp. */
   expiresAt: string;
@@ -329,50 +330,6 @@ export function daratFixedRecipient(fixedOrder: string[], roundNumber: number): 
   return fixedOrder[roundNumber - 1] ?? null;
 }
 
-/**
- * Bidding rotation: each member bids a discount (≥ 0, ≤ pot). The lowest
- * non-zero bid wins; ties are broken by the order in `memberOrder`.
- *
- * Returns the winning recipient uid, the discount, and the per-member share
- * the rest will receive. `bids` is a record keyed by uid; missing entries are
- * treated as "no bid" and exclude the member from the round.
- */
-export interface DaratBidResult {
-  winnerId: string | null;
-  discount: number;
-  /** Map of uid → share of the discount they receive. */
-  redistribution: Record<string, number>;
-  /** True when nobody bid. */
-  noBids: boolean;
-}
-
-export function daratResolveBid(
-  bids: Record<string, number>,
-  pot: number,
-  memberOrder: string[],
-): DaratBidResult {
-  const entries = Object.entries(bids)
-    .filter(([, amount]) => Number.isFinite(amount) && amount >= 0)
-    .map(([uid, amount]) => [uid, daratRoundAmount(amount)] as const);
-
-  if (entries.length === 0) {
-    return { winnerId: null, discount: 0, redistribution: {}, noBids: true };
-  }
-
-  // Lowest bid wins. Ties broken by the order in `memberOrder` (first wins).
-  entries.sort(([aUid, a], [bUid, b]) => {
-    if (a !== b) return a - b;
-    return memberOrder.indexOf(aUid) - memberOrder.indexOf(bUid);
-  });
-  const [winnerId, rawDiscount] = entries[0];
-  const cappedDiscount = Math.min(daratRoundAmount(rawDiscount), pot);
-  const otherUids = memberOrder.filter((uid) => uid !== winnerId);
-  const share = otherUids.length > 0 ? daratRoundAmount(cappedDiscount / otherUids.length) : 0;
-  const redistribution: Record<string, number> = {};
-  for (const uid of otherUids) redistribution[uid] = share;
-  return { winnerId, discount: cappedDiscount, redistribution, noBids: false };
-}
-
 // ---------------------------------------------------------------------------
 // Round construction
 // ---------------------------------------------------------------------------
@@ -385,8 +342,6 @@ export interface BuildRoundsInput {
   rotation: DaratRotation;
   fixedOrder: string[] | null;
   randomSeed: string | null;
-  /** For bidding: pre-existing per-round bids, keyed by round number. */
-  bidsByRound?: Record<number, Record<string, number>>;
 }
 
 /**
@@ -406,16 +361,10 @@ export function daratBuildRounds(input: BuildRoundsInput): DaratRound[] {
   const rounds: DaratRound[] = [];
   for (let n = 1; n <= total; n++) {
     let recipientId: string | null = null;
-    let discount = 0;
     if (rotation === 'random' && randomOrder) {
       recipientId = daratRandomRecipient(randomOrder, n);
     } else if (rotation === 'fixed' && input.fixedOrder) {
       recipientId = daratFixedRecipient(input.fixedOrder, n);
-    } else if (rotation === 'bidding') {
-      const bids = input.bidsByRound?.[n] ?? {};
-      const result = daratResolveBid(bids, pot, memberOrder);
-      recipientId = result.winnerId;
-      discount = result.discount;
     }
     const payments: Record<string, DaratPaymentStatus> = {};
     for (const uid of memberOrder) payments[uid] = 'pending';
@@ -424,7 +373,6 @@ export function daratBuildRounds(input: BuildRoundsInput): DaratRound[] {
       date: daratRoundDate(startDate, n, frequency),
       recipientId,
       pot,
-      discount,
       status: 'pending',
       payments,
     });
@@ -541,9 +489,7 @@ export function normalizeDaratCircle(raw: Partial<DaratCircle> & { id: string })
     frequency: raw.frequency === 'weekly' || raw.frequency === 'biweekly' || raw.frequency === 'monthly'
       ? raw.frequency
       : 'monthly',
-    rotation: raw.rotation === 'fixed' || raw.rotation === 'bidding' || raw.rotation === 'random'
-      ? raw.rotation
-      : 'random',
+    rotation: raw.rotation === 'fixed' || raw.rotation === 'random' ? raw.rotation : 'random',
     startDate: typeof raw.startDate === 'string' ? raw.startDate : '',
     fixedOrder: Array.isArray(raw.fixedOrder) ? raw.fixedOrder.slice() : null,
     randomSeed: typeof raw.randomSeed === 'string' ? raw.randomSeed : null,
@@ -587,16 +533,11 @@ export function normalizeDaratRound(raw: Partial<DaratRound>): DaratRound {
       : 1;
   const pot =
     typeof raw.pot === 'number' && Number.isFinite(raw.pot) ? Math.max(0, raw.pot) : 0;
-  const discount =
-    typeof raw.discount === 'number' && Number.isFinite(raw.discount)
-      ? Math.max(0, raw.discount)
-      : 0;
   return {
     number,
     date: typeof raw.date === 'string' ? raw.date : '',
     recipientId: typeof raw.recipientId === 'string' ? raw.recipientId : null,
     pot,
-    discount,
     status: raw.status === 'collected' || raw.status === 'paid_out' || raw.status === 'closed'
       ? raw.status
       : 'pending',
@@ -730,6 +671,9 @@ export function normalizeDaratInvite(raw: Partial<DaratInvite> & { id: string })
     // Phone may be missing on documents predating the phone migration;
     // the join flow tolerates that — the gate is the id, not the phone.
     phone: typeof raw.phone === 'string' ? raw.phone : '',
+    // Same tolerance for the name: invites created before this field existed
+    // simply fall back to the phone on the roster.
+    displayName: typeof raw.displayName === 'string' ? raw.displayName : '',
     invitedByUid: typeof raw.invitedByUid === 'string' ? raw.invitedByUid : '',
     expiresAt: typeof raw.expiresAt === 'string' ? raw.expiresAt : '',
     acceptedAt: typeof raw.acceptedAt === 'string' ? raw.acceptedAt : null,

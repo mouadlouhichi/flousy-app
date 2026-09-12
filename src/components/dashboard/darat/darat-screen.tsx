@@ -43,6 +43,7 @@ import { ProLockedCard } from '@/components/dashboard/pro-locked-card';
 import { DaratCreateModal } from './darat-create-modal';
 import { DaratJoinModal } from './darat-join-modal';
 import { DaratDetailScreen } from './darat-detail-screen';
+import { clearDaratJoin, readDaratJoin, rememberDaratJoin } from '@/lib/darat-pending-invite';
 import { DaratCircleCard, DaratHero } from './darat-ui';
 
 type View =
@@ -135,6 +136,10 @@ export function DaratScreen() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinInitialCode, setJoinInitialCode] = useState<string | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // An invite code that arrived before the visitor could use it (share link
+  // opened while signed out). Read after mount — sessionStorage is not
+  // available during render, and the first paint must match the server.
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
 
   // Share-link landing: when the URL carries `?join=<code>` the user
   // clicked a same-origin link shared by an organizer. Open the join
@@ -146,6 +151,11 @@ export function DaratScreen() {
     if (!join) return;
     if (joinInitialCode === join) return;
     setJoinInitialCode(join);
+    // Remember the code for the whole session: if the modal gets closed, or
+    // the link was opened before sign-in completed, the invite banner can
+    // still bring the user back to it.
+    rememberDaratJoin(join);
+    setPendingInvite(join);
     setJoinOpen(true);
     // Replace history so the modal does not re-open on refresh.
     const next = new URL(window.location.href);
@@ -153,6 +163,12 @@ export function DaratScreen() {
     const cleaned = next.pathname + (next.search ? next.search : '');
     window.history.replaceState({}, '', cleaned);
   }, [searchParams, joinInitialCode]);
+
+  // A remembered invite (share link opened while signed out) resurfaces
+  // as a banner once the user is signed in.
+  useEffect(() => {
+    if (user) setPendingInvite(readDaratJoin());
+  }, [user]);
 
   // Subscribe to the user's circles pointer (`users/{uid}/circles`). Every
   // member — the organizer included — gets a pointer row when a circle is
@@ -359,7 +375,7 @@ export function DaratScreen() {
     rotation?: DaratRotation;
     /** Agreed-order payout sequence (memberOrder ids) when rotation=fixed. */
     fixedOrder?: string[] | null;
-  }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; error?: string }> => {
+  }, opts?: { silent?: boolean }): Promise<{ ok: boolean; circleId?: string; invites?: InviteSummary[]; drawOrder?: string[] | null; error?: string }> => {
     if (!user || !db) return { ok: false, error: 'noUser' };
     // Sensible defaults; the user edits them on the next screen.
     const defaultsInput: DaratCreateDefaultsInput = {
@@ -374,7 +390,7 @@ export function DaratScreen() {
       // Defaults the user edits on the detail screen.
       frequency: 'monthly',
       // Rotation (and, for agreed order, the payout sequence) is picked on
-      // the create form now; bidding stays an edit-time switch.
+      // the create form.
       rotation: input.rotation ?? 'random',
       fixedOrder: input.rotation === 'fixed' ? (input.fixedOrder ?? null) : null,
       // The create form picks the first round date; fall back to a week
@@ -414,9 +430,18 @@ export function DaratScreen() {
     // the chicken-and-egg between the member row and the pointer.
     // The transaction also lets the rules read the freshly-written
     // member row when checking the pointer's `isCircleMember` guard.
+    // The one-shot random draw persisted in the rounds (random rotation
+    // only): seats in the exact order they will receive. Captured here so
+    // the post-create summary can roll the dice and reveal it — the same
+    // order the rounds carry, never re-rolled.
+    let drawOrder: string[] | null = null;
     try {
       console.info(`[darat] create: building body for ${circleRef.id}…`);
       const defaults = buildDaratCreateDefaults(defaultsInput, circleRef.id);
+      drawOrder =
+        input.rotation === 'random'
+          ? defaults.rounds.map((r) => r.recipientId).filter((id): id is string => id !== null)
+          : null;
       console.info('[darat] create: body ready, running transaction…');
       await runTransaction(db, async (tx) => {
         tx.set(circleRef, {
@@ -475,6 +500,10 @@ export function DaratScreen() {
           const inviteFields = {
             circleId: circleRef.id,
             phone: member.phone,
+            // The name the organizer typed. The roster shows it until the
+            // invitee accepts — without it a pending seat renders as an
+            // opaque placeholder instead of a person.
+            displayName: member.displayName,
             invitedByUid: user.uid,
             expiresAt,
             acceptedAt: null,
@@ -515,7 +544,7 @@ export function DaratScreen() {
     if (opts?.silent) {
       setCreateOpen(false);
     }
-    return { ok: true, circleId: circleRef.id, invites: inviteSummaries };
+    return { ok: true, circleId: circleRef.id, invites: inviteSummaries, drawOrder };
   }, [db, user, userCurrency]);
 
   // "Open circle" from the post-create summary: close the modal and land
@@ -780,7 +809,7 @@ export function DaratScreen() {
           stats={null}
         />
         <ProLockedCard
-          icon="groups"
+          icon="user_group"
           title={m.darat.proGate.title}
           body={m.darat.proGate.body}
           onUpgrade={() => router.push('/dashboard/profile/pro')}
@@ -837,7 +866,7 @@ export function DaratScreen() {
         return (
           <div className="flex flex-col items-center gap-4 py-16">
             <span className="flex size-12 animate-pulse items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-              <AppIcon name="groups" className="text-[22px]" />
+              <AppIcon name="user_group" className="text-[22px]" />
             </span>
             <p className="text-[14px] font-medium text-on-surface-variant">{m.common.loading}</p>
             <button
@@ -915,6 +944,46 @@ export function DaratScreen() {
         }
       />
 
+      {/* An invite remembered from a share link (usually one opened before
+          sign-in completed). Join reopens the modal with the code; dismiss
+          drops it for this session. */}
+      {pendingInvite && (
+        <div className="flex flex-col gap-3 rounded-[1.75rem] border border-lime-deep/40 bg-lime/10 p-4 sm:flex-row sm:items-center dark:border-lime/30 dark:bg-lime/5">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
+              <AppIcon name="group_add" strokeWidth={2} className="text-[20px]" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-semibold text-on-surface">{m.darat.inviteBanner.title}</h3>
+              <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">{m.darat.inviteBanner.body}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setJoinInitialCode(pendingInvite);
+                setJoinOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-forest px-4 py-2 text-xs font-bold text-lime transition-all hover:bg-forest-deep"
+            >
+              <AppIcon name="group_add" className="text-[14px]" />
+              {m.darat.inviteBanner.cta}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearDaratJoin();
+                setPendingInvite(null);
+              }}
+              className="inline-flex items-center rounded-full border border-outline-variant px-3 py-2 text-xs font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high"
+            >
+              {m.darat.inviteBanner.dismiss}
+            </button>
+          </div>
+        </div>
+      )}
+
       {(loadError || docsLoadFailed) && circlesReady && circles.length === 0 && (
         <Alert variant="destructive">
           <AlertTitle>{m.errors.loadFailedTitle}</AlertTitle>
@@ -924,10 +993,32 @@ export function DaratScreen() {
         </Alert>
       )}
 
+      {/* Circles arrive on live subscriptions; until the first snapshot
+          lands, hold the layout with quiet placeholders instead of an
+          empty flash. */}
+      {!circlesReady && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy="true" aria-label={m.darat.list.title}>
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex h-36 animate-pulse flex-col gap-3 rounded-[1.75rem] border border-outline-variant bg-surface-container-lowest p-4"
+            >
+              <span className="flex items-center gap-2">
+                <span className="size-6 rounded-lg bg-surface-container-high" />
+                <span className="h-4 w-28 rounded bg-surface-container-high" />
+              </span>
+              <span className="h-3 w-40 rounded bg-surface-container-high" />
+              <span className="h-3 w-24 rounded bg-surface-container-high" />
+              <span className="mt-auto h-3.5 w-20 rounded bg-surface-container-high" />
+            </div>
+          ))}
+        </div>
+      )}
+
       {circles.length === 0 && circlesReady && (
         <div className="flex flex-col items-center gap-3 rounded-[1.75rem] border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center">
           <span className="flex size-14 items-center justify-center rounded-full bg-mint text-forest dark:text-lime">
-            <AppIcon name="groups" className="text-[26px]" />
+            <AppIcon name="user_group" className="text-[26px]" />
           </span>
           <div>
             <p className="text-[15px] font-semibold text-on-surface">{m.darat.list.empty}</p>
@@ -1066,6 +1157,9 @@ export function DaratScreen() {
           onClose={() => setJoinOpen(false)}
           onJoined={(circleId) => {
             setJoinOpen(false);
+            // The invite was used — stop offering it.
+            clearDaratJoin();
+            setPendingInvite(null);
             setPendingDetailId(circleId);
             setView({ kind: 'detail', circleId });
           }}

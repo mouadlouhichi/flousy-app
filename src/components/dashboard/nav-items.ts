@@ -59,8 +59,9 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     href: '/dashboard/courses',
     sidebarIcon: 'scan_barcode',
     mobileIcon: 'scan_barcode',
-    // Reached from the quick actions ("Start Course") rather than taking a
-    // slot in the five-destination nav bars.
+    // Reached from the floating quick actions ("Start Course") and the
+    // mobile dashboard's quick-access tiles, rather than taking a slot in
+    // the five-destination nav bars.
     hiddenFromNav: true,
   },
   {
@@ -96,8 +97,8 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   {
     id: 'darat',
     href: '/dashboard/darat',
-    sidebarIcon: 'groups',
-    mobileIcon: 'groups',
+    sidebarIcon: 'user_group',
+    mobileIcon: 'user_group',
     proOnly: true,
     // Pro-only feature reached from the sidebar's "Tools" group. The
     // mobile bottom nav is capped at 5 destinations (asserted in
@@ -195,6 +196,22 @@ export function getVisibleNavItems(isPro: boolean): DashboardNavItem[] {
 export function getSidebarNavItems(isPro: boolean): DashboardNavItem[] {
   return DASHBOARD_NAV_ITEMS.filter(
     (item) => item.id !== 'profile' && item.id !== 'search' && (!item.proOnly || isPro),
+  );
+}
+
+/**
+ * Mobile dashboard quick access: the screens the five-slot bottom nav does
+ * not list. Search and profile live in the header, so they stay out; the
+ * remaining screens are surfaced here as tiles. Plan-aware: Pro-only items
+ * appear for Pro users only, and free users still get the courses tile.
+ */
+export function getMobileQuickAccessItems(isPro: boolean): DashboardNavItem[] {
+  return DASHBOARD_NAV_ITEMS.filter(
+    (item) =>
+      item.hiddenFromNav &&
+      item.id !== 'search' &&
+      item.id !== 'profile' &&
+      (!item.proOnly || isPro),
   );
 }
 

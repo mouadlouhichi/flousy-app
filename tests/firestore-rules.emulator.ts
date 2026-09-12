@@ -1479,7 +1479,6 @@ describe('darat circle create transaction', () => {
       date: startDate,
       recipientId: null,
       pot: 100 * memberOrder.length,
-      discount: 0,
       status: 'pending',
       payments: Object.fromEntries(memberOrder.map((id) => [id, 'pending'])),
     }));
@@ -1972,7 +1971,6 @@ describe('darat circle reads (getAfter-free read rules)', () => {
         date: startDate,
         recipientId: null,
         pot: 100 * memberOrder.length,
-        discount: 0,
         status: 'pending',
         payments: Object.fromEntries(memberOrder.map((id) => [id, 'pending'])),
       })),

@@ -14,7 +14,6 @@ import {
   daratNextRound,
   daratRandomOrder,
   daratRandomRecipient,
-  daratResolveBid,
   daratRoundAmount,
   daratRoundDate,
   daratTotalRounds,
@@ -124,70 +123,6 @@ describe('darat: fixed-order rotation', () => {
   });
 });
 
-describe('darat: bidding rotation', () => {
-  const memberOrder = ['a', 'b', 'c', 'd'];
-  const pot = 4000;
-
-  it('lowest bid wins', () => {
-    const result = daratResolveBid(
-      { a: 200, b: 100, c: 300, d: 150 },
-      pot,
-      memberOrder,
-    );
-    assert.equal(result.winnerId, 'b');
-    assert.equal(result.discount, 100);
-    // 100 / 3 = 33.33..., rounded to 2 decimals
-    assert.equal(result.redistribution.a, 33.33);
-    assert.equal(result.redistribution.c, 33.33);
-    assert.equal(result.redistribution.d, 33.33);
-  });
-
-  it('zero bid is allowed and wins against non-zero bids', () => {
-    const result = daratResolveBid({ a: 0, b: 10 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a');
-    assert.equal(result.discount, 0);
-    // All non-winners share the 0 discount equally → all get 0
-    assert.deepEqual(result.redistribution, { b: 0, c: 0, d: 0 });
-  });
-
-  it('ties are broken by member order', () => {
-    const result = daratResolveBid({ c: 50, a: 50, b: 200 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a'); // a appears before c in memberOrder
-  });
-
-  it('the discount is capped at the pot', () => {
-    // a bids the pot + something; b bids a tiny amount. a must still be the winner
-    // (lower bid) and discount capped to pot.
-    const result = daratResolveBid({ a: 0, b: 9999 }, pot, memberOrder);
-    assert.equal(result.winnerId, 'a');
-    assert.equal(result.discount, 0); // a bid 0, so no discount
-    // Now flip: a bids 9999, b bids 0 → b wins (lowest) at 0, no cap needed.
-    const flipped = daratResolveBid({ a: 9999, b: 0 }, pot, memberOrder);
-    assert.equal(flipped.winnerId, 'b');
-    assert.equal(flipped.discount, 0);
-    // And the true cap: a bids pot + 100, b bids 0 — but b is lower, so a never wins.
-    // Force a to win with everyone else equal: only a bids the cap and b matches.
-    const tie = daratResolveBid({ a: pot + 100, b: pot + 100 }, pot, memberOrder);
-    assert.equal(tie.winnerId, 'a'); // a wins by memberOrder tie-break
-    assert.equal(tie.discount, pot); // capped
-  });
-
-  it('no bids yields a noBids result with no winner', () => {
-    const result = daratResolveBid({}, pot, memberOrder);
-    assert.equal(result.winnerId, null);
-    assert.equal(result.noBids, true);
-  });
-
-  it('invalid bids are filtered out', () => {
-    const result = daratResolveBid(
-      { a: -1, b: NaN, c: Infinity, d: 75 } as Record<string, number>,
-      pot,
-      memberOrder,
-    );
-    assert.equal(result.winnerId, 'd');
-  });
-});
-
 describe('darat: buildRounds', () => {
   const baseInput = {
     memberOrder: ['a', 'b', 'c', 'd'],
@@ -222,18 +157,6 @@ describe('darat: buildRounds', () => {
     assert.equal(rounds[1].recipientId, 'a');
     assert.equal(rounds[2].recipientId, 'd');
     assert.equal(rounds[3].recipientId, 'b');
-  });
-
-  it('bidding rotation resolves the discount and sets it on the winning round', () => {
-    const rounds = daratBuildRounds({
-      ...baseInput,
-      rotation: 'bidding',
-      bidsByRound: {
-        1: { a: 200, b: 50, c: 0, d: 300 },
-      },
-    });
-    assert.equal(rounds[0].recipientId, 'c');
-    assert.equal(rounds[0].discount, 0);
   });
 
   it('refuses to build a circle with fewer than 2 members', () => {

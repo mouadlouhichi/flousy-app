@@ -84,7 +84,7 @@ export function DaratHero({
       <div className="relative flex flex-col gap-5">
         <div className="flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-lime text-forest-deep">
-            <AppIcon name="groups" strokeWidth={2.2} className="text-[20px]" />
+            <AppIcon name="user_group" strokeWidth={2.2} className="text-[20px]" />
           </span>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-lime">{eyebrow}</p>
@@ -154,11 +154,7 @@ export function DaratCircleCard({
   const progress = circleProgress(circle);
   const closed = circle.status === 'closed';
   const rotationLabel =
-    circle.rotation === 'random'
-      ? m.darat.create.rotationRandom
-      : circle.rotation === 'fixed'
-        ? m.darat.create.rotationFixed
-        : m.darat.create.rotationBidding;
+    circle.rotation === 'random' ? m.darat.create.rotationRandom : m.darat.create.rotationFixed;
   const pot = circle.contribution * circle.memberOrder.length;
   const nextIsMe = progress.next?.recipientId != null && progress.next.recipientId === currentUid;
 
@@ -171,7 +167,7 @@ export function DaratCircleCard({
       <div className="flex w-full items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-full', closed ? 'bg-surface-container-high text-on-surface-variant' : 'bg-forest text-lime')}>
-            <AppIcon name="groups" strokeWidth={2} className="text-[20px]" />
+            <AppIcon name="user_group" strokeWidth={2} className="text-[20px]" />
           </span>
           <div className="min-w-0">
             <h3 className="truncate text-[16px] font-semibold text-on-surface">{circle.name}</h3>
