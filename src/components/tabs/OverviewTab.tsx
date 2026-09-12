@@ -26,6 +26,7 @@ import { useLanguage } from '@/lib/i18n-context';
 import { formatLocalizedPercent } from '@/lib/i18n';
 import { localizeCategoryName, localizePlaceName, localizeStrategy } from '@/lib/localized-labels';
 import { SafeToSpendCard } from '../dashboard/safe-to-spend-card';
+import { QuickAccessRow } from '../dashboard/quick-access-row';
 import { calculateSafeToSpend } from '@/lib/insights';
 import { NetWorthCard } from '../dashboard/net-worth-card';
 import { BalanceHeroCard } from '../dashboard/balance-hero-card';
@@ -54,6 +55,8 @@ interface OverviewTabProps {
   onOpenEditSavings?: (entry: SavingsActivityEntry) => void;
   /** Pro gate for the safe-to-spend forecast card. */
   insightsUnlocked?: boolean;
+  /** The user's plan — drives the mobile quick-access section (Pro screens only). */
+  isPro?: boolean;
   onUpgrade?: () => void;
   /**
    * Opens the Income Sources sheet from the income card. On phones this is
@@ -76,6 +79,7 @@ export function OverviewTab({
   onUpdateStrategy,
   onOpenEditSavings,
   insightsUnlocked = false,
+  isPro = false,
   onUpgrade,
   onOpenIncome,
 }: OverviewTabProps) {
@@ -588,6 +592,12 @@ export function OverviewTab({
               and Recent Activity). */}
           {canSeeBalances && canSeeSavings && <NetWorthCard month={month} goals={goals} />}
         </div>
+
+        {/* Quick access (mobile only): the screens the five-slot bottom nav
+            and this page don't expose — knowledge, analytics, Darat (Pro).
+            Sits mid-page, after the core money overview and before the
+            secondary cards; hidden on md+ where the sidebar lists them. */}
+        <QuickAccessRow isPro={isPro} />
 
         {/* Right Column (Recent Activity) */}
         <div className="lg:col-span-5 flex flex-col gap-6">

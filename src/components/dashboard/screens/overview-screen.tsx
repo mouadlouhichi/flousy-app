@@ -7,7 +7,6 @@ import { AreaRestricted } from '../area-restricted';
 import { useHousehold } from '@/lib/household-context';
 import { SCREEN_AREA } from '@/lib/household-rbac';
 import { DASHBOARD_NAV_ITEMS } from '../nav-items';
-import { QuickAccessRow } from '../quick-access-row';
 import { isProFeatureUnlocked } from '@/lib/household';
 
 const TAB_ROUTES: Record<string, string> = Object.fromEntries(
@@ -42,29 +41,24 @@ export function OverviewScreen() {
   if (!canViewArea(area)) return <AreaRestricted area={area} icon="house" />;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Mobile quick access: destinations the five-slot bottom nav and the
-          dashboard surface do not expose (Pro-only today: knowledge,
-          analytics, Darat). Respects the plan — hidden for free users. */}
-      <QuickAccessRow isPro={isPro} />
-      <OverviewTab
-        month={month}
-        goals={goals}
-        onOpenExpenseModal={() => openExpenseModal()}
-        onOpenMoveMoneyModal={openMoveMoneyModal}
-        onOpenEditExpense={(exp) => openExpenseModal(exp)}
-        onSelectTab={(tab) => {
-          const href = TAB_ROUTES[tab];
-          if (href) router.push(href);
-        }}
-        onUpdateTotalBudget={handleUpdateTotalBudget}
-        onEditMoneyPlaces={openEditMoneyPlaces}
-        onUpdateStrategy={handleUpdateStrategy}
-        onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
-        insightsUnlocked={insightsUnlocked}
-        onUpgrade={openProModal}
-        onOpenIncome={canOpenIncome ? openIncomeModal : undefined}
-      />
-    </div>
+    <OverviewTab
+      month={month}
+      goals={goals}
+      onOpenExpenseModal={() => openExpenseModal()}
+      onOpenMoveMoneyModal={openMoveMoneyModal}
+      onOpenEditExpense={(exp) => openExpenseModal(exp)}
+      onSelectTab={(tab) => {
+        const href = TAB_ROUTES[tab];
+        if (href) router.push(href);
+      }}
+      onUpdateTotalBudget={handleUpdateTotalBudget}
+      onEditMoneyPlaces={openEditMoneyPlaces}
+      onUpdateStrategy={handleUpdateStrategy}
+      onOpenEditSavings={(entry) => openSavingsEntryModal(entry)}
+      insightsUnlocked={insightsUnlocked}
+      isPro={isPro}
+      onUpgrade={openProModal}
+      onOpenIncome={canOpenIncome ? openIncomeModal : undefined}
+    />
   );
 }
