@@ -7,7 +7,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/onboarding', '/login', '/api/'],
+        // /login is a public acquisition page and must remain crawlable.
+        // Authenticated, onboarding, and API routes stay excluded.
+        disallow: ['/dashboard', '/onboarding', '/api/'],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

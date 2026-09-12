@@ -3,15 +3,16 @@
  *
  * Scope: the FOOD side of the label-knowledge feature. The COSMETIC side is
  * the existing INCI engine (src/lib/ingredient-safety/*). Both sides share a
- * structural philosophy but never a verdict: for food there is NO numeric
- * score. Presence of an allergen or of an additive is reported as factual,
- * structured information (with EU references) — it never equates to
- * "bad"/"dangerous", mirroring the EU stance that foods with allergens are
- * safe for everyone except the allergic individual. See
- * docs/FEATURE_LABEL_KNOWLEDGE.md.
+ * structural philosophy but the analysis payload itself has NO numeric score.
+ * Allergens, additives and explicit concern-source wording are reported as
+ * structured information with regulatory references. The course accordion's
+ * separate, bounded label-signal index lives in grade.ts; it is not a general
+ * nutrition/health verdict. See docs/FEATURE_LABEL_KNOWLEDGE.md.
  */
 
-export type FoodDomain = 'food' | 'cosmetic' | 'unknown';
+export type ProductDomain = 'food' | 'cosmetic' | 'household' | 'pet' | 'unknown';
+/** @deprecated Kept as an import-compatible alias. */
+export type FoodDomain = ProductDomain;
 
 /** High-level "what kind of ingredient is this" — used for localized chips. */
 export type FoodFamily =
@@ -64,6 +65,23 @@ export type AdditiveRole =
   | 'flavour-enhancer'
   | 'other';
 
+/**
+ * A class/function printed without the identity of the substance that fulfils
+ * it. These labels are useful information, but deliberately do not count as a
+ * recognized ingredient or establish additive authorization/safety.
+ */
+export type FoodUnspecifiedClass =
+  | 'flavour-enhancer'
+  | 'colour'
+  | 'food-acid'
+  | 'protein-source'
+  | 'preservative'
+  | 'antioxidant'
+  | 'stabiliser'
+  | 'thickener'
+  | 'emulsifier'
+  | 'sweetener';
+
 export interface AllergenHit {
   /** EU group code (localized client-side). */
   group: AllergenGroup;
@@ -82,6 +100,23 @@ export interface AdditiveHit {
   notices: string[];
 }
 
+/**
+ * Stable codes for explicit, non-additive ingredient wording that deserves a
+ * prominent label-level signal. This is intentionally NOT a general nutrition
+ * taxonomy: each code must be detectable from the wording alone.
+ */
+export type FoodConcernCode = 'partially-hydrogenated-oil';
+export type FoodConcernLevel = 'watch' | 'high';
+
+export interface FoodConcernHit {
+  code: FoodConcernCode;
+  /** The raw ingredient text that triggered the signal. */
+  raw: string;
+  level: FoodConcernLevel;
+  /** Auditable source labels; explanatory prose is localized client-side. */
+  evidence: string[];
+}
+
 export interface FoodIngredientAssessment {
   index: number;
   /** Raw ingredient text as written on the label. */
@@ -90,10 +125,14 @@ export interface FoodIngredientAssessment {
   normalized: string;
   /** True when the token matched a known family / allergen / additive. */
   recognized: boolean;
+  /** Declared class/function whose exact ingredient identity is not supplied. */
+  unspecifiedClass?: FoodUnspecifiedClass;
   family?: FoodFamily;
   roles?: string[];
   allergens: AllergenGroup[];
   additive?: { code: string; band: AdditiveBand; role: AdditiveRole; notices: string[] };
+  /** Explicit ingredient-level concern signals attached to this row. */
+  concerns: FoodConcernHit[];
   /** Short factual note (internal / evidence; not rendered as UI copy). */
   note?: string;
   evidence?: string[];
@@ -148,6 +187,8 @@ export interface FoodAnalysis {
   /** Distinct EU groups present (ordered by Annex II). */
   allergenGroups: AllergenGroup[];
   additives: AdditiveHit[];
+  /** Distinct explicit ingredient-level concerns detected on the label. */
+  concerns: FoodConcernHit[];
   flags: FoodFlag[];
   /** External (third-party) informational answers; may be empty. */
   external: ExternalFoodKnowledge[];

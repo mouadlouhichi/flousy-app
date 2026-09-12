@@ -56,7 +56,7 @@ const ADD_CATEGORY_VALUE = '__add_fixed_category__';
 
 /** Palette assigned to newly created custom categories. */
 const CUSTOM_CATEGORY_COLORS = [
-  '#00685f', '#b05e3d', '#3b82f6', '#8b5cf6',
+  '#0f3b36', '#7fb069', '#3b82f6', '#8b5cf6',
   '#ec4899', '#f97316', '#10b981', '#eab308',
   '#ef4444', '#06b6d4', '#6366f1', '#84cc16',
   '#f43f5e', '#a855f7', '#14b8a6', '#d946ef',
@@ -448,7 +448,7 @@ export function FixedModal({
                 <button
                   type="button"
                   onClick={handleSaveCategory}
-                  className="px-4 py-2 bg-primary text-on-primary font-bold rounded-xl text-[13px] hover:opacity-90 shrink-0"
+                  className="px-4 py-2 bg-primary text-on-primary font-bold rounded-full text-[13px] hover:opacity-90 shrink-0"
                 >
                   {editingCategory ? m.common.save : m.common.add}
                 </button>
@@ -580,7 +580,7 @@ export function FixedModal({
           )}
           <button
             type="submit"
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             <AppIcon name={initialBill ? 'check' : 'add'} className=" text-[18px]" />
             <span>{initialBill ? f.saveChanges : f.addTitle}</span>

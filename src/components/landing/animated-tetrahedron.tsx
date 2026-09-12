@@ -3,6 +3,12 @@
 import { useRef } from "react";
 import { useAnimatedCanvas } from "./use-animated-canvas";
 
+// The tetrahedron lives inside the forest CTA panel in both themes, so it
+// always draws in lime.
+function ink(): string {
+  return "197, 230, 166";
+}
+
 const chars = "░▒▓█▀▄▌▐│─┤├┴┬╭╮╰╯";
 
 // Tetrahedron vertices
@@ -52,6 +58,7 @@ function drawTetrahedron(
 ) {
   const rect = canvas.getBoundingClientRect();
   ctx.clearRect(0, 0, rect.width, rect.height);
+  const INK = ink();
 
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
@@ -131,7 +138,7 @@ function drawTetrahedron(
   // Draw points
   points.forEach((point) => {
     const alpha = 0.15 + (point.z + 1.5) * 0.25;
-    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(alpha, 0.9)})`;
+    ctx.fillStyle = `rgba(${INK}, ${Math.min(alpha, 0.9)})`;
     ctx.fillText(point.char, point.x, point.y);
   });
 }

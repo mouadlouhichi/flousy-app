@@ -89,7 +89,7 @@ export function SegmentedControl({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-[11px] font-extrabold tracking-wider text-on-surface-variant uppercase">
+        <label className="text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
           {label}
         </label>
       )}
@@ -97,7 +97,7 @@ export function SegmentedControl({
         ref={groupRef}
         role="radiogroup"
         aria-label={ariaLabel || label}
-        className={`relative flex w-full min-w-0 items-stretch gap-1 border border-outline-variant/70 bg-surface-container-lowest p-1 ${
+        className={`relative flex w-full min-w-0 items-stretch gap-1 bg-surface-container-high p-1 ${
           isStacked ? 'rounded-[1.25rem]' : 'rounded-full'
         }`}
       >
@@ -112,7 +112,7 @@ export function SegmentedControl({
               height: pillRect.height,
             }}
             transition={{ type: 'spring', stiffness: 400, damping: 34, mass: 0.9 }}
-            className={`pointer-events-none absolute left-0 top-0 bg-primary shadow-sm ${
+            className={`pointer-events-none absolute left-0 top-0 bg-primary shadow-[0_6px_16px_-8px_rgba(15,59,54,0.5)] ${
               isStacked ? 'rounded-2xl' : 'rounded-full'
             }`}
           />
@@ -131,7 +131,7 @@ export function SegmentedControl({
               onClick={() => onChange(optionValue)}
               className={`relative z-10 min-w-0 flex-1 overflow-hidden px-1.5 py-2.5 transition-colors duration-200 ${
                 isStacked ? 'rounded-2xl' : 'rounded-full'
-              } ${isActive ? '' : 'hover:bg-surface-variant/40 active:scale-[0.97]'}`}
+              } ${isActive ? '' : 'hover:bg-surface-container-lowest/70 active:scale-[0.97]'}`}
             >
               <span
                 className={`relative z-10 flex min-w-0 w-full items-center justify-center ${

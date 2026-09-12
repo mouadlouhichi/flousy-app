@@ -110,7 +110,7 @@ export function CoursesBudgetLogger({
               type="button"
               disabled={posting || !canPost}
               onClick={() => { void onLog(category, place); }}
-              className="flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-primary px-5 font-label-md text-label-md text-on-primary transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex h-9 items-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 font-label-md text-label-md text-on-primary transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               <AppIcon name={posting ? 'sync' : 'add'} className="size-4" />
               {posting ? c.logPosting : c.logCta}

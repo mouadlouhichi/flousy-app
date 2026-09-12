@@ -8,6 +8,7 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
   limit,
   writeBatch,
   runTransaction,
@@ -15,6 +16,7 @@ import {
   arrayRemove,
   deleteField,
 } from 'firebase/firestore';
+import { normalizeUserNotification, sortUserNotifications, type UserNotification } from './notifications';
 import { auth, isFirebaseConfigured } from './firebase';
 import { db } from './firebase-db';
 import {
@@ -43,6 +45,8 @@ import {
   type WorkspaceSyncCounts,
 } from './workspace-sync';
 import { PRO_TRIAL_DURATION_MS, resolveProEntitlement } from './pro-features';
+import { applyAssessmentToSession, type CourseMutation } from './course-sync';
+import { gtinIdentity } from './gtin';
 
 export enum OperationType {
   CREATE = 'create',
@@ -518,20 +522,39 @@ export async function restoreFinanceBackup(
   }
 
   if (target.workspace === 'personal') {
-    const records: Array<{ ref: ReturnType<typeof doc>; data: unknown }> = [
-      ...(backup.products || []).filter((product) => product?.barcode).map((product) => ({
-        ref: doc(firestore, 'users', uid, 'products', product.barcode),
-        data: product,
-      })),
-      ...(backup.sessions || []).filter((session) => session?.id).map((session) => ({
-        ref: doc(firestore, 'users', uid, 'sessions', session.id),
-        data: session,
-      })),
-    ];
-    for (let offset = 0; offset < records.length; offset += 400) {
+    const productRecords: Array<{ ref: ReturnType<typeof doc>; data: Product }> =
+      (backup.products || []).filter((product) => product?.barcode).map((product) => {
+        const productId = product.gtin14 ?? gtinIdentity(product.barcode) ?? product.barcode;
+        return {
+          ref: doc(firestore, 'users', uid, 'products', productId),
+          data: { ...product, gtin14: productId },
+        };
+      });
+    for (let offset = 0; offset < productRecords.length; offset += 400) {
       const batch = writeBatch(firestore);
-      records.slice(offset, offset + 400).forEach((record) => batch.set(record.ref, cleanUndefined(record.data)));
+      productRecords.slice(offset, offset + 400).forEach((record) => batch.set(record.ref, cleanUndefined(record.data), { merge: true }));
       await batch.commit();
+    }
+    // Session restores participate in the same monotonic revision contract as
+    // live edits. This prevents a backup from silently bypassing concurrency.
+    for (const imported of backup.sessions || []) {
+      if (!imported?.id) continue;
+      const sessionRef = doc(firestore, 'users', uid, 'sessions', imported.id);
+      await runTransaction(firestore, async (transaction) => {
+        const snapshot = await transaction.get(sessionRef);
+        const existing = snapshot.exists() ? snapshot.data() as CourseSession : null;
+        const currentRevision = Number.isInteger(existing?.revision) ? existing!.revision! : 0;
+        const mutationId = `restore-${backup.id}-${imported.id}`.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 160);
+        const restored: CourseSession = {
+          ...(existing ?? {}),
+          ...imported,
+          status: existing?.status === 'completed' ? 'completed' : imported.status,
+          revision: currentRevision + 1,
+          updatedAt: backup.exportedAt,
+          lastMutationId: mutationId,
+        };
+        transaction.set(sessionRef, cleanUndefined(restored));
+      });
     }
     const config = backup.configuration as Partial<UserProfile>;
     if (retargeted) return { restoredMonths: completed.length, restoredGoals: backup.goals.length };
@@ -955,10 +978,12 @@ export function subscribeProductCatalog(uid: string, onData: (products: Product[
 
 export async function saveProduct(uid: string, product: Product): Promise<void> {
   if (!isFirebaseConfigured || !db || !product.barcode) return;
-  const barcode = product.barcode;
-  const path = `users/${uid}/products/${barcode}`;
+  const productId = product.gtin14 ?? gtinIdentity(product.barcode);
+  if (!productId) return;
+  const normalized = { ...product, gtin14: productId };
+  const path = `users/${uid}/products/${productId}`;
   try {
-    await setDoc(doc(db, 'users', uid, 'products', barcode), cleanUndefined(product), { merge: true });
+    await setDoc(doc(db, 'users', uid, 'products', productId), cleanUndefined(normalized), { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -966,9 +991,11 @@ export async function saveProduct(uid: string, product: Product): Promise<void> 
 
 export async function deleteProduct(uid: string, barcode: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
-  const path = `users/${uid}/products/${barcode}`;
+  const productId = gtinIdentity(barcode);
+  if (!productId) return;
+  const path = `users/${uid}/products/${productId}`;
   try {
-    await deleteDoc(doc(db, 'users', uid, 'products', barcode));
+    await deleteDoc(doc(db, 'users', uid, 'products', productId));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
   }
@@ -1030,6 +1057,71 @@ export async function saveCourseSession(uid: string, session: CourseSession): Pr
   }
 }
 
+export class CourseConflictError extends Error {
+  readonly remote: CourseSession | null;
+
+  constructor(remote: CourseSession | null) {
+    super('This shopping session changed in another tab or device.');
+    this.name = 'CourseConflictError';
+    this.remote = remote;
+  }
+}
+
+/**
+ * Apply one immutable shopping mutation with an optimistic revision guard.
+ * Transactions intentionally operate on the originating session document;
+ * callers must never redirect a delayed assessment to whichever session is active.
+ */
+export async function commitCourseMutation(uid: string, mutation: CourseMutation): Promise<CourseSession | null> {
+  if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
+  if (mutation.uid !== uid) throw new Error('Course mutation account mismatch.');
+  const sessionRef = doc(db, 'users', uid, 'sessions', mutation.sessionId);
+
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(sessionRef);
+      const remote = snapshot.exists() ? snapshot.data() as CourseSession : null;
+      if (remote?.lastMutationId === mutation.id) return remote;
+
+      const remoteRevision = Number.isInteger(remote?.revision) ? remote!.revision! : 0;
+
+      if (mutation.kind === 'assessment') {
+        const next = applyAssessmentToSession(remote, {
+          mutationId: mutation.id,
+          sessionId: mutation.sessionId,
+          origin: mutation.origin,
+          quality: mutation.quality,
+          assessment: mutation.assessment,
+        }, new Date().toISOString());
+        if (!next) throw new CourseConflictError(remote);
+        // Idempotent retries return the already-committed remote unchanged.
+        if (next !== remote) transaction.set(sessionRef, cleanUndefined(next));
+        return next;
+      }
+
+      if (remoteRevision !== mutation.expectedRevision) {
+        throw new CourseConflictError(remote);
+      }
+
+      if (mutation.kind === 'delete') {
+        transaction.delete(sessionRef);
+        return null;
+      }
+
+      const next: CourseSession = {
+        ...mutation.session,
+        revision: mutation.expectedRevision + 1,
+        lastMutationId: mutation.id,
+      };
+      transaction.set(sessionRef, cleanUndefined(next));
+      return next;
+    });
+  } catch (error) {
+    if (error instanceof CourseConflictError) throw error;
+    return handleFirestoreError(error, OperationType.WRITE, sessionRef.path);
+  }
+}
+
 export async function deleteCourseSession(uid: string, sessionId: string): Promise<void> {
   if (!isFirebaseConfigured || !db) return;
   const path = `users/${uid}/sessions/${sessionId}`;
@@ -1053,7 +1145,7 @@ export async function postCourseSession(input: {
   category: string;
   place: string;
   configuration?: MonthConfiguration | null;
-}): Promise<{ month: MonthBudget; expenseId: string }> {
+}): Promise<{ month: MonthBudget; expenseId: string; session: CourseSession }> {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase is not configured.');
   const { uid, sessionId, target, monthKey, category, place, configuration } = input;
   const sessionRef = doc(db, 'users', uid, 'sessions', sessionId);
@@ -1086,7 +1178,7 @@ export async function postCourseSession(input: {
         || session.loggedWorkspaceId !== destinationId) {
         throw new Error('This shopping session was already posted to another destination.');
       }
-      return { month: remote, expenseId };
+      return { month: remote, expenseId, session };
     }
     if (remote.periodStatus === 'closed') {
       throw new FinanceConflictError([{ path: 'periodStatus', reason: 'period-closed' }]);
@@ -1137,15 +1229,20 @@ export async function postCourseSession(input: {
       createdAt: now,
     });
     transaction.set(monthRef, cleanUndefined(next));
-    transaction.set(sessionRef, {
+    const postedSession: CourseSession = {
+      ...session,
       loggedExpenseId: expenseId,
       loggedMonthKey: monthKey,
       loggedWorkspace: target.workspace,
       loggedWorkspaceId: target.workspace === 'household' ? target.householdId : target.uid,
       loggedMutationId: mutationId,
       loggedAt: now,
-    }, { merge: true });
-    return { month: next, expenseId };
+      revision: (Number.isInteger(session.revision) ? session.revision! : 0) + 1,
+      updatedAt: now,
+      lastMutationId: mutationId,
+    };
+    transaction.set(sessionRef, cleanUndefined(postedSession));
+    return { month: next, expenseId, session: postedSession };
   });
 }
 
@@ -1332,6 +1429,7 @@ export async function deleteUserBudgetData(uid: string): Promise<DeletionReport>
   await run('budget months', () => deleteCollection('users', uid, 'months'));
   await run('products and sessions', () => deleteUserCourseData(uid));
   await run('finance ledger', () => deleteCollection('users', uid, 'ledger'));
+  await run('notifications', () => deleteCollection('users', uid, 'notifications'));
 
   return report;
 }
@@ -1991,4 +2089,48 @@ export function subscribePendingHouseholdInvites(email: string | null | undefine
       onData([]);
     },
   );
+}
+
+// User notifications — server-written, client-read -----------------------------
+// The reminder dispatcher (and future server events) writes rows under
+// users/{uid}/notifications; the client subscribes and only ever flips
+// `readAt`, which is the single field the update rule allows to change.
+
+export function subscribeUserNotifications(
+  uid: string | null | undefined,
+  onData: (notifications: UserNotification[]) => void,
+): () => void {
+  if (!uid || !isFirebaseConfigured || !db) { onData([]); return () => {}; }
+  const notifications = query(
+    collection(db, 'users', uid, 'notifications'),
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  );
+  return onSnapshot(
+    notifications,
+    (snap) =>
+      onData(
+        sortUserNotifications(
+          snap.docs.map((item) => normalizeUserNotification(item.id, item.data() as Record<string, unknown>)),
+        ),
+      ),
+    (err) => {
+      console.error('Error listening to notifications:', err);
+      onData([]);
+    },
+  );
+}
+
+/** Mark notifications read in one batch; rules only permit touching `readAt`. */
+export async function markUserNotificationsRead(
+  uid: string,
+  notificationIds: string[],
+  readAt: number,
+): Promise<void> {
+  if (!isFirebaseConfigured || !db || notificationIds.length === 0) return;
+  const batch = writeBatch(db);
+  for (const notificationId of notificationIds) {
+    batch.update(doc(db, 'users', uid, 'notifications', notificationId), { readAt });
+  }
+  await batch.commit();
 }

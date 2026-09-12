@@ -1,8 +1,9 @@
 /**
  * Server-renders the course-line quality score chip (and its open popover) in
  * all three locales: catches missing i18n keys / bad hook usage, and pins the
- * visible "score/100" text, the rating label and the green/yellow/orange tier
- * breakdown inside the popover.
+ * visible "risk/100" text (100 − engine index, higher = riskier),
+ * risk caveat, and exact six-state
+ * evidence breakdown inside the popover.
  */
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +34,13 @@ mock.module('@/lib/i18n-context', {
   },
 });
 
-const quality: SessionItemQuality = { score: 87, band: 'excellent', good: 12, caution: 2, concern: 1 };
+const quality: SessionItemQuality = {
+  schemaVersion: 2,
+  score: 87,
+  scoreStatus: 'available',
+  band: 'excellent',
+  tiers: { prohibited: 0, restricted: 0, caution: 0, watch: 1, clean: 0, unassessed: 0 },
+};
 
 // Markup probes as a plain boolean array (keeps the assertions tidy).
 function probes(html: string, needles: string[]) {
@@ -41,17 +48,18 @@ function probes(html: string, needles: string[]) {
 }
 
 describe('QualityScoreChip render smoke', () => {
-  it('renders the score chip with its localized aria-label in all three locales', async () => {
+  it('renders the score chip with a localized evidence-index label in all three locales', async () => {
     const { QualityScoreChip } = await import('../../src/components/ui/quality-score-chip');
     for (const locale of ['en', 'fr', 'ar'] as Language[]) {
       current = locale;
       const html = renderToStaticMarkup(React.createElement(QualityScoreChip, { quality }));
-      const [hasScore, hasBandLabel] = probes(html, [
-        '87/100',
-        (catalogs[current] as unknown as Record<string, Record<string, string>>).ingredientGlance.bandExcellent,
+      const [hasScore, hasEvidenceLabel] = probes(html, [
+        '13/100',
+        catalogs[current].ingredientGlance.evidenceIndex,
       ]);
       assert.ok(hasScore, `${locale}: score/100 missing`);
-      assert.ok(hasBandLabel, `${locale}: band label missing from chip label`);
+      assert.ok(hasEvidenceLabel, `${locale}: evidence-index label missing from chip label`);
+      assert.equal(html.includes(catalogs[current].ingredientGlance.bandExcellent), false, `${locale}: band must not be presented as a product verdict`);
     }
   });
 
@@ -70,35 +78,42 @@ describe('QualityScoreChip render smoke', () => {
     assert.ok(isButton, 'chip should be a button');
     assert.equal(hasDialog, false, 'popover must not render while closed');
 
+    const chipLabel = `${en.ingredientGlance.evidenceIndex} — 13/100`;
     const popover = renderToStaticMarkup(
-      React.createElement(QualityScorePopover, {
-        quality,
-        chipLabel: 'Excellent — 87/100',
-      }),
+      React.createElement(QualityScorePopover, { quality, chipLabel }),
     );
-    const [hasDialogRole, hasRating, hasScore, hasClean, hasWatch, hasCaution, hasCount, hasGreen, hasYellow, hasOrange] =
-      probes(popover, [
-        'role="dialog"',
-        'Excellent',
-        '87/100',
-        'Clean',
-        'Watch',
-        'Caution',
-        '12',
-        '#10b981',
-        '#f59e0b',
-        '#f97316',
-      ]);
+    const [
+      hasDialogRole,
+      hasEvidenceLabel,
+      hasScore,
+      hasNoSignalCaveat,
+      hasWatch,
+      hasCaution,
+      hasRestricted,
+      hasProhibited,
+      hasIdentityOnly,
+      hasWatchCount,
+    ] = probes(popover, [
+      'role="dialog"',
+      en.ingredientGlance.evidenceIndex,
+      '13/100',
+      en.ingredientGlance.bandClean,
+      en.ingredientGlance.bandWatch,
+      en.ingredientGlance.bandCaution,
+      en.ingredientGlance.bandRestricted,
+      en.ingredientGlance.bandProhibited,
+      en.ingredientGlance.identityOnly,
+      '>1</span>',
+    ]);
     assert.ok(hasDialogRole, 'popover dialog missing');
-    assert.ok(hasRating, 'rating label missing');
+    assert.ok(hasEvidenceLabel, 'evidence-index label missing');
     assert.ok(hasScore, 'score missing');
-    // Green / yellow / orange tier breakdown rows (clean, watch, caution).
-    assert.ok(hasClean, 'clean tier row missing');
+    assert.ok(hasNoSignalCaveat, 'no-listed-signal caveat missing');
     assert.ok(hasWatch, 'watch tier row missing');
     assert.ok(hasCaution, 'caution tier row missing');
-    assert.ok(hasCount, 'clean count missing');
-    assert.ok(hasGreen, 'green dot colour missing');
-    assert.ok(hasYellow, 'yellow dot colour missing');
-    assert.ok(hasOrange, 'orange dot colour missing');
+    assert.ok(hasRestricted, 'restricted tier row missing');
+    assert.ok(hasProhibited, 'prohibited tier row missing');
+    assert.ok(hasIdentityOnly, 'identity-only row missing');
+    assert.ok(hasWatchCount, 'watch count missing');
   });
 });

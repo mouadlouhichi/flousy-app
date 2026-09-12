@@ -16,16 +16,28 @@ const nextConfig = {
   allowedDevOrigins: ['*.e2b.app'],
   reactStrictMode: true,
   poweredByHeader: false, // stop advertising "X-Powered-By: Next.js"
-  // Ship .map files for production browser chunks so Lighthouse's
-  // valid-source-maps check passes (and error stacks in observability tooling
-  // stay readable). This only affects client bundles; server source exposure
-  // is controlled separately.
-  productionBrowserSourceMaps: true,
-  // The INCI analysis route (/api/inci/analyze) reads the local CosIng
-  // snapshot from disk at runtime; on Vercel/standalone only traced files are
-  // deployed, so the data directory must be included explicitly.
+  // Do NOT emit .map files for production browser chunks. They were shipped
+  // so Lighthouse's valid-source-maps check would pass, but the edge answers
+  // those URLs with 403, so the check fails anyway — while the maps bloat the
+  // deployment and would expose client source if they ever served. No
+  // observability tooling in this repo consumes them; re-enable only with a
+  // private map-upload pipeline (e.g. Sentry) that keeps them off the CDN.
+  productionBrowserSourceMaps: false,
+  // The INCI analysis route (/api/inci/analyze) reads the local ingredient
+  // corpora from disk at runtime; on Vercel/standalone only traced files are
+  // deployed, so every file the loader opens must be listed explicitly.
+  // `eu-inci-glossary-2025.tsv` is the primary identity authority — without it
+  // the route answers 503 for every request in production. The bundled annex
+  // JSON is imported statically (traced automatically) and is listed anyway so
+  // a future switch to a filesystem read cannot silently break the deploy.
+  // `scripts/verify-ingredient-data.mjs` (wired into `npm run check`) fails the
+  // build if a dataset path drifts away from this list.
   outputFileTracingIncludes: {
-    '/api/inci/analyze': ['./data/cosing/cosing-ingredients.tsv'],
+    '/api/inci/analyze': [
+      './data/cosing/cosing-ingredients.tsv',
+      './data/cosing/eu-inci-glossary-2025.tsv',
+      './data/cosing/eu-cosmetics-annexes-2026-05-26.json',
+    ],
   },
   async headers() {
     return [

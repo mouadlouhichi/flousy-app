@@ -415,7 +415,7 @@ export function DataPanel() {
                 type="button"
                 disabled={!user || backupBusy}
                 onClick={() => { void handleDriveBackup(); }}
-                className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
+                className="rounded-full bg-primary px-3 py-2 text-xs font-bold text-on-primary disabled:opacity-50"
               >
                 {p.driveBackup}
               </button>

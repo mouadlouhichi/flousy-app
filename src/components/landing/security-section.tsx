@@ -41,8 +41,8 @@ export function SecuritySection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
-            <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-              <span className="w-8 h-px bg-foreground/30" />
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+              <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep"><span className="size-1.5 rounded-full bg-forest-deep" /></span>
               {m.landing.security.eyebrow}
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">

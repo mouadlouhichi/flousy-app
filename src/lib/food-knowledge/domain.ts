@@ -1,16 +1,12 @@
 /**
  * Domain resolution for the label-knowledge panel: is this scanned/pasted
- * label a COSMETIC (INCI) list or a FOOD ingredient list?
- *
- * The panel renders the existing INCI engine for cosmetics and the food
- * knowledge engine for food. Barcode lookups know the answer best (beauty vs
- * food mirrors), but catalog/seed/manual records only carry category + name +
- * optional text, so this module guesses from those. Guesses are conservative:
- * anything ambiguous defaults to FOOD (grocery context); the UI never shows a
- * misleading panel because each panel itself is domain-appropriate.
+ * label describes food, cosmetics, household goods, pet products, or remains
+ * unknown. Source database is provenance only; it never proves the domain.
+ * Ambiguity stays `unknown` until the user chooses an analyzer.
  */
 
 import type { FoodDomain, FoodProductKind } from './types';
+import type { ProductDomain } from '../store';
 import { foldForMatch } from './lists';
 
 /**
@@ -45,6 +41,20 @@ const COSMETIC_MARKERS = [
   'nettoyant visage', 'moisturizer', 'crème hydratante', 'creme hydratante',
   'eye cream', 'contour des yeux', 'after shave', 'apres-rasage', 'body butter',
   'huile corporelle', 'hairspray', 'laque', 'coloration', 'hair dye', 'visage',
+  'شامبو', 'كريم', 'مستحضرات التجميل', 'عطر', 'غسول الوجه', 'واقي الشمس',
+];
+
+const HOUSEHOLD_MARKERS = [
+  'detergent', 'détergent', 'lessive', 'laundry', 'dishwashing', 'vaisselle',
+  'household', 'entretien', 'nettoyant ménager', 'nettoyant menager', 'bleach',
+  'javel', 'fabric softener', 'adoucissant', 'surface cleaner', 'منظف منزلي',
+  'مسحوق الغسيل', 'سائل الجلي',
+];
+
+const PET_MARKERS = [
+  'pet food', 'dog food', 'cat food', 'animal food', 'croquettes', 'pâtée pour chat',
+  'patee pour chat', 'aliments pour chiens', 'aliments pour chats', 'كلاب', 'قطط',
+  'طعام الحيوانات',
 ];
 
 const FOOD_MARKERS = [
@@ -56,6 +66,7 @@ const FOOD_MARKERS = [
   'soupe', 'soup', 'dessert', 'salé', 'sale', 'sucré', 'sucre', 'sugar',
   'confiture', 'jambon', 'saucisson', 'fromage blanc', 'creme fraiche',
   'crème fraîche', 'beurre', 'conserve de', 'petit-déjeuner', 'breakfast',
+  'غذاء', 'طعام', 'حليب', 'خبز', 'سكر', 'زيت نباتي', 'مكونات غذائية',
 ];
 
 /** INCI-ish tokens that would never appear on a food label. */
@@ -88,8 +99,6 @@ export function suggestsCosmeticRecord(input: {
     category.includes('non-food-products') ||
     category.includes('open beauty facts') ||
     category.includes('open-beauty-facts') ||
-    category.includes('open products facts') ||
-    category.includes('open-products-facts') ||
     category.includes('cosmetic') ||
     category.includes('beauty')
   ) {
@@ -197,29 +206,37 @@ export function detectFoodKind(input: {
  */
 export function isCosmeticRecord(input: {
   beauty?: boolean;
+  domain?: ProductDomain;
   category?: string;
   name?: string;
   ingredientsText?: string;
 }): boolean {
+  if (input.domain && input.domain !== 'unknown') return input.domain === 'cosmetic';
   if (input.beauty) return true;
   if (detectLabelDomain(input) === 'cosmetic') return true;
   return suggestsCosmeticRecord(input);
 }
 
 export function detectLabelDomain(input: {
+  domain?: ProductDomain;
   category?: string;
   name?: string;
   ingredientsText?: string;
 }): FoodDomain {
+  if (input.domain && input.domain !== 'unknown') return input.domain;
   const category = foldForMatch(input.category ?? '');
   const name = foldForMatch(input.name ?? '');
   const text = foldForMatch(input.ingredientsText ?? '');
 
   if (category) {
+    if (hasMarker(category, PET_MARKERS)) return 'pet';
+    if (hasMarker(category, HOUSEHOLD_MARKERS)) return 'household';
     if (hasMarker(category, COSMETIC_MARKERS)) return 'cosmetic';
     if (hasMarker(category, FOOD_MARKERS)) return 'food';
   }
   if (name) {
+    if (hasMarker(name, PET_MARKERS)) return 'pet';
+    if (hasMarker(name, HOUSEHOLD_MARKERS)) return 'household';
     if (hasMarker(name, COSMETIC_MARKERS) && !hasMarker(name, FOOD_MARKERS)) return 'cosmetic';
     if (hasMarker(name, FOOD_MARKERS)) return 'food';
   }
@@ -228,5 +245,5 @@ export function detectLabelDomain(input: {
     if (hits >= 2) return 'cosmetic';
     if (hits === 1 && text.split(' ').length <= 8) return 'cosmetic';
   }
-  return 'food';
+  return 'unknown';
 }

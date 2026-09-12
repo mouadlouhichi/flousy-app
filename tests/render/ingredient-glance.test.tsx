@@ -2,7 +2,7 @@
  * Server-renders the cosmetic ingredient glance (the scan-flow slice) with a
  * stubbed analysis client, in all three locales. Catches runtime crashes —
  * missing i18n keys, undefined access, bad hook usage — plus verifies that the
- * localized band label and score chip actually make it into the markup.
+ * localized evidence-index caveat and value actually make it into the markup.
  */
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,26 +38,36 @@ mock.module('@/lib/i18n-context', {
 const analysis: ProductAssessment = {
   label: 'Test cream',
   form: 'leave-on',
-  total: 4,
-  recognized: 4,
+  formSource: 'explicit',
+  total: 3,
+  recognized: 3,
+  localRecognized: 3,
+  externallyIdentified: 0,
   coverage: 1,
+  assessed: 3,
+  assessmentCoverage: 1,
   score: 20,
+  scoreStatus: 'available',
   confidence: 'full',
   band: 'avoid',
   worstTier: 'prohibited',
   unknownIngredients: [],
   cappedReason: 'prohibited-ingredient',
+  parser: { valid: true, reviewed: true, source: 'typed', diagnostics: [] },
   dataset: { rows: 28733, snapshot: 'test snapshot', version: 'test' },
+  assessedAt: '2026-09-08T00:00:00.000Z',
   ingredients: [
-    { index: 0, raw: 'Aqua', normalized: 'AQUA', matched: true, matchedInci: 'AQUA', signals: [], tier: 'clean' },
     {
       index: 1,
       raw: 'Hydroquinone',
       normalized: 'HYDROQUINONE',
       matched: true,
       matchedInci: 'HYDROQUINONE',
-      signals: [{ code: 'cosing-annex-II', label: '', detail: '', tier: 'prohibited', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'HYDROQUINONE' },
+      signals: [{ code: 'cosing-annex-II', kind: 'regulatory', label: '', detail: '', tier: 'prohibited', evidence: [] }],
       tier: 'prohibited',
+      deduction: 100,
+      assessmentState: 'assessed-signal',
     },
     {
       index: 2,
@@ -65,8 +75,11 @@ const analysis: ProductAssessment = {
       normalized: 'PARFUM',
       matched: true,
       matchedInci: 'PARFUM',
-      signals: [{ code: 'fragrance-generic', label: '', detail: '', tier: 'caution', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'PARFUM' },
+      signals: [{ code: 'fragrance-generic', kind: 'comfort', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      deduction: 17,
+      assessmentState: 'assessed-signal',
     },
     {
       index: 3,
@@ -74,8 +87,11 @@ const analysis: ProductAssessment = {
       normalized: 'LINALOOL',
       matched: true,
       matchedInci: 'LINALOOL',
-      signals: [{ code: 'eu-fragrance-allergen', label: '', detail: '', tier: 'caution', evidence: [] }],
+      identity: { status: 'official-glossary', canonicalName: 'LINALOOL' },
+      signals: [{ code: 'eu-fragrance-allergen', kind: 'regulatory', label: '', detail: '', tier: 'caution', evidence: [] }],
       tier: 'caution',
+      deduction: 14,
+      assessmentState: 'assessed-signal',
     },
   ],
   flags: [
@@ -88,17 +104,31 @@ const analysis: ProductAssessment = {
 mock.module('@/lib/ingredient-analysis-client', {
   namedExports: {
     analyzeIngredientsText: async () => analysis as unknown as ProductAssessment,
+    // Mirrors the real module's public surface so the component under test
+    // imports exactly what production imports.
+    IngredientAnalysisError: class IngredientAnalysisError extends Error {
+      readonly kind: string;
+      constructor(kind: string, message: string) {
+        super(message);
+        this.name = 'IngredientAnalysisError';
+        this.kind = kind;
+      }
+      get retryable(): boolean {
+        return this.kind !== 'invalid';
+      }
+    },
+    isOffline: () => false,
   },
 });
 
-const EXPECTED_BAND: Record<Language, string> = {
-  en: (en.ingredientGlance.bandAvoid as string).toLowerCase(),
-  fr: (fr.ingredientGlance.bandAvoid as string).toLowerCase(),
-  ar: ar.ingredientGlance.bandAvoid as string,
-};
+mock.module('@/components/dashboard/dashboard-provider', {
+  namedExports: {
+    useDashboard: () => ({ user: null }),
+  },
+});
 
 describe('CoursesIngredientGlance render smoke', () => {
-  it('renders score, translated band and flags in all three locales', async () => {
+  it('renders the bounded evidence index, caveat, and flags in all three locales', async () => {
     // The async wrapper needs effects to fetch; the exported presentational
     // body is what renderToStaticMarkup can exercise directly.
     const { CoursesIngredientGlanceBody } = await import(
@@ -109,18 +139,16 @@ describe('CoursesIngredientGlance render smoke', () => {
       const html = renderToStaticMarkup(
         React.createElement(CoursesIngredientGlanceBody, { analysis }),
       );
-      assert.ok(html.includes('20'), `${locale}: score chip missing`);
-      assert.ok(
-        html.toLowerCase().includes(EXPECTED_BAND[locale]) ||
-          html.includes(EXPECTED_BAND[locale]),
-        `${locale}: translated band label missing`,
-      );
+      assert.ok(html.includes('20'), `${locale}: evidence index missing`);
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.evidenceIndex), `${locale}: evidence-index label missing`);
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.indexNotSafetyVerdict), `${locale}: safety caveat missing`);
+      assert.equal(html.includes(catalogs[locale].ingredientGlance.bandAvoid), false, `${locale}: band must not be presented as a product verdict`);
       assert.ok(html.includes('HYDROQUINONE'), `${locale}: flagged ingredient name missing`);
       assert.ok(html.includes('disclaimer') === false, `${locale}: disclaimer key leaked raw`);
     }
   });
 
-  it('renders the prominent overall rating banner (score, /100, stars, tier strip)', async () => {
+  it('renders the evidence-index banner without a safety-rating star metaphor', async () => {
     const { CoursesIngredientGlanceBody } = await import(
       '../../src/components/dashboard/courses/courses-ingredient-glance'
     );
@@ -129,25 +157,135 @@ describe('CoursesIngredientGlance render smoke', () => {
       React.createElement(CoursesIngredientGlanceBody, { analysis }),
     );
     const hasBannerRole = html.includes('role="img"');
-    const hasBannerLabel = html.includes('aria-label="20/100 — Avoid"');
+    const hasBannerLabel = html.includes(`aria-label="${en.ingredientGlance.evidenceIndex}: 80/100"`);
     const hasScoreSuffix = html.includes('/100');
     assert.ok(hasBannerRole, 'banner missing its role');
     assert.ok(hasBannerLabel, 'banner aria-label missing');
     assert.ok(hasScoreSuffix, '/100 suffix missing');
-    // Five-star row (one svg per star; filled = round(20/100 × 5) = 1).
-    // `match` is typed RegExpMatchArray | null; annotate the fallback union as
-    // plain string[] or the .filter callback param collapses to `never`.
-    const starSvgs: string[] = html.match(/<svg[\s\S]*?<\/svg>/g) ?? [];
-    const stars = starSvgs.filter((svg) => svg.includes('polygon points="12 2'));
-    assert.equal(stars.length, 5, 'star row should draw five stars');
-    const filledStars = stars.filter((svg) => svg.includes('fill="currentColor"'));
-    assert.equal(filledStars.length, 1, 'one filled star for a 20 score');
-    // Thin tier-proportion strip under the score:
-    // fixture tiers = clean 1 / (watch+restricted 0) / (caution+prohibited 3) of 4.
-    const hasGreenSegment = html.includes('width:25%');
-    const hasOrangeSegment = html.includes('width:75%');
-    assert.ok(hasGreenSegment, 'green tier segment missing');
-    assert.ok(hasOrangeSegment, 'orange tier segment missing');
+    assert.ok(!html.includes('polygon points="12 2'), 'safety-rating stars must not be rendered');
+    // All fixture rows carry explicit caution/prohibited evidence. No
+    // identity-only ingredient is converted into a positive green verdict.
+    assert.ok(html.includes('width:100%'), 'explicit concern segment missing');
+    assert.equal(html.includes('width:25%'), false, 'unsupported positive segment must not appear');
+  });
+
+  it('renders the ranked risk drivers with localized title and point costs', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientGlanceBody, { analysis }),
+      );
+      assert.ok(html.includes(catalogs[locale].ingredientGlance.riskDriversTitle), `${locale}: drivers title missing`);
+      // Strongest driver first, with its localized point cost.
+      const first = html.indexOf('HYDROQUINONE');
+      assert.ok(first >= 0, `${locale}: top driver name missing`);
+      const perfumeIndex = html.indexOf('PARFUM', first);
+      assert.ok(perfumeIndex > first, `${locale}: drivers must be ordered strongest first`);
+      assert.ok(html.includes('+100'), `${locale}: driver risk cost missing`);
+      const g = catalogs[locale].ingredientGlance as unknown as Record<string, string>;
+      const driverPoints = g.driverPoints.replace('{points}', '100');
+      assert.ok(html.includes(driverPoints), `${locale}: localized point label missing`);
+    }
+  });
+
+  it('renders the per-ingredient detail with identity, conditions and sources', async () => {
+    const { IngredientDetail } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    const detail = {
+      index: 1,
+      raw: 'Methylisothiazolinone',
+      normalized: 'METHYLISOTHIAZOLINONE',
+      matched: true,
+      matchedInci: 'METHYLISOTHIAZOLINONE',
+      cas: '2682-20-4',
+      functions: ['PRESERVATIVE'],
+      identity: { status: 'official-glossary' as const, canonicalName: 'METHYLISOTHIAZOLINONE', entry: '1234' },
+      signals: [
+        {
+          code: 'eu-annex-v-57',
+          kind: 'regulatory' as const,
+          label: 'EU positive-list entry that does not cover the selected product form',
+          detail: 'Rinse-off only, 0.0015%.',
+          tier: 'restricted' as const,
+          applicability: 'applies' as const,
+          evidence: ['Regulation (EC) No 1223/2009 Annex V entry 57'],
+          regulatory: {
+            jurisdiction: 'EU' as const,
+            framework: 'Regulation (EC) No 1223/2009' as const,
+            annex: 'V' as const,
+            entry: '57',
+            legalRole: 'positive-list-with-conditions' as const,
+            applicability: 'applies' as const,
+            applicabilityReason: 'rinse-off only',
+            maxConcentration: '0,0015 %',
+            warnings: 'Not to be used in leave-on preparations',
+            effectiveAsOf: '2026-05-26',
+            sourceUpdated: '2026-05-26',
+            sourceUrl: 'https://eur-lex.europa.eu/eli/reg/2009/1223/2026-05-18/eng',
+          },
+        },
+      ],
+      tier: 'restricted' as const,
+      assessmentState: 'assessed-signal' as const,
+    };
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(IngredientDetail, {
+          ingredient: detail,
+          g,
+          t: languageValue().t,
+        }),
+      );
+      assert.ok(html.includes('METHYLISOTHIAZOLINONE'), `${locale}: canonical name missing`);
+      assert.ok(html.includes('2682-20-4'), `${locale}: CAS missing`);
+      assert.ok(html.includes('PRESERVATIVE'), `${locale}: function missing`);
+      assert.ok(html.includes('0,0015 %'), `${locale}: max concentration missing`);
+      assert.ok(html.includes(g.detailAnnexEntry.replace('{annex}', 'V').replace('{entry}', '57')),
+        `${locale}: annex entry label missing`);
+      assert.ok(html.includes('Regulation (EC) No 1223/2009 Annex V entry 57'), `${locale}: source missing`);
+    }
+  });
+
+  it('renders a clean result as a published index plus the no-listed-signal caveat', async () => {
+    const { CoursesIngredientGlanceBody } = await import(
+      '../../src/components/dashboard/courses/courses-ingredient-glance'
+    );
+    // A fully read label where the dated corpus matched nothing: the index is
+    // published, and the card must still say what that number is and is not.
+    const clean: ProductAssessment = {
+      ...analysis,
+      total: 2,
+      recognized: 2,
+      localRecognized: 2,
+      assessed: 0,
+      assessmentCoverage: 0,
+      score: 100,
+      scoreStatus: 'available',
+      confidence: 'partial',
+      band: 'excellent',
+      worstTier: null,
+      cappedReason: undefined,
+      ingredients: [],
+      flags: [
+        { level: 'info', code: 'no-listed-signal', text: '' },
+      ],
+    };
+    for (const locale of ['en', 'fr', 'ar'] as Language[]) {
+      current = locale;
+      const g = catalogs[locale].ingredientGlance;
+      const html = renderToStaticMarkup(
+        React.createElement(CoursesIngredientGlanceBody, { analysis: clean }),
+      );
+      assert.ok(html.includes('100'), `${locale}: clean index missing`);
+      assert.ok(html.includes(g.flagNoListedSignal), `${locale}: clean-result caveat missing`);
+      assert.ok(html.includes(g.indexNotSafetyVerdict), `${locale}: safety caveat missing`);
+    }
   });
 
   it('renders nothing (not even an error) when no ingredient text is present', async () => {
@@ -172,7 +310,7 @@ describe('CoursesIngredientPanel render smoke', () => {
       const g = catalogs[locale];
       const html = renderToStaticMarkup(
         React.createElement(CoursesIngredientPanel, {
-          barcode: '6111234567890',
+          barcode: '6111234567895',
           name: 'Crème inconnue',
           category: 'Face creams',
         }),
@@ -196,7 +334,7 @@ describe('CoursesIngredientPanel render smoke', () => {
     const g = catalogs[current];
     const html = renderToStaticMarkup(
       React.createElement(CoursesIngredientPanel, {
-        barcode: '6111234567890',
+        barcode: '6111234567895',
         initialText: 'Aqua, Glycerin, Niacinamide, Parfum',
         name: 'Crème',
         category: 'Face creams',

@@ -39,12 +39,12 @@ const STRATEGY_ICONS: Record<string, string> = {
 };
 
 const STRATEGY_TAGS: Partial<Record<StrategyId, { labelKey: Exclude<keyof Messages['strategySelector']['tags'], 'simple'>; color: string }>> = {
-  '50-30-20': { labelKey: 'popular', color: 'bg-primary/10 text-primary' },
-  '70-20-10': { labelKey: 'beginner', color: 'bg-blue-50 text-blue-700' },
-  'zero-based': { labelKey: 'detailed', color: 'bg-purple-50 text-purple-700' },
-  'envelope': { labelKey: 'visual', color: 'bg-orange-50 text-orange-700' },
-  'pay-first': { labelKey: 'saver', color: 'bg-emerald-50 text-emerald-700' },
-  custom: { labelKey: 'yours', color: 'bg-primary/10 text-primary' },
+  '50-30-20': { labelKey: 'popular', color: 'bg-forest text-lime' },
+  '70-20-10': { labelKey: 'beginner', color: 'bg-secondary-container text-secondary' },
+  'zero-based': { labelKey: 'detailed', color: 'bg-tertiary/10 text-tertiary' },
+  'envelope': { labelKey: 'visual', color: 'bg-warning/10 text-warning' },
+  'pay-first': { labelKey: 'saver', color: 'bg-lime text-forest-deep' },
+  custom: { labelKey: 'yours', color: 'bg-surface-container-high text-on-surface' },
 };
 
 type PercentSplit = { needs: number; wants: number; savings: number };
@@ -162,15 +162,15 @@ export function StrategySelectorModal({
           {/* Ratio Bar */}
           <div className="w-full h-3 rounded-full overflow-hidden flex bg-surface-variant/50 mb-3">
             <div
-              className="h-full bg-primary transition-all duration-300"
+              className="h-full bg-forest transition-all duration-300 dark:bg-lime"
               style={{ width: `${previewStrategy.needsRatio * 100}%` }}
             />
             <div
-              className="h-full bg-amber-500 transition-all duration-300"
+              className="h-full bg-secondary transition-all duration-300"
               style={{ width: `${previewStrategy.wantsRatio * 100}%` }}
             />
             <div
-              className="h-full bg-slate-600 transition-all duration-300"
+              className="h-full bg-lime-deep transition-all duration-300"
               style={{ width: `${previewStrategy.savingsRatio * 100}%` }}
             />
           </div>
@@ -180,8 +180,8 @@ export function StrategySelectorModal({
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {[
               { label: m.strategySelector.needs, value: preview.needs, color: 'bg-primary' },
-              { label: m.strategySelector.wants, value: preview.wants, color: 'bg-amber-500' },
-              { label: m.strategySelector.savings, value: preview.savings, color: 'bg-slate-600' },
+              { label: m.strategySelector.wants, value: preview.wants, color: 'bg-secondary' },
+              { label: m.strategySelector.savings, value: preview.savings, color: 'bg-lime-deep' },
             ].map(({ label, value, color }) => (
               <div
                 key={label}
@@ -259,11 +259,11 @@ export function StrategySelectorModal({
                         style={{ width: `${strat.needsRatio * 100}%` }}
                       />
                       <div
-                        className="h-full bg-amber-500"
+                        className="h-full bg-secondary"
                         style={{ width: `${strat.wantsRatio * 100}%` }}
                       />
                       <div
-                        className="h-full bg-slate-600"
+                        className="h-full bg-lime-deep"
                         style={{ width: `${strat.savingsRatio * 100}%` }}
                       />
                     </div>
@@ -349,8 +349,8 @@ export function StrategySelectorModal({
 
                   <div className="w-full h-2 rounded-full overflow-hidden flex bg-surface-variant/60">
                     <div className="h-full bg-primary" style={{ width: `${split.needs}%` }} />
-                    <div className="h-full bg-amber-500" style={{ width: `${split.wants}%` }} />
-                    <div className="h-full bg-slate-600" style={{ width: `${split.savings}%` }} />
+                    <div className="h-full bg-secondary" style={{ width: `${split.wants}%` }} />
+                    <div className="h-full bg-lime-deep" style={{ width: `${split.savings}%` }} />
                   </div>
 
                   <div className="mt-1 grid grid-cols-3 gap-1">
@@ -389,8 +389,8 @@ export function StrategySelectorModal({
               <div className="px-4 pb-4 flex flex-col gap-3 border-t border-outline-variant/50 pt-3">
                 {([
                   { key: 'needs' as const, label: m.strategySelector.needs, color: 'accent-[var(--primary)]', dot: 'bg-primary' },
-                  { key: 'wants' as const, label: m.strategySelector.wants, color: 'accent-amber-500', dot: 'bg-amber-500' },
-                  { key: 'savings' as const, label: m.strategySelector.savings, color: 'accent-slate-600', dot: 'bg-slate-600' },
+                  { key: 'wants' as const, label: m.strategySelector.wants, color: 'accent-[var(--secondary)]', dot: 'bg-secondary' },
+                  { key: 'savings' as const, label: m.strategySelector.savings, color: 'accent-[var(--lime-deep)]', dot: 'bg-lime-deep' },
                 ]).map(({ key, label, color, dot }) => (
                   <div key={key} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
@@ -456,7 +456,7 @@ export function StrategySelectorModal({
                     type="button"
                     onClick={handleSaveCustom}
                     disabled={!isSplitValid}
-                    className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary text-[13px] font-bold shadow-sm hover:bg-accent-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2.5 rounded-full bg-primary text-on-primary text-[13px] font-bold shadow-sm hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <AppIcon name="check" className="text-[16px]" />
                     <span>{m.strategySelector.applyCustomSplit}</span>

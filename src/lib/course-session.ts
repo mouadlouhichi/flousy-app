@@ -8,6 +8,7 @@
 import type { CourseSession, MoneyPlace, Product, ProductRanking, SessionItem, SessionItemQuality } from './store';
 import type { LookupOutcome } from './product-lookup';
 import type { ProductAssessment } from './ingredient-safety/types';
+import { isAllocatedByGs1Morocco, isValidGtin, parseGtin, type BarcodeSymbology } from './gtin';
 
 /** Round to 2 decimals without float drift (0.1 + 0.2 safe). */
 export function round2(value: number): number {
@@ -28,85 +29,82 @@ export function computeSessionTotal(items: Pick<SessionItem, 'lineTotal'>[]): nu
 
 // --- Barcode normalization & validation ---------------------------------------
 
-export type BarcodeWarning = 'bad-checksum' | 'unknown-length' | null;
+export type BarcodeWarning = 'bad-checksum' | 'unknown-length' | 'invalid-format' | null;
 
 export interface NormalizedBarcode {
-  /** Usable barcode (EAN-8, EAN-13, or UPC-A zero-padded to 13) or null. */
+  /** A verified native GTIN (UPC-E is expanded to GTIN-12), or null. */
   barcode: string | null;
   warning: BarcodeWarning;
+  gtin14?: string;
 }
 
-/**
- * EAN-8 / EAN-13 mod-10 checksum (alternating 1/3 weights from the left,
- * check digit included; valid when the sum is a multiple of 10).
- */
-export function barcodeChecksumValid(digits: string): boolean {
-  if (!/^[0-9]+$/.test(digits) || (digits.length !== 8 && digits.length !== 13)) return false;
-  let sum = 0;
-  for (let i = 0; i < digits.length; i++) {
-    sum += Number(digits[i]) * (i % 2 === 0 ? 1 : 3);
+/** Shared right-aligned GS1 Mod-10 validator for GTIN-8/12/13/14. */
+export const barcodeChecksumValid = isValidGtin;
+
+export interface RestrictedCirculationConfig {
+  /** Explicit opt-in for one known store/issuer layout. */
+  enabled: true;
+  issuer: string;
+  prefix: string;
+  itemStart: number;
+  itemLength: number;
+  amountStart: number;
+  amountLength: number;
+  amountDecimals: number;
+  currency: string;
+}
+
+/** Parse a restricted-circulation amount only under an explicit issuer layout. */
+export function parseVariableMeasurePrice(
+  barcode: string,
+  config?: RestrictedCirculationConfig,
+): { itemRef: string; price: number; issuer: string; currency: string; rawAmount: string } | null {
+  if (!config?.enabled || !barcodeChecksumValid(barcode) || barcode.length !== 13) return null;
+  if (!barcode.startsWith(config.prefix)) return null;
+  const dataEnd = barcode.length - 1;
+  const itemEnd = config.itemStart + config.itemLength;
+  const amountEnd = config.amountStart + config.amountLength;
+  if (config.itemStart < 0 || config.amountStart < 0 || itemEnd > dataEnd || amountEnd > dataEnd) return null;
+  const itemRef = barcode.slice(config.itemStart, itemEnd);
+  const rawAmount = barcode.slice(config.amountStart, amountEnd);
+  if (!/^\d+$/.test(itemRef) || !/^\d+$/.test(rawAmount)) return null;
+  const divisor = 10 ** Math.max(0, Math.min(6, config.amountDecimals));
+  return {
+    itemRef,
+    price: Number(rawAmount) / divisor,
+    issuer: config.issuer,
+    currency: config.currency,
+    rawAmount,
+  };
+}
+
+/** Strict compatibility wrapper used by manual fields. Invalid checksums no
+ * longer produce a usable barcode. */
+export function normalizeBarcode(
+  raw: string,
+  format?: BarcodeSymbology | string,
+): NormalizedBarcode {
+  const parsed = parseGtin({ rawValue: raw, format, source: 'manual' });
+  if (parsed.ok) {
+    return { barcode: parsed.value.gtin, warning: null, gtin14: parsed.value.gtin14 };
   }
-  return sum % 10 === 0;
-}
-
-/**
- * In-store "variable measure" EAN-13 (butcher, cheese counter, deli). GS1
- * reserves the leading `2` for restricted-circulation codes a shop prints on
- * its own scale labels; Open Food Facts never carries them. The layout the
- * Moroccan shops on these labels use is:
- *
- *   [2] [item 6 digits] [price 5 digits, in centimes] [check]
- *
- * e.g. `2 003200 02080 7` → item 003200, price field 02080 → 20.80 DH, which is
- * exactly the label's total (0.260 kg × 80.00 DH/kg). The price is rounded to
- * the centime by the scale so it fits five digits.
- *
- * Returns the embedded price (or `null` when the code is not a valid
- * prefix-2 EAN-13). Callers prefill the amount with it; the product *name*
- * still has to be typed, because nothing external knows what the item is.
- */
-export function parseVariableMeasurePrice(barcode: string): {
-  itemRef: string;
-  price: number;
-} | null {
-  if (!/^[0-9]{13}$/.test(barcode) || barcode[0] !== '2') return null;
-  if (!barcodeChecksumValid(barcode)) return null;
-  const itemRef = barcode.slice(1, 7);
-  const priceField = barcode.slice(7, 12);
-  const price = Number(priceField) / 100;
-  return { itemRef, price };
-}
-
-/**
- * Normalize a raw scanner/manual input into a usable barcode.
- * Strips spaces and hyphens, keeps digits, pads 12-digit UPC-A to EAN-13.
- * Never throws: bad input yields a warning so the UI can still offer
- * manual entry.
- */
-export function normalizeBarcode(raw: string): NormalizedBarcode {
-  const digits = (raw || '').replace(/[^0-9]/g, '');
-  if (digits.length === 0) return { barcode: null, warning: null };
-
-  if (digits.length === 12) {
-    const padded = `0${digits}`;
-    return barcodeChecksumValid(padded)
-      ? { barcode: padded, warning: null }
-      : { barcode: padded, warning: 'bad-checksum' };
+  const error = 'error' in parsed ? parsed.error : 'invalid-character';
+  if (error === 'empty' || (error === 'invalid-character' && !/\p{Nd}/u.test(raw))) {
+    return { barcode: null, warning: null };
   }
-
-  if (digits.length === 8 || digits.length === 13) {
-    return barcodeChecksumValid(digits)
-      ? { barcode: digits, warning: null }
-      : { barcode: digits, warning: 'bad-checksum' };
+  if (error === 'bad-checksum' || error === 'invalid-upce') {
+    return { barcode: null, warning: 'bad-checksum' };
   }
-
-  return { barcode: null, warning: 'unknown-length' };
+  if (error === 'unsupported-length') return { barcode: null, warning: 'unknown-length' };
+  return { barcode: null, warning: 'invalid-format' };
 }
 
-/** GS1 prefix 611 = Morocco — drives the "Fabriqué au Maroc" badge. */
+/** @deprecated Name retained for callers; this means GS1 allocation, not origin. */
 export function isMoroccanBarcode(barcode: string): boolean {
-  return barcode.startsWith('611');
+  return isAllocatedByGs1Morocco(barcode);
 }
+
+export { isAllocatedByGs1Morocco };
 
 // --- Session creation & mutation ----------------------------------------------
 
@@ -249,29 +247,42 @@ export function setItemQuality(
  * Unrecognized ingredients count in the engine's coverage, not here.
  * Returns null when nothing could be scored (unknown score/band).
  */
-export function summarizeQuality(analysis: ProductAssessment): SessionItemQuality | null {
-  if (analysis.score == null || analysis.band == null) return null;
-  let good = 0;
-  let caution = 0;
-  let concern = 0;
-  for (const ingredient of analysis.ingredients) {
-    switch (ingredient.tier) {
-      case 'clean':
-        good += 1;
-        break;
-      case 'watch':
-      case 'restricted':
-        caution += 1;
-        break;
-      case 'caution':
-      case 'prohibited':
-        concern += 1;
-        break;
-      default:
-        break; // null = unrecognized
-    }
+export function summarizeQuality(analysis: ProductAssessment): SessionItemQuality {
+  // API assessments are JSON data. Snapshot them now so later UI/cache
+  // mutation cannot rewrite the evidence displayed on a historical bill.
+  const snapshot = JSON.parse(JSON.stringify(analysis)) as ProductAssessment;
+  const tiers: NonNullable<SessionItemQuality['tiers']> = {
+    clean: 0,
+    watch: 0,
+    caution: 0,
+    restricted: 0,
+    prohibited: 0,
+    unassessed: 0,
+  };
+  for (const ingredient of snapshot.ingredients) {
+    if (ingredient.tier) tiers[ingredient.tier] += 1;
+    else tiers.unassessed += 1;
   }
-  return { score: analysis.score, band: analysis.band, good, caution, concern };
+  return {
+    schemaVersion: 2,
+    assessmentId: `assessment-${snapshot.assessedAt}-${snapshot.dataset.engineVersion ?? snapshot.dataset.version}`,
+    score: snapshot.score,
+    scoreStatus: snapshot.scoreStatus,
+    band: snapshot.band,
+    assessedAt: snapshot.assessedAt,
+    form: snapshot.form,
+    dataset: { ...snapshot.dataset },
+    recognitionCoverage: snapshot.coverage,
+    assessmentCoverage: snapshot.assessmentCoverage,
+    worstTier: snapshot.worstTier,
+    unknownCount: snapshot.unknownIngredients.length,
+    tiers,
+    assessment: snapshot,
+    // Legacy readers only; exact tiers above are authoritative.
+    good: tiers.clean,
+    caution: tiers.watch,
+    concern: tiers.caution,
+  };
 }
 
 /** Mark the session finished — the document becomes its bill. */
@@ -401,17 +412,19 @@ export interface RemoteProductInfo {
   category?: string;
   imageUrl?: string;
   quantity?: string;
-  /** Quality ranking (Nutri-Score) when the source provides one. */
   ranking?: ProductRanking;
-  /** Full INCI ingredient list from the product page, when the record has one. */
   ingredientsText?: string;
-  /**
-   * Hint that the source/payload is a cosmetic/beauty record, even when the
-   * mapped name/category are too generic to say so. Kept separate from
-   * `ingredientsText` so a code-like shower-gel name (e.g. "68YN5T 400ml")
-   * still runs the cosmetic INCI panel and can trigger the vendor fallback.
-   */
   beauty?: boolean;
+  cosmeticForm?: import('./ingredient-safety/types').ProductForm;
+  domain?: import('./store').ProductDomain;
+  allergenTags?: string[];
+  /** NOVA processing group from the source (1–4); informational only. */
+  novaGroup?: import('./store').NovaGroup;
+  source?: import('./store').ProductSource;
+  sourceUrl?: string;
+  sourceDatabase?: string;
+  retrievedAt?: string;
+  provenance?: Record<string, import('./store').ProductFieldProvenance>;
 }
 
 export type ProductResolution =
@@ -432,6 +445,8 @@ export type ProductResolution =
          * overlay is the offline fallback for records without a list.
          */
         ingredientsText?: string;
+        /** NOVA processing group from the source (1–4); informational only. */
+        novaGroup?: import('./store').NovaGroup;
         /** Source hint that the record is cosmetic/beauty (see RemoteProductInfo). */
         beauty?: boolean;
       };
@@ -491,6 +506,7 @@ export async function resolveProduct(opts: {
   lookupSeed?: (barcode: string) => RemoteProductInfo | null;
   lookupRemote?: (barcode: string, lang?: string) => Promise<LookupOutcome>;
   remoteTimeoutMs?: number;
+  restrictedCirculation?: RestrictedCirculationConfig;
 }): Promise<ProductResolution> {
   const hit = opts.catalog.find((product) => product.barcode === opts.barcode && product.name);
   if (hit) {
@@ -514,7 +530,7 @@ export async function resolveProduct(opts: {
   // price inside the barcode and never exist in Open Food Facts, so skip the
   // seed/remote lookups entirely and hand the printed price back for
   // prefilling. The name still has to be typed by the user.
-  const variable = parseVariableMeasurePrice(opts.barcode);
+  const variable = parseVariableMeasurePrice(opts.barcode, opts.restrictedCirculation);
   if (variable) {
     return {
       kind: 'not-found',

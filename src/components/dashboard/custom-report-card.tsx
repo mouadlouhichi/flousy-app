@@ -29,8 +29,18 @@ const RANGES = [1, 3, 6, 12] as const;
 export function CustomReportCard({ months, unlocked, onUpgrade, canSeeFixedBills }: CustomReportCardProps) {
   const { messages: m, t, intlLocale } = useLanguage();
   const { format } = useCurrency();
-  const { workspace, members } = useHousehold();
+  const { workspace, members, myMemberId } = useHousehold();
   const r = m.reports;
+
+  // Canonical member keys: one row per real person. 'Me'/'Moi'/'أنا'/'Self',
+  // the own member id and a missing payer all fold into 'self'; uid stamps
+  // from imports resolve to the roster id.
+  const payers = useMemo(() => ({
+    selfMemberId: myMemberId,
+    memberIdByUserId: Object.fromEntries(
+      members.filter((mem) => mem.userId).map((mem) => [mem.userId as string, mem.id]),
+    ),
+  }), [members, myMemberId]);
 
   const [dimension, setDimension] = useState<ReportDimension>('place');
   const [scope, setScope] = useState<ReportScope>(canSeeFixedBills ? 'all' : 'variable');
@@ -47,14 +57,16 @@ export function CustomReportCard({ months, unlocked, onUpgrade, canSeeFixedBills
     if (dim === 'place') return localizePlaceName(key, key, m);
     if (dim === 'member') {
       const member = members.find((mem) => mem.id === key || mem.userId === key);
+      // 'self' / 'household' canonical keys localize through the shared
+      // helper ("Me" / "Household funds" in the active language).
       return member?.displayName || localizePersonName(key, m);
     }
     return `#${key}`;
   };
 
   const filterValues = useMemo(
-    () => (filterDim ? reportDimensionValues(window, filterDim) : []),
-    [window, filterDim],
+    () => (filterDim ? reportDimensionValues(window, filterDim, payers) : []),
+    [window, filterDim, payers],
   );
 
   const report = useMemo(
@@ -63,8 +75,9 @@ export function CustomReportCard({ months, unlocked, onUpgrade, canSeeFixedBills
       scope,
       filters: filterDim && filterValue ? { [filterDim]: filterValue } : {},
       previousMonths: previous,
+      payers,
     }),
-    [window, dimension, scope, filterDim, filterValue, previous],
+    [window, dimension, scope, filterDim, filterValue, previous, payers],
   );
 
   if (!unlocked) {
@@ -93,7 +106,7 @@ export function CustomReportCard({ months, unlocked, onUpgrade, canSeeFixedBills
   const pct = (v: number) => new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 0 }).format(v);
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-5 sm:p-6">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5 sm:p-6">
       <div className="mb-4 flex items-center gap-2">
         <AppIcon name="dataset" className="text-[24px] text-primary" />
         <h3 className="font-headline-sm text-headline-sm font-extrabold text-on-surface">{r.title}</h3>

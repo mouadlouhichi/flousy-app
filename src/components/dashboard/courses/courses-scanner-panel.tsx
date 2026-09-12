@@ -2,11 +2,12 @@
 
 import { BarcodeScannerPanel } from '@/components/ui/barcode-scanner-panel';
 import { useLanguage } from '@/lib/i18n-context';
+import type { BarcodeCandidate } from '@/lib/gtin';
 
 interface CoursesScannerPanelProps {
   /** Session is active — attach the hardware-wedge listener. */
   enabled: boolean;
-  onCode: (rawCode: string) => void;
+  onCode: (candidate: BarcodeCandidate) => void;
 }
 
 /**

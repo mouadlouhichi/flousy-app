@@ -349,7 +349,7 @@ export function WorkspacePanel() {
             type="button"
             disabled={!canSyncWorkspaces || syncBusy || busy}
             onClick={handleSyncClick}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-bold text-on-primary transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <AppIcon name="sync" className="text-[18px]" />
             {syncBusy ? d.syncRunning : p.syncAction}
@@ -406,7 +406,7 @@ export function WorkspacePanel() {
             type="button"
             disabled={busy}
             onClick={convertToHousehold}
-            className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-bold text-on-primary disabled:opacity-50"
+            className="mt-3 w-full rounded-full bg-primary py-3 text-sm font-bold text-on-primary disabled:opacity-50"
           >
             {p.convertToHousehold}
           </button>

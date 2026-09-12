@@ -24,7 +24,8 @@ interface RankingChipProps {
 /**
  * The product's quality ranking (Nutri-Score) shown as a small coloured
  * letter right after the product name. Tapping/clicking the chip opens a
- * tooltip with the details (grade, 0–100 score and the A→E legend).
+ * tooltip with the official grade and, when supplied, raw calculation points
+ * explicitly labeled as points (never as a positive /100 score).
  */
 export function RankingChip({ ranking, className }: RankingChipProps) {
   const { messages: m, intlLocale } = useLanguage();
@@ -34,11 +35,11 @@ export function RankingChip({ ranking, className }: RankingChipProps) {
   if (!ranking || !grade || !RANKING_STYLES[grade]) return null;
   const style = RANKING_STYLES[grade];
   const label = grade.toUpperCase();
-  const scorePart =
-    ranking.score != null
-      ? ` · ${new Intl.NumberFormat(intlLocale).format(Math.round(ranking.score))}/100`
-      : '';
-  const heading = `${c.rankingLabel} ${label}${scorePart}`;
+  const calculationPoints = ranking.calculationPoints ?? ranking.score;
+  const pointsPart = calculationPoints != null
+    ? ` · ${new Intl.NumberFormat(intlLocale).format(Math.round(calculationPoints))} ${c.rankingPoints}`
+    : '';
+  const heading = `${c.rankingLabel} ${label}${pointsPart}`;
 
   return (
     <Tooltip>

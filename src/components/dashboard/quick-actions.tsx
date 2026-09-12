@@ -78,14 +78,14 @@ export function QuickActions() {
                 router.push('/dashboard/courses');
               }
             }}
-            className="flex items-center gap-2 rounded-full bg-surface/95 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] border border-outline-variant backdrop-blur-xl transition-all duration-300"
+            className="flex items-center gap-2 rounded-full bg-surface-container-lowest/95 px-3 py-2 shadow-floating border border-outline-variant backdrop-blur-xl transition-all duration-300"
             style={{ transitionDelay: `${index * 70}ms` }}
             aria-label={action.label}
           >
             <span className="font-label-md text-label-md text-on-surface whitespace-nowrap">
               {action.label}
             </span>
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-on-primary">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-lime text-forest-deep">
               <AppIcon name={action.icon} className="text-[18px]" />
             </span>
           </button>
@@ -94,7 +94,7 @@ export function QuickActions() {
 
       <button
         onClick={() => setIsQuickActionsOpen((prev) => !prev)}
-        className="md:hidden fixed bottom-22 end-5 z-40 h-14 w-14 bg-primary text-on-primary rounded-2xl shadow-[0_8px_24px_rgba(0,104,95,0.35)] flex items-center justify-center hover:bg-accent-foreground active:scale-95 transition-all"
+        className="md:hidden fixed bottom-22 end-5 z-40 h-14 w-14 bg-primary text-on-primary rounded-full shadow-forest flex items-center justify-center hover:bg-primary-hover active:scale-95 transition-all"
         aria-label={isQuickActionsOpen ? m.quickActions.close : m.quickActions.open}
       >
         <AppIcon

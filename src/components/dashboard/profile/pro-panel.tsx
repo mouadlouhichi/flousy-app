@@ -111,7 +111,7 @@ export function ProPanel() {
         <button
           type="button"
           onClick={openProModal}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-base font-bold text-on-primary shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
         >
           <AppIcon name="workspace_premium" className="text-[20px]" />
           <span>{m.profile.upgradeToPro}</span>

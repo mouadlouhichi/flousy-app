@@ -20,3 +20,4 @@ tsconfig.tsbuildinfo
 
 # tesseract.js worker + wasm (copied by scripts/copy-tesseract.mjs)
 /public/tesseract/
+.arena-shots/

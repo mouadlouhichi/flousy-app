@@ -40,7 +40,7 @@ const SEG = 44; // torn-edge segment width
 const INK = '#171d1c';
 const MUTED = '#6b7571';
 const RULE = '#c9d1ce';
-const ACCENT = '#00685f';
+const ACCENT = '#0f3b36';
 const BACKDROP = '#efece4';
 const MONO = "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace";
 

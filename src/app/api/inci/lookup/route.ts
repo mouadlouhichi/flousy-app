@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { extractVendorInci, fetchVendorPayload, isVendorConfigured } from '@/lib/server/vendor-inci';
 import { isRateLimited } from '@/lib/server/rate-limit';
 import { checkArcjet } from '@/lib/server/arcjet';
+import { parseGtin } from '@/lib/gtin';
 
 /**
  * INCI fallback lookup — barcode → ingredient list.
@@ -29,10 +30,16 @@ import { checkArcjet } from '@/lib/server/arcjet';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const LOOKUPS_PER_MINUTE = 60;
+/** Same carrier-NAT rationale as `/api/inci/analyze`: the ceiling is set well
+ * above any single shopper's rate so shared mobile IPs are not throttled. */
+const LOOKUPS_PER_MINUTE = 120;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 100;
 const cache = new Map<string, { at: number; body: unknown }>();
+
+export function clearInciLookupRouteCache(): void {
+  cache.clear();
+}
 
 function cacheGet(key: string): unknown | undefined {
   const hit = cache.get(key);
@@ -57,10 +64,13 @@ function cacheSet(key: string, body: unknown): void {
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const code = url.searchParams.get('code') ?? '';
-  if (!/^[0-9]{8}$/.test(code) && !/^[0-9]{13}$/.test(code)) {
+  const candidate = url.searchParams.get('code') ?? '';
+  const parsed = parseGtin({ rawValue: candidate, source: 'api' });
+  if (!parsed.ok) {
     return NextResponse.json({ found: false, reason: 'invalid code' }, { status: 400 });
   }
+  const code = parsed.value.lookupCode;
+  const cacheKey = parsed.value.gtin14;
 
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -77,22 +87,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const cached = cacheGet(code);
+  const cached = cacheGet(cacheKey);
   if (cached !== undefined) return NextResponse.json(cached);
 
   // No key → pure no-op. Returning 200 keeps the client on one code path;
   // the client maps this to `unavailable` (not a product verdict).
   if (!isVendorConfigured()) {
-    const payload = { found: false, reason: 'not-configured' };
-    cacheSet(code, payload);
-    return NextResponse.json(payload);
+    return NextResponse.json({ found: false, reason: 'not-configured' });
   }
 
   // Call the provider. `fetchVendorPayload` returns null on ANY failure
   // (network, timeout, HTTP error) and the payload object when the endpoint
   // answered. Only a *payload* we couldn't parse is a genuine "no list" for
   // the product — a failed call must be retryable, never a cached verdict.
-  const body = await fetchVendorPayload(code);
+  const body = await fetchVendorPayload(code, process.env, undefined, request.signal);
   if (!body) {
     return NextResponse.json(
       { found: false, reason: 'lookup-failed' },
@@ -105,6 +113,6 @@ export async function GET(request: NextRequest) {
     ? { found: true, ingredientsText: inci }
     : { found: false, reason: 'not-found' };
   // Found / genuinely-no-list are deterministic for the code and cached.
-  cacheSet(code, payload);
+  cacheSet(cacheKey, payload);
   return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
 }

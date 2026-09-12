@@ -527,7 +527,7 @@ export function ImportCsvModal({
             <button
               type="button"
               onClick={handleConfirmImport}
-              className="w-full py-3 bg-primary text-on-primary rounded-xl font-bold text-[15px] shadow-md hover:bg-accent-foreground transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-3 bg-primary text-on-primary rounded-full font-bold text-[15px] shadow-md hover:bg-primary-hover transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <AppIcon name="add_task" className="text-[20px]" />
               <span>{t(copy.importButton, { count: new Intl.NumberFormat(intlLocale).format(parsedRows.length) })}</span>

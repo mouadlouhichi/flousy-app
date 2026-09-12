@@ -52,7 +52,7 @@ export function CurrencyConverter() {
   };
 
   return (
-    <section className="rounded-3xl border border-outline-variant bg-surface-container p-5">
+    <section className="rounded-3xl border border-outline-variant bg-surface-container-lowest p-5">
       <h3 className="flex items-center gap-2 font-bold text-on-surface">
         <AppIcon name="currency_exchange" className="text-[20px] text-primary" />
         {m.fx.title}

@@ -35,6 +35,38 @@ export const OG_IMAGE = {
   alt: 'SmartJib budget tracker for needs, wants, savings, and money places',
 } as const;
 
+/**
+ * Open Graph locale advertised on every page. The site has one URL per page
+ * with an English canonical; fr/ar are client preferences, not locale paths.
+ */
+export const OG_LOCALE = 'en_US';
+
+/**
+ * Large-image Twitter card, used site-wide so shared links unfurl with the
+ * generated Open Graph image instead of a text-only summary card.
+ */
+export const TWITTER_CARD = 'summary_large_image' as const;
+
+/**
+ * Default crawler directives for public pages.
+ *
+ * `index/follow` is the crawler default, but spelling it out keeps every
+ * public route explicit, and the `googleBot` overrides opt into large image
+ * previews (richer results / Discover cards) with uncapped snippets.
+ * Private routes (dashboard, onboarding) override this with noindex.
+ */
+export const DEFAULT_ROBOTS = {
+  index: true,
+  follow: true,
+  googleBot: {
+    index: true,
+    follow: true,
+    'max-video-preview': -1,
+    'max-image-preview': 'large' as const,
+    'max-snippet': -1,
+  },
+};
+
 export const SUPPORTED_CURRENCY_CODES = [
   'MAD',
   'EUR',

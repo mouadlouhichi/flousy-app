@@ -19,7 +19,7 @@ export function StaticPageShell({
   breadcrumbs?: Array<{ name: string; href: string }>;
 }) {
   return (
-    <main id="main-content" className="relative min-h-screen overflow-x-hidden noise-overlay">
+    <main id="main-content" className="backdrop-mint relative min-h-screen overflow-x-hidden noise-overlay">
       <Navigation />
 
       <section className="relative pt-40 pb-16 lg:pt-48 lg:pb-24">
@@ -36,11 +36,11 @@ export function StaticPageShell({
               ))}
             </nav>
           )}
-          <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-            <span className="w-8 h-px bg-foreground/30" />
+          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest/80 py-1.5 pe-4 ps-1.5 text-[13px] font-medium text-on-surface shadow-ambient backdrop-blur">
+            <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-full bg-lime text-forest-deep"><span className="size-1.5 rounded-full bg-forest-deep" /></span>
             {eyebrow}
           </span>
-          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight text-foreground mb-6">
+          <h1 className="font-display font-semibold text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-[-0.03em] text-foreground mb-6">
             {title}
           </h1>
           {subtitle && (

@@ -1,45 +1,20 @@
-/**
- * Open Food Facts / Open Beauty Facts barcode lookup (client side).
- *
- * Tries the OFF world API directly from the browser (the fast path when OFF
- * is reachable from this network); when that yields no product it falls back
- * to the app's own `/api/barcode/lookup` proxy, which walks every instance
- * (world, Morocco, beauty, products) server-side. All payloads go through
- * the single `mapOffProduct` mapper, and the outcome distinguishes a
- * definitive "no such product" from a transient "no answer" (see
- * `LookupOutcome`) so a cold/overloaded first scan is retryable instead of
- * a misleading "not found".
- *
- * Cosmetics: beauty/product records carry their INCI list in the
- * `ingredients_text*` fields, which the mapper exposes as `ingredientsText`
- * so a first-time scan can score the label locally. When the configured
- * vendor key is present the proxy also fills an INCI-less cosmetics record
- * and can synthesize a vendor-only product — the proxy stays the single
- * place that ever touches the vendor. Privacy: only the barcode digits
- * leave the device — never user data.
- */
+/** One bounded, abortable same-origin product lookup client. */
+
 import type { RemoteProductInfo } from './course-session';
+import { detectLabelDomain } from './food-knowledge/domain';
+import type { NovaGroup, ProductDomain, ProductSource } from './store';
+import { MAX_INGREDIENT_TEXT_LENGTH } from './ingredient-safety/types';
 
-const OFF_HOSTS: ReadonlyArray<{ base: string; beauty: boolean }> = [
-  { base: 'https://world.openfoodfacts.org/api/v2/product/', beauty: false },
-  { base: 'https://ma-fr.openfoodfacts.org/api/v2/product/', beauty: false },
-  { base: 'https://ma.openfoodfacts.org/api/v2/product/', beauty: false },
-  { base: 'https://world.openbeautyfacts.org/api/v2/product/', beauty: true },
-  { base: 'https://fr.openbeautyfacts.org/api/v2/product/', beauty: true },
-  { base: 'https://world.openproductsfacts.org/api/v2/product/', beauty: true },
-];
-const FIELDS =
-  'code,product_name,product_name_fr,product_name_en,generic_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
+export const PRODUCT_LOOKUP_FIELDS =
+  'code,product_name,product_name_fr,product_name_en,product_name_ar,generic_name,abbreviated_product_name,brands,image_front_url,categories,categories_tags,labels_tags,product_type,quantity,' +
   'ingredients_text,ingredients_text_en,ingredients_text_fr,ingredients_text_es,ingredients_text_ar,' +
-  'nutriscore_grade,nutriscore_score';
+  'allergens_tags,nutriscore_grade,nutriscore_score,nutriscore_version,countries_tags,manufacturing_places,' +
+  // NOVA classifies foods by the extent and purpose of industrial processing
+  // (1 un/minimally processed … 4 ultra-processed). It is reported as an
+  // attributed source value: it never enters the label-signal grade, which is
+  // computed only from the printed wording.
+  'nova_group,nova_groups';
 
-/**
- * Placeholder tags OFF attaches to products filed under the wrong database
- * (or pending proper categorization) — "Incorrect product type,
- * non-food-products, open-beauty-facts" for a shower gel is not useful UI
- * copy, so the first REAL category wins and all-placeholder lists yield
- * no category at all.
- */
 const PLACEHOLDER_CATEGORIES = new Set([
   'incorrect product type',
   'non-food-products',
@@ -51,219 +26,233 @@ const PLACEHOLDER_CATEGORIES = new Set([
 
 function firstRealCategory(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
-  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  for (const part of parts) {
-    if (!PLACEHOLDER_CATEGORIES.has(part.toLowerCase())) return part;
-  }
-  return undefined;
+  const parts = raw.split(',').map((value) => value.trim()).filter(Boolean);
+  return parts.find((part) => !PLACEHOLDER_CATEGORIES.has(part.toLowerCase()));
 }
 
-/**
- * Map an OFF v2 product payload to our fields. Accepts both the raw OFF
- * shape (`{ status: 1, product }`) and the app-proxy shape
- * (`{ found: true, product }`) — historically the proxy only returned
- * `found`, which made every proxied lookup read as "not found".
- *
- * Name field: the first non-empty of the UI-language name
- * (`product_name_<lang>` when a lang is given), then the default
- * `product_name`, then the other language variants, then the generic name.
- * OFF's `product_name` is whatever language was entered first (for a
- * Moroccan shower gel that was a code-like "68YN5T 400ml" while the French
- * name "utra doux avocat" sat unused in `product_name_fr`).
- */
-export function mapOffProduct(data: unknown, opts?: { lang?: string }): RemoteProductInfo | null {
-  const root = data as
-    | { status?: number; found?: boolean; product?: Record<string, unknown> }
-    | null
-    | undefined;
-  if (!root || !root.product) return null;
-  const ok = root.status === 1 || root.found === true;
-  if (!ok) return null;
-  const p = root.product;
+export type LookupDatabase = 'off' | 'obf' | 'opf' | 'opff' | 'vendor' | 'unknown';
 
-  const pick = (key: string): string | undefined => {
-    const value = p[key];
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+function sourceFromDatabase(database: LookupDatabase): ProductSource {
+  if (database === 'obf') return 'obf';
+  if (database === 'opf') return 'opf';
+  if (database === 'opff') return 'opff';
+  if (database === 'vendor') return 'vendor';
+  return 'off';
+}
+
+function defaultDomainForDatabase(database: LookupDatabase): ProductDomain {
+  if (database === 'obf') return 'cosmetic';
+  if (database === 'opff') return 'pet';
+  if (database === 'off') return 'food';
+  return 'unknown';
+}
+
+export function mapOffProduct(
+  data: unknown,
+  opts?: { lang?: string; database?: LookupDatabase; sourceUrl?: string; retrievedAt?: string },
+): RemoteProductInfo | null {
+  const root = data as {
+    status?: number;
+    found?: boolean;
+    product?: Record<string, unknown>;
+    lookupSource?: LookupDatabase;
+    sourceUrl?: string;
+    retrievedAt?: string;
+  } | null;
+  if (!root?.product || (root.status !== 1 && root.found !== true)) return null;
+  const product = root.product;
+  const boundedText = (value: unknown, max: number): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed && trimmed.length <= max ? trimmed : undefined;
   };
+  const pick = (key: string, max = MAX_INGREDIENT_TEXT_LENGTH): string | undefined =>
+    boundedText(product[key], max);
 
-  const nameKeys = ['product_name', 'product_name_fr', 'product_name_en', 'product_name_ar', 'generic_name', 'abbreviated_product_name'];
-  if (opts?.lang) {
-    const own = `product_name_${opts.lang}`;
-    const idx = nameKeys.indexOf(own);
-    if (idx !== -1 && idx !== 0) {
-      // The UI-language name takes priority over the default product_name
-      nameKeys.splice(idx, 1);
-      nameKeys.splice(0, 0, own);
-    }
-  }
-  let name: string | undefined;
-  for (const key of nameKeys) {
-    name = pick(key);
-    if (name) break;
-  }
+  const language = opts?.lang?.toLowerCase().split('-')[0];
+  const nameKeys = [
+    ...(language ? [`product_name_${language}`] : []),
+    'product_name',
+    'product_name_fr',
+    'product_name_en',
+    'product_name_ar',
+    'generic_name',
+    'abbreviated_product_name',
+  ];
+  const name = nameKeys.map((key) => pick(key, 200)).find(Boolean);
   if (!name) return null;
 
-  const brands = pick('brands')?.split(',')[0]?.trim();
-  const category = firstRealCategory(pick('categories'));
-  const imageUrl = pick('image_front_url');
-  const quantity = pick('quantity');
+  const brandCandidate = pick('brands', 2_000)?.split(',')[0]?.trim();
+  const brand = brandCandidate && brandCandidate.length <= 200 ? brandCandidate : undefined;
+  const categoryCandidate = firstRealCategory(pick('categories', 2_000));
+  const category = categoryCandidate && categoryCandidate.length <= 200 ? categoryCandidate : undefined;
+  const imageUrl = pick('image_front_url', 2_000);
+  const quantity = pick('quantity', 100);
   const ingredientsText = [
+    ...(language ? [`ingredients_text_${language}`] : []),
     'ingredients_text',
     'ingredients_text_en',
     'ingredients_text_fr',
-    'ingredients_text_es',
     'ingredients_text_ar',
-  ]
-    .map((key) => pick(key))
-    .find((v): v is string => Boolean(v));
+    'ingredients_text_es',
+  ].map((key) => pick(key, MAX_INGREDIENT_TEXT_LENGTH)).find(Boolean);
+  const rawAllergenTags = product.allergens_tags;
+  const allergenTags = (() => {
+    if (
+      !Array.isArray(rawAllergenTags)
+      || rawAllergenTags.length > 50
+      || rawAllergenTags.some((value) => typeof value !== 'string')
+    ) return undefined;
+    const tags = (rawAllergenTags as string[]).map((value) => value.trim()).filter(Boolean);
+    return tags.every((value) => value.length <= 100) ? tags : undefined;
+  })();
 
-  // Cosmetic hint: the app proxy tags beauty/product-mirror hits directly
-  // (`beauty_hint`), while OFF v2 may mark a record beauty only in
-  // `categories_tags` / `product_type` even when the human-readable
-  // `categories` string is just "Incorrect product type, non-food-products"
-  // (the shower gel filed as "Incorrect product type … open-beauty-facts"
-  // case). Read all of them so a code-like cosmetic name can never fall into
-  // the food panel by accident.
-  const categoriesRaw = [
-    pick('categories'),
-    ...(Array.isArray(p.categories_tags)
-      ? (p.categories_tags as unknown[]).filter((v): v is string => typeof v === 'string')
-      : []),
-    ...(Array.isArray(p.labels_tags)
-      ? (p.labels_tags as unknown[]).filter((v): v is string => typeof v === 'string')
-      : []),
-  ]
-    .join(' ')
-    .toLowerCase();
-  const productType = pick('product_type')?.toLowerCase() ?? '';
-  const beauty =
-    p.beauty_hint === true ||
-    p.beauty === true ||
-    categoriesRaw.includes('open-beauty-facts') ||
-    categoriesRaw.includes('open-products-facts') ||
-    categoriesRaw.includes('cosmetic') ||
-    categoriesRaw.includes('beauty') ||
-    productType === 'beauty' ||
-    productType === 'cosmetic' ||
-    productType === 'cosmetics';
+  // A raw mapOffProduct call is, by definition, an Open Food Facts payload.
+  // Generic/non-food proxy responses carry an explicit lookupSource.
+  const database = opts?.database ?? root.lookupSource ??
+    (typeof product.lookup_source === 'string' ? product.lookup_source as LookupDatabase : 'off');
+  const sourceUrl = boundedText(opts?.sourceUrl, 2_000)
+    ?? boundedText(root.sourceUrl, 2_000)
+    ?? pick('lookup_source_url', 2_000);
+  const retrievedAt = boundedText(opts?.retrievedAt, 64)
+    ?? boundedText(root.retrievedAt, 64)
+    ?? pick('lookup_retrieved_at', 64)
+    ?? new Date().toISOString();
+  const source = sourceFromDatabase(database);
 
-  // Nutri-Score ranking: only the real letter grades (a–e) are surfaced. OFF
-  // also emits 'not-applicable' / 'unknown' / 'not-computed', which must never
-  // render as a grade chip.
-  const gradeRaw = pick('nutriscore_grade');
-  const grade = gradeRaw && /^[a-eA-E]$/.test(gradeRaw) ? gradeRaw.toLowerCase() : undefined;
-  const scoreRaw = p.nutriscore_score;
-  const score = typeof scoreRaw === 'number' && Number.isFinite(scoreRaw) ? scoreRaw : undefined;
+  const productType = pick('product_type', 50)?.toLowerCase();
+  const declaredDomain = (() => {
+    const raw = pick('domain', 20)?.toLowerCase();
+    if (raw && ['food', 'cosmetic', 'household', 'pet', 'unknown'].includes(raw)) {
+      return raw as ProductDomain;
+    }
+    if (product.beauty_hint === true || productType === 'beauty' || productType === 'cosmetic') return 'cosmetic';
+    if (productType === 'pet' || productType === 'pet-food') return 'pet';
+    if (productType === 'household') return 'household';
+    if (productType === 'food') return 'food';
+    return undefined;
+  })();
+  const inferred = detectLabelDomain({ domain: declaredDomain, category, name, ingredientsText });
+  const domain = inferred === 'unknown' ? defaultDomainForDatabase(database) : inferred;
+  const beauty = domain === 'cosmetic';
+
+  // Open Food Facts exposes the NOVA group both as a number and as a
+  // human-readable "4 - Ultra processed…" string. Only the number is kept: the
+  // wording is rendered locally in the user's language, and string values are
+  // accepted because some regions return "4".
+  const novaGroup = (() => {
+    const raw = product.nova_group ?? product.nova_groups;
+    const value = typeof raw === 'string' ? Number(raw.trim().split(/[^0-9]/)[0]) : raw;
+    return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 4
+      ? value as NovaGroup
+      : undefined;
+  })();
+
+  const gradeRaw = pick('nutriscore_grade', 8);
+  const grade = gradeRaw && /^[a-e]$/i.test(gradeRaw) ? gradeRaw.toLowerCase() : undefined;
+  const pointsRaw = product.nutriscore_score;
+  const calculationPoints = typeof pointsRaw === 'number'
+    && Number.isFinite(pointsRaw)
+    && Math.abs(pointsRaw) <= 1_000
+    ? pointsRaw
+    : undefined;
+  const algorithmVersion = pick('nutriscore_version', 80);
+  const provenance = {
+    name: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}), ...(language ? { language } : {}) },
+    ...(brand ? { brand: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}) } } : {}),
+    ...(category ? { category: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}) } } : {}),
+    ...(ingredientsText ? { ingredientsText: { source, retrievedAt, ...(sourceUrl ? { sourceUrl } : {}) } } : {}),
+  } satisfies NonNullable<RemoteProductInfo['provenance']>;
 
   return {
     name,
-    ...(brands ? { brand: brands } : {}),
+    ...(brand ? { brand } : {}),
     ...(category ? { category } : {}),
     ...(imageUrl ? { imageUrl } : {}),
     ...(quantity ? { quantity } : {}),
-    ...(grade ? { ranking: { grade, ...(score !== undefined ? { score } : {}) } } : {}),
+    ...(grade ? { ranking: {
+      grade,
+      ...(calculationPoints !== undefined ? { calculationPoints } : {}),
+      ...(algorithmVersion ? { algorithmVersion } : {}),
+    } } : {}),
     ...(ingredientsText ? { ingredientsText } : {}),
+    ...(allergenTags?.length ? { allergenTags } : {}),
+    ...(novaGroup ? { novaGroup } : {}),
+    domain,
     ...(beauty ? { beauty: true } : {}),
+    source,
+    ...(sourceUrl ? { sourceUrl } : {}),
+    sourceDatabase: database,
+    retrievedAt,
+    provenance,
   };
 }
 
-async function fetchJson(url: string, timeoutMs: number): Promise<unknown | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
-    if (!res.ok) return null;
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** Like `fetchJson` but keeps the HTTP status, so the caller can tell a
-    definitive "no such product" (200 + status 0) apart from a transient
-    failure (timeout, 429, 502, …) — null means "no answer at all". */
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * Outcome of a remote lookup.
- *  - `found` — a source answered with the product.
- *  - `not-found` — a source definitively answered "no such product".
- *  - `error` — no answer could be obtained (network, timeout, upstream
- *    failure). The UI must offer a retry, not pretend the product does not
- *    exist — a cold/overloaded first lookup previously surfaced as a false
- *    "not found" that a re-scan immediately contradicted.
- */
 export type LookupOutcome =
   | { kind: 'found'; product: RemoteProductInfo }
   | { kind: 'not-found' }
-  | { kind: 'error' };
+  | { kind: 'error'; reason?: 'timeout' | 'aborted' | 'upstream' | 'invalid-response' };
 
-interface OffRoot {
+interface LookupRoot {
   status?: number;
   found?: boolean;
   product?: Record<string, unknown>;
   error?: string;
+  lookupSource?: LookupDatabase;
+  sourceUrl?: string;
+  retrievedAt?: string;
+}
+
+function combinedSignal(timeoutMs: number, outer?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(Math.max(1, timeoutMs));
+  return outer ? AbortSignal.any([outer, timeout]) : timeout;
 }
 
 /**
- * Look up a barcode on Open Food Facts, then via the app proxy.
- *
- * Budgets: the direct world attempt is a fast path (4s); the proxy gets 14s,
- * covering its own 12s request deadline plus cold-start headroom. (An earlier
- * 4s proxy timeout aborted the first lookup on every cold edge function, so
- * the very first scan of a session often read as "not found" and the
- * re-scan — with a warm function — succeeded.)
+ * The browser makes exactly one same-origin request. The server owns all
+ * source racing and shares this deadline through request cancellation.
  */
 export async function lookupOffProduct(
   barcode: string,
-  opts?: { directTimeoutMs?: number; proxyTimeoutMs?: number; proxyUrl?: string; lang?: string },
+  opts?: {
+    timeoutMs?: number;
+    /** Legacy alias; used as the one total timeout. */
+    proxyTimeoutMs?: number;
+    proxyUrl?: string;
+    lang?: string;
+    domainHint?: ProductDomain;
+    signal?: AbortSignal;
+  },
 ): Promise<LookupOutcome> {
-  const directTimeoutMs = opts?.directTimeoutMs ?? 4000;
-  const proxyTimeoutMs = opts?.proxyTimeoutMs ?? 14000;
+  if (opts?.signal?.aborted) return { kind: 'error', reason: 'aborted' };
+  const timeoutMs = opts?.timeoutMs ?? opts?.proxyTimeoutMs ?? 12_000;
   const proxyUrl = opts?.proxyUrl ?? '/api/barcode/lookup';
+  const query = new URLSearchParams({ code: barcode });
+  if (opts?.lang) query.set('lang', opts.lang);
+  if (opts?.domainHint && opts.domainHint !== 'unknown') query.set('domain', opts.domainHint);
 
-  // 1) direct from the browser — the fast path when OFF is reachable from
-  //    this network. Only the world instance is tried client-side: the MA
-  //    and beauty/products instances are walked server-side by the proxy, so
-  //    the client never burns 20s on dead-end fetches before the fallback.
-  //    A direct `status: 0` is NOT final — another instance may know the
-  //    code — it just falls through to the proxy.
-  const direct = await fetchJson(`${OFF_HOSTS[0].base}${barcode}.json?fields=${FIELDS}`, directTimeoutMs);
-  const mapped = direct ? mapOffProduct(direct, { lang: opts?.lang }) : null;
-  if (mapped) return { kind: 'found', product: mapped };
-
-  // 2) through the app proxy — the authoritative multi-host walk.
-  const res = await fetchWithTimeout(`${proxyUrl}?code=${encodeURIComponent(barcode)}`, proxyTimeoutMs);
-  if (!res) return { kind: 'error' };
-
-  let body: OffRoot | null = null;
+  let response: Response;
   try {
-    body = (await res.json()) as OffRoot;
+    response = await fetch(`${proxyUrl}?${query.toString()}`, {
+      headers: { Accept: 'application/json' },
+      signal: combinedSignal(timeoutMs, opts?.signal),
+    });
   } catch {
-    return { kind: 'error' };
+    return { kind: 'error', reason: opts?.signal?.aborted ? 'aborted' : 'timeout' };
   }
 
-  if (res.status === 200 && body && (body.status === 1 || body.found === true)) {
+  let body: LookupRoot;
+  try {
+    body = (await response.json()) as LookupRoot;
+  } catch {
+    return { kind: 'error', reason: 'invalid-response' };
+  }
+  if (response.ok && (body.status === 1 || body.found === true)) {
     const product = mapOffProduct(body, { lang: opts?.lang });
-    if (product) return { kind: 'found', product };
+    return product ? { kind: 'found', product } : { kind: 'error', reason: 'invalid-response' };
+  }
+  if (response.ok && (body.status === 0 || body.found === false) && !body.error) {
     return { kind: 'not-found' };
   }
-  if (res.status === 200 && body && (body.status === 0 || body.found === false) && !body.error) {
-    return { kind: 'not-found' };
-  }
-  // 400/403/429 (invalid, blocked, rate-limited), 502 (upstream walk failed),
-  // or a malformed body — none of these is evidence about the product.
-  return { kind: 'error' };
+  return { kind: 'error', reason: 'upstream' };
 }

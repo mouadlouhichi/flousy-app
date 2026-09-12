@@ -1,12 +1,11 @@
 /**
  * Curated EU regulatory overlay (versioned in code, refreshed by hand).
  *
- * Why this file exists: the committed CosIng inventory snapshot is from
- * 2019-03-13, so bans/restrictions adopted since (Lilial, HICC, retinol caps,
- * the 2023/1545 fragrance-allergen additions, …) are NOT visible in the raw
- * data. This overlay carries those newer rules plus label-pattern signals
- * (generic "Parfum", drying alcohols, sulfate surfactants, historical
- * comedogenicity ratings) that no regulatory column expresses directly.
+ * This is the small curated evidence layer for label-pattern and historical
+ * signals (generic "Parfum", drying alcohols, sulfate surfactants, historical
+ * comedogenicity ratings, and fragrance-declaration aliases). Legal Annex
+ * II–VI evidence is loaded separately from the structured dated corpus in
+ * regulatory.ts; hand-authored names in this file never establish a ban.
  *
  * Fidelity notes
  * - Fragrance-allergen lists follow the consolidated Annex III of Regulation
@@ -34,6 +33,8 @@ interface OverlaySeed {
   label: string;
   detail?: string;
   tier: Exclude<RiskTier, 'clean'>;
+  kind?: Signal['kind'];
+  applicability?: Signal['applicability'];
   leaveOnOnly?: boolean;
   evidence: string[];
 }
@@ -58,8 +59,10 @@ function buildIndex(): Map<string, OverlayMatch[]> {
     const signal: Signal = {
       code: seed.code,
       tier: seed.tier,
+      kind: seed.kind ?? 'comfort',
       label: seed.label,
       detail: seed.detail,
+      applicability: seed.applicability,
       leaveOnOnly: seed.leaveOnOnly,
       evidence: seed.evidence,
     };
@@ -77,142 +80,25 @@ function buildIndex(): Map<string, OverlayMatch[]> {
   return index;
 }
 
-// ---------------------------------------------------------------------------
-// EU-prohibited (Annex II of Reg (EC) No 1223/2009, incl. post-2019 additions)
-// ---------------------------------------------------------------------------
-const EU_ANNEX_II: string[] = [
-  'Reg (EC) No 1223/2009 Annex II (consolidated)',
-  'EUR-Lex: 02009R1223-2025xxxx (cosmetics regulation, consolidated annexes)',
-];
-
-overlay({
-  names: ['Butylphenyl Methylpropional', 'Lilial'],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail:
-    'Banned from EU cosmetics since 1 March 2022 (Annex II). Often labelled "Lilial" or "BMHCA".',
-  tier: 'prohibited',
-  evidence: ['Reg (EU) 2021/1902 — Annex II entry 2245'],
-});
-
-overlay({
-  names: ['Hydroxyisohexyl 3-Cyclohexene Carboxaldehyde'],
-  aliases: ['HICC', 'Lyral'],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'Fragrance allergen (Lyral) banned from EU cosmetics since 23 August 2021 (Annex II).',
-  tier: 'prohibited',
-  evidence: ['Reg (EU) 2020/1682 — Annex II'],
-});
-
-overlay({
-  names: ['Atranol', 'Chloroatranol'],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'Oak/treemoss constituents (atranol, chloroatranol) banned from EU cosmetics.',
-  tier: 'prohibited',
-  evidence: EU_ANNEX_II,
-});
-
-overlay({
-  names: ['Triclosan', 'Triclocarban'],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'No longer permitted in cosmetic products in the EU.',
-  tier: 'prohibited',
-  evidence: ['Reg (EU) No 358/2014 — removal from Annex V / Annex II'],
-});
-
-overlay({
-  names: [
-    'Isopropylparaben',
-    'Isobutylparaben',
-    'Phenylparaben',
-    'Benzylparaben',
-    'Pentylparaben',
-  ],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'Long-chain parabens banned from EU cosmetics (Annex II).',
-  tier: 'prohibited',
-  evidence: ['Reg (EU) No 1004/2014 — Annex II'],
-});
-
-overlay({
-  names: [
-    'Dibutyl Phthalate',
-    'Diethylhexyl Phthalate',
-    'Benzyl Butyl Phthalate',
-    'Diisobutyl Phthalate',
-    'Diisononyl Phthalate',
-  ],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'Phthalates are banned from EU cosmetics (Annex II).',
-  tier: 'prohibited',
-  evidence: EU_ANNEX_II,
-});
-
-overlay({
-  names: ['Bithionol', 'Chloroform', 'Vinyl Chloride'],
-  code: 'eu-prohibited',
-  label: 'Prohibited in EU cosmetics',
-  detail: 'Substance banned from EU cosmetics (Annex II).',
-  tier: 'prohibited',
-  evidence: EU_ANNEX_II,
-});
+// Legal Annex II–VI matches are sourced from regulatory.ts. Keeping them out
+// of this hand-maintained alias layer prevents an alias or stale free-text row
+// from becoming a universal legal claim.
 
 // ---------------------------------------------------------------------------
-// EU-restricted (Annex III / Annex V entries with use conditions)
-// ---------------------------------------------------------------------------
-overlay({
-  names: ['Methylisothiazolinone'],
-  aliases: ['MIT'],
-  code: 'eu-restricted',
-  label: 'EU-restricted preservative',
-  detail:
-    'Not permitted in leave-on products; rinse-off only up to 0.0015% (EU Annex V/57). Flagged when the product is leave-on or unknown.',
-  tier: 'restricted',
-  evidence: ['Reg (EC) No 1223/2009 Annex V entry 57'],
-});
-
-overlay({
-  names: ['Methylchloroisothiazolinone'],
-  aliases: ['5-Chloro-2-methyl-4-isothiazolin-3-one', 'MCI', 'Kathon CG'],
-  code: 'eu-restricted',
-  label: 'EU-restricted preservative',
-  detail:
-    'MCI/MIT mixture: rinse-off only, up to 0.0015% (EU Annex V/39). Leave-on use not permitted.',
-  tier: 'restricted',
-  evidence: ['Reg (EC) No 1223/2009 Annex V entry 39'],
-});
-
-overlay({
-  names: ['Retinol', 'Retinyl Acetate', 'Retinyl Palmitate'],
-  aliases: ['Vitamin A', 'Retinyl Acetat'],
-  code: 'eu-restricted',
-  label: 'EU-restricted (leave-on concentration caps)',
-  detail:
-    'Retinol/retinyl esters are restricted in leave-on products (Annex III as amended by Reg (EU) 2024/996 — applies from 1 Nov 2025).',
-  tier: 'restricted',
-  evidence: ['Reg (EU) 2024/996 — Annex III (vitamin A)'],
-});
-
-// ---------------------------------------------------------------------------
-// Formaldehyde releasers (Annex V allowed at low caps; SCCS-reviewed)
+// Formaldehyde-releaser sensitivity context (non-compliance verdict)
 // ---------------------------------------------------------------------------
 const FORMALDEHYDE_RELEASER = {
   code: 'formaldehyde-releaser',
   label: 'Formaldehyde releaser',
   tier: 'caution' as const,
-  evidence: ['Reg (EC) No 1223/2009 Annex V', 'SCCS opinions on formaldehyde releasers'],
+  evidence: ['SCCS opinions on formaldehyde and formaldehyde releasers'],
 };
 overlay({
-  names: ['DMDM Hydantoin', 'Diazolidinyl Urea', 'Imidazolidinyl Urea', 'Quaternium-15'],
+  names: ['DMDM Hydantoin', 'Diazolidinyl Urea', 'Imidazolidinyl Urea'],
   code: FORMALDEHYDE_RELEASER.code,
   label: FORMALDEHYDE_RELEASER.label,
   detail:
-    'Preservatives that can release traces of formaldehyde over time; EU caps their concentrations and some are banned in aerosols. Relevant mainly for sensitive skin.',
+    'Can release traces of formaldehyde over time; relevant to people sensitized to formaldehyde. This signal does not determine formulation compliance.',
   tier: FORMALDEHYDE_RELEASER.tier,
   evidence: FORMALDEHYDE_RELEASER.evidence,
 });
@@ -222,7 +108,7 @@ overlay({
   code: FORMALDEHYDE_RELEASER.code,
   label: FORMALDEHYDE_RELEASER.label,
   detail:
-    'Formaldehyde releaser; nitrosamine formation possible with amines. EU-restricted (rinse-off, max 0.1%).',
+    'Can release formaldehyde; formulation and co-ingredients determine relevance. Consult the structured annex conditions rather than inferring compliance from the label.',
   tier: FORMALDEHYDE_RELEASER.tier,
   evidence: FORMALDEHYDE_RELEASER.evidence,
 });
@@ -250,7 +136,7 @@ overlay({
   code: 'drying-alcohol',
   label: 'Drying / stinging potential',
   detail:
-    'Fast-evaporating alcohol can dry or sting, mainly for leave-on products and sensitive skin, and mostly when high on the list. EU-allowed; tolerance varies widely.',
+    'Fast-evaporating alcohol can dry or sting, mainly for leave-on products and sensitive skin, and mostly when high on the list. Tolerance varies widely.',
   tier: 'watch',
   leaveOnOnly: true,
   evidence: ['consensus irritancy (clinical convention)'],
@@ -270,7 +156,7 @@ overlay({
   code: 'sulfate-surfactant',
   label: 'Strong anionic surfactant',
   detail:
-    'Efficient cleansers that can be drying/irritating at high concentration; EU-allowed. Mainly relevant for leave-on products or very high list positions.',
+    'Efficient cleansers that can be drying or irritating at high concentration. Mainly relevant for leave-on products or very high list positions.',
   tier: 'watch',
   leaveOnOnly: true,
   evidence: ['consensus irritancy (clinical convention)'],
@@ -288,6 +174,7 @@ function comedogenic(names: string[], rating: number): void {
       `Classic rabbit-ear comedogenicity rating of ${rating}/5 (Fulton). Published limits of the method ` +
       '(dilution, formulation, human variation — Draelos & DiNardo 2006) mean this is a mild watch flag for acne-prone / leave-on use, not a verdict.',
     tier: 'watch',
+    kind: 'historical',
     leaveOnOnly: true,
     evidence: ['Fulton et al. 1984 rabbit-ear assay', 'Draelos & DiNardo 2006 (context)'],
   });
@@ -300,6 +187,82 @@ comedogenic(['Cocos Nucifera Oil'], 4);
 comedogenic(['Theobroma Cacao Seed Butter'], 4);
 comedogenic(['Triticum Vulgare Germ Oil'], 5);
 comedogenic(['Laureth-4'], 5);
+
+// ---------------------------------------------------------------------------
+// Published hazard assessments for substances whose EU annex entry is a
+// conditional authorisation, not a hazard statement.
+//
+// Scope discipline: this table is deliberately tiny. It only carries
+// substances whose hazard character is stated by an EU body (ECHA / SCCS) and
+// whose dated annex entry would otherwise read as a neutral "authorised"
+// row — for example methylisothiazolinone, whose Annex V entry permits a very
+// low rinse-off concentration while the substance is a well-documented potent
+// contact sensitiser. Every entry is an attributed observation:
+// `kind: 'hazard-assessment'`, tier `caution` at most, never `prohibited`, and
+// never a compliance verdict. Hazards that the dated annex corpus already
+// expresses (Annex II bans, Annex III restrictions) are NOT duplicated here.
+// ---------------------------------------------------------------------------
+interface HazardAssessment {
+  names: string[];
+  detail: string;
+  evidence: string[];
+}
+
+const HAZARD_ASSESSMENTS: HazardAssessment[] = [
+  {
+    names: ['Triclosan'],
+    detail:
+      'EU-level assessments describe triclosan as persistent and bioaccumulative and assess it for endocrine-disrupting properties; the dated annex restricts both the product types and the concentration. Environmental and resistance concerns are documented in the published EU assessments.',
+    evidence: [
+      'ECHA substance assessment — triclosan (persistence, bioaccumulation, endocrine-disruptor assessment)',
+      'Regulation (EC) No 1223/2009 Annex V entry 25',
+    ],
+  },
+  {
+    names: ['Triclocarban'],
+    detail:
+      'Triclocarban is assessed at EU level for persistence, bioaccumulation and endocrine-disrupting properties; the dated annex limits it to rinse-off uses and low concentrations.',
+    evidence: [
+      'ECHA substance assessment — triclocarban (PBT / endocrine-disruptor assessment)',
+      'Regulation (EC) No 1223/2009 Annex III entry 100 and Annex V entry 23',
+    ],
+  },
+  {
+    names: [
+      'Methylisothiazolinone',
+      'Methylchloroisothiazolinone',
+      'Methylchloroisothiazolinone and Methylisothiazolinone',
+    ],
+    detail:
+      'A potent contact sensitiser: EU action restricted it to rinse-off products at 0.0015% after widespread contact-allergy cases. Significance depends on individual sensitisation.',
+    evidence: [
+      'SCCS opinions on methylisothiazolinone (skin sensitisation)',
+      'Regulation (EC) No 1223/2009 Annex V entries 39 and 57 (rinse-off only, 0.0015%)',
+    ],
+  },
+  {
+    names: ['Benzophenone-3', 'Oxybenzone'],
+    detail:
+      'Assessed at EU level for endocrine-disrupting properties; SCCS opinions reduced the permitted concentration and excluded some spray uses. A frequent photoallergen.',
+    evidence: [
+      'SCCS opinions on benzophenone-3 (endocrine activity, photoallergy)',
+      'Regulation (EC) No 1223/2009 Annex VI entry 4',
+    ],
+  },
+];
+
+for (const assessment of HAZARD_ASSESSMENTS) {
+  overlay({
+    names: assessment.names,
+    code: 'published-hazard-assessment',
+    label: 'Published EU hazard assessment',
+    detail: assessment.detail,
+    tier: 'caution',
+    kind: 'hazard-assessment',
+    applicability: 'applies',
+    evidence: assessment.evidence,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Fragrance allergens — the two EU labelling generations
@@ -321,6 +284,8 @@ function allergens(list: string[], evidence: string[], generation: string): void
         `Declarable fragrance allergen (${generation}). Contact allergen — significance depends on ` +
         'individual sensitivity; EU requires individual declaration above 0.001% leave-on / 0.01% rinse-off.',
       tier: 'caution',
+      kind: 'regulatory',
+      applicability: 'conditions-unknown',
       evidence,
     });
   }
@@ -447,6 +412,8 @@ for (const name of ALLERGENS_2023) {
       'Declarable fragrance allergen (Reg (EU) 2023/1545). Contact allergen — significance depends on ' +
       'individual sensitivity; EU requires individual declaration above 0.001% leave-on / 0.01% rinse-off.',
     tier: 'caution',
+    kind: 'regulatory',
+    applicability: 'conditions-unknown',
     evidence: ALLERGEN_EVIDENCE_2023,
   });
 }

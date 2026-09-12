@@ -44,8 +44,3 @@ cookie as soon as a real or demo session starts, so the UI-driven journeys
 pass through naturally. Specs that seed localStorage and jump straight into
 the dashboard must first plant that cookie — use
 `establishDashboardSession(page)` from `e2e/dashboard-session.ts`.
-
-If `cdn.playwright.dev` is unreachable, CI falls back to the runner image's
-preinstalled Google Chrome (`PLAYWRIGHT_CHANNEL=chrome`, see the install
-step in `.github/workflows/ci.yml` and `playwright.config.ts`) — the suite
-runs either way.

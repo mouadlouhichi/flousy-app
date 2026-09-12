@@ -8,8 +8,6 @@ import {
   doc,
   getDoc,
   onSnapshot,
-  query,
-  where,
 } from 'firebase/firestore';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { db as firestoreDb } from '@/lib/firebase-db';
@@ -60,13 +58,12 @@ export function ProfileScreen() {
       return;
     }
     const db = firestoreDb;
-    // Two live sources, last-writer-wins, no Math.max gymnastics:
-    //   - `circles` where organizerId == uid  (circles this user organized)
-    //   - `users/{uid}/circles` pointer       (circles this user joined)
-    // Each snapshot is the source of truth at that moment, so the count
-    // reflects the larger of the two. We don't need to union here because
-    // a user can be both organizer and member of the same circle, and
-    // `active` filter on each side prevents a double-count.
+    // One live source: the `users/{uid}/circles` pointer stream. The create
+    // and join transactions write a pointer for the organizer too, so the
+    // docs behind it are a complete "my circles" set — the organized count
+    // is derived client-side from the same snapshots. (The old second
+    // source, a `circles` where organizerId == uid scan, is gone: rules
+    // cannot inspect query `where` filters, so that list denies by design.)
     let latest = { joined: 0, organized: 0 };
     const recompute = () => setDaratCount(Math.max(latest.joined, latest.organized));
     const pointerUnsub = onSnapshot(
@@ -74,25 +71,32 @@ export function ProfileScreen() {
       async (snap) => {
         const ids = snap.docs.map((d) => d.id);
         if (ids.length === 0) {
-          latest = { ...latest, joined: 0 };
+          latest = { joined: 0, organized: 0 };
           recompute();
           return;
         }
-        const docs = await Promise.all(ids.map((id) => getDoc(doc(db, 'circles', id))));
-        latest = { ...latest, joined: docs.filter((s) => s.exists() && (s.data() as { status?: string }).status === 'active').length };
+        try {
+          const docs = await Promise.all(ids.map((id) => getDoc(doc(db, 'circles', id))));
+          const active = docs.filter(
+            (s) => s.exists() && (s.data() as { status?: string }).status === 'active',
+          );
+          latest = {
+            joined: active.length,
+            organized: active.filter(
+              (s) => (s.data() as { organizerId?: string }).organizerId === user.uid,
+            ).length,
+          };
+        } catch (err) {
+          console.warn('[profile] darat circle docs load failed', err);
+        }
         recompute();
       },
-    );
-    const organizedUnsub = onSnapshot(
-      query(collection(db, 'circles'), where('organizerId', '==', user.uid)),
-      (snap) => {
-        latest = { ...latest, organized: snap.docs.filter((d) => (d.data() as { status?: string }).status === 'active').length };
-        recompute();
+      (err) => {
+        console.warn('[profile] darat pointer snapshot failed', err);
       },
     );
     return () => {
       pointerUnsub();
-      organizedUnsub();
     };
     // firestoreDb is module-level and won't change, so the effect only needs
     // to re-run when the user or their Pro state flips.

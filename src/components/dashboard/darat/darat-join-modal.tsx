@@ -1,13 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  collection,
-  doc,
-  getDoc,
-  getFirestore,
-  runTransaction,
-} from 'firebase/firestore';
+import { collection, getDoc, doc, runTransaction } from 'firebase/firestore';
+import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/lib/auth-context';
@@ -36,7 +31,7 @@ const CODE_PLACEHOLDER_FALLBACK = 'ABC123';
 export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
   const { user } = useAuth();
   const { messages: m } = useLanguage();
-  const db = getFirestore();
+  const db = firestoreDb;
   const [code, setCode] = useState(initialCode ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +41,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
     e.preventDefault();
     setError(null);
     setCodeError(null);
-    if (!user) {
+    if (!user || !db) {
       setError('genericError');
       return;
     }
@@ -64,7 +59,9 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
         setSubmitting(false);
         return;
       }
-      const invite = normalizeDaratInvite({ id: inviteSnap.id, ...(inviteSnap.data() as Record<string, unknown>) });
+      // Snapshot data first, doc id last — a stored `id` field must never
+      // shadow the real document id (same invariant as the circle reads).
+      const invite = normalizeDaratInvite({ ...(inviteSnap.data() as Record<string, unknown>), id: inviteSnap.id });
       if (invite.status !== 'pending' || Date.parse(invite.expiresAt) < Date.now()) {
         setCodeError(m.darat.join.notFound);
         setSubmitting(false);
@@ -109,10 +106,8 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
           // falls through to the name the organizer typed on the invite (so
           // the roster keeps calling them what the circle calls them), then
           // the email — never a refused empty row.
-          displayName: (user.displayName && user.displayName.trim())
-            || invite.displayName
-            || user.email
-            || 'Member',
+          displayName:
+            (user.displayName && user.displayName.trim()) || invite.displayName || user.email || 'Member',
           email: (user.email ?? '').toLowerCase(),
           phone: invite.phone ?? '',
           status: 'active',
@@ -137,6 +132,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
           at: Date.now(),
         });
       });
+      console.info(`[darat] joined circle ${invite.circleId} via invite ${invite.id}`);
       onJoined(invite.circleId);
     } catch (err) {
       console.error('[darat] join failed', err);
@@ -208,7 +204,7 @@ export function DaratJoinModal({ onClose, onJoined, initialCode }: Props) {
           <button
             type="submit"
             disabled={submitting || !code.trim()}
-            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-xl hover:bg-accent-foreground transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 bg-primary text-on-primary font-bold text-[15px] py-3 rounded-full hover:bg-primary-hover transition-all active:scale-[0.98] shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <AppIcon name="login" className="text-[18px]" />
             <span>{submitting ? m.darat.join.joining : m.darat.join.join}</span>

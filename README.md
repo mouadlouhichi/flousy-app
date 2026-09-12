@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💰 SmartJib
+# 💰 SmartJib APP
 
 **A private, mobile-first budget tracker that separates what money is for from where it is held.**
 
@@ -191,11 +191,13 @@ The three server routes have intentionally narrow responsibilities:
 - `GET /api/inci/lookup`: missing-INCI fallback for a resolved cosmetic
   barcode (key-gated, fail-open; supplies the text to the local scoring
   engine when `INCI_API_KEY` is set);
-- `POST /api/inci/analyze`: local CosIng-backed INCI risk analysis for scanned
-  cosmetics (deterministic scores; an optional key-gated vendor call can add
-  *safe-only* coverage for names the local snapshot misses — see
+- `POST /api/inci/analyze`: dated, condition-aware ingredient identity and
+  evidence analysis for scanned cosmetics. Numeric output is nullable and is a
+  bounded evidence index—not a safety or compliance verdict. An optional
+  key-gated provider contributes attributed informational observations only;
+  it cannot alter local coverage, tiers, score, or regulatory authority. See
   [`docs/COSMETIC_INGREDIENT_SCORING.md`](docs/COSMETIC_INGREDIENT_SCORING.md)
-  and [`data/cosing/README.md`](data/cosing/README.md)).
+  and [`data/cosing/README.md`](data/cosing/README.md).
 
 Financial records are read and written directly through Firebase; they are not
 sent through the email or barcode routes.
@@ -268,9 +270,16 @@ browser deployment should use the documented `NEXT_PUBLIC_*` names.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Build/public | Absolute canonical origin, e.g. `https://smartjib.app` |
 | `APP_URL` | Server | Trusted base for invitation accept links; falls back to the canonical/platform URL |
-| `RESEND_API_KEY` | Server secret | Enables invitation and contact delivery |
+| `RESEND_API_KEY` | Server secret | Enables invitation, contact and branded auth-email delivery |
 | `RESEND_FROM_EMAIL` | Server | SPF/DKIM-verified sender, e.g. `SmartJib <hello@smartjib.app>` |
+| `RESEND_AUTH_FROM_EMAIL` | Server | Optional dedicated sender for auth mail (password reset / verification); falls back to `RESEND_FROM_EMAIL` |
 | `CONTACT_TO_EMAIL` | Server | Fixed recipient for public contact messages |
+
+Auth emails (password reset, email verification) are minted by `/api/auth/email`
+with the Firebase Admin SDK (`FIREBASE_SERVICE_ACCOUNT_JSON`) and delivered via
+Resend with the branded template; the links resolve on the app's own
+`/auth/action` handler page. When `RESEND_API_KEY` or the service account is
+absent, the app falls back to Firebase Auth's built-in mailer.
 
 Production refuses Resend's `@resend.dev` sandbox sender. Vercel variables are
 scoped independently to Production, Preview and Development, and a redeploy is
@@ -282,6 +291,22 @@ Readiness probes send no mail and reveal no secrets:
 curl -fsS https://<deployment>/api/contact
 curl -fsS https://<deployment>/api/household-invitations
 ```
+
+### Optional server-side analysis and abuse controls
+
+| Variable | Scope | Purpose |
+| --- | --- | --- |
+| `INCI_API_KEY` | Server secret | Attributed informational evidence for locally unidentified INCI names; never scoring authority |
+| `UNKNOWN_INGREDIENT_HASH_KEY` | Server secret | Deployment HMAC for durable bounded unknown-token aggregates; unset keeps aggregates process-local only |
+| `KNOWLEDGE_API_URL` / `KNOWLEDGE_API_KEY` | Server secret | Optional attributed food-ingredient explanations |
+| `KNOWLEDGE_API_MODEL` | Server | Optional compatible model name |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Server secret | Durable distributed API rate limits |
+| `ARCJET_KEY` | Server secret | Optional shield and bot checks |
+
+Unknown-ingredient aggregation stores no raw token, label, barcode, product or
+account identity, image, or IP. The IP participates only in the rate-limiter
+key. See the cosmetic methodology and privacy page for processor/lifecycle
+details.
 
 ### Optional analytics
 

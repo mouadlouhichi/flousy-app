@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from '@/components/ui/app-icon';
 import { useLanguage } from '@/lib/i18n-context';
 import type {
@@ -8,12 +8,19 @@ import type {
   AdditiveRole,
   AllergenGroup,
   FoodAnalysis,
+  FoodConcernCode,
   FoodFamily,
+  FoodUnspecifiedClass,
 } from '@/lib/food-knowledge/types';
-import { analyzeFoodKnowledge, splitFoodLabel } from '@/lib/food-analysis-client';
+import { analyzeFoodKnowledgeImmediate, splitFoodLabel } from '@/lib/food-analysis-client';
 import { detectFoodKind } from '@/lib/food-knowledge/domain';
 import { foldForMatch } from '@/lib/food-knowledge/lists';
+import { foodGradeDrivers, foodLabelGrade } from '@/lib/food-knowledge/grade';
+import { ScoreRing } from './courses-score-ring';
+import { BAND_LABEL_KEY, BAND_STYLE } from './courses-ingredient-glance';
 import { LabelOcrButton } from './label-ocr-button';
+import { MAX_INGREDIENT_TEXT_LENGTH } from '@/lib/ingredient-safety/types';
+import type { NovaGroup } from '@/lib/store';
 
 /**
  * Food-label knowledge panel (FOOD side of the label-knowledge feature).
@@ -37,6 +44,10 @@ interface CoursesFoodPanelProps {
   name?: string;
   /** OFF-style category. */
   category?: string;
+  /** Trusted OFF allergen tags used only as a cross-check. */
+  offAllergenTags?: string[];
+  /** NOVA processing group reported by Open Food Facts (1–4), if any. */
+  offNovaGroup?: NovaGroup;
 }
 
 const FAMILY_KEY: Record<FoodFamily, string> = {
@@ -59,10 +70,50 @@ const BAND_KEY: Record<AdditiveBand, string> = {
   neutral: 'additiveBandNeutral', watch: 'additiveBandWatch', avoid: 'additiveBandAvoid',
 };
 
+const UNSPECIFIED_CLASS_KEY: Record<FoodUnspecifiedClass, string> = {
+  'flavour-enhancer': 'unspecifiedFlavourEnhancer',
+  colour: 'unspecifiedColour',
+  'food-acid': 'unspecifiedFoodAcid',
+  'protein-source': 'unspecifiedProteinSource',
+  preservative: 'unspecifiedPreservative',
+  antioxidant: 'unspecifiedAntioxidant',
+  stabiliser: 'unspecifiedStabiliser',
+  thickener: 'unspecifiedThickener',
+  emulsifier: 'unspecifiedEmulsifier',
+  sweetener: 'unspecifiedSweetener',
+};
+
+/** NOVA processing group labels, 1 = least processed … 4 = ultra-processed. */
+export const NOVA_LABEL_KEY: Record<NovaGroup, string> = {
+  1: 'novaGroup1',
+  2: 'novaGroup2',
+  3: 'novaGroup3',
+  4: 'novaGroup4',
+};
+
+/** Tone per group: 4 is the only group the chip warns about. */
+export const NOVA_TONE: Record<NovaGroup, 'additive' | 'concern' | 'allergen'> = {
+  1: 'additive',
+  2: 'additive',
+  3: 'allergen',
+  4: 'concern',
+};
+
+const CONCERN_LABEL_KEY: Record<FoodConcernCode, string> = {
+  'partially-hydrogenated-oil': 'concernPartiallyHydrogenatedOil',
+};
+
+const CONCERN_NOTE_KEY: Record<FoodConcernCode, string> = {
+  'partially-hydrogenated-oil': 'concernPartiallyHydrogenatedOilNote',
+};
+
 export function CoursesFoodPanel({
+  barcode,
   initialText,
   name,
   category,
+  offAllergenTags,
+  offNovaGroup,
 }: CoursesFoodPanelProps) {
   const { messages: m, t, language } = useLanguage();
   const g = m.foodKnowledge;
@@ -70,6 +121,8 @@ export function CoursesFoodPanel({
 
   const [draft, setDraft] = useState('');
   const [invalid, setInvalid] = useState(false);
+  const requestIdRef = useRef(0);
+  const analysisAbortRef = useRef<AbortController | null>(null);
   const [pending, setPending] = useState<{
     status: 'idle' | 'loading' | 'ready';
     analysis?: FoodAnalysis;
@@ -86,36 +139,66 @@ export function CoursesFoodPanel({
     detectFoodKind({ ...(name ? { name } : {}), ...(category ? { category } : {}) }) === 'water';
 
   const run = (text: string) => {
+    const requestId = ++requestIdRef.current;
+    analysisAbortRef.current?.abort();
+    analysisAbortRef.current = null;
     const trimmed = text.trim();
-    if (trimmed.length < 2 || splitFoodLabel(trimmed).length === 0) {
+    if (
+      trimmed.length < 2
+      || trimmed.length > MAX_INGREDIENT_TEXT_LENGTH
+      || splitFoodLabel(trimmed).length === 0
+    ) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    setPending({ status: 'loading' });
-    analyzeFoodKnowledge(
+    const controller = new AbortController();
+    analysisAbortRef.current = controller;
+    const result = analyzeFoodKnowledgeImmediate(
       { text: trimmed },
       {
         ...(name ? { label: name } : {}),
         ...(category ? { category } : {}),
+        ...(offAllergenTags?.length ? { offAllergenTags } : {}),
         language,
+        signal: controller.signal,
       },
-    )
-      .then((result) => {
+    );
+    // Deterministic local output is rendered immediately; the optional server
+    // enrichment may replace only the same request/context.
+    setPending({
+      status: 'ready',
+      analysis: result.analysis,
+      ...(result.offline ? { offline: true } : {}),
+    });
+    if (result.enrichment) {
+      void result.enrichment.then((enriched) => {
+        if (requestId !== requestIdRef.current) return;
         setPending({
           status: 'ready',
-          analysis: result.analysis,
-          ...(result.offline ? { offline: true } : {}),
+          analysis: enriched.analysis,
+          ...(enriched.offline ? { offline: true } : {}),
         });
-      })
-      .catch(() => setPending({ status: 'ready' }));
+      }).catch(() => undefined);
+    }
   };
 
-  // Scanned records analyse themselves as soon as the text arrives.
+  // Scanned records re-analyse whenever any assessment context changes.
+  const contextKey = JSON.stringify({ name, category, language, offAllergenTags: [...(offAllergenTags ?? [])].sort() });
   useEffect(() => {
     if (fromRecord) run(fromRecord);
+    else {
+      requestIdRef.current += 1;
+      analysisAbortRef.current?.abort();
+      setPending({ status: 'idle' });
+    }
+    return () => {
+      requestIdRef.current += 1;
+      analysisAbortRef.current?.abort();
+    };
+    // `contextKey` deliberately captures every assessment-affecting input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromRecord]);
+  }, [fromRecord, contextKey]);
 
   const analysis = pending.status === 'ready' ? pending.analysis : undefined;
   const waterHeading = analysis?.kind === 'water' || autoWater;
@@ -155,6 +238,7 @@ export function CoursesFoodPanel({
               if (invalid) setInvalid(false);
             }}
             rows={4}
+            maxLength={MAX_INGREDIENT_TEXT_LENGTH}
             placeholder={waterPrompt ? g.waterPastePlaceholder : g.pastePlaceholder}
             className="mt-2 w-full resize-y rounded-xl border border-outline-variant bg-surface p-3 font-body-sm text-body-sm text-on-surface outline-none focus:border-primary"
           />
@@ -175,6 +259,8 @@ export function CoursesFoodPanel({
             {/* No ingredient text on the scanned product? Photograph the label
                 instead of typing it — OCR runs on-device. */}
             <LabelOcrButton
+              productKey={`${barcode ?? 'manual'}\u0001${name ?? ''}`}
+              mode="food"
               onText={(text) => {
                 setDraft(text);
                 run(text);
@@ -184,7 +270,7 @@ export function CoursesFoodPanel({
         </div>
       )}
 
-      {analysis && <FoodKnowledgeBody analysis={analysis} />}
+      {analysis && <FoodKnowledgeBody analysis={analysis} novaGroup={offNovaGroup} />}
       {pending.status === 'ready' && !analysis && (
         <p className="mt-3 font-body-sm text-body-sm text-on-surface-variant">{g.unavailable}</p>
       )}
@@ -207,9 +293,10 @@ const WATER_PARAM_KEY: Record<string, { label: string; note: string }> = {
 };
 
 /** Exported pure body — shared by the course panel and the standalone screen. */
-export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
-  const { messages: m } = useLanguage();
+export function FoodKnowledgeBody({ analysis, novaGroup }: { analysis: FoodAnalysis; novaGroup?: NovaGroup }) {
+  const { messages: m, t } = useLanguage();
   const g = m.foodKnowledge;
+  const ig = m.ingredientGlance;
 
   // Water labels print a mineral composition, not an ingredient list — give
   // them an adapted view instead of pretending each line is an ingredient.
@@ -217,12 +304,18 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
     return <WaterKnowledgeBody analysis={analysis} />;
   }
 
-  const { allergens, additives, ingredients } = analysis;
+  const { additives, ingredients } = analysis;
+  const concerns = analysis.concerns ?? [];
+  // Ranked "what moved the score" rows — mirrors foodLabelGrade exactly.
+  const grade = foodLabelGrade(analysis);
+  const gradeDrivers = foodGradeDrivers(analysis);
   // Deep-search answers keyed by folded raw name, so they attach to the row.
   const externalByFolded = new Map(
     analysis.external.map((e) => [foldForMatch(e.name), e]),
   );
-  const allergenGroups = allergens.length > 0 ? [...new Set(allergens.map((a) => a.group))] : [];
+  // Use the aggregate set, not only text hits: it also includes trusted OFF
+  // allergen tags supplied as a cross-check when label text is abbreviated.
+  const allergenGroups = analysis.allergenGroups;
   const showAdditives = additives.length > 0;
   const watch = additives.filter((a) => a.band === 'watch');
   const avoid = additives.filter((a) => a.band === 'avoid');
@@ -235,12 +328,101 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
     <div className="mt-3 space-y-3">
       {/* When NOTHING was recognized the panel stays calm and explains why
           (composition/nutrition text pasted as ingredients) — no coverage
-          counts: the ring on the accordion is the additive grade only. */}
+          counts: the ring on the accordion carries the bounded label grade. */}
       {nothingKnown && (
         <p className="flex items-start gap-2 rounded-xl bg-surface-container-high/60 px-3 py-2 font-body-sm text-body-sm text-on-surface-variant">
           <AppIcon name="search_off" className="mt-0.5 size-4 shrink-0 text-on-surface-variant" />
           {g.unrecognizedAll}
         </p>
+      )}
+
+      {/* Ranked grade drivers — the label signals that actually moved the
+          bounded label-signal index, strongest first. Hidden when the grade
+          itself is withheld (nothing recognized / water). Yuka-style risk ring
+          leading the panel — same ring/band/number contract as the INCI side. */}
+      {grade && (
+        <section className="rounded-xl border border-outline-variant bg-surface/50 p-3">
+          <div className="flex items-center gap-3">
+            <ScoreRing
+              size={64}
+              score={100 - grade.score}
+              band={grade.band}
+              label={`${100 - grade.score}/100 — ${t(ig[BAND_LABEL_KEY[grade.band]])}. ${g.gradeTooltip}`}
+              toneClass={BAND_STYLE[grade.band].text}
+              valueClass="text-[20px]"
+            />
+            <div className="min-w-0 flex-1">
+              <h4 className="font-label-md text-label-md font-semibold text-on-surface">{g.riskTitle}</h4>
+              <p className={`mt-0.5 font-label-sm text-label-sm font-semibold ${BAND_STYLE[grade.band].text}`}>
+                {t(ig[BAND_LABEL_KEY[grade.band]])}
+              </p>
+              <p className="font-label-sm text-label-sm text-on-surface-variant" dir="ltr">
+                {g.riskScale}
+              </p>
+            </div>
+          </div>
+          {gradeDrivers.length > 0 && (
+            <div className="mt-2.5 border-t border-outline-variant/70 pt-2">
+              <p className="font-label-sm text-label-sm font-semibold text-on-surface-variant">
+                {g.gradeDriversTitle}
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {gradeDrivers.map((driver) => (
+                  <li key={`${driver.kind}:${driver.key}:${driver.raw}`} className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate font-body-sm text-body-sm text-on-surface">
+                      {driver.kind === 'additive'
+                        ? driver.key
+                        : driver.kind === 'concern'
+                          ? g[CONCERN_LABEL_KEY[driver.key as FoodConcernCode] as keyof typeof g]
+                          : g[UNSPECIFIED_CLASS_KEY[driver.key as FoodUnspecifiedClass] as keyof typeof g]}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 font-label-sm text-label-sm ${
+                        driver.level === 'avoid' || driver.level === 'high'
+                          ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                      }`}
+                    >
+                      {driver.kind === 'additive'
+                        ? driver.level === 'avoid' ? g.additiveBandAvoid : g.additiveBandWatch
+                        : driver.kind === 'concern'
+                          ? driver.level === 'high' ? g.concernBandHigh : g.concernBandWatch
+                          : g.unspecifiedShort}
+                    </span>
+                    <span
+                      className="shrink-0 font-label-sm text-label-sm font-semibold tabular-nums text-on-surface-variant"
+                      dir="ltr"
+                    >
+                      {t(g.gradeDriverPoints, { points: driver.deduction })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.gradeTooltip}</p>
+        </section>
+      )}
+
+      {/* Ultra-processing (NOVA) — an attributed source value, kept apart from
+          the label-signal grade above: the grade is reproducible from the
+          printed wording, while NOVA depends on how the product was made. */}
+      {novaGroup && (
+        <section className="rounded-xl border border-outline-variant bg-surface/50 p-3">
+          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="science" className="size-4 text-on-surface-variant" />
+            {g.novaTitle}
+          </h4>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Chip tone={NOVA_TONE[novaGroup]}>
+              {t(g.novaGroupLabel, { group: novaGroup })}
+            </Chip>
+            <span className="font-label-sm text-label-sm text-on-surface">
+              {g[NOVA_LABEL_KEY[novaGroup] as keyof typeof g]}
+            </span>
+          </div>
+          <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.novaNote}</p>
+        </section>
       )}
 
       {/* Allergens — informative, never a judgement */}
@@ -267,6 +449,34 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
               <p className="mt-2 font-label-sm text-label-sm text-on-surface-variant">{g.allergenNote}</p>
             </>
           )}
+        </section>
+      )}
+
+      {/* Explicit ingredient-level concerns — separate from both allergens and
+          E-number additives so a non-E-number signal cannot disappear. */}
+      {concerns.length > 0 && (
+        <section className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+          <h4 className="flex items-center gap-1.5 font-label-sm text-label-sm font-semibold text-on-surface">
+            <AppIcon name="health_and_safety" className="size-4 text-orange-600 dark:text-orange-400" />
+            {g.concernsTitle}
+          </h4>
+          <ul className="mt-2 space-y-2">
+            {concerns.map((concern) => (
+              <li key={concern.code}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-body-sm text-body-sm font-medium text-on-surface">
+                    {g[CONCERN_LABEL_KEY[concern.code] as keyof typeof g]}
+                  </span>
+                  <span className="rounded-full bg-orange-500/15 px-2 py-0.5 font-label-sm text-label-sm font-semibold text-orange-700 dark:text-orange-300">
+                    {concern.level === 'high' ? g.concernBandHigh : g.concernBandWatch}
+                  </span>
+                </div>
+                <p className="mt-1 font-label-sm text-label-sm text-on-surface-variant">
+                  {g[CONCERN_NOTE_KEY[concern.code] as keyof typeof g]}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -352,16 +562,29 @@ export function FoodKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
                       {g[ALLERGEN_KEY[group] as keyof typeof g]}
                     </Chip>
                   ))}
+                  {(item.concerns ?? []).map((concern) => (
+                    <Chip key={concern.code} tone="concern">
+                      {g[CONCERN_LABEL_KEY[concern.code] as keyof typeof g]}
+                    </Chip>
+                  ))}
                   {item.additive && (
                     <Chip tone="additive">
                       <span dir="ltr">{item.additive.code}</span>
+                    </Chip>
+                  )}
+                  {/* A generic class is useful label information, but its
+                      substance is unresolved: show that distinction instead
+                      of either claiming recognition or saying nothing. */}
+                  {unknown && item.unspecifiedClass && (
+                    <Chip tone="unknown">
+                      {g[UNSPECIFIED_CLASS_KEY[item.unspecifiedClass] as keyof typeof g]}
                     </Chip>
                   )}
                   {/* When an external answer explains this row, the 'not
                       recognized' tag would only add noise — the attributed
                       summary below IS the extra knowledge. When NOTHING on the
                       list matched, chips would repeat the banner; keep quiet. */}
-                  {unknown && !nothingKnown && !externalEntry && (
+                  {unknown && !item.unspecifiedClass && !nothingKnown && !externalEntry && (
                     <Chip tone="unknown">{g.ingredientUnknown}</Chip>
                   )}
                 </div>
@@ -465,10 +688,11 @@ function WaterKnowledgeBody({ analysis }: { analysis: FoodAnalysis }) {
   );
 }
 
-function Chip({ children, tone }: { children: React.ReactNode; tone?: 'allergen' | 'additive' | 'unknown' }) {
+function Chip({ children, tone }: { children: React.ReactNode; tone?: 'allergen' | 'additive' | 'concern' | 'unknown' }) {
   const base = 'rounded-full px-2 py-0.5 font-label-sm text-label-sm ';
   if (tone === 'allergen') return <span className={base + 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}>{children}</span>;
   if (tone === 'additive') return <span className={base + 'bg-primary/10 text-primary'}>{children}</span>;
+  if (tone === 'concern') return <span className={base + 'bg-orange-500/15 text-orange-700 dark:text-orange-300'}>{children}</span>;
   if (tone === 'unknown') return <span className={base + 'bg-surface-container-high text-on-surface-variant italic'}>{children}</span>;
   return <span className={base + 'bg-primary/10 text-primary'}>{children}</span>;
 }

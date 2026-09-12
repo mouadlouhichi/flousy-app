@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useHousehold } from '../../lib/household-context';
 import { useCurrency } from '../../lib/currency-context';
 import { useLanguage } from '@/lib/i18n-context';
-import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth } from '@/lib/localized-labels';
+import { localizeCategoryName, localizePersonName, localizePlaceName, formatLocalizedDayOfMonth, payerKey } from '@/lib/localized-labels';
 import { parseDueDay } from '@/components/ui/day-picker';
 
 interface FixedTabProps {
@@ -35,7 +35,7 @@ export function FixedTab({
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const { format } = useCurrency();
   const { profile } = useAuth();
-  const { workspace, household } = useHousehold();
+  const { workspace, household, myMemberId } = useHousehold();
   const customCategories = workspace === 'household'
     ? (household?.fixedCategories || [])
     : (profile?.fixedCategories || []);
@@ -64,7 +64,7 @@ export function FixedTab({
         {canEdit && (
           <button
             onClick={onOpenAddModal}
-            className="px-4 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
+            className="px-4 py-3 bg-primary text-on-primary rounded-full font-label-md text-label-md font-bold flex items-center gap-xs shadow-sm hover:shadow-md transition-all"
           >
             <AppIcon name="add" className=" text-[20px]" />
             <span>{m.tabs.fixed.addCharge}</span>
@@ -110,7 +110,7 @@ export function FixedTab({
           {canEdit && (
             <button
               onClick={onOpenAddModal}
-              className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-xl font-bold"
+              className="mt-xs px-4 py-2 bg-primary text-on-primary font-label-md text-label-md rounded-full font-bold"
             >
               {m.tabs.fixed.addRentBills}
             </button>
@@ -137,7 +137,7 @@ export function FixedTab({
               key={bill.id}
               onClick={canEdit ? () => onEditBill(bill) : undefined}
               disabled={!canEdit}
-              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start transition-all shadow-2xs ${
+              className={`p-md bg-surface-container rounded-2xl border border-outline-variant flex min-w-0 justify-between items-center gap-3 text-start transition-all shadow-ambient ${
                 canEdit ? 'hover:border-primary cursor-pointer' : 'cursor-default'
               }`}
             >
@@ -152,7 +152,7 @@ export function FixedTab({
                     <h4 className="min-w-0 truncate font-headline-sm text-headline-sm text-on-surface font-bold" title={bill.name}>
                       {bill.name}
                     </h4>
-                    {bill.person && bill.person !== 'Self' && (
+                    {payerKey(bill.person, bill.payerMemberId, myMemberId) !== 'self' && (
                       <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-[10px] font-bold">
                         {localizePersonName(bill.person, m)}
                       </span>

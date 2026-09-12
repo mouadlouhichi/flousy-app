@@ -1,6 +1,6 @@
 # SEO and External Presence Checklist
 
-> Last reconciled: 2026-09-09
+> Last reconciled: 2026-09-02 check agent
 >
 > Repository SEO work is implemented and regression-tested. The unchecked items
 > below require control of DNS, hosting, search or social accounts. They must not
@@ -22,8 +22,12 @@ SEO, email-domain and public-presence follow-up.
 - [ ] Submit `/sitemap.xml` only after DNS is stable and inspect indexing/coverage
       reports for real errors.
 - [ ] Run Lighthouse/PageSpeed and real-device Core Web Vitals checks against the
-      deployed production build. Framework defaults are not evidence of a passing
-      result.
+      deployed production build, targeting the public homepage (`/`) — not
+      `/dashboard`, `/login` or `/onboarding`. Those routes are intentionally
+      `noindex, nofollow` plus `robots.txt`-disallowed (private app screens), so
+      Lighthouse's "page is blocked from indexing" audit caps them at ~66 SEO
+      by design. Raising that score would mean exposing private screens to
+      crawlers and must not be done.
 - [ ] Define a factual content/partnership strategy. Do not buy links or publish
       misleading directory listings.
 
@@ -75,8 +79,15 @@ Implemented in code:
 
 - validated environment-owned canonical origin;
 - public route metadata and generated Open Graph image;
-- sitemap/robots exclusions for authenticated routes;
-- factual SoftwareApplication, Organization, WebSite and FAQ JSON-LD;
+- root Open Graph/Twitter/robots defaults, so routes without their own
+  social block still unfurl with brand title and image;
+- large-image social cards with OG image on all static marketing pages;
+- explicit crawler directives with large image previews for Googlebot;
+- factual SoftwareApplication, Organization, WebSite, Blog and FAQ JSON-LD;
 - factual `public/llms.txt`;
 - no invalid locale alternates;
-- SEO tests aligning currency, strategy, pricing FAQ and public routes.
+- hydration keeps prerendered keyword titles on public pages (English) and
+  never degrades unmapped marketing routes to a generic title;
+- one link per URL per footer nav block;
+- SEO tests aligning currency, strategy, pricing FAQ, public routes,
+  social/robots baselines, hydrated titles and footer links.

@@ -37,14 +37,13 @@ export interface DaratCreateDefaultsInput extends DaratCreateInput {
   organizerDisplayName: string;
   currency: string;
   /**
-   * The Firestore document id the circle will be written under. The ref is
-   * created (and its id known) before the transaction runs, so the stored
-   * `id` field can carry the real value. The create flow used to store an
-   * empty string here — and every reader spreads the stored fields over the
-   * snapshot id, so the empty value clobbered the real one and the detail
-   * screen addressed `circles/` (an invalid reference).
+   * When false the organizer runs the circle without a seat in the
+   * rotation: no organizer member row, no entry in memberOrder, rounds
+   * built over the invitees only. The organizer keeps full owner rights
+   * (edit, close, read) and the pointer row is still written so the
+   * circle shows up in "my circles". Defaults to true (participating).
    */
-  circleId: string;
+  organizerParticipates?: boolean;
 }
 
 export interface DaratCreateDefaults {
@@ -61,19 +60,26 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * returns the validated, default-filled object. The caller is responsible for
  * writing the document and the per-user pointer; this function does not
  * touch Firestore.
+ *
+ * `circleId` is the document id the caller allocated for the write
+ * (`doc(collection(db, 'circles'))`). It is stamped into the body because
+ * the Firestore rules require the `id` field on every circle doc, and a
+ * placeholder like `''` used to be persisted verbatim — every reader then
+ * saw `circle.id === ''`, the post-create detail navigation failed with
+ * "Circle not found", and clicking the card after a reload crashed with
+ * `Invalid document reference … but circles has 1`.
  */
-export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
+export function buildDaratCreateDefaults(
+  input: DaratCreateDefaultsInput,
+  circleId: string,
+): {
   circle: Omit<DaratCircle, 'createdAt' | 'updatedAt'>;
   rounds: DaratRound[];
 } {
-  // Validation
-  if (typeof input.circleId !== 'string' || input.circleId.length === 0) {
-    // The stored `id` field is what older documents carried as '' — the
-    // bug that made every reader normalize the circle to an empty id
-    // ("Circle not found", invalid `circles/` document references).
-    // Refuse loudly instead of ever writing it again.
-    throw new Error('darat create requires the Firestore document id (circleId)');
+  if (!circleId) {
+    throw new Error('darat create: circleId is required (allocate the doc ref before building the body)');
   }
+  // Validation
   const v = validateDaratCreate({
     name: input.name,
     contribution: input.contribution,
@@ -90,10 +96,18 @@ export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
     throw new Error(`darat create validation failed: ${v.error}`);
   }
 
+  // Participation toggle: an organizer who opts out has NO seat in the
+  // rotation — memberOrder carries the invitees only, and the caller skips
+  // the organizer member row. The pointer row is written either way so the
+  // circle still shows up in the owner's "my circles" list.
+  const organizerParticipates = input.organizerParticipates ?? true;
   const memberOrder = [
-    input.organizerId,
+    ...(organizerParticipates ? [input.organizerId] : []),
     ...input.members.map((m) => m.phone.trim()),
   ];
+  if (!organizerParticipates && input.members.length < DARAT_MIN_MEMBERS) {
+    throw new Error('darat create: an organizer who does not participate needs at least 2 invited members');
+  }
 
   // Until each invitee accepts their invite we do not have a uid for them.
   // We use the phone (the only identity we have at create time) as the
@@ -123,10 +137,7 @@ export function buildDaratCreateDefaults(input: DaratCreateDefaultsInput): {
   });
 
   const circle: Omit<DaratCircle, 'createdAt' | 'updatedAt'> = {
-    // The real document id, passed in by the caller: the rules require the
-    // stored `id` to be a string, and storing '' here used to clobber the
-    // snapshot id on every read (see DaratCreateDefaultsInput.circleId).
-    id: input.circleId,
+    id: circleId,
     name: input.name.trim(),
     organizerId: input.organizerId,
     currency: input.currency,

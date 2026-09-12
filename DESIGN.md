@@ -1,172 +1,187 @@
 ---
-name: Serene Finance
+name: Forest & Lime
 colors:
-  surface: '#f5faf8'
-  surface-dim: '#d6dbd9'
-  surface-bright: '#f5faf8'
+  # Brand
+  forest: '#0f3b36'
+  forest-soft: '#1a4f48'
+  forest-deep: '#0a2c28'
+  lime: '#c5e6a6'
+  lime-bright: '#d6f0bd'
+  lime-deep: '#a9d383'
+  mint: '#e3f0e6'
+  sage: '#c9dccb'
+  # Light surfaces
+  background: '#f3f7f3'
+  surface: '#f3f7f3'
   surface-container-lowest: '#ffffff'
-  surface-container-low: '#f0f5f2'
-  surface-container: '#eaefed'
-  surface-container-high: '#e4e9e7'
-  surface-container-highest: '#dee4e1'
-  on-surface: '#171d1c'
-  on-surface-variant: '#3d4947'
-  inverse-surface: '#2c3130'
-  inverse-on-surface: '#edf2f0'
-  outline: '#6d7a77'
-  outline-variant: '#bcc9c6'
-  surface-tint: '#006a61'
-  primary: '#00685f'
+  surface-container-low: '#fbfdfb'
+  surface-container: '#ffffff'
+  surface-container-high: '#edf3ee'
+  surface-container-highest: '#e4ede5'
+  surface-variant: '#e4ede5'
+  on-surface: '#0e1a17'
+  on-surface-variant: '#5b6b63'
+  outline: '#8a9a91'
+  outline-variant: '#dbe5dc'
+  # Roles
+  primary: '#0f3b36'
+  primary-hover: '#1a4f48'
   on-primary: '#ffffff'
-  primary-container: '#008378'
-  on-primary-container: '#f4fffc'
-  inverse-primary: '#6bd8cb'
-  secondary: '#575e70'
-  on-secondary: '#ffffff'
-  secondary-container: '#d9dff5'
-  on-secondary-container: '#5c6274'
-  tertiary: '#924628'
-  on-tertiary: '#ffffff'
-  tertiary-container: '#b05e3d'
-  on-tertiary-container: '#fffbff'
-  error: '#ba1a1a'
-  on-error: '#ffffff'
-  error-container: '#ffdad6'
-  on-error-container: '#93000a'
-  primary-fixed: '#89f5e7'
-  primary-fixed-dim: '#6bd8cb'
-  on-primary-fixed: '#00201d'
-  on-primary-fixed-variant: '#005049'
-  secondary-fixed: '#dce2f7'
-  secondary-fixed-dim: '#c0c6db'
-  on-secondary-fixed: '#141b2b'
-  on-secondary-fixed-variant: '#404758'
-  tertiary-fixed: '#ffdbce'
-  tertiary-fixed-dim: '#ffb59a'
-  on-tertiary-fixed: '#370e00'
-  on-tertiary-fixed-variant: '#773215'
-  background: '#f5faf8'
-  on-background: '#171d1c'
-  surface-variant: '#dee4e1'
+  secondary: '#4f7f5b'
+  secondary-container: '#e3f0e6'
+  tertiary: '#8b5a2b'
+  success: '#2f7d4f'
+  warning: '#b3781a'
+  error: '#c2382f'
+  chart-1: '#0f3b36'
+  chart-2: '#7fb069'
+  chart-3: '#c5e6a6'
+  chart-4: '#4f7f5b'
+  chart-5: '#a9d383'
+dark:
+  background: '#081513'
+  surface-container-lowest: '#050f0d'
+  surface-container-low: '#0d1f1c'
+  surface-container: '#112825'
+  surface-container-high: '#17332e'
+  surface-container-highest: '#1d3d38'
+  on-surface: '#e8f1ea'
+  on-surface-variant: '#a6bbb1'
+  outline-variant: '#22403a'
+  primary: '#c5e6a6'
+  primary-hover: '#d6f0bd'
+  on-primary: '#0a2c28'
+  primary-container: '#1a4f48'
+  mint: '#17332e'
+  sage: '#2a4a44'
 typography:
-  headline-lg:
-    fontFamily: Inter
-    fontSize: 32px
-    fontWeight: '700'
-    lineHeight: 40px
-    letterSpacing: -0.02em
-  headline-lg-mobile:
-    fontFamily: Inter
-    fontSize: 24px
-    fontWeight: '700'
-    lineHeight: 32px
-    letterSpacing: -0.01em
-  headline-md:
-    fontFamily: Inter
-    fontSize: 20px
-    fontWeight: '600'
-    lineHeight: 28px
-    letterSpacing: -0.01em
-  body-lg:
-    fontFamily: Inter
-    fontSize: 16px
-    fontWeight: '400'
-    lineHeight: 24px
-    letterSpacing: '0'
-  body-md:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: '400'
-    lineHeight: 20px
-    letterSpacing: '0'
-  label-md:
-    fontFamily: Inter
-    fontSize: 12px
-    fontWeight: '500'
-    lineHeight: 16px
-    letterSpacing: 0.05em
-  label-sm:
-    fontFamily: Inter
-    fontSize: 11px
-    fontWeight: '600'
-    lineHeight: 14px
-    letterSpacing: 0.03em
+  family: Plus Jakarta Sans (variable, self-hosted in src/app/fonts)
+  display: 600 weight, letter-spacing -0.03em to -0.04em
+  figure: Jakarta + tabular/lining numerals (`.text-figure`, `.tabular`), never monospace
+  code: JetBrains Mono via `.font-code` only (receipts, PINs, barcodes)
+  label: 11px, 600 weight, uppercase, letter-spacing 0.08em
 rounded:
-  sm: 0.25rem
-  DEFAULT: 0.5rem
-  md: 0.75rem
-  lg: 1rem
-  xl: 1.5rem
-  full: 9999px
-spacing:
-  base: 4px
-  xs: 4px
-  sm: 8px
-  md: 16px
-  lg: 24px
-  xl: 32px
-  gutter: 16px
-  margin-mobile: 16px
-  margin-desktop: 48px
+  control: 9999px (pills)
+  input: 1rem
+  panel: 1.25rem
+  card: 1.75rem
+  hero: 2rem
+shadows:
+  ambient: 0 4px 24px -6px rgba(15,59,54,.10), 0 1px 2px rgba(15,59,54,.04)
+  floating: 0 18px 48px -12px rgba(15,59,54,.28), 0 2px 6px rgba(15,59,54,.08)
+  forest: 0 20px 40px -14px rgba(15,59,54,.45)
+  primary-button: 0 8px 20px -8px rgba(15,59,54,.45)
 ---
 
 ## Brand & Style
 
-The design system is engineered to facilitate a calm, intentional relationship with personal finance. The target audience consists of privacy-conscious individuals seeking a focused, distraction-free environment for budget management. 
+SmartJib's visual language is **Forest & Lime**: a deep evergreen ink, a fresh lime accent and a
+mint-washed canvas. It borrows the calm, premium feel of contemporary fintech wallets — big
+tabular figures, pill-shaped controls, white cards floating on a soft tinted backdrop — without
+becoming loud. Money is the protagonist; colour is used to *group and point*, not to decorate.
 
-The aesthetic sits at the intersection of **Minimalism** and **Modern Corporate**, prioritizing functional clarity and psychological safety. By utilizing expansive whitespace and a restrained color application, the UI reduces the cognitive load often associated with financial data. The emotional response is one of control, reliability, and precision. High-quality typography and a rigorous adherence to grid systems signal a professional, secure platform where data is the protagonist.
+The product name stays **SmartJib**. The wordmark is set lowercase in Jakarta with a lime full
+stop: `smartjib` + `<span class="text-lime-deep dark:text-lime">.</span>`.
+
+**App icon.** The original 3D wallet artwork is kept, recoloured into the palette: forest body
+(`#0f3b36` → `#0a2c28`), white stitched seam and clasp dot, lime (`#c5e6a6`) and pale-lime card
+layers. Every raster in `public/` (logo, PWA icons, apple-touch, favicons) is derived from that
+one master; `favicon.svg` is a flat vector reading of the same silhouette.
 
 ## Colors
 
-This design system utilizes a high-contrast palette optimized for legibility and accessibility. The **Primary Teal** (#0D9488) serves as the core brand anchor, used exclusively for primary actions and meaningful state indicators. 
+- **Forest (`#0f3b36`)** is the primary ink: filled buttons, the balance hero panel, the bottom
+  nav, the "Income" KPI tile, active states. Hover darkens *softly* to `forest-soft`.
+- **Lime (`#c5e6a6`)** is the single accent: "+27%" chips, the money-place strip, the active
+  puck in dark mode, currency glyphs on forest surfaces, the "Fixed bills" KPI tile. Never use
+  lime for large body text on white — use `forest-deep` on lime instead.
+- **Mint / Sage** are ambient: the page backdrop glow (`body` / `.backdrop-mint`), hairline
+  rings behind the budget donut (`.rings-sage`), dotted textures (`.dot-matrix`).
+- **Secondary green (`#4f7f5b`)** is the mid-tone used for the "Wants" slice and neutral
+  progress bars; the Needs / Wants / Savings triplet is always **forest / secondary / lime-deep**.
+- Semantic colours are muted: `success #2f7d4f`, `warning #b3781a`, `error #c2382f`. Do not
+  reach for raw Tailwind `amber-*` / `slate-*` / `emerald-*` classes — use the tokens.
+  (Exception: the grocery nutrition traffic-light bands in `courses-*` keep their own scale.)
 
-The background system employs a "Neutral Off-White" to minimize screen glare in light mode, while the "Deep Charcoal" provides a sophisticated, low-fatigue environment for dark mode. Semantic colors (Success, Warning, Error) are calibrated to maintain consistent luminance across both modes, ensuring that financial alerts remain distinct but not jarring.
+### Dark mode
+
+Dark mode is derived from the same hues, not inverted: an almost-black green canvas
+(`#081513`), forest-tinted containers, and **lime becomes the primary** (`on-primary` =
+`forest-deep`). Forest surfaces (hero panel, bottom nav, CTA) stay forest in both themes, so
+anything placed on them uses white / lime regardless of theme.
 
 ## Typography
 
-The design system relies on **Inter** for its systematic, utilitarian precision. The typographic hierarchy is strictly enforced to guide the user through complex financial datasets. 
-
-Headlines use tighter letter-spacing and heavier weights to create focal points for account balances and category titles. Body text prioritizes line-height to maintain readability during long sessions of transaction reviewing. Labels utilize a slightly increased letter-spacing and uppercase styling for secondary metadata to ensure clear differentiation from primary content.
+One family — **Plus Jakarta Sans** — for everything. Headlines are semibold with tight
+tracking; large figures use `MoneyFigure` (currency as a small raised glyph beside big tabular
+digits). `font-mono` intentionally resolves to Jakarta + `tnum` so legacy amount markup lines
+up; true monospace is opt-in with `.font-code`.
 
 ## Layout & Spacing
 
-This design system uses a **Fluid Grid** approach with a modular 8px baseline rhythm. For mobile (PWA), a 4-column layout is standard, transitioning to a 12-column layout for desktop views.
-
-- **Margins:** 16px on mobile devices to maximize screen real estate; 48px on desktop to maintain a centered, focused content area.
-- **Gutters:** Fixed at 16px to ensure consistent breathing room between data cards.
-- **Rhythm:** Vertical spacing between components should follow the `lg` (24px) or `xl` (32px) tokens to preserve the minimalist, "airy" feel. Smaller `sm` (8px) units are reserved for internal element grouping within cards.
+Mobile-first, 4px base. Cards sit edge to edge with 16px page margins and 16–24px gaps; desktop
+uses a 12-column grid with the balance hero spanning 7 columns and the budget ring 5. The
+dashboard root and every public page inherit the mint backdrop from `body`.
 
 ## Elevation & Depth
 
-Visual hierarchy is achieved through a combination of **Tonal Layers** and **Ambient Shadows**. Instead of heavy shadows, the system uses "Soft Depth" to define interactable surfaces.
+Three shadow levels, all tinted forest rather than black:
 
-- **Level 0 (Base):** Off-white or Charcoal background.
-- **Level 1 (Cards):** Subtle 1px border (#E5E7EB in light / #374151 in dark) with a very diffused, 4% opacity shadow.
-- **Level 2 (Modals/FABs):** Increased shadow spread (12% opacity) to create a distinct "floating" effect, indicating higher z-index priority.
-- **Backdrops:** All modal overlays must use a `blur(8px)` backdrop filter with a semi-transparent (60%) fill of the surface color to maintain context while focusing user attention.
+- **Ambient** — every card (`bg-surface-container-lowest border border-outline-variant shadow-ambient`).
+- **Floating** — modals, popovers, the scrolled landing nav, the FAB action sheet.
+- **Forest** — forest-filled surfaces that must lift off the page (bottom nav, FAB, CTA panel).
+
+Modal backdrops are `forest-deep/40` with a 6px blur.
 
 ## Shapes
 
-The shape language is defined by **Rounded** geometry, softening the often-rigid nature of financial data. 
-
-Standard components (buttons, input fields) use a 0.5rem (8px) radius. Containers and cards use the `rounded-xl` (1.5rem / 24px) token to create a friendly, modern "app-like" feel characteristic of high-end PWAs. Interactive elements like Category Chips or Floating Action Buttons (FABs) use fully pill-shaped (3rem) rounding to maximize their touch-target visibility and differentiate them from informational containers.
+Everything interactive is a **pill**. Cards are `rounded-[1.75rem]`, hero frames `rounded-[2rem]`,
+inputs and inner panels `1rem`–`1.25rem`. Icon buttons are circles (`size-9/10`, white with a
+hairline border, or forest when active).
 
 ## Components
 
-### Buttons & FABs
-Primary buttons are solid Teal with white text. The Floating Action Button (FAB) is a signature element, positioned at the bottom-right, using the `rounded-xl` shape and Level 2 elevation. It should only house the "Add Transaction" primary action.
+- **BalanceHeroCard** (`dashboard/balance-hero-card.tsx`) — white frame → lime strip of
+  money-place tabs → notched forest panel with the total figure → primary/secondary pill actions.
+- **BudgetRing** (`dashboard/budget-ring.tsx`) — circular Needs / Wants / Savings ring with sage
+  hairlines, a sparkline and the "left to spend" figure.
+- **BalanceOverviewRing** (`dashboard/balance-overview-ring.tsx`) — the analytics disc: white
+  circle with a soft shadow, forest `$` puck on the top edge, sparkline + lime delta chip, the big
+  figure, and circular action buttons along the bottom arc (`aria-pressed`, active one is the forest
+  pill). Each action swaps the figure/series; RTL mirrors the arc.
+- **MoveMoneyModal** (`modals/MoveMoneyModal.tsx`) — converter layout: lime "You move" card over a
+  forest "Goes to" card, white **Swap** pill on the seam, after-transfer rows, and the
+  swipe-to-confirm control.
+- **IncomeSourcesModal** (`modals/IncomeSourcesModal.tsx`) — each income is either **Monthly**
+  (a stream carried into every new salary period, with an optional payday) or **One-time** (a
+  fixed amount for this period only — bonus, gift, refund; `recurring: false`, no payday, lime
+  "One-time" pill on the row). The segmented pill sits at the top of the add form and inline edit.
+- **Payer chips** (`ui/member-badges.tsx`, `householdPayerOptions()` in `lib/household.ts`) — "Me"
+  stands for the signed-in member, so their own roster row is never listed a second time, and
+  "Household funds" only appears once another active member shares the budget. With a single
+  payer the chips are hidden entirely. Analytics folds the member's own row into "Me"
+  (`payerKey(person, id, myMemberId)`) and explains pooled funds under the member spending card,
+  linking to the settle-up on the household page.
+- **SwipeToConfirm** (`ui/swipe-to-confirm.tsx`) — the reference's "Swipe" pill as a real gesture:
+  the white chevron knob drags horizontally, lime fills in behind it, the label fades out; past 85 %
+  it snaps to the end, the knob turns into a check and the track flashes "Moved" before
+  `onConfirm` fires. Released early it springs back; a rejected confirm (`onConfirm` → `false`)
+  shakes the track. Disabled until the form is valid. Enter/Space on the focused control confirms
+  for keyboard users; reduced motion skips the travel. Mirrors in RTL.
+- **StatCard** (`dashboard/stat-card.tsx`) — KPI tile in `default`, `forest` or `lime` tone with
+  a diagonal arrow affordance and an optional lime delta chip.
+- **MoneyFigure** (`ui/money-figure.tsx`) — sizes `xs`–`hero`, `redacted`, `tone`
+  (`default | accent | inherit`), optional `prefix` sign.
+- **Button** — `default` forest pill with the primary shadow; `outline` white pill with hairline;
+  `lime` accent; circular icon size.
+- **Badge** — `lime` variant for positive deltas and "Pro".
+- **Bottom nav** — forest pill with a sliding white puck (lime in dark mode).
+- **Eyebrow pill** — lime dot + short label, used on the landing sections and static page shells.
 
-### Cards
-Financial summaries and transaction groups are housed in cards. Cards feature a 24px corner radius, a subtle 1px border, and a soft ambient shadow. Internal padding is strictly 20px or 24px.
+## Accessibility notes
 
-### Inputs & Selection
-Input fields are "ghost" style: background matches the surface level, defined by a 1px border that thickens and changes to Primary Teal on focus. Checkboxes and radios use the Primary Teal for active states.
-
-### Category Chips
-Chips include a 6px color-coded dot (dot-indicator) aligned to the left of the label. The background of the chip should be a 10% opacity tint of the category color to ensure high-contrast text remains legible.
-
-### Navigation
-The PWA utilizes a bottom navigation bar on mobile with outline-style icons. Active states are indicated by a change in icon stroke weight (from 1.5px to 2px) and a color shift to Primary Teal!
-
-### Data Visualization
-Progress bars and donut charts use a 12px stroke width. The "remaining" portion of a budget uses a low-contrast neutral gray, while the "spent" portion uses the semantic colors (Success/Warning/Error) based on the percentage of the budget consumed.
+- Interactive cards keep their visible label first in the accessible name; screen-reader action
+  notes (e.g. "View Bank history", "View all") are appended with `sr-only` *after* the visible
+  content, never via `aria-label` (WCAG 2.5.3).
+- Lime on white fails contrast for text — pair lime with `forest-deep`, and use `lime-deep` only
+  for the wordmark dot and small decorative marks.
