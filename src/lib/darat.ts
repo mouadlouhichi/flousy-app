@@ -650,6 +650,18 @@ export function normalizeDaratPhone(phone: string): string {
 }
 
 /**
+ * Loose phone equality for pairing a roster placeholder with an invite row:
+ * both sides are digit-normalized, must carry at least 8 digits, and match
+ * when their last 9 digits agree (Morocco: `0617…` vs `+212617…`).
+ */
+export function daratPhonesMatch(a: string, b: string): boolean {
+  const da = normalizeDaratPhone(a);
+  const db = normalizeDaratPhone(b);
+  if (da.length < 8 || db.length < 8) return false;
+  return da.slice(-9) === db.slice(-9);
+}
+
+/**
  * Resolve what the member roster should SHOW.
  *
  * `memberOrder` is written at create time as `[organizerUid, ...phones]`

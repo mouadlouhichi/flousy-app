@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  daratPhonesMatch,
   DARAT_MAX_MEMBERS,
   DARAT_MIN_MEMBERS,
   PHONE_RE,
@@ -614,5 +615,20 @@ describe('darat: circle doc id integrity (create → read)', () => {
     // A healthy doc keeps its path id even if the stored field disagreed.
     const healthy = daratCircleFromSnapshot('circle_real', { id: 'circle_other', name: 'X' });
     assert.equal(healthy.id, 'circle_real');
+  });
+});
+
+describe('daratPhonesMatch', () => {
+  it('matches local and international spellings of the same number', () => {
+    assert.equal(daratPhonesMatch('0617337910', '+212617337910'), true);
+    assert.equal(daratPhonesMatch('+212 617 337 910', '0617337910'), true);
+    assert.equal(daratPhonesMatch('212617337910', '617337910'), true);
+  });
+
+  it('rejects different numbers and too-short inputs', () => {
+    assert.equal(daratPhonesMatch('0617337910', '0664809073'), false);
+    assert.equal(daratPhonesMatch('0617337910', '+212664809073'), false);
+    assert.equal(daratPhonesMatch('123', '123'), false);
+    assert.equal(daratPhonesMatch('', '0617337910'), false);
   });
 });

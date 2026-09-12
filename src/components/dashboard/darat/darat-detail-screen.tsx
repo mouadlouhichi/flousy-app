@@ -17,7 +17,7 @@ import { db as firestoreDb } from '@/lib/firebase-db';
 import { AppIcon } from '@/components/ui/app-icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatMessage } from '@/lib/i18n-core';
-import { daratCircleFromSnapshot, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
+import { daratCircleFromSnapshot, daratPhonesMatch, normalizeDaratMember, resolveDaratRoster, type DaratCircle, type DaratMember, type DaratRound, type DaratRotation, type DaratFrequency } from '@/lib/darat';
 import { DaratEditModal } from './darat-edit-modal';
 import { AvatarStack, ProgressRing, avatarTone, circleProgress, formatYmd, monogram } from './darat-ui';
 
@@ -429,6 +429,7 @@ export function DaratDetailView({
   const [inviteError, setInviteError] = useState(false);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [rowInviteBusy, setRowInviteBusy] = useState<string | null>(null);
 
   const shareLink = (code: string): string =>
     typeof window === 'undefined'
@@ -456,17 +457,46 @@ export function DaratDetailView({
     }
   };
 
-  const whatsappInvite = (invite: { id: string; phone: string; displayName?: string }) => {
-    const digits = invite.phone.replace(/\D/g, '');
-    const target = digits.length >= 8 ? `https://wa.me/${digits}` : 'https://wa.me/';
-    const message = (m.darat.create.whatsappInvite as string)
-      .replace('{name}', invite.displayName || invite.phone)
+  const whatsappMessage = (code: string, name: string, phone: string): string =>
+    (m.darat.create.whatsappInvite as string)
+      .replace('{name}', name || phone)
       .replace('{circle}', circle.name)
       .replace('{amount}', formatCurrency(circle.contribution, circle.currency, intlLocale))
       .replace('{date}', formatYmd(circle.startDate, intlLocale, { day: 'numeric', month: 'short' }))
-      .replace('{link}', shareLink(invite.id))
-      .replace('{code}', invite.id);
-    window.open(`${target}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+      .replace('{link}', shareLink(code))
+      .replace('{code}', code);
+
+  const openWhatsapp = (code: string, name: string, phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    const target = digits.length >= 8 ? `https://wa.me/${digits}` : 'https://wa.me/';
+    window.open(
+      `${target}?text=${encodeURIComponent(whatsappMessage(code, name, phone))}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  const whatsappInvite = (invite: { id: string; phone: string; displayName?: string }) => {
+    openWhatsapp(invite.id, invite.displayName || invite.phone, invite.phone);
+  };
+
+  // Re-invite straight from a "still not joined" roster row: reuse the
+  // pending invite for that phone when one exists, otherwise mint a fresh
+  // code on the spot — then open WhatsApp with the prefilled message.
+  const invitePendingMember = async (phone: string, displayName?: string) => {
+    const existing = pendingInvites.find((inv) => daratPhonesMatch(inv.phone, phone));
+    if (existing) {
+      whatsappInvite(existing);
+      return;
+    }
+    setRowInviteBusy(phone);
+    try {
+      const code = await onInvite(displayName || phone, phone);
+      if (!code) return;
+      openWhatsapp(code, displayName || phone, phone);
+    } finally {
+      setRowInviteBusy(null);
+    }
   };
 
   const submitInvite = async () => {
@@ -654,6 +684,18 @@ export function DaratDetailView({
                   <span className="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-on-surface-variant">
                     {m.darat.detail.status.pending}
                   </span>
+                )}
+                {!entry.joined && isOrganizer && !closed && (
+                  <button
+                    type="button"
+                    onClick={() => void invitePendingMember(entry.phone, entry.displayName)}
+                    disabled={rowInviteBusy === entry.phone}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-1.5 text-[11px] font-bold text-white transition-all hover:brightness-105 active:scale-[0.97] disabled:opacity-50"
+                    title={m.darat.create.whatsappButton}
+                  >
+                    <AppIcon name="send" className="text-[13px]" />
+                    {m.darat.create.whatsappButton}
+                  </button>
                 )}
               </li>
             );
